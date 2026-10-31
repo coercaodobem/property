@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { webcrypto } from 'node:crypto';
+import { createHash, webcrypto } from 'node:crypto';
 
 const relayUrl = process.argv[2] || 'ws://127.0.0.1:7447';
+const summaryFile = process.argv[3] || null;
 const bundle = await readFile(new URL('../web/vendor/nostr-tools-2.25.2.bundle.js', import.meta.url), 'utf8');
 const context = { console, crypto: webcrypto, TextEncoder, TextDecoder, URL, setTimeout, clearTimeout };
 context.window = context;
@@ -57,6 +58,8 @@ const productDeletion = signEvent({
   kind: 5, pubkey: alicePub, created_at: listingTime + 2,
   tags: [['a', `30018:${alicePub}:${productId}`], ['e', updatedProduct.id], ['k', '30018']], content: ''
 }, alice);
+const acknowledgedEvents = new Map();
+function recordAcknowledged(event) { acknowledgedEvents.set(event.id, event); }
 
 function openSocket() {
   return new Promise((resolve, reject) => {
@@ -84,16 +87,19 @@ try {
     socket.send(JSON.stringify(['EVENT', wrap]));
     const result = await ack;
     assert.equal(result[2], true, `relay accepted gift wrap ${wrap.id}: ${result[3] || ''}`);
+    recordAcknowledged(wrap);
   }
   const inboxAck = waitFrame(socket, frame => frame[0] === 'OK' && frame[1] === inboxList.id);
   socket.send(JSON.stringify(['EVENT', inboxList]));
   const inboxResult = await inboxAck;
   assert.equal(inboxResult[2], true, `relay accepted kind-10050 inbox list: ${inboxResult[3] || ''}`);
+  recordAcknowledged(inboxList);
   for (const listing of [stall, product, moneroProduct, bitcoinProduct]) {
     const listingAck = waitFrame(socket, frame => frame[0] === 'OK' && frame[1] === listing.id);
     socket.send(JSON.stringify(['EVENT', listing]));
     const result = await listingAck;
     assert.equal(result[2], true, `relay accepted NIP-15 event ${listing.kind}: ${result[3] || ''}`);
+    recordAcknowledged(listing);
   }
   const events = new Map();
   const query = 'test-' + crypto.randomUUID();
@@ -152,6 +158,7 @@ try {
   socket.send(JSON.stringify(['EVENT', updatedProduct]));
   const updateResult = await updateAck;
   assert.equal(updateResult[2], true, `relay accepted addressable NIP-15 update: ${updateResult[3] || ''}`);
+  recordAcknowledged(updatedProduct);
   const latestQuery = `listing-latest-${crypto.randomUUID()}`;
   const latestEvents = new Map();
   const latestDone = new Promise((resolve, reject) => {
@@ -172,6 +179,7 @@ try {
   socket.send(JSON.stringify(['EVENT', productDeletion]));
   const deleteResult = await deleteAck;
   assert.equal(deleteResult[2], true, `relay accepted NIP-09 product withdrawal: ${deleteResult[3] || ''}`);
+  recordAcknowledged(productDeletion);
   const allListingQuery = `listing-delete-${crypto.randomUUID()}`;
   const allListingEvents = new Map();
   const allListingDone = new Promise((resolve, reject) => {
@@ -186,5 +194,27 @@ try {
   await allListingDone;
   const visibleProducts = Marketplace.selectActiveProducts([...allListingEvents.values()], verifyEvent);
   assert.equal(visibleProducts.some(item => item.data.id === productId), false, 'withdrawal event hides the listing even if a relay returns its old copy');
+  if (summaryFile) {
+    const acceptedEvents = [...acknowledgedEvents.values()].map(event => ({
+      id: event.id,
+      kind: event.kind,
+      sha256: createHash('sha256').update(JSON.stringify({
+        id: event.id, pubkey: event.pubkey, created_at: event.created_at, kind: event.kind,
+        tags: event.tags, content: event.content
+      })).digest('hex')
+    }));
+    const excludedAfterMutation = [
+      { id: product.id, reason: 'superseded by a newer addressable NIP-15 event with the same author and d tag' },
+      { id: updatedProduct.id, reason: 'targeted by the acknowledged NIP-09 deletion event' }
+    ];
+    const excludedIds = new Set(excludedAfterMutation.map(event => event.id));
+    const persistedEvents = acceptedEvents.filter(event => !excludedIds.has(event.id));
+    await writeFile(summaryFile, JSON.stringify({
+      schema_version: 1,
+      accepted_events: acceptedEvents,
+      persisted_events: persistedEvents,
+      excluded_after_protocol_mutation: excludedAfterMutation
+    }, null, 2) + '\n', { mode: 0o600 });
+  }
   console.log(`PASS: relay ${relayUrl} handled encrypted NIP-17, kind-10050 routing, exact-raw NIP-15 create/update, and signed withdrawal`);
 } finally { socket.close(); }

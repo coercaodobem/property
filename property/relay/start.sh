@@ -106,7 +106,7 @@ if [[ ! -x "$BUNDLED" && -f "$PORTABLE_ARCHIVE" && "$(uname -m)" == "x86_64" ]];
     exit 1
   }
   mkdir -p -- "$DATA_DIR/runtime"
-  tar -xzf "$PORTABLE_ARCHIVE" -C "$DATA_DIR/runtime"
+  tar --no-same-owner -xzf "$PORTABLE_ARCHIVE" -C "$DATA_DIR/runtime"
   BUNDLED="$DATA_DIR/runtime/geode/bin/geode"
 fi
 

@@ -14,7 +14,7 @@ for port_value in "$SOURCE_PORT" "$TARGET_PORT"; do
 done
 if [[ "$SOURCE_PORT" == "$TARGET_PORT" ]]; then printf 'As portas precisam ser diferentes.\n' >&2; exit 2; fi
 
-test_root="$(mktemp -d /tmp/property-bridge-it.XXXXXX)"
+test_root="$(mktemp -d "${TMPDIR:-/tmp}/property-bridge-it.XXXXXX")"
 source_pid=""
 target_pid=""
 cleanup() {

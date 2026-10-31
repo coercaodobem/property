@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -42,7 +42,12 @@ assert.match(html, /\.\/marketplace\.js/);
 assert.match(sw, /marketplace\.js/);
 assert.match(html, /\.\/campaigns\.js/);
 assert.match(sw, /campaigns\.js/);
-assert.match(sw, /property-shell-v10/);
+assert.match(sw, /property-shell-v13/);
+assert.match(html, /id="locked-node-status"/, 'locked identity shows an explicit active public-node status');
+assert.match(html, /id="stop-locked-node"/, 'locked user can stop the opt-in public bridge');
+assert.match(app, /lockIdentity\(\{ preservePublicBridge = false \} = \{\}\)/, 'manual lock and idle lock have separate bridge behavior');
+assert.match(app, /lockIdentity\(\{ preservePublicBridge: true \}\)/, 'idle lock clears identity but retains the opt-in public bridge');
+assert.match(app, /state\.bridgeEnabled && state\.relays\.includes\(url\)/, 'public bridge can reconnect without an unlocked identity');
 assert.match(app, /relays: \[\],/, 'fresh installs have no configured relays');
 assert.match(app, /const PUBLIC_RELAY_EXAMPLES = \['wss:\/\/relay\.damus\.io', 'wss:\/\/nos\.lol'\]/);
 assert.match(app, /PUBLIC_RELAY_EXAMPLES\.join/);
@@ -114,6 +119,51 @@ for (const path of [...shellPaths, ...pagePaths, ...manifestPaths]) {
   assert.equal(resolved.origin, pagesBase.origin, `static reference stays on the Pages origin: ${path}`);
   assert.ok(resolved.pathname.startsWith('/property/'), `static reference stays under the repository path: ${path}`);
 }
+const webRoot = join(root, 'web');
+async function localAssetPath(reference, label) {
+  const resolved = new URL(reference, pagesBase);
+  assert.equal(resolved.origin, pagesBase.origin, `${label} must stay on the app origin: ${reference}`);
+  assert.ok(resolved.pathname.startsWith('/property/'), `${label} must stay under /property/: ${reference}`);
+  const relativePath = decodeURIComponent(resolved.pathname.slice('/property/'.length));
+  const absolutePath = resolve(webRoot, relativePath);
+  assert.ok(absolutePath === webRoot || absolutePath.startsWith(webRoot + sep), `${label} cannot escape the local web bundle: ${reference}`);
+  await access(absolutePath);
+  return resolved.pathname;
+}
+function collectStaticReferences(markup) {
+  const references = new Set();
+  for (const pattern of [
+    /<script\b[^>]*\bsrc=["']([^"']+)["']/gi,
+    /<link\b[^>]*\bhref=["']([^"']+)["']/gi,
+    /<(?:img|source|video|audio|track|iframe)\b[^>]*\bsrc=["']([^"']+)["']/gi
+  ]) for (const match of markup.matchAll(pattern)) references.add(match[1]);
+  return references;
+}
+const shellPathnames = new Set();
+for (const path of shellPaths) shellPathnames.add(await localAssetPath(path, 'service-worker precache entry'));
+for (const path of new Set([manifest.start_url, './index.html', './about.html'])) {
+  const pathname = await localAssetPath(path, 'offline navigation document');
+  assert.ok(shellPathnames.has(pathname), `offline service-worker shell must precache navigation document ${path}`);
+}
+const staticReferences = new Set([
+  ...collectStaticReferences(html),
+  ...collectStaticReferences(about),
+  ...manifest.icons.map(icon => icon.src),
+  ...[...css.matchAll(/url\(\s*(?:["']([^"']+)["']|([^)'"\s]+))\s*\)/gi)].map(match => match[1] || match[2]),
+  ...[...css.matchAll(/@import\s+(?:url\()?\s*["']([^"']+)["']/gi)].map(match => match[1])
+]);
+for (const reference of staticReferences) {
+  if (/^data:/i.test(reference)) continue;
+  const pathname = await localAssetPath(reference, 'static shell dependency');
+  assert.ok(shellPathnames.has(pathname), `offline service-worker shell must precache ${reference}`);
+}
+const workerRegistration = app.match(/navigator\.serviceWorker\.register\(\s*["']([^"']+)["']/);
+assert.ok(workerRegistration, 'PWA registers a service worker');
+await localAssetPath(workerRegistration[1], 'service-worker script');
+assert.doesNotMatch(`${html}\n${about}`, /<(?:script|link)\b[^>]*(?:src|href)=["'](?:https?:)?\/\//i,
+  'HTML cannot load executable code or styles from another origin');
+assert.doesNotMatch(`${app}\n${sw}`, /\bimportScripts\s*\(|\bimport\s*\(\s*["']https?:/i,
+  'the app and service worker cannot import remote executable code');
 for (const localPath of ['./about.html', './styles.css', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }

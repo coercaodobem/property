@@ -8,7 +8,7 @@ COUNT=7
 case "$BASE_PORT" in ''|*[!0-9]*) printf 'Porta inicial inválida.\n' >&2; exit 2 ;; esac
 if (( BASE_PORT < 1024 || BASE_PORT + COUNT - 1 > 65535 )); then printf 'Faixa de portas inválida.\n' >&2; exit 2; fi
 
-LAB_DIR="$(mktemp -d /tmp/property-seven-relays.XXXXXX)"
+LAB_DIR="$(mktemp -d "${TMPDIR:-/tmp}/property-seven-relays.XXXXXX")"
 PIDS=()
 cleanup() {
   local pid

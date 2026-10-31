@@ -1,6 +1,6 @@
 # Plano de Testes Central — Property
 
-**Atualizado:** 2026-10-31. **Executor previsto:** Luna Max. **Estado desta revisão:** PLANEJADO; os novos gates ainda não foram executados.
+**Atualizado:** 2026-10-31. **Executor previsto:** Luna Max. **Estado desta revisão:** os executores de G00–G12 estão integrados no perfil full; G08 exige as ferramentas privadas fixadas no manifesto e G11-03 exige 24 horas reais. G00 passou em full recente; G08-01–07, G09-03 e G10-05 passaram em ensaios isolados do candidato corrente. Ainda não existe aprovação do candidato completo. A execução disponível nesta sessão registra Codex GPT-6, diferente do executor previsto Luna Max, e essa diferença deve permanecer explícita no relatório.
 
 ## 1. Objetivo e autoridade
 
@@ -35,13 +35,13 @@ Checkout, custódia, escrow e pagamentos de compras do marketplace, grupos priva
 
 1. Ler primeiro este documento, os resumos das fontes e o AGENTS.md mais próximo. Trabalhar em coercaodobem/property, branch modelo-mvp, preservando alterações existentes. Não usar Amethyst upstream ou Gymoo como destino.
 2. Inventariar o que existe e o que falta. Diferenciar teste existente, teste a implementar, funcionalidade ausente e ferramenta de laboratório ausente. Este documento não afirma que os scripts novos da seção 7 já existam.
-3. Executar os gates em ordem. Para cada caso, ligar requisito, código real exercitado, passos, resultado esperado e evidência. Abrir os trechos de código pertinentes à falha, evitando carregar toda a base upstream.
+3. Executar os gates em ordem. Para cada caso, ligar requisito, código real exercitado, passos, resultado esperado e evidência. Abrir os trechos de código pertinentes à falha, evitando carregar toda a base upstream. O perfil full também executa diagnósticos posteriores a um gate bloqueado, mas marca inelegíveis os gates dependentes.
 4. Construir a infraestrutura de testes que estiver faltando. Quando houver falha do produto, corrigi-la dentro do escopo autorizado, registrar o defeito e repetir o caso e sua regressão. Não mudar o resultado esperado para acomodar o defeito. Mudanças de protocolo, criptografia, chaves ou desenho financeiro seguem o escopo aprovado e as instruções do repositório.
 5. Nenhuma afirmação de PASS vem de inspeção do código, texto de log isolado, tela inicial, mock de sucesso ou resultado histórico. Cada aprovação exige execução do comportamento e asserções independentes sobre seus efeitos.
 6. Usar exclusivamente identidades, mensagens, carteiras e valores sintéticos. Segredos ficam em diretórios temporários privados; não vão para relatórios, commits, HAR, capturas ou console. Não substituir contas reais ou diretórios de dados do usuário.
 7. Não pedir nova autorização para os mesmos testes locais já autorizados. Não alterar firewall global, desligar a rede do computador do usuário, reiniciar o host, usar mainnet ou publicar dados como parte do ensaio. Falhas de rede/energia são simuladas apenas nos processos, volumes e interfaces do laboratório.
 8. Persistir progresso após cada caso/gate. Na retomada, ler o manifesto e o último resultado; verificar se o commit mudou e invalidar aprovações afetadas. Um ensaio interrompido não vira PASS.
-9. Não delegar, trocar de modelo, abrir PR ou publicar uma release automaticamente por causa deste plano. Luna Max é o executor indicado; o trabalho continua pelo fluxo autorizado do repositório.
+9. Não delegar, trocar de modelo, abrir PR ou publicar uma release automaticamente por causa deste plano. Luna Max é o executor previsto; registrar a identidade real do executor e não atribuir ao Luna Max testes feitos por outro modelo.
 
 **Definição de conclusão:** entregar o relatório final com os resultados de todos os gates e os artefatos necessários para outra execução. Se faltar recurso ou implementação, entregar o estado real sem anunciar que o escopo inteiro passou. Não transferir ao usuário testes que possam ser executados no laboratório disponível.
 
@@ -87,7 +87,7 @@ O orquestrador deve retornar código 0 somente para o perfil solicitado integral
 - Servir o mesmo bundle em localhost e sob o caminho /property/. Para HTTPS/WSS, usar CA/certificado local de teste confiado apenas no laboratório. Não aprovar ignorando globalmente erros TLS. Capturar também uma tentativa WSS com certificado inválido e comprovar rejeição.
 - Cada relay usa processo, porta, configuração e banco separados; cada identidade usa contexto/perfil de navegador separado. Dados do laboratório ficam em diretório temporário exclusivo. Nenhum relay de produção é iniciado/parado.
 
-**Recursos:** começar por dois relays e medir RSS, CPU, disco e tempo; ampliar para a topologia completa sem reduzir os cenários. Como orçamento inicial de laboratório, reservar 4 vCPUs, 8 GiB de RAM e 6 GiB de disco livre. Validar o orçamento antes de expandir; limitar filhos a 70% da RAM disponível, reservar 2 GiB de disco e parar de forma limpa ao atingir o limite. Esses valores são parâmetros de ensaio, não consumo medido nem requisito final do produto. Hardware insuficiente gera BLOCKED. Ensaio de 24 horas só começa após os gates curtos passarem e com orçamento registrado.
+**Recursos:** começar por dois relays e medir RSS, CPU, disco e tempo; ampliar para a topologia completa sem reduzir os cenários. Como orçamento inicial de laboratório, exigir 4 vCPUs, 8 GiB de RAM física e 6 GiB livres no volume scratch usado pelo runner. A capacidade física é o piso de hardware; o consumo livre é medido separadamente no início de cada execução. Limitar o conjunto dos processos filhos a 70% da RAM então disponível e, para sete relays Geode concorrentes, dividir esse teto por relay, aplicando limites explícitos de heap, metaspace, code cache, memória direta e threads. Registrar todos os valores no inventário e medir o RSS real durante a topologia. Reservar 2 GiB de disco e parar de forma limpa ao atingir o limite. Esses valores são parâmetros de ensaio, não consumo medido nem requisito final do produto. Hardware abaixo do piso físico, scratch abaixo do limite ou teto que não comporte ao menos 128 MiB de heap e 64 MiB de metaspace por JVM gera BLOCKED. O scratch deve ficar no volume declarado pelo runner, não ser inferido de um `/tmp` montado em tmpfs. Ensaio de 24 horas só começa após os gates curtos passarem e com orçamento registrado.
 
 ### 5.2 Atores e sete relays reais
 
@@ -143,7 +143,7 @@ Corpus mínimo: 100 notas públicas distintas, 50 mensagens por direção, 10 of
 
 | Caso | Procedimento e aprovação |
 |---|---|
-| G01-01 | Executar todas as 13 suítes atuais de run-smoke.sh dentro do isolamento. Conferir individualmente resultado, código de saída e o número de suítes; validar casos negativos. Atualizar esta contagem quando a lista de suítes mudar. |
+| G01-01 | Executar todas as 15 suítes atuais de run-smoke.sh dentro do isolamento. Conferir individualmente resultado, código de saída e o número de suítes; validar casos negativos. Atualizar esta contagem quando a lista de suítes mudar. |
 | G01-02 | Executar integração entre dois relays reais e integração nativa do launcher. Verificar ACK positivo, consulta por IDs e persistência exata após reinício, não só contagem total. Ampliar o teste existente se só comparar contagens. |
 | G01-03 | Demonstrar sensibilidade dos testes: adulterar apenas fixtures isoladas de assinatura, bundle/hash, preço atômico e backup; cada caso deve falhar pelo motivo previsto. Restaurar fixtures sem editar esperado ou desativar checks. |
 
@@ -262,7 +262,7 @@ Se a ferramenta não fornecer uma métrica, instrumentar o harness ou registrar 
 |---|---|
 | G11-01 | Repetir o conjunto funcional curto duas vezes com a mesma seed em laboratórios limpos e uma terceira vez com seed diferente. Mesmas invariantes e contagens esperadas; diferenças de chaves/IDs criptográficos não são comparadas como identidade entre execuções. |
 | G11-02 | Repetir montagem/hash dos runtimes e empacotamento da PWA offline. Build do código reaproveitado usa ferramentas/dependências locais inventariadas; registrar hashes e explicar variações não determinísticas. Falta de toolchain bloqueia a alegação de rebuild reproduzível, sem fingir que hash do binário prova compilação. |
-| G11-03 | Rodar 24 horas reais com ao menos três relays, duas pontes e clientes de teste. Probes periódicas de publicação/consulta, persistência, partição e reinícios programados; evidência de início/fim, duração >=86.400 s, perdas dentro da janela declarada, duplicatas na UI e orçamento de recursos. Probe de um único relay ou soak curto não aprova o cenário de rede. |
+| G11-03 | Rodar 24 horas reais com ao menos três relays, duas pontes e clientes de teste. Probes periódicas de publicação/consulta, persistência, partição e reinícios programados; evidência de início/fim, duração >=86.400 s, perdas dentro da janela declarada, duplicatas na UI e orçamento de recursos. Após 30 min sem interação, confirmar que a identidade é bloqueada e a chave sai da sessão, enquanto o encaminhamento público explicitamente habilitado continua; confirmar que a tela bloqueada oferece comando para parar a ponte. Probe de um único relay ou soak curto não aprova o cenário de rede. |
 | G11-04 | Conciliar corpus, estados financeiros, caches e volumes; auditar egress do início ao fim. Sem inconsistência, perda de evento aceito e retido, operação financeira duplicada ou segredo nos artefatos. |
 | G11-05 | Gerar relatório por gate, lista de defeitos encerrados/abertos, hashes de evidência e comando de reprodução. Ensaios interrompidos/faltantes impedem OFFLINE_FUNCTIONAL_PASS. |
 
@@ -295,24 +295,25 @@ Ensaio existente de um relay, útil como diagnóstico e sem equivalência ao G11
 
 As portas são valores de exemplo; conferir disponibilidade e reservar portas por execução. O launcher deve usar DATA_DIR/CONFIG_DIR temporários, separados dos diretórios reais do usuário.
 
-### Infraestrutura a implementar pelo Luna Max
+### Infraestrutura de teste: implementação e estado
 
 | Entrega planejada | Contrato mínimo |
 |---|---|
-| Orquestrador offline | Verifica isolamento, ferramentas e dependências; seleciona perfil; aplica timeout; agrega exit codes sem mascarar falha; limpa apenas filhos e diretórios próprios |
-| Manifesto de laboratório | Esquema versionado com seed, commit/diff, hashes, hosts/portas/ACLs, carteiras, topologias, cotas, políticas e metas |
-| Harness de múltiplos relays | Sete Geode reais, bancos separados, pontes reais, proxies de falha e reconciliação por ID; topologias cadeia/diamante/ciclo/estrela |
-| Automação de navegador | Ferramenta/navegadores locais fixados, perfis isolados A/B/C, interações reais e captura sanitizada de rede/console/telas |
-| Laboratório financeiro | Binários e carteiras privados BTC/XMR/XNO, controle de blocos/reorganizações e integração com a engine real |
-| Relatório automatizado | JSON/Markdown por caso/gate, evidências com hash, sinalização de lacunas e resultado final calculado |
+| Orquestrador offline | O perfil full percorre G00–G12; `run-offline.mjs` valida manifesto/inventário, exige a origem declarada do executor, falha fechado se isolamento não for provado e só inicia relays depois do G00 elegível. `--resume` verifica commit, diff, plano, manifesto, perfil, relatório e hashes, arquiva a tentativa e reinicia em G00 sem carregar PASS. Diagnósticos posteriores podem rodar mesmo quando um gate financeiro bloqueia, mas ficam inelegíveis. |
+| Manifesto de laboratório | Valida seed, commit, origem do executor, orçamento, portas, browser/engine/versões e hashes. Registra diff, arquivos, fontes, ferramentas e ferramentas financeiras externas por caminho absoluto e SHA-256. Credenciais RPC são geradas apenas dentro do processo/teste e não constam no manifesto persistido. |
+| Harness de múltiplos relays | Scripts de dois e sete Geode e os harnesses browser G05/G09/G11 exercitam relays reais, pontes PWA, topologias, falhas, limites, reinício, reconciliação e soak. G09 contém ensaios para crash, armazenamento limitado, eventos hostis, runtime adulterado e falha isolada; G11 contém repetição, ambiente de build e soak real de 24 horas. |
+| Automação de navegador | Os executores usam Playwright/browser pinados por versão/hash, servidor localhost, proxy de bloqueio e captura de solicitações, WebSockets e erros. G10 herda as jornadas completas do mesmo full run e executa ainda viewports de desktop/móvel, zoom aproximado de 200%, foco, nomes acessíveis e fallback sem instalação PWA suportada. |
+| Engine e adaptadores financeiros | G07 exercita a engine persistente/assinada com ledger determinístico, somente para a máquina de estados. G08 tem harness de BTC Core, Monero e Nano com binários reais e hash-pinned, redes/carteiras privadas, RPC local autenticado, reconciliação e casos financeiros. G07 não substitui a liquidação real de G08. |
+| Relatório automatizado | O perfil full registra 74 casos, checkpoints, eventos, manifesto, inventário, topologia, isolamento, relatório e hashes. As evidências históricas não aprovam o candidato atual. A certificação requer o full run do mesmo candidato, incluindo G08, 24 horas do G11-03 e a matriz disponível de G12; plataformas físicas ausentes continuam BLOCKED. |
 
-Contrato sugerido para o runner novo, **ainda não implementado nesta revisão documental**:
+Comandos do runner parcialmente implementado:
 
     node property/tests/offline/run-offline.mjs --profile core --manifest /caminho/lab.json
     node property/tests/offline/run-offline.mjs --profile platforms --manifest /caminho/lab.json
     node property/tests/offline/run-offline.mjs --profile full --manifest /caminho/lab.json
+    node property/tests/offline/run-offline.mjs --profile core --manifest /caminho/lab.json --output /caminho/run-id --resume
 
-Antes de anunciar qualquer comando novo como utilizável, o Luna Max deve criar os arquivos, documentar dependências e executá-lo em ambiente limpo. O perfil core cobre G00–G11; platforms executa G12 referenciando um core compatível; full agrega os dois. Ausência de binário, engine ou navegador não vira skip bem-sucedido.
+O runner full executa os casos de G00–G12, condicionando G08 ao manifesto hash-pinned das ferramentas de ledger. A retomada exige o mesmo manifesto e diretório; mudança no commit, diff/arquivos alterados, plano, configuração, perfil ou relatório dependente invalida a retomada antes de mover artefatos. Cada tentativa é arquivada, hashes são conferidos quando disponíveis, e a nova tentativa recomeça no G00 sem herdar PASS. Ausência de ferramenta/dispositivo permanece BLOCKED; funcionalidade ausente permanece FAIL.
 
 ## 8. Evidência e retomada
 
@@ -320,10 +321,12 @@ Diretório de trabalho sugerido: /tmp/property-offline/<run-id>, com permissões
 
 Artefatos mínimos:
 
-- manifest.json: schema, run_id, executor Luna Max, versão efetiva de ferramenta/modelo quando disponível, horário, commit/diff, hashes do produto/harness, seed, plataforma, browser e orçamento.
+- manifest.json: schema, run_id, executor previsto e efetivo (identificar a fonte do valor efetivo), versão de ferramenta/modelo quando disponível, horário, commit/diff, hashes do produto/harness, seed, plataforma, browser e orçamento.
 - isolation.json: regras/allowlist inspecionadas, contadores de egress disponíveis e configuração do laboratório; declarar explicitamente que nenhuma sonda pública foi enviada. Não conter valores de proxy, credenciais ou dados pessoais.
 - topology.json: processos, relays, bancos, ligações permitidas, corpus, injeções de falha e timestamps de cada transição.
 - cases.jsonl: um registro final por caso com gate, requisito, comando, início/fim, esperado, observado, status, exit code, motivo e referências a evidências.
+- case-events.jsonl, cases.latest.jsonl e gate-checkpoints.jsonl: histórico incremental de mudanças por caso e checkpoint por gate, para retomar sem apagar tentativas anteriores.
+- resume-state.json e resume-review.json: fingerprint da tentativa, decisão de compatibilidade, resumo do que permanece pendente e caminho do arquivo histórico. A retomada sempre reinicia em G00.
 - reconciliation.json: IDs públicos/envelopes e contagens por relay/UI; saldos atômicos sintéticos, taxas e estados financeiros. Sem conteúdo privado/chaves.
 - summary.json e report.md: estado de cada gate, totais de PASS/FAIL/BLOCKED/NOT_RUN, metas medidas, defeitos e resultado final derivado.
 - SHA256SUMS: hashes dos artefatos sanitizados, incluindo capturas necessárias; verificar depois de consolidar o relatório.
@@ -352,10 +355,38 @@ Todos os casos antigos permanecem consultáveis no histórico. A tabela explicit
 | OS-01 a OS-04 | G12 |
 | Segurança, privacidade, usabilidade e critérios de saída sem ID | G00, G02, G03, G04, G07, G08, G09, G10, G11 |
 
-## 10. Estado inicial e entrega esperada
+## 10. Estado e entrega esperada
 
 O histórico registra 12 suítes locais aprovadas, integração de dois relays, publicação anterior e matriz nativa Linux/Windows/macOS. Esses resultados ajudam a reproduzir o baseline; não aprovam automaticamente isolamento, sete relays, jornadas completas, engine financeira, redes privadas, novo soak ou nova matriz offline.
 
-Lacunas conhecidas no início desta revisão: orquestrador offline completo, harness de sete relays e falhas, jornadas automatizadas de navegador, engine de campanhas/pagamentos, laboratório privado de moedas, 24 horas concluídas e execução offline da matriz inteira. Inventariar novamente antes de executar; uma lacuna pode ter sido corrigida por commit posterior.
+Lacunas conhecidas no início desta revisão: orquestrador full, harness de sete relays/falhas, jornadas de navegador, engine de campanhas/pagamentos, ferramentas de ledger local, soak de 24 horas e matriz de plataformas. Os executores desses gates foram integrados desde então. A aprovação do candidato corrente continua pendente até o full run encerrar, e ausência de ambiente nativo em G12 deve constar como BLOCKED.
 
-O trabalho solicitado nesta revisão é a atualização do plano. Nenhum gate novo é declarado executado ou aprovado por essa atualização. O Luna Max deverá entregar o estado real, as correções e os testes do escopo até PROPERTY_SCOPE_OFFLINE_PASS, ou registrar exatamente o bloqueio externo que impede continuar. Aprovação offline demonstra o comportamento nas condições e plataformas ensaiadas; não equivale a lançamento público ou a auditoria independente de segurança.
+### Checkpoint histórico — 2026-10-31
+
+Evidências sanitizadas do checkpoint anterior: `property/docs/evidence/offline/property-g00-resume-20261031-i/`; `...-c/`, `...-e/`, `...-f/`, `...-g/`, `...-h/` e `property-g00-shell-static-20261031/` foram preservados como histórico. `i` foi executado após a validação de retomada e o bloqueio de symlinks na árvore de evidências, no commit-base `7aff8e448898e674f8448a2dd847a64faceda8cd`, e registrou 79 arquivos alterados/não rastreados. G00-01 PASS; G00-02 BLOCKED; G00-03 BLOCKED e relays não iniciados; G00-04 PASS, porém inelegível para aprovar o gate porque o isolamento falhou. G01–G12 NOT_RUN; nenhum gate foi aprovado. `inventory.json` contém os hashes das fontes e do plano usados.
+
+O diagnóstico corrente e seus hashes estão em `property/docs/evidence/offline/property-g00-shell-current/`; consulte `summary.json` e `isolation.json` para o resultado exato. O inventário inclui o fechamento estático dos assets locais e páginas no shell offline, os executores parciais G02 e a origem declarada do executor. `app-contract-smoke.mjs` e `g02-origin-smoke.mjs` passaram em execução direta de diagnóstico; isso não aprova G02 nem substitui jornadas reais de navegador com egress bloqueado.
+
+O bloqueio ambiental anotado no checkpoint `property-g00-resume-20261031-i` era histórico: naquela tentativa não houve namespace nem bind loopback. A execução full `property-full-netns-20261031-11` comprovou isolamento com namespace distinto e rotas loopback-only; aprovou G00–G06 (37 casos) no candidato anterior a esta engine. O resultado geral permaneceu BLOCKED porque G07–G12 estavam NOT_RUN e o executor efetivo era Codex GPT-6, diferente do Luna Max solicitado. O resumo e o relatório estão no diretório de evidências do run 11; esse histórico não serve para aprovar as novas alterações.
+
+### Checkpoint de retomada — 2026-10-31
+
+O bloqueio antigo de G00 está superado. A execução full `property-full-netns-20261031-10` registrou G00–G05 como PASS e isolamento PASS: 32 casos aprovados, 42 NOT_RUN. O resultado geral permaneceu BLOCKED porque G06–G12 ainda não estavam integrados e o executor efetivo Codex GPT-6 diferiu do Luna Max previsto. Evidência: `property/docs/evidence/offline/property-full-netns-20261031-10/summary.json` e `report.md`. O registro histórico `property-g00-resume-20261031-i` está preservado e não representa o estado atual de G00.
+
+O ensaio isolado `property-g05-isolated-20261031-08/browser-g05-report.json` aprovou G05-01–07 com quatro Geode reais e pontes PWA: cadeia R1→R4, falha e replay, diamante/ciclo/estrela, partição/reconciliação, isolamento de envelopes privados, toggle e cotas, e encerramento/reabertura de viewport móvel simulado. Ele não certifica suspensão real do sistema operacional móvel.
+
+G05 encontrou e corrigiu uma corrida: o fechamento atrasado de um WebSocket antigo apagava o estado de assinatura da ponte nova. O callback agora só remove assinatura e consultas quando o socket que fechou ainda é o atual. O caso móvel também encontrou ausência de acesso às configurações de relays em viewport compacto; foi adicionado um botão de configurações no topo para essa largura.
+
+O novo harness `browser-g06-smoke.mjs` aprovou G06-01–05 isoladamente em `property/docs/evidence/offline/property-g06-isolated-20261031-09/`: dois Geode, três clientes PWA, ponte R1→R2, Hangout kind 1, publicação/edição de um satoshi/um piconero/um raw, retirada/tombstone, autoria, expiração, moeda, timestamps, conteúdo hostil e contato sem checkout. A aplicação agora rejeita moeda não suportada, incoerência entre preço decimal e atômico, valor atômico fora dos limites, evento vencido/futuro e conteúdo inválido; o shell offline foi atualizado para a versão v11. O último `run-smoke.sh` aprovado contou 14 executores antes da inclusão da engine.
+
+### Checkpoint atual — 2026-10-31, full run 14
+
+Evidência sanitizada em `property/docs/evidence/offline/property-full-netns-20261031-14/`. O relatório registra 44 casos PASS e 30 NOT_RUN: G00–G07 PASS; G08–G12 NOT_RUN. O isolamento permaneceu PASS antes e depois, com namespace distinto do pai, somente `lo` ativo e rotas IPv4/IPv6 restritas ao loopback. O checkout e o commit-base observados foram `7aff8e448898e674f8448a2dd847a64faceda8cd`; as alterações locais estão discriminadas no inventário.
+
+G00 **não está bloqueado**: os quatro casos e o isolamento passaram no full run 14. O run 13 foi iniciado sem o wrapper `run-isolated.sh`, não recebeu a identificação do namespace pai e foi corretamente bloqueado pelo controle. O run 14 usou o wrapper, provou o isolamento e aprovou G00.
+
+G02 também foi retestado isoladamente em `property/docs/evidence/offline/property-g02-isolated-20261031-13/`: G02-04/05/06 PASS após aguardar o service worker controlar a página antes da interação. O runner preserva como NOT_RUN os casos que não começaram.
+
+G07 passou integrado no run 14. A engine persistente e assinada e o harness real de browser/relays passaram nos sete casos usando ledger determinístico, permitido somente para validar a máquina de estados nesta etapa. G08 ainda exige ledgers privados reais; o inventário do run 14 não encontrou `bitcoind`, `monerod`, `monero-wallet-rpc` nem `nano_node`. O ledger determinístico de G07 não substitui G08.
+
+O objetivo permanece PROPERTY_SCOPE_OFFLINE_PASS. G08–G12 e as evidências correspondentes ainda precisam de aprovação. Este checkpoint é parcial. Aprovação offline demonstra o comportamento nas condições e plataformas ensaiadas; não equivale a lançamento público ou auditoria independente de segurança.

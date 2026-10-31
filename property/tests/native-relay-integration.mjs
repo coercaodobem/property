@@ -1,14 +1,17 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
+import { createHash } from 'node:crypto';
 
 const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const testRoot = await mkdtemp(join(tmpdir(), 'Property relay '));
 const port = 17457;
+const relayUrl = `ws://127.0.0.1:${port}`;
+const integrationSummary = join(testRoot, 'accepted-events.json');
 const env = { ...process.env, PROPERTY_RELAY_HOST: '127.0.0.1', PROPERTY_RELAY_PORT: String(port),
   PROPERTY_RELAY_DATA_DIR: join(testRoot, 'dados persistentes'), PROPERTY_RELAY_CONFIG_DIR: join(testRoot, 'config privada') };
 const windows = process.platform === 'win32';
@@ -16,11 +19,12 @@ const command = windows ? 'powershell.exe' : 'bash';
 const args = windows ? ['-NoProfile', '-File', join(root, 'property/relay/start.ps1')] : [join(root, 'property/relay/start.sh')];
 let child;
 let diagnostic = '';
-async function stop() {
+async function stop({ crash = false } = {}) {
   if (!child || child.exitCode !== null) return;
   if (windows) spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
-  else { try { process.kill(-child.pid, 'SIGTERM'); } catch {} }
+  else { try { process.kill(-child.pid, crash ? 'SIGKILL' : 'SIGTERM'); } catch {} }
   await Promise.race([new Promise(resolve => child.once('exit', resolve)), new Promise(resolve => setTimeout(resolve, 5000))]);
+  if (crash && !windows) assert.equal(child.signalCode, 'SIGKILL', 'the relay must be terminated abruptly for crash-recovery coverage');
 }
 async function start() {
   child = spawn(command, args, { env, cwd: root, detached: !windows, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -40,33 +44,61 @@ async function start() {
   }
   throw new Error(`Relay not ready: ${diagnostic}`);
 }
-async function queryEvents() {
-  const socket = new WebSocket(`ws://127.0.0.1:${port}`);
+function eventFingerprint(event) {
+  return createHash('sha256').update(JSON.stringify({
+    id: event.id, pubkey: event.pubkey, created_at: event.created_at, kind: event.kind,
+    tags: event.tags, content: event.content
+  })).digest('hex');
+}
+async function queryEvents(expected) {
+  assert.ok(expected.length > 0, 'integration must provide acknowledged event IDs');
+  const socket = new WebSocket(relayUrl);
   try {
     return await new Promise((resolve, reject) => {
-      let count = 0;
+      const events = new Map();
+      const duplicates = new Set();
+      const subscription = `persisted-${crypto.randomUUID()}`;
       const timer = setTimeout(() => reject(new Error('Persistência: timeout')), 10000);
-      socket.addEventListener('open', () => socket.send(JSON.stringify(['REQ', 'persisted', { kinds: [10050, 1059, 30018], limit: 100 }])));
+      socket.addEventListener('open', () => socket.send(JSON.stringify(['REQ', subscription, { ids: expected.map(event => event.id), limit: expected.length }])));
       socket.addEventListener('error', () => { clearTimeout(timer); reject(new Error('Persistência: conexão falhou')); });
       socket.addEventListener('message', event => {
-        const frame = JSON.parse(event.data);
-        if (frame[0] === 'EVENT') count++;
-        if (frame[0] === 'EOSE') { clearTimeout(timer); resolve(count); }
+        let frame;
+        try { frame = JSON.parse(event.data); } catch { return; }
+        if (frame[0] === 'EVENT' && frame[1] === subscription && frame[2]?.id) {
+          if (events.has(frame[2].id)) duplicates.add(frame[2].id);
+          events.set(frame[2].id, frame[2]);
+        }
+        if (frame[0] === 'EOSE' && frame[1] === subscription) { clearTimeout(timer); resolve({ events, duplicates }); }
       });
     });
   } finally { socket.close(); }
 }
 try {
   await start();
-  const test = spawnSync(process.execPath, [join(root, 'property/tests/relay-integration.mjs'), `ws://127.0.0.1:${port}`], { encoding: 'utf8', timeout: 90000 });
+  const test = spawnSync(process.execPath, [join(root, 'property/tests/relay-integration.mjs'), relayUrl, integrationSummary], { encoding: 'utf8', timeout: 90000 });
   assert.equal(test.status, 0, `${test.stdout}\n${test.stderr}\n${diagnostic}`);
   process.stdout.write(test.stdout);
-  const before = await queryEvents();
-  assert.ok(before >= 3, 'events persisted by the integration suite');
-  await stop();
+  const report = JSON.parse(await readFile(integrationSummary, 'utf8'));
+  const acknowledged = report.accepted_events;
+  const expected = report.persisted_events;
+  const excludedAfterMutation = report.excluded_after_protocol_mutation;
+  assert.ok(acknowledged.length >= 7, 'integration records every positively acknowledged event');
+  assert.ok(expected.length >= 7, 'integration records events expected to remain stored by Nostr semantics');
+  assert.equal(new Set(acknowledged.map(event => event.id)).size, acknowledged.length, 'acknowledged event IDs are unique');
+  assert.equal(new Set(expected.map(event => event.id)).size, expected.length, 'persisted event IDs are unique');
+  assert.ok(Array.isArray(excludedAfterMutation) && excludedAfterMutation.length > 0, 'replaceable/deleted events are separately tracked');
+  const before = await queryEvents(acknowledged);
+  assert.deepEqual([...before.duplicates], [], 'relay query returns each acknowledged event once');
+  assert.deepEqual([...before.events.keys()].sort(), expected.map(event => event.id).sort(), 'stable events remain queryable; superseded or NIP-09-deleted events are excluded');
+  for (const item of expected) assert.equal(eventFingerprint(before.events.get(item.id)), item.sha256, `pre-restart event ${item.id} round-trips exactly`);
+  await stop({ crash: true });
   await start();
-  assert.equal(await queryEvents(), before, 'same events remain after native relay restart');
-  console.log(`PASS: native ${process.platform}/${process.arch}, bundled Java, NIP-17/NIP-15 BTC/XMR/XNO and persistence across restart`);
+  const after = await queryEvents(acknowledged);
+  assert.deepEqual([...after.duplicates], [], 'relay query returns each acknowledged event once after restart');
+  assert.deepEqual([...after.events.keys()].sort(), expected.map(event => event.id).sort(), 'the expected retained event ID set survives native relay restart');
+  for (const item of expected) assert.equal(eventFingerprint(after.events.get(item.id)), item.sha256, `post-restart event ${item.id} is unchanged in its signed fields`);
+  for (const item of excludedAfterMutation) assert.equal(after.events.has(item.id), false, `protocol mutation remains applied after restart: ${item.reason}`);
+  console.log(`PASS: native ${process.platform}/${process.arch}, ${expected.length} retained events round-trip across restart; replaceable/deleted events follow Nostr semantics; NIP-17/NIP-15 BTC/XMR/XNO`);
 } finally {
   await stop();
   await rm(testRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });

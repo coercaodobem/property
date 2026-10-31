@@ -48,6 +48,13 @@
     $('relay-count').textContent = `${state.relays.length} relay${state.relays.length === 1 ? '' : 's'}`;
     $('relay-summary-text').textContent = open ? `${open} conectado${open === 1 ? '' : 's'}` : relayCount === 0 ? 'Adicione um relay para sincronizar' : 'Toque para configurar';
   }
+  function updateLockedBridgeStatus() {
+    const status = $('locked-node-status');
+    if (!status) return;
+    status.classList.toggle('hidden', !state.bridgeEnabled);
+    const connected = [...state.sockets.values()].filter(item => item.socket.readyState === WebSocket.OPEN).length;
+    $('locked-node-relays').textContent = `${connected}/${state.relays.length} relays públicos conectados.`;
+  }
   function openDatabase() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -237,16 +244,16 @@
       if (current?.socket === socket) {
         current.attempts = Math.min((current.attempts || 0) + 1, 8);
         scheduleReconnect(url, current.attempts);
+        state.bridgeSubscriptions.delete(url);
+        for (const [subId, request] of state.fetchSubs) {
+          if (request.url === url) finishFetchSub(subId, true);
+        }
       }
-      for (const [subId, request] of state.fetchSubs) {
-        if (request.url === url) finishFetchSub(subId, true);
-      }
-      state.bridgeSubscriptions.delete(url);
     };
     setConnectionStatus();
   }
   function scheduleReconnect(url, attempts) {
-    if (!state.pubkey || !effectiveRelayUrls().includes(url)) return;
+    if ((!state.pubkey && !(state.bridgeEnabled && state.relays.includes(url))) || !effectiveRelayUrls().includes(url)) return;
     const count = attempts || 1;
     const delay = Math.min(30000, 1000 * (2 ** Math.min(count - 1, 5))) + Math.floor(Math.random() * 500);
     state.reconnectTimers.set(url, setTimeout(() => connectRelay(url), delay));
@@ -705,14 +712,43 @@
     if (!sent) showToast('Nome salvo neste aparelho; relay ainda não confirmou o perfil.');
     else showToast('Perfil salvo localmente e publicado nos relays.');
   }
-  async function lockIdentity() {
+  async function closeIdentityRelaySubscriptions() {
+    for (const [subId] of state.fetchSubs) finishFetchSub(subId, true);
+    for (const [id, pending] of state.pendingAcks) {
+      clearTimeout(pending.timer);
+      pending.resolve(false);
+      state.pendingAcks.delete(id);
+    }
+    for (const [url, conn] of [...state.sockets]) {
+      if (conn.subId) relayMessage(url, ['CLOSE', conn.subId]);
+      if (state.relays.includes(url)) continue;
+      clearTimeout(state.reconnectTimers.get(url));
+      state.reconnectTimers.delete(url);
+      try { conn.socket.close(1000, 'Property identidade bloqueada'); } catch {}
+      state.sockets.delete(url);
+    }
+    state.inboxRelays = [];
+    state.peerInboxRelays.clear();
+    state.peerRelayHints.clear();
+    setConnectionStatus();
+  }
+  async function lockIdentity({ preservePublicBridge = false } = {}) {
     if (state.account) { const updated = { ...state.account }; delete updated.session; await put('vault', updated); state.account = updated; }
     clearTimeout(state.idleTimer);
     if (state.secret) state.secret.fill(0);
     state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = '';
-    await closeRelays();
+    if (preservePublicBridge && state.bridgeEnabled) await closeIdentityRelaySubscriptions();
+    else {
+      if (state.bridgeEnabled) {
+        state.bridgeEnabled = false;
+        $('browser-node-toggle').checked = false;
+        await put('settings', { id: 'browser-bridge', enabled: false });
+      }
+      await closeRelays();
+    }
     $('workspace').classList.add('hidden'); $('auth-screen').classList.remove('hidden'); $('password').value = '';
-    $('profile-dialog').close(); showAuthPane('auth-choice'); showToast('Sessão bloqueada neste aparelho.');
+    $('profile-dialog').close(); showAuthPane('auth-choice'); updateLockedBridgeStatus();
+    showToast(preservePublicBridge && state.bridgeEnabled ? 'Identidade bloqueada; ponte pública continua ativa.' : 'Sessão bloqueada neste aparelho.');
   }
   async function tryCreate() {
     const password = $('new-password').value;
@@ -758,7 +794,7 @@
   }
   function resetIdleLock() {
     clearTimeout(state.idleTimer);
-    if (state.secret) state.idleTimer = setTimeout(() => lockIdentity().catch(() => {}), 30 * 60 * 1000);
+    if (state.secret) state.idleTimer = setTimeout(() => lockIdentity({ preservePublicBridge: true }).catch(() => {}), 30 * 60 * 1000);
   }
   function registerOfflineShell() {
     if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
@@ -769,7 +805,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v10', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v13', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -782,11 +818,13 @@
     $('unlock-button').addEventListener('click', tryUnlock);
     $('password').addEventListener('keydown', event => { if (event.key === 'Enter') tryUnlock(); });
     $('profile-button').addEventListener('click', () => $('profile-dialog').showModal());
-    $('open-settings').addEventListener('click', async () => {
+    const openRelaySettings = async () => {
       $('relay-input').value = state.relays.join('\n');
       $('dm-relay-input').value = state.inboxRelays.join('\n');
       $('relay-dialog').showModal();
-    });
+    };
+    $('open-settings').addEventListener('click', openRelaySettings);
+    $('mobile-open-settings').addEventListener('click', openRelaySettings);
     $('save-relays').addEventListener('click', async () => {
       try { await saveRelaySettings(parseRelayList($('relay-input').value)); $('relay-dialog').close(); showError('relay-error'); }
       catch (error) { showError('relay-error', error.message); }
@@ -839,7 +877,16 @@
     $('save-profile').addEventListener('click', () => savePublicProfile().catch(error => showError('profile-error', error.message)));
     $('export-backup').addEventListener('click', exportBackupWithPassword);
     $('copy-npub').addEventListener('click', async () => { try { await navigator.clipboard.writeText(state.npub); showToast('npub copiado.'); } catch { showError('profile-error', state.npub); } });
-    $('lock-account').addEventListener('click', lockIdentity);
+    $('lock-account').addEventListener('click', () => lockIdentity());
+    $('stop-locked-node').addEventListener('click', async () => {
+      try {
+        state.bridgeEnabled = false;
+        await put('settings', { id: 'browser-bridge', enabled: false });
+        await closeRelays();
+        updateLockedBridgeStatus();
+        showToast('Ponte pública parada.');
+      } catch (error) { showToast(error.message || 'Não foi possível parar a ponte.'); }
+    });
     $('use-local-relay').addEventListener('click', async () => {
       const localRelay = 'ws://127.0.0.1:7447';
       const relays = state.relays.includes(localRelay) ? state.relays : [localRelay, ...state.relays];
@@ -882,7 +929,9 @@
       const inboxSettings = state.account ? await get('settings', `inbox-${state.account.pubkey}`) : null;
       if (inboxSettings?.values?.length) state.inboxRelays = inboxSettings.values.map(normalizeRelay).slice(0, 3);
       if (state.account && await autoUnlock()) return;
-      showAuthPane('auth-choice'); setConnectionStatus();
+      showAuthPane('auth-choice');
+      if (state.bridgeEnabled) for (const url of state.relays) connectRelay(url);
+      setConnectionStatus(); updateLockedBridgeStatus();
     } catch (error) {
       showAuthPane('auth-choice'); showError('auth-error', `Armazenamento local indisponível: ${error.message || 'erro do navegador'}`);
     }

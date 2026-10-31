@@ -10,6 +10,8 @@ for test_file in \
   nano-units-smoke.mjs \
   marketplace-smoke.mjs \
   campaigns-smoke.mjs \
+  campaign-engine-smoke.mjs \
+  ledger-rpc-smoke.mjs \
   protocol-smoke.mjs \
   vault-smoke.mjs \
   forwarding-smoke.mjs \
@@ -18,7 +20,8 @@ for test_file in \
   app-contract-smoke.mjs \
   relay-migration-smoke.mjs \
   portable-packages-smoke.mjs \
-  relay-package-smoke.mjs
+  relay-package-smoke.mjs \
+  offline/runner-contract-smoke.mjs
 do
   printf '\n== %s ==\n' "$test_file"
   node "$TEST_DIR/$test_file"

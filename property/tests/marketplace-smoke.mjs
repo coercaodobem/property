@@ -24,7 +24,7 @@ assert.deepEqual(JSON.parse(JSON.stringify(market.parsePrice('0,25 XNO', nano)))
 assert.equal(market.parsePrice('0.00000001', nano).raw, '10000000000000000000000');
 assert.equal(market.displayPrice({ price: 0.25, currency: 'XNO', price_raw: '250000000000000000000000000000' }, nano), '0.25 XNO');
 assert.equal(market.displayPrice({ price: 1.5, currency: 'XNO', price_raw: 'not-raw' }, nano), 'Preço inválido');
-assert.equal(market.displayPrice({ price: 50, currency: 'USD' }, nano), '50 USD');
+assert.equal(market.displayPrice({ price: 50, currency: 'USD' }, nano), 'Preço inválido');
 assert.equal(market.safeExternalImageUrl('https://example.org/image.png'), 'https://example.org/image.png');
 for (const unsafe of ['javascript:alert(1)', 'data:image/svg+xml,<svg/>', 'http://example.org/image.png', 'https://user:pass@example.org/image.png', 'https://127.0.0.1/image.png', 'https://localhost/image.png']) {
   assert.equal(market.safeExternalImageUrl(unsafe), '', `rejects unsafe external image link: ${unsafe}`);
@@ -71,4 +71,38 @@ const mismatchedId = product(now + 3, 'ID inconsistente', 'different-id');
 assert.equal(market.selectActiveProducts([mismatchedId], N.verifyEvent).length, 0, 'content ID must match the addressable d tag');
 assert.equal(market.makeProductDeletion({ ...updated, tags: [['d', 'one'], ['d', 'two']] }), null, 'ambiguous product IDs cannot be withdrawn');
 
-console.log('PASS: marketplace raw exato, edição addressable, exclusão NIP-09 por autoria, versão e ID');
+const baseProduct = { id: d, stall_id: 'stall-1', name: 'Oferta válida', description: '', images: [], currency: 'XNO',
+  price: 0.25, price_atomic: '250000000000000000000000000000', price_raw: '250000000000000000000000000000' };
+function fixture(data, tags = [['d', d]], createdAt = now) {
+  return sign({ kind: 30018, pubkey: sellerPub, created_at: createdAt, tags,
+    content: typeof data === 'string' ? data : JSON.stringify(data) }, seller);
+}
+const expired = fixture(baseProduct, [['d', d], ['expiration', String(now)]]);
+assert.equal(market.selectActiveProducts([expired], N.verifyEvent, now).length, 0, 'expired listing is hidden at its expiry second');
+const futureExpiry = fixture({ ...baseProduct, id: 'future-expiry' }, [['d', 'future-expiry'], ['expiration', String(now + 1)]]);
+assert.equal(market.selectActiveProducts([futureExpiry], N.verifyEvent, now).length, 1, 'future expiration keeps a listing active');
+const ambiguousExpiry = fixture(baseProduct, [['d', d], ['expiration', String(now + 30)], ['expiration', String(now + 60)]]);
+assert.equal(market.selectActiveProducts([ambiguousExpiry], N.verifyEvent, now).length, 0, 'duplicate expiry tags fail closed');
+const unknownCurrency = fixture({ ...baseProduct, currency: 'USD', price: 1, price_atomic: '100' }, [['d', d]]);
+assert.equal(market.selectActiveProducts([unknownCurrency], N.verifyEvent, now).length, 0, 'unknown currency is not rendered');
+const overflowPrice = fixture({ ...baseProduct, currency: 'XMR', price: 1, price_atomic: '18446744073709551616', price_raw: undefined }, [['d', d]]);
+assert.equal(market.selectActiveProducts([overflowPrice], N.verifyEvent, now).length, 0, 'amount above the XMR maximum is rejected');
+const inconsistentPrice = fixture({ ...baseProduct, price: 0.5 }, [['d', d]]);
+assert.equal(market.selectActiveProducts([inconsistentPrice], N.verifyEvent, now).length, 0, 'rounded NIP-15 number cannot disagree with the exact amount');
+const malformed = fixture('{not-json', [['d', d]]);
+assert.equal(market.selectActiveProducts([malformed], N.verifyEvent, now).length, 0, 'malformed listing is ignored');
+const futureEvent = fixture({ ...baseProduct, id: 'future-event' }, [['d', 'future-event']], now + 301);
+assert.equal(market.selectActiveProducts([futureEvent], N.verifyEvent, now).length, 0, 'listing timestamp beyond clock tolerance is rejected');
+const otherD = 'other-product-address';
+const targetedProduct = sign({ kind: 30018, pubkey: sellerPub, created_at: now, tags: [['d', d]],
+  content: JSON.stringify({ ...baseProduct, name: 'Oferta a retirar' }) }, seller);
+const unrelatedProduct = sign({ kind: 30018, pubkey: sellerPub, created_at: now, tags: [['d', otherD]],
+  content: JSON.stringify({ ...baseProduct, id: otherD, name: 'Outra oferta', currency: 'XMR', price: 0.000000000001,
+    price_atomic: '1', price_raw: undefined }) }, seller);
+const targetedAddressDeletion = sign({ kind: 5, pubkey: sellerPub, created_at: now + 1, content: '',
+  tags: [['a', `30018:${sellerPub}:${d}`], ['e', targetedProduct.id], ['k', '30018']] }, seller);
+const activeAfterTargetedDeletion = market.selectActiveProducts([targetedProduct, unrelatedProduct, targetedAddressDeletion], N.verifyEvent, now + 1);
+assert.deepEqual(JSON.parse(JSON.stringify(activeAfterTargetedDeletion.map(event => event.data.id))), [otherD],
+  'withdrawing one addressable product preserves other offers by the same author');
+
+console.log('PASS: marketplace BTC/XMR/XNO exatos, edição addressable, exclusão NIP-09, expiração e validação de listagens');
