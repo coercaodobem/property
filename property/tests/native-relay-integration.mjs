@@ -13,7 +13,7 @@ const port = 17457;
 const relayUrl = `ws://127.0.0.1:${port}`;
 const integrationSummary = join(testRoot, 'accepted-events.json');
 const noJavaPath = join(testRoot, 'tools without Java');
-const unixUtilities = ['bash', 'sh', 'dirname', 'basename', 'uname', 'mkdir', 'chmod', 'cat', 'sed', 'mv', 'tar', 'gzip', 'readlink', 'realpath', 'env', 'rm', 'mktemp', 'grep', 'awk', 'head', 'tail', 'sleep', 'which', process.platform === 'darwin' ? 'shasum' : 'sha256sum'];
+const unixUtilities = ['bash', 'sh', 'dirname', 'basename', 'uname', 'mkdir', 'chmod', 'cat', 'sed', 'mv', 'tar', 'gzip', 'unzip', 'readlink', 'realpath', 'env', 'rm', 'mktemp', 'grep', 'awk', 'head', 'tail', 'sleep', 'which', process.platform === 'darwin' ? 'shasum' : 'sha256sum'];
 await mkdir(noJavaPath, { mode: 0o700 });
 if (!process.platform.startsWith('win')) {
   for (const utility of unixUtilities) {
