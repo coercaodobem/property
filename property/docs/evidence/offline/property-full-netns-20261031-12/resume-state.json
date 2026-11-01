@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "run_id": "property-full-netns-20261031-12",
+  "profile": "full",
+  "candidate_commit": "7aff8e448898e674f8448a2dd847a64faceda8cd",
+  "manifest_config_sha256": "8e1b28d1b64ac699c26ce5a1775d241719cd618bc1135f2256d0e2fc53350c56",
+  "candidate_state_sha256": "43a48644d959e926a2845ef2b27a46736e3b725c3c5f98a1c8c6eaff9328d0fe",
+  "plan_sha256": "d7153c3c4a0bdfd43d16e91075b9ed680a21bd44a1cf42a60fb35cefee8a94d4",
+  "external_inputs": {
+    "core_report_sha256": null
+  },
+  "attempt_number": 1,
+  "resumed_from_attempt": null
+}

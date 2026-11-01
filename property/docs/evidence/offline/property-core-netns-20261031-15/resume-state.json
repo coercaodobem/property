@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "run_id": "property-core-netns-20261031-15",
+  "profile": "core",
+  "candidate_commit": "7aff8e448898e674f8448a2dd847a64faceda8cd",
+  "manifest_config_sha256": "8a0d4b3d2333ddfdb02575e4da8623ae924d958348b8bf0aa3bc5c4e7bb43f07",
+  "candidate_state_sha256": "4c49ba24cc86f306c683455ba66f0aae37edf6631dccff4a0bf0b81aaf3d5fa1",
+  "plan_sha256": "621d50f3310300c4a9e6d1d7e1482d7f0e1f71bf8805631b7979b3d746dcd323",
+  "external_inputs": {
+    "core_report_sha256": null
+  },
+  "attempt_number": 1,
+  "resumed_from_attempt": null
+}

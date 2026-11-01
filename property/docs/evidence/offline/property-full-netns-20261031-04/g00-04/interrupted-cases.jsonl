@@ -1,0 +1,1 @@
+{"case":"G00-04","status":"BLOCKED","gate_eligible":false,"exit_code":130,"reason":"Test interrupted by SIGINT; child process tree was terminated."}

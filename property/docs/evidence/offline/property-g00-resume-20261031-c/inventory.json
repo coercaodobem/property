@@ -1,0 +1,184 @@
+{
+  "run_id": "property-g00-resume-20261031-c",
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "candidate_commit": "7aff8e448898e674f8448a2dd847a64faceda8cd",
+  "observed_head": "7aff8e448898e674f8448a2dd847a64faceda8cd",
+  "candidate_commit_matches_head": true,
+  "working_tree_diff_sha256": "7c4d4f734906e2735cee3c35d00492a016f503ce8e00a7476405c9743b59ee6d",
+  "working_tree_diff_bytes": 1845,
+  "working_tree_status": " M property/docs/plano-de-testes-central.md M property/tests/run-smoke.sh?? property/tests/offline/",
+  "changed_files": [
+    {
+      "path": "property/docs/plano-de-testes-central.md",
+      "bytes": 44234,
+      "sha256": "c291d75d0f2429e893a6193042a5523b83d022b5f929cb1e35d50333c0277996"
+    },
+    {
+      "path": "property/tests/offline/mutation-sensitivity-smoke.mjs",
+      "bytes": 4920,
+      "sha256": "0279a4f305b04e0a3887924df7b0fd83fde9c0372347ca37a93670274a9b4fa1"
+    },
+    {
+      "path": "property/tests/offline/run-offline.mjs",
+      "bytes": 55223,
+      "sha256": "220fc5680cab4e63305e9ec39880efa7badfc7ef9be2a900b929ed5f24742182"
+    },
+    {
+      "path": "property/tests/offline/runner-contract-smoke.mjs",
+      "bytes": 4775,
+      "sha256": "38af8c60f970fc66487d5a2ecc6768436569cd46d3a8cc6f011b8d8adf3151b8"
+    },
+    {
+      "path": "property/tests/run-smoke.sh",
+      "bytes": 675,
+      "sha256": "7705356793c739492d50114419d85cbfd5c027be6c1301ca6b42cf340c97e13e"
+    }
+  ],
+  "working_tree_state_sha256": "6ffa154d5f0349ea4aef5230a70283f6765087eb26c730731d1d52c539e7a877",
+  "source_documents": [
+    {
+      "path": "AGENTS.md",
+      "present": true,
+      "bytes": 34247,
+      "sha256": "90102f563f30b683156da3f041187a8e81c33ab9893f11a8de2e879e61d141cb"
+    },
+    {
+      "path": "property/docs/identidade-do-projeto.md",
+      "present": true,
+      "bytes": 11175,
+      "sha256": "2bfcc787fff09d584cfb0939ee78d504967ca89adc5a541336e9d5c756c6163e"
+    },
+    {
+      "path": "property/docs/plano-central.md",
+      "present": true,
+      "bytes": 20277,
+      "sha256": "18b8ebb8281b63c5fb2a59b02a62faaf96598c9ae6bda05582211f7247dfda74"
+    },
+    {
+      "path": "property/docs/pagamentos.md",
+      "present": true,
+      "bytes": 5173,
+      "sha256": "5bfa792ddc048f199933fe8d1000bb70fd969d5fe395cfe41fb49b0d7331be1c"
+    },
+    {
+      "path": "property/docs/migracao-property.md",
+      "present": true,
+      "bytes": 3270,
+      "sha256": "ba0fe203f08b17ba2888bdb537981bbfb6067c955b3acb1f58ae284485bf6a62"
+    },
+    {
+      "path": "property/docs/plano-de-testes-central.md",
+      "present": true,
+      "bytes": 44234,
+      "sha256": "c291d75d0f2429e893a6193042a5523b83d022b5f929cb1e35d50333c0277996"
+    }
+  ],
+  "integrity": {
+    "git_state_complete": true,
+    "sources_complete": true,
+    "missing_sources": [],
+    "manifest_sha256": "089a1b1446cdbfeffd0228c443bcd0fe522fb4aaa54cc69327dd4cdb71287c1a",
+    "ready_for_g00_01": true
+  },
+  "host": {
+    "platform": "linux",
+    "architecture": "x64",
+    "release": "7.0.0-38-generic",
+    "logical_cpus": 16,
+    "ram_total_bytes": 32970711040,
+    "ram_available_bytes": 9614749696,
+    "tmp_available_bytes": 6973849600
+  },
+  "cgroup_limits": {
+    "raw": {
+      "cpu": null,
+      "memory": null,
+      "processes": null
+    },
+    "cpu_quota": null,
+    "memory_quota_bytes": null,
+    "process_quota": null
+  },
+  "tools": {
+    "bash": {
+      "path": "/usr/bin/bash",
+      "sha256": "3efccc187bafa75ff1e37d246270ab3e7aa559f242c7a52bf3ec2a1b5450bdbd"
+    },
+    "node": {
+      "path": "/usr/bin/node",
+      "sha256": "d0efb6fcb9d023ba4e2b160ec2384dc28fe4f17732141ef47f676828fa960505"
+    },
+    "java": {
+      "path": "/usr/bin/java",
+      "sha256": "00261dabda30e0dbf1a799d052a615fe404afff7530e50444eb75a30c4f8d9d5"
+    },
+    "ip": {
+      "path": "/usr/sbin/ip",
+      "sha256": "19d7990bf9e818121a7423179611ac59be9d37b3f21b3cb9249c048072a06a08"
+    },
+    "nft": {
+      "path": "/usr/sbin/nft",
+      "sha256": "7b3efd79bd3a70d72275b7bbfe19f2234a837968a3c0ad5528126a396a00d42f"
+    },
+    "iptables-save": {
+      "path": "/usr/sbin/iptables-save",
+      "sha256": "603f55a8877a2db138615f961901ef23ba77451ac0a53233bd01f1c9b216636a"
+    },
+    "ip6tables-save": {
+      "path": "/usr/sbin/ip6tables-save",
+      "sha256": "603f55a8877a2db138615f961901ef23ba77451ac0a53233bd01f1c9b216636a"
+    },
+    "firefox": {
+      "path": "/usr/bin/firefox",
+      "sha256": "0ed9f1a3e4c189165e94979eafa0751fdd20fded42c46679a6caa2adfbd46c7f"
+    },
+    "bitcoin-cli": {
+      "path": null,
+      "sha256": null
+    },
+    "bitcoind": {
+      "path": null,
+      "sha256": null
+    },
+    "monerod": {
+      "path": null,
+      "sha256": null
+    },
+    "monero-wallet-rpc": {
+      "path": null,
+      "sha256": null
+    },
+    "nano_node": {
+      "path": null,
+      "sha256": null
+    },
+    "adb": {
+      "path": null,
+      "sha256": null
+    },
+    "xcrun": {
+      "path": null,
+      "sha256": null
+    },
+    "docker": {
+      "path": "/usr/bin/docker",
+      "sha256": "40cdaf7fd0f21089dd9e15b0c3a7dd7f2399027f010e366dac6304ae0615954a"
+    },
+    "podman": {
+      "path": null,
+      "sha256": null
+    },
+    "firejail": {
+      "path": null,
+      "sha256": null
+    }
+  },
+  "ports": {
+    "bridge_source": 17450,
+    "bridge_target": 17451,
+    "seven_relay_base": 17460,
+    "native_relay": 17470
+  },
+  "test_seed": "property-offline-20261031-c"
+}

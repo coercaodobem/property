@@ -1,0 +1,93 @@
+{
+  "verdict": "BLOCKED",
+  "inspected_utc": "2026-10-31T14:41:53.525Z",
+  "process_policy": {
+    "seccomp_mode": 2,
+    "no_new_privs": true
+  },
+  "routes": {
+    "ipv4_loopback_only": false,
+    "ipv6_loopback_only": false,
+    "ipv4_inspection": {
+      "status": 1,
+      "error": "spawnSync ip EPERM"
+    },
+    "ipv6_inspection": {
+      "status": 1,
+      "error": "spawnSync ip EPERM"
+    },
+    "ipv4_policy_rules_inspected": false,
+    "ipv6_policy_rules_inspected": false,
+    "policy_rules_errors": [
+      "spawnSync ip EPERM",
+      "spawnSync ip EPERM"
+    ],
+    "raw_routes_saved": false
+  },
+  "dns": {
+    "inspected": true,
+    "nameservers": [
+      "127.0.0.53"
+    ],
+    "loopback_only": true
+  },
+  "firewall": {
+    "inspected": false,
+    "backend": null,
+    "output_policy_drop": false,
+    "rules_sha256": null,
+    "counters_available": false,
+    "output_rule_counters": null,
+    "inspection": {
+      "nft_status": 3,
+      "nft_error": "spawnSync nft EPERM",
+      "ipv4_status": 1,
+      "ipv4_error": "spawnSync iptables-save EPERM",
+      "ipv6_status": 1,
+      "ipv6_error": "spawnSync ip6tables-save EPERM"
+    }
+  },
+  "proxies": {
+    "configured": false,
+    "variable_names": []
+  },
+  "loopback": {
+    "ipv4": {
+      "ok": false,
+      "reason": "EPERM"
+    },
+    "ipv6": {
+      "ok": false,
+      "reason": "EPERM"
+    }
+  },
+  "public_tcp_probe_sent": false,
+  "public_dns_query_sent": false,
+  "reasons": [
+    "IPv4: route inspection unavailable",
+    "IPv6: route inspection unavailable",
+    "IPv4 policy-routing rules could not be inspected",
+    "IPv6 policy-routing rules could not be inspected",
+    "effective IPv4/IPv6 egress firewall not proven",
+    "IPv4 loopback unavailable: EPERM",
+    "IPv6 loopback unavailable: EPERM"
+  ],
+  "firewall_after": {
+    "inspected": false,
+    "backend": null,
+    "output_policy_drop": false,
+    "rules_sha256": null,
+    "counters_available": false,
+    "output_rule_counters": null,
+    "inspection": {
+      "nft_status": 3,
+      "nft_error": "spawnSync nft EPERM",
+      "ipv4_status": 1,
+      "ipv4_error": "spawnSync iptables-save EPERM",
+      "ipv6_status": 1,
+      "ipv6_error": "spawnSync ip6tables-save EPERM"
+    }
+  },
+  "firewall_policy_unchanged": null,
+  "firewall_counter_delta": null
+}

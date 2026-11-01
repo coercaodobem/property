@@ -1,0 +1,8 @@
+{
+  "status": "BLOCKED",
+  "exit_code": 130,
+  "interruption_signal": "SIGINT",
+  "child_pid": 3850808,
+  "child_cleanup_verified": true,
+  "evidence_preserved": true
+}

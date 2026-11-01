@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "run_id": "property-platforms-retake-20261101-01",
+  "profile": "platforms",
+  "candidate_commit": "305ae9ab2d0c89755a8323aed787b2e3b65b087f",
+  "manifest_config_sha256": "3e29785bdf856f4f51cf923f6e54020787364417ff9c16a432773e320ecf63aa",
+  "candidate_state_sha256": "7849b179b779d2622391ed79a66d15d493bf18f21c7b45c30d3a8254ac3fedc5",
+  "plan_sha256": "26ae822fdf76308ef445cc05f8acd9157cabe589521e4b84c09ee03129d3f44a",
+  "external_inputs": {
+    "core_report_sha256": "a28d4980e7820730dab9d18e1962cb9b004297b498ef3b46dd383a256eca3a5c"
+  },
+  "attempt_number": 1,
+  "resumed_from_attempt": null
+}

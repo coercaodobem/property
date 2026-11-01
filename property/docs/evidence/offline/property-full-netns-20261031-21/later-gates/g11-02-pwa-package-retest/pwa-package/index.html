@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101720">
+  <meta name="description" content="Property: comunicação Nostr com identidade local e relays escolhidos por você.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <title>Property</title>
+  <link rel="icon" href="./assets/icon.svg?v=property-v13" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest?v=property-v13">
+  <link rel="stylesheet" href="./styles.css?v=property-v13">
+  <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v13"></script>
+  <script defer src="./vault.js?v=property-v13"></script>
+  <script defer src="./routing.js?v=property-v13"></script>
+  <script defer src="./forwarding.js?v=property-v13"></script>
+  <script defer src="./nano.js?v=property-v13"></script>
+  <script defer src="./money.js?v=property-v13"></script>
+  <script defer src="./marketplace.js?v=property-v13"></script>
+  <script defer src="./campaigns.js?v=property-v13"></script>
+  <script defer src="./contact.js?v=property-v13"></script>
+  <script defer src="./app.js?v=property-v13"></script>
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#inicio" aria-label="Property início"><span class="brand-mark">P</span><span>Property</span></a>
+      <div class="connection"><span id="connection-dot" class="dot"></span><span id="connection-label">offline</span></div>
+      <button id="mobile-open-settings" class="icon-button mobile-relay-settings" aria-label="Configurar relays" title="Configurar relays">⚙</button>
+      <button id="profile-button" class="profile-button" aria-label="Perfil e configurações"><span id="profile-initial">?</span></button>
+    </header>
+
+    <main id="auth-screen" class="auth-layout">
+      <section class="intro-card">
+        <p class="eyebrow">NOSTR · CONTROLE LOCAL</p>
+        <h1>Converse sem pedir licença.</h1>
+        <p>Suas mensagens privadas são criptografadas de ponta a ponta. Escolha os relays; a interface só conecta você a eles.</p>
+        <div class="trust-list"><span>◈ Sem conta central</span><span>◈ Código servido deste pacote</span><span>◈ Relays sob sua escolha</span></div>
+      </section>
+      <section id="auth-panel" class="auth-card">
+        <section id="locked-node-status" class="locked-node-status hidden" role="status" aria-live="polite">
+          <p class="eyebrow">PONTE PÚBLICA</p>
+          <p><strong>Identidade bloqueada; ponte ativa.</strong> O encaminhamento público continua enquanto esta página estiver aberta. A chave privada foi apagada da sessão. Navegadores podem suspender páginas em segundo plano.</p>
+          <p id="locked-node-relays" class="fine-print"></p>
+          <button id="stop-locked-node" class="button danger full">Parar a ponte</button>
+        </section>
+        <div id="auth-choice" class="auth-pane">
+          <p class="eyebrow">COMECE AQUI</p>
+          <h2>Sua identidade fica neste aparelho</h2>
+          <p class="muted">Uma chave aleatória é criada no navegador e protegida pela sua senha. A senha não é enviada ao relay.</p>
+          <label class="field"><span>Senha</span><input id="password" type="password" autocomplete="current-password" minlength="12" placeholder="Use 12 caracteres ou mais"></label>
+          <label class="check-row"><input id="remember-login" type="checkbox" checked><span>Manter sessão iniciada neste aparelho</span></label>
+          <button id="unlock-button" class="button primary full">Desbloquear</button>
+          <button id="create-account-button" class="button secondary full">Criar identidade</button>
+          <button id="import-account-button" class="button text full">Importar chave Nostr</button>
+          <p id="auth-error" class="error" role="alert"></p>
+          <p class="fine-print">Sem servidor de recuperação. Exporte um backup criptografado para poder migrar de aparelho.</p>
+        </div>
+        <div id="auth-setup" class="auth-pane hidden">
+          <p class="eyebrow">NOVA IDENTIDADE</p><h2>Proteja sua conta</h2>
+          <label class="field"><span>Senha (12 caracteres ou mais)</span><input id="new-password" type="password" autocomplete="new-password" minlength="12"></label>
+          <label class="field"><span>Confirme a senha</span><input id="confirm-password" type="password" autocomplete="new-password"></label>
+          <label class="check-row"><input id="remember-device" type="checkbox" checked><span>Manter sessão iniciada neste aparelho</span></label>
+          <p class="fine-print">A sessão persistente é conveniente, mas alguém com acesso ao navegador já desbloqueado pode agir como você. Use bloqueio de tela no aparelho.</p>
+          <button id="finish-create-button" class="button primary full">Criar e continuar</button>
+          <button class="button text full back-auth">Voltar</button>
+          <p id="setup-error" class="error" role="alert"></p>
+        </div>
+        <div id="auth-import" class="auth-pane hidden">
+          <p class="eyebrow">IMPORTAR IDENTIDADE</p><h2>Use uma chave existente</h2>
+          <label class="field"><span>Chave secreta nsec ou hex</span><textarea id="import-secret" rows="3" autocomplete="off" spellcheck="false"></textarea></label>
+          <label class="field"><span>Crie uma senha local</span><input id="import-password" type="password" autocomplete="new-password" minlength="12"></label>
+          <label class="check-row"><input id="remember-import" type="checkbox"><span>Manter sessão iniciada neste aparelho</span></label>
+          <button id="finish-import-button" class="button primary full">Importar com segurança</button>
+          <button class="button text full back-auth">Voltar</button>
+          <p id="import-error" class="error" role="alert"></p>
+        </div>
+      </section>
+    </main>
+
+    <section id="workspace" class="workspace hidden">
+      <aside class="sidebar">
+        <div class="sidebar-heading"><div><p class="eyebrow">SEU ESPAÇO</p><h2>Conversas</h2></div><button id="new-chat-button" class="icon-button" aria-label="Nova conversa">＋</button></div>
+        <label class="search"><span aria-hidden="true">⌕</span><input id="conversation-search" type="search" placeholder="Buscar conversa"></label>
+        <div id="conversation-list" class="conversation-list"></div>
+        <nav class="main-nav" aria-label="Áreas do Property">
+          <button class="nav-button active" data-view="messages"><span>▤</span><span>Mensagens</span></button>
+          <button class="nav-button" data-view="hangout"><span>◌</span><span>Hangout</span></button>
+          <button class="nav-button" data-view="marketplace"><span>◇</span><span>Marketplace</span></button>
+          <button class="nav-button" data-view="node"><span>⌘</span><span>Meu node</span></button>
+        </nav>
+        <div class="relay-summary"><span class="relay-icon">◉</span><span><strong id="relay-count">0 relays</strong><small id="relay-summary-text">Configure sua conexão</small></span><button id="open-settings" class="icon-button small" aria-label="Configurar relays">⚙</button></div>
+      </aside>
+
+      <section id="messages-view" class="content-view messages-view">
+        <div id="empty-conversation" class="empty-state"><div class="empty-symbol">✳</div><h2>Suas conversas, sem intermediário</h2><p>Inicie uma conversa privada usando o npub da outra pessoa.</p><button id="empty-new-chat" class="button primary">Nova conversa</button></div>
+        <div id="conversation-pane" class="conversation-pane hidden">
+          <header class="conversation-header"><div class="avatar" id="chat-avatar">?</div><div class="person-details"><h2 id="chat-title">Conversa</h2><span id="chat-subtitle" class="muted"></span></div><button id="chat-details-button" class="icon-button" aria-label="Detalhes da conversa">···</button></header>
+          <div id="messages" class="messages" aria-live="polite"></div>
+          <form id="send-form" class="composer"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Escreva uma mensagem privada…" aria-label="Mensagem"></textarea><button class="send-button" type="submit" aria-label="Enviar mensagem">↑</button></form>
+          <p class="composer-note">NIP-17 · requer relay inbox kind 10050 publicado por você e pela outra pessoa</p>
+        </div>
+      </section>
+
+      <section id="hangout-view" class="content-view feature-view hidden">
+        <div class="feature-header"><p class="eyebrow">ESPAÇOS PÚBLICOS</p><h1>Hangout</h1><p>Descubra conversas públicas nos relays que você escolheu.</p><button id="refresh-hangout" class="button secondary">Atualizar espaços</button><div class="hangout-publish"><label class="field"><span>Compartilhe algo publicamente</span><textarea id="hangout-text" rows="3" maxlength="4000" placeholder="Este conteúdo será público nos relays conectados."></textarea></label><button id="publish-hangout" class="button secondary">Publicar no Hangout</button></div></div>
+        <div class="campaign-preferences"><label class="check-row"><input id="show-node-campaigns" type="checkbox"><span>Mostrar campanhas assinadas por nodes</span></label><p class="fine-print">Opcional e desligado por padrão. No máximo uma campanha por 24 horas; preferência e histórico ficam neste aparelho. O app não envia evento de clique ou visualização ao node, mas os relays consultados ainda veem consultas e metadados de conexão. O cliente verifica a assinatura do node, mas não confirma pagamentos BTC, XMR ou XNO nas respectivas redes.</p></div>
+        <section id="node-campaigns-section" class="campaign-section hidden" aria-label="Campanhas de nodes"><h2>Campanha de node</h2><div id="node-campaigns-list" class="feature-list"></div></section>
+        <div id="hangout-list" class="feature-list"><div class="empty-state compact"><div class="empty-symbol">◌</div><h2>Carregue conversas</h2><p>O feed público é consultado diretamente nos relays.</p></div></div>
+      </section>
+
+      <section id="marketplace-view" class="content-view feature-view hidden">
+        <div class="feature-header"><p class="eyebrow">LISTAS PÚBLICAS NOSTR · NIP-15</p><h1>Marketplace</h1><p>Descubra e publique ofertas. Negociação e pagamento acontecem diretamente entre as pessoas.</p><button id="publish-product-button" class="button primary">Publicar oferta</button><button id="refresh-marketplace" class="button secondary">Atualizar ofertas</button></div>
+        <div id="marketplace-list" class="product-grid"><div class="empty-state compact"><div class="empty-symbol">◇</div><h2>Nenhuma oferta carregada</h2><p>Busque ofertas nos relays configurados.</p></div></div>
+      </section>
+
+      <section id="node-view" class="content-view feature-view hidden">
+        <div class="feature-header"><p class="eyebrow">INFRAESTRUTURA SOB SEU CONTROLE</p><h1>Meu node</h1><p>Um computador pode manter um relay online. Um navegador móvel pode ajudar enquanto estiver aberto, mas o sistema pode suspendê-lo.</p><div class="node-card"><div class="node-status"><span class="dot idle"></span><div><strong>Relay local</strong><small>Windows x64 · macOS Apple Silicon · Linux x86_64</small></div></div><p class="fine-print">Linux/macOS: <code>./property/relay/start.sh</code><br>Windows PowerShell: <code>powershell -NoProfile -File .\property\relay\start.ps1</code></p><button id="use-local-relay" class="button secondary">Conectar a este PC (ws://127.0.0.1:7447)</button><button id="copy-relay-command" class="button secondary">Copiar instrução</button></div><div class="node-card"><h2>Ponte entre relays</h2><p class="muted">Quando ativa, esta PWA encaminha eventos públicos assinados entre os relays que você selecionou. Gift wraps privados só são replicados quando foram endereçados a você, e apenas para seus relays de recebimento NIP-17; a ponte nunca lê o texto. Relays ainda veem seu endereço IP, horários e metadados do protocolo; o recurso pode consumir dados móveis. A ponte limita a 60 eventos e 2 MB de tráfego de saída por minuto, somando o envio a cada relay. Só funciona enquanto o app estiver aberto — o sistema pode suspendê-lo. Para operação contínua, use o relay do PC.</p><label class="check-row"><input id="browser-node-toggle" type="checkbox"><span>Encaminhar eventos entre meus relays enquanto uso o app</span></label></div></div>
+      </section>
+    </section>
+  </div>
+
+  <dialog id="relay-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">CONEXÃO DIRETA</p><h2>Seus relays</h2></div><button class="icon-button" aria-label="Fechar">×</button></form><div class="dialog-body"><p class="muted">Nenhum relay é configurado automaticamente. Escolha endereços e toque em “Salvar e conectar”. Use wss:// em produção; ws:// só funciona para testes locais. A lista NIP-17 é pública.</p><label class="field"><span>Relays gerais (um por linha)</span><textarea id="relay-input" rows="4" spellcheck="false"></textarea></label><label class="field"><span>Relays de recebimento NIP-17 (1 a 3 URLs)</span><textarea id="dm-relay-input" rows="3" spellcheck="false" placeholder="wss://relay.example"></textarea></label><div class="dialog-actions"><button id="save-relays" class="button primary" type="button">Salvar e conectar</button><button id="publish-inbox-list" class="button secondary" type="button">Publicar meus relays de mensagens (NIP-17)</button><button id="use-default-relays" class="button text" type="button">Carregar exemplos públicos</button></div><p class="fine-print">Os exemplos são dois relays públicos; preenchê-los não conecta. A conexão começa somente após salvar. A lista NIP-17 é pública; mensagens são enviadas aos relays de recebimento definidos por você e pela outra pessoa.</p><p id="relay-error" class="error" role="alert"></p></div></dialog>
+
+  <dialog id="new-chat-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">MENSAGEM PRIVADA</p><h2>Nova conversa</h2></div><button class="icon-button" aria-label="Fechar">×</button></form><div class="dialog-body"><label class="field"><span>npub ou chave pública hex</span><input id="peer-input" autocomplete="off" spellcheck="false" placeholder="npub1…"></label><label class="field"><span>Nome local (opcional)</span><input id="peer-name-input" maxlength="80" placeholder="Como você conhece essa pessoa?"></label><label class="field"><span>Relays de perfil (um por linha, opcional)</span><textarea id="peer-relays-input" rows="2" spellcheck="false" placeholder="wss://relay.example"></textarea></label><button id="start-chat-button" class="button primary full" type="button">Abrir conversa</button><p id="new-chat-error" class="error" role="alert"></p></div></dialog>
+
+  <dialog id="product-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">NIP-15</p><h2 id="product-dialog-title">Publicar oferta</h2></div><button class="icon-button" aria-label="Fechar">×</button></form><div class="dialog-body"><label class="field"><span>Nome do produto ou serviço</span><input id="product-name" maxlength="140"></label><label class="field"><span>Descrição</span><textarea id="product-description" rows="4" maxlength="2000"></textarea></label><label class="field"><span>Moeda</span><select id="product-currency"><option value="XNO">XNO · Nano</option><option value="XMR">XMR · Monero</option><option value="BTC">BTC · Bitcoin</option></select></label><label class="field"><span>Preço</span><input id="product-price" type="text" inputmode="decimal" maxlength="80" required placeholder="Ex.: 0,25"></label><label class="field"><span>Imagem HTTPS (opcional)</span><input id="product-image" type="url" placeholder="https://…"></label><button id="publish-product" class="button primary full" type="button">Assinar e publicar</button><p class="fine-print">NIP-15 é um protocolo draft marcado como não recomendado. O MVP permite publicar, editar e pedir a retirada de ofertas; não processa pagamentos nem oferece custódia.</p><p id="product-error" class="error" role="alert"></p></div></dialog>
+
+  <dialog id="delete-product-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">RETIRADA NOSTR</p><h2>Retirar oferta?</h2></div><button class="icon-button" aria-label="Cancelar">×</button></form><div class="dialog-body"><p id="delete-product-label" class="muted"></p><button id="confirm-delete-product" class="button danger full" type="button">Assinar e publicar pedido</button><p id="delete-product-error" class="error" role="alert"></p></div></dialog>
+
+  <dialog id="profile-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">IDENTIDADE LOCAL</p><h2>Perfil e segurança</h2></div><button class="icon-button" aria-label="Fechar">×</button></form><div class="dialog-body"><p><strong>npub</strong></p><code id="profile-npub" class="break-code"></code><label class="field"><span>Nome público</span><input id="profile-name" maxlength="80" placeholder="Como quer aparecer"></label><button id="save-profile" class="button secondary full" type="button">Salvar perfil</button><button id="export-backup" class="button secondary full" type="button">Baixar backup criptografado</button><button id="copy-npub" class="button text full" type="button">Copiar npub</button><button id="lock-account" class="button danger full" type="button">Bloquear e limpar sessão</button><p id="profile-error" class="error" role="alert"></p></div></dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <footer class="app-footer"><span>Property · código local</span><span><a href="./about.html">Sobre o projeto</a></span></footer>
+</body>
+</html>

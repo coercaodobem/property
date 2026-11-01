@@ -1,0 +1,37 @@
+{
+  "run_id": "property-g11-lock-diagnostic-20261031-01",
+  "candidate_commit": "7aff8e448898e674f8448a2dd847a64faceda8cd",
+  "actual_executor": "Codex GPT-6",
+  "requested_executor": "Luna Max",
+  "source_files": [
+    {
+      "path": "property/web/app.js",
+      "sha256": "b679d3d95db781684d1bc49bb0911fcf212bfa42d298b9d97fd26ca7cb1f33ae"
+    },
+    {
+      "path": "property/web/index.html",
+      "sha256": "ac04510374575cdc5d425ac827a53aff7380a1bec926c4840981104ac9f7fc48"
+    },
+    {
+      "path": "property/web/styles.css",
+      "sha256": "1ee50bf3893c09a760c2992fcadea204c00b3baba1184f287a3bef31d0f0af15"
+    },
+    {
+      "path": "property/web/sw.js",
+      "sha256": "94777f1cb74e85e2e61219c5663d32c6e490a4983ff9ab4ecd7f6a63d62a2196"
+    },
+    {
+      "path": "property/tests/offline/g11-multirelay-soak.mjs",
+      "sha256": "8dfe7ab8008cb9d43be5d13ce163b32c7bc7815e69ca6965f2d5e801a1743c05"
+    },
+    {
+      "path": "property/tests/offline/run-offline.mjs",
+      "sha256": "cbec9aea1db0f2d1363ee59d1f87a439b75a26e7018a1611c177ed9b9ef7f551"
+    },
+    {
+      "path": "property/tests/offline/browser-g05-smoke.mjs",
+      "sha256": "a66c5e4c00c32a37940af277ab83e2caa707ac52836dd2359c268df3630c92c3"
+    }
+  ],
+  "started_utc": "2026-10-31T20:06:59.328Z"
+}

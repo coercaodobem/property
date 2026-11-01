@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "run_id": "property-full-netns-20261031-20",
+  "profile": "full",
+  "candidate_commit": "8976f92fe815884d4b53cfd1e8f8c45cfd1f0c07",
+  "observed_head": "8976f92fe815884d4b53cfd1e8f8c45cfd1f0c07",
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active Codex task runtime",
+  "executor_matches_request": false,
+  "started_utc": "2026-10-31T20:40:27.793Z",
+  "ended_utc": "2026-11-01T02:21:18.996Z",
+  "gate_status": {
+    "G00": "PASS",
+    "G01": "PASS",
+    "G02": "PASS",
+    "G03": "PASS",
+    "G04": "PASS",
+    "G05": "PASS",
+    "G06": "PASS",
+    "G07": "PASS",
+    "G08": "PASS",
+    "G09": "PASS",
+    "G10": "PASS",
+    "G11": "FAIL",
+    "G12": "BLOCKED"
+  },
+  "case_totals": {
+    "PASS": 67,
+    "BLOCKED": 6,
+    "FAIL": 1
+  },
+  "isolation": "PASS",
+  "scope_result": "FAIL",
+  "exit_code": 1
+}

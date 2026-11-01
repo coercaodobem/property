@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G03-01",
+      "status": "PASS",
+      "reason": "A and B were created through the UI in separate persistent browser profiles with the same password; public keys differ and both vaults store encrypted key material without password/nsec fields."
+    },
+    {
+      "case": "G03-02",
+      "status": "PASS",
+      "reason": "Persistent browser restart restored A only when requested; B required the correct password, rejected the wrong one without vault mutation, and manual lock cleared the session."
+    },
+    {
+      "case": "G03-03",
+      "status": "PASS",
+      "reason": "The UI exported an encrypted backup and a clean context imported the same public identity; it could reopen the contact using the other person’s public npub."
+    },
+    {
+      "case": "G03-04",
+      "status": "PASS",
+      "reason": "The public key shown in B profile opened A’s conversation; a valid nprofile preserved its local relay hint and did not connect automatically."
+    },
+    {
+      "case": "G03-05",
+      "status": "PASS",
+      "reason": "Empty, truncated, name-only, nsec and self contacts were rejected in Portuguese without closing the dialog, creating the wrong contact or changing identity."
+    },
+    {
+      "case": "G03-06",
+      "status": "PASS",
+      "reason": "Across creation, lock, backup and contact flows, only localhost assets were requested; passwords/private keys were absent from Web Storage and no central login/recovery request was observed."
+    }
+  ],
+  "external_requests": [],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "identities": {
+    "two_contexts_created": true,
+    "same_password_used": true,
+    "distinct_public_keys": true,
+    "account_a": {
+      "pubkey": "21f354e6e60adcab74d4977d2fd3b44e5af0cc6268cb05a7a66f96e188164e1e",
+      "encrypted_fields_present": true,
+      "session_present": true
+    },
+    "account_b": {
+      "pubkey": "a72dd8ba7fae1aea0055462619275958c46f6730411fadf5fe27f456e628c8fb",
+      "encrypted_fields_present": true,
+      "session_present": false
+    }
+  },
+  "sessions": {
+    "remembered_profile_auto_unlock_after_restart": true,
+    "non_remembered_profile_requires_password": true,
+    "wrong_password_kept_vault_unchanged": true,
+    "correct_password_restored_same_identity": true,
+    "manual_lock_hid_workspace": true,
+    "manual_lock_cleared_session": true,
+    "idle_timeout": {
+      "status": "NOT_EXERCISED",
+      "reason": "The product timeout is 30 minutes; this short test does not wait or change production policy."
+    }
+  },
+  "backup": {
+    "exported_through_profile_ui": true,
+    "format": "property-encrypted-key-v1",
+    "restored_pubkey_matches": true,
+    "password_not_in_backup": true,
+    "private_key_not_in_backup": true,
+    "restored_identity_can_open_public_contact": true,
+    "server_side_recovery_or_identity_reset": "none"
+  },
+  "contacts": {
+    "npub_from_profile_ui_opened_expected_contact": true,
+    "nprofile_hints_kept_local": true,
+    "no_relay_connection_started_by_opening_contact": true,
+    "new_chat_did_not_change_identity": true,
+    "invalid_inputs": [
+      {
+        "input_type": "empty",
+        "rejected": true,
+        "message": "Informe o contato público antes de abrir a conversa."
+      },
+      {
+        "input_type": "truncated-npub",
+        "rejected": true,
+        "message": "Não foi possível validar este npub. Confira se o contato está completo ou peça à pessoa que o compartilhe novamente."
+      },
+      {
+        "input_type": "plain-name",
+        "rejected": true,
+        "message": "Este campo não busca nomes de usuário. Cole um npub ou nprofile completo, ou informe uma chave pública hex de 64 caracteres."
+      },
+      {
+        "input_type": "private-nsec",
+        "rejected": true,
+        "message": "Essa entrada parece ser uma chave privada nsec. Não a compartilhe; peça à pessoa o npub ou nprofile público."
+      },
+      {
+        "input_type": "self-contact",
+        "rejected": true,
+        "message": "Não é possível iniciar uma conversa consigo mesmo."
+      }
+    ]
+  },
+  "privacy": {
+    "external_requests": 0,
+    "denied_proxy_attempts": 0,
+    "page_errors": 0,
+    "web_storage_contains_password": false,
+    "web_storage_contains_private_key": false,
+    "central_login_or_recovery_endpoint": "none observed",
+    "captured_values": "request method/origin/path only; no bodies or secrets"
+  },
+  "browser": {
+    "engine": "chromium",
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "local_origin": "http://127.0.0.1:42587",
+  "result": "PASS"
+}

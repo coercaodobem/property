@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G02-04",
+      "status": "PASS",
+      "reason": "Complete update activated; interrupted and mixed packages were rejected while the previous shell, identity and unrelated cache remained available."
+    },
+    {
+      "case": "G02-05",
+      "status": "PASS",
+      "reason": "Legacy backup and database restored the same identity/data; wrong-password/tampered imports and unavailable storage failed visibly without creating another account."
+    },
+    {
+      "case": "G02-06",
+      "status": "PASS",
+      "reason": "CSP blocked remote script execution; malicious text stayed inert; the pinned local TLS/WSS endpoint worked and an untrusted certificate was rejected."
+    }
+  ],
+  "external_requests": [
+    "GET https://remote-script.invalid/evil.js"
+  ],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "csp_violations": [
+    "Loading the script 'https://remote-script.invalid/evil.js' violates the following Content Security Policy directive: \"script-src 'self'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+  ],
+  "update_checks": {
+    "previous_cache": "property-shell-v13",
+    "successful_update": {
+      "state": "activated",
+      "active_state": "activated",
+      "cache_names": [
+        "another-app-data",
+        "property-shell-v14"
+      ]
+    },
+    "after_success_cache_names": [
+      "another-app-data",
+      "property-shell-v14"
+    ],
+    "interrupted_update": {
+      "state": "redundant",
+      "active_state": "activated",
+      "cache_names": [
+        "another-app-data",
+        "property-shell-v14"
+      ]
+    },
+    "mixed_update": {
+      "state": "redundant",
+      "active_state": "activated",
+      "cache_names": [
+        "another-app-data",
+        "property-shell-v14"
+      ]
+    },
+    "identity_preserved": true,
+    "unrelated_cache_preserved": true
+  },
+  "migration_checks": {
+    "legacy_backup_format_imported": true,
+    "same_identity": true,
+    "wrong_password_rejected": true,
+    "tampered_backup_rejected": true,
+    "failed_import_created_no_identity": true,
+    "legacy_database_and_conversation_preserved": true,
+    "old_and_new_paths_same_origin": true,
+    "storage_failure_reported_without_new_identity": true
+  },
+  "tls_checks": {
+    "valid_https_status": 200,
+    "invalid_https_rejected": true,
+    "valid_wss_opened": true,
+    "invalid_wss_rejected": true,
+    "valid_tls_upgrade_count": 1,
+    "invalid_tls_upgrade_count": 0,
+    "certificate_policy": "Only the generated local valid leaf SPKI is allowlisted in this disposable browser; no global ignore-certificate-errors flag."
+  },
+  "browser": {
+    "engine": "chromium",
+    "browser_version": "153.0.8010.12",
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e",
+    "tls_spki_pin_sha256_base64": "BRfhp/wwjbWGAm9f3hFfWG4hxiO1u8+awEhwp8vpHBA="
+  },
+  "local_origin": "http://127.0.0.1:37063",
+  "intentional_csp_blocked_external_attempts": [
+    "GET https://remote-script.invalid/evil.js"
+  ],
+  "result": "PASS"
+}

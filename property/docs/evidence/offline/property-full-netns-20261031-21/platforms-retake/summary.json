@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "run_id": "property-platforms-retake-20261101-01",
+  "profile": "platforms",
+  "candidate_commit": "305ae9ab2d0c89755a8323aed787b2e3b65b087f",
+  "observed_head": "923d8176290c0194a8bdcd45de33352eddf0d7c1",
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active Codex task runtime",
+  "executor_matches_request": false,
+  "started_utc": "2026-11-01T08:32:37.467Z",
+  "ended_utc": "2026-11-01T08:32:41.877Z",
+  "gate_status": {
+    "G00": "PASS",
+    "G01": "PASS",
+    "G02": "PASS",
+    "G03": "PASS",
+    "G04": "PASS",
+    "G05": "PASS",
+    "G06": "PASS",
+    "G07": "PASS",
+    "G08": "PASS",
+    "G09": "PASS",
+    "G10": "PASS",
+    "G11": "PASS",
+    "G12": "BLOCKED"
+  },
+  "case_totals": {
+    "PASS": 70,
+    "BLOCKED": 4
+  },
+  "isolation": "PASS",
+  "scope_result": "BLOCKED",
+  "exit_code": 2
+}

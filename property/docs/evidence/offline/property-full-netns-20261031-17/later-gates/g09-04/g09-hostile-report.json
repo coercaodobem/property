@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "case": "G09-04",
+  "result": "PASS",
+  "relay_duplicate_copies": 1,
+  "invalid_signature_rejected": true,
+  "oversized_event_forwarded": false,
+  "bridge_events_accepted_before_quota": 60,
+  "corpus_recovered_after_hostile_input": true,
+  "persisted_event_ids": [
+    "d67aea4f9d2caa36166ab9ae57583e21f4e58f30fed9b455ffd8c6c512c47903",
+    "a2dd9be840507341e29c883eaf703a0d6039837a791a4ab8017e19206d2cb5d8"
+  ]
+}

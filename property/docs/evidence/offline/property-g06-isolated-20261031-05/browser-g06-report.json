@@ -1,0 +1,871 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G06-01",
+      "status": "PASS",
+      "reason": "A signed public kind-1 post traversed the actual PWA bridge from R1 to R2. Buyer B saw the author, and the contact action selected that author in private-message navigation while the post remained public."
+    },
+    {
+      "case": "G06-02",
+      "status": "PASS",
+      "reason": "The browser published, discovered, and edited one satoshi, one piconero, and one raw through two actual Geode relays and a real PWA bridge. Exact atomic strings, event authorship, stable d tags, signatures, and rendered prices survived each round-trip; currency maxima and overflow were checked."
+    },
+    {
+      "case": "G06-03",
+      "status": "FAIL",
+      "reason": "Offer G06 one piconero 21a69495-276d-452d-b69b-d3db63124d9c did not render after refresh; marketplace text: G06 one raw d5bd82ff-55a0-4f9e-9c8c-71be0155ef6d0.000000000000000000000000000002 XNOTermos combinados diretamente entre as pessoas.Vendedor: npub…vqgkxc5sFalar com vendedor"
+    },
+    {
+      "case": "G06-04",
+      "status": "BLOCKED",
+      "reason": "Earlier case G06-03 did not pass; dependent G06 scenario was not started."
+    },
+    {
+      "case": "G06-05",
+      "status": "BLOCKED",
+      "reason": "Earlier case G06-03 did not pass; dependent G06 scenario was not started."
+    }
+  ],
+  "nodes": [
+    {
+      "label": "G06 seller A",
+      "pubkey": "f5e1ee7bb400bcb04024e5a1d4e43d66c92df664ec9470640b5f9ff6128f7758",
+      "general_relays": [
+        "ws://127.0.0.1:28480"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": false
+    },
+    {
+      "label": "G06 buyer B",
+      "pubkey": "fa02021fce785570f9eb410cc1f42b0dae922484ac42d692170d1d63b517aaf7",
+      "general_relays": [
+        "ws://127.0.0.1:28481"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": false
+    },
+    {
+      "label": "G06 public relay bridge",
+      "pubkey": "541c639d337573ffb543c114102d24db8527b1f5467d1f8117a64d00bf7aff48",
+      "general_relays": [
+        "ws://127.0.0.1:28480",
+        "ws://127.0.0.1:28481"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28480",
+      "process_id": 4058508,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28481",
+      "process_id": 4059068,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/"
+  ],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "hangout": {
+    "event_id": "96514775a091910814f0398f4534ab325d32550b0e7fbaad70efbccd4b52fba0",
+    "author": "f5e1ee7bb400bcb04024e5a1d4e43d66c92df664ec9470640b5f9ff6128f7758",
+    "R1_signature_valid": true,
+    "R2_copy_same_id": true,
+    "public_feed_label_visible": true,
+    "contact_target_npub": "npub17hs7u7a5qz7tqspyuksafepavmyjmanyaj28qeqtt70lvy50wavqgkxc5s",
+    "private_room_created": false
+  },
+  "marketplace": {
+    "offers": [
+      {
+        "currency": "BTC",
+        "unit": "satoshi",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "5fa1a250-810a-4947-a029-55984dc7bad0",
+        "initial_event_id": "f88701f6c5e70c45d54b61060fba21454f9cf0cd0b020a00cb57be52471dd880",
+        "updated_event_id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+        "seller_signature_valid": true,
+        "R2_copy": true,
+        "initial_ui_price": "0.00000001 BTC",
+        "updated_ui_price": "0.00000002 BTC"
+      },
+      {
+        "currency": "XMR",
+        "unit": "piconero",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "fd774cf5-38af-4f32-98dd-72efaefe7e15",
+        "initial_event_id": "fc3de0c92171c5d7b9541d6bd3377268ee2fb89c7107b26b2988fedacbce811d",
+        "updated_event_id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+        "seller_signature_valid": true,
+        "R2_copy": true,
+        "initial_ui_price": "0.000000000001 XMR",
+        "updated_ui_price": "0.000000000002 XMR"
+      },
+      {
+        "currency": "XNO",
+        "unit": "raw",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "72298e9d-67a8-4f9d-9deb-2f84a4a6e2b7",
+        "initial_event_id": "e161f9bd555b23e646c19cc344bbae1014f14c5a2573fa1a546412c568b6d4d7",
+        "updated_event_id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+        "seller_signature_valid": true,
+        "R2_copy": true,
+        "initial_ui_price": "0.000000000000000000000000000001 XNO",
+        "updated_ui_price": "0.000000000000000000000000000002 XNO"
+      }
+    ],
+    "currency_atomic_bounds": {
+      "BTC": {
+        "max_accepted": "2100000000000000",
+        "over_max_rejected": true
+      },
+      "XNO": {
+        "max_accepted": "340282366920938463463374607431768211455",
+        "over_max_rejected": true
+      },
+      "XMR": {
+        "max_accepted": "18446744073709551615",
+        "over_max_rejected": true
+      }
+    },
+    "amount_representation": "decimal integer strings; no float used for atomic values"
+  },
+  "deletion": {
+    "seller_signed_withdrawal_id": "205ab33373d00565feea54796df399f0acf150ba261d1fda4c7f7b299525f07c",
+    "seller_withdrawal_signature_valid": true,
+    "old_copy_replayed_to_R2_after_tombstone": true,
+    "tombstone_removed_prior_copy": true,
+    "replay_ack": {
+      "accepted": false,
+      "message": "Error code: 1811, message: blocked: a deletion event exists"
+    },
+    "relay_product_copies_after_withdrawal": [
+      {
+        "id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+        "d": "72298e9d-67a8-4f9d-9deb-2f84a4a6e2b7",
+        "name": "G06 one raw d5bd82ff-55a0-4f9e-9c8c-71be0155ef6d"
+      },
+      {
+        "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+        "d": "fd774cf5-38af-4f32-98dd-72efaefe7e15",
+        "name": "G06 one piconero 21a69495-276d-452d-b69b-d3db63124d9c"
+      }
+    ],
+    "active_names_after_withdrawal": [
+      "G06 one raw d5bd82ff-55a0-4f9e-9c8c-71be0155ef6d",
+      "G06 one piconero 21a69495-276d-452d-b69b-d3db63124d9c"
+    ]
+  },
+  "security": {},
+  "contact": {},
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "local_origin": "http://127.0.0.1:34601",
+  "identities": {
+    "seller_pubkey": "f5e1ee7bb400bcb04024e5a1d4e43d66c92df664ec9470640b5f9ff6128f7758",
+    "buyer_pubkey": "fa02021fce785570f9eb410cc1f42b0dae922484ac42d692170d1d63b517aaf7",
+    "bridge_pubkey": "541c639d337573ffb543c114102d24db8527b1f5467d1f8117a64d00bf7aff48"
+  },
+  "result": "FAIL",
+  "error": "Offer G06 one piconero 21a69495-276d-452d-b69b-d3db63124d9c did not render after refresh; marketplace text: G06 one raw d5bd82ff-55a0-4f9e-9c8c-71be0155ef6d0.000000000000000000000000000002 XNOTermos combinados diretamente entre as pessoas.Vendedor: npub…vqgkxc5sFalar com vendedor",
+  "current_case": "G06-03",
+  "current_step": "reject earlier-timestamp deletion",
+  "error_stack": "Error: Offer G06 one piconero 21a69495-276d-452d-b69b-d3db63124d9c did not render after refresh; marketplace text: G06 one raw d5bd82ff-55a0-4f9e-9c8c-71be0155ef6d0.000000000000000000000000000002 XNOTermos combinados diretamente entre as pessoas.Vendedor: npub…vqgkxc5sFalar com vendedor\n    at refreshProductFor (file:///home/<USER>/Liberdade/amethyst-upstream/property/tests/offline/browser-g06-smoke.mjs:90:13)\n    at async main (file:///home/<USER>/Liberdade/amethyst-upstream/property/tests/offline/browser-g06-smoke.mjs:260:5)",
+  "node_diagnostics": [
+    {
+      "label": "G06 seller A",
+      "subscriptions": [],
+      "eoses": [],
+      "received": [
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-e7c3b7fd-e506-4097-842b-2472633413a0",
+          "id": "96514775a091910814f0398f4534ab325d32550b0e7fbaad70efbccd4b52fba0",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-436ffc24-fe2d-4b19-a279-c19b4291c566",
+          "id": "f88701f6c5e70c45d54b61060fba21454f9cf0cd0b020a00cb57be52471dd880",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-d0f89570-6157-4900-818b-4faa63da10a0",
+          "id": "f88701f6c5e70c45d54b61060fba21454f9cf0cd0b020a00cb57be52471dd880",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-0c1ea88d-24a1-4751-b9fc-e822bb322380",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-580a6eae-8243-4d11-9410-7ec42d1ee9a9",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-580a6eae-8243-4d11-9410-7ec42d1ee9a9",
+          "id": "fc3de0c92171c5d7b9541d6bd3377268ee2fb89c7107b26b2988fedacbce811d",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-dfebf98f-aafa-40a1-89e8-07209021b08a",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-dfebf98f-aafa-40a1-89e8-07209021b08a",
+          "id": "fc3de0c92171c5d7b9541d6bd3377268ee2fb89c7107b26b2988fedacbce811d",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-0f190534-aa3d-4fab-8e1e-522e9606862a",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-0f190534-aa3d-4fab-8e1e-522e9606862a",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-cc857ad5-511f-4ec7-b2f0-3dc173880091",
+          "id": "e161f9bd555b23e646c19cc344bbae1014f14c5a2573fa1a546412c568b6d4d7",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-cc857ad5-511f-4ec7-b2f0-3dc173880091",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-cc857ad5-511f-4ec7-b2f0-3dc173880091",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-5c9e5a7e-ebbd-4567-b5e3-b03715fee74a",
+          "id": "e161f9bd555b23e646c19cc344bbae1014f14c5a2573fa1a546412c568b6d4d7",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-5c9e5a7e-ebbd-4567-b5e3-b03715fee74a",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-5c9e5a7e-ebbd-4567-b5e3-b03715fee74a",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-b3baa9f7-e0cb-4f99-8c54-0318f1ca062c",
+          "id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-b3baa9f7-e0cb-4f99-8c54-0318f1ca062c",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-b3baa9f7-e0cb-4f99-8c54-0318f1ca062c",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-2a71e74e-60cf-4cbf-bd36-c61a81d171a7",
+          "id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-2a71e74e-60cf-4cbf-bd36-c61a81d171a7",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-2a71e74e-60cf-4cbf-bd36-c61a81d171a7",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-9542e34f-a1ce-4cfd-b7c5-88e6d63123ed",
+          "id": "205ab33373d00565feea54796df399f0acf150ba261d1fda4c7f7b299525f07c",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-9542e34f-a1ce-4cfd-b7c5-88e6d63123ed",
+          "id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "q-9542e34f-a1ce-4cfd-b7c5-88e6d63123ed",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        }
+      ],
+      "forwarded": [
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "96514775a091910814f0398f4534ab325d32550b0e7fbaad70efbccd4b52fba0",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "55abc476a01b12086e1d765ac4b5b2c98a895fb445bd8bc4773390bc959565c7",
+          "kind": 30017
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "f88701f6c5e70c45d54b61060fba21454f9cf0cd0b020a00cb57be52471dd880",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "347d8cdd11e6127e26e442ab10706a98b88296cce081829bd2c10b59d638b7ed",
+          "kind": 30017
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "fc3de0c92171c5d7b9541d6bd3377268ee2fb89c7107b26b2988fedacbce811d",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "4e8aaade37ef4d790456a31513fc348ba45b49efbe41aa3cf1f555ed9926ee1f",
+          "kind": 30017
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "e161f9bd555b23e646c19cc344bbae1014f14c5a2573fa1a546412c568b6d4d7",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "205ab33373d00565feea54796df399f0acf150ba261d1fda4c7f7b299525f07c",
+          "kind": 5
+        }
+      ],
+      "errors": []
+    },
+    {
+      "label": "G06 buyer B",
+      "subscriptions": [],
+      "eoses": [],
+      "received": [
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-6310826b-11b4-492b-8cc8-87801f048480",
+          "id": "96514775a091910814f0398f4534ab325d32550b0e7fbaad70efbccd4b52fba0",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-9aea2e81-b6f4-4c0c-96ae-dcd234968e00",
+          "id": "f88701f6c5e70c45d54b61060fba21454f9cf0cd0b020a00cb57be52471dd880",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-9494a20b-80e4-4124-b5d4-e4a45a8fa9b0",
+          "id": "f88701f6c5e70c45d54b61060fba21454f9cf0cd0b020a00cb57be52471dd880",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-8cfd8e40-bf2c-4de7-b069-c3a416c78baf",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-38b3092f-616d-44f8-938e-c7d26b3811f4",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-38b3092f-616d-44f8-938e-c7d26b3811f4",
+          "id": "fc3de0c92171c5d7b9541d6bd3377268ee2fb89c7107b26b2988fedacbce811d",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-6dba4a2e-71b5-47f1-8df7-2c0aefe0e167",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-6dba4a2e-71b5-47f1-8df7-2c0aefe0e167",
+          "id": "fc3de0c92171c5d7b9541d6bd3377268ee2fb89c7107b26b2988fedacbce811d",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-e6b366bf-9d51-434c-b61e-db56a089a386",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-e6b366bf-9d51-434c-b61e-db56a089a386",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-e3f9c7fc-6415-4359-b05e-c03ca202e647",
+          "id": "e161f9bd555b23e646c19cc344bbae1014f14c5a2573fa1a546412c568b6d4d7",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-e3f9c7fc-6415-4359-b05e-c03ca202e647",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-e3f9c7fc-6415-4359-b05e-c03ca202e647",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-d9bb19c2-e655-4fc0-8487-61c025ff2e3a",
+          "id": "e161f9bd555b23e646c19cc344bbae1014f14c5a2573fa1a546412c568b6d4d7",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-d9bb19c2-e655-4fc0-8487-61c025ff2e3a",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-d9bb19c2-e655-4fc0-8487-61c025ff2e3a",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-85aa2de8-10ad-4489-b6f2-8151b857339d",
+          "id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-85aa2de8-10ad-4489-b6f2-8151b857339d",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-85aa2de8-10ad-4489-b6f2-8151b857339d",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-e2f8fe1c-0ce1-4a96-a414-4f31b03fff6e",
+          "id": "205ab33373d00565feea54796df399f0acf150ba261d1fda4c7f7b299525f07c",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-e2f8fe1c-0ce1-4a96-a414-4f31b03fff6e",
+          "id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-e2f8fe1c-0ce1-4a96-a414-4f31b03fff6e",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-12efc8e9-43c3-4435-ac98-63b10a551f04",
+          "id": "205ab33373d00565feea54796df399f0acf150ba261d1fda4c7f7b299525f07c",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-12efc8e9-43c3-4435-ac98-63b10a551f04",
+          "id": "652dc438c8ce9b2bf8ad752133cedb4bd7032c39175f2f5d2ed1a7e8f740d90f",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-12efc8e9-43c3-4435-ac98-63b10a551f04",
+          "id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-12efc8e9-43c3-4435-ac98-63b10a551f04",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-49609351-f309-4df9-be0d-789e21ab7b40",
+          "id": "205ab33373d00565feea54796df399f0acf150ba261d1fda4c7f7b299525f07c",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-49609351-f309-4df9-be0d-789e21ab7b40",
+          "id": "652dc438c8ce9b2bf8ad752133cedb4bd7032c39175f2f5d2ed1a7e8f740d90f",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-49609351-f309-4df9-be0d-789e21ab7b40",
+          "id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "q-49609351-f309-4df9-be0d-789e21ab7b40",
+          "id": "99dd599af26510109efe00e8a9ba41cf4c56c23b8b5e896f5949be15932f0b61",
+          "kind": 5
+        }
+      ],
+      "forwarded": [],
+      "errors": []
+    },
+    {
+      "label": "G06 public relay bridge",
+      "subscriptions": [
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "kinds": [
+            1,
+            5,
+            7,
+            10050,
+            30017,
+            30018,
+            30019
+          ]
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "kinds": [
+            1,
+            5,
+            7,
+            10050,
+            30017,
+            30018,
+            30019
+          ]
+        }
+      ],
+      "eoses": [
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b"
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7"
+        }
+      ],
+      "received": [
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "96514775a091910814f0398f4534ab325d32550b0e7fbaad70efbccd4b52fba0",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "96514775a091910814f0398f4534ab325d32550b0e7fbaad70efbccd4b52fba0",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "55abc476a01b12086e1d765ac4b5b2c98a895fb445bd8bc4773390bc959565c7",
+          "kind": 30017
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "55abc476a01b12086e1d765ac4b5b2c98a895fb445bd8bc4773390bc959565c7",
+          "kind": 30017
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "f88701f6c5e70c45d54b61060fba21454f9cf0cd0b020a00cb57be52471dd880",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "f88701f6c5e70c45d54b61060fba21454f9cf0cd0b020a00cb57be52471dd880",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "347d8cdd11e6127e26e442ab10706a98b88296cce081829bd2c10b59d638b7ed",
+          "kind": 30017
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "347d8cdd11e6127e26e442ab10706a98b88296cce081829bd2c10b59d638b7ed",
+          "kind": 30017
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "fc3de0c92171c5d7b9541d6bd3377268ee2fb89c7107b26b2988fedacbce811d",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "fc3de0c92171c5d7b9541d6bd3377268ee2fb89c7107b26b2988fedacbce811d",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "4e8aaade37ef4d790456a31513fc348ba45b49efbe41aa3cf1f555ed9926ee1f",
+          "kind": 30017
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "4e8aaade37ef4d790456a31513fc348ba45b49efbe41aa3cf1f555ed9926ee1f",
+          "kind": 30017
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "e161f9bd555b23e646c19cc344bbae1014f14c5a2573fa1a546412c568b6d4d7",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "e161f9bd555b23e646c19cc344bbae1014f14c5a2573fa1a546412c568b6d4d7",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "205ab33373d00565feea54796df399f0acf150ba261d1fda4c7f7b299525f07c",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "205ab33373d00565feea54796df399f0acf150ba261d1fda4c7f7b299525f07c",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "652dc438c8ce9b2bf8ad752133cedb4bd7032c39175f2f5d2ed1a7e8f740d90f",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "652dc438c8ce9b2bf8ad752133cedb4bd7032c39175f2f5d2ed1a7e8f740d90f",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "subscription_id": "bridge-b9ab27db-7118-4a95-9472-08f3b24bfd7b",
+          "id": "99dd599af26510109efe00e8a9ba41cf4c56c23b8b5e896f5949be15932f0b61",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "subscription_id": "bridge-502c658b-9c6c-4fdc-a385-5431092958e7",
+          "id": "99dd599af26510109efe00e8a9ba41cf4c56c23b8b5e896f5949be15932f0b61",
+          "kind": 5
+        }
+      ],
+      "forwarded": [
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "96514775a091910814f0398f4534ab325d32550b0e7fbaad70efbccd4b52fba0",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "55abc476a01b12086e1d765ac4b5b2c98a895fb445bd8bc4773390bc959565c7",
+          "kind": 30017
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "f88701f6c5e70c45d54b61060fba21454f9cf0cd0b020a00cb57be52471dd880",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "e5bff07768857d632d5e1ea5a66431e723d9720a90423ad37c09e9d8fd711830",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "347d8cdd11e6127e26e442ab10706a98b88296cce081829bd2c10b59d638b7ed",
+          "kind": 30017
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "fc3de0c92171c5d7b9541d6bd3377268ee2fb89c7107b26b2988fedacbce811d",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "6e4a16e1eb66951499b011ad8ba967d805d8a3b4ca05241374a13e83137a63df",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "4e8aaade37ef4d790456a31513fc348ba45b49efbe41aa3cf1f555ed9926ee1f",
+          "kind": 30017
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "e161f9bd555b23e646c19cc344bbae1014f14c5a2573fa1a546412c568b6d4d7",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "520b53092879e942e1fbdd407afdae96dd201ac1472a18d09c53a6b532ae2e43",
+          "kind": 30018
+        },
+        {
+          "relay": "ws://127.0.0.1:28481",
+          "id": "205ab33373d00565feea54796df399f0acf150ba261d1fda4c7f7b299525f07c",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "652dc438c8ce9b2bf8ad752133cedb4bd7032c39175f2f5d2ed1a7e8f740d90f",
+          "kind": 5
+        },
+        {
+          "relay": "ws://127.0.0.1:28480",
+          "id": "99dd599af26510109efe00e8a9ba41cf4c56c23b8b5e896f5949be15932f0b61",
+          "kind": 5
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "run_id": "property-g00-resume-20261031-g",
+  "profile": "core",
+  "candidate_commit": "7aff8e448898e674f8448a2dd847a64faceda8cd",
+  "manifest_config_sha256": "65133e4d1383415cc9541dd84b58abbfbc20c86c75d8d1a61bae6808330b5f95",
+  "candidate_state_sha256": "b166ef3791f4421939b69c196f75bdc8c1b08c1f921b00b7ccd33e5cfa807b4b",
+  "plan_sha256": "7eecbef5e394e4417898ab959ad333c698f5c2466eb346412466ec82520932cc",
+  "external_inputs": {
+    "core_report_sha256": null
+  },
+  "attempt_number": 1,
+  "resumed_from_attempt": null
+}

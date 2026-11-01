@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G06-01",
+      "status": "PASS",
+      "reason": "A signed public kind-1 post traversed the actual PWA bridge from R1 to R2. Buyer B saw the author, and the contact action selected that author in private-message navigation while the post remained public."
+    },
+    {
+      "case": "G06-02",
+      "status": "PASS",
+      "reason": "The browser published, discovered, and edited one satoshi, one piconero, and one raw through two actual Geode relays and a real PWA bridge. Exact atomic strings, event authorship, stable d tags, signatures, and rendered prices survived each round-trip; currency maxima and overflow were checked."
+    },
+    {
+      "case": "G06-03",
+      "status": "FAIL",
+      "reason": "page.waitForFunction: Timeout 15000ms exceeded."
+    },
+    {
+      "case": "G06-04",
+      "status": "BLOCKED",
+      "reason": "Earlier case G06-03 did not pass; dependent G06 scenario was not started."
+    },
+    {
+      "case": "G06-05",
+      "status": "BLOCKED",
+      "reason": "Earlier case G06-03 did not pass; dependent G06 scenario was not started."
+    }
+  ],
+  "nodes": [
+    {
+      "label": "G06 seller A",
+      "pubkey": "ae13dce044829ce36615d22b0ca0df3f3e799843c65e479374eb6677c4eda964",
+      "general_relays": [
+        "ws://127.0.0.1:28480"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": false
+    },
+    {
+      "label": "G06 buyer B",
+      "pubkey": "ca8d8de19103461e38af32a65255823e1d26af90aa982945d54301788e718b72",
+      "general_relays": [
+        "ws://127.0.0.1:28481"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": false
+    },
+    {
+      "label": "G06 public relay bridge",
+      "pubkey": "3b5174593772a31e1a7b151343253c5c4fa3af2c1c800779634734aaa8f42354",
+      "general_relays": [
+        "ws://127.0.0.1:28480",
+        "ws://127.0.0.1:28481"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28480",
+      "process_id": 4040124,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28481",
+      "process_id": 4040626,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/"
+  ],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "hangout": {
+    "event_id": "a02a7fbf1b92210a1f2b9b2c682d153b83f7d2b9a68c5deea9b03a1bfc6d363c",
+    "author": "ae13dce044829ce36615d22b0ca0df3f3e799843c65e479374eb6677c4eda964",
+    "R1_signature_valid": true,
+    "R2_copy_same_id": true,
+    "public_feed_label_visible": true,
+    "contact_target_npub": "npub14cfaeczys2wwxes46g4segxl8ul8nxzrce0y0ym5adn8038d49jqpwupt8",
+    "private_room_created": false
+  },
+  "marketplace": {
+    "offers": [
+      {
+        "currency": "BTC",
+        "unit": "satoshi",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "eb463ba9-5a8a-4e8f-bd8d-3e0903bba301",
+        "initial_event_id": "ecf83e8ea76df5c16d4dccf7ff1a37d81bd10dfc09e152512839b922305d0da5",
+        "updated_event_id": "24445673f450db2a3179a1a435a8177c7b83965099928f27bd11687bbc010d22",
+        "seller_signature_valid": true,
+        "R2_copy": true,
+        "initial_ui_price": "0.00000001 BTC",
+        "updated_ui_price": "0.00000002 BTC"
+      },
+      {
+        "currency": "XMR",
+        "unit": "piconero",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "a28c7063-2e02-45d5-8989-2450ca4fce60",
+        "initial_event_id": "4b667839af25c3e6b49ec659cd07e2df772dbea16f6c290e2f73963d9dc8ca13",
+        "updated_event_id": "ba85ad0bb1499499709ac985305aabcdb23693f6b483463f0da983dc4f38ad03",
+        "seller_signature_valid": true,
+        "R2_copy": true,
+        "initial_ui_price": "0.000000000001 XMR",
+        "updated_ui_price": "0.000000000002 XMR"
+      },
+      {
+        "currency": "XNO",
+        "unit": "raw",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "90cf2d60-e291-4438-9219-2c11cc1f8579",
+        "initial_event_id": "35f9bb369a6951128b80002b5f81f26d23cb85e9a61498dfe6decfd044f8e863",
+        "updated_event_id": "f6bcaf84f8faa9501b5ce924939c3443929179468f468259e8b439cfc4ba7d40",
+        "seller_signature_valid": true,
+        "R2_copy": true,
+        "initial_ui_price": "0.000000000000000000000000000001 XNO",
+        "updated_ui_price": "0.000000000000000000000000000002 XNO"
+      }
+    ],
+    "currency_atomic_bounds": {
+      "BTC": {
+        "max_accepted": "2100000000000000",
+        "over_max_rejected": true
+      },
+      "XNO": {
+        "max_accepted": "340282366920938463463374607431768211455",
+        "over_max_rejected": true
+      },
+      "XMR": {
+        "max_accepted": "18446744073709551615",
+        "over_max_rejected": true
+      }
+    },
+    "amount_representation": "decimal integer strings; no float used for atomic values"
+  },
+  "deletion": {},
+  "security": {},
+  "contact": {},
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "local_origin": "http://127.0.0.1:35991",
+  "identities": {
+    "seller_pubkey": "ae13dce044829ce36615d22b0ca0df3f3e799843c65e479374eb6677c4eda964",
+    "buyer_pubkey": "ca8d8de19103461e38af32a65255823e1d26af90aa982945d54301788e718b72",
+    "bridge_pubkey": "3b5174593772a31e1a7b151343253c5c4fa3af2c1c800779634734aaa8f42354"
+  },
+  "result": "FAIL",
+  "error": "page.waitForFunction: Timeout 15000ms exceeded.",
+  "current_case": "G06-03"
+}

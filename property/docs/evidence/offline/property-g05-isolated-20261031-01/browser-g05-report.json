@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G05-01",
+      "status": "FAIL",
+      "reason": "P12 did not start bridge subscriptions on every configured relay"
+    },
+    {
+      "case": "G05-02",
+      "status": "BLOCKED",
+      "reason": "A prior G05 case failed; dependent topology/privacy flow was not started."
+    },
+    {
+      "case": "G05-03",
+      "status": "BLOCKED",
+      "reason": "A prior G05 case failed; dependent topology/privacy flow was not started."
+    },
+    {
+      "case": "G05-04",
+      "status": "BLOCKED",
+      "reason": "A prior G05 case failed; dependent topology/privacy flow was not started."
+    },
+    {
+      "case": "G05-05",
+      "status": "BLOCKED",
+      "reason": "A prior G05 case failed; dependent topology/privacy flow was not started."
+    },
+    {
+      "case": "G05-06",
+      "status": "BLOCKED",
+      "reason": "A prior G05 case failed; dependent topology/privacy flow was not started."
+    },
+    {
+      "case": "G05-07",
+      "status": "BLOCKED",
+      "reason": "A prior G05 case failed; dependent topology/privacy flow was not started."
+    }
+  ],
+  "nodes": [],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28472",
+      "process_id": 3892741,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28473",
+      "process_id": 3893258,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28474",
+      "process_id": 3893766,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28475",
+      "process_id": 3894267,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/"
+  ],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "topologies": {},
+  "privacy": {},
+  "limits": {},
+  "mobile_emulation": {},
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "local_origin": "http://127.0.0.1:39847",
+  "result": "FAIL",
+  "error": "P12 did not start bridge subscriptions on every configured relay",
+  "current_case": "G05-01"
+}

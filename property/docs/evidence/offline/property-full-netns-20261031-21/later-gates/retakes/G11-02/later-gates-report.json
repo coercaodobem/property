@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active Codex task runtime",
+  "cases": [
+    {
+      "case": "G11-02",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Runtime package hashes, deterministic offline PWA packaging, cached Gradle wrapper and offline source build all passed.",
+      "observed": {
+        "package_hash": "PASS",
+        "pwa_package": "PASS",
+        "pwa_asset_count": 18,
+        "pwa_sha256": "2dddd22dec38cc76b420b3ad65bf06e91c110b08aac671e78c7b373891aebe11",
+        "gradle_version": "9.8.2",
+        "gradle_binary_found": true,
+        "gradle_offline_version": "PASS",
+        "offline_geode_source_build": "PASS",
+        "offline_geode_source_build_repeat": "PASS",
+        "build_output_sha256_first": "e72ec71548b600a37930307160cc52fbf93319cf7dec1998a967ea7eb6807f61",
+        "build_output_sha256_repeat": "e72ec71548b600a37930307160cc52fbf93319cf7dec1998a967ea7eb6807f61",
+        "build_output_files": 50,
+        "build_output_bytes": 42811209,
+        "build_output_reproducible": true,
+        "changed_build_files": [],
+        "origin_case": "PASS",
+        "source_rebuild_claim": "PASS"
+      },
+      "evidence": [
+        "later-gates/retakes/G11-02/g11-02-package-hash.log",
+        "later-gates/retakes/G11-02/g11-02-pwa-package.log",
+        "later-gates/retakes/G11-02/g11-02-pwa/pwa-package-manifest.json",
+        "later-gates/retakes/G11-02/g11-02-gradle-version.log",
+        "later-gates/retakes/G11-02/g11-02-offline-build.log",
+        "later-gates/retakes/G11-02/g11-02-offline-build-repeat.log",
+        "later-gates/retakes/G11-02/g11-02-build-manifest-1.json",
+        "later-gates/retakes/G11-02/g11-02-build-manifest-2.json",
+        "logs/G02-01-origin.log"
+      ]
+    }
+  ],
+  "started_utc": "2026-11-01T08:29:57.963Z",
+  "ended_utc": "2026-11-01T08:31:03.927Z",
+  "result": "RECORDED"
+}

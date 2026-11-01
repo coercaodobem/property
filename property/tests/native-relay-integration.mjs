@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm, stat, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,8 +12,23 @@ const testRoot = await mkdtemp(join(tmpdir(), 'Property relay '));
 const port = 17457;
 const relayUrl = `ws://127.0.0.1:${port}`;
 const integrationSummary = join(testRoot, 'accepted-events.json');
+const noJavaPath = join(testRoot, 'tools without Java');
+const linuxUtilities = ['bash', 'sh', 'dirname', 'basename', 'uname', 'mkdir', 'chmod', 'cat', 'sed', 'sha256sum', 'mv', 'tar', 'gzip', 'readlink', 'realpath', 'env', 'rm', 'mktemp', 'grep', 'awk', 'head', 'tail', 'sleep', 'which'];
+await mkdir(noJavaPath, { mode: 0o700 });
+if (!process.platform.startsWith('win')) {
+  for (const utility of linuxUtilities) {
+    const found = spawnSync('which', [utility], { encoding: 'utf8' });
+    assert.equal(found.status, 0, `required launcher utility is unavailable: ${utility}`);
+    await symlink(found.stdout.trim().split('\n')[0], join(noJavaPath, utility));
+  }
+  const javaLookup = spawnSync(join(noJavaPath, 'bash'), ['-c', 'command -v java'], {
+    encoding: 'utf8', env: { PATH: noJavaPath }
+  });
+  assert.notEqual(javaLookup.status, 0, 'the relay launcher PATH fixture must not expose java');
+}
 const env = { ...process.env, PROPERTY_RELAY_HOST: '127.0.0.1', PROPERTY_RELAY_PORT: String(port),
-  PROPERTY_RELAY_DATA_DIR: join(testRoot, 'dados persistentes'), PROPERTY_RELAY_CONFIG_DIR: join(testRoot, 'config privada') };
+  PROPERTY_RELAY_DATA_DIR: join(testRoot, 'dados persistentes'), PROPERTY_RELAY_CONFIG_DIR: join(testRoot, 'config privada'),
+  ...(process.platform.startsWith('win') ? {} : { PATH: noJavaPath, JAVA_HOME: '' }) };
 const windows = process.platform === 'win32';
 const command = windows ? 'powershell.exe' : 'bash';
 const args = windows ? ['-NoProfile', '-File', join(root, 'property/relay/start.ps1')] : [join(root, 'property/relay/start.sh')];
@@ -75,6 +90,15 @@ async function queryEvents(expected) {
 }
 try {
   await start();
+  if (!windows) {
+    const dataMode = (await stat(env.PROPERTY_RELAY_DATA_DIR)).mode & 0o777;
+    const configMode = (await stat(env.PROPERTY_RELAY_CONFIG_DIR)).mode & 0o777;
+    const fileMode = (await stat(join(env.PROPERTY_RELAY_CONFIG_DIR, 'geode.toml'))).mode & 0o777;
+    assert.equal(dataMode, 0o700, 'relay data directory must be private');
+    assert.equal(configMode, 0o700, 'relay config directory must be private');
+    assert.equal(fileMode, 0o600, 'relay configuration must be private');
+    await access(join(env.PROPERTY_RELAY_DATA_DIR, 'events.db'));
+  }
   const test = spawnSync(process.execPath, [join(root, 'property/tests/relay-integration.mjs'), relayUrl, integrationSummary], { encoding: 'utf8', timeout: 90000 });
   assert.equal(test.status, 0, `${test.stdout}\n${test.stderr}\n${diagnostic}`);
   process.stdout.write(test.stdout);
@@ -98,7 +122,7 @@ try {
   assert.deepEqual([...after.events.keys()].sort(), expected.map(event => event.id).sort(), 'the expected retained event ID set survives native relay restart');
   for (const item of expected) assert.equal(eventFingerprint(after.events.get(item.id)), item.sha256, `post-restart event ${item.id} is unchanged in its signed fields`);
   for (const item of excludedAfterMutation) assert.equal(after.events.has(item.id), false, `protocol mutation remains applied after restart: ${item.reason}`);
-  console.log(`PASS: native ${process.platform}/${process.arch}, ${expected.length} retained events round-trip across restart; replaceable/deleted events follow Nostr semantics; NIP-17/NIP-15 BTC/XMR/XNO`);
+  console.log(`PASS: native ${process.platform}/${process.arch}, ${expected.length} retained events round-trip across restart; private paths/config; ${windows ? 'platform PATH' : 'no Java in relay PATH'}; replaceable/deleted events follow Nostr semantics; NIP-17/NIP-15 BTC/XMR/XNO`);
 } finally {
   await stop();
   await rm(testRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });

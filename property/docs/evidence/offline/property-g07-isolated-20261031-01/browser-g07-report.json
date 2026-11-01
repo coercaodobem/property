@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G07-01",
+      "status": "PASS",
+      "reason": "The same signed offer was fetched from two independent Geode relays. Node A accepted under its XNO policy; node B independently rejected under its BTC-only policy. Both signed decisions persisted separately, and neither created a campaign before payment."
+    },
+    {
+      "case": "G07-02",
+      "status": "FAIL",
+      "reason": "Campaign ID already binds another signed offer."
+    },
+    {
+      "case": "G07-03",
+      "status": "BLOCKED",
+      "reason": "G07-02 did not pass; dependent G07 scenario was not started."
+    },
+    {
+      "case": "G07-04",
+      "status": "BLOCKED",
+      "reason": "G07-02 did not pass; dependent G07 scenario was not started."
+    },
+    {
+      "case": "G07-05",
+      "status": "BLOCKED",
+      "reason": "G07-02 did not pass; dependent G07 scenario was not started."
+    },
+    {
+      "case": "G07-06",
+      "status": "BLOCKED",
+      "reason": "G07-02 did not pass; dependent G07 scenario was not started."
+    },
+    {
+      "case": "G07-07",
+      "status": "BLOCKED",
+      "reason": "G07-02 did not pass; dependent G07 scenario was not started."
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28472",
+      "process_id": 4185087,
+      "independent": true
+    },
+    {
+      "url": "ws://127.0.0.1:28473",
+      "process_id": 4185643,
+      "independent": true
+    }
+  ],
+  "nodes": [],
+  "decisions": [
+    {
+      "offer_id": "b233e6fe0c98b46376b9028bf7f5d3220a7b08764aa5c4b5b11bfe4a83b60e80",
+      "node_a": "4a67e6731fcce7d1736b93fb09b0fff9fa02b188641adba6ba24d15b9e78ad5d",
+      "node_a_status": "accepted",
+      "node_b": "ef04fbff061521a8df689ea2019d3958a406b6b120f3af941e4f7188acbd0c85",
+      "node_b_status": "rejected",
+      "node_b_reason": "currency_not_accepted",
+      "decision_signatures_valid": true,
+      "node_state_directories": [
+        "node-a-state",
+        "node-b-state"
+      ]
+    }
+  ],
+  "campaign_state": [],
+  "payments": [],
+  "privacy": {},
+  "external_requests": [],
+  "denied_proxy_attempts": [],
+  "websockets": [],
+  "page_errors": [],
+  "test_destination_hits": [],
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "local_origin": "http://127.0.0.1:35535",
+  "result": "FAIL",
+  "error": "Campaign ID already binds another signed offer.",
+  "current_case": "G07-02",
+  "current_step": "verify decision binding, refusal, and changed terms",
+  "error_stack": "Error: Campaign ID already binds another signed offer.\n    at file:///home/<USER>/Liberdade/amethyst-upstream/property/relay/campaign-engine.mjs:144:72",
+  "node_diagnostics": []
+}

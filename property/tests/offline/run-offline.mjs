@@ -1736,27 +1736,51 @@ async function runLaterGates(manifest, outputDir, cases) {
   }
 }
 
-async function runPlatformsProfile(options, manifest, cases, inventory) {
+async function runPlatformsProfile(options, manifest, cases, inventory, isolation, outputDir) {
   let core = null;
   try { core = JSON.parse(await readFile(options.coreReport, 'utf8')); } catch {}
-  const matches = core && core.scope_result === 'PROPERTY_SCOPE_OFFLINE_PASS' &&
-    core.candidate_commit === manifest.candidate_commit &&
+  const sameCandidate = core && core.candidate_commit === manifest.candidate_commit &&
     core.requested_executor === manifest.requested_executor &&
     core.actual_executor === manifest.actual_executor;
+  const priorGates = Array.from({ length: 12 }, (_, index) => `G${String(index).padStart(2, '0')}`);
+  const priorGatesPass = priorGates.every(gate => core?.gate_status?.[gate] === 'PASS');
+  const eligible = Boolean(sameCandidate && priorGatesPass && isolation.verdict === 'PASS');
+  const sourceCases = core?.case_statuses || {};
+  const prerequisiteDir = path.join(outputDir, 'prerequisites');
+  await mkdir(prerequisiteDir, { recursive: true, mode: 0o700 });
+  const sourceCopy = path.join(prerequisiteDir, 'consolidated-core-summary.json');
+  try { await copyFile(path.resolve(options.coreReport), sourceCopy); } catch {}
+  const sourcePath = path.relative(outputDir, sourceCopy);
   for (const row of cases.values()) {
-    const gate = row.case.slice(0, 3);
+    const source = sourceCases[row.case];
     if (/^G0[0-9]-/.test(row.case) || /^G1[01]-/.test(row.case)) {
-      row.status = matches ? 'PASS' : 'NOT_RUN';
-      row.gate_eligible = Boolean(matches);
-      row.reason = matches ? 'Inherited from the matching complete core report.' : 'A passing core report for this candidate is required.';
+      row.status = eligible && source?.status === 'PASS' ? 'PASS' : source?.status || 'NOT_RUN';
+      row.gate_eligible = eligible && source?.status === 'PASS' && source?.gate_eligible === true;
+      row.reason = row.gate_eligible ? 'Inherited from the matching candidate consolidated report.' :
+        `Matching same-candidate G00–G11 PASS report required; core=${Boolean(core)}, identity=${Boolean(sameCandidate)}, gates=${priorGatesPass}, isolation=${isolation.verdict}.`;
+      row.observed = JSON.stringify({ source_case_status: source?.status || 'MISSING', source_case_gate_eligible: source?.gate_eligible === true, core_report: sourcePath });
+      row.evidence = source ? [sourcePath] : [];
+      continue;
     }
-    if (row.case.startsWith('G12-')) {
-      row.status = 'BLOCKED';
-      row.gate_eligible = false;
-      row.reason = matches ? 'Native platform harnesses are not implemented/available in this host.' :
-        'A passing core report for this candidate is required before the platform matrix.';
+    if (!row.case.startsWith('G12-')) continue;
+    const inheritedPass = eligible && source?.status === 'PASS' && source?.gate_eligible === true;
+    if (inheritedPass) {
+      row.status = 'PASS';
+      row.gate_eligible = true;
+      row.reason = 'Same-candidate platform case passed in the consolidated retake evidence.';
+      row.observed = JSON.stringify({ source_case_status: source.status, core_report: sourcePath });
+      row.evidence = [sourcePath];
+      continue;
     }
-    if (gate.startsWith('G0') && !/^G0[0-9]-/.test(row.case)) continue;
+    row.status = 'BLOCKED';
+    row.gate_eligible = false;
+    row.reason = !sameCandidate ? 'A same-candidate core report is required before platform evidence can be inherited.' :
+      !priorGatesPass ? 'G00–G11 must all pass before the native platform matrix is eligible.' :
+      isolation.verdict !== 'PASS' ? 'Network isolation was not proven for the platform profile.' :
+      source?.status === 'BLOCKED' ? source.reason : 'No passing native platform evidence exists for this case.';
+    row.observed = JSON.stringify({ source_case_status: source?.status || 'MISSING', core_report: sourcePath,
+      host_platform: process.platform, host_arch: process.arch });
+    row.evidence = source ? [sourcePath] : [];
   }
 }
 
@@ -1885,15 +1909,13 @@ async function main() {
     attempt_number: attempt.attempt_number
   };
   await writeFile(path.join(outputDir, 'topology.json'), JSON.stringify(topology, null, 2) + '\n', { mode: 0o600 });
+  const isolation = await inspectIsolation();
+  await writeFile(path.join(outputDir, 'isolation.json'), JSON.stringify(isolation, null, 2) + '\n', { mode: 0o600 });
   if (options.profile === 'platforms') {
-    const isolation = { verdict: 'NOT_CHECKED', reasons: ['platform-only profile requires a passing core report'] };
-    await writeFile(path.join(outputDir, 'isolation.json'), JSON.stringify(isolation, null, 2) + '\n', { mode: 0o600 });
     const summary = await writePlatformsReport(options, manifest, cases, inventory, isolation, outputDir);
     process.stdout.write(JSON.stringify({ run_id: manifest.run_id, result: summary.scope_result, exit_code: summary.exit_code, output: outputDir }) + '\n');
     return summary.exit_code;
   }
-  const isolation = await inspectIsolation();
-  await writeFile(path.join(outputDir, 'isolation.json'), JSON.stringify(isolation, null, 2) + '\n', { mode: 0o600 });
   if (interruptionSignal) {
     for (const row of cases.values()) { row.status = 'BLOCKED'; row.reason = 'Runner interrupted before this case started.'; }
   } else if (options.profile === 'core' || options.profile === 'full') {
@@ -1928,7 +1950,7 @@ async function main() {
 }
 
 async function writePlatformsReport(options, manifest, cases, inventory, isolation, outputDir) {
-  await runPlatformsProfile(options, manifest, cases, inventory);
+  await runPlatformsProfile(options, manifest, cases, inventory, isolation, outputDir);
   for (const row of [...cases.values()]) setCase(cases, row.case, { ...row });
   await writeFile(path.join(outputDir, 'inventory.json'), JSON.stringify(inventory, null, 2) + '\n', { mode: 0o600 });
   await writeFile(path.join(outputDir, 'isolation.json'), JSON.stringify(isolation, null, 2) + '\n', { mode: 0o600 });

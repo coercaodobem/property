@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G02-04",
+      "status": "FAIL",
+      "reason": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#new-password')\u001b[22m\n\u001b[2m    - locator resolved to <input minlength=\"12\" type=\"password\" id=\"new-password\" autocomplete=\"new-password\"/>\u001b[22m\n\u001b[2m    - fill(\"Property-offline-test-2026!\")\u001b[22m\n\u001b[2m  - attempting fill action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying fill action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying fill action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    60 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying fill action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+    },
+    {
+      "case": "G02-05",
+      "status": "NOT_RUN",
+      "reason": "Case has not started."
+    },
+    {
+      "case": "G02-06",
+      "status": "NOT_RUN",
+      "reason": "Case has not started."
+    }
+  ],
+  "external_requests": [],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "csp_violations": [],
+  "update_checks": {},
+  "migration_checks": {},
+  "tls_checks": {},
+  "browser": {
+    "engine": "chromium",
+    "browser_version": "153.0.8010.12",
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e",
+    "tls_spki_pin_sha256_base64": "M+STy2xsvDSTloyPhmUksNxulXzdHHPxGC5t1lRePxE="
+  },
+  "local_origin": "http://127.0.0.1:37865",
+  "result": "FAIL",
+  "error": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#new-password')\u001b[22m\n\u001b[2m    - locator resolved to <input minlength=\"12\" type=\"password\" id=\"new-password\" autocomplete=\"new-password\"/>\u001b[22m\n\u001b[2m    - fill(\"Property-offline-test-2026!\")\u001b[22m\n\u001b[2m  - attempting fill action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying fill action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying fill action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    60 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying fill action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+}

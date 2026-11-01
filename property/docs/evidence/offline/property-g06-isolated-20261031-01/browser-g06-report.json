@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G06-01",
+      "status": "FAIL",
+      "reason": "listen EPERM: operation not permitted 127.0.0.1"
+    },
+    {
+      "case": "G06-02",
+      "status": "BLOCKED",
+      "reason": "Earlier case G06-01 did not pass; dependent G06 scenario was not started."
+    },
+    {
+      "case": "G06-03",
+      "status": "BLOCKED",
+      "reason": "Earlier case G06-01 did not pass; dependent G06 scenario was not started."
+    },
+    {
+      "case": "G06-04",
+      "status": "BLOCKED",
+      "reason": "Earlier case G06-01 did not pass; dependent G06 scenario was not started."
+    },
+    {
+      "case": "G06-05",
+      "status": "BLOCKED",
+      "reason": "Earlier case G06-01 did not pass; dependent G06 scenario was not started."
+    }
+  ],
+  "nodes": [],
+  "relays": [],
+  "external_requests": [],
+  "websockets": [],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "hangout": {},
+  "marketplace": {},
+  "deletion": {},
+  "security": {},
+  "contact": {},
+  "result": "FAIL",
+  "error": "listen EPERM: operation not permitted 127.0.0.1",
+  "current_case": "G06-01"
+}

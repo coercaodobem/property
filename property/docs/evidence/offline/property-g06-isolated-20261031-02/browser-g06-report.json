@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G06-01",
+      "status": "PASS",
+      "reason": "A signed public kind-1 post traversed the actual PWA bridge from R1 to R2. Buyer B saw the author, and the contact action selected that author in private-message navigation while the post remained public."
+    },
+    {
+      "case": "G06-02",
+      "status": "PASS",
+      "reason": "The browser published, discovered, and edited one satoshi, one piconero, and one raw through two actual Geode relays and a real PWA bridge. Exact atomic strings, event authorship, stable d tags, signatures, and rendered prices survived each round-trip; currency maxima and overflow were checked."
+    },
+    {
+      "case": "G06-03",
+      "status": "FAIL",
+      "reason": "Event 42b84a51499b99adaf7a7391c868e88a3eeb9fb8c3a77fec8557c3bfc56f63b6 storage at ws://127.0.0.1:28481 expected=true was not observed within 15000 ms."
+    },
+    {
+      "case": "G06-04",
+      "status": "BLOCKED",
+      "reason": "Earlier case G06-03 did not pass; dependent G06 scenario was not started."
+    },
+    {
+      "case": "G06-05",
+      "status": "BLOCKED",
+      "reason": "Earlier case G06-03 did not pass; dependent G06 scenario was not started."
+    }
+  ],
+  "nodes": [
+    {
+      "label": "G06 seller A",
+      "pubkey": "f2f3c3d52470d1e1504ccfd65bc560f7e92cdd87ca174a83260674be9a871556",
+      "general_relays": [
+        "ws://127.0.0.1:28480"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": false
+    },
+    {
+      "label": "G06 buyer B",
+      "pubkey": "86f05f518236614540b708b513d5d9821e70670522bc32733af64bc55d186a34",
+      "general_relays": [
+        "ws://127.0.0.1:28481"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": false
+    },
+    {
+      "label": "G06 public relay bridge",
+      "pubkey": "e809d2243e914f55de87f3edecf82e2c1700113d8f6bed0034a95dd10bd7e1ec",
+      "general_relays": [
+        "ws://127.0.0.1:28480",
+        "ws://127.0.0.1:28481"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28480",
+      "process_id": 4033249,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28481",
+      "process_id": 4033769,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/"
+  ],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "hangout": {
+    "event_id": "08f83c69bd8632f4e290b7d2e84f6a4b47c65321653cd01177318b81329f308a",
+    "author": "f2f3c3d52470d1e1504ccfd65bc560f7e92cdd87ca174a83260674be9a871556",
+    "R1_signature_valid": true,
+    "R2_copy_same_id": true,
+    "public_feed_label_visible": true,
+    "contact_target_npub": "npub17teu84fywrg7z5zvelt9h3tq7l5jehv8egt54qexqe6tax58z4tqlrdd09",
+    "private_room_created": false
+  },
+  "marketplace": {
+    "offers": [
+      {
+        "currency": "BTC",
+        "unit": "satoshi",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "9cbe1611-4627-41c6-b635-55e2c1abc0b6",
+        "initial_event_id": "2c9ee5af390738f881649b6c64dae3be8c0babf1d6115c11beb2a19a290fb8b0",
+        "updated_event_id": "42b84a51499b99adaf7a7391c868e88a3eeb9fb8c3a77fec8557c3bfc56f63b6",
+        "seller_signature_valid": true,
+        "R2_copy": true,
+        "initial_ui_price": "0.00000001 BTC",
+        "updated_ui_price": "0.00000002 BTC"
+      },
+      {
+        "currency": "XMR",
+        "unit": "piconero",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "59b094cd-5a7a-48eb-95af-dccbcb80447b",
+        "initial_event_id": "64f2c26b85a1fb0c6baa5b44c3057b151b6f8660dd14ab236b6fcc76cf60f0d4",
+        "updated_event_id": "89673218eea5cbb80959e19db9930ddaa04c5fae78488e2f579f3d0f475dda28",
+        "seller_signature_valid": true,
+        "R2_copy": true,
+        "initial_ui_price": "0.000000000001 XMR",
+        "updated_ui_price": "0.000000000002 XMR"
+      },
+      {
+        "currency": "XNO",
+        "unit": "raw",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "6554d873-b1c3-48b0-bfce-17b8b8ccecee",
+        "initial_event_id": "62ea9a82a2bf2621fdfe1f4fef67d6bae6609bfa8b5bc0432564e6c4bea4cd3d",
+        "updated_event_id": "4aa13e97823662db67a05e9113ec2700ca9a92c28fc4d875a8025c22173beda6",
+        "seller_signature_valid": true,
+        "R2_copy": true,
+        "initial_ui_price": "0.000000000000000000000000000001 XNO",
+        "updated_ui_price": "0.000000000000000000000000000002 XNO"
+      }
+    ],
+    "currency_atomic_bounds": {
+      "BTC": {
+        "max_accepted": "2100000000000000",
+        "over_max_rejected": true
+      },
+      "XNO": {
+        "max_accepted": "340282366920938463463374607431768211455",
+        "over_max_rejected": true
+      },
+      "XMR": {
+        "max_accepted": "18446744073709551615",
+        "over_max_rejected": true
+      }
+    },
+    "amount_representation": "decimal integer strings; no float used for atomic values"
+  },
+  "deletion": {},
+  "security": {},
+  "contact": {},
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "local_origin": "http://127.0.0.1:38495",
+  "identities": {
+    "seller_pubkey": "f2f3c3d52470d1e1504ccfd65bc560f7e92cdd87ca174a83260674be9a871556",
+    "buyer_pubkey": "86f05f518236614540b708b513d5d9821e70670522bc32733af64bc55d186a34",
+    "bridge_pubkey": "e809d2243e914f55de87f3edecf82e2c1700113d8f6bed0034a95dd10bd7e1ec"
+  },
+  "result": "FAIL",
+  "error": "Event 42b84a51499b99adaf7a7391c868e88a3eeb9fb8c3a77fec8557c3bfc56f63b6 storage at ws://127.0.0.1:28481 expected=true was not observed within 15000 ms.",
+  "current_case": "G06-03"
+}

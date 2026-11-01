@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G04-01",
+      "status": "PASS",
+      "reason": "A, B and C published signed kind-10050 inbox lists through the UI; independent relay queries verified signatures and B’s two authorized inboxes."
+    },
+    {
+      "case": "G04-02",
+      "status": "PASS",
+      "reason": "A and B exchanged real NIP-17 messages through Geode; both UI contexts decrypted the intended text, C received none, and relay storage contained only valid encrypted gift wraps."
+    },
+    {
+      "case": "G04-03",
+      "status": "PASS",
+      "reason": "B closed, A sent through the real relay, and B recovered the queued NIP-17 message after two browser restarts with one UI copy."
+    },
+    {
+      "case": "G04-04",
+      "status": "PASS",
+      "reason": "The live inbox carried messages when the second relay was down; all-inbox outage stayed pending; relay restart restored delivery; an intentional false ACK was caught by an independent query."
+    },
+    {
+      "case": "G04-05",
+      "status": "PASS",
+      "reason": "The UI refused to send without the sender’s kind-10050 inbox list, emitted no fallback, and a real relay rejected a post-signature envelope mutation without storing it."
+    },
+    {
+      "case": "G04-06",
+      "status": "PASS",
+      "reason": "The delivered corpus reconciled one-for-one in both browser databases and real relay storage; no plaintext, duplicate UI copy, third-party recipient or read receipt was observed."
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28470",
+      "process_id": 1451010,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28471",
+      "process_id": 1451581,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:43601/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:43601/",
+    "ws://127.0.0.1:28470/"
+  ],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "inbox_checks": {
+    "A": {
+      "signed": true,
+      "newest": true,
+      "relays": [
+        "ws://127.0.0.1:28470"
+      ]
+    },
+    "B": {
+      "signed": true,
+      "newest": true,
+      "relays": [
+        "ws://127.0.0.1:28470",
+        "ws://127.0.0.1:28471"
+      ]
+    },
+    "C": {
+      "signed": true,
+      "relays": [
+        "ws://127.0.0.1:28470"
+      ]
+    },
+    "invalid_or_ambiguous_destinations": "none used"
+  },
+  "message_checks": {
+    "first_a_to_b_visible": true,
+    "response_b_to_a_visible": true,
+    "relay_events_signature_valid": true,
+    "recipient_c_received_none": true,
+    "plaintext_absent_from_relay_envelopes": true,
+    "relay_addresses": [
+      "ws://127.0.0.1:28470",
+      "ws://127.0.0.1:28471"
+    ],
+    "offline_delivery": {
+      "B_closed_before_send": true,
+      "recovered_after_restart": true,
+      "duplicate_count_after_two_reopens": 1
+    }
+  },
+  "failure_checks": {
+    "one_of_two_inboxes_down_delivered_over_remaining_relay": true,
+    "both_inboxes_down_marked_pending": true,
+    "recovered_after_relay_restart": true,
+    "false_ack_event_ids": [
+      "c372d84c8832e58fc80d9d30689aeb5055b9c8e2fbc21cc5f49cbb75edbb0e3d"
+    ],
+    "false_ack_independent_query_count": 0,
+    "false_ack_client_status_after_ack": "sent",
+    "false_ack_detected_by_independent_query": true,
+    "no_kind10050": {
+      "send_refused": true,
+      "relay_event_count_unchanged": true,
+      "no_public_fallback": true
+    },
+    "tampered_signature": {
+      "relay_ack": {
+        "accepted": false,
+        "message": "invalid: bad signature or id"
+      },
+      "independent_query_count": 0,
+      "recipient_plaintext_received": false
+    },
+    "d_identity_pubkey": "c0c37ee5ed97524566d543da63b36e8f84ad8a6554c35d71e7d23261a6cd85a4"
+  },
+  "reconciliation": {
+    "message_texts": [
+      "property-g04-a-b-65ad38cf-306d-412e-be29-abce97e6bd37",
+      "property-g04-b-a-ee60943a-dff8-494d-82fd-d0f16a7fd559",
+      "property-g04-offline-2cc77766-7464-414e-a797-e354357c8205",
+      "property-g04-one-inbox-down-81ce48c3-1d2f-4b68-85ac-33fc0aa4b3e0",
+      "property-g04-reconnect-d93261da-208f-4000-935b-546572100b29"
+    ],
+    "browser_database_counts": {
+      "property-g04-a-b-65ad38cf-306d-412e-be29-abce97e6bd37": {
+        "A": 1,
+        "B": 1
+      },
+      "property-g04-b-a-ee60943a-dff8-494d-82fd-d0f16a7fd559": {
+        "A": 1,
+        "B": 1
+      },
+      "property-g04-offline-2cc77766-7464-414e-a797-e354357c8205": {
+        "A": 1,
+        "B": 1
+      },
+      "property-g04-one-inbox-down-81ce48c3-1d2f-4b68-85ac-33fc0aa4b3e0": {
+        "A": 1,
+        "B": 1
+      },
+      "property-g04-reconnect-d93261da-208f-4000-935b-546572100b29": {
+        "A": 1,
+        "B": 1
+      }
+    },
+    "retained_relay_event_count": 13,
+    "plaintext_found_in_relay": false,
+    "false_ack_message_delivered": false,
+    "read_receipt_protocol_present": false
+  },
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "local_origin": "http://127.0.0.1:37853",
+  "result": "PASS"
+}

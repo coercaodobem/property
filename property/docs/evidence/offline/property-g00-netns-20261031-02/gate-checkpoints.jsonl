@@ -1,0 +1,2 @@
+{"checkpoint_utc":"2026-10-31T15:18:19.395Z","gate":"G01","status":"FAIL","cases":["G01-01","G01-02","G01-03"]}
+{"checkpoint_utc":"2026-10-31T15:18:19.423Z","gate":"G00","status":"PASS","cases":["G00-01","G00-02","G00-03","G00-04"]}

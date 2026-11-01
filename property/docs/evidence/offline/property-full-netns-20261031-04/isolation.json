@@ -1,0 +1,220 @@
+{
+  "verdict": "BLOCKED",
+  "inspected_utc": "2026-10-31T15:39:24.493Z",
+  "process_policy": {
+    "seccomp_mode": 0,
+    "no_new_privs": false
+  },
+  "routes": {
+    "ipv4_loopback_only": false,
+    "ipv6_loopback_only": false,
+    "ipv4_inspection": {
+      "status": 0,
+      "error": null
+    },
+    "ipv6_inspection": {
+      "status": 0,
+      "error": null
+    },
+    "ipv4_policy_rules_inspected": true,
+    "ipv6_policy_rules_inspected": true,
+    "policy_rules_errors": [],
+    "raw_routes_saved": false
+  },
+  "network_namespace": {
+    "requested": false,
+    "parent_namespace_id": null,
+    "namespace_id": "net:[4026531833]",
+    "distinct_from_parent": false,
+    "interfaces": [
+      {
+        "name": "lo",
+        "loopback": true,
+        "up": true
+      },
+      {
+        "name": "enp6s0",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "wlp5s0",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "tailscale0",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "br-38678e1f91a1",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "br-4057aed0a03b",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "docker0",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "br-357525ca28c9",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "veth7d84bf0",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "vethc8396a2",
+        "loopback": false,
+        "up": true
+      }
+    ],
+    "only_loopback_interface": false,
+    "ipv4_loopback_routes_only": false,
+    "ipv4_route_reason": "route is missing loopback device or uses a non-loopback device",
+    "ipv6_loopback_routes_only": false,
+    "ipv6_route_reason": "route is missing loopback device or uses a non-loopback device",
+    "policy_rules_inspected": true,
+    "verified": false
+  },
+  "egress_boundary": null,
+  "dns": {
+    "inspected": true,
+    "nameservers": [
+      "127.0.0.53"
+    ],
+    "loopback_only": true
+  },
+  "firewall": {
+    "inspected": false,
+    "backend": null,
+    "output_policy_drop": false,
+    "rules_sha256": null,
+    "counters_available": false,
+    "output_rule_counters": null,
+    "inspection": {
+      "nft_status": 1,
+      "nft_error": null,
+      "ipv4_status": 4,
+      "ipv4_error": null,
+      "ipv6_status": 4,
+      "ipv6_error": null
+    }
+  },
+  "proxies": {
+    "configured": false,
+    "variable_names": [],
+    "parent_variables_stripped": []
+  },
+  "loopback": {
+    "ipv4": {
+      "ok": true,
+      "reason": null
+    },
+    "ipv6": {
+      "ok": true,
+      "reason": null
+    }
+  },
+  "public_tcp_probe_sent": false,
+  "public_dns_query_sent": false,
+  "reasons": [
+    "IPv4: route is missing loopback device or uses a non-loopback device",
+    "IPv6: route is missing loopback device or uses a non-loopback device",
+    "effective IPv4/IPv6 egress firewall or isolated network namespace not proven"
+  ],
+  "network_namespace_after": {
+    "requested": false,
+    "parent_namespace_id": null,
+    "namespace_id": "net:[4026531833]",
+    "distinct_from_parent": false,
+    "interfaces": [
+      {
+        "name": "lo",
+        "loopback": true,
+        "up": true
+      },
+      {
+        "name": "enp6s0",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "wlp5s0",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "tailscale0",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "br-38678e1f91a1",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "br-4057aed0a03b",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "docker0",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "br-357525ca28c9",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "veth7d84bf0",
+        "loopback": false,
+        "up": true
+      },
+      {
+        "name": "vethc8396a2",
+        "loopback": false,
+        "up": true
+      }
+    ],
+    "only_loopback_interface": false,
+    "ipv4_loopback_routes_only": false,
+    "ipv4_route_reason": "route is missing loopback device or uses a non-loopback device",
+    "ipv6_loopback_routes_only": false,
+    "ipv6_route_reason": "route is missing loopback device or uses a non-loopback device",
+    "policy_rules_inspected": true,
+    "verified": false
+  },
+  "firewall_after": {
+    "inspected": false,
+    "backend": null,
+    "output_policy_drop": false,
+    "rules_sha256": null,
+    "counters_available": false,
+    "output_rule_counters": null,
+    "inspection": {
+      "nft_status": 1,
+      "nft_error": null,
+      "ipv4_status": 4,
+      "ipv4_error": null,
+      "ipv6_status": 4,
+      "ipv6_error": null
+    }
+  },
+  "firewall_policy_unchanged": null,
+  "network_namespace_unchanged": null,
+  "egress_boundary_unchanged": false,
+  "firewall_counter_delta": null
+}

@@ -1,0 +1,256 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G05-01",
+      "status": "FAIL",
+      "reason": "Event b7f704c6e77c86e4f9d98cb639a9107a74405427a78ff9a76f680b05fb46efd4 storage at ws://127.0.0.1:28473 expected=true was not observed within 15000 ms."
+    },
+    {
+      "case": "G05-02",
+      "status": "BLOCKED",
+      "reason": "A prior G05 case failed; dependent topology/privacy flow was not started."
+    },
+    {
+      "case": "G05-03",
+      "status": "BLOCKED",
+      "reason": "A prior G05 case failed; dependent topology/privacy flow was not started."
+    },
+    {
+      "case": "G05-04",
+      "status": "BLOCKED",
+      "reason": "A prior G05 case failed; dependent topology/privacy flow was not started."
+    },
+    {
+      "case": "G05-05",
+      "status": "BLOCKED",
+      "reason": "A prior G05 case failed; dependent topology/privacy flow was not started."
+    },
+    {
+      "case": "G05-06",
+      "status": "BLOCKED",
+      "reason": "A prior G05 case failed; dependent topology/privacy flow was not started."
+    },
+    {
+      "case": "G05-07",
+      "status": "BLOCKED",
+      "reason": "A prior G05 case failed; dependent topology/privacy flow was not started."
+    }
+  ],
+  "nodes": [
+    {
+      "label": "P12",
+      "pubkey": "c9faf5e6f4f64d2281b7b9e7adfc1f7aac74e46d4239b22a598533af4b8174f2",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "P23",
+      "pubkey": "9fdc45179081c14ef5cb061c2d43b9c46a0b7d6beed5739c8ffca014e4777dc5",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "P34",
+      "pubkey": "e0f7ffaffdbac88dd749ddd02fc2be05da3b8ae5b9122224f5900e65fe2b1de5",
+      "general_relays": [
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28472",
+      "process_id": 3908341,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28473",
+      "process_id": 3908860,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28474",
+      "process_id": 3909389,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28475",
+      "process_id": 3909989,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/"
+  ],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "topologies": {},
+  "privacy": {},
+  "limits": {},
+  "mobile_emulation": {},
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "local_origin": "http://127.0.0.1:43359",
+  "result": "FAIL",
+  "error": "Event b7f704c6e77c86e4f9d98cb639a9107a74405427a78ff9a76f680b05fb46efd4 storage at ws://127.0.0.1:28473 expected=true was not observed within 15000 ms.",
+  "current_case": "G05-01",
+  "node_diagnostics": [
+    {
+      "label": "P12",
+      "subscriptions": [
+        {
+          "relay": "ws://127.0.0.1:28472",
+          "id": "bridge-fcc744df-0aa2-4dd0-bf39-666b1a774da1",
+          "kinds": [
+            1,
+            5,
+            7,
+            10050,
+            30017,
+            30018,
+            30019
+          ]
+        },
+        {
+          "relay": "ws://127.0.0.1:28473",
+          "id": "bridge-687e62c1-9251-4be4-b8f0-7937df1a662e",
+          "kinds": [
+            1,
+            5,
+            7,
+            10050,
+            30017,
+            30018,
+            30019
+          ]
+        }
+      ],
+      "eoses": [
+        {
+          "relay": "ws://127.0.0.1:28472",
+          "id": "bridge-fcc744df-0aa2-4dd0-bf39-666b1a774da1"
+        },
+        {
+          "relay": "ws://127.0.0.1:28473",
+          "id": "bridge-687e62c1-9251-4be4-b8f0-7937df1a662e"
+        }
+      ],
+      "forwarded": []
+    },
+    {
+      "label": "P23",
+      "subscriptions": [
+        {
+          "relay": "ws://127.0.0.1:28473",
+          "id": "bridge-6c0ee173-78ef-41fa-a428-262fc83c7c9c",
+          "kinds": [
+            1,
+            5,
+            7,
+            10050,
+            30017,
+            30018,
+            30019
+          ]
+        },
+        {
+          "relay": "ws://127.0.0.1:28474",
+          "id": "bridge-5dd4b4b5-1f09-464e-98a4-8f15556b6253",
+          "kinds": [
+            1,
+            5,
+            7,
+            10050,
+            30017,
+            30018,
+            30019
+          ]
+        }
+      ],
+      "eoses": [
+        {
+          "relay": "ws://127.0.0.1:28473",
+          "id": "bridge-6c0ee173-78ef-41fa-a428-262fc83c7c9c"
+        },
+        {
+          "relay": "ws://127.0.0.1:28474",
+          "id": "bridge-5dd4b4b5-1f09-464e-98a4-8f15556b6253"
+        }
+      ],
+      "forwarded": []
+    },
+    {
+      "label": "P34",
+      "subscriptions": [
+        {
+          "relay": "ws://127.0.0.1:28474",
+          "id": "bridge-ff629067-3b35-47c8-95cc-a9e1fb2ce490",
+          "kinds": [
+            1,
+            5,
+            7,
+            10050,
+            30017,
+            30018,
+            30019
+          ]
+        },
+        {
+          "relay": "ws://127.0.0.1:28475",
+          "id": "bridge-8f7209e5-4eea-4a6f-b197-1e9067d82ca6",
+          "kinds": [
+            1,
+            5,
+            7,
+            10050,
+            30017,
+            30018,
+            30019
+          ]
+        }
+      ],
+      "eoses": [
+        {
+          "relay": "ws://127.0.0.1:28474",
+          "id": "bridge-ff629067-3b35-47c8-95cc-a9e1fb2ce490"
+        },
+        {
+          "relay": "ws://127.0.0.1:28475",
+          "id": "bridge-8f7209e5-4eea-4a6f-b197-1e9067d82ca6"
+        }
+      ],
+      "forwarded": []
+    }
+  ]
+}

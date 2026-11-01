@@ -1,0 +1,302 @@
+{
+  "schema_version": 1,
+  "case": "G11-03",
+  "status": "FAIL",
+  "duration_required_seconds": 86400,
+  "probe_interval_seconds": 60,
+  "relay_count": 3,
+  "bridge_count": 2,
+  "probe_count": 333,
+  "loss_count": 1,
+  "planned_middle_relay_restarts": [],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28540/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28540/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28542/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28542/"
+  ],
+  "relay_rss_peak_bytes": 139968512,
+  "started_utc": "2026-10-31T20:47:24.053Z",
+  "ended_utc": "2026-11-01T02:21:02.785Z",
+  "duration_observed_seconds": 20018.732,
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "idle_lock_public_bridge": {
+    "verified": true,
+    "observed_utc": "2026-10-31T21:17:32.768Z",
+    "nodes": [
+      {
+        "label": "soak bridge P12",
+        "locked_status_visible": true,
+        "secret_cleared_from_ui": true,
+        "public_bridge_subscriptions": 2
+      },
+      {
+        "label": "soak bridge P23",
+        "locked_status_visible": true,
+        "secret_cleared_from_ui": true,
+        "public_bridge_subscriptions": 2
+      }
+    ]
+  },
+  "reason": "Event 84496706a6a20170dfbd30ca34149377adfd25e67ff0e2520f63ced89c1e590d storage at ws://127.0.0.1:28542 expected=true was not observed within 30000 ms.",
+  "page_errors": [],
+  "failure_probe": {
+    "probe": 333,
+    "event_id": "84496706a6a20170dfbd30ca34149377adfd25e67ff0e2520f63ced89c1e590d",
+    "started_utc": "2026-11-01T02:20:32.761Z",
+    "source_ack": true,
+    "observed_utc": "2026-11-01T02:21:02.800Z",
+    "relay_observations": [
+      {
+        "relay": "ws://127.0.0.1:28540",
+        "query_status": "PASS",
+        "found": true
+      },
+      {
+        "relay": "ws://127.0.0.1:28541",
+        "query_status": "PASS",
+        "found": false
+      },
+      {
+        "relay": "ws://127.0.0.1:28542",
+        "query_status": "PASS",
+        "found": false
+      }
+    ],
+    "confirmed_loss": true
+  },
+  "bridge_runtime": [
+    {
+      "label": "soak bridge P12",
+      "ui": null,
+      "subscriptions": 2,
+      "eoses": 2,
+      "received_events": 666,
+      "received_tail": [
+        {
+          "relay": "ws://127.0.0.1:28540",
+          "subscription_id": "bridge-85248d5f-d277-4c7a-b693-36c7c6018492",
+          "id": "f35a652f42f49d2b75b1bda04364267b1ef61fe26da730d551d80959626b91c3",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "subscription_id": "bridge-09d124ca-2920-49bf-b2da-99cd2728e0de",
+          "id": "f35a652f42f49d2b75b1bda04364267b1ef61fe26da730d551d80959626b91c3",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28540",
+          "subscription_id": "bridge-85248d5f-d277-4c7a-b693-36c7c6018492",
+          "id": "0cf9eb84d151ca70c9f5b14e4fb8d0410a13808b288a5443e4e86124b4887306",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "subscription_id": "bridge-09d124ca-2920-49bf-b2da-99cd2728e0de",
+          "id": "0cf9eb84d151ca70c9f5b14e4fb8d0410a13808b288a5443e4e86124b4887306",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28540",
+          "subscription_id": "bridge-85248d5f-d277-4c7a-b693-36c7c6018492",
+          "id": "2cf88c3785a90f6ee768d7dfa8aa0c2267721eb8c0a007dd28b7661de473905e",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "subscription_id": "bridge-09d124ca-2920-49bf-b2da-99cd2728e0de",
+          "id": "2cf88c3785a90f6ee768d7dfa8aa0c2267721eb8c0a007dd28b7661de473905e",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28540",
+          "subscription_id": "bridge-85248d5f-d277-4c7a-b693-36c7c6018492",
+          "id": "01b21cd40206b9d6579ebf1a0c11b6d454093cb4f5c02ebae02303cb4f54b35d",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "subscription_id": "bridge-09d124ca-2920-49bf-b2da-99cd2728e0de",
+          "id": "01b21cd40206b9d6579ebf1a0c11b6d454093cb4f5c02ebae02303cb4f54b35d",
+          "kind": 1
+        }
+      ],
+      "forwarded_events": 333,
+      "forwarded_tail": [
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "id": "27b3b256ebd8ae6f1d6e300421588e9acbf66ba9a0cae6af260b95ea4dc515a5",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "id": "9fbd9dcb6bc49bdce9cf4f51442ddc0226791c6f419f83b55262c9f0a3f67cec",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "id": "89dddd1085c2fe8f114f8298629e3a939ed15e70956549985bddd33861a5f59d",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "id": "55a6e410c8296166d8881e6cb55a442e2022a1e28fac5c95b52820d8b7b0b113",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "id": "f35a652f42f49d2b75b1bda04364267b1ef61fe26da730d551d80959626b91c3",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "id": "0cf9eb84d151ca70c9f5b14e4fb8d0410a13808b288a5443e4e86124b4887306",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "id": "2cf88c3785a90f6ee768d7dfa8aa0c2267721eb8c0a007dd28b7661de473905e",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "id": "01b21cd40206b9d6579ebf1a0c11b6d454093cb4f5c02ebae02303cb4f54b35d",
+          "kind": 1
+        }
+      ],
+      "page_errors": []
+    },
+    {
+      "label": "soak bridge P23",
+      "ui": null,
+      "subscriptions": 2,
+      "eoses": 2,
+      "received_events": 666,
+      "received_tail": [
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "subscription_id": "bridge-e62cd97b-813c-41f8-919c-7983656bff11",
+          "id": "f35a652f42f49d2b75b1bda04364267b1ef61fe26da730d551d80959626b91c3",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28542",
+          "subscription_id": "bridge-a40c772a-3589-4875-a1ba-1def7efc806b",
+          "id": "f35a652f42f49d2b75b1bda04364267b1ef61fe26da730d551d80959626b91c3",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "subscription_id": "bridge-e62cd97b-813c-41f8-919c-7983656bff11",
+          "id": "0cf9eb84d151ca70c9f5b14e4fb8d0410a13808b288a5443e4e86124b4887306",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28542",
+          "subscription_id": "bridge-a40c772a-3589-4875-a1ba-1def7efc806b",
+          "id": "0cf9eb84d151ca70c9f5b14e4fb8d0410a13808b288a5443e4e86124b4887306",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "subscription_id": "bridge-e62cd97b-813c-41f8-919c-7983656bff11",
+          "id": "2cf88c3785a90f6ee768d7dfa8aa0c2267721eb8c0a007dd28b7661de473905e",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28542",
+          "subscription_id": "bridge-a40c772a-3589-4875-a1ba-1def7efc806b",
+          "id": "2cf88c3785a90f6ee768d7dfa8aa0c2267721eb8c0a007dd28b7661de473905e",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28541",
+          "subscription_id": "bridge-e62cd97b-813c-41f8-919c-7983656bff11",
+          "id": "01b21cd40206b9d6579ebf1a0c11b6d454093cb4f5c02ebae02303cb4f54b35d",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28542",
+          "subscription_id": "bridge-a40c772a-3589-4875-a1ba-1def7efc806b",
+          "id": "01b21cd40206b9d6579ebf1a0c11b6d454093cb4f5c02ebae02303cb4f54b35d",
+          "kind": 1
+        }
+      ],
+      "forwarded_events": 333,
+      "forwarded_tail": [
+        {
+          "relay": "ws://127.0.0.1:28542",
+          "id": "27b3b256ebd8ae6f1d6e300421588e9acbf66ba9a0cae6af260b95ea4dc515a5",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28542",
+          "id": "9fbd9dcb6bc49bdce9cf4f51442ddc0226791c6f419f83b55262c9f0a3f67cec",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28542",
+          "id": "89dddd1085c2fe8f114f8298629e3a939ed15e70956549985bddd33861a5f59d",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28542",
+          "id": "55a6e410c8296166d8881e6cb55a442e2022a1e28fac5c95b52820d8b7b0b113",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28542",
+          "id": "f35a652f42f49d2b75b1bda04364267b1ef61fe26da730d551d80959626b91c3",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28542",
+          "id": "0cf9eb84d151ca70c9f5b14e4fb8d0410a13808b288a5443e4e86124b4887306",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28542",
+          "id": "2cf88c3785a90f6ee768d7dfa8aa0c2267721eb8c0a007dd28b7661de473905e",
+          "kind": 1
+        },
+        {
+          "relay": "ws://127.0.0.1:28542",
+          "id": "01b21cd40206b9d6579ebf1a0c11b6d454093cb4f5c02ebae02303cb4f54b35d",
+          "kind": 1
+        }
+      ],
+      "page_errors": []
+    }
+  ],
+  "relay_processes": [
+    {
+      "url": "ws://127.0.0.1:28540",
+      "pid": 1460852,
+      "exit_code": null,
+      "log_tail": "Iniciando relay Property em 127.0.0.1:28540\nDados: /home/guilherme/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.KhWXN7/property-g11-soak-GXI4Dh/soak relay 1 data\nCtrl+C encerra o processo.\nPicked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx376m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m\nSLF4J(W): No SLF4J providers were found.\nSLF4J(W): Defaulting to no-operation (NOP) logger implementation\nSLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.\ngeode listening on ws://127.0.0.1:28540/\nNIP-11 info doc: curl -H 'Accept: application/nostr+json' http://127.0.0.1:28540/\n"
+    },
+    {
+      "url": "ws://127.0.0.1:28541",
+      "pid": 1461412,
+      "exit_code": null,
+      "log_tail": "Iniciando relay Property em 127.0.0.1:28541\nDados: /home/guilherme/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.KhWXN7/property-g11-soak-GXI4Dh/soak relay 2 data\nCtrl+C encerra o processo.\nPicked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx376m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m\nSLF4J(W): No SLF4J providers were found.\nSLF4J(W): Defaulting to no-operation (NOP) logger implementation\nSLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.\ngeode listening on ws://127.0.0.1:28541/\nNIP-11 info doc: curl -H 'Accept: application/nostr+json' http://127.0.0.1:28541/\n"
+    },
+    {
+      "url": "ws://127.0.0.1:28542",
+      "pid": 1461863,
+      "exit_code": null,
+      "log_tail": "Iniciando relay Property em 127.0.0.1:28542\nDados: /home/guilherme/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.KhWXN7/property-g11-soak-GXI4Dh/soak relay 3 data\nCtrl+C encerra o processo.\nPicked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx376m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m\nSLF4J(W): No SLF4J providers were found.\nSLF4J(W): Defaulting to no-operation (NOP) logger implementation\nSLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.\ngeode listening on ws://127.0.0.1:28542/\nNIP-11 info doc: curl -H 'Accept: application/nostr+json' http://127.0.0.1:28542/\n"
+    }
+  ]
+}

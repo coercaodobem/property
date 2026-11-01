@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { access, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +13,8 @@ for(let i=2;i<process.argv.length;i+=2){const key=process.argv[i],value=process.
 assert.ok(options.manifest&&options.output,'--manifest and --output are required');
 const runDir=path.resolve(options.output), manifestPath=path.resolve(options.manifest);
 const manifest=JSON.parse(await readFile(manifestPath,'utf8'));
-const out=path.join(runDir,'later-gates'); await mkdir(out,{recursive:true,mode:0o700});
+assert.ok(!options.only_case||['G11-02','G12-01'].includes(options.only_case),'--only-case supports G11-02 or G12-01');
+const out=options.only_case?path.join(runDir,'later-gates','retakes',options.only_case):path.join(runDir,'later-gates'); await mkdir(out,{recursive:true,mode:0o700});
 const reportPath=path.join(out,'later-gates-report.json');
 const cases=new Map();
 const knownCases=[...Array.from({length:6},(_,i)=>`G09-0${i+1}`),...Array.from({length:6},(_,i)=>`G10-0${i+1}`),
@@ -25,7 +27,7 @@ function safe(value){return String(value||'').replace(/(?:gh[pousr]_[A-Za-z0-9_]
   .replace(/\/home\/[^/\s]+/g,'/home/<USER>').replace(/((?:password|rpcuser|rpcpassword)\s*[=:]\s*)[^\s,;]+/gi,'$1[REDACTED]');}
 function persist(){baseReport.cases=[...cases.values()];return writeFile(reportPath,JSON.stringify(baseReport,null,2)+'\n',{mode:0o600});}
 function record(id,status,reason,observed={},evidence=[],command=null){
-  const row={case:id,status,gate_eligible:true,command,reason:safe(reason),observed,evidence};
+  const row={case:id,status,gate_eligible:status==='PASS',command,reason:safe(reason),observed,evidence:[...new Set(evidence)]};
   cases.set(id,row);return persist();
 }
 async function readCoreRows(){
@@ -49,8 +51,8 @@ async function childCase(id,script,args=[],opts={}){
   const result=await run(id,process.execPath,[script,...args],opts);
   return result;
 }
-function browserArgs(script,outputDir){
-  const b=manifest.browser_automation; assert.ok(b,'manifest browser_automation absent');
+function browserArgs(script,outputDir,b=manifest.browser_automation){
+  assert.ok(b,'manifest browser automation absent');
   return [script,'--playwright-module',b.playwright_module,'--engine',b.engine,'--executable',b.executable,
     '--playwright-version',b.playwright_version,'--browser-version',b.browser_version,
     '--playwright-package-sha256',b.playwright_package_sha256,'--browser-executable-sha256',b.browser_executable_sha256,'--output',outputDir];
@@ -76,9 +78,148 @@ async function runAndRead(id,script,args,reportFile,selector,opts={}){
   return {result,data:selected};
 }
 
+async function findGradleBinary(version){
+  const root=path.join(os.homedir(),'.gradle','wrapper','dists',`gradle-${version}-bin`);
+  async function walk(directory,depth=0){
+    if(depth>6)return null;
+    let entries;try{entries=await readdir(directory,{withFileTypes:true});}catch{return null;}
+    entries.sort((a,b)=>a.name.localeCompare(b.name));
+    for(const entry of entries){
+      const candidate=path.join(directory,entry.name);
+      if(entry.isFile()&&entry.name==='gradle'&&path.basename(path.dirname(candidate))==='bin')return candidate;
+      if(entry.isDirectory()){const found=await walk(candidate,depth+1);if(found)return found;}
+    }
+    return null;
+  }
+  return walk(root);
+}
+
+async function hashBuildTree(root){
+  const rows=[];
+  async function walk(directory,relative=''){
+    const entries=await readdir(directory,{withFileTypes:true});entries.sort((a,b)=>a.name.localeCompare(b.name));
+    for(const entry of entries){
+      const absolute=path.join(directory,entry.name),name=relative?`${relative}/${entry.name}`:entry.name;
+      if(entry.isDirectory())await walk(absolute,name);
+      else if(entry.isSymbolicLink())rows.push({path:name,type:'symlink',target:await import('node:fs/promises').then(fs=>fs.readlink(absolute))});
+      else if(entry.isFile()){const bytes=await readFile(absolute);rows.push({path:name,type:'file',bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')});}
+      else throw new Error(`Geode build output contains a non-regular entry: ${name}`);
+    }
+  }
+  await walk(root);
+  const sha256=createHash('sha256').update(JSON.stringify(rows)+'\n').digest('hex');
+  return {root,sha256,file_count:rows.filter(row=>row.type==='file').length,total_bytes:rows.reduce((total,row)=>total+(row.bytes||0),0),rows};
+}
+
+async function runG1102(prior){
+  const packageOut=path.join(out,'g11-02-pwa');
+  const hashRun=await run('G11-02-package-hash',process.execPath,['property/tests/relay-package-smoke.mjs'],{timeoutMs:30000,logName:'g11-02-package-hash.log'});
+  const pwaRun=await run('G11-02-pwa-package',process.execPath,['property/tests/offline/g11-02-pwa-package-smoke.mjs',packageOut],{timeoutMs:30000,logName:'g11-02-pwa-package.log'});
+  const wrapper=path.join(ROOT,'gradle/wrapper/gradle-wrapper.properties');
+  let gradleVersion=null;try{const text=await readFile(wrapper,'utf8');gradleVersion=(text.match(/distributionUrl=.*gradle-([^/]+)-bin\.zip/)||[])[1]||null;}catch{}
+  const gradleBinary=gradleVersion?await findGradleBinary(gradleVersion):null;
+  let gradleVersionRun={status:'BLOCKED',exit_code:null,log:null};
+  let buildRun={status:'BLOCKED',exit_code:null,log:null};
+  let buildRepeatRun={status:'BLOCKED',exit_code:null,log:null};
+  let firstTree=null,secondTree=null,changedBuildFiles=[];
+  let gradleHome=null,tempGradleHome=false;
+  try{
+    if(gradleBinary){
+      gradleHome=process.env.PROPERTY_GRADLE_USER_HOME?path.resolve(process.env.PROPERTY_GRADLE_USER_HOME):await mkdtemp(path.join(os.tmpdir(),'property-gradle-home-'));
+      tempGradleHome=!process.env.PROPERTY_GRADLE_USER_HOME;
+      if(tempGradleHome){
+        const wrapperHome=path.join(gradleHome,'wrapper');await mkdir(wrapperHome,{recursive:true});
+        const distributionCache=path.join(os.homedir(),'.gradle','wrapper','dists');
+        await symlink(distributionCache,path.join(wrapperHome,'dists'));
+        const sharedCaches=path.join(os.homedir(),'.gradle','caches');
+        if(await access(sharedCaches).then(()=>true,()=>false))await symlink(sharedCaches,path.join(gradleHome,'caches'));
+      }
+      await access(path.join(gradleHome,'wrapper','dists'));
+      const buildJavaHome=process.env.PROPERTY_BUILD_JAVA_HOME||'';
+      const envExtras={GRADLE_USER_HOME:gradleHome,...(buildJavaHome?{JAVA_HOME:buildJavaHome,PATH:`${path.join(buildJavaHome,'bin')}${path.delimiter}${process.env.PATH||''}`}:{})};
+      gradleVersionRun=await run('G11-02-gradle-offline-version',gradleBinary,['--offline','--version'],{timeoutMs:30000,logName:'g11-02-gradle-version.log',envExtras});
+      const buildArgs=['./gradlew','--offline','--no-daemon','--rerun-tasks',':geode:installDist','--console=plain'];
+      buildRun=await run('G11-02-offline-source-build','bash',buildArgs,{timeoutMs:600000,logName:'g11-02-offline-build.log',envExtras});
+      const buildText=(buildRun.stdout||'')+'\n'+(buildRun.stderr||'');
+      if(buildRun.status==='FAIL'&&/(offline mode|no cached version|could not resolve|plugin \[id:.*not found|could not find .* in|not available for offline)/i.test(buildText))buildRun.status='BLOCKED';
+      if(buildRun.status==='PASS'){
+        const distribution=path.join(ROOT,'geode/build/install/geode');
+        firstTree=await hashBuildTree(distribution);
+        await writeFile(path.join(out,'g11-02-build-manifest-1.json'),JSON.stringify(firstTree,null,2)+'\n',{mode:0o600});
+        buildRepeatRun=await run('G11-02-offline-source-build-repeat','bash',buildArgs,{timeoutMs:600000,logName:'g11-02-offline-build-repeat.log',envExtras});
+        const repeatText=(buildRepeatRun.stdout||'')+'\n'+(buildRepeatRun.stderr||'');
+        if(buildRepeatRun.status==='FAIL'&&/(offline mode|no cached version|could not resolve|plugin \[id:.*not found|could not find .* in|not available for offline)/i.test(repeatText))buildRepeatRun.status='BLOCKED';
+        if(buildRepeatRun.status==='PASS'){
+          secondTree=await hashBuildTree(distribution);
+          await writeFile(path.join(out,'g11-02-build-manifest-2.json'),JSON.stringify(secondTree,null,2)+'\n',{mode:0o600});
+          const firstRows=new Map(firstTree.rows.map(row=>[row.path,JSON.stringify(row)]));
+          const secondRows=new Map(secondTree.rows.map(row=>[row.path,JSON.stringify(row)]));
+          changedBuildFiles=[...new Set([...firstRows.keys(),...secondRows.keys()])].filter(name=>firstRows.get(name)!==secondRows.get(name)).sort();
+        }
+      }
+    }
+  }finally{if(tempGradleHome&&gradleHome)await rm(gradleHome,{recursive:true,force:true,maxRetries:5,retryDelay:100});}
+  let pwaReport=null;try{pwaReport=JSON.parse(await readFile(path.join(packageOut,'pwa-package-manifest.json'),'utf8'));}catch{}
+  const originCase=prior.get('G02-01');
+  const treeRepeatPass=Boolean(firstTree&&secondTree&&firstTree.sha256===secondTree.sha256);
+  const required=[hashRun.status,pwaRun.status,gradleVersionRun.status,buildRun.status,buildRepeatRun.status,treeRepeatPass?'PASS':'BLOCKED',originCase?.status==='PASS'?'PASS':'BLOCKED'];
+  const status=required.includes('FAIL')?'FAIL':required.every(value=>value==='PASS')?'PASS':'BLOCKED';
+  const reason=status==='PASS'?'Runtime package hashes, deterministic offline PWA packaging, cached Gradle wrapper and offline source build all passed.':
+    !gradleBinary?'Runtime/PWA packaging passed or was recorded, but the pinned Gradle distribution is not installed locally.':
+    buildRun.status==='BLOCKED'||buildRepeatRun.status==='BLOCKED'?'Runtime/PWA packaging passed or was recorded, but an offline Geode source build lacks a cached toolchain/plugin/dependency.':
+    'G11-02 could not complete every offline packaging/build prerequisite.';
+  await record('G11-02',status,reason,{package_hash:hashRun.status,pwa_package:pwaRun.status,pwa_asset_count:pwaReport?.asset_count||0,
+    pwa_sha256:pwaReport?.source_package_sha256||null,gradle_version:gradleVersion,gradle_binary_found:Boolean(gradleBinary),
+    gradle_offline_version:gradleVersionRun.status,offline_geode_source_build:buildRun.status,offline_geode_source_build_repeat:buildRepeatRun.status,
+    build_output_sha256_first:firstTree?.sha256||null,build_output_sha256_repeat:secondTree?.sha256||null,
+    build_output_files:firstTree?.file_count||0,build_output_bytes:firstTree?.total_bytes||0,build_output_reproducible:treeRepeatPass,
+    changed_build_files:changedBuildFiles,origin_case:originCase?.status||'MISSING',source_rebuild_claim:treeRepeatPass?'PASS':'NOT_PROVEN'},
+    [hashRun.log,pwaRun.log,path.relative(runDir,path.join(packageOut,'pwa-package-manifest.json')),gradleVersionRun.log,buildRun.log,buildRepeatRun.log,
+      path.relative(runDir,path.join(out,'g11-02-build-manifest-1.json')),path.relative(runDir,path.join(out,'g11-02-build-manifest-2.json')),'logs/G02-01-origin.log'].filter(Boolean));
+}
+
+async function runG1201(prior){
+  const cliFirefox=options.firefox_playwright_module&&options.firefox_executable&&options.firefox_playwright_version&&options.firefox_browser_version&&
+    options.firefox_playwright_package_sha256&&options.firefox_browser_executable_sha256?{
+      playwright_module:options.firefox_playwright_module,engine:'firefox',executable:options.firefox_executable,
+      playwright_version:options.firefox_playwright_version,browser_version:options.firefox_browser_version,
+      playwright_package_sha256:options.firefox_playwright_package_sha256,browser_executable_sha256:options.firefox_browser_executable_sha256
+    }:null;
+  const firefoxConfig=manifest.browser_automation_firefox||cliFirefox;
+  let firefoxRun=null,firefoxReportPath;
+  if(firefoxConfig){
+    const firefoxOutput=path.join(out,'firefox-browser');
+    firefoxRun=await run('G12-01-firefox',process.execPath,browserArgs('property/tests/offline/browser-g04-smoke.mjs',firefoxOutput,firefoxConfig),
+      {timeoutMs:480000,logName:'g12-01-firefox.log'});
+    firefoxReportPath=path.join(firefoxOutput,'browser-g04-report.json');
+  }else firefoxReportPath=path.resolve(runDir,options.firefox_report||'later-gates/g12-01-firefox-retest-2/browser-g04-report.json');
+  const firefox=await json(path.relative(runDir,firefoxReportPath));
+  const native=await run('G12-01-native',process.execPath,['property/tests/native-relay-integration.mjs'],{timeoutMs:120000,logName:'g12-01-native.log'});
+  const chromiumCases=['G04-01','G04-02','G04-03','G04-04','G04-05','G04-06'].map(id=>prior.get(id));
+  const firefoxCases=firefox?.cases||[];
+  const browserPass=(!firefoxRun||firefoxRun.status==='PASS')&&firefox?.result==='PASS'&&firefoxCases.length===6&&firefoxCases.every(row=>row.status==='PASS');
+  const chromiumPass=chromiumCases.length===6&&chromiumCases.every(row=>row?.status==='PASS');
+  const noJavaConfirmed=(native.stdout||'').includes('no Java in relay PATH');
+  const pass=process.platform==='linux'&&process.arch==='x64'&&native.status==='PASS'&&noJavaConfirmed&&chromiumPass&&browserPass;
+  const status=pass?'PASS':native.status==='FAIL'||firefoxCases.some(row=>row.status==='FAIL')?'FAIL':'BLOCKED';
+  await record('G12-01',status,pass?'Linux x86_64 relay launcher, private paths/config, SQLite persistence/restart, Chromium and pinned Firefox browser journeys passed; relay started without Java in PATH.':
+    'Linux platform retest is incomplete: native launcher, Chromium, Firefox or one of their required G04 cases did not pass.',
+    {platform:`${process.platform}/${process.arch}`,native_relay_integration:native.status,relay_path_without_java:noJavaConfirmed,
+      chromium_cases:chromiumCases.map(row=>row?.status||'MISSING'),firefox_run_status:firefoxRun?.status||'REUSED_RECORDED_EVIDENCE',firefox_result:firefox?.result||'MISSING',
+      firefox_cases:firefoxCases.map(row=>row.status),firefox_browser:firefox?.browser||null},
+    [native.log,firefoxRun?.log,path.relative(runDir,firefoxReportPath),...chromiumCases.flatMap(row=>row?.evidence||[])].filter(Boolean));
+}
+
 async function main(){
   await persist();
   const prior=await readCoreRows();
+  if(options.only_case){
+    if(options.only_case==='G11-02')await runG1102(prior);
+    else await runG1201(prior);
+    baseReport.ended_utc=new Date().toISOString();baseReport.result='RECORDED';await persist();
+    process.stdout.write(JSON.stringify({result:baseReport.result,cases:cases.size,case:options.only_case,report:reportPath})+'\n');
+    return;
+  }
   const upstreamG08=Array.from({length:7},(_,i)=>prior.get(`G08-0${i+1}`));
   const g08Pass=upstreamG08.length===7&&upstreamG08.every(row=>row?.status==='PASS');
   const base=Number(manifest.ports.native_relay||28470)+30;
@@ -132,14 +273,7 @@ async function main(){
   const repeatStatus=initialG04.every(row=>row?.status==='PASS')&&repetitions.every(item=>item.status==='PASS')?'PASS':repetitions.some(item=>item.status==='FAIL')?'FAIL':'BLOCKED';
   await record('G11-01',repeatStatus,'Jornada funcional NIP-17 repetida no mesmo seed de cenário e novamente em perfis limpos; CSPRNG continua aleatório.',{initial_run:initialG04.map(row=>row?.status||'MISSING'),repetitions},repetitions.map((_,i)=>`later-gates/g11-01-repetition-${i+2}/browser-g04-report.json`));
 
-  const hashRun=await run('G11-02-package-hash',process.execPath,['property/tests/relay-package-smoke.mjs'],{timeoutMs:30000,logName:'g11-02-package-hash.log'});
-  const wrapper=path.join(ROOT,'gradle/wrapper/gradle-wrapper.properties');
-  let gradleVersion=null;try{const wrapperText=await readFile(wrapper,'utf8');gradleVersion=(wrapperText.match(/distributionUrl=.*gradle-([^/]+)-bin\.zip/)||[])[1]||null;}catch{}
-  const cached=gradleVersion?await import('node:fs/promises').then(fs=>fs.access(path.join(os.homedir(),'.gradle/wrapper/dists',gradleVersion)).then(()=>true,()=>false)):false;
-  const originCase=prior.get('G02-01');
-  const buildPass=hashRun.status==='PASS'&&cached&&originCase?.status==='PASS'&&!/SKIPPED_TOOLCHAIN_INCOMPLETE/.test(originCase.observed||'');
-  await record('G11-02',buildPass?'PASS':hashRun.status==='FAIL'?'FAIL':'BLOCKED',buildPass?'Hashes do runtime e rebuild offline completaram.':'Hashes do pacote foram conferidos, mas o rebuild offline reproduzível segue sem a distribuição Gradle cacheada.',
-    {package_hash:hashRun.status,gradle_version:gradleVersion,gradle_distribution_cached:cached,origin_case:originCase?.status||'MISSING'},[hashRun.log,'logs/G02-01-origin.log']);
+  await runG1102(prior);
 
   // The five-hour multi-relay soak is independent of financial settlement; dependency eligibility is preserved by the parent runner.
   const soakDir=path.join(out,'g11-03');
@@ -164,9 +298,7 @@ async function main(){
   await record('G11-05','PASS','Registro dos 74 casos, checkpoints e consolidação/hashes serão finalizados pelo runner após retornar este conjunto.',
     {planned_total_case_count:74,recorded_later_cases:cases.size,checkpoint_files:['cases.latest.jsonl','case-events.jsonl','gate-checkpoints.jsonl']},['later-gates/later-gates-report.json']);
 
-  const native=await run('G12-01-native',process.execPath,['property/tests/native-relay-integration.mjs'],{timeoutMs:120000,logName:'g12-01-native.log'});
-  await record('G12-01','BLOCKED','Linux x86_64/Chromium: launcher e persistência foram novamente exercitados; Firefox não está fixado/disponível neste host, então o caso multiplataforma completo não passa.',
-    {linux_x64:process.platform==='linux'&&process.arch==='x64',native_relay_integration:native.status,chromium_case:prior.get('G02-02')?.status||'MISSING',firefox_manifest_pinned:false},[native.log]);
+  await runG1201(prior);
   await record('G12-02',process.platform==='win32'?'BLOCKED':'BLOCKED','Não há execução Windows x64 real nem VM Windows neste host Linux.',{host_platform:process.platform,windows_vm_available:false},[]);
   await record('G12-03',process.platform==='darwin'?'BLOCKED':'BLOCKED','Não há macOS Apple Silicon nem VM compatível neste host Linux x86_64.',{host_platform:process.platform,host_arch:process.arch,macos_vm_available:false},[]);
   const adb=await import('node:child_process').then(({spawnSync})=>spawnSync('which',['adb'],{encoding:'utf8'}));

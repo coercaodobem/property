@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G02-02",
+      "status": "PASS",
+      "reason": "Fresh root and /property/ pages loaded from the local bundle with no external HTTP, WebSocket or deny-proxy attempts."
+    },
+    {
+      "case": "G02-03",
+      "status": "FAIL",
+      "reason": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#new-password')\u001b[22m\n\u001b[2m    - locator resolved to <input minlength=\"12\" type=\"password\" id=\"new-password\" autocomplete=\"new-password\"/>\u001b[22m\n\u001b[2m    - fill(\"Property-offline-test-2026!\")\u001b[22m\n\u001b[2m  - attempting fill action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying fill action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying fill action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    60 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying fill action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+    }
+  ],
+  "external_http_attempts": [],
+  "external_websocket_attempts": [],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "local_request_failures": [],
+  "browser": {
+    "engine": "chromium",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e",
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30"
+  },
+  "local_origin": "http://127.0.0.1:39719",
+  "service_worker_policy": "allowed; local static server only; external HTTP requests are intercepted; browser proxy is a loopback deny proxy",
+  "result": "FAIL",
+  "error": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#new-password')\u001b[22m\n\u001b[2m    - locator resolved to <input minlength=\"12\" type=\"password\" id=\"new-password\" autocomplete=\"new-password\"/>\u001b[22m\n\u001b[2m    - fill(\"Property-offline-test-2026!\")\u001b[22m\n\u001b[2m  - attempting fill action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying fill action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying fill action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    60 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying fill action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+}

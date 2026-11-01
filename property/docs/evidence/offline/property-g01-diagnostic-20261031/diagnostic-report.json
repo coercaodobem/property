@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "classification": "INDEPENDENT_OFFLINE_DIAGNOSTIC_NOT_GATE_APPROVAL",
+  "run_utc": "2026-10-31T15:05:19.731Z",
+  "candidate_commit": "7aff8e448898e674f8448a2dd847a64faceda8cd",
+  "command": "bash property/tests/run-smoke.sh",
+  "expected_suite_count": 14,
+  "observed_suites": [
+    "money-smoke.mjs",
+    "nano-units-smoke.mjs",
+    "marketplace-smoke.mjs",
+    "campaigns-smoke.mjs",
+    "protocol-smoke.mjs",
+    "vault-smoke.mjs",
+    "forwarding-smoke.mjs",
+    "sw-update-smoke.mjs",
+    "contact-smoke.mjs",
+    "app-contract-smoke.mjs",
+    "relay-migration-smoke.mjs",
+    "portable-packages-smoke.mjs",
+    "relay-package-smoke.mjs",
+    "offline/runner-contract-smoke.mjs"
+  ],
+  "passing_assertion_lines": 1,
+  "exit_code": 0,
+  "result": "PASS",
+  "gate_approval": false,
+  "gate_blocker": "G00 is BLOCKED; the dependency gate is not approved.",
+  "g00_run_id": "property-g00-shell-current-20261031-r2"
+}

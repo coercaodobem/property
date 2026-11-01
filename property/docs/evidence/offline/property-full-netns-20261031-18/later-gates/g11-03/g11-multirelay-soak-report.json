@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "case": "G11-03",
+  "status": "FAIL",
+  "duration_required_seconds": 86400,
+  "probe_interval_seconds": 60,
+  "relay_count": 3,
+  "bridge_count": 2,
+  "probe_count": 0,
+  "loss_count": 0,
+  "planned_middle_relay_restarts": [],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28540/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28540/",
+    "ws://127.0.0.1:28541/"
+  ],
+  "relay_rss_peak_bytes": 0,
+  "started_utc": "2026-10-31T19:18:30.208Z",
+  "ended_utc": "2026-10-31T19:18:38.239Z",
+  "duration_observed_seconds": 8.031,
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "reason": "Cannot read properties of undefined (reading 'push')"
+}

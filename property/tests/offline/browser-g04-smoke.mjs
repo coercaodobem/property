@@ -31,7 +31,7 @@ function parseArgs(argv) {
   for (const name of ['playwright_module', 'engine', 'executable', 'playwright_version', 'browser_version', 'playwright_package_sha256', 'browser_executable_sha256', 'output']) {
     if (!options[name]) throw new Error(`Missing --${name.replaceAll('_', '-')}.`);
   }
-  if (options.engine !== 'chromium') throw new Error('G04 requires the pinned Chromium engine.');
+  if (!['chromium', 'firefox'].includes(options.engine)) throw new Error('G04 requires pinned Chromium or Firefox.');
   return options;
 }
 
@@ -91,9 +91,21 @@ async function loadRuntime(options, proxyPort) {
   await walk(moduleRoot); assert.equal(createHash('sha256').update(treeEntries.join('')).digest('hex'), options.playwright_package_sha256);
   assert.equal(await sha256File(options.executable), options.browser_executable_sha256);
   const playwright = createRequire(options.playwright_module)(options.playwright_module);
-  const launch = { headless: true, executablePath: options.executable, proxy: { server: `http://127.0.0.1:${proxyPort}`, bypass: '127.0.0.1,localhost' },
-    args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-background-networking', '--disable-component-update', '--disable-sync', '--disable-default-apps', '--disable-extensions', '--disable-client-side-phishing-detection', '--disable-variations', '--disable-features=AutofillServerCommunication,AutofillEnableAccountWalletStorage,OptimizationHints,OptimizationGuideModelDownloading,OptimizationHintsFetching,MediaRouter,CertificateTransparencyComponentUpdater,InterestFeedContentSuggestions', '--no-first-run'] };
-  const browser = await playwright.chromium.launch(launch); assert.equal(browser.version(), options.browser_version);
+  const launch = { headless: true, executablePath: options.executable, proxy: { server: `http://127.0.0.1:${proxyPort}`, bypass: '127.0.0.1,localhost' } };
+  if (options.engine === 'chromium') {
+    launch.args = ['--no-sandbox', '--disable-dev-shm-usage', '--disable-background-networking', '--disable-component-update', '--disable-sync', '--disable-default-apps', '--disable-extensions', '--disable-client-side-phishing-detection', '--disable-variations', '--disable-features=AutofillServerCommunication,AutofillEnableAccountWalletStorage,OptimizationHints,OptimizationGuideModelDownloading,OptimizationHintsFetching,MediaRouter,CertificateTransparencyComponentUpdater,InterestFeedContentSuggestions', '--no-first-run'];
+  } else {
+    launch.firefoxUserPrefs = {
+      'toolkit.telemetry.enabled': false,
+      'datareporting.healthreport.uploadEnabled': false,
+      'app.update.enabled': false,
+      'browser.newtabpage.enabled': false,
+      'browser.shell.checkDefaultBrowser': false,
+      'network.captive-portal-service.enabled': false,
+      'network.connectivity-service.enabled': false
+    };
+  }
+  const browser = await playwright[options.engine].launch(launch); assert.equal(browser.version(), options.browser_version);
   const vendor = await readFile(path.join(WEB, 'vendor/nostr-tools-2.25.2.bundle.js'), 'utf8');
   const context = { console, crypto: webcrypto, TextEncoder, TextDecoder, URL, setTimeout, clearTimeout }; context.window = context;
   vm.createContext(context); vm.runInContext(vendor, context, { timeout: 5000 });
@@ -269,9 +281,9 @@ async function main() {
     relay0 = await startGeode(28470, temp, 'relay zero'); relay1 = await startGeode(28471, temp, 'relay one');
     report.relays = [relay0, relay1].map(relay => ({ url: relay.url, process_id: relay.child.pid, data_dir_mode: 'temporary private directory' }));
     const profileA = path.join(temp, 'profile A with spaces'), profileB = path.join(temp, 'profile B with spaces'), profileC = path.join(temp, 'profile C with spaces');
-    contextA = await runtime.playwright.chromium.launchPersistentContext(profileA, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
-    contextB = await runtime.playwright.chromium.launchPersistentContext(profileB, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
-    contextC = await runtime.playwright.chromium.launchPersistentContext(profileC, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
+    contextA = await runtime.playwright[options.engine].launchPersistentContext(profileA, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
+    contextB = await runtime.playwright[options.engine].launchPersistentContext(profileB, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
+    contextC = await runtime.playwright[options.engine].launchPersistentContext(profileC, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
     for (const context of [contextA, contextB, contextC]) instrument(context, origin, report);
     let pageA = await openApp(contextA, origin), pageB = await openApp(contextB, origin), pageC = await openApp(contextC, origin);
     const a = await createIdentity(pageA), b = await createIdentity(pageB), c = await createIdentity(pageC);
@@ -311,11 +323,11 @@ async function main() {
 
     stage = 'G04-03: close B and deliver queued message'; await closeContext(contextB);
     const delayed = `property-g04-offline-${crypto.randomUUID()}`; await sendMessage(pageA, delayed);
-    contextB = await runtime.playwright.chromium.launchPersistentContext(profileB, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' }); instrument(contextB, origin, report);
+    contextB = await runtime.playwright[options.engine].launchPersistentContext(profileB, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' }); instrument(contextB, origin, report);
     pageB = await openApp(contextB, origin); await pageB.locator('#workspace').waitFor({ state: 'visible', timeout: 20000 });
     await openConversation(pageB, a.npub, 'A privado'); await pageB.locator('#messages .message-bubble').filter({ hasText: delayed }).waitFor({ state: 'visible', timeout: 15000 });
     await closeContext(contextB);
-    contextB = await runtime.playwright.chromium.launchPersistentContext(profileB, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' }); instrument(contextB, origin, report);
+    contextB = await runtime.playwright[options.engine].launchPersistentContext(profileB, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' }); instrument(contextB, origin, report);
     pageB = await openApp(contextB, origin); await pageB.locator('#workspace').waitFor({ state: 'visible', timeout: 20000 });
     await openConversation(pageB, a.npub, 'A privado');
     assert.equal(await pageB.locator('#messages .message-bubble').filter({ hasText: delayed }).count(), 1, 'relay replay/reconnect does not duplicate a message');

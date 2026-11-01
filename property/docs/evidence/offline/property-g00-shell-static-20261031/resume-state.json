@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "run_id": "property-g00-shell-current-20261031",
+  "profile": "core",
+  "candidate_commit": "7aff8e448898e674f8448a2dd847a64faceda8cd",
+  "manifest_config_sha256": "28104bb26d053946a5f7d5fb031de7381b3b4a1025f2b7043d8d19c826d79462",
+  "candidate_state_sha256": "4f8ba6e46111990472e6e06c8b019d78c2878d2d97acf169beb3582e3a5b0423",
+  "plan_sha256": "0da00fe5f7320ea1c93b0b5f0373b6e8dd49efcc80fd27aafd5da6244195c778",
+  "external_inputs": {
+    "core_report_sha256": null
+  },
+  "attempt_number": 1,
+  "resumed_from_attempt": null
+}

@@ -1,0 +1,878 @@
+{
+  "schema_version": 1,
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active Codex task runtime",
+  "cases": [
+    {
+      "case": "G09-01",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 1,
+          "result": "PASS",
+          "case": "G09-01",
+          "abrupt_campaign_crashes": 2,
+          "state_after_first_crash": "awaiting_payment",
+          "state_after_second_crash": "published",
+          "publication_calls_after_recovery": 0,
+          "relay_campaign_copies": 1,
+          "campaign_event_id": "a50efbb5276956adde01f8a2f1637020fa4a29c310502f35caeb83a359067f58",
+          "relay_url": "ws://127.0.0.1:28500",
+          "temp_state_private": true
+        }
+      },
+      "evidence": [
+        "later-gates/g09-01.log",
+        "later-gates/g09-01/g09-campaign-crash-report.json"
+      ]
+    },
+    {
+      "case": "G09-02",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Falha e retorno de inbox/relays, ACK falso e partição/reordenação foram verificados pelos harnesses reais deste mesmo run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G04-04",
+            "status": "PASS"
+          },
+          {
+            "case": "G05-04",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json",
+        "logs/G05-01-07-browser.log",
+        "browser-g05/browser-g05-report.json"
+      ]
+    },
+    {
+      "case": "G09-03",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 1,
+          "case": "G09-03",
+          "result": "PASS",
+          "database_lock": {
+            "acquired": true,
+            "process_isolated_to_temp_database": true,
+            "held_event_ack_kind": "timeout",
+            "held_event_acknowledged": false,
+            "held_event_independently_queryable": false,
+            "recovered_after_release": true,
+            "recovery_event_id": "ead9e2aca93bcf8d3485bf0a55fa3341642e72f50012240a53053544b0052e5e"
+          },
+          "invalid_config": {
+            "exit_code": 1,
+            "rejected_before_relay_listen": true,
+            "error_excerpt": "Picked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx371m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m\nException in thread \"main\" ParseError(errorDescription=Expected EOF, but got '['., line=1, cause=null)\n\tat cc.ekblad.toml.parser.DocumentKt.parseTomlDocument(Document.kt:47)\n\tat cc.ekblad.toml.serialization.TomlDeserializerKt.from(TomlDeserializer.kt:25)\n\tat cc.ekblad.toml.serialization.TomlDeserializerKt.from(TomlDeserializer.kt:33"
+          },
+          "bounded_volume": {
+            "status": "PASS",
+            "rlimit_fsize_bytes": 524288,
+            "largest_database_file_bytes": 524288,
+            "write_failure": {
+              "index": 4,
+              "ack_kind": "ack",
+              "accepted": false
+            },
+            "acknowledged_event_count": 4,
+            "recovered_event_count": 4,
+            "relay_exit_after_limit": 143,
+            "reason": "The enforced file-size cap rejected a write; all previously acknowledged events survived restart."
+          },
+          "secret_free": true
+        }
+      },
+      "evidence": [
+        "later-gates/g09-03.log",
+        "later-gates/g09-03/g09-storage-report.json"
+      ]
+    },
+    {
+      "case": "G09-04",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 1,
+          "case": "G09-04",
+          "result": "PASS",
+          "relay_duplicate_copies": 1,
+          "invalid_signature_rejected": true,
+          "oversized_event_forwarded": false,
+          "bridge_events_accepted_before_quota": 60,
+          "corpus_recovered_after_hostile_input": true,
+          "persisted_event_ids": [
+            "b448705341b4340fecc8eeb7110ebe852d1758939072e485f34f8621603ea0d1",
+            "13ab2acfe131ac593efef16b947a02677fa72d669031a2bf14de5896debe401d"
+          ]
+        }
+      },
+      "evidence": [
+        "later-gates/g09-04.log",
+        "later-gates/g09-04/g09-hostile-report.json"
+      ]
+    },
+    {
+      "case": "G09-05",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Precedência/migração, manifesto adulterado, segmento ausente e hash de pacote passaram.",
+      "observed": {
+        "tamper_package": "PASS",
+        "migration": "PASS",
+        "package_hash": "PASS"
+      },
+      "evidence": [
+        "later-gates/g09-05/g09-package-report.json",
+        "later-gates/g09-05-migration.log",
+        "later-gates/g09-05-package-hash.log"
+      ]
+    },
+    {
+      "case": "G09-06",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Perda isolada de relay/ponte, rotas alternativas e fronteira privada foram verificadas pelos casos reais do mesmo run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G05-02",
+            "status": "PASS"
+          },
+          {
+            "case": "G05-03",
+            "status": "PASS"
+          },
+          {
+            "case": "G05-05",
+            "status": "PASS"
+          },
+          {
+            "case": "G07-07",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G05-01-07-browser.log",
+        "browser-g05/browser-g05-report.json",
+        "logs/G05-01-07-browser.log",
+        "browser-g05/browser-g05-report.json",
+        "logs/G05-01-07-browser.log",
+        "browser-g05/browser-g05-report.json",
+        "logs/G07-01-07-browser.log",
+        "browser-g07/browser-g07-report.json"
+      ]
+    },
+    {
+      "case": "G10-01",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Criação de A/B, listas NIP-17, contato e conversa ponta a ponta foram percorridos pela UI neste run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G03-01",
+            "status": "PASS"
+          },
+          {
+            "case": "G03-04",
+            "status": "PASS"
+          },
+          {
+            "case": "G04-01",
+            "status": "PASS"
+          },
+          {
+            "case": "G04-02",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G03-01-06-browser.log",
+        "browser-g03/browser-g03-report.json",
+        "logs/G03-01-06-browser.log",
+        "browser-g03/browser-g03-report.json",
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json",
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json"
+      ]
+    },
+    {
+      "case": "G10-02",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Destinatário offline, recuperação após reabrir, perda de inbox e restauração foram verificadas neste run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G04-03",
+            "status": "PASS"
+          },
+          {
+            "case": "G04-04",
+            "status": "PASS"
+          },
+          {
+            "case": "G05-02",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json",
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json",
+        "logs/G05-01-07-browser.log",
+        "browser-g05/browser-g05-report.json"
+      ]
+    },
+    {
+      "case": "G10-03",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Hangout, marketplace, campanha opt-in/bloqueio e contato foram exercitados pela UI e relay neste run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G06-01",
+            "status": "PASS"
+          },
+          {
+            "case": "G06-02",
+            "status": "PASS"
+          },
+          {
+            "case": "G06-03",
+            "status": "PASS"
+          },
+          {
+            "case": "G06-05",
+            "status": "PASS"
+          },
+          {
+            "case": "G07-05",
+            "status": "PASS"
+          },
+          {
+            "case": "G07-07",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G06-01-05-browser.log",
+        "browser-g06/browser-g06-report.json",
+        "logs/G06-01-05-browser.log",
+        "browser-g06/browser-g06-report.json",
+        "logs/G06-01-05-browser.log",
+        "browser-g06/browser-g06-report.json",
+        "logs/G06-01-05-browser.log",
+        "browser-g06/browser-g06-report.json",
+        "logs/G07-01-07-browser.log",
+        "browser-g07/browser-g07-report.json",
+        "logs/G07-01-07-browser.log",
+        "browser-g07/browser-g07-report.json"
+      ]
+    },
+    {
+      "case": "G10-04",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Sessão, bloqueio, backup/recuperação e privacidade em perfil limpo passaram nos casos herdados do mesmo run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G02-06",
+            "status": "PASS"
+          },
+          {
+            "case": "G03-02",
+            "status": "PASS"
+          },
+          {
+            "case": "G03-03",
+            "status": "PASS"
+          },
+          {
+            "case": "G03-06",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G02-04-06-browser.log",
+        "browser-deep-g02/browser-deep-g02-report.json",
+        "logs/G03-01-06-browser.log",
+        "browser-g03/browser-g03-report.json",
+        "logs/G03-01-06-browser.log",
+        "browser-g03/browser-g03-report.json",
+        "logs/G03-01-06-browser.log",
+        "browser-g03/browser-g03-report.json"
+      ]
+    },
+    {
+      "case": "G10-05",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 1,
+          "viewport_case": "G10-05",
+          "pwa_fallback_case": "G12-06",
+          "result": "PASS",
+          "viewports": [
+            {
+              "width": 360,
+              "height": 800,
+              "layout": {
+                "width": 360,
+                "height": 800,
+                "document_width": 360,
+                "body_width": 360,
+                "viewport_width": 360,
+                "visible_primary_controls": [
+                  "▤Mensagens",
+                  "◌Hangout",
+                  "◇Marketplace",
+                  "⌘Meu node"
+                ],
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 390,
+              "height": 844,
+              "layout": {
+                "width": 390,
+                "height": 844,
+                "document_width": 390,
+                "body_width": 390,
+                "viewport_width": 390,
+                "visible_primary_controls": [
+                  "▤Mensagens",
+                  "◌Hangout",
+                  "◇Marketplace",
+                  "⌘Meu node"
+                ],
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 768,
+              "height": 1024,
+              "layout": {
+                "width": 768,
+                "height": 1024,
+                "document_width": 768,
+                "body_width": 768,
+                "viewport_width": 768,
+                "visible_primary_controls": [
+                  "▤Mensagens",
+                  "◌Hangout",
+                  "◇Marketplace",
+                  "⌘Meu node"
+                ],
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 1440,
+              "height": 900,
+              "layout": {
+                "width": 1440,
+                "height": 900,
+                "document_width": 1440,
+                "body_width": 1440,
+                "viewport_width": 1440,
+                "visible_primary_controls": [
+                  "▤Mensagens",
+                  "◌Hangout",
+                  "◇Marketplace",
+                  "⌘Meu node"
+                ],
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 360,
+              "height": 800,
+              "effective_zoom": "200%",
+              "layout": {
+                "effective_zoom": "200% CSS viewport approximation",
+                "width": 180,
+                "document_width": 180,
+                "body_width": 180,
+                "viewport_width": 180,
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 390,
+              "height": 844,
+              "effective_zoom": "200%",
+              "layout": {
+                "effective_zoom": "200% CSS viewport approximation",
+                "width": 195,
+                "document_width": 195,
+                "body_width": 195,
+                "viewport_width": 195,
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 768,
+              "height": 1024,
+              "effective_zoom": "200%",
+              "layout": {
+                "effective_zoom": "200% CSS viewport approximation",
+                "width": 384,
+                "document_width": 384,
+                "body_width": 384,
+                "viewport_width": 384,
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 1440,
+              "height": 900,
+              "effective_zoom": "200%",
+              "layout": {
+                "effective_zoom": "200% CSS viewport approximation",
+                "width": 720,
+                "document_width": 720,
+                "body_width": 720,
+                "viewport_width": 720,
+                "overflow_elements": []
+              },
+              "pass": true
+            }
+          ],
+          "unnamed_controls": [],
+          "focus": {
+            "tag": "A",
+            "id": null,
+            "label": "Property início",
+            "visible": true,
+            "focus_indicator": true
+          },
+          "install_fallback": {
+            "service_worker_available": true,
+            "unsupported_install_mode_forced": true,
+            "before_install_prompt_supported": false,
+            "custom_install_controls": 0,
+            "workspace_usable": true,
+            "install_instructions_visible": false
+          },
+          "browser": {
+            "playwright_version": "1.62.1",
+            "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+            "browser_version": "153.0.8010.12",
+            "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+          },
+          "external_requests": [],
+          "viewport_case_result": "PASS",
+          "pwa_fallback_case_result": "PASS"
+        }
+      },
+      "evidence": [
+        "later-gates/g10-05.log",
+        "later-gates/g10-05/g10-viewport-report.json"
+      ]
+    },
+    {
+      "case": "G12-06",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "O browser permaneceu utilizável sem apresentar botão/instrução de instalação não suportada.",
+      "observed": {
+        "viewport_fallback": "PASS"
+      },
+      "evidence": [
+        "later-gates/g10-05/g10-viewport-report.json"
+      ]
+    },
+    {
+      "case": "G10-06",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 1,
+          "case": "G10-06",
+          "result": "PASS",
+          "shell_load_ms": 140,
+          "initial_bundle_bytes": 350989,
+          "dm_count": 50,
+          "dm_p95_ms": 33.98,
+          "public_note_count": 100,
+          "public_note_p95_ms": 36.87,
+          "relay_count": 4,
+          "bridge_count": 3,
+          "child_cpu_ms": 6798.512,
+          "child_rss_bytes": 179802112,
+          "relay_rss_bytes": [
+            138190848,
+            138940416,
+            131661824,
+            143433728
+          ],
+          "relay_disk_bytes": [
+            162636551,
+            162636551,
+            162636551,
+            162730831
+          ],
+          "quota_pause_ms": 57524,
+          "end_to_end_events": [
+            "9bdca9f6424e2d559da20b59b4bc31b8caa3726609302f58d1bcedb2cb4d5101",
+            "a9bebed8b1ecb9e538888fbebb41cb8ad2ddf219f926708f585f653d9abed2a6",
+            "5980ecb33d38adc3fe3dafce83f2e4708a4cdd80cc16304759a83450915faddc",
+            "2ede560013ca97ca72c6c7d82cdad7230b2546a6d42e39733ef7a8dd198ab64b",
+            "0467fde6a0f70f272c98c72d3b132c3902692d13a695b79d5e03671357c10011",
+            "f894da32b4f49577600600cbb92f4d4a162ecc7904ec6774c9a754f95c611e81",
+            "74cf5a279e206ac61497053ba53d252d3d875a49ebb2a4296c9c8e7c12e3d369",
+            "2b3ad4b3ad65af3bf1536ff9fbc21f5bf5cd0614cb37e4fefaba326fa6e05443",
+            "e9586c40b4ceaa3d7f9947145e65d9b67d9fd91107ba2812342a6b08e36fa8ae",
+            "a7d2a277cbeacde3c0abf4f827675d5a02f07504db0044a0137132bc1a1059d3",
+            "2916419e3fb594a5260a60e57308f3b57fd083fbb8811e08bc601be8662bb79b",
+            "be47c2b14140c2f80154a376e8cf21bbd1e144eb7b2035e217bf9fe1c34c6434",
+            "2ac925f519cfcdde0da91b869d65752c916809d68c6aaf615618d05fd1294501",
+            "50af7173b801dd0088f89b2419764691667d6d41a3eb9a1f2ce2dd1132a11455",
+            "ee830f7ab543b1968a654eee193f05125c6a41da77483f76e5cd3b6d36495b4a",
+            "47993b35c6c2f3e6f4b5e48ec247028e5167631e4010be74d73eb2df667993f0",
+            "f4689e1c89a7c9f1b9bce251e0f1cac67da82c3a2118776bdd3fc70d3a488e50",
+            "72abb5ff9aed4579caf9ca2f6cb28dba1e623bb4bb29e0f3e91e92b5e456871b",
+            "284dd37439f2abe36364841a18087d652689ee8d905edab6cb3fd2abde2e1684",
+            "8ae53c3a092d197f5663658c90df274364b689aa32170b71e79d05a557761ba3",
+            "8471aee1e23d91811578119218787fc3cc11c95bcb3392eb697ede566c4d98f2",
+            "296f8c8fb0abe583126f91d7ecb8b1246ac82b2f9d6219741f1c1169881cc323",
+            "42355d9e81e13d9eb2f08faeb9010fb1c71e2e32c33025efca98c4ff832af36c",
+            "74cefac9002005920d091f4e30bc77e622fd8d7b7e844cb76235df88ad9fd926",
+            "35d38a89c1113fd632d3f69122c798f7bb9d2fc30a69aa076093e28c07a58ee4",
+            "bd46f9815480006a5ffe2028ae357427749d963fd6475763c6aaa0118605b12e",
+            "fea42323501086d8a1857da344793ef47a57659f8cf4e308bcf7b7b4da649cf6",
+            "a8da7c60c6309721b8ff92cf3ac0269062b4402267c2b9d07dfbe48291158188",
+            "f8f02963765224934b5f8b619dce5cbcddd34daf3fdb10c8b832f2d4d8613f3c",
+            "f7c4a40f1cd7ac2c34c73f192dd3ec76fcbb2f925dd26554dc757e1962941e17",
+            "59fc291ae5423b704eccc0163ed0621066dff06ac3ccb65155367ab204acd88c",
+            "70d7ed4d58d93b25ff7e8f1d9e86df577b29f54dba9e300f807e58b413f4f4e2",
+            "a3027e131e052bef89676854d3cd1b1268ffebc474ef899680f74a21e7152f8b",
+            "bf137c834704b4009b9b13065feec0a74f1fbedc628864130c7f88cf9b6dd551",
+            "21c182083f5243b0ef3f3f3bf86e2502044b5d6034d54e397fd0bc4e2b738e9a",
+            "ea253c0c1a5837d236d9a38bdfdb23000830f5291955700f6464d8b46d3bb037",
+            "84b768769a2c33411d7c325d7256019a0fe4c3e285277285c10d9adf1962b368",
+            "d589dce298bff06c34737a97607178a0f9eb3ad93513af8c45fd17e98b737a0a",
+            "b3583d86052591c49a64d2830becde976b11a0e5d2497000e711e78a5b67194e",
+            "c8c09b6e3b25b49d9333685b75f4c9e77a5d3957376c9b8ab406611cf9d4b2a6",
+            "446d596e2f43ab31a2822539dc9c6771c8f63756a8b8b58d9f3a6b26768c2e53",
+            "441d7dfbbd272cf9b0827324fa5d9eea3d5910d6788a4bbf820e6ae244b5c536",
+            "bb6e57a59c093b54f25acabc74b28e9a97f378c46b5203fcae5ecbed9d0d56b2",
+            "eb1070df857e6f19179aee86729c1fc0f4577c5140904aaf8b6f1c32ddcfc690",
+            "a23550bc61e17a68e38d422ce3c54b064c1d71c57b69ce7a6c91932f26c94d42",
+            "9ade113078516a91c145627555bdd9c08e3ebd17840d12c2b046ac63e5a5d447",
+            "da8159e9d03dd5c3fea103a722e0b7ebbe7cf67160b05a15fb9e0dc86da22e8d",
+            "cd9a36c00d5ee2d54e1b87622dfcd566e0ff354f10d84c55c51970ddfcfae5ca",
+            "ffadf5f1cf0f959f182d6f50dac62fb6486ba3b1123d85e6be07f9758ec86278",
+            "9e248cfaa6431bab16c489d2c4018e8ac5c4321bac42f5bc07ced4ebcc4b6b4c",
+            "d0b697d21c8c97c495e24b0f7ba0fceb1e9c921f71cc40f300c5bcc6430c5934",
+            "89a2bb234757fb92b392fe217030f37d118ab3454e70b4b9b51f47a1b4593d79",
+            "61df9f5bc04d070ac4494ffcc77deba21f668157e75ea1740d2b531f771d9514",
+            "e3952479b0009c80222aab24329392d655e69a871e47fff67ab850012bf2f306",
+            "41eb6f2fc1337e34debdf7b979fa9f0e7e24b69f6f2540302e232d896b00ed36",
+            "ec2fbfd7eec354f98fd5368a770caec4aadbbc22a8b4293a4a1822965227a39e",
+            "7afaf1599e80bd0af76cc14be6206bf1eb862d89a6525237aa1923b0d6cf8d9f",
+            "45b5ae8296ccc40e22c0574136f0730d58134e4e65b5ceb085a2a7f7de42a857",
+            "042f7739770db6aa19063a31fc4fe62e1b261f06086477dfb199696ad7d8d9a4",
+            "2a113876484b21e109a8cb1fcd385c744e662451087a0ccd9e7470ad423b0b42",
+            "da24dbcc4b32fbe3477105b013d14445cb249d856e131c07c9085d95fdcc30be",
+            "d9662844be20dde3adcbfeb310d23f94e85b49ae5e49de56e7083eecd9eb1169",
+            "2afc15f2a8dd5943b8e06bae37c48f7d56d176e82003064c2be2804c3ba4ccd8",
+            "2386e39a4a5f791d4c5a28e0ebdd3dd494d31b4f7d16aa038ad1db7cfae6e797",
+            "6e890b1a75d2dbe14298da301b4bca194672386152fdddb09bb33fbd2dd2c297",
+            "bde726efba0af1a5133571e368c6a8208207902ad8574b6495796502eca902dc",
+            "7e360985a18d559ff7d67a33a25b2bdd5804c063e7353812c2ab8b7c7ac2fe5f",
+            "e02e997751dfc3d2ccd1cc660d1a5b92e4ae2f454672ed37500d503aa0f05471",
+            "0c4f7ab7fc1658b10b3db558f0751a9f60e029de055983cfd741934cbb347c8a",
+            "93e0f32cb6ef66bf9166c2410d98f202eed602088a817b256632dc25eaca0003",
+            "7b2bf68771d316c97a1c410a156027ddb283297ad124fd40e311ce12427268f6",
+            "4008de60826b2dbb5db54cd0669c85e3d068120ceeee05ae17b26cda2e448198",
+            "12d45b9532e931f202016cdaebd4f2d393b7dc78394e27bc3a08853bcd6b3457",
+            "9ab668106a140a7496fc5858c1879393a59c20f035bd7449942071afb086cba4",
+            "2b186e6e7a4bb8f9004990e32c82a761d23a67ed7982cad20b95c87ffb87b62b",
+            "3cc7992f2aca659813227c3946eddad1ee0925def094fce0d1d0afdc5a7a3a6a",
+            "3b7efed6da4dace3a043b3aaebe49b5a24f1fbf7d478bd4ab535b579b7e39f68",
+            "f6551f370c2aa33639b3378b13cf6acc5df9854446e596fc50045b971833e19a",
+            "61032033d86d220e881191953906fbbb169098860fe9531400a943822b62c46d",
+            "6c4db34d71abc23e941f09010800d92d54f19c18f78ff6245dda9d3aa5a5cda9",
+            "f551d71001c3c923b96e827a54375e2fb1e8a2b634bc2125e7df5f5bff27d1c2",
+            "a5bbdc2c47806def4ff1a6e2bf4df06f189f8926b9712d4868830d3173d45d6e",
+            "453a7376f689a9b5f9d92c49326e2f06907c6ea230ee8db531a62b6d5e5997e5",
+            "8f793d704f8f0b72b4b28e564f06e02e3e3c75160dbd7d00095f9408ae55005b",
+            "5613f1ce6e6332367c267b6160bf352b075eef134570431ced39afbd4c149652",
+            "e23020460a9e695bc1fdd94c35a74042d99390af5fa209d4aa75cc124af150da",
+            "fb6759807de768227ec623355fa2a22e9e9cae07775994efc4e782e928422e7a",
+            "d029c12e2de485c7cb2021853962f9970a9538d879c06dd3ffb8f5fea8e48062",
+            "e0c7060969693b873682c0e5db58bad9e013ae48f758ffdc28b10fa2c641fa36",
+            "a210bbdad8f6e35277af57bf6da448414b373d805d21802598014e8e8e46b4fc",
+            "23fdc73ba223cfc5f48b9e96e265156438c612ba88a9992c298f2d88cdef3fd8",
+            "bec7a20c872fe5f6bb867421f367aceb2c86e77525578bc7e43a7bac24fab4cd",
+            "23349b5880fdd7f0da0012af95f01198d0fd1fcaaf001181a1ef80dae695dfa8",
+            "aef0f5aa51596dd138a8e1f6708ce80dfbf66ad4daa67a293efc20fa5215b1c3",
+            "6fe067e42fab1a57cb06544fbdc1df57efede4453171a5601ac10c51f68bd3e3",
+            "c6c4da88e3344a552c407bf36972fe906e0acba0f0a598e182e5b6b4c3b05ae0",
+            "ee08929448f18bd6e4483c9bfc10e9e3dab3c3bb23a417b0635d341563d0d435",
+            "64d749bb8dc1cc4ebdccafffcd36fb898bbc3b2bcf80ce1987e1c3657ac8cf81",
+            "c0d24556591aae945953529301d4eb929f5d3729b8e28dc42da57cfbb0b3b560",
+            "c95d47af791ae443423bf138150aa006100464ddf04a41c17db619c51c5375a4"
+          ],
+          "bridge_event_bytes": 100
+        }
+      },
+      "evidence": [
+        "later-gates/g10-06.log",
+        "later-gates/g10-06/g10-performance-report.json"
+      ]
+    },
+    {
+      "case": "G11-01",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Jornada funcional NIP-17 repetida no mesmo seed de cenário e novamente em perfis limpos; CSPRNG continua aleatório.",
+      "observed": {
+        "initial_run": [
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "repetitions": [
+          {
+            "status": "PASS",
+            "case_count": 6,
+            "passed": 6
+          },
+          {
+            "status": "PASS",
+            "case_count": 6,
+            "passed": 6
+          }
+        ]
+      },
+      "evidence": [
+        "later-gates/g11-01-repetition-2/browser-g04-report.json",
+        "later-gates/g11-01-repetition-3/browser-g04-report.json"
+      ]
+    },
+    {
+      "case": "G11-02",
+      "status": "BLOCKED",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Hashes do pacote foram conferidos, mas o rebuild offline reproduzível segue sem a distribuição Gradle cacheada.",
+      "observed": {
+        "package_hash": "PASS",
+        "gradle_version": "9.8.2",
+        "gradle_distribution_cached": false,
+        "origin_case": "PASS"
+      },
+      "evidence": [
+        "later-gates/g11-02-package-hash.log",
+        "logs/G02-01-origin.log"
+      ]
+    },
+    {
+      "case": "G11-03",
+      "status": "FAIL",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Event 7713f1e63e4c49babe26abdc3fede6549e46d09ee75f4e4892eb04fedbf532f6 storage at ws://127.0.0.1:28542 expected=true was not observed within 30000 ms.",
+      "observed": {
+        "schema_version": 1,
+        "case": "G11-03",
+        "status": "FAIL",
+        "duration_required_seconds": 86400,
+        "probe_interval_seconds": 60,
+        "relay_count": 3,
+        "bridge_count": 2,
+        "probe_count": 30,
+        "loss_count": 0,
+        "planned_middle_relay_restarts": [],
+        "external_requests": [],
+        "websockets": [
+          "ws://127.0.0.1:28540/",
+          "ws://127.0.0.1:28541/",
+          "ws://127.0.0.1:28540/",
+          "ws://127.0.0.1:28541/",
+          "ws://127.0.0.1:28541/",
+          "ws://127.0.0.1:28542/",
+          "ws://127.0.0.1:28541/",
+          "ws://127.0.0.1:28542/"
+        ],
+        "relay_rss_peak_bytes": 136187904,
+        "started_utc": "2026-10-31T19:30:25.955Z",
+        "ended_utc": "2026-10-31T20:01:04.961Z",
+        "duration_observed_seconds": 1839.006,
+        "browser": {
+          "playwright_version": "1.62.1",
+          "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+          "browser_version": "153.0.8010.12",
+          "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+        },
+        "reason": "Event 7713f1e63e4c49babe26abdc3fede6549e46d09ee75f4e4892eb04fedbf532f6 storage at ws://127.0.0.1:28542 expected=true was not observed within 30000 ms."
+      },
+      "evidence": [
+        "later-gates/g11-03-soak.log",
+        "later-gates/g11-03/g11-multirelay-soak-report.json",
+        "later-gates/g11-03/g11-soak-probes.jsonl"
+      ]
+    },
+    {
+      "case": "G11-04",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Todos os casos PASS referenciam evidência existente; corpus financeiro e artefatos foram verificados sem material secreto.",
+      "observed": {
+        "core_pass_case_count": 51,
+        "g08_report_present": true,
+        "missing_evidence": [],
+        "secret_artifact_paths": []
+      },
+      "evidence": []
+    },
+    {
+      "case": "G11-05",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Registro dos 74 casos, checkpoints e consolidação/hashes serão finalizados pelo runner após retornar este conjunto.",
+      "observed": {
+        "planned_total_case_count": 74,
+        "recorded_later_cases": 17,
+        "checkpoint_files": [
+          "cases.latest.jsonl",
+          "case-events.jsonl",
+          "gate-checkpoints.jsonl"
+        ]
+      },
+      "evidence": [
+        "later-gates/later-gates-report.json"
+      ]
+    },
+    {
+      "case": "G12-01",
+      "status": "BLOCKED",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Linux x86_64/Chromium: launcher e persistência foram novamente exercitados; Firefox não está fixado/disponível neste host, então o caso multiplataforma completo não passa.",
+      "observed": {
+        "linux_x64": true,
+        "native_relay_integration": "PASS",
+        "chromium_case": "PASS",
+        "firefox_manifest_pinned": false
+      },
+      "evidence": [
+        "later-gates/g12-01-native.log"
+      ]
+    },
+    {
+      "case": "G12-02",
+      "status": "BLOCKED",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Não há execução Windows x64 real nem VM Windows neste host Linux.",
+      "observed": {
+        "host_platform": "linux",
+        "windows_vm_available": false
+      },
+      "evidence": []
+    },
+    {
+      "case": "G12-03",
+      "status": "BLOCKED",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Não há macOS Apple Silicon nem VM compatível neste host Linux x86_64.",
+      "observed": {
+        "host_platform": "linux",
+        "host_arch": "x64",
+        "macos_vm_available": false
+      },
+      "evidence": []
+    },
+    {
+      "case": "G12-04",
+      "status": "BLOCKED",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "ADB/emulador Android não está instalado ou conectado neste host.",
+      "observed": {
+        "adb_available": false,
+        "device_test_available": false
+      },
+      "evidence": []
+    },
+    {
+      "case": "G12-05",
+      "status": "BLOCKED",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Simulador iOS exige Xcode/macOS; xcrun não existe neste host Linux.",
+      "observed": {
+        "xcrun_available": false,
+        "ios_simulator_available": false
+      },
+      "evidence": []
+    }
+  ],
+  "started_utc": "2026-10-31T19:27:20.506Z",
+  "ended_utc": "2026-10-31T20:01:21.270Z",
+  "result": "RECORDED"
+}
