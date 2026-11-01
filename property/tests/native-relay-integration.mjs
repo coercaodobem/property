@@ -13,10 +13,10 @@ const port = 17457;
 const relayUrl = `ws://127.0.0.1:${port}`;
 const integrationSummary = join(testRoot, 'accepted-events.json');
 const noJavaPath = join(testRoot, 'tools without Java');
-const linuxUtilities = ['bash', 'sh', 'dirname', 'basename', 'uname', 'mkdir', 'chmod', 'cat', 'sed', 'sha256sum', 'mv', 'tar', 'gzip', 'readlink', 'realpath', 'env', 'rm', 'mktemp', 'grep', 'awk', 'head', 'tail', 'sleep', 'which'];
+const unixUtilities = ['bash', 'sh', 'dirname', 'basename', 'uname', 'mkdir', 'chmod', 'cat', 'sed', 'mv', 'tar', 'gzip', 'readlink', 'realpath', 'env', 'rm', 'mktemp', 'grep', 'awk', 'head', 'tail', 'sleep', 'which', process.platform === 'darwin' ? 'shasum' : 'sha256sum'];
 await mkdir(noJavaPath, { mode: 0o700 });
 if (!process.platform.startsWith('win')) {
-  for (const utility of linuxUtilities) {
+  for (const utility of unixUtilities) {
     const found = spawnSync('which', [utility], { encoding: 'utf8' });
     assert.equal(found.status, 0, `required launcher utility is unavailable: ${utility}`);
     await symlink(found.stdout.trim().split('\n')[0], join(noJavaPath, utility));
