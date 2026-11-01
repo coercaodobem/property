@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "case": "G11-03",
+  "status": "DIAGNOSTIC_PASS",
+  "duration_required_seconds": 120,
+  "duration_minimum_seconds": 15,
+  "duration_cap_seconds": 18000,
+  "probe_interval_seconds": 15,
+  "relay_count": 3,
+  "bridge_count": 2,
+  "probe_count": 3,
+  "loss_count": 0,
+  "planned_middle_relay_restarts": [
+    {
+      "scheduled_offset_seconds": 10,
+      "started_utc": "2026-11-01T02:33:38.501Z",
+      "ended_utc": "2026-11-01T02:34:26.296Z",
+      "duration_seconds": 47.8,
+      "same_database": true,
+      "partition_event_id": "5c97b6b1a57210bcc31b681e87b4f9556702343e1a08a2efd2c36706cd13869f",
+      "source_ack": true,
+      "absent_at_destination_during_partition": true,
+      "reconciled_at_middle_and_destination": true
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28540/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28540/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28542/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28542/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/"
+  ],
+  "relay_rss_peak_bytes": 471003136,
+  "relay_cpu_peak_percent": 118.7,
+  "scratch_bytes_peak": 475886808,
+  "resource_samples": [
+    {
+      "observed_utc": "2026-11-01T02:33:28.261Z",
+      "relay_processes": [
+        {
+          "pid": 3445240,
+          "rss_bytes": 161882112,
+          "cpu_percent": 27.7
+        },
+        {
+          "pid": 3445721,
+          "rss_bytes": 154595328,
+          "cpu_percent": 37.2
+        },
+        {
+          "pid": 3446322,
+          "rss_bytes": 154525696,
+          "cpu_percent": 53.8
+        }
+      ],
+      "total_relay_rss_bytes": 471003136,
+      "total_relay_cpu_percent": 118.7,
+      "scratch_bytes": 475528992
+    },
+    {
+      "observed_utc": "2026-11-01T02:34:26.400Z",
+      "relay_processes": [
+        {
+          "pid": 3445240,
+          "rss_bytes": 150564864,
+          "cpu_percent": 3.8
+        },
+        {
+          "pid": 3451278,
+          "rss_bytes": 148021248,
+          "cpu_percent": 13.6
+        },
+        {
+          "pid": 3446322,
+          "rss_bytes": 150769664,
+          "cpu_percent": 4
+        }
+      ],
+      "total_relay_rss_bytes": 449355776,
+      "total_relay_cpu_percent": 21.4,
+      "scratch_bytes": 475614888
+    },
+    {
+      "observed_utc": "2026-11-01T02:34:26.671Z",
+      "relay_processes": [
+        {
+          "pid": 3445240,
+          "rss_bytes": 151285760,
+          "cpu_percent": 3.8
+        },
+        {
+          "pid": 3451278,
+          "rss_bytes": 148373504,
+          "cpu_percent": 13.4
+        },
+        {
+          "pid": 3446322,
+          "rss_bytes": 156393472,
+          "cpu_percent": 4.2
+        }
+      ],
+      "total_relay_rss_bytes": 456052736,
+      "total_relay_cpu_percent": 21.4,
+      "scratch_bytes": 475750848
+    },
+    {
+      "observed_utc": "2026-11-01T02:34:41.568Z",
+      "relay_processes": [
+        {
+          "pid": 3445240,
+          "rss_bytes": 149209088,
+          "cpu_percent": 3.2
+        },
+        {
+          "pid": 3451278,
+          "rss_bytes": 148287488,
+          "cpu_percent": 7.2
+        },
+        {
+          "pid": 3446322,
+          "rss_bytes": 152244224,
+          "cpu_percent": 3.5
+        }
+      ],
+      "total_relay_rss_bytes": 449740800,
+      "total_relay_cpu_percent": 13.9,
+      "scratch_bytes": 475886808
+    }
+  ],
+  "started_utc": "2026-11-01T02:33:27.711Z",
+  "ended_utc": "2026-11-01T02:35:25.717Z",
+  "duration_observed_seconds": 118.007,
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "setup_completed_utc": "2026-11-01T02:33:27.711Z",
+  "resource_budget": {
+    "available_memory_at_start_bytes": 5958483968,
+    "max_relay_rss_bytes": 4170938777,
+    "max_scratch_bytes": 2147483648
+  },
+  "hangout_deduplication": {
+    "verified": true,
+    "event_id": "b64bed77627335baf2200dc8d18bad4b707b736affba6ed72d5f0785bf4c79c1",
+    "nodes": [
+      {
+        "label": "soak bridge P12",
+        "event_cards": 1
+      },
+      {
+        "label": "soak bridge P23",
+        "event_cards": 1
+      }
+    ]
+  },
+  "p95_publish_to_final_relay_ms": 439,
+  "probe_interval_observed_seconds": 60,
+  "post_restart_probe_count": 2,
+  "idle_lock_public_bridge": {
+    "verified": false,
+    "not_required_for_short_diagnostic": true
+  },
+  "page_errors": [],
+  "locked_bridge_stop": {
+    "verified": false,
+    "not_required_for_short_diagnostic": true
+  },
+  "full_5h_gate_eligible": false
+}

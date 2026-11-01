@@ -27,6 +27,10 @@
     function markPublished(event) {
       return Boolean(event && mark(event.id));
     }
+    function releaseForRetry(eventId) {
+      if (typeof eventId !== 'string' || !/^[0-9a-f]{64}$/i.test(eventId)) return false;
+      return seen.delete(eventId);
+    }
     function route(event, sourceRelay, relayUrls, maxAgeSeconds) {
       if (!event || !Array.isArray(relayUrls)) return [];
       if (!Number.isSafeInteger(event.created_at)) return [];
@@ -56,7 +60,7 @@
       if (recipients.length !== 1 || recipients[0] !== recipientPubkey) return [];
       return route(event, sourceRelay, relayUrls, MAX_PRIVATE_AGE_SECONDS);
     }
-    return Object.freeze({ filter, markPublished, targets, privateTargets, get seenCount() { return seen.size; } });
+    return Object.freeze({ filter, markPublished, releaseForRetry, targets, privateTargets, get seenCount() { return seen.size; } });
   }
 
   window.PropertyRelayBridge = Object.freeze({ createBridge, kinds: KINDS });

@@ -1,6 +1,6 @@
 # Plano de Testes Central — Property
 
-**Atualizado:** 2026-10-31. **Executor previsto:** Luna Max. **Estado desta revisão:** os executores de G00–G12 estão integrados no perfil full; G08 exige as ferramentas privadas fixadas no manifesto e G11-03 exige 24 horas reais. G00 passou em full recente; G08-01–07, G09-03 e G10-05 passaram em ensaios isolados do candidato corrente. Ainda não existe aprovação do candidato completo. A execução disponível nesta sessão registra Codex GPT-6, diferente do executor previsto Luna Max, e essa diferença deve permanecer explícita no relatório.
+**Atualizado:** 2026-10-31. **Executor previsto:** Luna Max. **Estado desta revisão:** por instrução expressa do usuário, G11-03 foi reduzido de 24 horas para no máximo cinco horas reais (18.000 segundos). O ensaio anterior `property-full-netns-20261031-20` permanece `FAIL`: durou 20.018,732 segundos, não executou os reinícios previstos e perdeu o probe 333 depois das cinco horas. Ele não aprova G11-03 nem será reescrito como aprovado. G00–G08 passaram no full recente; G09-01–06 e G10-01–06 passaram; G11-02 e G12-01–05 estão bloqueados ou incompletos. Ainda não existe aprovação do candidato completo. A execução disponível nesta sessão registra Codex GPT-6, diferente do executor previsto Luna Max, e essa diferença deve permanecer explícita no relatório.
 
 ## 1. Objetivo e autoridade
 
@@ -24,7 +24,7 @@ Layers designa as camadas exercitadas no laboratório: navegador/identidade, des
 | Hangout | Publicar/ler notas públicas, verificar autoria, deduplicar e iniciar conversa a partir da autoria | G06, G10 |
 | Marketplace inicial | Publicar, descobrir, editar e retirar ofertas; BTC/XMR/XNO exatos; iniciar contato | G06, G08, G10 |
 | Sustentabilidade dos nodes | Oferta, aceite/recusa, publicação paga, expiração e devolução; patrocínio opt-in e sem rastreio central | G07, G08, G10 |
-| Nodes de computador | Runtime incluído, dados persistentes, reinício, limites, retenção e disponibilidade de 24 horas | G00, G09, G11, G12 |
+| Nodes de computador | Runtime incluído, dados persistentes, reinício, limites, retenção e disponibilidade por até cinco horas no ensaio G11-03 | G00, G09, G11, G12 |
 | Plataformas | PWA em desktop/Android/iOS e pacotes de relay Linux x86_64, Windows x64 e macOS Apple Silicon | G12 |
 
 A engine financeira de campanhas permanece no escopo planejado, mesmo estando ausente no MVP atual. Sua ausência reprova a implementação correspondente; não autoriza apagar o gate, trocar o teste por um mock ou declarar a campanha paga porque existe um txid no evento.
@@ -60,7 +60,7 @@ Checkout, custódia, escrow e pagamentos de compras do marketplace, grupos priva
 | G08 | BTC/XMR/XNO em redes privadas locais com adaptadores reais | G07 |
 | G09 | Falhas, abuso, recuperação e persistência | G08 |
 | G10 | Jornadas completas no navegador e metas de usabilidade | G09 |
-| G11 | Repetibilidade, ensaio real de 24 horas e reconciliação | G10 |
+| G11 | Repetibilidade, ensaio real de até cinco horas e reconciliação | G10 |
 | G12 | Matriz offline dos sistemas e navegadores alvo | G11 |
 
 Estados por caso: PASS, FAIL, BLOCKED ou NOT_RUN. Funcionalidade ausente corresponde a FAIL; ferramenta/aparelho ausente corresponde a BLOCKED. Casos de rejeição aprovam quando a rejeição esperada acontece e o efeito proibido é comprovadamente ausente. Não existe aprovação por skip, TODO, warning ou erro engolido.
@@ -87,7 +87,7 @@ O orquestrador deve retornar código 0 somente para o perfil solicitado integral
 - Servir o mesmo bundle em localhost e sob o caminho /property/. Para HTTPS/WSS, usar CA/certificado local de teste confiado apenas no laboratório. Não aprovar ignorando globalmente erros TLS. Capturar também uma tentativa WSS com certificado inválido e comprovar rejeição.
 - Cada relay usa processo, porta, configuração e banco separados; cada identidade usa contexto/perfil de navegador separado. Dados do laboratório ficam em diretório temporário exclusivo. Nenhum relay de produção é iniciado/parado.
 
-**Recursos:** começar por dois relays e medir RSS, CPU, disco e tempo; ampliar para a topologia completa sem reduzir os cenários. Como orçamento inicial de laboratório, exigir 4 vCPUs, 8 GiB de RAM física e 6 GiB livres no volume scratch usado pelo runner. A capacidade física é o piso de hardware; o consumo livre é medido separadamente no início de cada execução. Limitar o conjunto dos processos filhos a 70% da RAM então disponível e, para sete relays Geode concorrentes, dividir esse teto por relay, aplicando limites explícitos de heap, metaspace, code cache, memória direta e threads. Registrar todos os valores no inventário e medir o RSS real durante a topologia. Reservar 2 GiB de disco e parar de forma limpa ao atingir o limite. Esses valores são parâmetros de ensaio, não consumo medido nem requisito final do produto. Hardware abaixo do piso físico, scratch abaixo do limite ou teto que não comporte ao menos 128 MiB de heap e 64 MiB de metaspace por JVM gera BLOCKED. O scratch deve ficar no volume declarado pelo runner, não ser inferido de um `/tmp` montado em tmpfs. Ensaio de 24 horas só começa após os gates curtos passarem e com orçamento registrado.
+**Recursos:** começar por dois relays e medir RSS, CPU, disco e tempo; ampliar para a topologia completa sem reduzir os cenários. Como orçamento inicial de laboratório, exigir 4 vCPUs, 8 GiB de RAM física e 6 GiB livres no volume scratch usado pelo runner. A capacidade física é o piso de hardware; o consumo livre é medido separadamente no início de cada execução. Limitar o conjunto dos processos filhos a 70% da RAM então disponível e, para sete relays Geode concorrentes, dividir esse teto por relay, aplicando limites explícitos de heap, metaspace, code cache, memória direta e threads. Registrar todos os valores no inventário e medir o RSS real durante a topologia. Reservar 2 GiB de disco e parar de forma limpa ao atingir o limite. Esses valores são parâmetros de ensaio, não consumo medido nem requisito final do produto. Hardware abaixo do piso físico, scratch abaixo do limite ou teto que não comporte ao menos 128 MiB de heap e 64 MiB de metaspace por JVM gera BLOCKED. O scratch deve ficar no volume declarado pelo runner, não ser inferido de um `/tmp` montado em tmpfs. O ensaio de no máximo cinco horas só começa após os gates curtos passarem e com orçamento registrado.
 
 ### 5.2 Atores e sete relays reais
 
@@ -124,7 +124,7 @@ Para a cadeia pública, A só publica em R1, B só lê em R4 e cada ponte só ac
 
 Usar seed explícita para geração de cenários e sequência de falhas. Aleatoriedade de teste pode ser determinística apenas nas fixtures/harness; geração real de chaves, nonces e criptografia do produto conserva sua fonte segura. Nunca introduzir chave fixa ou nonce reutilizado no runtime do app para tornar um teste repetível.
 
-Separar relógio lógico injetável no harness de duração de relógio real. Expiração, rate limit e reorganização podem ter tempo controlado em testes específicos; o ensaio de 24 horas mede 86.400 segundos reais e não aceita avanço artificial do relógio.
+Separar relógio lógico injetável no harness de duração de relógio real. Expiração, rate limit e reorganização podem ter tempo controlado em testes específicos; G11-03 mede pelo menos 17.998 e no máximo 18.000 segundos reais (cinco horas menos a margem de encerramento de dois segundos) e não aceita avanço artificial do relógio.
 
 Corpus mínimo: 100 notas públicas distintas, 50 mensagens por direção, 10 ofertas por moeda e 10 campanhas por moeda. Na carga normal, respeitar o menor limite de eventos/bytes de cada ligação; enviar as notas a até 30 eventos/minuto e executar fases separadas. Acima do limite, o resultado esperado é a contenção declarada, não entrega total. Para cada corpus, reconciliar IDs, autores, destinatários, valores atômicos, ACKs válidos, eventos consultáveis e aparições na UI.
 
@@ -256,13 +256,13 @@ Cada jornada usa o app real no navegador, por controles visíveis; chamadas dire
 
 Se a ferramenta não fornecer uma métrica, instrumentar o harness ou registrar BLOCKED; nunca preencher com estimativa. Os limites acima são critérios de aceitação propostos por este plano, não resultados obtidos. Mudança exige justificativa técnica anterior ao reteste, nunca ajuste silencioso ao resultado.
 
-### G11 — Repetibilidade, 24 horas e fechamento
+### G11 — Repetibilidade, até cinco horas e fechamento
 
 | Caso | Procedimento e aprovação |
 |---|---|
 | G11-01 | Repetir o conjunto funcional curto duas vezes com a mesma seed em laboratórios limpos e uma terceira vez com seed diferente. Mesmas invariantes e contagens esperadas; diferenças de chaves/IDs criptográficos não são comparadas como identidade entre execuções. |
 | G11-02 | Repetir montagem/hash dos runtimes e empacotamento da PWA offline. Build do código reaproveitado usa ferramentas/dependências locais inventariadas; registrar hashes e explicar variações não determinísticas. Falta de toolchain bloqueia a alegação de rebuild reproduzível, sem fingir que hash do binário prova compilação. |
-| G11-03 | Rodar 24 horas reais com ao menos três relays, duas pontes e clientes de teste. Probes periódicas de publicação/consulta, persistência, partição e reinícios programados; evidência de início/fim, duração >=86.400 s, perdas dentro da janela declarada, duplicatas na UI e orçamento de recursos. Após 30 min sem interação, confirmar que a identidade é bloqueada e a chave sai da sessão, enquanto o encaminhamento público explicitamente habilitado continua; confirmar que a tela bloqueada oferece comando para parar a ponte. Probe de um único relay ou soak curto não aprova o cenário de rede. |
+| G11-03 | Rodar o soak por 17.998–18.000 segundos reais (até cinco horas), com ao menos três relays, duas pontes e clientes de teste. O executor rejeita duração acima de 18.000 s. Enviar probes periódicas de publicação/consulta; programar três reinícios do relay intermediário em 1h, 2h30 e 4h; em cada parada, publicar um evento, provar que ele não pula a camada indisponível e confirmar a reconciliação após o retorno. Verificar persistência, zero perdas de eventos aceitos, ausência de duplicatas na UI (um evento consultado por relays múltiplos deve renderizar um cartão) e orçamento de recursos: RSS agregado dos três processos do relay <=70% da memória disponível no início do ensaio, CPU e disco registrados, scratch <=2 GiB. Após 30 min sem interação, confirmar que a identidade é bloqueada e a chave sai da sessão, enquanto o encaminhamento público explicitamente habilitado continua; confirmar que a tela bloqueada oferece comando para parar a ponte. Soak curto ou de um único relay não aprova o cenário. |
 | G11-04 | Conciliar corpus, estados financeiros, caches e volumes; auditar egress do início ao fim. Sem inconsistência, perda de evento aceito e retido, operação financeira duplicada ou segredo nos artefatos. |
 | G11-05 | Gerar relatório por gate, lista de defeitos encerrados/abertos, hashes de evidência e comando de reprodução. Ensaios interrompidos/faltantes impedem OFFLINE_FUNCTIONAL_PASS. |
 
@@ -291,7 +291,7 @@ Na raiz do checkout:
 
 Ensaio existente de um relay, útil como diagnóstico e sem equivalência ao G11-03 completo:
 
-    node property/tests/relay-soak.mjs 86400 60 17447
+    node property/tests/relay-soak.mjs 18000 60 17447
 
 As portas são valores de exemplo; conferir disponibilidade e reservar portas por execução. O launcher deve usar DATA_DIR/CONFIG_DIR temporários, separados dos diretórios reais do usuário.
 
@@ -301,10 +301,10 @@ As portas são valores de exemplo; conferir disponibilidade e reservar portas po
 |---|---|
 | Orquestrador offline | O perfil full percorre G00–G12; `run-offline.mjs` valida manifesto/inventário, exige a origem declarada do executor, falha fechado se isolamento não for provado e só inicia relays depois do G00 elegível. `--resume` verifica commit, diff, plano, manifesto, perfil, relatório e hashes, arquiva a tentativa e reinicia em G00 sem carregar PASS. Diagnósticos posteriores podem rodar mesmo quando um gate financeiro bloqueia, mas ficam inelegíveis. |
 | Manifesto de laboratório | Valida seed, commit, origem do executor, orçamento, portas, browser/engine/versões e hashes. Registra diff, arquivos, fontes, ferramentas e ferramentas financeiras externas por caminho absoluto e SHA-256. Credenciais RPC são geradas apenas dentro do processo/teste e não constam no manifesto persistido. |
-| Harness de múltiplos relays | Scripts de dois e sete Geode e os harnesses browser G05/G09/G11 exercitam relays reais, pontes PWA, topologias, falhas, limites, reinício, reconciliação e soak. G09 contém ensaios para crash, armazenamento limitado, eventos hostis, runtime adulterado e falha isolada; G11 contém repetição, ambiente de build e soak real de 24 horas. |
+| Harness de múltiplos relays | Scripts de dois e sete Geode e os harnesses browser G05/G09/G11 exercitam relays reais, pontes PWA, topologias, falhas, limites, reinício, reconciliação e soak. G09 contém ensaios para crash, armazenamento limitado, eventos hostis, runtime adulterado e falha isolada; G11 contém repetição, ambiente de build e soak real de até cinco horas com três reinícios e reconciliação de partições. |
 | Automação de navegador | Os executores usam Playwright/browser pinados por versão/hash, servidor localhost, proxy de bloqueio e captura de solicitações, WebSockets e erros. G10 herda as jornadas completas do mesmo full run e executa ainda viewports de desktop/móvel, zoom aproximado de 200%, foco, nomes acessíveis e fallback sem instalação PWA suportada. |
 | Engine e adaptadores financeiros | G07 exercita a engine persistente/assinada com ledger determinístico, somente para a máquina de estados. G08 tem harness de BTC Core, Monero e Nano com binários reais e hash-pinned, redes/carteiras privadas, RPC local autenticado, reconciliação e casos financeiros. G07 não substitui a liquidação real de G08. |
-| Relatório automatizado | O perfil full registra 74 casos, checkpoints, eventos, manifesto, inventário, topologia, isolamento, relatório e hashes. As evidências históricas não aprovam o candidato atual. A certificação requer o full run do mesmo candidato, incluindo G08, 24 horas do G11-03 e a matriz disponível de G12; plataformas físicas ausentes continuam BLOCKED. |
+| Relatório automatizado | O perfil full registra 74 casos, checkpoints, eventos, manifesto, inventário, topologia, isolamento, relatório e hashes. As evidências históricas não aprovam o candidato atual. A certificação requer o full run do mesmo candidato, incluindo G08, o G11-03 de até cinco horas e a matriz disponível de G12; plataformas físicas ausentes continuam BLOCKED. |
 
 Comandos do runner parcialmente implementado:
 
@@ -359,7 +359,7 @@ Todos os casos antigos permanecem consultáveis no histórico. A tabela explicit
 
 O histórico registra 12 suítes locais aprovadas, integração de dois relays, publicação anterior e matriz nativa Linux/Windows/macOS. Esses resultados ajudam a reproduzir o baseline; não aprovam automaticamente isolamento, sete relays, jornadas completas, engine financeira, redes privadas, novo soak ou nova matriz offline.
 
-Lacunas conhecidas no início desta revisão: orquestrador full, harness de sete relays/falhas, jornadas de navegador, engine de campanhas/pagamentos, ferramentas de ledger local, soak de 24 horas e matriz de plataformas. Os executores desses gates foram integrados desde então. A aprovação do candidato corrente continua pendente até o full run encerrar, e ausência de ambiente nativo em G12 deve constar como BLOCKED.
+Lacunas conhecidas no início desta revisão: orquestrador full, harness de sete relays/falhas, jornadas de navegador, engine de campanhas/pagamentos, ferramentas de ledger local, soak de disponibilidade e matriz de plataformas. Os executores desses gates foram integrados desde então. A aprovação do candidato corrente continua pendente até o full run encerrar, e ausência de ambiente nativo em G12 deve constar como BLOCKED.
 
 ### Checkpoint histórico — 2026-10-31
 

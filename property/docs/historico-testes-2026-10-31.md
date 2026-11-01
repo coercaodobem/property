@@ -1,6 +1,6 @@
 # Plano de Testes Central — Projeto Property
 
-**Status:** execução parcial atualizada em 2026-10-31. Repositório e produto renomeados para Property. As 12 suítes smoke locais passaram, incluindo BTC/XMR/XNO, backups antigos e pacotes portáteis. A matriz [41186913676](https://github.com/coercaodobem/property/actions/runs/41186913676) passou em Linux x86_64, Windows x64 e macOS Apple Silicon, com runtime incluído e persistência após reinício. A PWA está publicada em HTTPS; o registro de arquivos servidos acompanha a versão correspondente. Não há conclusão comprovada do ensaio de 24 horas. Dispositivos móveis reais e engine de pagamento/checkout continuam pendentes.
+**Status:** execução parcial atualizada em 2026-10-31. Repositório e produto renomeados para Property. As 12 suítes smoke locais passaram, incluindo BTC/XMR/XNO, backups antigos e pacotes portáteis. A matriz [41186913676](https://github.com/coercaodobem/property/actions/runs/41186913676) passou em Linux x86_64, Windows x64 e macOS Apple Silicon, com runtime incluído e persistência após reinício. A PWA está publicada em HTTPS; o registro de arquivos servidos acompanha a versão correspondente. Em 2026-10-31, por decisão expressa do usuário, o requisito G11-03/NOD-01 foi reduzido para no máximo cinco horas reais; os registros de ensaios antigos de 24 horas abaixo permanecem apenas como histórico e não valem como aprovação do novo ensaio. Dispositivos móveis reais e engine de pagamento/checkout continuam pendentes.
 **Objetivo:** verificar reuso do Amethyst, dependências, identidade, comunicação, nodes, PWA, publicidade e pagamentos BTC/XMR/XNO.
 
 ## 1. Baseline do MVP
@@ -60,9 +60,9 @@ Referências de protocolo para pesquisa e fixação da versão no projeto: [NIP-
 
 | 2026-10-31 | Pages [41186913639](https://github.com/coercaodobem/property/actions/runs/41186913639), commit `31956a60c485d77629cc6e549026822d05a7ae56` | PASS: nova URL principal mostra Property; seletor contém BTC/XMR/XNO; console sem erros/avisos; 17 arquivos públicos e raiz HTTP 200 com hashes idênticos ao checkout. [Evidência](evidence/pages-property-2026-10-31.json). Não prova login, mensagens em rede pública ou teste físico de celular. |
 
-**Não aprovado ou não executado:** ensaio completo de 24 horas; Android/iOS; teste de perda de rede em aparelho; revisão independente de segurança; marketplace completo; engine de campanhas BTC/XMR/XNO e verificação de pagamento; checkout; auditoria integral de dependências. O repositório `coercaodobem/property`, o push e a publicação inicial de Pages foram verificados em 2026-10-30. O leitor de campanha opt-in não é evidência de pagamento. Os itens pendentes continuam gates antes de beta público.
+**Não aprovado ou não executado:** novo ensaio G11-03 de até cinco horas; Android/iOS; teste de perda de rede em aparelho; revisão independente de segurança; marketplace completo; engine de campanhas BTC/XMR/XNO e verificação de pagamento; checkout; auditoria integral de dependências. O repositório `coercaodobem/property`, o push e a publicação inicial de Pages foram verificados em 2026-10-30. O leitor de campanha opt-in não é evidência de pagamento. Os itens pendentes continuam gates antes de beta público.
 
-Para repetir a suíte local: `bash property/tests/run-smoke.sh`. Para a integração entre dois relays isolados: `bash property/tests/run-bridge-integration.sh [porta-origem] [porta-destino]`. O ensaio de 24 horas é separado: `node property/tests/relay-soak.mjs 86400 60 17447`; em execução curta, informe duração e intervalo menores mantendo porta loopback livre.
+Para repetir a suíte local: `bash property/tests/run-smoke.sh`. Para a integração entre dois relays isolados: `bash property/tests/run-bridge-integration.sh [porta-origem] [porta-destino]`. O ensaio single-relay de até cinco horas é separado: `node property/tests/relay-soak.mjs 18000 60 17447`; em execução curta, informe duração e intervalo menores mantendo porta loopback livre. Ele não substitui o G11-03 multi-relay.
 
 ## Mudanças do commit do mantenedor e migração Property
 
@@ -91,7 +91,7 @@ O commit `55e379c9dbdf8637b32422d32e982460aa5862e5` acrescentou a marca Property
 
 | Plataforma | Interface | Relay |
 |---|---|---|
-| Ubuntu/Linux x86_64 | Navegador e instalação PWA quando suportada | Pacote incluído; executar smoke, integração e gate de 24 horas |
+| Ubuntu/Linux x86_64 | Navegador e instalação PWA quando suportada | Pacote incluído; executar smoke, integração e gate de até cinco horas |
 | Windows | Validar Edge/Chrome, instalação e recuperação | Pacote PowerShell x64 incluído; validar execução, SQLite e reinício no CI Windows |
 | macOS | Validar Safari/Chrome e instalação disponível | Pacote arm64 incluído; validar no CI macOS Apple Silicon. Intel e distribuição assinada/notarizada pendentes |
 | Android | Validar navegador, instalação PWA, rede e suspensão reais | Solução contínua nativa ainda em pesquisa; não prometer segundo plano na PWA |
@@ -106,7 +106,7 @@ A matriz é um requisito de execução, não uma declaração de suporte testado
 1. **Local:** aplicação, dois ou mais relays isolados, node de publicidade, carteira simulada e ferramenta de captura de rede.
 2. **Staging/testnet:** PWA HTTPS em host controlado, relays de teste, Bitcoin regtest/signet, Nano testnet/local e Monero regtest/stagenet. Testar o fluxo planejado do GitHub Pages sem lançar o site institucional antes de o app estar pronto.
 3. **Dispositivos reais:** pelo menos um Android, um iPhone/iPad e um PC; testar navegadores representativos.
-4. **Ensaio de disponibilidade:** node de PC operando continuamente por 24 horas, com interrupções de rede e reinicialização programadas.
+4. **Ensaio de disponibilidade:** node de PC operando por até cinco horas, com interrupções de rede e reinicializações programadas.
 
 Não usar seed, carteira ou fundos de produção. Testes em mainnet ficam fora deste plano.
 
@@ -182,7 +182,7 @@ Registrar ID do teste, versão/commit, dispositivo e navegador, configuração d
 
 | ID | Cenário | Critério de aprovação |
 |---|---|---|
-| NOD-01 | PC relay executa continuamente durante 24 horas. | Mantém serviço e dados, registra reinícios e recupera conexões; não consome recursos acima dos limites definidos para o hardware de referência. |
+| NOD-01 | PC relay executa continuamente por até cinco horas no ensaio G11-03. | Mantém serviço e dados, registra três reinícios e recupera conexões após partições; não excede o orçamento de recursos definido para o laboratório. |
 | NOD-02 | Interromper internet, energia e conexão WebSocket, uma de cada vez. | O node sinaliza indisponibilidade, reconecta com espera progressiva e não perde o estado confirmado. |
 | NOD-03 | Desligar um relay escolhido pelo usuário. | Cliente usa outros relays e permite remover/substituir o relay indisponível. |
 | NOD-04 | Encerrar o PWA no celular e deixar a tela apagada. | A rede continua disponível por relays de PC; a aplicação não promete serviço móvel contínuo. |
@@ -274,7 +274,7 @@ O MVP só passa para beta quando:
 6. Conversão raw, identificação de campanha, expiração e reembolso passam os testes sem arredondamento ou duplicação.
 7. Anúncios ficam separados das mensagens; não há pixel, clique ou leitura de conteúdo privado enviado como telemetria.
 8. Seeds e chaves de carteira não aparecem no frontend hospedado, nos logs ou nos relays.
-9. Ensaio de 24 horas do relay de PC conclui sem perda de dados e com recuperação documentada.
+9. Ensaio de até cinco horas do relay de PC conclui sem perda de dados e com recuperação documentada.
 10. Reuso do Amethyst tem commit, escopo, dependências, licenças e atribuições registrados; código que não pode rodar no browser foi separado sem reimplementar protocolo existente sem justificativa.
 11. O pacote publicado corresponde ao commit revisado, funciona sem baixar código executável externo e conecta-se diretamente aos relays.
 12. A conta permanece disponível no mesmo navegador sem persistir senha em texto puro; recuperação, bloqueio e perda irrecuperável são explicados e testados.

@@ -7,11 +7,12 @@ import { fileURLToPath } from 'node:url';
 import { webcrypto } from 'node:crypto';
 import vm from 'node:vm';
 
-const [durationText = '86400', intervalText = '60', portText = '17447'] = process.argv.slice(2);
+const [durationText = '18000', intervalText = '60', portText = '17447'] = process.argv.slice(2);
 const durationSeconds = Number(durationText);
 const intervalSeconds = Number(intervalText);
 const port = Number(portText);
-assert.ok(Number.isSafeInteger(durationSeconds) && durationSeconds >= 5, 'duration must be at least 5 seconds');
+assert.ok(Number.isSafeInteger(durationSeconds) && durationSeconds >= 5 && durationSeconds <= 18000,
+  'duration must be between 5 seconds and the five-hour limit (18000 seconds)');
 assert.ok(Number.isSafeInteger(intervalSeconds) && intervalSeconds >= 1, 'interval must be at least 1 second');
 assert.ok(Number.isSafeInteger(port) && port >= 1024 && port <= 65535, 'port must be a non-privileged TCP port');
 
@@ -194,11 +195,13 @@ try {
   checks += 1;
   const startedAt = Date.now();
   const deadline = startedAt + durationSeconds * 1000;
+  const shutdownGuardMs = Math.min(20_000, Math.max(1_000, durationSeconds * 100));
+  const stopBefore = deadline - shutdownGuardMs;
   const restartAt = [Math.floor(durationSeconds / 3), Math.floor((durationSeconds * 2) / 3)].filter(value => value > 0);
   let restartIndex = 0;
   let nextProbeAt = startedAt + intervalSeconds * 1000;
 
-  while (!interrupted && Date.now() < deadline) {
+  while (!interrupted && Date.now() < stopBefore) {
     const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
     if (restartIndex < restartAt.length && elapsedSeconds >= restartAt[restartIndex]) {
       await stopRelay();
@@ -221,13 +224,16 @@ try {
     }
     const nextRestartMs = restartIndex < restartAt.length
       ? startedAt + restartAt[restartIndex] * 1000
-      : deadline;
+      : stopBefore;
     const delay = Math.max(100, Math.min(nextProbeAt, nextRestartMs, deadline) - Date.now());
     await new Promise(resolve => setTimeout(resolve, Math.min(delay, 1000)));
   }
 
   await stopRelay();
-  log(interrupted ? 'soak-interrupted' : 'soak-pass', { checks, restarts: restartIndex, durationSeconds });
+  const observedSeconds = Number(((Date.now() - startedAt) / 1000).toFixed(3));
+  log(interrupted ? 'soak-interrupted' : 'soak-pass', { checks, restarts: restartIndex, durationSeconds,
+    observedSeconds, maximumSeconds: durationSeconds });
+  if (!interrupted) assert.ok(observedSeconds <= durationSeconds, 'single-relay soak must not exceed its requested duration');
   if (!interrupted) assert.equal(checks > 1, true, 'soak should complete multiple successful probes');
 } catch (error) {
   log('soak-fail', { checks, error: error instanceof Error ? error.message : String(error), relayDiagnostics });

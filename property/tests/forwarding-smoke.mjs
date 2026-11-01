@@ -32,6 +32,13 @@ assert.deepEqual(Array.from(bridge.targets(event, 'wss://one.example', ['wss://o
 assert.deepEqual(Array.from(bridge.targets(event, 'wss://two.example', ['wss://one.example', 'wss://two.example'])), [], 'deduplication prevents relay loops');
 assert.equal(bridge.seenCount, 1);
 
+const retryable = sign(1, 'retry after destination was unavailable');
+assert.deepEqual(Array.from(bridge.targets(retryable, 'wss://one.example', ['wss://two.example'])), ['wss://two.example']);
+assert.equal(bridge.releaseForRetry(retryable.id), true, 'failed forwarding releases its deduplication claim');
+assert.deepEqual(Array.from(bridge.targets(retryable, 'wss://one.example', ['wss://two.example'])), ['wss://two.example'], 'a replay can retry after failure');
+assert.deepEqual(Array.from(bridge.targets(retryable, 'wss://two.example', ['wss://one.example', 'wss://two.example'])), [], 'successful retry still prevents a relay loop');
+assert.equal(bridge.releaseForRetry('not-an-event-id'), false);
+
 const tampered = JSON.parse(JSON.stringify(sign(1, 'original')));
 tampered.content = 'tampered';
 assert.deepEqual(Array.from(bridge.targets(tampered, 'wss://one.example', ['wss://two.example'])), [], 'invalid signatures are never forwarded');

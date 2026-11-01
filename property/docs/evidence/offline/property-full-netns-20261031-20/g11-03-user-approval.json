@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "case": "G11-03",
+  "recorded_utc": "2026-11-01T02:22:02.133Z",
+  "user_instruction": "Do not keep the test running for 24 hours. Change the limit to at most five hours, which has already been approved.",
+  "decision": "Scope amendment only. The requested five-hour cap does not waive the failed result or convert historical evidence to PASS.",
+  "observed_state": {
+    "started_utc": "2026-10-31T20:47:24.053Z",
+    "ended_utc": "2026-11-01T02:21:02.785Z",
+    "elapsed_seconds": 20018.732,
+    "new_maximum_seconds": 18000,
+    "reported_probe_count": 333,
+    "loss_count": 1,
+    "planned_middle_relay_restarts": 0,
+    "technical_status": "FAIL",
+    "failure_probe_id": "84496706a6a20170dfbd30ca34149377adfd25e67ff0e2520f63ced89c1e590d",
+    "failure_observation": "Source relay acknowledged the event; the middle and destination relays did not contain it within the observation window."
+  },
+  "gate_effect": "The historical run remains FAIL and exceeds the newly approved time cap. A new run capped at 18,000 seconds must exercise all three restarts and other G11-03 checks before PASS."
+}

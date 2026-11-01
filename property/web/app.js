@@ -21,7 +21,7 @@
     inboxRelays: [], peerInboxRelays: new Map(), peerRelayHints: new Map(),
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0,
-    bridgeEnabled: false, bridgeSubscriptions: new Map(), editingProduct: null, deletingProduct: null
+    bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null
   };
   const N = window.NostrTools;
   const bridge = Bridge?.createBridge(event => N.verifyEvent(event));
@@ -234,7 +234,7 @@
       conn.attempts = 0;
       setConnectionStatus();
       if (state.pubkey) relayMessage(url, ['REQ', conn.subId, { kinds: [1059], '#p': [state.pubkey], limit: 250 }]);
-      if (state.bridgeEnabled && state.relays.includes(url)) startBridgeSubscription(url);
+      if (state.bridgeEnabled && state.relays.includes(url)) refreshBridgeSubscriptions();
     };
     socket.onmessage = event => handleRelayFrame(url, event.data);
     socket.onerror = () => { setConnectionStatus(); };
@@ -342,11 +342,22 @@
       request.resolve(events);
     }
   }
-  function startBridgeSubscription(url) {
+  function startBridgeSubscription(url, since) {
     if (!bridge || !state.bridgeEnabled || !state.relays.includes(url) || state.bridgeSubscriptions.has(url)) return;
     const id = `bridge-${crypto.randomUUID()}`;
     state.bridgeSubscriptions.set(url, id);
-    if (!relayMessage(url, ['REQ', id, bridge.filter()])) state.bridgeSubscriptions.delete(url);
+    if (!relayMessage(url, ['REQ', id, bridge.filter(since)])) state.bridgeSubscriptions.delete(url);
+  }
+  function refreshBridgeSubscriptions() {
+    if (!bridge || !state.bridgeEnabled) return;
+    const since = Math.max(0, Math.floor(Date.now() / 1000) - 300);
+    for (const url of state.relays) {
+      if (state.sockets.get(url)?.socket.readyState !== WebSocket.OPEN) continue;
+      const previous = state.bridgeSubscriptions.get(url);
+      if (previous) relayMessage(url, ['CLOSE', previous]);
+      state.bridgeSubscriptions.delete(url);
+      startBridgeSubscription(url, since);
+    }
   }
   function stopBridgeSubscriptions() {
     for (const [url, id] of state.bridgeSubscriptions) relayMessage(url, ['CLOSE', id]);
@@ -355,12 +366,12 @@
   async function forwardRelayEvent(sourceRelay, event) {
     const targets = bridge.targets(event, sourceRelay, state.relays);
     if (!targets.length) return;
-    await publishToRelays(event, targets);
+    if (!await publishToRelays(event, targets)) bridge.releaseForRetry(event.id);
   }
   async function forwardInboxGiftWrap(sourceRelay, event) {
     const targets = bridge.privateTargets(event, sourceRelay, state.inboxRelays, state.pubkey);
     if (!targets.length) return;
-    await publishToRelays(event, targets);
+    if (!await publishToRelays(event, targets)) bridge.releaseForRetry(event.id);
   }
   function waitForOpen(url, timeout = 5000) {
     const existing = state.sockets.get(url);
@@ -576,6 +587,7 @@
     if (!ordered.length) { $('hangout-list').append(makeEmpty('Nenhuma publicação encontrada', 'Tente atualizar quando os relays estiverem conectados.')); return; }
     for (const event of ordered) {
       const card = document.createElement('article'); card.className = 'hangout-card';
+      card.dataset.eventId = event.id;
       const title = document.createElement('h3'); title.textContent = `npub…${N.nip19.npubEncode(event.pubkey).slice(-8)}`;
       const body = document.createElement('p'); body.textContent = event.content;
       const meta = document.createElement('p'); meta.className = 'hangout-meta';
@@ -917,6 +929,7 @@
   async function boot() {
     if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
+    state.bridgeRefreshTimer = window.setInterval(refreshBridgeSubscriptions, 60_000);
     registerOfflineShell();
     try {
       state.db = await openDatabase();

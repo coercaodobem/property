@@ -141,13 +141,13 @@ async function main(){
   await record('G11-02',buildPass?'PASS':hashRun.status==='FAIL'?'FAIL':'BLOCKED',buildPass?'Hashes do runtime e rebuild offline completaram.':'Hashes do pacote foram conferidos, mas o rebuild offline reproduzível segue sem a distribuição Gradle cacheada.',
     {package_hash:hashRun.status,gradle_version:gradleVersion,gradle_distribution_cached:cached,origin_case:originCase?.status||'MISSING'},[hashRun.log,'logs/G02-01-origin.log']);
 
-  // The 24-hour relay diagnostic is independent of financial settlement; dependency eligibility is preserved by the parent runner.
+  // The five-hour multi-relay soak is independent of financial settlement; dependency eligibility is preserved by the parent runner.
   const soakDir=path.join(out,'g11-03');
-  const soak=await run('G11-03',process.execPath,['property/tests/offline/g11-multirelay-soak.mjs',manifestPath,soakDir,'86400','60'],
-    {timeoutMs:86_500_000,logName:'g11-03-soak.log'});
+  const soak=await run('G11-03',process.execPath,['property/tests/offline/g11-multirelay-soak.mjs',manifestPath,soakDir,'18000','60'],
+    {timeoutMs:18_180_000,logName:'g11-03-soak.log'});
   const soakReport=await json(path.join(path.relative(runDir,out),'g11-03/g11-multirelay-soak-report.json'));
   await record('G11-03',soak.status==='PASS'&&soakReport?.status==='PASS'?'PASS':soak.status==='FAIL'?'FAIL':'BLOCKED',
-    soakReport?.reason|| (soak.status==='PASS'?'Rede de três relays e duas pontes manteve probes por 24 horas reais.':'Soak interrompido ou ainda abaixo de 86.400 segundos reais.'),
+    soakReport?.reason|| (soak.status==='PASS'?'Rede de três relays e duas pontes manteve probes por cinco horas reais, sem exceder o limite.':'Soak interrompido ou ainda abaixo de 18.000 segundos reais.'),
     soakReport||{exit_code:soak.exit_code},[soak.log,'later-gates/g11-03/g11-multirelay-soak-report.json','later-gates/g11-03/g11-soak-probes.jsonl']);
 
   const rows=await readCoreRows();
