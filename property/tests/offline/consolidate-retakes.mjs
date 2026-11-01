@@ -15,8 +15,10 @@ assert.equal(base.candidate_commit,manifest.candidate_commit,'summary and manife
 const caseRows=(await readFile(path.join(runDir,'cases.latest.jsonl'),'utf8')).trim().split('\n').filter(Boolean).map(line=>JSON.parse(line));
 const byCase=new Map(caseRows.map(row=>[row.case,row]));
 const overrideSpecs=[
+  {case:'G10-05',report:'later-gates/retakes/G12-06-harness-retest/later-gates-report.json'},
   {case:'G11-02',report:'later-gates/retakes/G11-02/later-gates-report.json'},
-  {case:'G12-01',report:'later-gates/retakes/G12-01/later-gates-report.json'}
+  {case:'G12-01',report:'later-gates/retakes/G12-01/later-gates-report.json'},
+  {case:'G12-06',report:'later-gates/retakes/G12-06-harness-retest/later-gates-report.json'}
 ];
 const overrides=[];
 for(const spec of overrideSpecs){
@@ -86,7 +88,7 @@ const lines=[
   '', '## Remaining blockers','',
   ...(unresolved.length?unresolved.map(row=>`- ${row.case}: ${row.status} — ${row.reason}`):['- None.']),''
 ];
-await writeFile(path.join(outputDir,'consolidated-report.md'),lines.join('\n')+'\n',{mode:0o600});
+await writeFile(path.join(outputDir,'consolidated-report.md'),lines.join('\n').trimEnd()+'\n',{mode:0o600});
 const checksums=[];
 async function checksumTree(directory,relative=''){
   const entries=await readdir(directory,{withFileTypes:true});entries.sort((a,b)=>a.name.localeCompare(b.name));

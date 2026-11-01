@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active Codex task runtime",
+  "cases": [
+    {
+      "case": "G10-05",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": "Offline g10-viewport-smoke.mjs retake; local Playwright and Chromium paths overridden, pinned versions and hashes still verified.",
+      "evidence": [
+        "later-gates/retakes/G12-06-harness-retest/g10-viewport-report.json"
+      ],
+      "reason": "Responsive layout, keyboard focus and accessible names passed at eight CSS viewport sizes; no external requests.",
+      "observed": {
+        "viewport_count": 8,
+        "all_viewports_pass": true,
+        "viewports": [
+          {
+            "width": 360,
+            "height": 800,
+            "effective_zoom": null,
+            "pass": true
+          },
+          {
+            "width": 390,
+            "height": 844,
+            "effective_zoom": null,
+            "pass": true
+          },
+          {
+            "width": 768,
+            "height": 1024,
+            "effective_zoom": null,
+            "pass": true
+          },
+          {
+            "width": 1440,
+            "height": 900,
+            "effective_zoom": null,
+            "pass": true
+          },
+          {
+            "width": 360,
+            "height": 800,
+            "effective_zoom": "200%",
+            "pass": true
+          },
+          {
+            "width": 390,
+            "height": 844,
+            "effective_zoom": "200%",
+            "pass": true
+          },
+          {
+            "width": 768,
+            "height": 1024,
+            "effective_zoom": "200%",
+            "pass": true
+          },
+          {
+            "width": 1440,
+            "height": 900,
+            "effective_zoom": "200%",
+            "pass": true
+          }
+        ],
+        "unnamed_controls": [],
+        "focus": {
+          "tag": "A",
+          "id": null,
+          "label": "Property início",
+          "visible": true,
+          "focus_indicator": true
+        },
+        "browser": {
+          "playwright_version": "1.62.1",
+          "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+          "browser_version": "153.0.8010.12",
+          "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+        },
+        "external_requests": []
+      }
+    },
+    {
+      "case": "G12-06",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": "Offline g10-viewport-smoke.mjs retake; local Playwright and Chromium paths overridden, pinned versions and hashes still verified.",
+      "evidence": [
+        "later-gates/retakes/G12-06-harness-retest/g10-viewport-report.json"
+      ],
+      "reason": "PWA remained usable with install prompting unsupported; no fake install control/instructions appeared, and no external requests occurred.",
+      "observed": {
+        "install_fallback": {
+          "service_worker_available": true,
+          "unsupported_install_mode_forced": true,
+          "before_install_prompt_supported": false,
+          "custom_install_controls": 0,
+          "workspace_usable": true,
+          "install_instructions_visible": false
+        },
+        "browser": {
+          "playwright_version": "1.62.1",
+          "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+          "browser_version": "153.0.8010.12",
+          "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+        },
+        "external_requests": []
+      }
+    }
+  ],
+  "ended_utc": "2026-11-01T08:51:28.453377Z",
+  "result": "PASS"
+}

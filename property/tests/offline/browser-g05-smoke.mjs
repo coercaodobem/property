@@ -70,6 +70,11 @@ function startProxy() {
 }
 
 async function loadRuntime(options, proxyPort) {
+  options = {
+    ...options,
+    playwright_module: process.env.PROPERTY_PLAYWRIGHT_MODULE || options.playwright_module,
+    executable: process.env.PROPERTY_BROWSER_EXECUTABLE || options.executable,
+  };
   await access(options.playwright_module);
   const moduleRoot = path.dirname(options.playwright_module);
   const packageInfo = JSON.parse(await readFile(path.join(moduleRoot, 'package.json'), 'utf8'));

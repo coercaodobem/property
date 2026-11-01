@@ -23,8 +23,10 @@
 
 ## Retests and preserved soak
 
+- G10-05: PASS — [retake report](later-gates/retakes/G12-06-harness-retest/later-gates-report.json)
 - G11-02: PASS — [retake report](later-gates/retakes/G11-02/later-gates-report.json)
 - G12-01: PASS — [retake report](later-gates/retakes/G12-01/later-gates-report.json)
+- G12-06: PASS — [retake report](later-gates/retakes/G12-06-harness-retest/later-gates-report.json)
 - G11-03: PASS, 17998.554 real seconds, 299 probes, 0 losses, 3 reconciled restarts. The approved five-hour evidence is reused; no soak was rerun.
 
 ## Remaining blockers

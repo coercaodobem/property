@@ -42,6 +42,8 @@ bash property/tests/run-smoke.sh
 
 Ela valida unidades Nano/raw, marketplace, campanhas, protocolo, cofre, ponte, contrato da PWA e pacote do relay, usando código e fixtures locais. A CI **Validar Property** executa esse mesmo comando em pushes e pull requests para `modelo-mvp`. PRs de forks podem depender da aprovação de execução do mantenedor no GitHub.
 
+Os harnesses de navegador aceitam `PROPERTY_PLAYWRIGHT_MODULE` e `PROPERTY_BROWSER_EXECUTABLE` para localizar as instalações locais quando um manifesto de evidências sanitizado ocultar caminhos da máquina. Esses overrides mudam apenas os caminhos: versão, hash do pacote Playwright e hash do navegador continuam obrigatoriamente validados. Execute o harness dentro do isolamento offline do plano.
+
 Para testar o relay no Ubuntu Linux x86_64:
 
 ```bash

@@ -660,13 +660,15 @@
     "G10-05": {
       "status": "PASS",
       "gate_eligible": true,
-      "reason": "Asserções do harness concluídas.",
+      "reason": "Responsive layout, keyboard focus and accessible names passed at eight CSS viewport sizes; no external requests.",
       "evidence": [
         "later-gates/later-gates-report.json",
         "later-gates/g10-05.log",
-        "later-gates/g10-05/g10-viewport-report.json"
+        "later-gates/g10-05/g10-viewport-report.json",
+        "later-gates/retakes/G12-06-harness-retest/g10-viewport-report.json",
+        "later-gates/retakes/G12-06-harness-retest/later-gates-report.json"
       ],
-      "observed": "{\"harness_exit_code\":0,\"report\":{\"schema_version\":1,\"viewport_case\":\"G10-05\",\"pwa_fallback_case\":\"G12-06\",\"result\":\"PASS\",\"viewports\":[{\"width\":360,\"height\":800,\"layout\":{\"width\":360,\"height\":800,\"document_width\":360,\"body_width\":360,\"viewport_width\":360,\"visible_primary_controls\":[\"▤Mensagens\",\"◌Hangout\",\"◇Marketplace\",\"⌘Meu node\"],\"overflow_elements\":[]},\"pass\":true},{\"width\":390,\"height\":844,\"layout\":{\"width\":390,\"height\":844,\"document_width\":390,\"body_width\":390,\"viewport_width\":390,\"visible_primary_controls\":[\"▤Mensagens\",\"◌Hangout\",\"◇Marketplace\",\"⌘Meu node\"],\"overflow_elements\":[]},\"pass\":true},{\"width\":768,\"height\":1024,\"layout\":{\"width\":768,\"height\":1024,\"document_width\":768,\"body_width\":768,\"viewport_width\":768,\"visible_primary_controls\":[\"▤Mensagens\",\"◌Hangout\",\"◇Marketplace\",\"⌘Meu node\"],\"overflow_elements\":[]},\"pass\":true},{\"width\":1440,\"height\":900,\"layout\":{\"width\":1440,\"height\":900,\"document_width\":1440,\"body_width\":1440,\"viewport_width\":1440,\"visible_primary_controls\":[\"▤Mensagens\",\"◌Hangout\",\"◇Marketplace\",\"⌘Meu node\"],\"overflow_elements\":[]},\"pass\":true},{\"width\":360,\"height\":800,\"effective_zoom\":\"200%\",\"layout\":{\"effective_zoom\":\"200% CSS viewport approximation\",\"width\":180,\"document_width\":180,\"body_width\":180,\"viewport_width\":180,\"overflow_elements\":[]},\"pass\":true},{\"width\":390,\"height\":844,\"effective_zoom\":\"200%\",\"layout\":{\"effective_zoom\":\"200% CSS viewport approximation\",\"width\":195,\"document_width\":195,\"body_width\":195,\"viewport_width\":195,\"overflow_elements\":[]},\"pass\":true},{\"width\":768,\"height\":1024,\"effective_zoom\":\"200%\",\"layout\":{\"effective_zoom\":\"200% CSS viewport approximation\",\"width\":384,\"document_width\":384,\"body_width\":384,\"viewport_width\":384,\"overflow_elements\":[]},\"pass\":true},{\"width\":1440,\"height\":900,\"effective_zoom\":\"200%\",\"layout\":{\"effective_zoom\":\"200% CSS viewport approximation\",\"width\":720,\"document_width\":720,\"body_width\":720,\"viewport_width\":720,\"overflow_elements\":[]},\"pass\":true}],\"unnamed_controls\":[],\"focus\":{\"tag\":\"A\",\"id\":null,\"label\":\"Property início\",\"visible\":true,\"focus_indicator\":true},\"install_fallback\":{\"service_worker_available\":true,\"unsupported_install_mode_forced\":true,\"before_install_prompt_supported\":false,\"custom_install_controls\":0,\"workspace_usable\":true,\"install_instructions_visible\":false},\"browser\":{\"playwright_version\":\"1.62.1\",\"playwright_package_sha256\":\"f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30\",\"browser_version\":\"153.0.8010.12\",\"browser_executable_sha256\":\"ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e\"},\"external_requests\":[],\"viewport_case_result\":\"PASS\",\"pwa_fallback_case_result\":\"PASS\"}}"
+      "observed": "{\"viewport_count\":8,\"all_viewports_pass\":true,\"viewports\":[{\"width\":360,\"height\":800,\"effective_zoom\":null,\"pass\":true},{\"width\":390,\"height\":844,\"effective_zoom\":null,\"pass\":true},{\"width\":768,\"height\":1024,\"effective_zoom\":null,\"pass\":true},{\"width\":1440,\"height\":900,\"effective_zoom\":null,\"pass\":true},{\"width\":360,\"height\":800,\"effective_zoom\":\"200%\",\"pass\":true},{\"width\":390,\"height\":844,\"effective_zoom\":\"200%\",\"pass\":true},{\"width\":768,\"height\":1024,\"effective_zoom\":\"200%\",\"pass\":true},{\"width\":1440,\"height\":900,\"effective_zoom\":\"200%\",\"pass\":true}],\"unnamed_controls\":[],\"focus\":{\"tag\":\"A\",\"id\":null,\"label\":\"Property início\",\"visible\":true,\"focus_indicator\":true},\"browser\":{\"playwright_version\":\"1.62.1\",\"playwright_package_sha256\":\"f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30\",\"browser_version\":\"153.0.8010.12\",\"browser_executable_sha256\":\"ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e\"},\"external_requests\":[]}"
     },
     "G10-06": {
       "status": "PASS",
@@ -794,15 +796,22 @@
     "G12-06": {
       "status": "PASS",
       "gate_eligible": true,
-      "reason": "Independent PWA installation fallback case passed; it does not depend on native platform availability.",
+      "reason": "PWA remained usable with install prompting unsupported; no fake install control/instructions appeared, and no external requests occurred.",
       "evidence": [
         "later-gates/later-gates-report.json",
-        "later-gates/g10-05/g10-viewport-report.json"
+        "later-gates/g10-05/g10-viewport-report.json",
+        "later-gates/retakes/G12-06-harness-retest/g10-viewport-report.json",
+        "later-gates/retakes/G12-06-harness-retest/later-gates-report.json"
       ],
-      "observed": "{\"viewport_fallback\":\"PASS\"}"
+      "observed": "{\"install_fallback\":{\"service_worker_available\":true,\"unsupported_install_mode_forced\":true,\"before_install_prompt_supported\":false,\"custom_install_controls\":0,\"workspace_usable\":true,\"install_instructions_visible\":false},\"browser\":{\"playwright_version\":\"1.62.1\",\"playwright_package_sha256\":\"f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30\",\"browser_version\":\"153.0.8010.12\",\"browser_executable_sha256\":\"ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e\"},\"external_requests\":[]}"
     }
   },
   "retake_overrides": [
+    {
+      "case": "G10-05",
+      "retake_report": "later-gates/retakes/G12-06-harness-retest/later-gates-report.json",
+      "status": "PASS"
+    },
     {
       "case": "G11-02",
       "retake_report": "later-gates/retakes/G11-02/later-gates-report.json",
@@ -811,6 +820,11 @@
     {
       "case": "G12-01",
       "retake_report": "later-gates/retakes/G12-01/later-gates-report.json",
+      "status": "PASS"
+    },
+    {
+      "case": "G12-06",
+      "retake_report": "later-gates/retakes/G12-06-harness-retest/later-gates-report.json",
       "status": "PASS"
     }
   ],
@@ -852,5 +866,5 @@
       "reason": "Requested Luna Max; actual Codex GPT-6."
     }
   ],
-  "generated_utc": "2026-11-01T08:32:32.860Z"
+  "generated_utc": "2026-11-01T08:52:48.287Z"
 }
