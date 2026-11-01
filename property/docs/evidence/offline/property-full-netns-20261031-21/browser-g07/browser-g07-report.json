@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G07-01",
+      "status": "PASS",
+      "reason": "The same signed offer was fetched from two independent Geode relays. Node A accepted under its XNO policy; node B independently rejected under its BTC-only policy. Both signed decisions persisted separately, and neither created a campaign before payment."
+    },
+    {
+      "case": "G07-02",
+      "status": "PASS",
+      "reason": "The signed acceptance binds the offer ID, terms hash, currency, integer amount, exclusive address, deadline, refund terms, and node identity. Rejection contains no payment address. Edited decision signatures fail; a new altered offer using the same campaign ID is rejected without replacing the original accepted state."
+    },
+    {
+      "case": "G07-03",
+      "status": "PASS",
+      "reason": "The persisted production engine traversed awaiting payment → unconfirmed → confirmed → published → expired using a deterministic ledger adapter. It also preserved node B’s rejection and reloaded the same accepted state after restart; expiry removed the campaign copy with a signed NIP-09 tombstone."
+    },
+    {
+      "case": "G07-04",
+      "status": "PASS",
+      "reason": "Duplicate reconciliation after restart preserved one campaign event. Wrong amount, currency, or destination stayed in refund_due and never activated an ad. A signed advertiser refund request returned the exact observed amount; retry after engine restart used the ledger idempotency key and produced one debit."
+    },
+    {
+      "case": "G07-05",
+      "status": "PASS",
+      "reason": "PWA campaigns were off on both devices until opt-in, rendered with a sponsored label in their own section, and stayed separate from Hangout posts. The 24-hour exposure cap, local node block, and distinct device preferences were verified through the PWA’s IndexedDB state."
+    },
+    {
+      "case": "G07-06",
+      "status": "PASS",
+      "reason": "Campaign discovery and rendering generated no external HTTP requests, pixel, remote script, or proxy attempt. The HTTPS link opened only after an explicit click and was intercepted by an in-memory offline destination; relay sockets stayed on localhost."
+    },
+    {
+      "case": "G07-07",
+      "status": "PASS",
+      "reason": "Node A and node B kept separate local opt-in/block settings. While one device blocked the campaign node and another rejected its offer, the PWA still completed a NIP-17 private message; relays stored signed encrypted envelopes without plaintext or payment/checkout events."
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28472",
+      "process_id": 3500201,
+      "independent": true
+    },
+    {
+      "url": "ws://127.0.0.1:28473",
+      "process_id": 3500730,
+      "independent": true
+    }
+  ],
+  "nodes": [
+    {
+      "label": "viewer-a-node-a",
+      "pubkey": "d158254411f8a0ba3638e67f64fc201c60dd4a39008d1903d4ab44f698d1e546",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [
+        "ws://127.0.0.1:28472"
+      ],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "viewer-b-node-b",
+      "pubkey": "138059debebdd08c4b60ec00c6cd73359513c9c45bda69bf0a4bb77c911bb81f",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [
+        "ws://127.0.0.1:28472"
+      ],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    }
+  ],
+  "decisions": [
+    {
+      "offer_id": "25fb99a99093d817e48bfe5aa9b3371cd7b4a6a95a2eb88be03203575953a9a4",
+      "node_a": "fd19625bf99badc3178eca7761793dd044923c2990231f2a4d73b8463e162cc7",
+      "node_a_status": "accepted",
+      "node_b": "8310535d1c7733e2f80e94680a821d69e497da65f091e6f3bc4f6db72ac33950",
+      "node_b_status": "rejected",
+      "node_b_reason": "currency_not_accepted",
+      "decision_signatures_valid": true,
+      "node_state_directories": [
+        "node-a-state",
+        "node-b-state"
+      ]
+    }
+  ],
+  "campaign_state": [
+    {
+      "offer": "awaiting_payment",
+      "unconfirmed": "payment_pending",
+      "confirmed": "confirmed_then_published",
+      "expiry": "signed_kind_5_tombstone",
+      "relay_copies_removed": true,
+      "campaign_event_id": "96d251920166b8ab848776851af3160af4e88cae893790d1deedbb04e7070378",
+      "expiration_event_id": "ae59a4c3f8fa6491c5e64dd13cd3af766f0db1a7759eb684f5f1d22771682753",
+      "accepted_once": true,
+      "no_duplicate_campaign_event": true
+    }
+  ],
+  "payments": [
+    {
+      "mismatch_scenarios": [
+        {
+          "case": "wrong_amount",
+          "campaign_id": "8eb0189e-e37d-4ec2-b1f7-267f8500e2ed",
+          "status": "refund_due",
+          "txid": "2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        {
+          "case": "wrong_currency",
+          "campaign_id": "ed85a4c1-5ce6-4736-85cd-43d709d0de59",
+          "status": "refund_due",
+          "txid": "3333333333333333333333333333333333333333333333333333333333333333"
+        },
+        {
+          "case": "wrong_address",
+          "campaign_id": "c2340e9c-f167-4a9c-898b-086093bb5ad0",
+          "status": "refund_due",
+          "txid": "4444444444444444444444444444444444444444444444444444444444444444"
+        }
+      ],
+      "refund_tx": "b5bba39cff57156b7ea8359c1dd9e9da87e9757ccb924bbe37042b9031a962cf",
+      "refund_amount_atomic": "2",
+      "refund_request_signed": true,
+      "refund_repeat_debit_count": 1,
+      "lookup_count": 7,
+      "duplicate_payment_notifications": "same persisted txid reconciled without a second campaign event"
+    }
+  ],
+  "privacy": {
+    "pwa_settings": {
+      "opt_in_off_by_default_for_both": true,
+      "campaign_label": "PATROCINADO",
+      "separated_from_hangout_feed": true,
+      "local_exposure_recorded": true,
+      "immediate_repeat_hidden": true,
+      "local_node_block": "d158254411f8a0ba3638e67f64fc201c60dd4a39008d1903d4ab44f698d1e546",
+      "blocked_only_for_A": true,
+      "B_remains_opted_out": true
+    },
+    "traffic": {
+      "external_http_before_click": [],
+      "user_clicked_destination": "https://campaign.test/property",
+      "only_external_http_request": "GET https://campaign.test/property",
+      "telemetry_or_pixel_requests": 0,
+      "local_proxy_attempts": 0,
+      "websocket_destinations": [
+        "ws://127.0.0.1:28472/",
+        "ws://127.0.0.1:28473/"
+      ],
+      "scripts_local": true
+    },
+    "independent_preferences": {
+      "A_campaigns_enabled": true,
+      "A_blocked_node": "d158254411f8a0ba3638e67f64fc201c60dd4a39008d1903d4ab44f698d1e546",
+      "B_campaigns_enabled": true,
+      "B_blocked_nodes": []
+    },
+    "private_messaging": {
+      "recipient_pubkey": "138059debebdd08c4b60ec00c6cd73359513c9c45bda69bf0a4bb77c911bb81f",
+      "plaintext_visible_only_in_ui": true,
+      "relay_envelopes_valid": true,
+      "relay_envelopes_contain_plaintext": false,
+      "payment_or_checkout_event_count": 0,
+      "message_event_ids": [
+        "d2d45ddfe27b9e4b3499170bb7dd51c773ab5fb02737eac71f6ca417b46d5278"
+      ]
+    }
+  },
+  "external_requests": [
+    "GET https://campaign.test/property"
+  ],
+  "denied_proxy_attempts": [],
+  "websockets": [
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/"
+  ],
+  "page_errors": [],
+  "test_destination_hits": [
+    {
+      "node": "viewer-b-node-b",
+      "url": "https://campaign.test/property",
+      "action": "navigation"
+    }
+  ],
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "local_origin": "http://127.0.0.1:42263",
+  "simulated_ledger": {
+    "deterministic": true,
+    "scope": "G07 state-machine harness only",
+    "lookups": 8,
+    "refund_calls": 1,
+    "not_a_chain_or_G08_evidence": true
+  },
+  "result": "PASS"
+}

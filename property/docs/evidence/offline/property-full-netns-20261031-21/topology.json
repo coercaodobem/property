@@ -1,0 +1,22 @@
+{
+  "test_host": "loopback only",
+  "ports": {
+    "bridge_source": 28450,
+    "bridge_target": 28451,
+    "seven_relay_base": 28460,
+    "native_relay": 28470
+  },
+  "allowed_addresses": [
+    "127.0.0.1",
+    "::1"
+  ],
+  "public_endpoints_configured": false,
+  "seed": "property-offline-full-netns-20261031-21",
+  "resource_budget": {
+    "min_cpus": 4,
+    "min_ram_bytes": 8589934592,
+    "min_tmp_bytes": 6442450944
+  },
+  "profile": "full",
+  "attempt_number": 1
+}

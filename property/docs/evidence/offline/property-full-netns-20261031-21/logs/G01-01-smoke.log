@@ -1,0 +1,61 @@
+command: bash property/tests/run-smoke.sh
+started: 2026-11-01T02:38:05.806Z
+ended: 2026-11-01T02:38:13.111Z
+exit_code: 0
+signal: 
+timeout: false
+error: 
+--- stdout ---
+
+== money-smoke.mjs ==
+PASS: BTC/satoshi, XMR/piconero e XNO/raw exatos, limites, precisão e rejeição de moedas/unidades inválidas
+
+== nano-units-smoke.mjs ==
+PASS: XNO/raw exact integer conversion, 1 raw/1 XNO boundaries, comma decimals and invalid inputs
+
+== marketplace-smoke.mjs ==
+PASS: marketplace BTC/XMR/XNO exatos, edição addressable, exclusão NIP-09, expiração e validação de listagens
+
+== campaigns-smoke.mjs ==
+PASS: campanhas assinadas, raw exato, URLs/imagens limitadas, expiração, bloqueio local e limite de exposição
+
+== campaign-engine-smoke.mjs ==
+PASS: signed node decisions, independent policy, persisted campaign state machine, exact payment reconciliation, idempotent publication/refund, and expiry tombstone
+
+== ledger-rpc-smoke.mjs ==
+PASS: Nano v28 raw open/state receive history and string confirmation values are reconciled exactly.
+
+== protocol-smoke.mjs ==
+PASS: NIP-17 wrap/unwrap, recipient isolation, kind-10050 inbox routing, local AES-GCM, vendor hash
+
+== vault-smoke.mjs ==
+PASS: criação, senha errada, desbloqueio, sessão persistente e backup cifrado
+
+== forwarding-smoke.mjs ==
+PASS: event signature/time/kind validation, per-event deduplication, source exclusion, private-route boundary, event rate and UTF-8 byte limits
+
+== sw-update-smoke.mjs ==
+PASS: PWA install reloads all local assets, covers versioned HTML references, preserves unrelated caches
+
+== contact-smoke.mjs ==
+PASS: hex/npub/nprofile reais; nome livre, vazio, nsec, bech32 truncado e hints inválidos recebem validação segura em português
+
+== app-contract-smoke.mjs ==
+PASS: local-only web assets, CSP, PWA shell registration, segmented relay package, pinned Pages workflow, no eval, JS/shell syntax
+
+== relay-migration-smoke.mjs ==
+PASS: launcher preserves legacy data/config, new variables override aliases, invalid ports rejected (fixture runtime)
+
+== portable-packages-smoke.mjs ==
+PASS: windows-x64, 85 parts, 89033587 bytes, SHA-256 and launcher pin match
+PASS: macos-arm64, 85 parts, 88601649 bytes, SHA-256 and launcher pin match
+
+== relay-package-smoke.mjs ==
+PASS: 130 relay segments reconstruct 67845545 bytes with the pinned SHA-256
+
+== offline/runner-contract-smoke.mjs ==
+PASS: offline runner contract, resume safety and G00-04 interruption verified
+
+PASS: suíte smoke local concluída.
+
+--- stderr ---

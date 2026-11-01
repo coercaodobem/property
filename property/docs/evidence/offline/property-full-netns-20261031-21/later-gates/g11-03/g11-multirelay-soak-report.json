@@ -1,0 +1,7110 @@
+{
+  "schema_version": 1,
+  "case": "G11-03",
+  "status": "PASS",
+  "duration_required_seconds": 18000,
+  "duration_minimum_seconds": 17998,
+  "duration_cap_seconds": 18000,
+  "probe_interval_seconds": 60,
+  "relay_count": 3,
+  "bridge_count": 2,
+  "probe_count": 299,
+  "loss_count": 0,
+  "planned_middle_relay_restarts": [
+    {
+      "scheduled_offset_seconds": 3600,
+      "started_utc": "2026-11-01T03:44:55.083Z",
+      "ended_utc": "2026-11-01T03:45:53.623Z",
+      "duration_seconds": 58.54,
+      "same_database": true,
+      "partition_event_id": "ffb34353aef8125ed40e0f41efcc8a5d6caa8fb91f2ecf6d1788ff6788a46081",
+      "source_ack": true,
+      "absent_at_destination_during_partition": true,
+      "reconciled_at_middle_and_destination": true
+    },
+    {
+      "scheduled_offset_seconds": 9000,
+      "started_utc": "2026-11-01T05:14:55.885Z",
+      "ended_utc": "2026-11-01T05:15:53.612Z",
+      "duration_seconds": 57.73,
+      "same_database": true,
+      "partition_event_id": "82edbe1f58888d7e0e3a00f60764fecffda6d41835a0bae6df914e67183eef13",
+      "source_ack": true,
+      "absent_at_destination_during_partition": true,
+      "reconciled_at_middle_and_destination": true
+    },
+    {
+      "scheduled_offset_seconds": 14400,
+      "started_utc": "2026-11-01T06:44:55.866Z",
+      "ended_utc": "2026-11-01T06:45:53.636Z",
+      "duration_seconds": 57.77,
+      "same_database": true,
+      "partition_event_id": "502b984cf980ec3f1fb98462d80dc4620b09dd3ad7fb01106f29b6a69492fa85",
+      "source_ack": true,
+      "absent_at_destination_during_partition": true,
+      "reconciled_at_middle_and_destination": true
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28540/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28540/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28542/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28542/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/"
+  ],
+  "relay_rss_peak_bytes": 397328384,
+  "relay_cpu_peak_percent": 104.8,
+  "scratch_bytes_peak": 488447720,
+  "resource_samples": [
+    {
+      "observed_utc": "2026-11-01T02:44:55.623Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 133095424,
+          "cpu_percent": 25.9
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131633152,
+          "cpu_percent": 33.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132599808,
+          "cpu_percent": 45.6
+        }
+      ],
+      "total_relay_rss_bytes": 397328384,
+      "total_relay_cpu_percent": 104.8,
+      "scratch_bytes": 475528992
+    },
+    {
+      "observed_utc": "2026-11-01T02:45:55.399Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 124727296,
+          "cpu_percent": 3.4
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 132280320,
+          "cpu_percent": 3.5
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127184896,
+          "cpu_percent": 3.4
+        }
+      ],
+      "total_relay_rss_bytes": 384192512,
+      "total_relay_cpu_percent": 10.3,
+      "scratch_bytes": 475664952
+    },
+    {
+      "observed_utc": "2026-11-01T02:46:55.207Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 119549952,
+          "cpu_percent": 1.9
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 126337024,
+          "cpu_percent": 1.9
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 122986496,
+          "cpu_percent": 1.9
+        }
+      ],
+      "total_relay_rss_bytes": 368873472,
+      "total_relay_cpu_percent": 5.7,
+      "scratch_bytes": 475800912
+    },
+    {
+      "observed_utc": "2026-11-01T02:47:55.354Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 119889920,
+          "cpu_percent": 1.3
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127127552,
+          "cpu_percent": 1.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 121331712,
+          "cpu_percent": 1.3
+        }
+      ],
+      "total_relay_rss_bytes": 368349184,
+      "total_relay_cpu_percent": 3.9,
+      "scratch_bytes": 475936872
+    },
+    {
+      "observed_utc": "2026-11-01T02:48:55.349Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 119721984,
+          "cpu_percent": 1
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 125562880,
+          "cpu_percent": 1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 117948416,
+          "cpu_percent": 1
+        }
+      ],
+      "total_relay_rss_bytes": 363233280,
+      "total_relay_cpu_percent": 3,
+      "scratch_bytes": 476072832
+    },
+    {
+      "observed_utc": "2026-11-01T02:49:55.355Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 119967744,
+          "cpu_percent": 0.8
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 126062592,
+          "cpu_percent": 0.8
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 118767616,
+          "cpu_percent": 0.8
+        }
+      ],
+      "total_relay_rss_bytes": 364797952,
+      "total_relay_cpu_percent": 2.4,
+      "scratch_bytes": 476208792
+    },
+    {
+      "observed_utc": "2026-11-01T02:50:55.343Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 120119296,
+          "cpu_percent": 0.7
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 126189568,
+          "cpu_percent": 0.7
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 118935552,
+          "cpu_percent": 0.7
+        }
+      ],
+      "total_relay_rss_bytes": 365244416,
+      "total_relay_cpu_percent": 2.1,
+      "scratch_bytes": 476344752
+    },
+    {
+      "observed_utc": "2026-11-01T02:51:55.349Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 120430592,
+          "cpu_percent": 0.6
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 126464000,
+          "cpu_percent": 0.6
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 119267328,
+          "cpu_percent": 0.6
+        }
+      ],
+      "total_relay_rss_bytes": 366161920,
+      "total_relay_cpu_percent": 1.8,
+      "scratch_bytes": 476480712
+    },
+    {
+      "observed_utc": "2026-11-01T02:52:55.363Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 120627200,
+          "cpu_percent": 0.6
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 126496768,
+          "cpu_percent": 0.6
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 119451648,
+          "cpu_percent": 0.6
+        }
+      ],
+      "total_relay_rss_bytes": 366575616,
+      "total_relay_cpu_percent": 1.8,
+      "scratch_bytes": 476616672
+    },
+    {
+      "observed_utc": "2026-11-01T02:53:55.349Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 120700928,
+          "cpu_percent": 0.5
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 126631936,
+          "cpu_percent": 0.5
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 119738368,
+          "cpu_percent": 0.5
+        }
+      ],
+      "total_relay_rss_bytes": 367071232,
+      "total_relay_cpu_percent": 1.5,
+      "scratch_bytes": 476752632
+    },
+    {
+      "observed_utc": "2026-11-01T02:54:55.354Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 120942592,
+          "cpu_percent": 0.5
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 126619648,
+          "cpu_percent": 0.5
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 119898112,
+          "cpu_percent": 0.5
+        }
+      ],
+      "total_relay_rss_bytes": 367460352,
+      "total_relay_cpu_percent": 1.5,
+      "scratch_bytes": 476888592
+    },
+    {
+      "observed_utc": "2026-11-01T02:55:55.352Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 121077760,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 126717952,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 120119296,
+          "cpu_percent": 0.4
+        }
+      ],
+      "total_relay_rss_bytes": 367915008,
+      "total_relay_cpu_percent": 1.2,
+      "scratch_bytes": 477073992
+    },
+    {
+      "observed_utc": "2026-11-01T02:56:55.348Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 121176064,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 126812160,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 122310656,
+          "cpu_percent": 0.4
+        }
+      ],
+      "total_relay_rss_bytes": 370298880,
+      "total_relay_cpu_percent": 1.2,
+      "scratch_bytes": 477209952
+    },
+    {
+      "observed_utc": "2026-11-01T02:57:55.249Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 121323520,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 126861312,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 122417152,
+          "cpu_percent": 0.4
+        }
+      ],
+      "total_relay_rss_bytes": 370601984,
+      "total_relay_cpu_percent": 1.2,
+      "scratch_bytes": 477345912
+    },
+    {
+      "observed_utc": "2026-11-01T02:58:55.345Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 121397248,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 126898176,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 122523648,
+          "cpu_percent": 0.4
+        }
+      ],
+      "total_relay_rss_bytes": 370819072,
+      "total_relay_cpu_percent": 1.1,
+      "scratch_bytes": 477481872
+    },
+    {
+      "observed_utc": "2026-11-01T02:59:55.347Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 121511936,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127029248,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 122638336,
+          "cpu_percent": 0.3
+        }
+      ],
+      "total_relay_rss_bytes": 371179520,
+      "total_relay_cpu_percent": 0.9,
+      "scratch_bytes": 477617832
+    },
+    {
+      "observed_utc": "2026-11-01T03:00:55.350Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 121667584,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127107072,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 122806272,
+          "cpu_percent": 0.3
+        }
+      ],
+      "total_relay_rss_bytes": 371580928,
+      "total_relay_cpu_percent": 0.9,
+      "scratch_bytes": 477753792
+    },
+    {
+      "observed_utc": "2026-11-01T03:01:55.343Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 122507264,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127164416,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 122974208,
+          "cpu_percent": 0.3
+        }
+      ],
+      "total_relay_rss_bytes": 372645888,
+      "total_relay_cpu_percent": 0.9,
+      "scratch_bytes": 477889752
+    },
+    {
+      "observed_utc": "2026-11-01T03:02:55.347Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 122544128,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127242240,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 123879424,
+          "cpu_percent": 0.3
+        }
+      ],
+      "total_relay_rss_bytes": 373665792,
+      "total_relay_cpu_percent": 0.9,
+      "scratch_bytes": 478025712
+    },
+    {
+      "observed_utc": "2026-11-01T03:03:55.344Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 122613760,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127336448,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 123973632,
+          "cpu_percent": 0.3
+        }
+      ],
+      "total_relay_rss_bytes": 373923840,
+      "total_relay_cpu_percent": 0.9,
+      "scratch_bytes": 478161672
+    },
+    {
+      "observed_utc": "2026-11-01T03:04:55.362Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126660608,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127430656,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 124080128,
+          "cpu_percent": 0.3
+        }
+      ],
+      "total_relay_rss_bytes": 378171392,
+      "total_relay_cpu_percent": 0.9,
+      "scratch_bytes": 478297632
+    },
+    {
+      "observed_utc": "2026-11-01T03:05:55.358Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126808064,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127578112,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 124141568,
+          "cpu_percent": 0.3
+        }
+      ],
+      "total_relay_rss_bytes": 378527744,
+      "total_relay_cpu_percent": 0.9,
+      "scratch_bytes": 478433592
+    },
+    {
+      "observed_utc": "2026-11-01T03:06:55.347Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126861312,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127655936,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 124264448,
+          "cpu_percent": 0.3
+        }
+      ],
+      "total_relay_rss_bytes": 378781696,
+      "total_relay_cpu_percent": 0.9,
+      "scratch_bytes": 478606632
+    },
+    {
+      "observed_utc": "2026-11-01T03:07:55.348Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127721472,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127692800,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 124420096,
+          "cpu_percent": 0.3
+        }
+      ],
+      "total_relay_rss_bytes": 379834368,
+      "total_relay_cpu_percent": 0.8,
+      "scratch_bytes": 478742592
+    },
+    {
+      "observed_utc": "2026-11-01T03:08:55.346Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127811584,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127705088,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 124600320,
+          "cpu_percent": 0.3
+        }
+      ],
+      "total_relay_rss_bytes": 380116992,
+      "total_relay_cpu_percent": 0.7,
+      "scratch_bytes": 478878552
+    },
+    {
+      "observed_utc": "2026-11-01T03:09:55.345Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127901696,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127746048,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 124747776,
+          "cpu_percent": 0.3
+        }
+      ],
+      "total_relay_rss_bytes": 380395520,
+      "total_relay_cpu_percent": 0.7,
+      "scratch_bytes": 479014512
+    },
+    {
+      "observed_utc": "2026-11-01T03:10:55.351Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127979520,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127840256,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 125816832,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 381636608,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 479150472
+    },
+    {
+      "observed_utc": "2026-11-01T03:11:55.365Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 128000000,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127877120,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 125980672,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 381857792,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 479286432
+    },
+    {
+      "observed_utc": "2026-11-01T03:12:55.357Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 128040960,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127938560,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128114688,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 384094208,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 479422392
+    },
+    {
+      "observed_utc": "2026-11-01T03:13:55.348Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 128126976,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127950848,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128241664,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 384319488,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 479558352
+    },
+    {
+      "observed_utc": "2026-11-01T03:14:56.202Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 128135168,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127967232,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128327680,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 384430080,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 479694312
+    },
+    {
+      "observed_utc": "2026-11-01T03:15:55.346Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 128172032,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 127991808,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128532480,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 384696320,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 479830272
+    },
+    {
+      "observed_utc": "2026-11-01T03:16:55.347Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 128262144,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128020480,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128581632,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 384864256,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 479966232
+    },
+    {
+      "observed_utc": "2026-11-01T03:17:55.339Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 128348160,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128040960,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128618496,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 385007616,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 480139272
+    },
+    {
+      "observed_utc": "2026-11-01T03:18:55.363Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 128421888,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128176128,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128655360,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 385253376,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 480275232
+    },
+    {
+      "observed_utc": "2026-11-01T03:19:55.346Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 128483328,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128249856,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128700416,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 385433600,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 480411192
+    },
+    {
+      "observed_utc": "2026-11-01T03:20:55.339Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 128536576,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128270336,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128790528,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 385597440,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 480547152
+    },
+    {
+      "observed_utc": "2026-11-01T03:21:55.350Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 128593920,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128307200,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128958464,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 385859584,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 480683112
+    },
+    {
+      "observed_utc": "2026-11-01T03:22:55.376Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 128614400,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128331776,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129028096,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 385974272,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 480819072
+    },
+    {
+      "observed_utc": "2026-11-01T03:23:55.340Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 129531904,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128364544,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129093632,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 386990080,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 480955032
+    },
+    {
+      "observed_utc": "2026-11-01T03:24:55.341Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 129572864,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128417792,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129105920,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 387096576,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 481090992
+    },
+    {
+      "observed_utc": "2026-11-01T03:25:55.343Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 129622016,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128421888,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129245184,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 387289088,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 481226952
+    },
+    {
+      "observed_utc": "2026-11-01T03:26:55.343Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 129646592,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128442368,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129630208,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 387719168,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 481362912
+    },
+    {
+      "observed_utc": "2026-11-01T03:27:55.339Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 129675264,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128475136,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129732608,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 387883008,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 481498872
+    },
+    {
+      "observed_utc": "2026-11-01T03:28:55.340Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 129708032,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128487424,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129802240,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 387997696,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 481671912
+    },
+    {
+      "observed_utc": "2026-11-01T03:29:55.356Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 129773568,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 128503808,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129871872,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 388149248,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 481807872
+    },
+    {
+      "observed_utc": "2026-11-01T03:30:55.365Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 129847296,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131129344,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129929216,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 390905856,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 481943832
+    },
+    {
+      "observed_utc": "2026-11-01T03:31:55.338Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 129888256,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131153920,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130031616,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 391073792,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 482079792
+    },
+    {
+      "observed_utc": "2026-11-01T03:32:55.338Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 129961984,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131174400,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130060288,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 391196672,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 482215752
+    },
+    {
+      "observed_utc": "2026-11-01T03:33:55.340Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130088960,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131174400,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130191360,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 391454720,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 482351712
+    },
+    {
+      "observed_utc": "2026-11-01T03:34:55.342Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130138112,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131174400,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130314240,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 391626752,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 482487672
+    },
+    {
+      "observed_utc": "2026-11-01T03:35:55.356Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130207744,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131174400,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130330624,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 391712768,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 482623632
+    },
+    {
+      "observed_utc": "2026-11-01T03:36:55.343Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130293760,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131211264,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130445312,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 391950336,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 482809032
+    },
+    {
+      "observed_utc": "2026-11-01T03:37:55.346Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130433024,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131211264,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130486272,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 392130560,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 482994432
+    },
+    {
+      "observed_utc": "2026-11-01T03:38:55.346Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130449408,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131231744,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130560000,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 392241152,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 483130392
+    },
+    {
+      "observed_utc": "2026-11-01T03:39:55.340Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130469888,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131248128,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130605056,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 392323072,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 483303432
+    },
+    {
+      "observed_utc": "2026-11-01T03:40:55.336Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130490368,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131293184,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130654208,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 392437760,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 483488832
+    },
+    {
+      "observed_utc": "2026-11-01T03:41:55.340Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130506752,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131317760,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130678784,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 392503296,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 483624792
+    },
+    {
+      "observed_utc": "2026-11-01T03:42:55.350Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130527232,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131399680,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130691072,
+          "cpu_percent": 0.2
+        }
+      ],
+      "total_relay_rss_bytes": 392617984,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 483760752
+    },
+    {
+      "observed_utc": "2026-11-01T03:43:55.339Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130654208,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533336,
+          "rss_bytes": 131522560,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130715648,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 392892416,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 483896712
+    },
+    {
+      "observed_utc": "2026-11-01T03:45:53.733Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130703360,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 114368512,
+          "cpu_percent": 6.6
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130723840,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 375795712,
+      "total_relay_cpu_percent": 6.8,
+      "scratch_bytes": 481267240
+    },
+    {
+      "observed_utc": "2026-11-01T03:45:54.002Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130830336,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 114712576,
+          "cpu_percent": 6.6
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130756608,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 376299520,
+      "total_relay_cpu_percent": 6.8,
+      "scratch_bytes": 481403200
+    },
+    {
+      "observed_utc": "2026-11-01T03:46:53.906Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 130949120,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 115081216,
+          "cpu_percent": 2.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 130904064,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 376934400,
+      "total_relay_cpu_percent": 2.4,
+      "scratch_bytes": 481539160
+    },
+    {
+      "observed_utc": "2026-11-01T03:47:53.913Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 131002368,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 115265536,
+          "cpu_percent": 1.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131031040,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 377298944,
+      "total_relay_cpu_percent": 1.5,
+      "scratch_bytes": 481675120
+    },
+    {
+      "observed_utc": "2026-11-01T03:48:53.890Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 131026944,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 114466816,
+          "cpu_percent": 1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131035136,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 376528896,
+      "total_relay_cpu_percent": 1.2,
+      "scratch_bytes": 481811080
+    },
+    {
+      "observed_utc": "2026-11-01T03:49:53.881Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 131055616,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 114683904,
+          "cpu_percent": 0.8
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131035136,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 376774656,
+      "total_relay_cpu_percent": 1,
+      "scratch_bytes": 481947040
+    },
+    {
+      "observed_utc": "2026-11-01T03:50:53.881Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 131084288,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 115425280,
+          "cpu_percent": 0.6
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131215360,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 377724928,
+      "total_relay_cpu_percent": 0.8,
+      "scratch_bytes": 482120080
+    },
+    {
+      "observed_utc": "2026-11-01T03:51:53.924Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 131088384,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 115539968,
+          "cpu_percent": 0.6
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131289088,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 377917440,
+      "total_relay_cpu_percent": 0.8,
+      "scratch_bytes": 482256040
+    },
+    {
+      "observed_utc": "2026-11-01T03:52:53.890Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 131088384,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 115642368,
+          "cpu_percent": 0.5
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131354624,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 378085376,
+      "total_relay_cpu_percent": 0.7,
+      "scratch_bytes": 482392000
+    },
+    {
+      "observed_utc": "2026-11-01T03:53:53.889Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 131104768,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116027392,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131358720,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 378490880,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 482527960
+    },
+    {
+      "observed_utc": "2026-11-01T03:54:53.883Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 131133440,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116150272,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131358720,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 378642432,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 482663920
+    },
+    {
+      "observed_utc": "2026-11-01T03:55:53.916Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 131178496,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116256768,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131383296,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 378818560,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 482799880
+    },
+    {
+      "observed_utc": "2026-11-01T03:56:53.880Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 131190784,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116445184,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131383296,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 379019264,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 482935840
+    },
+    {
+      "observed_utc": "2026-11-01T03:57:53.880Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 131252224,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116527104,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131399680,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 379179008,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 483071800
+    },
+    {
+      "observed_utc": "2026-11-01T03:58:53.882Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 133730304,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116609024,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131510272,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 381849600,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 483207760
+    },
+    {
+      "observed_utc": "2026-11-01T03:59:53.911Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 133795840,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116670464,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131694592,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 382160896,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 483343720
+    },
+    {
+      "observed_utc": "2026-11-01T04:00:53.889Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 133820416,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116756480,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131837952,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 382414848,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 483479680
+    },
+    {
+      "observed_utc": "2026-11-01T04:01:53.881Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 133844992,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116793344,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131858432,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 382496768,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 483652720
+    },
+    {
+      "observed_utc": "2026-11-01T04:02:53.879Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 133877760,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116846592,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 131985408,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 382709760,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 483813400
+    },
+    {
+      "observed_utc": "2026-11-01T04:03:53.878Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 133898240,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116912128,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132030464,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 382840832,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 483974080
+    },
+    {
+      "observed_utc": "2026-11-01T04:04:53.882Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 133918720,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 118120448,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132046848,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 384086016,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 484134760
+    },
+    {
+      "observed_utc": "2026-11-01T04:05:53.877Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 134266880,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 118116352,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132059136,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 384442368,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 484270720
+    },
+    {
+      "observed_utc": "2026-11-01T04:06:53.889Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 134369280,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 121458688,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132059136,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 387887104,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 484406680
+    },
+    {
+      "observed_utc": "2026-11-01T04:07:53.883Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 134459392,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 121974784,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132153344,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 388587520,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 484542640
+    },
+    {
+      "observed_utc": "2026-11-01T04:08:53.911Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 134512640,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122007552,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132337664,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 388857856,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 484973320
+    },
+    {
+      "observed_utc": "2026-11-01T04:09:53.889Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 134709248,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122068992,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132489216,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389267456,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485018640
+    },
+    {
+      "observed_utc": "2026-11-01T04:10:53.890Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 134750208,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122122240,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132497408,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389369856,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485063960
+    },
+    {
+      "observed_utc": "2026-11-01T04:11:53.885Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 134758400,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122142720,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132521984,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389423104,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485109280
+    },
+    {
+      "observed_utc": "2026-11-01T04:12:53.887Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 134766592,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122183680,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132526080,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389476352,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485166960
+    },
+    {
+      "observed_utc": "2026-11-01T04:13:53.896Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 134766592,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122232832,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132530176,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389529600,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485212280
+    },
+    {
+      "observed_utc": "2026-11-01T04:14:53.897Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 134787072,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122245120,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132571136,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389603328,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485257600
+    },
+    {
+      "observed_utc": "2026-11-01T04:15:53.886Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 134881280,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122277888,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132575232,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389734400,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485302920
+    },
+    {
+      "observed_utc": "2026-11-01T04:16:53.886Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135061504,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122290176,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132620288,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389971968,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485356480
+    },
+    {
+      "observed_utc": "2026-11-01T04:17:53.893Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135118848,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122347520,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132636672,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390103040,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485410040
+    },
+    {
+      "observed_utc": "2026-11-01T04:18:53.887Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135147520,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122404864,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132653056,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390205440,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485463600
+    },
+    {
+      "observed_utc": "2026-11-01T04:19:53.892Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135225344,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122437632,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132870144,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390533120,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485508920
+    },
+    {
+      "observed_utc": "2026-11-01T04:20:53.902Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135311360,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122494976,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132907008,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390713344,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485554240
+    },
+    {
+      "observed_utc": "2026-11-01T04:21:53.906Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135319552,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122503168,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132911104,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390733824,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485599560
+    },
+    {
+      "observed_utc": "2026-11-01T04:22:53.889Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135335936,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122458112,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132952064,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390746112,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485644880
+    },
+    {
+      "observed_utc": "2026-11-01T04:23:53.879Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135368704,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122531840,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132960256,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390860800,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485710800
+    },
+    {
+      "observed_utc": "2026-11-01T04:24:53.886Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135385088,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122560512,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 132972544,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390918144,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485756120
+    },
+    {
+      "observed_utc": "2026-11-01T04:25:53.883Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135393280,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122605568,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133001216,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391000064,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 485809680
+    },
+    {
+      "observed_utc": "2026-11-01T04:26:53.888Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135401472,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122642432,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133001216,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391045120,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 485863240
+    },
+    {
+      "observed_utc": "2026-11-01T04:27:53.887Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135471104,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122662912,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133046272,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391180288,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 485908560
+    },
+    {
+      "observed_utc": "2026-11-01T04:28:53.887Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135483392,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122687488,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133066752,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391237632,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 485970360
+    },
+    {
+      "observed_utc": "2026-11-01T04:29:53.881Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135507968,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122687488,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133173248,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391368704,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486036280
+    },
+    {
+      "observed_utc": "2026-11-01T04:30:53.875Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135516160,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122695680,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133242880,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391454720,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486114560
+    },
+    {
+      "observed_utc": "2026-11-01T04:31:53.896Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135446528,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122687488,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133193728,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391327744,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486184600
+    },
+    {
+      "observed_utc": "2026-11-01T04:32:53.884Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135450624,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122695680,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133197824,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391344128,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486246400
+    },
+    {
+      "observed_utc": "2026-11-01T04:33:53.889Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135462912,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122728448,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133238784,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391430144,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486291720
+    },
+    {
+      "observed_utc": "2026-11-01T04:34:53.882Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135467008,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 127070208,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133242880,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 395780096,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486349400
+    },
+    {
+      "observed_utc": "2026-11-01T04:35:53.908Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135512064,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122372096,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133263360,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391147520,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486394720
+    },
+    {
+      "observed_utc": "2026-11-01T04:36:53.881Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135512064,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122380288,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133296128,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391188480,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486448280
+    },
+    {
+      "observed_utc": "2026-11-01T04:37:53.878Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135528448,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122408960,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133337088,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391274496,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486514200
+    },
+    {
+      "observed_utc": "2026-11-01T04:38:53.889Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135557120,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122417152,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133345280,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391319552,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486559520
+    },
+    {
+      "observed_utc": "2026-11-01T04:39:53.877Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135577600,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122425344,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133349376,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391352320,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486604840
+    },
+    {
+      "observed_utc": "2026-11-01T04:40:53.886Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135610368,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122425344,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133414912,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391450624,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486650160
+    },
+    {
+      "observed_utc": "2026-11-01T04:41:53.879Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135630848,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122429440,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133419008,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391479296,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486711960
+    },
+    {
+      "observed_utc": "2026-11-01T04:42:53.893Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135520256,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122429440,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133480448,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391430144,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486761400
+    },
+    {
+      "observed_utc": "2026-11-01T04:43:53.877Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135610368,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122449920,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133513216,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391573504,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486823200
+    },
+    {
+      "observed_utc": "2026-11-01T04:44:53.881Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135610368,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 122507264,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133513216,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391630848,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486872640
+    },
+    {
+      "observed_utc": "2026-11-01T04:45:53.881Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135622656,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 123023360,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133562368,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 392208384,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486946800
+    },
+    {
+      "observed_utc": "2026-11-01T04:46:53.879Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135680000,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116596736,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133566464,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 385843200,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486996240
+    },
+    {
+      "observed_utc": "2026-11-01T04:47:53.887Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135688192,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 117538816,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133570560,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 386797568,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487058040
+    },
+    {
+      "observed_utc": "2026-11-01T04:48:53.884Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135725056,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 118550528,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133574656,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 387850240,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487103360
+    },
+    {
+      "observed_utc": "2026-11-01T04:49:53.881Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135860224,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 118673408,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133656576,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 388190208,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487148680
+    },
+    {
+      "observed_utc": "2026-11-01T04:50:53.879Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 135921664,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 118935552,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 133799936,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 388657152,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487194000
+    },
+    {
+      "observed_utc": "2026-11-01T04:51:53.882Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136003584,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 119820288,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134389760,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390213632,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487247560
+    },
+    {
+      "observed_utc": "2026-11-01T04:52:53.880Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136024064,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 119889920,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134488064,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390402048,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487292880
+    },
+    {
+      "observed_utc": "2026-11-01T04:53:53.903Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136093696,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 119894016,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134504448,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390492160,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487350560
+    },
+    {
+      "observed_utc": "2026-11-01T04:54:53.923Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136146944,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 119926784,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134512640,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390586368,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487395880
+    },
+    {
+      "observed_utc": "2026-11-01T04:55:53.875Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136163328,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 119926784,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134537216,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390627328,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487470040
+    },
+    {
+      "observed_utc": "2026-11-01T04:56:53.878Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136171520,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 119934976,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134553600,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390660096,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487531840
+    },
+    {
+      "observed_utc": "2026-11-01T04:57:53.875Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136192000,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 119934976,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134557696,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390684672,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487581280
+    },
+    {
+      "observed_utc": "2026-11-01T04:58:53.918Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136249344,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 119943168,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134569984,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390762496,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487630720
+    },
+    {
+      "observed_utc": "2026-11-01T04:59:53.895Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136302592,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 119947264,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134569984,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390819840,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487692520
+    },
+    {
+      "observed_utc": "2026-11-01T05:00:53.882Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136327168,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 120057856,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134602752,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 390987776,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487741960
+    },
+    {
+      "observed_utc": "2026-11-01T05:01:53.878Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136339456,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116248576,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134635520,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 387223552,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487803760
+    },
+    {
+      "observed_utc": "2026-11-01T05:02:53.875Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136347648,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116252672,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134643712,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 387244032,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487865560
+    },
+    {
+      "observed_utc": "2026-11-01T05:03:53.879Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136355840,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116318208,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134656000,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 387330048,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487968248
+    },
+    {
+      "observed_utc": "2026-11-01T05:04:53.881Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136376320,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116330496,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134656000,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 387362816,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487968248
+    },
+    {
+      "observed_utc": "2026-11-01T05:05:53.880Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136376320,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116355072,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134664192,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 387395584,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487968248
+    },
+    {
+      "observed_utc": "2026-11-01T05:06:53.874Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136376320,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116400128,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134664192,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 387440640,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487968248
+    },
+    {
+      "observed_utc": "2026-11-01T05:07:53.905Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136384512,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 116482048,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134717440,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 387584000,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487968248
+    },
+    {
+      "observed_utc": "2026-11-01T05:08:53.876Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136409088,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 120569856,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134737920,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 391716864,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487968248
+    },
+    {
+      "observed_utc": "2026-11-01T05:09:53.878Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136417280,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 118243328,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134754304,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389414912,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487968248
+    },
+    {
+      "observed_utc": "2026-11-01T05:10:53.879Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136417280,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 118247424,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134754304,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389419008,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487968248
+    },
+    {
+      "observed_utc": "2026-11-01T05:11:53.878Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136441856,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 118517760,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134782976,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389742592,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487968248
+    },
+    {
+      "observed_utc": "2026-11-01T05:12:53.890Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136474624,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 118534144,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134881280,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389890048,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487968248
+    },
+    {
+      "observed_utc": "2026-11-01T05:13:53.877Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136474624,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 118538240,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134881280,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389894144,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487968248
+    },
+    {
+      "observed_utc": "2026-11-01T05:14:53.883Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136474624,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3889445,
+          "rss_bytes": 118546432,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134889472,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 389910528,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487968248
+    },
+    {
+      "observed_utc": "2026-11-01T05:15:53.705Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136450048,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 112717824,
+          "cpu_percent": 6.8
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134926336,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 384094208,
+      "total_relay_cpu_percent": 7,
+      "scratch_bytes": 483897664
+    },
+    {
+      "observed_utc": "2026-11-01T05:15:53.960Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 136531968,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113029120,
+          "cpu_percent": 6.7
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 134938624,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 384499712,
+      "total_relay_cpu_percent": 6.9,
+      "scratch_bytes": 483980064
+    },
+    {
+      "observed_utc": "2026-11-01T05:16:53.876Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 124850176,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113381376,
+          "cpu_percent": 2.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127033344,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 365264896,
+      "total_relay_cpu_percent": 2.4,
+      "scratch_bytes": 484037744
+    },
+    {
+      "observed_utc": "2026-11-01T05:17:53.870Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 124796928,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 106373120,
+          "cpu_percent": 1.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127049728,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 358219776,
+      "total_relay_cpu_percent": 1.5,
+      "scratch_bytes": 484132504
+    },
+    {
+      "observed_utc": "2026-11-01T05:18:53.880Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 124899328,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 110501888,
+          "cpu_percent": 1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127094784,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 362496000,
+      "total_relay_cpu_percent": 1.2,
+      "scratch_bytes": 484214904
+    },
+    {
+      "observed_utc": "2026-11-01T05:19:53.869Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 124952576,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 111558656,
+          "cpu_percent": 0.8
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127111168,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 363622400,
+      "total_relay_cpu_percent": 1,
+      "scratch_bytes": 484445000
+    },
+    {
+      "observed_utc": "2026-11-01T05:20:53.870Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 124956672,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 111640576,
+          "cpu_percent": 0.7
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127131648,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 363728896,
+      "total_relay_cpu_percent": 0.9,
+      "scratch_bytes": 484527400
+    },
+    {
+      "observed_utc": "2026-11-01T05:21:53.864Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125001728,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 111976448,
+          "cpu_percent": 0.6
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127152128,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 364130304,
+      "total_relay_cpu_percent": 0.8,
+      "scratch_bytes": 484622160
+    },
+    {
+      "observed_utc": "2026-11-01T05:22:53.867Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125022208,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 112087040,
+          "cpu_percent": 0.5
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127545344,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 364654592,
+      "total_relay_cpu_percent": 0.7,
+      "scratch_bytes": 484692200
+    },
+    {
+      "observed_utc": "2026-11-01T05:23:53.866Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125026304,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 112914432,
+          "cpu_percent": 0.5
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127545344,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 365486080,
+      "total_relay_cpu_percent": 0.7,
+      "scratch_bytes": 484786960
+    },
+    {
+      "observed_utc": "2026-11-01T05:24:53.870Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125026304,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113094656,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127578112,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 365699072,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 484844640
+    },
+    {
+      "observed_utc": "2026-11-01T05:25:53.865Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125042688,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113217536,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127590400,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 365850624,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 484902320
+    },
+    {
+      "observed_utc": "2026-11-01T05:26:53.875Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125059072,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113344512,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127594496,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 365998080,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 484960000
+    },
+    {
+      "observed_utc": "2026-11-01T05:27:53.869Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125059072,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113438720,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127594496,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 366092288,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 485030040
+    },
+    {
+      "observed_utc": "2026-11-01T05:28:53.868Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125063168,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113520640,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127594496,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 366178304,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 485112440
+    },
+    {
+      "observed_utc": "2026-11-01T05:29:53.870Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125145088,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113553408,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127594496,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 366292992,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 485182480
+    },
+    {
+      "observed_utc": "2026-11-01T05:30:53.880Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125259776,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113651712,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127631360,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 366542848,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 485252520
+    },
+    {
+      "observed_utc": "2026-11-01T05:31:53.868Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125259776,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113709056,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127676416,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 366645248,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 485310200
+    },
+    {
+      "observed_utc": "2026-11-01T05:32:53.866Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125280256,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113704960,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127774720,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 366759936,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 485380240
+    },
+    {
+      "observed_utc": "2026-11-01T05:33:53.865Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125456384,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113807360,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127930368,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 367194112,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485462640
+    },
+    {
+      "observed_utc": "2026-11-01T05:34:53.879Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125472768,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 113946624,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 127938560,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 367357952,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485520320
+    },
+    {
+      "observed_utc": "2026-11-01T05:35:53.869Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125476864,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114020352,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128245760,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 367742976,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485590360
+    },
+    {
+      "observed_utc": "2026-11-01T05:36:53.866Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125476864,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114020352,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128245760,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 367742976,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485660400
+    },
+    {
+      "observed_utc": "2026-11-01T05:37:53.869Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125476864,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114081792,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128249856,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 367808512,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485705720
+    },
+    {
+      "observed_utc": "2026-11-01T05:38:53.874Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125796352,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114102272,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128262144,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368160768,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485751040
+    },
+    {
+      "observed_utc": "2026-11-01T05:39:53.870Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125800448,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114176000,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128290816,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368267264,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485833440
+    },
+    {
+      "observed_utc": "2026-11-01T05:40:53.870Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125853696,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114204672,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128299008,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368357376,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485878760
+    },
+    {
+      "observed_utc": "2026-11-01T05:41:53.868Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125853696,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114233344,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128323584,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368410624,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485936440
+    },
+    {
+      "observed_utc": "2026-11-01T05:42:53.866Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125865984,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114282496,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128323584,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368472064,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486006480
+    },
+    {
+      "observed_utc": "2026-11-01T05:43:53.862Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125890560,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114298880,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128335872,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368525312,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486064160
+    },
+    {
+      "observed_utc": "2026-11-01T05:44:53.867Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125890560,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114339840,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128344064,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368574464,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486134200
+    },
+    {
+      "observed_utc": "2026-11-01T05:45:53.863Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125947904,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114380800,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128393216,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368721920,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486204240
+    },
+    {
+      "observed_utc": "2026-11-01T05:46:53.867Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125947904,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114401280,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128421888,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368771072,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486274280
+    },
+    {
+      "observed_utc": "2026-11-01T05:47:53.867Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125956096,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114450432,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128425984,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368832512,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486356680
+    },
+    {
+      "observed_utc": "2026-11-01T05:48:53.873Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125960192,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114524160,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128454656,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368939008,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486414360
+    },
+    {
+      "observed_utc": "2026-11-01T05:49:53.886Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126054400,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114540544,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128462848,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369057792,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486472040
+    },
+    {
+      "observed_utc": "2026-11-01T05:50:53.872Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126185472,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114565120,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128483328,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369233920,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486546200
+    },
+    {
+      "observed_utc": "2026-11-01T05:51:53.872Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126369792,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114581504,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128483328,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369434624,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486603880
+    },
+    {
+      "observed_utc": "2026-11-01T05:52:53.871Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126398464,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114663424,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128516096,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369577984,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486661560
+    },
+    {
+      "observed_utc": "2026-11-01T05:53:53.872Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126472192,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114786304,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128667648,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369926144,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486719240
+    },
+    {
+      "observed_utc": "2026-11-01T05:54:53.891Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126525440,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114798592,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128868352,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370192384,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486789280
+    },
+    {
+      "observed_utc": "2026-11-01T05:55:53.867Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126541824,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114839552,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128892928,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370274304,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486846960
+    },
+    {
+      "observed_utc": "2026-11-01T05:56:53.870Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126541824,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114884608,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128921600,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370348032,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486892280
+    },
+    {
+      "observed_utc": "2026-11-01T05:57:53.871Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126566400,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114917376,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128921600,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370405376,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486949960
+    },
+    {
+      "observed_utc": "2026-11-01T05:58:53.875Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126570496,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114921472,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128921600,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370413568,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487007640
+    },
+    {
+      "observed_utc": "2026-11-01T05:59:53.867Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126578688,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114921472,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128933888,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370434048,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487077680
+    },
+    {
+      "observed_utc": "2026-11-01T06:00:53.873Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126418944,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114925568,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128942080,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370286592,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487147720
+    },
+    {
+      "observed_utc": "2026-11-01T06:01:53.873Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125669376,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114962432,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128286720,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368918528,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487230120
+    },
+    {
+      "observed_utc": "2026-11-01T06:02:53.869Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125665280,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114970624,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128278528,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368914432,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487300160
+    },
+    {
+      "observed_utc": "2026-11-01T06:03:53.866Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125685760,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 115019776,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128278528,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368984064,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487394920
+    },
+    {
+      "observed_utc": "2026-11-01T06:04:53.875Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125698048,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 119267328,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128282624,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 373248000,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487452600
+    },
+    {
+      "observed_utc": "2026-11-01T06:05:53.872Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125698048,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114601984,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128299008,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368599040,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487510280
+    },
+    {
+      "observed_utc": "2026-11-01T06:06:53.885Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125710336,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114610176,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128299008,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368619520,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487592680
+    },
+    {
+      "observed_utc": "2026-11-01T06:07:53.894Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125710336,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114634752,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128299008,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368644096,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487650360
+    },
+    {
+      "observed_utc": "2026-11-01T06:08:53.890Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125710336,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114638848,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128319488,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368668672,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487720400
+    },
+    {
+      "observed_utc": "2026-11-01T06:09:53.875Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125718528,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114638848,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128446464,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368803840,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487802800
+    },
+    {
+      "observed_utc": "2026-11-01T06:10:53.875Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125722624,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114638848,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128450560,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368812032,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487872840
+    },
+    {
+      "observed_utc": "2026-11-01T06:11:53.889Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125788160,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114679808,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128454656,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368922624,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487955240
+    },
+    {
+      "observed_utc": "2026-11-01T06:12:53.865Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125849600,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114683904,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128454656,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368988160,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488037640
+    },
+    {
+      "observed_utc": "2026-11-01T06:13:53.869Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125857792,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 114700288,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128528384,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369086464,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488169192
+    },
+    {
+      "observed_utc": "2026-11-01T06:14:53.863Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125861888,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 115130368,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128577536,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369569792,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488169192
+    },
+    {
+      "observed_utc": "2026-11-01T06:15:53.875Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125861888,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 115183616,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128634880,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369680384,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488169192
+    },
+    {
+      "observed_utc": "2026-11-01T06:16:53.871Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125861888,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 115228672,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128569344,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369659904,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488169192
+    },
+    {
+      "observed_utc": "2026-11-01T06:17:53.865Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125874176,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 115273728,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128577536,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369725440,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488169192
+    },
+    {
+      "observed_utc": "2026-11-01T06:18:53.875Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125886464,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 115933184,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128610304,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370429952,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488169192
+    },
+    {
+      "observed_utc": "2026-11-01T06:19:53.867Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125886464,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 115957760,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128618496,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370462720,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488169192
+    },
+    {
+      "observed_utc": "2026-11-01T06:20:53.872Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125894656,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 116916224,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128618496,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371429376,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:21:53.874Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125902848,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 116916224,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128626688,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371445760,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:22:53.875Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125952000,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 116977664,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128647168,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371576832,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:23:53.865Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125964288,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117006336,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128679936,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371650560,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:24:53.864Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125968384,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117006336,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128679936,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371654656,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:25:53.894Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125931520,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117055488,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128679936,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371666944,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:26:53.863Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125947904,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117063680,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128864256,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371875840,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:27:53.865Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125972480,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117067776,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128872448,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371912704,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:28:53.879Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125972480,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117067776,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128876544,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371916800,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:29:53.873Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126005248,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117104640,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128876544,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371986432,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:30:53.866Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126005248,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117354496,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128917504,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 372277248,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:31:53.878Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125968384,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117456896,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128692224,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 372117504,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:32:53.862Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 125976576,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117465088,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128692224,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 372133888,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:33:53.871Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126029824,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117510144,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128729088,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 372269056,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:34:53.869Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126029824,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117526528,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128737280,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 372293632,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:35:53.865Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126033920,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117538816,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128704512,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 372277248,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:36:53.864Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126038016,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 117571584,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128733184,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 372342784,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:37:53.867Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126054400,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 118378496,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128749568,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 373182464,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:38:53.868Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126095360,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 123478016,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128786432,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 378359808,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:39:53.880Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126095360,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 121823232,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128786432,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 376705024,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:40:53.873Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126132224,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 121847808,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128802816,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 376782848,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:41:53.861Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126136320,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 121876480,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128815104,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 376827904,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:42:53.863Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126156800,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 121884672,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128827392,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 376868864,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:43:53.866Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126173184,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 121896960,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128835584,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 376905728,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:44:53.863Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126263296,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 217750,
+          "rss_bytes": 121909248,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128847872,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 377020416,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488275688
+    },
+    {
+      "observed_utc": "2026-11-01T06:45:53.731Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126197760,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114573312,
+          "cpu_percent": 6.8
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128851968,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369623040,
+      "total_relay_cpu_percent": 7,
+      "scratch_bytes": 484250304
+    },
+    {
+      "observed_utc": "2026-11-01T06:45:53.987Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126287872,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114888704,
+          "cpu_percent": 6.7
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128851968,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370028544,
+      "total_relay_cpu_percent": 6.9,
+      "scratch_bytes": 484320344
+    },
+    {
+      "observed_utc": "2026-11-01T06:46:53.886Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126201856,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 115400704,
+          "cpu_percent": 2.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128847872,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370450432,
+      "total_relay_cpu_percent": 2.4,
+      "scratch_bytes": 484390384
+    },
+    {
+      "observed_utc": "2026-11-01T06:47:53.886Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126214144,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 115482624,
+          "cpu_percent": 1.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128901120,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370597888,
+      "total_relay_cpu_percent": 1.5,
+      "scratch_bytes": 484448064
+    },
+    {
+      "observed_utc": "2026-11-01T06:48:53.898Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126185472,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 118235136,
+          "cpu_percent": 1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128888832,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 373309440,
+      "total_relay_cpu_percent": 1.2,
+      "scratch_bytes": 484505744
+    },
+    {
+      "observed_utc": "2026-11-01T06:49:53.889Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126283776,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 118849536,
+          "cpu_percent": 0.8
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128888832,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 374022144,
+      "total_relay_cpu_percent": 1,
+      "scratch_bytes": 484575784
+    },
+    {
+      "observed_utc": "2026-11-01T06:50:53.901Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126361600,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 116715520,
+          "cpu_percent": 0.7
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128892928,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371970048,
+      "total_relay_cpu_percent": 0.9,
+      "scratch_bytes": 484633464
+    },
+    {
+      "observed_utc": "2026-11-01T06:51:53.889Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126451712,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114356224,
+          "cpu_percent": 0.6
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128921600,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369729536,
+      "total_relay_cpu_percent": 0.8,
+      "scratch_bytes": 484715864
+    },
+    {
+      "observed_utc": "2026-11-01T06:52:53.887Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126566400,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114565120,
+          "cpu_percent": 0.5
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128921600,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370053120,
+      "total_relay_cpu_percent": 0.7,
+      "scratch_bytes": 484773544
+    },
+    {
+      "observed_utc": "2026-11-01T06:53:53.892Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126709760,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114761728,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128929792,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370401280,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 484864184
+    },
+    {
+      "observed_utc": "2026-11-01T06:54:53.893Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126738432,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114896896,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128933888,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370569216,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 484921864
+    },
+    {
+      "observed_utc": "2026-11-01T06:55:53.892Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126746624,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 115109888,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128954368,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370810880,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 484991904
+    },
+    {
+      "observed_utc": "2026-11-01T06:56:53.904Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126840832,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 115171328,
+          "cpu_percent": 0.4
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129126400,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371138560,
+      "total_relay_cpu_percent": 0.6,
+      "scratch_bytes": 485037224
+    },
+    {
+      "observed_utc": "2026-11-01T06:57:53.893Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126881792,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 115224576,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129421312,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371527680,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 485103144
+    },
+    {
+      "observed_utc": "2026-11-01T06:58:53.899Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126926848,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 115314688,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129454080,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371695616,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 485173184
+    },
+    {
+      "observed_utc": "2026-11-01T06:59:53.889Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126943232,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 115359744,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129470464,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371773440,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 485218504
+    },
+    {
+      "observed_utc": "2026-11-01T07:00:53.889Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126943232,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 115367936,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129470464,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371781632,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 485276184
+    },
+    {
+      "observed_utc": "2026-11-01T07:01:53.888Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126320640,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113127424,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128872448,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368320512,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 485333864
+    },
+    {
+      "observed_utc": "2026-11-01T07:02:53.890Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126332928,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113221632,
+          "cpu_percent": 0.3
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128872448,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368427008,
+      "total_relay_cpu_percent": 0.5,
+      "scratch_bytes": 485403904
+    },
+    {
+      "observed_utc": "2026-11-01T07:03:53.888Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126337024,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113311744,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128880640,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368529408,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485494544
+    },
+    {
+      "observed_utc": "2026-11-01T07:04:53.888Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126337024,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113483776,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128880640,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368701440,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485568704
+    },
+    {
+      "observed_utc": "2026-11-01T07:05:53.903Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126349312,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113553408,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128884736,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368787456,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485667584
+    },
+    {
+      "observed_utc": "2026-11-01T07:06:53.891Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126353408,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113659904,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128913408,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368926720,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485754104
+    },
+    {
+      "observed_utc": "2026-11-01T07:07:53.890Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126353408,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113668096,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128913408,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368934912,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485828264
+    },
+    {
+      "observed_utc": "2026-11-01T07:08:53.898Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126353408,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113668096,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128913408,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 368934912,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485902424
+    },
+    {
+      "observed_utc": "2026-11-01T07:09:53.903Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126353408,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113786880,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128913408,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369053696,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 485988944
+    },
+    {
+      "observed_utc": "2026-11-01T07:10:53.886Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126337024,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113823744,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 128950272,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369111040,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486050744
+    },
+    {
+      "observed_utc": "2026-11-01T07:11:53.895Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126337024,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113860608,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129011712,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369209344,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486112544
+    },
+    {
+      "observed_utc": "2026-11-01T07:12:53.890Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126369792,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113905664,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129011712,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369287168,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486199064
+    },
+    {
+      "observed_utc": "2026-11-01T07:13:53.901Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126369792,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113930240,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129011712,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369311744,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486256744
+    },
+    {
+      "observed_utc": "2026-11-01T07:14:53.901Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126369792,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113938432,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129011712,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369319936,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486326784
+    },
+    {
+      "observed_utc": "2026-11-01T07:15:53.907Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126390272,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113950720,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129011712,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369352704,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486384464
+    },
+    {
+      "observed_utc": "2026-11-01T07:16:53.897Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126550016,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 113983488,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129024000,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369557504,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486454504
+    },
+    {
+      "observed_utc": "2026-11-01T07:17:53.891Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126550016,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114032640,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129024000,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369606656,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486536904
+    },
+    {
+      "observed_utc": "2026-11-01T07:18:53.896Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126550016,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114073600,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129024000,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369647616,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486594584
+    },
+    {
+      "observed_utc": "2026-11-01T07:19:53.892Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126550016,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114102272,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129024000,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369676288,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486652264
+    },
+    {
+      "observed_utc": "2026-11-01T07:20:53.890Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126550016,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114139136,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129024000,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369713152,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486800056
+    },
+    {
+      "observed_utc": "2026-11-01T07:21:53.893Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126562304,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114163712,
+          "cpu_percent": 0.2
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129024000,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369750016,
+      "total_relay_cpu_percent": 0.4,
+      "scratch_bytes": 486882456
+    },
+    {
+      "observed_utc": "2026-11-01T07:22:53.888Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126562304,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114204672,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129064960,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369831936,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486940136
+    },
+    {
+      "observed_utc": "2026-11-01T07:23:53.906Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126566400,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114282496,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129064960,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369913856,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 486997816
+    },
+    {
+      "observed_utc": "2026-11-01T07:24:53.894Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126574592,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114311168,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129064960,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 369950720,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487067856
+    },
+    {
+      "observed_utc": "2026-11-01T07:25:53.904Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126640128,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114335744,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129064960,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370040832,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487137896
+    },
+    {
+      "observed_utc": "2026-11-01T07:26:53.888Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126672896,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114368512,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129064960,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370106368,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487207936
+    },
+    {
+      "observed_utc": "2026-11-01T07:27:53.899Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126676992,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114417664,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129064960,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370159616,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487282096
+    },
+    {
+      "observed_utc": "2026-11-01T07:28:53.908Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126681088,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114462720,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129064960,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370208768,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487376856
+    },
+    {
+      "observed_utc": "2026-11-01T07:29:53.936Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126705664,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114466816,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129114112,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370286592,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487446896
+    },
+    {
+      "observed_utc": "2026-11-01T07:30:53.898Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126722048,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114475008,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129118208,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370315264,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487529296
+    },
+    {
+      "observed_utc": "2026-11-01T07:31:53.893Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126746624,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114507776,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129138688,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370393088,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487624056
+    },
+    {
+      "observed_utc": "2026-11-01T07:32:53.895Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126898176,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114511872,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129138688,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370548736,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487694096
+    },
+    {
+      "observed_utc": "2026-11-01T07:33:53.886Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126898176,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114536448,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129138688,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370573312,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487764136
+    },
+    {
+      "observed_utc": "2026-11-01T07:34:53.895Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 126967808,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 118915072,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129138688,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 375021568,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487834176
+    },
+    {
+      "observed_utc": "2026-11-01T07:35:53.899Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127004672,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114450432,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129200128,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370655232,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487904216
+    },
+    {
+      "observed_utc": "2026-11-01T07:36:53.899Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127049728,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114479104,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129200128,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370728960,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 487986616
+    },
+    {
+      "observed_utc": "2026-11-01T07:37:53.896Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127057920,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114503680,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129212416,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370774016,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488056656
+    },
+    {
+      "observed_utc": "2026-11-01T07:38:53.911Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127057920,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114515968,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129212416,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370786304,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488139056
+    },
+    {
+      "observed_utc": "2026-11-01T07:39:53.900Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127057920,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114515968,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129228800,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370802688,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488209096
+    },
+    {
+      "observed_utc": "2026-11-01T07:40:53.895Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127057920,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114520064,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129253376,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 370831360,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488266776
+    },
+    {
+      "observed_utc": "2026-11-01T07:41:53.894Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127242240,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114585600,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129253376,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371081216,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488336816
+    },
+    {
+      "observed_utc": "2026-11-01T07:42:53.893Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127262720,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114610176,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129253376,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371126272,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488447720
+    },
+    {
+      "observed_utc": "2026-11-01T07:43:53.896Z",
+      "relay_processes": [
+        {
+          "pid": 3532839,
+          "rss_bytes": 127270912,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 733111,
+          "rss_bytes": 114630656,
+          "cpu_percent": 0.1
+        },
+        {
+          "pid": 3533762,
+          "rss_bytes": 129273856,
+          "cpu_percent": 0.1
+        }
+      ],
+      "total_relay_rss_bytes": 371175424,
+      "total_relay_cpu_percent": 0.3,
+      "scratch_bytes": 488447720
+    }
+  ],
+  "started_utc": "2026-11-01T02:44:55.083Z",
+  "ended_utc": "2026-11-01T07:44:53.637Z",
+  "duration_observed_seconds": 17998.554,
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "setup_completed_utc": "2026-11-01T02:44:55.083Z",
+  "resource_budget": {
+    "available_memory_at_start_bytes": 6411698176,
+    "max_relay_rss_bytes": 4488188723,
+    "max_scratch_bytes": 2147483648
+  },
+  "hangout_deduplication": {
+    "verified": true,
+    "event_id": "22bd04e2be296ac346b19d2862810873e716701e2d85a91a123f4eca5fc93105",
+    "nodes": [
+      {
+        "label": "soak bridge P12",
+        "event_cards": 1
+      },
+      {
+        "label": "soak bridge P23",
+        "event_cards": 1
+      }
+    ]
+  },
+  "idle_lock_public_bridge": {
+    "verified": true,
+    "observed_utc": "2026-11-01T03:14:55.936Z",
+    "nodes": [
+      {
+        "label": "soak bridge P12",
+        "locked_status_visible": true,
+        "secret_cleared_from_ui": true,
+        "public_bridge_subscriptions": 63
+      },
+      {
+        "label": "soak bridge P23",
+        "locked_status_visible": true,
+        "secret_cleared_from_ui": true,
+        "public_bridge_subscriptions": 63
+      }
+    ]
+  },
+  "p95_publish_to_final_relay_ms": 168,
+  "probe_interval_observed_seconds": 60.4,
+  "post_restart_probe_count": 59,
+  "page_errors": [],
+  "locked_bridge_stop": {
+    "verified": true,
+    "nodes": [
+      {
+        "label": "soak bridge P12",
+        "stop_control_used": true,
+        "relay_sockets_closed": true
+      },
+      {
+        "label": "soak bridge P23",
+        "stop_control_used": true,
+        "relay_sockets_closed": true
+      }
+    ]
+  },
+  "full_5h_gate_eligible": true
+}

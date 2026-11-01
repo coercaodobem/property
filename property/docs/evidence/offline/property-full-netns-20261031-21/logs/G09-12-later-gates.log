@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/later-gates.mjs --manifest /home/REDACTED<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-full-netns-20261031-21/manifest.json --output /home/REDACTED<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-full-netns-20261031-21
+started: 2026-11-01T02:41:41.668Z
+ended: 2026-11-01T07:45:10.168Z
+exit_code: 0
+signal: 
+timeout: false
+error: 
+--- stdout ---
+{"result":"RECORDED","cases":23,"report":"/home/REDACTED<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/later-gates-report.json"}
+
+--- stderr ---

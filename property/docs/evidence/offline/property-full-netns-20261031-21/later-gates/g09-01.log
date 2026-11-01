@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/g09-campaign-crash-smoke.mjs 28500 /home/REDACTED/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/g09-01
+started: 2026-11-01T02:41:41.779Z
+ended: 2026-11-01T02:41:51.203Z
+exit_code: 0
+signal: 
+timeout: false
+--- stdout ---
+{"schema_version":1,"result":"PASS","case":"G09-01","abrupt_campaign_crashes":2,"state_after_first_crash":"awaiting_payment","state_after_second_crash":"published","publication_calls_after_recovery":0,"relay_campaign_copies":1,"campaign_event_id":"5230c3b3c7aafcdaa0ad394810ceeeb317134dcccfb7284092c166fb3cf58ab4","relay_url":"ws://127.0.0.1:28500","temp_state_private":true}
+
+--- stderr ---
+

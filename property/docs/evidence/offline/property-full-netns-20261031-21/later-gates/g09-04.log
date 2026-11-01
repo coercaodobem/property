@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/g09-hostile-events-smoke.mjs 28502 /home/REDACTED/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/g09-04
+started: 2026-11-01T02:42:05.674Z
+ended: 2026-11-01T02:42:14.674Z
+exit_code: 0
+signal: 
+timeout: false
+--- stdout ---
+{"schema_version":1,"case":"G09-04","result":"PASS","relay_duplicate_copies":1,"invalid_signature_rejected":true,"oversized_event_forwarded":false,"bridge_events_accepted_before_quota":60,"corpus_recovered_after_hostile_input":true,"persisted_event_ids":["61ba782b70d7ffad0e11140171d6beb6110ef5de4a12fdc10dff943a10847ea3","ade0991d2e21fd0d64affca8851cde056620001f44b513bdd9cc2816d80b67cd"]}
+
+--- stderr ---
+
