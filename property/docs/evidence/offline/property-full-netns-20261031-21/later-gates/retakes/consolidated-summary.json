@@ -760,36 +760,40 @@
     "G12-02": {
       "status": "BLOCKED",
       "gate_eligible": false,
-      "reason": "Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (G12). Não há execução Windows x64 real nem VM Windows neste host Linux.",
+      "reason": "No Windows x64 host or VM, PowerShell, or compatible local emulator is available. GitHub Windows CI is connected and supplemental only.",
       "evidence": [
-        "later-gates/later-gates-report.json"
+        "later-gates/later-gates-report.json",
+        "later-gates/retakes/G12-environment-inventory.json"
       ],
       "observed": "{\"host_platform\":\"linux\",\"windows_vm_available\":false}"
     },
     "G12-03": {
       "status": "BLOCKED",
       "gate_eligible": false,
-      "reason": "Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (G12). Não há macOS Apple Silicon nem VM compatível neste host Linux x86_64.",
+      "reason": "No macOS Apple Silicon host or compatible VM is available. GitHub macOS CI is connected and supplemental only.",
       "evidence": [
-        "later-gates/later-gates-report.json"
+        "later-gates/later-gates-report.json",
+        "later-gates/retakes/G12-environment-inventory.json"
       ],
       "observed": "{\"host_platform\":\"linux\",\"host_arch\":\"x64\",\"macos_vm_available\":false}"
     },
     "G12-04": {
       "status": "BLOCKED",
       "gate_eligible": false,
-      "reason": "Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (G12). ADB/emulador Android não está instalado ou conectado neste host.",
+      "reason": "No Android SDK/emulator, ADB, USB device tree, or connected Android lab device is available.",
       "evidence": [
-        "later-gates/later-gates-report.json"
+        "later-gates/later-gates-report.json",
+        "later-gates/retakes/G12-environment-inventory.json"
       ],
       "observed": "{\"adb_available\":false,\"device_test_available\":false}"
     },
     "G12-05": {
       "status": "BLOCKED",
       "gate_eligible": false,
-      "reason": "Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (G12). Simulador iOS exige Xcode/macOS; xcrun não existe neste host Linux.",
+      "reason": "No macOS/Xcode, xcrun, iOS simulator, or attached iOS lab device is available.",
       "evidence": [
-        "later-gates/later-gates-report.json"
+        "later-gates/later-gates-report.json",
+        "later-gates/retakes/G12-environment-inventory.json"
       ],
       "observed": "{\"xcrun_available\":false,\"ios_simulator_available\":false}"
     },
@@ -843,22 +847,22 @@
     {
       "case": "G12-02",
       "status": "BLOCKED",
-      "reason": "Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (G12). Não há execução Windows x64 real nem VM Windows neste host Linux."
+      "reason": "No Windows x64 host or VM, PowerShell, or compatible local emulator is available. GitHub Windows CI is connected and supplemental only."
     },
     {
       "case": "G12-03",
       "status": "BLOCKED",
-      "reason": "Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (G12). Não há macOS Apple Silicon nem VM compatível neste host Linux x86_64."
+      "reason": "No macOS Apple Silicon host or compatible VM is available. GitHub macOS CI is connected and supplemental only."
     },
     {
       "case": "G12-04",
       "status": "BLOCKED",
-      "reason": "Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (G12). ADB/emulador Android não está instalado ou conectado neste host."
+      "reason": "No Android SDK/emulator, ADB, USB device tree, or connected Android lab device is available."
     },
     {
       "case": "G12-05",
       "status": "BLOCKED",
-      "reason": "Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (G12). Simulador iOS exige Xcode/macOS; xcrun não existe neste host Linux."
+      "reason": "No macOS/Xcode, xcrun, iOS simulator, or attached iOS lab device is available."
     },
     {
       "case": "EXECUTOR_IDENTITY",
@@ -866,5 +870,5 @@
       "reason": "Requested Luna Max; actual Codex GPT-6."
     }
   ],
-  "generated_utc": "2026-11-01T08:52:48.287Z"
+  "generated_utc": "2026-11-01T08:58:09.464Z"
 }

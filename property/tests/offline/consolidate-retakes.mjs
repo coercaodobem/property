@@ -41,6 +41,18 @@ if(installFallback?.status==='PASS'&&installObservation.viewport_fallback==='PAS
   installFallback.reason='Independent PWA installation fallback case passed; it does not depend on native platform availability.';
 }
 
+const platformInventoryPath='later-gates/retakes/G12-environment-inventory.json';
+let platformInventory=null;
+try{platformInventory=await load(platformInventoryPath);}catch(error){if(error.code!=='ENOENT')throw error;}
+if(platformInventory){
+  for(const [id,diagnosis] of Object.entries(platformInventory.case_status||{})){
+    const row=byCase.get(id);
+    if(row?.status!=='BLOCKED'||diagnosis.status!=='BLOCKED')continue;
+    row.reason=diagnosis.reason;
+    row.evidence=[...new Set([...(row.evidence||[]),platformInventoryPath])];
+  }
+}
+
 const soak=await load('later-gates/g11-03/g11-multirelay-soak-report.json');
 const soakRow=byCase.get('G11-03');
 assert.equal(soak.status,'PASS','the existing five-hour soak is not PASS');

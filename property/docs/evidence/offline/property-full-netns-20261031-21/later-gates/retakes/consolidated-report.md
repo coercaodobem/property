@@ -31,8 +31,8 @@
 
 ## Remaining blockers
 
-- G12-02: BLOCKED — Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (G12). Não há execução Windows x64 real nem VM Windows neste host Linux.
-- G12-03: BLOCKED — Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (G12). Não há macOS Apple Silicon nem VM compatível neste host Linux x86_64.
-- G12-04: BLOCKED — Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (G12). ADB/emulador Android não está instalado ou conectado neste host.
-- G12-05: BLOCKED — Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (G12). Simulador iOS exige Xcode/macOS; xcrun não existe neste host Linux.
+- G12-02: BLOCKED — No Windows x64 host or VM, PowerShell, or compatible local emulator is available. GitHub Windows CI is connected and supplemental only.
+- G12-03: BLOCKED — No macOS Apple Silicon host or compatible VM is available. GitHub macOS CI is connected and supplemental only.
+- G12-04: BLOCKED — No Android SDK/emulator, ADB, USB device tree, or connected Android lab device is available.
+- G12-05: BLOCKED — No macOS/Xcode, xcrun, iOS simulator, or attached iOS lab device is available.
 - EXECUTOR_IDENTITY: BLOCKED — Requested Luna Max; actual Codex GPT-6.

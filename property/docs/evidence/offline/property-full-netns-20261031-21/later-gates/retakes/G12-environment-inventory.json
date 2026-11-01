@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "checked_at_utc": "2026-11-01T08:57:43Z",
+  "checkout_commit": "5e886939e99ac24102e26ffc7026cdc3d444c4ca",
+  "host": {
+    "os": "linux",
+    "architecture": "x86_64"
+  },
+  "local_vm": {
+    "docker_daemon": "available",
+    "docker_server": "linux/x86_64",
+    "docker_server_version": "29.1.3",
+    "kvm": false,
+    "qemu_x86_64": false,
+    "qemu_aarch64": false,
+    "windows_vm": false,
+    "macos_vm": false
+  },
+  "target_tools": {
+    "powershell": false,
+    "pwsh": false,
+    "adb": false,
+    "android_emulator": false,
+    "android_sdk": false,
+    "xcrun": false,
+    "xcodebuild": false,
+    "ios_simulator": false,
+    "usb_device_tree": false
+  },
+  "case_status": {
+    "G12-02": {
+      "status": "BLOCKED",
+      "reason": "No Windows x64 host or VM, PowerShell, or compatible local emulator is available. GitHub Windows CI is connected and supplemental only."
+    },
+    "G12-03": {
+      "status": "BLOCKED",
+      "reason": "No macOS Apple Silicon host or compatible VM is available. GitHub macOS CI is connected and supplemental only."
+    },
+    "G12-04": {
+      "status": "BLOCKED",
+      "reason": "No Android SDK/emulator, ADB, USB device tree, or connected Android lab device is available."
+    },
+    "G12-05": {
+      "status": "BLOCKED",
+      "reason": "No macOS/Xcode, xcrun, iOS simulator, or attached iOS lab device is available."
+    }
+  },
+  "supplemental_ci": {
+    "run_id": 41290734025,
+    "conclusion": "success",
+    "connected_runner": true,
+    "eligible_for_offline_g12_approval": false,
+    "url": "https://github.com/coercaodobem/property/actions/runs/41290734025"
+  }
+}
