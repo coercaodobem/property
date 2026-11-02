@@ -1,5 +1,9 @@
 # Property
 
+<p align="center">
+  <img src="web/assets/property-brand.png" alt="Identidade visual do Property" width="320">
+</p>
+
 Cliente Nostr com interface PWA, identidade criada e protegida localmente, mensagens privadas NIP-17 e conexão direta com relays. Esta pasta reúne o app web, os comandos de relay para Linux, Windows e macOS Apple Silicon e a documentação de adaptação do Amethyst.
 
 ## Estado da branch `modelo-mvp`

@@ -1,5 +1,9 @@
 # Property
 
+<p align="center">
+  <img src="property/web/assets/property-brand.png" alt="Identidade visual do Property" width="320">
+</p>
+
 Comunicação pela internet com Nostr, mensagens privadas criptografadas e identidade controlada pela pessoa. O Property é um projeto independente em desenvolvimento, com interface web instalável (PWA) e relay portátil para Linux x86_64, Windows x64 e macOS Apple Silicon, construído a partir de código do Amethyst.
 
 **[Abrir o app](https://coercaodobem.github.io/property/) · [Como contribuir](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Reportar um problema](https://github.com/coercaodobem/property/issues/new/choose)**
