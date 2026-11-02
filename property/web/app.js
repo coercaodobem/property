@@ -255,7 +255,7 @@
   function scheduleReconnect(url, attempts) {
     if ((!state.pubkey && !(state.bridgeEnabled && state.relays.includes(url))) || !effectiveRelayUrls().includes(url)) return;
     const count = attempts || 1;
-    const delay = Math.min(30000, 1000 * (2 ** Math.min(count - 1, 5))) + Math.floor(Math.random() * 500);
+    const delay = Math.min(25000, 1000 * (2 ** Math.min(count - 1, 5))) + Math.floor(Math.random() * 500);
     state.reconnectTimers.set(url, setTimeout(() => connectRelay(url), delay));
   }
   async function connectAllRelays() {

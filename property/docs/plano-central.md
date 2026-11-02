@@ -9,7 +9,7 @@ Entregar um cliente Nostr chamado Property que funcione como PWA em navegadores 
 
 Este documento organiza a execução. A visão do produto está em [identidade-do-projeto.md](identidade-do-projeto.md); os critérios verificáveis estão em [plano-de-testes-central.md](plano-de-testes-central.md).
 
-**Diretriz de validação offline (2026-10-31):** o executor previsto é **Luna Max**. O plano de testes passa a exigir gates G00–G12, internet bloqueada, jornadas pelo app real, topologia de sete relays locais e pontes, falhas controladas e redes financeiras privadas. O objetivo é **PROPERTY_SCOPE_OFFLINE_PASS**, sem ignorar funções pendentes para aprovar. Resultados anteriores são históricos, não aprovação dos novos gates. Ferramentas ou plataformas ausentes bloqueiam a certificação correspondente; publicação pública e homologação física adicional têm evidência separada.
+**Diretriz de validação offline (2026-10-31; escopo de execução atualizado em 2026-11-02):** o executor previsto é **Luna Max**. O plano de testes exige gates G00–G12, internet bloqueada, jornadas pelo app real, topologia de sete relays locais e pontes, falhas controladas e redes financeiras privadas. O objetivo de certificação completa continua **PROPERTY_SCOPE_OFFLINE_PASS**, sem ignorar funções pendentes. Nesta etapa, execute todos os casos disponíveis no Ubuntu; testes nativos de Windows, macOS, Android e iOS/iPadOS ficam PENDING e não interrompem o avanço nem a aprovação do perfil Ubuntu. Resultados anteriores são históricos, não aprovação dos novos gates. Ferramentas ou plataformas ausentes bloqueiam apenas a certificação do perfil correspondente; publicação pública e homologação física adicional têm evidência separada.
 
 ## Decisões consolidadas
 
@@ -102,7 +102,7 @@ Para reconstituir a base upstream em uma auditoria separada: clonar `vitorpamplo
 - Permitir colaboração do celular somente como ação voluntária e de melhor esforço enquanto a PWA está ativa: encaminhar eventos públicos assinados entre relays escolhidos e encaminhar gift wraps NIP-17 somente quando destinados à identidade local, e somente para os inbox relays dessa identidade. A ponte exclui o relay de origem, deduplica IDs, verifica assinatura/idade/tipo e limita encaminhamento a 60 eventos e 2 MB de tráfego de saída por minuto, contando cada destino. Não apresentar a PWA móvel como relay público de entrada sempre ligado.
 - Não divulgar o celular como relay sempre ligado nem exigir tela acesa, root ou serviço pago.
 
-**Gate:** ensaio operacional G11-03 de até cinco horas, com três reinícios e retomada idempotente aprovados para o node de PC; comportamento móvel documentado como best effort.
+**Gate:** ensaio operacional G11-03 de 24 horas, com três reinícios e retomada idempotente aprovados para o node de PC; comportamento móvel documentado como best effort.
 
 ### 6. Hangout, marketplace e sustentabilidade
 
@@ -116,7 +116,7 @@ Para reconstituir a base upstream em uma auditoria separada: clonar `vitorpamplo
 
 ### 7. Beta e lançamento
 
-- O Luna Max executa integralmente o [plano de testes central](plano-de-testes-central.md), constrói o harness faltante, corrige falhas dentro do escopo autorizado e guarda evidência sanitizada por requisito/caso/gate. Primeiro obter PROPERTY_SCOPE_OFFLINE_PASS; função ausente, caso ignorado ou plataforma indisponível impedem aprovação integral.
+- O Luna Max executa o [plano de testes central](plano-de-testes-central.md), constrói o harness faltante, corrige falhas dentro do escopo autorizado e guarda evidência sanitizada por requisito/caso/gate. Primeiro concluir PROPERTY_UBUNTU_OFFLINE_PASS; os casos nativos de outros sistemas ficam pendentes para uma etapa posterior. Função ausente ou caso exigido no perfil atual sem execução impede a aprovação desse perfil.
 - Fazer revisão independente de criptografia, identidade, cadeia de dependências, código copiado e permissões do node.
 - Só então preparar site institucional e distribuição pública no GitHub Pages, com release versionada, origem/commit visíveis e procedimento de recuperação/atualização.
 
@@ -162,4 +162,4 @@ Por solicitação posterior do mantenedor, BTC é moeda aceita nas ofertas e cam
 
 ### Resultado da matriz de computador
 
-A execução [41186913676](https://github.com/coercaodobem/property/actions/runs/41186913676), no commit `31956a60c485d77629cc6e549026822d05a7ae56`, concluiu as quatro jobs com sucesso: 12 suítes smoke e integração nativa em Linux x86_64, Windows x64 e macOS arm64. Cada relay usou seu Java incluído e preservou eventos após reinício. O primeiro erro Windows foi corrigido sem desabilitar a verificação de hash. Ver [registro sanitizado](evidence/native-platforms-2026-10-31.json). Não equivale ao ensaio G11-03 atual de até cinco horas nem a teste físico de Android/iOS.
+A execução [41186913676](https://github.com/coercaodobem/property/actions/runs/41186913676), no commit `31956a60c485d77629cc6e549026822d05a7ae56`, concluiu as quatro jobs com sucesso: 12 suítes smoke e integração nativa em Linux x86_64, Windows x64 e macOS arm64. Cada relay usou seu Java incluído e preservou eventos após reinício. O primeiro erro Windows foi corrigido sem desabilitar a verificação de hash. Ver [registro sanitizado](evidence/native-platforms-2026-10-31.json). Não equivale ao ensaio G11-03 atual de 24 horas nem a teste físico de Android/iOS.

@@ -871,6 +871,7 @@ export function deriveGateStatus(rows) {
   if (rows.some(row => row.status === 'FAIL')) return 'FAIL';
   if (rows.some(row => row.status === 'BLOCKED')) return 'BLOCKED';
   if (rows.some(row => row.status === 'NOT_RUN')) return 'NOT_RUN';
+  if (rows.some(row => row.status === 'PENDING')) return 'PENDING';
   if (rows.some(row => row.gate_eligible !== true)) return 'BLOCKED';
   return rows.length > 0 && rows.every(row => row.status === 'PASS') ? 'PASS' : 'NOT_RUN';
 }
@@ -889,7 +890,7 @@ export function deriveLaterGateEligibility(parentRows, laterRows) {
   };
 }
 
-function buildSummary(cases, profile, manifest, inventory, isolation) {
+export function buildSummary(cases, profile, manifest, inventory, isolation) {
   const rows = [...cases.values()];
   const gates = Object.fromEntries(GATES.map(gate => [
     gate,
@@ -899,6 +900,19 @@ function buildSummary(cases, profile, manifest, inventory, isolation) {
   const executorMatches = manifest.actual_executor.trim().toLowerCase() === manifest.requested_executor.trim().toLowerCase();
   const scopePass = allPass && Object.values(gates).every(status => status === 'PASS') && executorMatches;
   const hasFailure = rows.some(row => row.status === 'FAIL');
+  const deferredPlatforms = new Set(['G12-02', 'G12-03', 'G12-04', 'G12-05']);
+  const deferredPlatformsPending = [...deferredPlatforms].every(caseId => {
+    const row = cases.get(caseId);
+    return row?.status === 'PENDING' && row.gate_eligible === false;
+  });
+  const ubuntuRequiredRows = rows.filter(row => !deferredPlatforms.has(row.case));
+  const ubuntuRequiredPass = ubuntuRequiredRows.length > 0 && ubuntuRequiredRows.every(row => row.status === 'PASS' && row.gate_eligible === true);
+  const ubuntuGatePass = [...Array.from({ length: 12 }, (_, index) => `G${String(index).padStart(2, '0')}`), 'G12']
+    .every(gate => gates[gate] === 'PASS' || (gate === 'G12' && gates.G12 === 'PENDING' &&
+      cases.get('G12-01')?.status === 'PASS' && cases.get('G12-06')?.status === 'PASS'));
+  const ubuntuScopePass = profile === 'full' && ubuntuRequiredPass && deferredPlatformsPending && ubuntuGatePass && isolation.verdict === 'PASS';
+  const result = scopePass ? 'PROPERTY_SCOPE_OFFLINE_PASS' : hasFailure ? 'FAIL' :
+    ubuntuScopePass ? 'PROPERTY_UBUNTU_OFFLINE_PASS' : 'BLOCKED';
   return {
     schema_version: 1,
     run_id: manifest.run_id,
@@ -917,8 +931,10 @@ function buildSummary(cases, profile, manifest, inventory, isolation) {
       return totals;
     }, {}),
     isolation: isolation.verdict,
-    scope_result: scopePass ? 'PROPERTY_SCOPE_OFFLINE_PASS' : (hasFailure ? 'FAIL' : 'BLOCKED'),
-    exit_code: scopePass ? 0 : (hasFailure ? 1 : 2)
+    ubuntu_scope_pass: ubuntuScopePass,
+    deferred_platform_cases: [...deferredPlatforms],
+    scope_result: result,
+    exit_code: result === 'PROPERTY_SCOPE_OFFLINE_PASS' || result === 'PROPERTY_UBUNTU_OFFLINE_PASS' ? 0 : hasFailure ? 1 : 2
   };
 }
 
@@ -1772,12 +1788,12 @@ async function runPlatformsProfile(options, manifest, cases, inventory, isolatio
       row.evidence = [sourcePath];
       continue;
     }
-    row.status = 'BLOCKED';
+    row.status = source?.status === 'PENDING' ? 'PENDING' : 'BLOCKED';
     row.gate_eligible = false;
     row.reason = !sameCandidate ? 'A same-candidate core report is required before platform evidence can be inherited.' :
       !priorGatesPass ? 'G00–G11 must all pass before the native platform matrix is eligible.' :
       isolation.verdict !== 'PASS' ? 'Network isolation was not proven for the platform profile.' :
-      source?.status === 'BLOCKED' ? source.reason : 'No passing native platform evidence exists for this case.';
+      source?.status === 'PENDING' ? source.reason : source?.status === 'BLOCKED' ? source.reason : 'No passing native platform evidence exists for this case.';
     row.observed = JSON.stringify({ source_case_status: source?.status || 'MISSING', core_report: sourcePath,
       host_platform: process.platform, host_arch: process.arch });
     row.evidence = source ? [sourcePath] : [];

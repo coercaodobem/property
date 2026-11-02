@@ -82,11 +82,11 @@ async function startAppServer(state) {
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end('<!doctype html><title>local seed page</title>');
         return;
       }
-      if (url.pathname.endsWith('/_property_test/update-v14.js')) {
-        response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }).end('window.__propertyUpdateV14 = true;');
+      if (url.pathname.endsWith('/_property_test/update-v16.js')) {
+        response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }).end('window.__propertyUpdateV16 = true;');
         return;
       }
-      if (url.pathname.endsWith('/_property_test/interrupted-v15.js') || url.pathname.endsWith('/_property_test/mixed-v16.js')) {
+      if (url.pathname.endsWith('/_property_test/interrupted-v17.js') || url.pathname.endsWith('/_property_test/mixed-v18.js')) {
         response.writeHead(503, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }).end('offline update fixture unavailable');
         return;
       }
@@ -98,15 +98,15 @@ async function startAppServer(state) {
       let body = await readFile(target);
       if (path.basename(target) === 'sw.js' && state.update_version) {
         const version = state.update_version;
-        const asset = version === 'v14' ? './_property_test/update-v14.js' :
-          version === 'v15' ? './_property_test/interrupted-v15.js' : './_property_test/mixed-v16.js';
+        const asset = version === 'v16' ? './_property_test/update-v16.js' :
+          version === 'v17' ? './_property_test/interrupted-v17.js' : './_property_test/mixed-v18.js';
         const source = body.toString('utf8')
-          .replaceAll('property-shell-v14', `property-shell-${version}`)
-          .replaceAll('property-v14', `property-${version}`)
+          .replaceAll('property-shell-v15', `property-shell-${version}`)
+          .replaceAll('property-v15', `property-${version}`)
           .replace('const SHELL = [', `const SHELL = ['${asset}', `);
         body = Buffer.from(source);
       } else if (path.basename(target) === 'index.html' && state.update_version) {
-        body = Buffer.from(body.toString('utf8').replaceAll('property-v12', `property-${state.update_version}`));
+        body = Buffer.from(body.toString('utf8').replaceAll('property-v15', `property-${state.update_version}`));
       }
       const types = new Map([['.css', 'text/css; charset=utf-8'], ['.html', 'text/html; charset=utf-8'],
         ['.js', 'text/javascript; charset=utf-8'], ['.json', 'application/json; charset=utf-8'],
@@ -359,34 +359,34 @@ async function main() {
     await page.locator('#save-profile').click();
     await page.evaluate(async () => { const cache = await caches.open('another-app-data'); await cache.put('/sentinel', new Response('keep')); });
     const beforeCaches = await page.evaluate(() => caches.keys());
-    assert.ok(beforeCaches.includes('property-shell-v14'));
-    appServer.state.update_version = 'v14';
+    assert.ok(beforeCaches.includes('property-shell-v15'));
+    appServer.state.update_version = 'v16';
     const successfulUpdate = await updateServiceWorker(page);
     assert.equal(successfulUpdate.state, 'activated', 'complete update activates');
-    await page.waitForFunction(async () => (await caches.keys()).includes('property-shell-v14'), null, { timeout: 10000 });
+    await page.waitForFunction(async () => (await caches.keys()).includes('property-shell-v16'), null, { timeout: 10000 });
     const afterUpdate = await page.evaluate(() => caches.keys());
-    assert.equal(afterUpdate.includes('property-shell-v14'), false, 'old Property cache is retired after activation');
+    assert.equal(afterUpdate.includes('property-shell-v15'), false, 'old Property cache is retired after activation');
     assert.equal(afterUpdate.includes('another-app-data'), true, 'unrelated application cache is preserved');
     assert.equal((await page.locator('#profile-npub').textContent()).trim(), npub, 'identity is unchanged after full update');
     assert.equal((await page.locator('#profile-name').inputValue()), 'Conta de atualização');
 
-    appServer.state.update_version = 'v15';
+    appServer.state.update_version = 'v17';
     const interruptedUpdate = await updateServiceWorker(page);
     assert.ok(['redundant', 'timeout:installing', 'timeout:redundant'].includes(interruptedUpdate.state),
       `interrupted update must not activate: ${interruptedUpdate.state}`);
-    assert.ok(interruptedUpdate.cache_names.includes('property-shell-v14'), 'previous complete shell remains cached');
-    assert.equal(interruptedUpdate.cache_names.includes('property-shell-v15'), false, 'partial interrupted cache is removed');
+    assert.ok(interruptedUpdate.cache_names.includes('property-shell-v16'), 'previous complete shell remains cached');
+    assert.equal(interruptedUpdate.cache_names.includes('property-shell-v17'), false, 'partial interrupted cache is removed');
     assert.equal((await page.locator('#profile-npub').textContent()).trim(), npub);
 
-    appServer.state.update_version = 'v16';
+    appServer.state.update_version = 'v18';
     const mixedUpdate = await updateServiceWorker(page);
     assert.ok(['redundant', 'timeout:installing', 'timeout:redundant'].includes(mixedUpdate.state),
       `mixed package with a missing required asset must not activate: ${mixedUpdate.state}`);
-    assert.ok(mixedUpdate.cache_names.includes('property-shell-v14'), 'last complete shell remains active after mixed package rejection');
-    assert.equal(mixedUpdate.cache_names.includes('property-shell-v16'), false, 'partial mixed cache is removed');
+    assert.ok(mixedUpdate.cache_names.includes('property-shell-v16'), 'last complete shell remains active after mixed package rejection');
+    assert.equal(mixedUpdate.cache_names.includes('property-shell-v18'), false, 'partial mixed cache is removed');
     assert.equal((await page.locator('#profile-npub').textContent()).trim(), npub);
     assert.ok(afterUpdate.includes('another-app-data'));
-    report.update_checks = { previous_cache: 'property-shell-v14', successful_update: successfulUpdate,
+    report.update_checks = { previous_cache: 'property-shell-v15', successful_update: successfulUpdate,
       after_success_cache_names: afterUpdate, interrupted_update: interruptedUpdate, mixed_update: mixedUpdate,
       identity_preserved: true, unrelated_cache_preserved: true };
     setCase('G02-04', 'PASS', 'Complete update activated; interrupted and mixed packages were rejected while the previous shell, identity and unrelated cache remained available.');

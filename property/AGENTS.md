@@ -25,6 +25,6 @@ Inspect current source before making claims about behavior. Evidence and status 
 
 - For JavaScript web or relay implementation changes, the Property smoke suite is `bash property/tests/run-smoke.sh` (Node.js 22 or newer). Run it when requested or when the applicable task/repository gate requires it; report the exact command and result.
 - For visible web UI changes, inspect the changed flow in a browser at the relevant viewport. A source check or unit test is not device validation.
-- Relay integration and soak runs are separate from the smoke suite. Run a long soak only when the task scope or explicit authorization includes it; the documented maximum is five hours.
+- Relay integration and soak runs are separate from the smoke suite. Run a long soak only when the task scope or explicit authorization includes it. The standalone single-relay diagnostic is capped at five hours; the central G11-03 plan may explicitly require a longer multi-relay soak (currently 24 real hours).
 - For documentation-only changes, check the changed relative links and commands. Do not claim tests, device checks, deployment, or live behavior without evidence.
 - Keep changes focused. Report changed paths, the validation actually performed, and any remaining platform or deployment limits.

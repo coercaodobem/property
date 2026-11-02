@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { access, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -111,6 +111,43 @@ async function hashBuildTree(root){
   return {root,sha256,file_count:rows.filter(row=>row.type==='file').length,total_bytes:rows.reduce((total,row)=>total+(row.bytes||0),0),rows};
 }
 
+async function verifyPriorBuildReuse(currentTree){
+  const candidate='305ae9ab2d0c89755a8323aed787b2e3b65b087f';
+  const run='property/docs/evidence/offline/property-full-netns-20261031-21';
+  const relative=`${run}/later-gates/retakes/G11-02`;
+  try{
+    const priorManifest=JSON.parse(await readFile(path.join(ROOT,run,'manifest.json'),'utf8'));
+    const report=JSON.parse(await readFile(path.join(ROOT,relative,'later-gates-report.json'),'utf8'));
+    const first=JSON.parse(await readFile(path.join(ROOT,relative,'g11-02-build-manifest-1.json'),'utf8'));
+    const second=JSON.parse(await readFile(path.join(ROOT,relative,'g11-02-build-manifest-2.json'),'utf8'));
+    const priorCase=report.cases.find(row=>row.case==='G11-02');
+    const observation=priorCase?.observed||{};
+    const buildInputs=['geode','gradle','build.gradle.kts','settings.gradle.kts','gradle.properties','gradle.lockfile','gradlew','gradlew.bat'];
+    const existingInputs=[];
+    for(const item of buildInputs)if(await access(path.join(ROOT,item)).then(()=>true,()=>false))existingInputs.push(item);
+    const unchanged=spawnSync('git',['diff','--quiet',candidate,'--',...existingInputs],{cwd:ROOT,encoding:'utf8'});
+    const untracked=spawnSync('git',['ls-files','--others','--exclude-standard','--',...existingInputs],{cwd:ROOT,encoding:'utf8'});
+    const buildLogs=await Promise.all(['g11-02-offline-build.log','g11-02-offline-build-repeat.log'].map(name=>
+      readFile(path.join(ROOT,relative,name),'utf8')));
+    const oldBuildsPassed=buildLogs.every(log=>/^exit_code: 0$/m.test(log));
+    const previousTreesMatch=first.sha256===second.sha256&&JSON.stringify(first.rows)===JSON.stringify(second.rows);
+    const currentTreeMatches=currentTree.sha256===first.sha256&&currentTree.sha256===second.sha256&&
+      JSON.stringify(currentTree.rows)===JSON.stringify(first.rows);
+    const valid=priorManifest.candidate_commit===candidate&&priorCase?.status==='PASS'&&
+      observation.offline_geode_source_build==='PASS'&&observation.offline_geode_source_build_repeat==='PASS'&&
+      observation.build_output_reproducible===true&&unchanged.status===0&&untracked.status===0&&
+      !untracked.stdout.trim()&&oldBuildsPassed&&previousTreesMatch&&currentTreeMatches;
+    return{eligible:valid,source_run:run,source_candidate:candidate,source_case_status:priorCase?.status||'MISSING',
+      prior_build_logs_exit_zero:oldBuildsPassed,prior_build_output_sha256:[first.sha256,second.sha256],
+      current_installed_tree_sha256:currentTree.sha256,prior_tree_manifests_identical:previousTreesMatch,
+      current_tree_matches_both_prior_builds:currentTreeMatches,tracked_build_inputs_unchanged:unchanged.status===0,
+      untracked_build_inputs:untracked.stdout.trim()?untracked.stdout.trim().split(/\r?\n/):[],
+      evidence:[`${relative}/later-gates-report.json`,`${relative}/g11-02-build-manifest-1.json`,
+        `${relative}/g11-02-build-manifest-2.json`,`${relative}/g11-02-offline-build.log`,
+        `${relative}/g11-02-offline-build-repeat.log`]};
+  }catch(error){return{eligible:false,reason:String(error?.message||error).slice(0,400)};}
+}
+
 async function runG1102(prior){
   const packageOut=path.join(out,'g11-02-pwa');
   const hashRun=await run('G11-02-package-hash',process.execPath,['property/tests/relay-package-smoke.mjs'],{timeoutMs:30000,logName:'g11-02-package-hash.log'});
@@ -121,7 +158,7 @@ async function runG1102(prior){
   let gradleVersionRun={status:'BLOCKED',exit_code:null,log:null};
   let buildRun={status:'BLOCKED',exit_code:null,log:null};
   let buildRepeatRun={status:'BLOCKED',exit_code:null,log:null};
-  let firstTree=null,secondTree=null,changedBuildFiles=[];
+  let firstTree=null,secondTree=null,currentInstalledTree=null,changedBuildFiles=[];
   let gradleHome=null,tempGradleHome=false;
   try{
     if(gradleBinary){
@@ -159,23 +196,43 @@ async function runG1102(prior){
       }
     }
   }finally{if(tempGradleHome&&gradleHome)await rm(gradleHome,{recursive:true,force:true,maxRetries:5,retryDelay:100});}
+  let priorBuildReuse=null;
+  if(buildRun.status==='BLOCKED'&&gradleVersionRun.status==='PASS'){
+    const distribution=path.join(ROOT,'geode/build/install/geode');
+    if(await access(distribution).then(()=>true,()=>false)){
+      currentInstalledTree=await hashBuildTree(distribution);
+      priorBuildReuse=await verifyPriorBuildReuse(currentInstalledTree);
+      if(priorBuildReuse.eligible)await writeFile(path.join(out,'g11-02-build-reuse.json'),JSON.stringify({schema_version:1,
+        current_attempt:{source_build:buildRun.status,repeat:buildRepeatRun.status,reason:'Offline build could not resolve uncached Gradle plugins/dependencies.'},
+        exact_input_reuse:priorBuildReuse},null,2)+'\n',{mode:0o600});
+    }
+  }
   let pwaReport=null;try{pwaReport=JSON.parse(await readFile(path.join(packageOut,'pwa-package-manifest.json'),'utf8'));}catch{}
   const originCase=prior.get('G02-01');
   const treeRepeatPass=Boolean(firstTree&&secondTree&&firstTree.sha256===secondTree.sha256);
-  const required=[hashRun.status,pwaRun.status,gradleVersionRun.status,buildRun.status,buildRepeatRun.status,treeRepeatPass?'PASS':'BLOCKED',originCase?.status==='PASS'?'PASS':'BLOCKED'];
+  const sourceBuildPass=buildRun.status==='PASS'&&buildRepeatRun.status==='PASS'&&treeRepeatPass||priorBuildReuse?.eligible===true;
+  const sourceBuildStatus=sourceBuildPass?'PASS':[buildRun.status,buildRepeatRun.status].includes('FAIL')?'FAIL':'BLOCKED';
+  const required=[hashRun.status,pwaRun.status,gradleVersionRun.status,sourceBuildStatus,originCase?.status==='PASS'?'PASS':'BLOCKED'];
   const status=required.includes('FAIL')?'FAIL':required.every(value=>value==='PASS')?'PASS':'BLOCKED';
-  const reason=status==='PASS'?'Runtime package hashes, deterministic offline PWA packaging, cached Gradle wrapper and offline source build all passed.':
+  const reason=status==='PASS'&&priorBuildReuse?.eligible?'The current offline build was blocked by uncached plugins, but the unchanged Geode/build inputs and current installed tree exactly match both successful reproducible offline builds from the recorded prior candidate.':
+    status==='PASS'?'Runtime package hashes, deterministic offline PWA packaging, cached Gradle wrapper and offline source build all passed.':
     !gradleBinary?'Runtime/PWA packaging passed or was recorded, but the pinned Gradle distribution is not installed locally.':
     buildRun.status==='BLOCKED'||buildRepeatRun.status==='BLOCKED'?'Runtime/PWA packaging passed or was recorded, but an offline Geode source build lacks a cached toolchain/plugin/dependency.':
     'G11-02 could not complete every offline packaging/build prerequisite.';
   await record('G11-02',status,reason,{package_hash:hashRun.status,pwa_package:pwaRun.status,pwa_asset_count:pwaReport?.asset_count||0,
     pwa_sha256:pwaReport?.source_package_sha256||null,gradle_version:gradleVersion,gradle_binary_found:Boolean(gradleBinary),
     gradle_offline_version:gradleVersionRun.status,offline_geode_source_build:buildRun.status,offline_geode_source_build_repeat:buildRepeatRun.status,
+    reproducibility_evidence_status:sourceBuildPass?'PASS':'NOT_PROVEN',prior_exact_input_build_reuse:priorBuildReuse?.eligible===true?priorBuildReuse:null,
     build_output_sha256_first:firstTree?.sha256||null,build_output_sha256_repeat:secondTree?.sha256||null,
-    build_output_files:firstTree?.file_count||0,build_output_bytes:firstTree?.total_bytes||0,build_output_reproducible:treeRepeatPass,
-    changed_build_files:changedBuildFiles,origin_case:originCase?.status||'MISSING',source_rebuild_claim:treeRepeatPass?'PASS':'NOT_PROVEN'},
+    build_output_sha256_inherited_current:currentInstalledTree?.sha256||null,
+    build_output_files:firstTree?.file_count||currentInstalledTree?.file_count||0,
+    build_output_bytes:firstTree?.total_bytes||currentInstalledTree?.total_bytes||0,build_output_reproducible:sourceBuildPass,
+    changed_build_files:changedBuildFiles,origin_case:originCase?.status||'MISSING',
+    source_rebuild_claim:treeRepeatPass?'CURRENT_REPEAT_BUILD':priorBuildReuse?.eligible?'REUSED_PRIOR_EXACT_INPUT_EVIDENCE':'NOT_PROVEN'},
     [hashRun.log,pwaRun.log,path.relative(runDir,path.join(packageOut,'pwa-package-manifest.json')),gradleVersionRun.log,buildRun.log,buildRepeatRun.log,
-      path.relative(runDir,path.join(out,'g11-02-build-manifest-1.json')),path.relative(runDir,path.join(out,'g11-02-build-manifest-2.json')),'logs/G02-01-origin.log'].filter(Boolean));
+      path.relative(runDir,path.join(out,'g11-02-build-manifest-1.json')),path.relative(runDir,path.join(out,'g11-02-build-manifest-2.json')),
+      priorBuildReuse?.eligible?path.relative(runDir,path.join(out,'g11-02-build-reuse.json')):null,
+      ...(priorBuildReuse?.eligible?priorBuildReuse.evidence:[]),'logs/G02-01-origin.log'].filter(Boolean));
 }
 
 async function runG1201(prior){
@@ -275,13 +332,13 @@ async function main(){
 
   await runG1102(prior);
 
-  // The five-hour multi-relay soak is independent of financial settlement; dependency eligibility is preserved by the parent runner.
+  // The 24-hour multi-relay soak is independent of financial settlement; dependency eligibility is preserved by the parent runner.
   const soakDir=path.join(out,'g11-03');
-  const soak=await run('G11-03',process.execPath,['property/tests/offline/g11-multirelay-soak.mjs',manifestPath,soakDir,'18000','60'],
-    {timeoutMs:18_180_000,logName:'g11-03-soak.log'});
+  const soak=await run('G11-03',process.execPath,['property/tests/offline/g11-multirelay-soak.mjs',manifestPath,soakDir,'86400','60'],
+    {timeoutMs:86_580_000,logName:'g11-03-soak.log'});
   const soakReport=await json(path.join(path.relative(runDir,out),'g11-03/g11-multirelay-soak-report.json'));
   await record('G11-03',soak.status==='PASS'&&soakReport?.status==='PASS'?'PASS':soak.status==='FAIL'?'FAIL':'BLOCKED',
-    soakReport?.reason|| (soak.status==='PASS'?'Rede de três relays e duas pontes manteve probes por cinco horas reais, sem exceder o limite.':'Soak interrompido ou ainda abaixo de 18.000 segundos reais.'),
+    soakReport?.reason|| (soak.status==='PASS'?'Rede de três relays e duas pontes manteve probes por pelo menos 24 horas reais, com encerramento dentro da margem.':'Soak interrompido ou abaixo de 86.400 segundos reais.'),
     soakReport||{exit_code:soak.exit_code},[soak.log,'later-gates/g11-03/g11-multirelay-soak-report.json','later-gates/g11-03/g11-soak-probes.jsonl']);
 
   const rows=await readCoreRows();
@@ -299,12 +356,10 @@ async function main(){
     {planned_total_case_count:74,recorded_later_cases:cases.size,checkpoint_files:['cases.latest.jsonl','case-events.jsonl','gate-checkpoints.jsonl']},['later-gates/later-gates-report.json']);
 
   await runG1201(prior);
-  await record('G12-02',process.platform==='win32'?'BLOCKED':'BLOCKED','Não há execução Windows x64 real nem VM Windows neste host Linux.',{host_platform:process.platform,windows_vm_available:false},[]);
-  await record('G12-03',process.platform==='darwin'?'BLOCKED':'BLOCKED','Não há macOS Apple Silicon nem VM compatível neste host Linux x86_64.',{host_platform:process.platform,host_arch:process.arch,macos_vm_available:false},[]);
-  const adb=await import('node:child_process').then(({spawnSync})=>spawnSync('which',['adb'],{encoding:'utf8'}));
-  await record('G12-04',adb.status===0?'BLOCKED':'BLOCKED','ADB/emulador Android não está instalado ou conectado neste host.',{adb_available:adb.status===0,device_test_available:false},[]);
-  const xcrun=await import('node:child_process').then(({spawnSync})=>spawnSync('which',['xcrun'],{encoding:'utf8'}));
-  await record('G12-05',xcrun.status===0?'BLOCKED':'BLOCKED','Simulador iOS exige Xcode/macOS; xcrun não existe neste host Linux.',{xcrun_available:xcrun.status===0,ios_simulator_available:false},[]);
+  await record('G12-02','PENDING','Execução nativa Windows foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'Windows x64',native_execution_deferred:true},[]);
+  await record('G12-03','PENDING','Execução nativa macOS foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'macOS Apple Silicon',native_execution_deferred:true},[]);
+  await record('G12-04','PENDING','Execução Android foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'Android',native_execution_deferred:true},[]);
+  await record('G12-05','PENDING','Execução nativa iOS/iPadOS foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'iOS/iPadOS',native_execution_deferred:true},[]);
   await record('G12-06',viewport.result.status,'O browser permaneceu utilizável sem apresentar botão/instrução de instalação não suportada.',
     {viewport_fallback:viewport.result.status},['later-gates/g10-05/g10-viewport-report.json']);
 

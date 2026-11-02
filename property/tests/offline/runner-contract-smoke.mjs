@@ -7,6 +7,7 @@ import path from 'node:path';
 import {
   deriveGateStatus,
   deriveLaterGateEligibility,
+  buildSummary,
   evaluateNetworkNamespace,
   buildResumeFingerprint,
   beginAttempt,
@@ -108,6 +109,28 @@ assert.equal(deriveGateStatus([
   { status: 'BLOCKED', gate_eligible: false }, { status: 'FAIL', gate_eligible: false }
 ]), 'FAIL');
 assert.equal(deriveGateStatus([{ status: 'PASS', gate_eligible: false }]), 'BLOCKED');
+assert.equal(deriveGateStatus([
+  { status: 'PASS', gate_eligible: true }, { status: 'PENDING', gate_eligible: false }
+]), 'PENDING', 'intentionally deferred platform coverage must not be reported as an environmental block');
+
+const ubuntuRows = new Map();
+for (let index = 0; index <= 11; index++) {
+  const gate = `G${String(index).padStart(2, '0')}`;
+  ubuntuRows.set(`${gate}-01`, { case: `${gate}-01`, status: 'PASS', gate_eligible: true });
+}
+ubuntuRows.set('G12-01', { case: 'G12-01', status: 'PASS', gate_eligible: true });
+ubuntuRows.set('G12-02', { case: 'G12-02', status: 'PENDING', gate_eligible: false });
+ubuntuRows.set('G12-03', { case: 'G12-03', status: 'PENDING', gate_eligible: false });
+ubuntuRows.set('G12-04', { case: 'G12-04', status: 'PENDING', gate_eligible: false });
+ubuntuRows.set('G12-05', { case: 'G12-05', status: 'PENDING', gate_eligible: false });
+ubuntuRows.set('G12-06', { case: 'G12-06', status: 'PASS', gate_eligible: true });
+const ubuntuSummary = buildSummary(ubuntuRows, 'full', {
+  requested_executor: 'Luna Max', actual_executor: 'Codex GPT-6'
+}, {}, { verdict: 'PASS' });
+assert.equal(ubuntuSummary.gate_status.G12, 'PENDING');
+assert.equal(ubuntuSummary.scope_result, 'PROPERTY_UBUNTU_OFFLINE_PASS');
+assert.equal(ubuntuSummary.exit_code, 0, 'deferred non-Ubuntu cases must not block the completed Ubuntu profile');
+assert.equal(ubuntuSummary.executor_matches_request, false, 'actual executor identity remains reported transparently');
 
 const parentBeforeLaterGates = [
   ...Array.from({ length: 7 }, (_, index) => ({ case: `G08-0${index + 1}`, status: 'PASS', gate_eligible: true })),

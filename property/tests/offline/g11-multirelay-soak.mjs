@@ -5,28 +5,29 @@ import { execFileSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { performance } from 'node:perf_hooks';
 import { startAppServer, startProxy, loadRuntime, startGeode, stopGeode, publishEvent, waitStored,
   wsQuery, startNode, closeNode, waitUntil, assertNoExternal } from './browser-g05-smoke.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../..');
-const [manifestPath,outputText='/tmp/property-g11-soak',durationText='18000',intervalText='60']=process.argv.slice(2);
+const [manifestPath,outputText='/tmp/property-g11-soak',durationText='86400',intervalText='60']=process.argv.slice(2);
 assert.ok(manifestPath,'pinned lab manifest is required');
 const manifest=JSON.parse(await readFile(path.resolve(manifestPath),'utf8'));
 const browserConfig=manifest.browser_automation;
 assert.ok(browserConfig,'pinned browser runtime is required');
 const durationSeconds=Number(durationText), intervalSeconds=Number(intervalText);
 const diagnosticOnly=process.env.PROPERTY_G11_DIAGNOSTIC_MODE==='1';
-assert.ok(Number.isInteger(durationSeconds)&&durationSeconds>=(diagnosticOnly?90:18000)&&durationSeconds<=18000,
-  diagnosticOnly?'diagnostic mode requires 90 to 18000 real seconds to cover a restart and a post-restart probe':'G11-03 requires exactly 18000 real seconds and never permits more than five hours');
+assert.ok(Number.isInteger(durationSeconds)&&(diagnosticOnly?durationSeconds>=90&&durationSeconds<=86400:durationSeconds===86400),
+  diagnosticOnly?'diagnostic mode requires 90 to 86400 real seconds to cover a restart and a post-restart probe':'G11-03 requires exactly 86400 real seconds (24 complete hours)');
 assert.ok(Number.isInteger(intervalSeconds)&&intervalSeconds>=(diagnosticOnly?1:15)&&intervalSeconds<=300);
 const output=path.resolve(outputText); await mkdir(output,{recursive:true,mode:0o700});
 const progressPath=path.join(output,'g11-soak-probes.jsonl');
 const reportPath=path.join(output,'g11-multirelay-soak-report.json');
 const temp=await mkdtemp(path.join(os.tmpdir(),'property-g11-soak-'));
 const app=startAppServer(),proxy=startProxy();
-let runtime, relays=[], nodes=[], bridgeEvidence=null, activeProbe=null;
-const report={schema_version:1,case:'G11-03',status:'RUNNING',duration_required_seconds:durationSeconds,
-  duration_minimum_seconds:diagnosticOnly?90:17998,duration_cap_seconds:18000,
+let runtime, relays=[], nodes=[], bridgeEvidence=null, activeProbe=null, soakStartedMonotonicMs=null;
+const report={schema_version:2,case:'G11-03',status:'RUNNING',duration_required_seconds:durationSeconds,
+  duration_minimum_seconds:diagnosticOnly?90:86400,duration_cap_seconds:86430,
   probe_interval_seconds:intervalSeconds,relay_count:3,bridge_count:2,probe_count:0,loss_count:0,
   planned_middle_relay_restarts:[],external_requests:[],websockets:[],relay_rss_peak_bytes:0,
   relay_cpu_peak_percent:0,scratch_bytes_peak:0,resource_samples:[],
@@ -80,21 +81,22 @@ try{
     [relays[0].url,relays[1].url,relays[2].url].filter(url=>node.subscriptions.some(sub=>sub.relay===url&&sub.kinds.includes(1))).length===2),
   20000,'the two PWA bridges did not establish their expected two relay subscriptions');
   const sender=runtime.createIdentity();
-  const startMs=Date.now(), endMs=startMs+durationSeconds*1000, stopBeforeMs=endMs-2000;
-  report.started_utc=new Date(startMs).toISOString();
+  const startMs=performance.now(), startWallMs=Date.now(), endMs=startMs+durationSeconds*1000, stopBeforeMs=endMs;
+  soakStartedMonotonicMs=startMs;
+  report.started_utc=new Date(startWallMs).toISOString();
   report.setup_completed_utc=report.started_utc;
   report.resource_budget={available_memory_at_start_bytes:os.freemem(),
     max_relay_rss_bytes:Math.floor(os.freemem()*0.70),max_scratch_bytes:2*1024**3};
   const intervalMs=intervalSeconds*1000;
   let nextProbe=startMs;
-  const restartOffsets=diagnosticOnly?[10_000]:[60,150,240].map(minutes=>minutes*60*1000);
+  const restartOffsets=diagnosticOnly?[10_000]:[120,720,1320].map(minutes=>minutes*60*1000);
   let restartIndex=0;
   let nextRestart=startMs+restartOffsets[restartIndex];
   let probesAtLastRestart=null;
   const latencies=[];
   let idleLockVerified=false;
-  while(Date.now()<stopBeforeMs){
-    if(!idleLockVerified&&Date.now()-startMs>=30*60*1000){
+  while(performance.now()<stopBeforeMs){
+    if(!idleLockVerified&&performance.now()-startMs>=30*60*1000){
       await waitUntil(async()=>Promise.all(nodes.map(async node=>{
         try{return await node.page.locator('#locked-node-status').isVisible()&&
           await node.page.locator('#workspace').evaluate(element=>element.classList.contains('hidden'));}
@@ -105,10 +107,10 @@ try{
           public_bridge_subscriptions:node.subscriptions.filter(sub=>sub.kinds.includes(1)).length}))};
       idleLockVerified=true;
     }
-    if(restartIndex<restartOffsets.length&&Date.now()>=nextRestart&&Date.now()<stopBeforeMs){
-      const restartStarted=Date.now();
+    if(restartIndex<restartOffsets.length&&performance.now()>=nextRestart&&performance.now()<stopBeforeMs){
+      const restartStarted=performance.now(), restartStartedWallMs=Date.now();
       const middleUrl=relays[1].url;
-      const partitionEvent=runtime.sign(1,`Property five hour offline relay soak partition ${report.planned_middle_relay_restarts.length+1}`,Math.floor(Date.now()/1000),sender.secret);
+      const partitionEvent=runtime.sign(1,`Property 24 hour offline relay soak partition ${report.planned_middle_relay_restarts.length+1}`,Math.floor(Date.now()/1000),sender.secret);
       for(const node of nodes){
         node.subscriptions=node.subscriptions.filter(sub=>sub.relay!==middleUrl);
         node.eoses=node.eoses.filter(eose=>eose.relay!==middleUrl);
@@ -128,29 +130,30 @@ try{
       await waitStored(relays[1].url,partitionEvent.id,true,90000);
       await waitStored(relays[2].url,partitionEvent.id,true,90000);
       report.planned_middle_relay_restarts.push({scheduled_offset_seconds:Math.floor(restartOffsets[restartIndex]/1000),
-        started_utc:new Date(restartStarted).toISOString(),ended_utc:new Date().toISOString(),
-        duration_seconds:Number(((Date.now()-restartStarted)/1000).toFixed(2)),same_database:true,
+        started_utc:new Date(restartStartedWallMs).toISOString(),ended_utc:new Date().toISOString(),
+        duration_seconds:Number(((performance.now()-restartStarted)/1000).toFixed(2)),same_database:true,
         partition_event_id:partitionEvent.id,source_ack:true,absent_at_destination_during_partition:!duringPartition,
         reconciled_at_middle_and_destination:true});
       probesAtLastRestart=report.probe_count;
       restartIndex++;
       nextRestart=restartIndex<restartOffsets.length?startMs+restartOffsets[restartIndex]:Number.POSITIVE_INFINITY;
-      nextProbe=Date.now();
+      nextProbe=performance.now();
       await sampleResources();
       await save();
     }
-    if(Date.now()<nextProbe){await new Promise(resolve=>setTimeout(resolve,Math.min(1000,nextProbe-Date.now())));continue;}
-    if(Date.now()>=stopBeforeMs)break;
+    const now=performance.now();
+    if(now<nextProbe){await new Promise(resolve=>setTimeout(resolve,Math.min(1000,nextProbe-now)));continue;}
+    if(now>=stopBeforeMs)break;
     const index=report.probe_count;
-    if(Date.now()+30000>=stopBeforeMs){await new Promise(resolve=>setTimeout(resolve,Math.max(0,stopBeforeMs-Date.now())));break;}
-    const event=runtime.sign(1,`Property five hour offline relay soak probe ${index}`,Math.floor(Date.now()/1000),sender.secret);
-    const started=Date.now();
+    if(now+30000>=stopBeforeMs){await new Promise(resolve=>setTimeout(resolve,Math.max(0,stopBeforeMs-now)));break;}
+    const event=runtime.sign(1,`Property 24 hour offline relay soak probe ${index}`,Math.floor(Date.now()/1000),sender.secret);
+    const started=performance.now();
     activeProbe={probe:index,event_id:event.id,started_utc:new Date().toISOString(),source_ack:false};
     const ack=await publishEvent(relays[0].url,event);
     activeProbe.source_ack=ack.accepted===true;
     assert.equal(ack.accepted,true,`source relay rejected probe ${index}: ${ack.message||'no reason supplied'}`);
     await waitStored(relays[2].url,event.id,true,30000);
-    const elapsed=Date.now()-started; latencies.push(elapsed);
+    const elapsed=performance.now()-started; latencies.push(elapsed);
     report.probe_count++;
     await sampleResources();
     await appendFile(progressPath,JSON.stringify({probe:index,utc:new Date().toISOString(),event_id:event.id,source_ack:true,destination_query:true,latency_ms:elapsed})+'\n',{mode:0o600});
@@ -167,11 +170,11 @@ try{
       report.hangout_deduplication={verified:true,event_id:event.id,nodes:uiEvidence};
     }
     nextProbe+=intervalMs;
-    if(nextProbe<Date.now())nextProbe=Date.now();
+    if(nextProbe<performance.now())nextProbe=performance.now();
     if(report.probe_count%10===0)await save();
   }
-  report.ended_utc=new Date().toISOString();
-  report.duration_observed_seconds=Number(((Date.now()-startMs)/1000).toFixed(3));
+  report.active_soak_ended_utc=new Date().toISOString();
+  report.active_soak_duration_seconds=Number(((performance.now()-startMs)/1000).toFixed(3));
   report.p95_publish_to_final_relay_ms=percentile95(latencies);
   report.probe_interval_observed_seconds=latencies.length>1?Number(((durationSeconds)/(latencies.length-1)).toFixed(2)):null;
   report.post_restart_probe_count=probesAtLastRestart===null?null:report.probe_count-probesAtLastRestart;
@@ -180,13 +183,13 @@ try{
   report.page_errors=bridgeEvidence.page_errors;
   report.external_requests=bridgeEvidence.external_requests;
   report.websockets=bridgeEvidence.websockets;
-  assert.ok(report.duration_observed_seconds>=(diagnosticOnly?15:17998),
-    diagnosticOnly?'diagnostic elapsed time meets its short real-time bound':'real elapsed time meets the five-hour target with a two-second shutdown guard');
-  assert.ok(report.duration_observed_seconds<=18000,'G11-03 observed duration does not exceed five hours');
+  assert.ok(report.active_soak_duration_seconds>=(diagnosticOnly?15:86400),
+    diagnosticOnly?'diagnostic elapsed time meets its short real-time bound':'the active soak completed at least 24 real hours');
+  assert.ok(report.active_soak_duration_seconds<=86430,'G11-03 active duration stays within the 30-second finalization allowance');
   const restartDowntimeSeconds=report.planned_middle_relay_restarts.reduce((sum,restart)=>sum+restart.duration_seconds,0);
   const minimumProbes=Math.max(1,Math.floor((durationSeconds-restartDowntimeSeconds)/intervalSeconds)-2);
   assert.ok(report.probe_count>=minimumProbes,'probe count meets the cadence tolerance after excluding measured restart downtime');
-  assert.equal(report.planned_middle_relay_restarts.length,diagnosticOnly?1:3,'every scheduled middle relay restart was exercised within the five-hour cap');
+  assert.equal(report.planned_middle_relay_restarts.length,diagnosticOnly?1:3,'all scheduled middle relay restarts were exercised across the 24-hour window');
   assert.ok(report.post_restart_probe_count>0,'probe delivery resumed after the most recent middle relay restart');
   assert.equal(report.planned_middle_relay_restarts.every(restart=>restart.absent_at_destination_during_partition&&restart.reconciled_at_middle_and_destination),true,
     'every partition probe remains unreachable during outage and reconciles after the relay returns');
@@ -204,12 +207,12 @@ try{
       relay_sockets_closed:node.sockets.filter(socket=>socket.url.startsWith('ws://127.0.0.1:')).every(socket=>socket.closed)}))};
   }else report.locked_bridge_stop={verified:false,not_required_for_short_diagnostic:true};
   report.status=diagnosticOnly?'DIAGNOSTIC_PASS':'PASS';
-  report.full_5h_gate_eligible=!diagnosticOnly;
+  report.full_24h_gate_eligible=!diagnosticOnly;
   await save();
   process.stdout.write(JSON.stringify(report)+'\n');
 }catch(error){
   report.status='FAIL'; report.reason=String(error?.message||error).slice(0,900); report.ended_utc=new Date().toISOString();
-  report.duration_observed_seconds=report.started_utc?Number(((Date.now()-Date.parse(report.started_utc))/1000).toFixed(3)):0;
+  report.duration_observed_seconds=soakStartedMonotonicMs===null?0:Number(((performance.now()-soakStartedMonotonicMs)/1000).toFixed(3));
   if(bridgeEvidence){
     report.page_errors=bridgeEvidence.page_errors;
     report.external_requests=bridgeEvidence.external_requests;
@@ -243,8 +246,18 @@ try{
   await new Promise(resolve=>app.server.close(resolve));
   await new Promise(resolve=>proxy.server.close(resolve));
   if(report.status==='RUNNING'){
-    report.status='BLOCKED'; report.reason='Soak process ended before the required real-time duration.'; report.ended_utc=new Date().toISOString();
-    report.duration_observed_seconds=report.started_utc?Number(((Date.now()-Date.parse(report.started_utc))/1000).toFixed(3)):0; await save();
+    report.status='BLOCKED'; report.reason='Soak process ended before the required real-time duration.';
   }
   await rm(temp,{recursive:true,force:true,maxRetries:5,retryDelay:250});
+  const endedMs=Date.now();
+  report.ended_utc=new Date(endedMs).toISOString();
+  report.duration_observed_seconds=soakStartedMonotonicMs===null?0:Number(((performance.now()-soakStartedMonotonicMs)/1000).toFixed(3));
+  report.finalization_duration_seconds=report.active_soak_duration_seconds===undefined?null:
+    Number((report.duration_observed_seconds-report.active_soak_duration_seconds).toFixed(3));
+  if(report.status==='PASS'&&(report.duration_observed_seconds<86400||report.duration_observed_seconds>86430)){
+    report.status='FAIL'; report.full_24h_gate_eligible=false;
+    report.reason='Total elapsed time including process finalization is outside 86400–86430 real seconds.';
+    process.exitCode=1;
+  }
+  await save();
 }
