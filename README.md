@@ -6,13 +6,17 @@
   <img src="property/web/assets/property-brand.png" alt="Identidade visual do Property" width="320">
 </p>
 
-Comunicação pela internet com Nostr, mensagens privadas criptografadas e identidade controlada pela pessoa. O Property é um projeto independente em desenvolvimento, com interface web instalável (PWA) e relay portátil para Linux x86_64, Windows x64 e macOS Apple Silicon, construído a partir de código do Amethyst.
+O Property é um projeto aberto de comunicação descentralizada e trocas voluntárias entre pessoas, baseado em Nostr. A interface funciona pelo navegador em celulares, tablets e computadores compatíveis; o acesso não depende de aprovação, publicação ou manutenção nas lojas de aplicativos. O projeto inclui uma PWA instalável, identidade controlada localmente, mensagens privadas criptografadas e conexão direta aos relays escolhidos pela pessoa.
 
 **[Abrir o app](https://coercaodobem.github.io/property/) · [Como contribuir](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Reportar um problema](https://github.com/coercaodobem/property/issues/new/choose)**
 
+**Acesso pelo navegador:** abra o site no dispositivo compatível e, se quiser, adicione a PWA à tela inicial. Não é preciso distribuir o app pela Play Store ou App Store.
+
+**Trocas voluntárias:** o marketplace permite publicar e descobrir ofertas. Compra, checkout e custódia ainda não estão habilitados nesta versão.
+
 ## O que queremos construir
 
-Uma interface simples para conversar, postar e colaborar com uma rede de comunicação descentralizada por Wi-Fi ou rede móvel. A senha protege a chave aleatória criada no aparelho; não existe servidor central de login ou recuperação. O navegador se conecta diretamente aos relays escolhidos pelo usuário.
+Uma interface simples para conversar, publicar e descobrir ofertas em uma rede descentralizada por Wi-Fi ou rede móvel. Pessoas controlam sua identidade e escolhem os relays que transportam seus eventos. A senha protege a chave aleatória criada no aparelho; não existe servidor central de login ou recuperação. O navegador se conecta diretamente aos relays escolhidos pelo usuário.
 
 PCs podem operar relays continuamente. A colaboração da PWA entre relays acontece enquanto o navegador está ativo. Android e iOS podem suspender uma PWA em segundo plano; manter um nó móvel permanentemente ativo ainda exige outra solução de plataforma, a desenvolver.
 
