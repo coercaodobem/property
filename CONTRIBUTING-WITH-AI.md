@@ -13,7 +13,7 @@ Agentes não devem abrir, publicar ou enviar PRs automaticamente. Entregue a bra
 
 ## Durante o trabalho
 
-- Leia o [README em inglês](README.md) ou a [versão em português](README.pt-BR.md), o [roadmap](ROADMAP.md), [AGENTS.md](AGENTS.md) e as instruções próximas dos arquivos. Para qualquer caminho em `property/`, leia também [`property/AGENTS.md`](property/AGENTS.md).
+- Leia o [README principal em português](README.md) ou a [versão opcional em inglês](README.en.md), o [roadmap](ROADMAP.md), [AGENTS.md](AGENTS.md) e as instruções próximas dos arquivos. Para qualquer caminho em `property/`, leia também [`property/AGENTS.md`](property/AGENTS.md).
 - Ao alterar informações compartilhadas nos READMEs, atualize as duas versões na mesma contribuição e preserve links, comandos e estados equivalentes.
 - Reaproveite implementações existentes; não invente APIs, resultados, testes ou suporte de plataforma.
 - Mantenha correções pequenas e preserve autoria e licenças do código Amethyst reutilizado.

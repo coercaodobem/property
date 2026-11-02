@@ -4,7 +4,7 @@ These instructions apply to files under `property/`. The repository also contain
 
 ## Read first
 
-- [`README.md`](../README.md) is the English project entry point; [`README.pt-BR.md`](../README.pt-BR.md) is its Brazilian Portuguese translation. Keep them aligned when changing shared project facts.
+- [`README.md`](../README.md) is the primary Brazilian Portuguese project entry point; [`README.en.md`](../README.en.md) is the optional English version. Keep them aligned when changing shared project facts.
 - [`ROADMAP.md`](../ROADMAP.md) describes planned work, not proof that a feature is complete.
 - [`CONTRIBUTING.md`](../CONTRIBUTING.md) explains the maintainer's contribution workflow.
 - [`CONTRIBUTING-WITH-AI.md`](../CONTRIBUTING-WITH-AI.md) defines AI-assisted contribution and review expectations.

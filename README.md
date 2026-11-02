@@ -1,106 +1,106 @@
 # Property
 
-**English** · [Português (Brasil)](README.pt-BR.md)
+**Português (Brasil)** · [English](README.en.md)
 
 <p align="center">
-  <img src="property/web/assets/property-brand.png" alt="Property logo" width="320">
+  <img src="property/web/assets/property-brand.png" alt="Identidade visual do Property" width="320">
 </p>
 
-Property is a decentralized communication client built on Nostr. It gives people an installable web app, locally controlled identities, encrypted private messaging, and direct connections to relays they choose. The project is under active development and includes a portable relay for Linux, Windows, and macOS.
+Comunicação pela internet com Nostr, mensagens privadas criptografadas e identidade controlada pela pessoa. O Property é um projeto independente em desenvolvimento, com interface web instalável (PWA) e relay portátil para Linux x86_64, Windows x64 e macOS Apple Silicon, construído a partir de código do Amethyst.
 
-**[Open the app](https://coercaodobem.github.io/property/) · [Contribute](CONTRIBUTING.en.md) · [Roadmap](ROADMAP.md) · [Report an issue](https://github.com/coercaodobem/property/issues/new/choose)**
+**[Abrir o app](https://coercaodobem.github.io/property/) · [Como contribuir](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Reportar um problema](https://github.com/coercaodobem/property/issues/new/choose)**
 
-## What we are building
+## O que queremos construir
 
-A straightforward way to chat, post, and take part in a decentralized network over Wi-Fi or mobile data. People control their identity and choose which relays carry their events. A password protects a random key created on the device; there is no central login or password recovery. The web host serves static app files; the client connects directly to the selected relays.
+Uma interface simples para conversar, postar e colaborar com uma rede de comunicação descentralizada por Wi-Fi ou rede móvel. A senha protege a chave aleatória criada no aparelho; não existe servidor central de login ou recuperação. O navegador se conecta diretamente aos relays escolhidos pelo usuário.
 
-PCs can run relays continuously. The browser can forward events between relays only while the PWA is active. Android and iOS may suspend a background PWA, so a continuously running mobile node is not supported by this web app.
+PCs podem operar relays continuamente. A colaboração da PWA entre relays acontece enquanto o navegador está ativo. Android e iOS podem suspender uma PWA em segundo plano; manter um nó móvel permanentemente ativo ainda exige outra solução de plataforma, a desenvolver.
 
-The platform goal includes Windows, macOS, Linux/Ubuntu, Android, and iOS. The common interface is the PWA. The portable relay bundles runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon. Other architectures and an always-on mobile relay need separate implementation and validation.
+O objetivo de plataforma inclui Windows, macOS, Linux/Ubuntu, Android e iOS. A interface web é o caminho comum. O relay inclui runtimes para Linux x86_64, Windows x64 e macOS Apple Silicon; os testes por sistema ficam registrados no plano. Outras arquiteturas e relay móvel contínuo exigem implementação própria.
 
-## Current status: MVP under validation
+## Estado atual: MVP em validação
 
-| Area | Available now | Still needed |
+| Área | O que existe hoje | O que ainda falta |
 |---|---|---|
-| Web app | HTTPS PWA; runtime files ship in the same package | Full Android/iOS device validation and accessibility review |
-| Identity | Random local key, password-protected vault, persistent session, and encrypted backup | More recovery testing on real devices |
-| Messaging | NIP-17 flows and kind 10050 inbox relay lists, with local tests | Broader interoperability testing with real networks |
-| PC relay | Geode with bundled runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon | Platform matrix and multi-relay G11-03 run of up to five hours; see the [test plan status](property/docs/plano-de-testes-central.md) |
-| Volunteer bridge | Limited event forwarding between relays while the PWA is active | Continuous mobile operation is not supported by a PWA |
-| Marketplace and campaigns | Listings priced in BTC/XMR/XNO and an optional reader for signed campaigns | Checkout and acceptance engine, payments, and refunds |
-| Hangout | Public kind 1 feed with reading and posting | Complete integration and validation for Property |
+| Interface web | PWA publicada em HTTPS; arquivos de execução servidos do próprio pacote | Validação completa em Android/iOS e acessibilidade |
+| Identidade | Chave aleatória local, cofre cifrado por senha, sessão persistente e backup cifrado | Mais testes de recuperação e uso em aparelhos reais |
+| Mensagens | Fluxos NIP-17 e listas de inbox relays kind 10050, com testes locais | Validação ampliada de interoperabilidade e redes reais |
+| Relay de PC | Geode com runtime incluído para Linux x86_64, Windows x64 e macOS Apple Silicon | Matriz por plataforma e ensaio multi-relay G11-03 de até cinco horas; veja o [status do plano](property/docs/plano-de-testes-central.md) |
+| Ponte voluntária | Encaminhamento limitado entre relays enquanto a PWA está ativa | Operação móvel contínua não é suportada pela PWA |
+| Marketplace e campanhas | Ofertas com preços BTC/XMR/XNO e leitor opcional de campanhas assinadas | Checkout e engine de aceite, pagamento BTC, XMR, XNO e reembolso |
+| Hangout | Feed público kind 1 com leitura e publicação | Integração completa e validação para o Property |
 
-Publishing the app does not mean the full plan is complete. See the [test plan](property/docs/plano-de-testes-central.md) for results and limitations. Payments and automatic node monetization are not enabled in this version.
+A publicação do app não significa que todo o plano foi concluído. Consulte o [plano de testes](property/docs/plano-de-testes-central.md) para resultados e limitações. Pagamentos e monetização automática de nodes não estão ativados nesta versão.
 
-## Get started
+## Começar em poucos minutos
 
-The default development branch is **`modelo-mvp`**. Fork the repository before contributing. See the [contribution guide](CONTRIBUTING.en.md) and the [AI contributor guide](CONTRIBUTING-WITH-AI.md) (Português).
+A branch padrão e de desenvolvimento é **`modelo-mvp`**. Para contribuir, faça primeiro um fork; os comandos completos estão no [guia de contribuição](CONTRIBUTING.md).
 
 ```bash
 git clone --branch modelo-mvp https://github.com/coercaodobem/property.git
 cd property
 ```
 
-To serve the web app locally with Python 3:
+Para abrir a interface localmente, com Python 3:
 
 ```bash
 python3 -m http.server 8080 --directory property/web
 ```
 
-Open `http://localhost:8080`. Installing the PWA requires HTTPS, except on localhost. The app shell can open offline after its first load; messaging requires reachable relays.
+Acesse `http://localhost:8080`. Instalação como PWA exige HTTPS ou localhost. O shell pode abrir offline após a primeira carga; comunicação exige relays alcançáveis.
 
-To start the relay on Linux x86_64 or macOS Apple Silicon:
+Para iniciar o relay no Linux x86_64 ou macOS Apple Silicon:
 
 ```bash
 ./property/relay/start.sh
 ```
 
-On Windows x64, run this in PowerShell from the checkout root:
+No Windows x64, pelo PowerShell na raiz do checkout:
 
 ```powershell
 powershell -NoProfile -File .\property\relay\start.ps1
 ```
 
-The package includes its Java runtime and verifies SHA-256 before extraction. By default, the relay listens only on `127.0.0.1:7447`. Exposing a relay to the internet requires your own TLS, networking, and storage configuration. See the [relay guide](property/relay/README.md) (Português).
+O pacote inclui o runtime Java e verifica o SHA-256 antes da extração. Por padrão, o relay escuta somente em `127.0.0.1:7447`; publicar um relay na internet exige configuração própria de TLS, rede e armazenamento. Veja o [guia do relay](property/relay/README.md).
 
-To run the local smoke suite, use Node.js 22 or newer:
+Para executar a suíte local, com Node.js 22 ou superior:
 
 ```bash
 bash property/tests/run-smoke.sh
 ```
 
-These tests do not make payments or publish messages to public relays. Separate commands for local relay tests and the run of up to five hours are documented in the [contribution guide](CONTRIBUTING.en.md).
+Esses testes não dependem de pagamentos ou publicação de mensagens em relays públicos. Os ensaios que abrem relays locais e o teste contínuo de até cinco horas têm comandos separados no [guia de contribuição](CONTRIBUTING.md).
 
-## Repository map
+## Onde está cada parte
 
-| Path | Contents |
+| Caminho | Conteúdo |
 |---|---|
-| [`property/web/`](property/web/) | PWA and local web dependencies |
-| [`property/relay/`](property/relay/) | Portable relay launcher and package |
-| [`property/tests/`](property/tests/) | Property product validations |
-| [`property/docs/`](property/docs/) | Product identity, decisions, execution notes, and test plan |
-| [`geode/`](geode/) | Reused relay code |
-| `amethyst/`, `commons/`, `commonsUI/`, `desktopApp/`, `cli/` | Preserved upstream base; their presence does not mean every target is shipped as a Property product |
+| [`property/web/`](property/web/) | Interface PWA e dependências web locais |
+| [`property/relay/`](property/relay/) | Launcher e pacote portátil do relay |
+| [`property/tests/`](property/tests/) | Validações do produto Property |
+| [`property/docs/`](property/docs/) | Identidade, decisões, execução e plano de testes |
+| [`geode/`](geode/) | Código do relay reaproveitado do Amethyst |
+| `amethyst/`, `commons/`, `commonsUI/`, `desktopApp/`, `cli/` | Base upstream preservada; presença do código não significa que todos os alvos sejam produtos Property publicados |
 
-## Contributing
+## Contribuir
 
-Bug reports, documentation, tests, accessibility work, and fixes are welcome. No bounty or payment is required to contribute.
+São bem-vindos relatos de bugs, documentação, testes, acessibilidade e correções. Não é necessário oferecer bounty ou pagamento para propor uma contribuição.
 
-1. Check the [roadmap](ROADMAP.md) and [open issues](https://github.com/coercaodobem/property/issues).
-2. Read the [contribution guide](CONTRIBUTING.en.md), make a focused change, and describe how you validated it.
-3. Open a pull request targeting **`coercaodobem/property:modelo-mvp`**. The maintainer reviews contributions before merging.
+1. Confira o [roadmap](ROADMAP.md) e as [issues do Property](https://github.com/coercaodobem/property/issues).
+2. Leia [CONTRIBUTING.md](CONTRIBUTING.md), prepare uma alteração pequena e descreva como a validou.
+3. Abra um pull request para **`coercaodobem/property:modelo-mvp`**. A incorporação passa por revisão do mantenedor.
 
-For vulnerabilities, use the private channel in [SECURITY.md](SECURITY.md). Never put passwords, private keys, tokens, or private conversations in issues or logs.
+Para vulnerabilidades, use o canal privado descrito em [SECURITY.md](SECURITY.md). Não publique senhas, chaves privadas, tokens ou conversas pessoais em issues e logs.
 
-AI coding agents should follow [`AGENTS.md`](AGENTS.md), the scoped [`property/AGENTS.md`](property/AGENTS.md), and [`CONTRIBUTING-WITH-AI.md`](CONTRIBUTING-WITH-AI.md) (Português).
+Para trabalho assistido por IA, consulte [`AGENTS.md`](AGENTS.md), as instruções específicas de [`property/AGENTS.md`](property/AGENTS.md) e [`CONTRIBUTING-WITH-AI.md`](CONTRIBUTING-WITH-AI.md).
 
-## Project context and origins
+## Contexto e origem
 
-- [Project identity and principles](property/docs/identidade-do-projeto.md) (Português)
-- [Central execution plan](property/docs/plano-central.md) (Português)
-- [Test plan and results](property/docs/plano-de-testes-central.md) (Português)
-- [Detailed MVP and publishing notes](property/README.md) (Português)
+- [Identidade e princípios](property/docs/identidade-do-projeto.md)
+- [Plano central](property/docs/plano-central.md)
+- [Resultados e plano de testes](property/docs/plano-de-testes-central.md)
+- [Detalhes do MVP e da publicação](property/README.md)
 
-The source snapshot is Amethyst at commit [`948135f`](https://github.com/vitorpamplona/amethyst/tree/948135f7dbbae81d79a0b985282ce673397a7618). Property reuses its codebase and the Geode relay. The PWA uses JavaScript and a locally bundled, version-pinned `nostr-tools` package; it is not a web build of Amethyst's Android interface. The client does not download executable scripts from a CDN at runtime. The complete upstream history remains in the original repository.
+O snapshot de origem é o Amethyst no commit [948135f](https://github.com/vitorpamplona/amethyst/tree/948135f7dbbae81d79a0b985282ce673397a7618). Reaproveitamos sua base e o relay Geode. A PWA usa JavaScript e o pacote local versionado `nostr-tools`; não é uma compilação web da interface Android do Amethyst. O cliente não baixa scripts executáveis de CDN durante o uso. O histórico upstream completo permanece no repositório original.
 
-Property preserves the MIT license and authorship notices of the reused code. Dependencies have their own licenses, listed in the project inventories. Send Property-specific reports and contributions to this repository.
+O Property mantém os avisos de autoria e a licença [MIT](LICENSE) da base. Dependências têm licenças próprias, registradas nos inventários do projeto. Relatos e contribuições específicos do Property devem ser enviados a este repositório.

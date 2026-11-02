@@ -2,7 +2,7 @@
 
 Este repositório é `coercaodobem/property`, uma adaptação independente do Amethyst. A branch padrão é `modelo-mvp`. Leia [CONTRIBUTING.md](CONTRIBUTING.md), [CONTRIBUTING-WITH-AI.md](CONTRIBUTING-WITH-AI.md) e [ROADMAP.md](ROADMAP.md) para o fluxo atual de contribuição.
 
-O `README.md` é a entrada em inglês e `README.pt-BR.md` é sua versão em português; mantenha os dois sincronizados quando alterar informações do projeto. Para arquivos em `property/`, leia também [`property/AGENTS.md`](property/AGENTS.md). Instruções do caminho específico complementam este arquivo; as regras Amethyst abaixo são relevantes quando módulos herdados forem alterados.
+O `README.md` é a entrada principal em português do Brasil; `README.en.md` oferece a versão opcional em inglês. Mantenha ambas alinhadas quando alterar informações do projeto. `README.pt-BR.md` é mantido como ponte para links antigos. Para arquivos em `property/`, leia também [`property/AGENTS.md`](property/AGENTS.md). Instruções do caminho específico complementam este arquivo; as regras Amethyst abaixo são relevantes quando módulos herdados forem alterados.
 
 O produto Property fica em `property/web`, `property/relay`, `property/tests` e `property/docs`. Para mudanças somente web ou documentais, use a validação correspondente desse produto; compilar todos os alvos Kotlin não é requisito para essas mudanças. A suíte local é `bash property/tests/run-smoke.sh` com Node.js 22 ou superior. UI alterada exige inspeção no navegador; não declare teste de dispositivo sem evidência.
 

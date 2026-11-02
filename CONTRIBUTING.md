@@ -4,7 +4,7 @@
 
 Obrigado pelo interesse. O projeto é mantido em [coercaodobem/property](https://github.com/coercaodobem/property), e a branch padrão e de desenvolvimento é **`modelo-mvp`**. Bugs, ideias e pull requests do Property devem ser enviados aqui.
 
-O MVP segue em validação. Leia o [README em português](README.pt-BR.md) ou a [versão em inglês](README.md), o [roadmap](ROADMAP.md) e o [plano de testes](property/docs/plano-de-testes-central.md) para distinguir funcionalidades disponíveis de propostas. Se alterar fatos, comandos ou o estado do projeto nos READMEs, mantenha as duas versões sincronizadas.
+O MVP segue em validação. Leia o [README em português](README.md) ou a [versão em inglês](README.en.md), o [roadmap](ROADMAP.md) e o [plano de testes](property/docs/plano-de-testes-central.md) para distinguir funcionalidades disponíveis de propostas. Se alterar fatos, comandos ou o estado do projeto nos READMEs, mantenha as duas versões sincronizadas.
 
 ## Formas de ajudar
 
