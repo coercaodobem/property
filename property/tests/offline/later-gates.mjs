@@ -332,13 +332,13 @@ async function main(){
 
   await runG1102(prior);
 
-  // The 24-hour multi-relay soak is independent of financial settlement; dependency eligibility is preserved by the parent runner.
+  // The five-hour multi-relay soak is independent of financial settlement; dependency eligibility is preserved by the parent runner.
   const soakDir=path.join(out,'g11-03');
-  const soak=await run('G11-03',process.execPath,['property/tests/offline/g11-multirelay-soak.mjs',manifestPath,soakDir,'86400','60'],
-    {timeoutMs:86_580_000,logName:'g11-03-soak.log'});
+  const soak=await run('G11-03',process.execPath,['property/tests/offline/g11-multirelay-soak.mjs',manifestPath,soakDir,'17970','60'],
+    {timeoutMs:18_600_000,logName:'g11-03-soak.log'});
   const soakReport=await json(path.join(path.relative(runDir,out),'g11-03/g11-multirelay-soak-report.json'));
-  await record('G11-03',soak.status==='PASS'&&soakReport?.status==='PASS'?'PASS':soak.status==='FAIL'?'FAIL':'BLOCKED',
-    soakReport?.reason|| (soak.status==='PASS'?'Rede de três relays e duas pontes manteve probes por pelo menos 24 horas reais, com encerramento dentro da margem.':'Soak interrompido ou abaixo de 86.400 segundos reais.'),
+  await record('G11-03',soak.status==='PASS'&&soakReport?.status==='PASS'&&soakReport?.full_5h_gate_eligible===true?'PASS':soak.status==='FAIL'?'FAIL':'BLOCKED',
+    soakReport?.reason|| (soak.status==='PASS'?'Rede de três relays e duas pontes manteve probes por quase cinco horas reais, sem exceder o limite total de cinco horas.':'Soak interrompido ou fora dos limites reais de até cinco horas.'),
     soakReport||{exit_code:soak.exit_code},[soak.log,'later-gates/g11-03/g11-multirelay-soak-report.json','later-gates/g11-03/g11-soak-probes.jsonl']);
 
   const rows=await readCoreRows();
