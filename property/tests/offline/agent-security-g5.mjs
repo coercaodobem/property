@@ -9,11 +9,11 @@ import { AgentService } from '../../agent/service.mjs';
 import { conversationId, createEmptyConfig, loadNostr, secretBytesInContext, validateConfig } from '../../agent/core.mjs';
 import { NostrAgentTransport } from '../../agent/relay.mjs';
 import { parseStrictJson } from '../../agent/ipc.mjs';
-import { readJson, replaceContact, writePrivateJson } from '../../agent/store.mjs';
+import { readJson, writePrivateJson } from '../../agent/store.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const EVIDENCE = path.join(ROOT, 'docs/evidence/agent-messaging');
-const SEED = 'property-g5-hostile-replay-scope-quota-revoke-v1';
+const SEED = 'property-g5-hostile-direct-message-block-quota-v2';
 const LOGICAL_NOW = 1_900_000_000;
 const FIXTURE_AGENT = 'a'.repeat(64);
 const FIXTURE_PEER = 'b'.repeat(64);
@@ -59,15 +59,14 @@ async function testHostileCorpus() {
   assert.equal(corpus.length, 100);
   const beforeConfig = createEmptyConfig(FIXTURE_AGENT);
   beforeConfig.inbox_relays = [FIXTURE_RELAY];
-  beforeConfig.contacts = [{ pubkey: FIXTURE_PEER, name: 'fixture', relays: [FIXTURE_RELAY], read: true, send: true, status: 'approved' }];
   const baseline = JSON.stringify(beforeConfig);
   let current;
   const transport = {
+    async listConversations() { return []; },
     async readMessages(peer) { return [makeMessage(peer, ++current.index, current.body)]; },
     async sendMessage() { return { status: 'relay_accepted' }; },
   };
-  let inviteCalls = 0;
-  const service = new AgentService({ pubkey: FIXTURE_AGENT, loadConfig: async () => beforeConfig, saveConfig: async () => { throw new Error('unexpected-config-write'); }, transport, createInvite: async () => { inviteCalls++; } , now: () => LOGICAL_NOW });
+  const service = new AgentService({ pubkey: FIXTURE_AGENT, loadConfig: async () => beforeConfig, saveConfig: async () => { throw new Error('unexpected-config-write'); }, transport, now: () => LOGICAL_NOW });
   const results = [];
   for (let index = 0; index < corpus.length; index++) {
     const fixture = corpus[index];
@@ -85,8 +84,8 @@ async function testHostileCorpus() {
   }
   assert.equal(JSON.stringify(beforeConfig), baseline, 'leitura hostil não alterou identidade, contatos, relays ou escopos');
   assert.equal(captures.relayPublishFrames, 0, 'leitura hostil não publicou em relay');
-  assert.equal(inviteCalls, 0, 'leitura hostil não criou convites');
-  hostileSideEffects = { fixtureReads: corpus.length, relayPublishes: captures.relayPublishFrames, invitations: inviteCalls, configChanged: JSON.stringify(beforeConfig) !== baseline };
+  assert.equal(JSON.stringify(beforeConfig), baseline, 'leitura hostil não alterou a identidade independente nem a configuração local');
+  hostileSideEffects = { fixtureReads: corpus.length, relayPublishes: captures.relayPublishFrames, configChanged: JSON.stringify(beforeConfig) !== baseline };
   return results;
 }
 
@@ -264,44 +263,47 @@ async function testStrictStorageAndMcpInput(temp) {
   return cases;
 }
 
-async function testScopeViolations() {
+async function testDirectMessagesAndBlocks() {
   const config = createEmptyConfig(FIXTURE_AGENT);
   config.inbox_relays = [FIXTURE_RELAY];
-  const contacts = [
-    { pubkey: 'b'.repeat(64), name: 'revoked', relays: [FIXTURE_RELAY], read: false, send: false, status: 'revoked' },
-    { pubkey: 'c'.repeat(64), name: 'blocked', relays: [FIXTURE_RELAY], read: false, send: false, status: 'blocked' },
-    { pubkey: 'd'.repeat(64), name: 'read-denied', relays: [FIXTURE_RELAY], read: false, send: true, status: 'approved' },
-    { pubkey: 'e'.repeat(64), name: 'send-denied', relays: [FIXTURE_RELAY], read: true, send: false, status: 'approved' },
-  ];
-  config.contacts = contacts;
+  config.blocked_pubkeys = ['c'.repeat(64)];
   validateConfig(config);
-  let readCalls = 0; let sendCalls = 0; let current = config;
+  let readCalls = 0; let sendCalls = 0; let current = config; let currentPeer = 'd'.repeat(64);
   const service = new AgentService({ pubkey: FIXTURE_AGENT, loadConfig: async () => current, saveConfig: async value => { current = value; }, transport: {
-    async readMessages() { readCalls++; return []; }, async sendMessage() { sendCalls++; return { status: 'relay_accepted' }; },
-  }, createInvite: async () => ({}), now: () => LOGICAL_NOW });
-  const readTargets = ['f'.repeat(64), contacts[0].pubkey, contacts[1].pubkey, contacts[2].pubkey];
-  const sendTargets = ['9'.repeat(64), contacts[0].pubkey, contacts[1].pubkey, contacts[3].pubkey];
+    async listConversations() { return [{ pubkey: currentPeer, last_activity: LOGICAL_NOW, last_message_id: '1'.repeat(32) }]; },
+    async readMessages(peer) { readCalls++; return [makeMessage(peer, readCalls, 'directo sem pareamento')]; },
+    async sendMessage() { sendCalls++; return { status: 'relay_accepted' }; },
+  }, now: () => LOGICAL_NOW });
   const results = [];
   for (let index = 0; index < 25; index++) {
-    const readTarget = readTargets[index % readTargets.length];
-    await assert.rejects(service.dispatch('read', { conversation_pubkey: readTarget, limit: 1 }), /conversation-read-out-of-scope/);
-    const sendTarget = sendTargets[index % sendTargets.length];
-    await assert.rejects(service.dispatch('send', { conversation_pubkey: sendTarget, text: `scope-${index}`, in_reply_to: null }), /conversation-send-out-of-scope/);
-    results.push(record(`scope-read-${String(index + 1).padStart(2, '0')}-denied-before-transport`, { targetSha256: digest(readTarget) }));
-    results.push(record(`scope-send-${String(index + 1).padStart(2, '0')}-denied-before-transport`, { targetSha256: digest(sendTarget) }));
+    currentPeer = (index + 20).toString(16).padStart(64, '0');
+    const listed = await service.dispatch('list', {});
+    assert.equal(listed.conversations[0].pubkey, currentPeer, 'inbox lista peers sem contato configurado');
+    const read = await service.dispatch('read', { conversation_pubkey: currentPeer, limit: 1 });
+    assert.equal(read.messages[0].body, 'directo sem pareamento');
+    const sent = await service.dispatch('send', { conversation_pubkey: currentPeer, text: `sem-pareamento-${index}`, in_reply_to: null });
+    assert.equal(sent.status, 'relay_accepted');
+    results.push(record(`direct-read-send-without-pairing-${String(index + 1).padStart(2, '0')}`, { targetSha256: digest(currentPeer) }));
   }
-  assert.equal(readCalls, 0); assert.equal(sendCalls, 0);
+  assert.equal(readCalls, 25); assert.equal(sendCalls, 25);
+  const blocked = 'c'.repeat(64);
+  await assert.rejects(service.dispatch('read', { conversation_pubkey: blocked, limit: 1 }), /agent-blocked-locally/);
+  await assert.rejects(service.dispatch('send', { conversation_pubkey: blocked, text: 'blocked', in_reply_to: null }), /agent-blocked-locally/);
+  const unblock = await service.dispatch('agent.unblock', { pubkey: blocked });
+  assert.equal(unblock.blocked, false); assert.equal(unblock.changed, true);
+  const directAfterUnblock = await service.dispatch('send', { conversation_pubkey: blocked, text: 'unblocked-direct-send', in_reply_to: null });
+  assert.equal(directAfterUnblock.status, 'relay_accepted');
+  results.push(record('local-block-denies-read-send-and-unblock-restores-direct-use'));
   return results;
 }
 
 async function testQuota() {
   let config = createEmptyConfig(FIXTURE_AGENT);
   config.inbox_relays = [FIXTURE_RELAY];
-  config.contacts = [{ pubkey: FIXTURE_PEER, name: 'quota', relays: [FIXTURE_RELAY], read: true, send: true, status: 'approved' }];
   let published = 0;
   const service = new AgentService({ pubkey: FIXTURE_AGENT, loadConfig: async () => config, saveConfig: async value => { config = structuredClone(value); }, transport: {
-    async readMessages() { return []; }, async sendMessage() { published++; return { status: 'relay_accepted' }; },
-  }, createInvite: async () => ({}), now: () => LOGICAL_NOW });
+    async listConversations() { return []; }, async readMessages() { return []; }, async sendMessage() { published++; return { status: 'relay_accepted' }; },
+  }, now: () => LOGICAL_NOW });
   const results = [];
   for (let index = 0; index < 30; index++) {
     const result = await service.dispatch('send', { conversation_pubkey: FIXTURE_PEER, text: `quota-${index}`, in_reply_to: null });
@@ -318,30 +320,30 @@ async function testQuota() {
   return results;
 }
 
-async function testContactRotationAndRevocation(temp) {
-  const configPath = path.join(temp, 'rotation-config.json');
+async function testBlockRotationAndUnblock(temp) {
+  const configPath = path.join(temp, 'block-config.json');
   let config = createEmptyConfig(FIXTURE_AGENT);
   config.inbox_relays = [FIXTURE_RELAY];
   await writePrivateJson(configPath, config);
-  let accepted = 0; let deniedTransport = 0; let denied = 0; let logicalNow = LOGICAL_NOW;
+  let accepted = 0; let denied = 0; let logicalNow = LOGICAL_NOW;
   const results = [];
   for (let cycle = 0; cycle < 20; cycle++) {
     logicalNow = LOGICAL_NOW + cycle * 60;
     const peer = (cycle + 101).toString(16).padStart(64, '0');
-    const approved = { pubkey: peer, name: `contact-${cycle + 1}`, relays: [FIXTURE_RELAY], read: true, send: true, status: 'approved' };
-    await replaceContact(configPath, FIXTURE_AGENT, approved);
     const service = new AgentService({ pubkey: FIXTURE_AGENT, loadConfig: () => readJson(configPath), saveConfig: value => writePrivateJson(configPath, value), transport: {
-      async readMessages() { deniedTransport++; return []; }, async sendMessage() { accepted++; return { status: 'relay_accepted' }; },
-    }, createInvite: async () => ({}), now: () => logicalNow });
-    const success = await service.dispatch('send', { conversation_pubkey: peer, text: `rotation-${cycle + 1}`, in_reply_to: null });
-    assert.equal(success.status, 'relay_accepted');
-    await replaceContact(configPath, FIXTURE_AGENT, { ...approved, read: false, send: false, status: 'revoked' });
-    assert.equal((await readJson(configPath)).contacts.some(contact => contact.pubkey === peer), false);
-    await assert.rejects(service.dispatch('read', { conversation_pubkey: peer, limit: 1 }), /conversation-read-out-of-scope/); denied++;
-    await assert.rejects(service.dispatch('send', { conversation_pubkey: peer, text: 'after-revoke', in_reply_to: null }), /conversation-send-out-of-scope/); denied++;
-    results.push(record(`contact-scope-rotation-revocation-cycle-${String(cycle + 1).padStart(2, '0')}`, { logicalNow, revokedPubkeySha256: digest(peer), postRevokeReadDenied: true, postRevokeSendDenied: true }));
+      async listConversations() { return []; }, async readMessages() { return [makeMessage(peer, cycle + 1, 'inbox local')]; }, async sendMessage() { accepted++; return { status: 'relay_accepted' }; },
+    }, now: () => logicalNow });
+    assert.equal((await service.dispatch('send', { conversation_pubkey: peer, text: `direct-${cycle + 1}`, in_reply_to: null })).status, 'relay_accepted');
+    await service.dispatch('agent.block', { pubkey: peer });
+    assert.ok((await readJson(configPath)).blocked_pubkeys.includes(peer));
+    await assert.rejects(service.dispatch('read', { conversation_pubkey: peer, limit: 1 }), /agent-blocked-locally/); denied++;
+    await assert.rejects(service.dispatch('send', { conversation_pubkey: peer, text: 'after-block', in_reply_to: null }), /agent-blocked-locally/); denied++;
+    await service.dispatch('agent.unblock', { pubkey: peer });
+    assert.equal((await service.dispatch('read', { conversation_pubkey: peer, limit: 1 })).messages[0].body, 'inbox local');
+    assert.equal((await service.dispatch('send', { conversation_pubkey: peer, text: `after-unblock-${cycle + 1}`, in_reply_to: null })).status, 'relay_accepted');
+    results.push(record(`direct-use-block-unblock-cycle-${String(cycle + 1).padStart(2, '0')}`, { logicalNow, peerSha256: digest(peer), blockedReadSendDenied: true, directUseRestored: true }));
   }
-  assert.equal(accepted, 20); assert.equal(denied, 40); assert.equal(deniedTransport, 0);
+  assert.equal(accepted, 40); assert.equal(denied, 40);
   return results;
 }
 
@@ -355,20 +357,20 @@ async function main() {
   records.push(...await testHostileCorpus());
   records.push(...await testAuthenticityAndReplay());
   records.push(...await testStrictStorageAndMcpInput(tempRoot));
-  records.push(...await testScopeViolations());
+  records.push(...await testDirectMessagesAndBlocks());
   records.push(...await testQuota());
-  records.push(...await testContactRotationAndRevocation(tempRoot));
+  records.push(...await testBlockRotationAndUnblock(tempRoot));
   assert.equal(digest(await readFile(humanSentinel)), sentinelHash, 'dados humanos sintéticos permanecem intactos após o ensaio adversarial');
   records.push(record('synthetic-human-data-sentinel-unchanged'));
   const summary = {
     gate: 'G5', status: 'PASS_TECHNICAL_OFFLINE_PENDING_INDEPENDENT_REVIEW', seed: SEED, logicalNow: LOGICAL_NOW,
     environment: { os: `${os.platform()}/${os.arch()}`, node: process.version, externalConnections: 0, externalModels: 0, realParticipants: 0, realFunds: false, publicRelays: false, realHumanIdentity: false },
-    counts: { hostileFixtures: corpusManifest.length, replayDuplicateCopies: 100, scopeViolations: 50, overQuotaAttempts: 50, successfulSendsBeforeQuota: 30, contactScopeRotationRevocationCycles: 20, testCases: records.length },
+    counts: { hostileFixtures: corpusManifest.length, replayDuplicateCopies: 100, directUnpairedReadSendCases: 25, overQuotaAttempts: 50, successfulSendsBeforeQuota: 30, localBlockUnblockCycles: 20, testCases: records.length },
     hostileFixtureCategories: categories,
     captures: { ...captures, websocketFrames: { reads: CapturingWebSocket.frames.filter(frame => frame === 'REQ').length, closes: CapturingWebSocket.frames.filter(frame => frame === 'CLOSE').length, publishedEvents: CapturingWebSocket.frames.filter(frame => frame === 'EVENT').length } },
     hostileSideEffects,
-    fixesExercised: ['verify event before deduplication', 'deduplicate NIP-17 event IDs and message IDs across configured relays', 'bound relay frame before JSON parsing', 'bounded MCP stdin line buffering and resynchronization', 'reject duplicate/deep persisted and IPC JSON', 'reject symlink, wrong-mode, oversized config files', 'apply read/send allowlist and quota before transport'],
-    limitations: ['Independent security review has not occurred and remains PENDING.', 'No commercial host/model was run; semantic prompt-injection behavior inside an external model is not evaluated.', 'The 20 cycles cover contact-scope rotation and local revocation, not cryptographic agent-key rotation; no key-rotation command or remote revocation notice exists.', 'No real person or real human identity was used; synthetic data preservation does not prove human G1/G6 UX.'],
+    fixesExercised: ['verify event before deduplication', 'deduplicate NIP-17 event IDs and message IDs across configured relays', 'bound relay frame before JSON parsing', 'bounded MCP stdin line buffering and resynchronization', 'reject duplicate/deep persisted and IPC JSON', 'reject symlink, wrong-mode, oversized config files', 'allow direct messages without pairing', 'enforce local block and fixed outbound quota before relay publication'],
+    limitations: ['Independent security review has not occurred and remains PENDING.', 'No commercial host/model was run; semantic prompt-injection behavior inside an external model is not evaluated.', 'The 20 cycles cover local block/unblock, not cryptographic agent-key rotation or remote revocation; no key-rotation or remote revocation protocol exists.', 'No real person or real human identity was used; synthetic data preservation does not prove human G1/G6 UX.'],
     evidence: records,
     corpusManifest,
   };

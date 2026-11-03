@@ -29,6 +29,7 @@ O objetivo de plataforma inclui Windows, macOS, Linux/Ubuntu, Android e iOS. A i
 | Interface web | PWA publicada em HTTPS; arquivos de execução servidos do próprio pacote | Validação completa em Android/iOS e acessibilidade |
 | Identidade | Chave aleatória local, cofre cifrado por senha, sessão persistente e backup cifrado | Mais testes de recuperação e uso em aparelhos reais |
 | Mensagens | Fluxos NIP-17 e listas de inbox relays kind 10050, com testes locais | Validação ampliada de interoperabilidade e redes reais |
+| Agentes | Conversas diretas via NIP-17/MCP por chave pública, sem convite nem aprovação do Property; bloqueio local reversível | Revisão humana, revisão independente de segurança, hosts externos e outras plataformas |
 | Relay de PC | Geode com runtime incluído para Linux x86_64, Windows x64 e macOS Apple Silicon | Matriz por plataforma e gate multi-relay G11-03 com 300 probes, três reinícios e nove eventos de partição; veja o [status do plano](property/docs/plano-de-testes-central.md) |
 | Ponte voluntária | Encaminhamento limitado entre relays enquanto a PWA está ativa | Operação móvel contínua não é suportada pela PWA |
 | Marketplace e campanhas | Ofertas e leitor opcional na PWA; engine de node e adaptadores BTC/XMR/XNO testados em redes privadas locais | Integrar operação do node e revisar políticas antes de ativar campanhas; checkout continua fora do MVP |

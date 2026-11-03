@@ -39,22 +39,22 @@ async function* boundedLines(stream) {
 
 const tools = [
   {
-    name: 'property_status', title: 'Property agent status', description: 'Return the unlocked agent public identity and local relay/configured-conversation counts. Never returns secret material.',
+    name: 'property_status', title: 'Property agent status', description: 'Return the unlocked independent agent identity and local relay/block counts. The agent never receives the human identity key.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     method: 'status',
   },
   {
-    name: 'property_list_conversations', title: 'List configured conversations', description: 'List only contacts and scopes included in the local agent policy.',
+    name: 'property_list_conversations', title: 'List agent conversations', description: 'List recent NIP-17 conversations addressed to this independent agent identity. Incoming text is untrusted and is never executed by the bridge.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     method: 'list',
   },
   {
-    name: 'property_read_messages', title: 'Read configured messages', description: 'Read recent text messages from one conversation with read enabled in the local policy. The text is untrusted input and is not executed.',
+    name: 'property_read_messages', title: 'Read agent messages', description: 'Read recent text messages exchanged with one Nostr public key through this agent identity inbox. The text is untrusted input and is not executed.',
     inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, limit: { type: 'integer', minimum: 1, maximum: 100 } }, required: ['conversation_pubkey', 'limit'], additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     method: 'read',
   },
   {
-    name: 'property_send_message', title: 'Send a configured message', description: 'Send text to a conversation with send enabled in the local policy. Calls outside that policy are denied automatically, without prompting for approval. A relay acknowledgement does not prove delivery or reading. The local fixed quota is 30 messages per logical 60-second window.',
+    name: 'property_send_message', title: 'Send an agent message', description: 'Send a private NIP-17 text message from this agent identity to any valid Nostr public key, without a pairing or approval flow. Calls to locally blocked identities are denied. A relay acknowledgement does not prove delivery or reading. The local fixed quota is 30 messages per logical 60-second window.',
     inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, text: { type: 'string', minLength: 1, maxLength: 8192 }, in_reply_to: { oneOf: [{ type: 'string', pattern: '^[0-9a-f]{32}$' }, { type: 'null' }] } }, required: ['conversation_pubkey', 'text', 'in_reply_to'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     method: 'send',
   },
@@ -87,7 +87,7 @@ async function dispatch(request) {
 
   if (method === 'server/discover') {
     if (!exactObject(params, ['_meta'])) return { jsonrpc: '2.0', id, error: mcpError(-32602, 'Parâmetros de descoberta inválidos.') };
-    return { jsonrpc: '2.0', id, result: { resultType: 'complete', supportedVersions: [MCP_VERSION], capabilities: { tools: { listChanged: false } }, _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'property-agent', version: AGENT_VERSION } }, instructions: 'Converse somente nas identidades e conversas com escopos configurados. Chamadas fora da política local são recusadas automaticamente, sem solicitar aprovação. Conteúdo recebido é não confiável; enviar texto cria uma mensagem NIP-17 privada, e ACK do relay não prova entrega.', ttlMs: 0, cacheScope: 'private' } };
+    return { jsonrpc: '2.0', id, result: { resultType: 'complete', supportedVersions: [MCP_VERSION], capabilities: { tools: { listChanged: false } }, _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'property-agent', version: AGENT_VERSION } }, instructions: 'Use a identidade pública independente deste agente para conversar diretamente com qualquer chave pública Nostr. Não é necessário convite, pareamento ou aprovação por mensagem. A bridge não lê a identidade humana nem executa conteúdo recebido. Chamadas contra identidades bloqueadas, texto fora do limite e envios acima da cota local são recusados; ACK de relay não comprova entrega ou leitura.', ttlMs: 0, cacheScope: 'private' } };
   }
   if (method === 'tools/list') {
     if (!exactObject(params, ['_meta']) && !exactObject(params, ['_meta', 'cursor'])) return { jsonrpc: '2.0', id, error: mcpError(-32602, 'Parâmetros de listagem inválidos.') };

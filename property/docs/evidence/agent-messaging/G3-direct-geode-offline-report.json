@@ -1,0 +1,1507 @@
+{
+  "gate": "G3",
+  "status": "PASS_TECHNICAL_OFFLINE",
+  "seed": "property-agent-g3-geode-fixed-v1",
+  "logicalNow": 1900000000,
+  "environment": {
+    "os": "linux/x64",
+    "node": "v22.22.1",
+    "externalRelayConnections": 0,
+    "externalModelCalls": 0,
+    "realParticipants": 0,
+    "syntheticPwaIdentities": 1,
+    "geodePackageSha256": "9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7",
+    "geodePackageBytes": 67845545,
+    "isolatedGeodeRelays": 3,
+    "independentAgentProcesses": 2,
+    "pwaEngine": "firefox",
+    "pwaBrowser": "153.0",
+    "pwaPlaywright": "1.62.1"
+  },
+  "counts": {
+    "alphaToBeta": 50,
+    "betaToAlpha": 50,
+    "senderDecryptsEachDirection": 50,
+    "thirdPartyDecryptAttempts": 20,
+    "thirdPartyDecryptions": 0,
+    "correlatedResponses": 20,
+    "restartsPerAgent": 3,
+    "partitionReconnectEvents": 9,
+    "duplicates": 10,
+    "tampered": 10,
+    "reordered": 10,
+    "unknownSchemas": 10,
+    "acceptedRelayAcks": 400,
+    "partitionedPublishAttempts": 9
+  },
+  "evidence": {
+    "senderCanDecryptOwnWrap": true,
+    "recipientCanDecryptOwnWrap": true,
+    "thirdPartyCannotDecryptFixedSamples": true,
+    "allMessagesQueriedByRecipient": true,
+    "allRelaysStoreOnlyEncryptedWraps": true,
+    "relaysSawNoFixturePlaintext": true,
+    "duplicateRelayResponsesCollapsedByEventId": true,
+    "messageIdDedupSurvivesRestart": true,
+    "tamperedSignaturesRejectedBeforeParsing": true,
+    "unknownSchemasRejected": true,
+    "privateKeysInReport": false,
+    "messageBodiesInReport": false
+  },
+  "pwa": {
+    "engine": "firefox",
+    "browser": "153.0",
+    "playwright": "1.62.1",
+    "websocketConnections": 3,
+    "blockedExternalRequests": 0,
+    "pageErrors": 0,
+    "pwaIdentityPreserved": true,
+    "agentConversationLabeled": true,
+    "agentInitiatedWithoutApproval": true,
+    "unsolicitedFirstEnvelopeStored": true,
+    "humanReplyDecryptedByAgentProcess": true,
+    "agentReplyCorrelatedToHumanRequest": true,
+    "existingHumanConversationPreserved": true,
+    "serviceWorkerControlled": false,
+    "screenshot": "docs/evidence/agent-messaging/G3-direct-browser/agent-direct-conversation.png"
+  },
+  "caseCount": 359,
+  "cases": [
+    {
+      "id": "G3-two-independent-agent-identities",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-three-isolated-Geode-relays",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-alpha-to-beta-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-before-reconnect-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-after-reconnect-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-alpha-to-beta-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-before-reconnect-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-after-reconnect-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-alpha-to-beta-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-before-reconnect-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-after-reconnect-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-alpha-to-beta-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-before-reconnect-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-after-reconnect-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-alpha-to-beta-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-before-reconnect-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-after-reconnect-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-alpha-to-beta-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-alpha-to-beta-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-alpha-to-beta-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-alpha-to-beta-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-alpha-to-beta-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-11",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-11",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-12",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-12",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-13",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-13",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-14",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-14",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-15",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-15",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-16",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-16",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-17",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-17",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-18",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-18",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-19",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-19",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-20",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-20",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-21",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-21",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-22",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-22",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-23",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-23",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-24",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-24",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-25",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-25",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-26",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-26",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-27",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-27",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-28",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-28",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-29",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-29",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-30",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-30",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-31",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-31",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-32",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-32",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-33",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-33",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-34",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-34",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-35",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-35",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-36",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-36",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-37",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-37",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-38",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-38",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-39",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-39",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-40",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-40",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-41",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-41",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-42",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-42",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-43",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-43",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-44",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-44",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-45",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-45",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-46",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-46",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-47",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-47",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-48",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-48",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-49",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-49",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-alpha-to-beta-50",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-alpha-to-beta-50",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-query-both-relays-dedupes-and-hides-plaintext",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-11",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-12",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-13",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-14",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-15",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-16",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-17",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-18",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-19",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-20",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-21",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-22",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-23",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-24",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-25",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-26",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-27",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-28",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-29",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-30",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-31",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-32",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-33",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-34",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-35",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-36",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-37",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-38",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-39",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-40",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-41",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-42",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-43",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-44",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-45",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-46",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-47",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-48",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-49",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-alpha-to-beta-50",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-reordered-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-reordered-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-reordered-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-reordered-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-reordered-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-reordered-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-reordered-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-reordered-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-reordered-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-reordered-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-fifty-messages-alpha-to-beta",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-beta-to-alpha-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-before-reconnect-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-after-reconnect-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-beta-to-alpha-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-before-reconnect-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-after-reconnect-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-beta-to-alpha-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-before-reconnect-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-after-reconnect-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-beta-to-alpha-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-before-reconnect-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-partition-after-reconnect-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-beta-to-alpha-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-beta-to-alpha-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-beta-to-alpha-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-beta-to-alpha-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-beta-to-alpha-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-third-party-cannot-decrypt-beta-to-alpha-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-11",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-11",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-12",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-12",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-13",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-13",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-14",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-14",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-15",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-15",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-16",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-16",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-17",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-17",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-18",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-18",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-19",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-19",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-sender-decrypt-beta-to-alpha-20",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-correlated-response-20",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-21",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-22",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-23",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-24",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-25",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-26",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-27",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-28",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-29",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-30",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-31",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-32",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-33",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-34",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-35",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-36",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-37",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-38",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-39",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-40",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-41",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-42",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-43",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-44",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-45",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-46",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-47",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-48",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-49",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-beta-to-alpha-50",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-query-beta-to-alpha-ciphertext-only",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-all-relays-store-only-200-encrypted-wraps",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-11",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-12",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-13",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-14",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-15",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-16",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-17",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-18",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-19",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-20",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-21",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-22",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-23",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-24",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-25",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-26",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-27",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-28",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-29",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-30",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-31",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-32",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-33",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-34",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-35",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-36",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-37",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-38",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-39",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-40",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-41",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-42",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-43",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-44",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-45",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-46",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-47",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-48",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-49",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-decrypt-beta-to-alpha-50",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-twenty-correlated-responses",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-duplicate-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-duplicate-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-duplicate-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-duplicate-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-duplicate-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-duplicate-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-duplicate-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-duplicate-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-duplicate-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-duplicate-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-tampered-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-tampered-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-tampered-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-tampered-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-tampered-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-tampered-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-tampered-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-tampered-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-tampered-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-tampered-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-unknown-schema-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-unknown-schema-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-unknown-schema-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-unknown-schema-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-unknown-schema-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-unknown-schema-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-unknown-schema-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-unknown-schema-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-unknown-schema-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-unknown-schema-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-pwa-resource-isolation-after-mesh-cases",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-agent-initiates-first-message-without-pairing-or-approval",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-pwa-human-replies-without-approval",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-pwa-human-identity-and-relay-inbox",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-pwa-agent-protocol-labeled-without-invite",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-pwa-receives-first-agent-envelope-without-prior-human-message",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-pwa-human-replies-over-nip17-and-agent-answers",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-pwa-human-conversation-preserved",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-restart-alpha-1",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-restart-beta-1",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-restart-alpha-2",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-restart-beta-2",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-restart-alpha-3",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-restart-beta-3",
+      "result": "PASS"
+    }
+  ]
+}

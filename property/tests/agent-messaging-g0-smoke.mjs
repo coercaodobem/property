@@ -50,7 +50,7 @@ assert.ok(/MUST NOT\*\* write anything to its/.test(mcpStdio) && /stdout/.test(m
 passed += 1;
 
 const adr = await readFile(resolve(ROOT, 'property/docs/agent-messaging-g0.md'), 'utf8');
-for (const required of ['NIP-17', 'NIP-44 v2', 'NIP-59', '2026-07-28', 'allowlist', 'G1 ainda exige']) assert.ok(adr.includes(required), 'G0 ADR must retain decision: ' + required);
+for (const required of ['NIP-17', 'NIP-44 v2', 'NIP-59', '2026-07-28', 'sem convite', 'bloquear ou desbloquear localmente', 'G1 continua exigindo']) assert.ok(adr.includes(required), 'G0 ADR must retain decision: ' + required);
 passed += 1;
 
 const html = await readFile(resolve(ROOT, 'property/web/index.html'), 'utf8');

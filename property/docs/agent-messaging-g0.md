@@ -1,108 +1,64 @@
-# G0 — Decisão arquitetural e modelo de ameaças
+# G0 — Decisão vigente: mensagens diretas entre agentes
 
-**Estado:** PASS para as decisões de arquitetura e para o início do protótipo G1.  
-**Data da revisão:** 2026-11-03.  
-**Escopo:** fixar o MVP antes de implementar identidade ou bridge. Nenhuma comunicação entre agentes está declarada como implementada por este documento.  
-**Fontes reproduzidas e hashes:** [snapshots fixados](protocol-snapshots/README.md).
+**ADR:** `ADR-AGENT-002`, revisada em 2026-11-03.
+**Decisão:** conectar diretamente por chave pública Nostr, sem convite, pareamento, concessão de acesso ou aprovação por conversa/mensagem.
+**Escopo:** decisões do produto e modelo de ameaças; o estado de cada teste fica nos relatórios de evidência.
+**Protocolos fixados:** [snapshots locais e hashes](protocol-snapshots/README.md).
 
-## 1. Decisão arquitetural ADR-AGENT-001
+## 1. Fluxo aprovado
 
-### Escopo do primeiro MVP
+- Cada agente tem uma identidade Nostr própria, criada e protegida localmente. Ela não é a identidade humana e não recebe a chave privada da pessoa.
+- Um agente pode endereçar qualquer chave pública Nostr válida. No MCP, isso corresponde ao valor hex de 64 caracteres; na PWA, a pessoa pode informar `npub` ou chave pública hex.
+- Na PWA, a pessoa pode iniciar uma conversa direta e marcar o protocolo de agentes para aquela conversa. Essa escolha seleciona o formato da mensagem; não concede acesso a outras conversas, dados, ferramentas ou à chave da pessoa.
+- Uma mensagem válida de agente também pode iniciar a conversa. A PWA cria a conversa, mostra o rótulo “Protocolo de agente” e preserva separadas as conversas humanas.
+- A pessoa pode bloquear ou desbloquear localmente uma identidade de agente. O bloqueio afeta somente este aparelho, impede novas leituras/envios nesta conversa e mantém o histórico local. Não é uma etapa obrigatória para começar a conversar.
+- Não há lista de contatos autorizados, convite, fila de aprovação, pedido de permissão ou confirmação do Property antes de conversar. O host de IA pode impor suas próprias confirmações; essa política fica fora do controle do Property.
 
-1. Conversa direta de texto entre duas identidades de agente independentes.
-2. Pessoa e agente podem conversar quando a pessoa adiciona e autoriza explicitamente aquele agente.
-3. A PWA humana continua utilizável sem agente; telas, mensagens e relays humanos não dependem da bridge.
-4. Fora do primeiro MVP: execução de ferramentas remotas, shell, filesystem, browser automation, cadeia autônoma de tarefas, anexos, salas públicas de agentes, pagamentos, reputação, diretório global de agentes e delegação de chave humana.
+## 2. Limites de identidade, custódia e bridge
 
-### Identidade, pareamento e custódia
+- O daemon local cria a identidade do agente e a guarda em cofre separado, cifrado com AES-GCM-256, salt aleatório de 16 bytes e PBKDF2-HMAC-SHA-256 com 600.000 iterações. O processo mantém a chave em memória enquanto desbloqueado; ao bloquear, limpa a cópia de trabalho.
+- No alvo Ubuntu, `property-agent init` cria o cofre em `$XDG_DATA_HOME/property/agents/` (fallback `~/.local/share/property/agents/`). O daemon usa socket Unix local com permissões restritas ao usuário; MCP usa stdio e não abre listener TCP.
+- A bridge acessa somente a identidade do agente e seu inbox. Ela não consulta nem envia a chave humana, não lê outras conversas da pessoa e não expõe shell, filesystem, browser, ferramenta remota ou assinatura arbitrária.
+- A lista de inbox relays é publicada como evento NIP-17 kind 10050. O envio procura essa lista em relays escolhidos pelo próprio agente e usa seus relays locais como fallback. Uma confirmação do relay prova somente aceitação do evento por aquele relay.
+- Windows, macOS, Android e iOS só são declarados suportados depois de implementação e evidência específicas. A PWA pode ser suspensa pelo sistema operacional.
 
-- Cada agente recebe uma chave Nostr aleatória própria, diferente da identidade humana e de qualquer outro agente. A identidade humana nunca é exportada para a bridge, host de IA ou contexto do modelo.
-- O host local do agente cria a identidade e a guarda em cofre separado, cifrado com AES-GCM-256, salt aleatório de 16 bytes e PBKDF2-HMAC-SHA-256 com 600.000 iterações, reaproveitando o desenho e a implementação de cofre já presentes em `property/web/vault.js`. No primeiro alvo Ubuntu, `property-agent init` cria o cofre em `$XDG_DATA_HOME/property/agents/` (fallback `~/.local/share/property/agents/`), com diretório/arquivo restritos ao usuário; `property-agent unlock` lê a senha de um TTY controlado pelo usuário, sem argumento, ambiente, log ou stdout. O processo local mantém a chave em memória enquanto desbloqueado. O MCP stdio não recebe chave nem senha: encaminha tools por socket Unix local em `$XDG_RUNTIME_DIR`, com permissões somente para o usuário; socket ausente, cofre bloqueado ou escopo ausente falham fechados. Nenhum listener TCP é aberto. Adaptadores IPC/armazenamento de Windows e macOS permanecem PENDING até implementação e teste nativos em G7.
-- Backup da chave do agente é uma ação explícita e exporta somente o formato de backup cifrado existente; perda da senha e do backup causa perda da identidade. Não há recuperação central.
-- Pareamento começa por convite/QR/link gerado localmente. A PWA valida a assinatura do convite e mostra a chave pública completa/fingerprint e o rótulo “Agente” antes da pessoa aceitar. Nome e Agent Card são declarações do agente, não prova de identidade.
-- O escopo é configurado uma vez no pareamento por agente e conversa/contato, com permissões legíveis de leitura e envio de texto. Padrão: nenhuma permissão até a configuração inicial. Durante o uso normal não há prompts nem fila de aprovação: chamadas dentro do escopo configurado seguem; ações fora dele falham fechadas. Alterar ou revogar o escopo é uma mudança explícita de configuração do proprietário.
-- A revogação bloqueia localmente novas leituras/envios na PWA assim que a pessoa a confirma e publica um controle NIP-17 assinado e cifrado para o agente. Uma bridge desconectada só aplica a revogação depois de receber esse controle; cópias já lidas por agente/relay não podem ser apagadas remotamente. A interface deve mostrar “revogação enviada/pendente” até haver confirmação do agente, sem prometer revogação instantânea fora do aparelho.
+## 3. Transporte e formato
 
-### Transporte privado e envelope
-
-- Reutilizar o transporte implementado do Property: NIP-17, usando NIP-44 v2 e NIP-59. Não criar criptografia, NIP, kind, relay obrigatório ou backend próprios.
-- O cliente consulta a lista kind 10050 e só publica para os relays de recebimento anunciados; o fallback não envia a mensagem para um relay arbitrário.
-- Mensagens de agente usam kind 14 sob NIP-17 e um envelope JSON de aplicação versionado. O envelope v1 aceita somente os campos `protocol`, `version`, `conversation_id`, `message_id`, `in_reply_to` e `body`; IDs são 32 caracteres hexadecimais minúsculos. `body` é texto UTF-8 de até 8.192 bytes; o envelope serializado não pode exceder 16 KiB. Não há campos adicionais, profundidade JSON variável, anexos ou comandos.
-- Conversas com agente só interpretam o envelope conhecido. Versão desconhecida, JSON inválido ou conteúdo sem envelope válido aparece como texto não confiável ou é rejeitado com mensagem clara. Nenhum link é aberto, imagem baixada, Markdown executado ou instrução convertida em chamada de ferramenta pelo parser.
-- A deduplicação usa `message_id` e o ID do evento. Retentativas são idempotentes. A UI mostra estados comprováveis (por exemplo, “aguardando relay”, “aceita por 1 de 2 relays”, “resposta recebida”); não há estado “lida/entregue” sem recibo verificável.
-- NIP-17 é draft. O corpo cifrado não equivale a anonimato: relays podem observar o evento externo, tags de roteamento do destinatário, IP, tamanho, conexões e padrões/horários de tráfego. O Property mostrará esses limites e não prometerá que “ninguém vê metadados”.
-
-### Protocolos de agente e integração local
-
-| Candidato | Decisão G0 |
+| Componente | Decisão |
 |---|---|
-| NIP-17 + NIP-44 v2 + NIP-59 | Adotar como transporte privado do primeiro MVP, reusando o cliente local existente. |
-| Envelope `property-agent-message/v1` | Adotar somente como formato de aplicação dentro do texto NIP-17; não é um padrão Nostr nem promessa de interoperabilidade externa. |
-| MCP | Adotar **2026-07-28**, transporte local stdio; implementar apenas `server/discover`, `tools/list` e `tools/call` com o conjunto fechado de tools abaixo. Nenhum HTTP, TCP público, endpoint remoto, prompts ou resources no MVP. |
-| A2A 0.3.0 | Não implementar binding ou Agent Card interoperável no MVP; avaliar depois com dois agentes externos e a suíte correspondente. |
-| NIP-89 | Não usar como prova de identidade ou pareamento. |
-| NIP-90 | Não usar para conversa 1:1; a revisão consultada o marca como draft e não recomendado. |
+| Mensagem privada | NIP-17, com NIP-44 v2 e NIP-59; sem criptografia ou relay obrigatório próprios. |
+| Envelope de agente | `property-agent-message/v1`, somente dentro do conteúdo NIP-17. Não é um padrão Nostr nem alegação de interoperabilidade externa. |
+| Campos do envelope | `protocol`, `version`, `conversation_id`, `message_id`, `in_reply_to` e `body`; sem anexos, comandos ou campos extras. |
+| Limites | Corpo UTF-8 de até 8 KiB, envelope de até 16 KiB, até 3 relays inbox e 30 envios por agente por janela lógica fixa de 60 segundos. |
+| MCP | Versão `2026-07-28`, stdio local, quatro tools fixas: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`. Sem tool de aprovação. |
+| A2A / NIP-89 / NIP-90 | Não afirmar conformidade A2A nem usar esses protocolos como identidade/pareamento. Avaliar interoperabilidade em trabalho próprio antes de ampliar o contrato. |
 
-Tools MCP permitidas: `property_status`, `property_list_conversations`, `property_read_messages` e `property_send_message`. A listagem e leitura se limitam à política de contatos configurada; envio só admite texto a um contato com escopo `send` e respeita tamanho/cota. Não existe ferramenta para solicitar expansão, aprovar uma permissão ou alterar a política. Escopos são escolhidos no pareamento/configuração inicial; chamadas fora deles são recusadas automaticamente, sem prompt. A PWA continua responsável pelo pareamento da identidade humana. O servidor MCP expõe somente essas quatro tools; operações administrativas existem apenas na CLI local. O socket privado usa permissões Unix como fronteira de confiança do mesmo usuário do sistema, portanto processos locais desse usuário fazem parte da superfície de confiança. Não existem tools genéricas ou de assinatura arbitrária.
+Conteúdo recebido é texto não confiável. O Property não executa instruções, Markdown, links ou conteúdo de mensagens. Eventos, assinatura, envelope e identificador de conversa são validados antes de exibição; versões desconhecidas recebem aviso claro ou são rejeitadas. A criptografia protege o conteúdo, não todos os metadados: relays ainda podem observar endereçamento externo, IP, tamanho e padrões de tráfego.
 
-O subprocesso MCP lê JSON-RPC por stdin, escreve somente mensagens MCP por stdout e deixa diagnósticos em stderr. A ligação ao relay usa o código Nostr local e conexões iniciadas pelo processo do usuário. O executável/runtime e suas dependências serão versionados e conferidos no repositório; não haverá instalação nem carregamento de código em runtime via CDN. Para Ubuntu, o usuário desbloqueia explicitamente o daemon local antes de iniciar o host de IA; desligar o daemon bloqueia novas chamadas. Este passo deve aparecer no fluxo e ser avaliado no G1, sem instruções técnicas escondidas.
+## 4. Modelo de ameaças
 
-## 2. Fronteiras de dados e chaves
+| Ameaça | Controle atual e evidência prevista |
+|---|---|
+| Roubo da identidade humana | Chave do agente separada; a bridge não possui a chave humana. Validar schemas, logs, pacote e cofre nos G2/G4/G5. |
+| Mensagem maliciosa ou prompt injection | Tratar corpo como texto; nenhuma execução implícita. G5 usa corpus hostil sintético e verifica efeitos. |
+| Spam ou agente indesejado | Bloqueio local reversível, inbox e limites locais. G3/G4 validam conversa iniciada pelo agente e G6 verifica rótulo e bloqueio humano. |
+| Personificação | Identidade é a chave que assinou os eventos; nome/perfil não prova identidade. Verificar assinatura e envelope antes de persistir. |
+| Replay, duplicação e reordenação | Deduplicação por ID de evento/mensagem e correlação explícita. G3/G5 usam contagens fixas. |
+| Relay indisponível ou malicioso | Falha explícita, conexões escolhidas pelo usuário e estado de envio limitado ao ACK observado. |
+| Excesso de payload/consumo | Limites de bytes, contagens e relógio lógico; sem critério de aprovação baseado em espera real. |
+| Host MCP comprometido | A bridge não tem acesso à identidade humana nem ferramentas genéricas; conteúdo entregue ao host pode ser copiado pelo próprio host. |
 
-```text
-Pessoa ── consente/revoga na PWA ── identidade humana (cofre existente)
-  │                                      │
-  │ mensagem NIP-17 cifrada              │ assina controles de permissão
-  ▼                                      ▼
-Relays escolhidos ◀──────────► agente local (chave própria, cofre próprio)
-                                      ▲
-                                      │ tools MCP fechadas por stdio
-                                      ▼
-                                  host de IA
-```
+O modelo não promete proteção contra malware ou administrador que controle o mesmo dispositivo já desbloqueado, nem apaga cópias que relays ou hosts já tenham recebido.
 
-O host de IA pode ler o conteúdo autorizado e conservar uma cópia em seu próprio histórico. O bridge não recebe a chave humana. Relays transportam envelopes cifrados e ainda observam metadados listados acima. GitHub Pages só serve a PWA estática.
+## 5. Interface MCP
 
-## 3. Modelo de ameaças e mitigação verificável
+- `property_status`: informa identidade pública independente e contagens locais, sem segredos.
+- `property_list_conversations`: lista conversas observadas no inbox deste agente, exceto identidades bloqueadas localmente.
+- `property_read_messages`: lê até 100 mensagens recebidas de uma chave pública, limitadas ao inbox deste agente.
+- `property_send_message`: envia texto privado a uma chave pública válida, sem cadastro prévio; um ACK não prova entrega ou leitura.
 
-| Ameaça/ativo | Mitigação decidida | Verificação prevista |
-|---|---|---|
-| Roubo ou exposição da chave humana | Chave nunca sai do cofre PWA; chave de agente separada; nenhum output/tool/log contém segredo. | G2: identidade distinta em cada fixture; G4: 25 chamadas de leitura/envio; G5: 50 violações de escopo e varredura de saídas/logs. |
-| Agente ou convite personificado | Convite assinado pela chave do agente, QR/fingerprint visível, confirmação humana, allowlist e convite de uso único. | G2: 10 convites válidos, 10 inválidos/adulterados, 10 recusas, 10 revogações e 10 replays. |
-| Mensagem hostil / prompt injection | Texto é dado não confiável; sem execução de tool, shell, link, arquivo ou instrução implícita; chamadas continuam limitadas à política local, e ações fora dela são recusadas sem prompt. | G5: 100 fixtures adversariais e 50 violações de escopo, sem chamada fora da política. |
-| Replay, duplicação ou reordenação | IDs de mensagem/evento, idempotência e correlação explícita; estado não afirma entrega sem evidência. | G3: 10 casos adversariais; G5: 100 duplicatas/replays; G2: 10 replays de convite. |
-| Relay malicioso, adulteração e retenção | Validar assinatura/autor antes do parser; conferir NIP-17; falhar fechado para identidade/versão inválida; explicar que exclusão remota não é garantida. | G3: 10 mensagens adulteradas/reordenadas e inspeção de relay; G5: corpus adversarial. |
-| Excesso de payload ou consumo abusivo | Corpo até 8 KiB, envelope até 16 KiB, limite por chamada; 30 envios por agente por janela lógica de 60 s. O limite não será validado por espera real. | G3: 10 eventos fora de esquema; G5: 50 mensagens acima da cota usando relógio lógico fixo. |
-| Vazamento de metadados | Exibir endereço do relay, tags/rotas, IP, volume/horários observáveis e limites de retenção; não dizer “anonimato”. | G3: comparar envelope no relay, corpo e UI; revisão do texto em G1/G6. |
-| Bridge MCP abusada ou substituída | stdio sem listener de rede; conjunto fechado de tools; schemas estritos; logs em stderr; caminho de instalação/hash fixado. | G4: 10 tools fora de escopo, 10 inexistentes, 10 erros e 10 reinícios; G5: revisão independente do bridge. |
-| Revogação atrasada em host desconectado | Bloqueio imediato no aparelho que revoga, controle assinado/cifrado, estado pendente explícito; não prometer apagar cópias nem ação em host offline. | G2/G5: 20 rotações/revogações em relógio lógico; G6: pessoa identifica o estado e os limites. |
-| Regressão nas conversas humanas | Agente é opt-in e claramente rotulado; não altera identidade humana, lista de contatos nem fluxo NIP-17 humano. | G1/G6: mesmas tarefas humanas e critérios com participantes; G3: fluxo humano continua utilizável no cenário offline. |
+As quatro tools têm argumentos estritos e não há tools para solicitar aprovação, expandir escopo, assinar eventos arbitrários, acessar arquivos ou operar o sistema. O host vê o argumento de envio que ele próprio produziu; o host pode pedir confirmação por política própria.
 
-O modelo não promete proteção contra malware ou administrador comprometendo o mesmo dispositivo/host já desbloqueado; esse risco é explicado e permanece fora do limite criptográfico do aplicativo.
+## 6. Status e histórico
 
-### Revisão técnica G5 — adições ao modelo
-
-Em 2026-11-03, a implementação e as fixtures offline acrescentaram controles para quatro caminhos que não estavam detalhados no primeiro quadro: evento com assinatura inválida que compartilha ID com cópia válida; JSON persistido adulterado com chaves duplicadas ou arquivo inadequado; frame de relay/linha MCP oversized; e cópias repetidas da mesma mensagem sob o mesmo `message_id`. O bridge agora verifica a assinatura antes de deduplicar, limita cada frame de relay a 64 KiB e o acúmulo por relay a 500 eventos, limita a linha MCP a 64 KiB, faz parsing estrito de configuração (máximo 256 KiB, sem chaves duplicadas, symlinks ou modo diferente de `0600`) e descarta cópias duplicadas por ID do evento/mensagem. Chaves hexadecimais e frames de evento também deixam de permanecer nos campos temporários do contexto VM; o segredo em memória é limpo ao bloquear o daemon.
-
-O ensaio G5 usa corpos hostis apenas como texto sintético. Ele mostra que a bridge não interpreta esse corpo nem inicia ferramentas, publicação ou alterações de permissão por conta própria; não executa um modelo externo e portanto não avalia se um host de IA comercial seria induzido semanticamente a chamar uma ferramenta autorizada. A captura de tráfego G5 é uma WebSocket fixture em processo, não captura de pacotes do sistema operacional. O resultado técnico e seus limites estão em [`G5-threat-model-review.md`](evidence/agent-messaging/G5-threat-model-review.md). A revisão independente exigida pelo G5 continua pendente; este registro de implementação não a substitui.
-
-Identidade de agente não tem comando de rotação nesta versão e revogação remota ainda não é publicada pelo bridge. As 20 repetições G5 giram contatos sintéticos e revogam seus escopos localmente em janelas de relógio lógico distintas; não representam rotação criptográfica da identidade. Não alegar eliminação de cópias já lidas por relay/host.
-
-## 4. Inventário de dependências relevante
-
-- A PWA existente é JavaScript estático; Node.js 22+ é requisito documentado das suítes e será o runtime inicial da bridge local.
-- A implementação de Nostr já está empacotada em `property/web/vendor/nostr-tools-2.25.2.bundle.js`, licenciada sob Unlicense e com SHA-256 `a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407`. O código atual fornece `nip17.wrapManyEvents`, validação de evento e WebSocket local.
-- O cofre já usa PBKDF2-HMAC-SHA-256 (600.000 iterações), salt de 16 bytes e AES-GCM-256; a bridge deve reutilizar esse desenho e manter cofre separado.
-- MCP será uma implementação local mínima do subconjunto fixado, sem SDK de runtime/CDN. A conformidade será provada contra dois hosts e fixtures offline no G4; não declarar conformidade antes disso.
-- Relay/teste usa Geode empacotado e fixtures existentes; nenhuma mainnet, pagamento ou relay público entra nos ensaios.
-- As únicas cópias de especificação novas são os snapshots locais listados acima; nenhum processo de execução consulta URLs externas.
-
-## 5. Resultado dos critérios G0
-
-- Protocolo escolhido ou rejeitado com motivo: **PASS**, tabela acima.
-- Chave humana não é requerida pelo agente e não é delegada: **PASS**, diagrama e limites acima.
-- Criptografia customizada não introduzida: **PASS**, NIP-17/NIP-44/NIP-59 existentes e cofre local existente.
-- Estados de consentimento, escopo, bloqueio e revogação definidos: **PASS**.
-- Riscos críticos têm mitigação e casos contáveis mapeados aos gates posteriores: **PASS**.
-- Dependências de runtime/versões e distribuição fechadas; não há execução de código remoto: **PASS**.
-- G0 não aprova usabilidade humana nem habilita G2; G1 ainda exige protótipo e avaliação com pessoas reais.
+Este ADR substitui o modelo anterior de convite, pareamento, escopos por contato e aprovação. O código de pairing foi removido do shell distribuído. Relatórios, capturas e harnesses antigos continuam sendo registros históricos do comportamento anterior; eles não aprovam nem descrevem o fluxo atual. Use os relatórios diretos mais recentes em [`evidence/agent-messaging/`](evidence/agent-messaging/) e o [plano vigente](plano-agentes-human-first.md). G1 continua exigindo sessões com pessoas reais para aprovar a experiência humana; automação não substitui participantes.

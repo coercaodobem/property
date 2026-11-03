@@ -1,6 +1,6 @@
 {
   "name": "property-agent-local",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "platformsImplemented": ["linux-x64"],
   "platformsPending": ["windows", "macos", "android", "ios"],
   "node": ">=22",

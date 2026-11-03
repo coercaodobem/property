@@ -4,7 +4,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
-export const AGENT_VERSION = '0.2.0';
+export const AGENT_VERSION = '0.3.0';
 export const MCP_VERSION = '2026-07-28';
 export const MAX_IPC_BYTES = 32 * 1024;
 export const MAX_TOOL_BODY_BYTES = 8 * 1024;
@@ -37,26 +37,31 @@ export function exactObject(value, keys) {
 
 export function validateConfig(value) {
   const legacyV1 = exactObject(value, ['schema', 'version', 'pubkey', 'inbox_relays', 'contacts', 'pending_approvals', 'quota']) && value.schema === 'property-agent-config/v1' && value.version === 1 && Array.isArray(value.pending_approvals) && value.pending_approvals.length <= 100;
-  const currentV2 = exactObject(value, ['schema', 'version', 'pubkey', 'inbox_relays', 'contacts', 'quota']) && value.schema === 'property-agent-config/v2' && value.version === 2;
-  if ((!legacyV1 && !currentV2) || !PUBKEY.test(value.pubkey) || !Array.isArray(value.inbox_relays) || value.inbox_relays.length > 3 || !Array.isArray(value.contacts) || value.contacts.length > 100 || !exactObject(value.quota, ['window', 'count'])) throw new Error('Configuração do agente incompatível.');
+  const legacyV2 = exactObject(value, ['schema', 'version', 'pubkey', 'inbox_relays', 'contacts', 'quota']) && value.schema === 'property-agent-config/v2' && value.version === 2;
+  const currentV3 = exactObject(value, ['schema', 'version', 'pubkey', 'inbox_relays', 'blocked_pubkeys', 'quota']) && value.schema === 'property-agent-config/v3' && value.version === 3;
+  if ((!legacyV1 && !legacyV2 && !currentV3) || !PUBKEY.test(value.pubkey) || !Array.isArray(value.inbox_relays) || value.inbox_relays.length > 3 || (!currentV3 && (!Array.isArray(value.contacts) || value.contacts.length > 100)) || !exactObject(value.quota, ['window', 'count'])) throw new Error('Configuração do agente incompatível.');
   const relays = [...new Set(value.inbox_relays.map(normalizeRelay))];
   if (relays.length !== value.inbox_relays.length) throw new Error('A lista local de relays contém duplicatas.');
-  const seen = new Set();
-  for (const contact of value.contacts) {
-    if (!exactObject(contact, ['pubkey', 'name', 'relays', 'read', 'send', 'status']) || !PUBKEY.test(contact.pubkey) || contact.pubkey === value.pubkey || typeof contact.name !== 'string' || !contact.name.trim() || contact.name.length > 80 || !Array.isArray(contact.relays) || contact.relays.length > 3 || typeof contact.read !== 'boolean' || typeof contact.send !== 'boolean' || !['approved', 'revoked', 'blocked'].includes(contact.status)) throw new Error('Contato autorizado inválido.');
-    if (seen.has(contact.pubkey)) throw new Error('Contato duplicado na allowlist.');
-    seen.add(contact.pubkey);
-    const targets = [...new Set(contact.relays.map(normalizeRelay))];
-    if (targets.length !== contact.relays.length) throw new Error('Relays duplicados no contato.');
+  const blocked = currentV3 ? value.blocked_pubkeys : value.contacts.filter(contact => contact?.status === 'blocked').map(contact => contact.pubkey);
+  if (!Array.isArray(blocked) || blocked.length > 500 || blocked.some(pubkey => !PUBKEY.test(pubkey) || pubkey === value.pubkey) || new Set(blocked).size !== blocked.length) throw new Error('A lista local de agentes bloqueados é inválida.');
+  if (!currentV3) {
+    const seen = new Set();
+    for (const contact of value.contacts) {
+      if (!exactObject(contact, ['pubkey', 'name', 'relays', 'read', 'send', 'status']) || !PUBKEY.test(contact.pubkey) || contact.pubkey === value.pubkey || typeof contact.name !== 'string' || !contact.name.trim() || contact.name.length > 80 || !Array.isArray(contact.relays) || contact.relays.length > 3 || typeof contact.read !== 'boolean' || typeof contact.send !== 'boolean' || !['approved', 'revoked', 'blocked'].includes(contact.status)) throw new Error('Contato autorizado inválido.');
+      if (seen.has(contact.pubkey)) throw new Error('Contato duplicado na allowlist.');
+      seen.add(contact.pubkey);
+      const targets = [...new Set(contact.relays.map(normalizeRelay))];
+      if (targets.length !== contact.relays.length) throw new Error('Relays duplicados no contato.');
+    }
   }
   if (!(value.quota.window === null || (Number.isSafeInteger(value.quota.window) && value.quota.window >= 0)) || !Number.isSafeInteger(value.quota.count) || value.quota.count < 0 || value.quota.count > SEND_LIMIT) throw new Error('Estado da cota do agente inválido.');
-  if (legacyV1) return { schema: 'property-agent-config/v2', version: 2, pubkey: value.pubkey, inbox_relays: value.inbox_relays, contacts: value.contacts, quota: value.quota };
+  if (!currentV3) return { schema: 'property-agent-config/v3', version: 3, pubkey: value.pubkey, inbox_relays: value.inbox_relays, blocked_pubkeys: blocked, quota: value.quota };
   return value;
 }
 
 export function createEmptyConfig(pubkey) {
   if (!PUBKEY.test(pubkey)) throw new Error('Identidade pública do agente inválida.');
-  return { schema: 'property-agent-config/v2', version: 2, pubkey, inbox_relays: [], contacts: [], quota: { window: null, count: 0 } };
+  return { schema: 'property-agent-config/v3', version: 3, pubkey, inbox_relays: [], blocked_pubkeys: [], quota: { window: null, count: 0 } };
 }
 
 export async function loadNostr(PROPERTY_ROOT) {

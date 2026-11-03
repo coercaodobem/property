@@ -58,12 +58,3 @@ export async function loadOrCreateConfig(file, pubkey) {
     return config;
   }
 }
-
-export async function replaceContact(file, pubkey, contact) {
-  const config = validateConfig(await readJson(file));
-  if (config.pubkey !== pubkey) throw new Error('A identidade da configuração não corresponde ao cofre.');
-  const next = config.contacts.filter(item => item.pubkey !== contact.pubkey);
-  if (contact.status !== 'revoked') next.push(contact);
-  if (next.length > 100) throw new Error('O limite de contatos aprovados foi atingido.');
-  await writePrivateJson(file, { ...config, contacts: next });
-}

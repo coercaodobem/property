@@ -46,7 +46,7 @@ const failedContext = {
   URL,
   Request: class extends Request { constructor(path, options) { super(new URL(path, scope), options); } },
   caches: {
-    async keys() { return ['property-shell-v9', 'another-app-data']; },
+    async keys() { return ['property-shell-v18', 'another-app-data']; },
     async open(name) { return { async addAll() { throw new Error(`interrupted while installing ${name}`); } }; },
     async delete(name) { failedDeletes.push(name); return true; }
   },
@@ -58,7 +58,7 @@ vm.runInContext(await readFile(new URL('../web/sw.js', import.meta.url), 'utf8')
 let failedInstall;
 failedListeners.install({ waitUntil(promise) { failedInstall = promise; } });
 await assert.rejects(failedInstall, /interrupted while installing/);
-assert.deepEqual(failedDeletes, ['property-shell-v18'], 'partial update cache is deleted after precache failure');
+assert.deepEqual(failedDeletes, ['property-shell-v19'], 'partial update cache is deleted after precache failure');
 assert.equal(failureSkippedWaiting, false, 'incomplete service worker never calls skipWaiting');
 
 const duplicateListeners = {};
@@ -68,7 +68,7 @@ const duplicateContext = {
   URL,
   Request: class extends Request { constructor(path, options) { super(new URL(path, scope), options); } },
   caches: {
-    async keys() { return ['property-shell-v18', 'another-app-data']; },
+    async keys() { return ['property-shell-v19', 'another-app-data']; },
     async open() { duplicateOpenCalled = true; throw new Error('must not mutate the active shell cache'); },
     async delete(name) { duplicateDeletes.push(name); return true; }
   },

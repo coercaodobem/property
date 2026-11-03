@@ -21,9 +21,8 @@ function usage() {
     '  property-agent status [--profile default]',
     '  property-agent lock [--profile default]',
     '  property-agent relay add <wss-url|ws://localhost> [--profile default]',
-    '  property-agent invite --name <nome> [--for <npub|hex>] [--profile default]',
-    '  property-agent contact configure <npub|hex> --name <nome> --relay <url> [--read] [--send]',
-    '  property-agent contact revoke <npub|hex> [--profile default]',
+    '  property-agent block <npub|hex> [--profile default]',
+    '  property-agent unblock <npub|hex> [--profile default]',
     '  property-agent backup <arquivo-destino-absoluto> [--profile default]',
     '', 'Senha é lida somente de um TTY local e nunca aceita por argumento ou variável de ambiente.', '',
   ].join('\n');
@@ -79,9 +78,7 @@ async function callAgentDaemon(paths, method, params) {
   try { return await callUnixJson(paths.socketPath, method, params); }
   catch (error) {
     if (error.message === 'agent-daemon-unavailable') throw new Error('O daemon local está bloqueado ou indisponível. Mantenha property-agent unlock ativo em outra sessão e tente novamente.');
-    if (error.message === 'contact-not-found') throw new Error('Contato não encontrado.');
-    if (error.message === 'contact-limit-reached') throw new Error('O limite de 100 contatos aprovados foi atingido.');
-    if (error.message === 'contact-self-forbidden') throw new Error('A identidade do agente não pode ser adicionada como contato.');
+    if (error.message === 'agent-block-limit-reached') throw new Error('O limite local de 500 agentes bloqueados foi atingido.');
     if (error.message === 'relay-limit-reached') throw new Error('O limite local é três relays de inbox.');
     if (error.message === 'relay-already-configured') throw new Error('Este relay já está configurado.');
     throw error;
@@ -103,7 +100,7 @@ async function init(profile) {
     const pubkey = nostr.getPublicKey(secret);
     const vault = createVault(secretBuffer, pubkey, first);
     await writePrivateJson(paths.vaultPath, vault);
-    await writePrivateJson(paths.configPath, { schema: 'property-agent-config/v2', version: 2, pubkey, inbox_relays: [], contacts: [], quota: { window: null, count: 0 } });
+    await writePrivateJson(paths.configPath, { schema: 'property-agent-config/v3', version: 3, pubkey, inbox_relays: [], blocked_pubkeys: [], quota: { window: null, count: 0 } });
     process.stdout.write(`Identidade local criada: ${nostr.nip19.npubEncode(pubkey)}\nCofre cifrado em ${paths.vaultPath}. Faça backup cifrado com o comando property-agent backup <arquivo>.\n`);
   } finally { secretBuffer.fill(0); secret.fill(0); context.propertyAgentSecretHex = ''; }
 }
@@ -115,32 +112,12 @@ function decodePublicKey(input, nostr) {
   return decoded.data;
 }
 
-async function changeContact(args, profile, action) {
-  const paths = resolvePaths(profile);
-  if (action === 'revoke') {
-    if (args.length !== 1) throw new Error('Uso: property-agent contact revoke <npub|hex>.');
-    const { nostr } = await loadNostr(PROPERTY_ROOT);
-    const pubkey = decodePublicKey(args[0], nostr);
-    await confirmHuman(`Revogar leitura e envio para ${nostr.nip19.npubEncode(pubkey)}?`, 'REVOGAR');
-    await callAgentDaemon(paths, 'contact.revoke', { pubkey });
-    process.stdout.write('Permissões locais revogadas. O Property Agent não publica um aviso NIP-17 de revogação nesta versão.\n');
-    return;
-  }
+async function changeBlockedAgent(args, profile, block) {
+  if (args.length !== 1) throw new Error(`Uso: property-agent ${block ? 'block' : 'unblock'} <npub|hex>.`);
   const { nostr } = await loadNostr(PROPERTY_ROOT);
-  const pubkey = decodePublicKey(args[0] || '', nostr);
-  const options = args.slice(1); let name = ''; let relays = []; let read = false; let send = false;
-  for (let index = 0; index < options.length; index++) {
-    const value = options[index];
-    if (value === '--name' && options[index + 1]) name = options[++index];
-    else if (value === '--relay' && options[index + 1]) relays.push(normalizeRelay(options[++index]));
-    else if (value === '--read') read = true;
-    else if (value === '--send') send = true;
-    else throw new Error(`Opção de contato desconhecida: ${value}`);
-  }
-  if (!name.trim() || name.length > 80 || !relays.length || relays.length > 3 || (!read && !send)) throw new Error('Informe --name, ao menos um --relay, no máximo três relays e pelo menos um escopo --read/--send.');
-  await confirmHuman(`Configurar ${name} (${nostr.nip19.npubEncode(pubkey)}) com read=${read}, send=${send} e ${relays.length} relay(s)?`, 'CONFIGURAR');
-  await callAgentDaemon(paths, 'contact.configure', { pubkey, name: name.trim(), relays: [...new Set(relays)], read, send });
-  process.stdout.write('Contato e escopos locais configurados. Altere-os com `property-agent contact configure` ou remova-os com `property-agent contact revoke`.\n');
+  const pubkey = decodePublicKey(args[0], nostr);
+  await callAgentDaemon(resolvePaths(profile), block ? 'agent.block' : 'agent.unblock', { pubkey });
+  process.stdout.write(block ? 'Mensagens deste agente serão ignoradas localmente.\n' : 'O bloqueio local deste agente foi removido.\n');
 }
 
 async function run() {
@@ -161,35 +138,16 @@ async function run() {
     if (args.length) throw new Error('status não aceita parâmetros adicionais.');
     const { nostr } = await loadNostr(PROPERTY_ROOT);
     const state = await callUnixJson(paths.socketPath, 'status', {});
-    process.stdout.write(`Desbloqueado: ${state.unlocked ? 'sim' : 'não'}\nIdentidade: ${nostr.nip19.npubEncode(state.pubkey)}\nConversas configuradas: ${state.configured_conversations}\nRelays de inbox: ${state.relay_count}\n`); return;
+    process.stdout.write(`Desbloqueado: ${state.unlocked ? 'sim' : 'não'}\nIdentidade: ${nostr.nip19.npubEncode(state.pubkey)}\nAgentes bloqueados localmente: ${state.blocked_agents}\nRelays de inbox: ${state.relay_count}\n`); return;
   }
   if (command === 'lock') { if (args.length) throw new Error('lock não aceita parâmetros adicionais.'); await callUnixJson(paths.socketPath, 'daemon.lock', {}); process.stdout.write('Daemon bloqueado.\n'); return; }
-  if (command === 'invite') {
-    let name = ''; let recipientPubkey = null;
-    for (let index = 0; index < args.length; index++) {
-      if (args[index] === '--name' && args[index + 1]) name = args[++index];
-      else if (args[index] === '--for' && args[index + 1]) { const { nostr } = await loadNostr(PROPERTY_ROOT); recipientPubkey = decodePublicKey(args[++index], nostr); }
-      else throw new Error('Uso: property-agent invite --name <nome> [--for <npub|hex>].');
-    }
-    if (!name.trim() || name.length > 80) throw new Error('Informe um nome de agente de até 80 caracteres.');
-    await confirmHuman(`Gerar convite assinado para ${name.trim()}${recipientPubkey ? ` e vinculado à identidade ${recipientPubkey}` : ''}?`, 'GERAR');
-    const result = await callUnixJson(paths.socketPath, 'invite.make', { name: name.trim(), recipient_pubkey: recipientPubkey });
-    process.stdout.write(`${result.invite}\nExpira em ${new Date(result.expires_at * 1000).toISOString()}. Compartilhe apenas com a pessoa destinatária.\n`); return;
-  }
   if (command === 'relay') {
     if (args[0] !== 'add' || args.length !== 2) throw new Error('Uso: property-agent relay add <wss-url|ws://localhost>.');
     const relay = normalizeRelay(args[1]);
-    await confirmHuman('Configurar relay de inbox ' + relay + '?', 'CONFIGURAR');
     const result = await callAgentDaemon(paths, 'relay.add', { relay });
-    process.stdout.write('Relay de inbox salvo (' + result.relay_count + '/3). Reinicie o daemon para aplicar.\n'); return;
+    process.stdout.write('Relay de inbox configurado (' + result.relay_count + '/3); lista pública NIP-17 anunciada em ' + result.announcement_acks + '/' + result.announcement_attempts + ' relay(s).\n'); return;
   }
-  if (command === 'contact') {
-    const [action, ...contactArgs] = args;
-    if (action === 'configure') await changeContact(contactArgs, profile, 'configure');
-    else if (action === 'revoke') await changeContact(contactArgs, profile, 'revoke');
-    else throw new Error('Use `property-agent contact configure|revoke`.');
-    return;
-  }
+  if (command === 'block' || command === 'unblock') { await changeBlockedAgent(args, profile, command === 'block'); return; }
   if (command === 'backup') {
     if (args.length !== 1 || !path.isAbsolute(args[0])) throw new Error('Informe um caminho absoluto para o backup cifrado.');
     const backup = await readJson(paths.vaultPath);

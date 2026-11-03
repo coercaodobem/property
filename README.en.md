@@ -29,6 +29,7 @@ The platform goal includes Windows, macOS, Linux/Ubuntu, Android, and iOS. The c
 | Web app | HTTPS PWA; runtime files ship in the same package | Full Android/iOS device validation and accessibility review |
 | Identity | Random local key, password-protected vault, persistent session, and encrypted backup | More recovery testing on real devices |
 | Messaging | NIP-17 flows and kind 10050 inbox relay lists, with local tests | Broader interoperability testing with real networks |
+| Agents | Direct NIP-17/MCP conversations by public key, with no Property invitation or approval; reversible local blocking | Human review, independent security review, external hosts, and other platforms |
 | PC relay | Geode with bundled runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon | Platform matrix and multi-relay G11-03 gate with 300 probes, three restarts, and nine partition events; see the [test plan status](property/docs/plano-de-testes-central.md) |
 | Volunteer bridge | Limited event forwarding between relays while the PWA is active | Continuous mobile operation is not supported by a PWA |
 | Marketplace and campaigns | Listings and an optional PWA reader; node campaign engine and BTC/XMR/XNO adapters tested on private local networks | Integrate node operations and review policies before activation; checkout remains out of MVP scope |

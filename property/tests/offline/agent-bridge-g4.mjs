@@ -6,7 +6,6 @@ import { createHash } from 'node:crypto';
 import { access, chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import net from 'node:net';
 import path from 'node:path';
-import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import { runDaemon } from '../../agent/daemon.mjs';
 import { callUnixJson } from '../../agent/ipc.mjs';
@@ -38,7 +37,6 @@ let geodeBinary = '';
 let logicalNow = FIXED_NOW;
 
 function record(id) { cases.push({ id, result: 'PASS' }); if (cases.length % 50 === 0) process.stderr.write(`G4 checkpoint ${cases.length}: ${id}\n`); }
-function content(response) { assert.equal(response.error, undefined); return response.result; }
 async function sha256(bytes) { return createHash('sha256').update(bytes).digest('hex'); }
 async function unpackGeode(archive, runtime) {
   const child = spawn('tar', ['--no-same-owner', '-xz', '-C', runtime], { stdio: ['pipe', 'ignore', 'pipe'] });
@@ -167,7 +165,7 @@ class McpHostRawStream extends McpHost {
   }
 }
 
-async function makeAgent(profile, pubkey, secret, peer, label, relayUrl, nostr, context) {
+async function makeAgent(profile, pubkey, secret, nostr, context) {
   const paths = resolvePaths(profile, env);
   await ensurePrivateDirectory(paths.dataDir);
   const secretBuffer = Buffer.from(secret);
@@ -175,8 +173,6 @@ async function makeAgent(profile, pubkey, secret, peer, label, relayUrl, nostr, 
   secretBuffer.fill(0);
   await writePrivateJson(paths.vaultPath, vault);
   const config = createEmptyConfig(pubkey);
-  config.inbox_relays = [relayUrl];
-  config.contacts = [{ pubkey: peer, name: label, relays: [relayUrl], read: true, send: true, status: 'approved' }];
   await writePrivateJson(paths.configPath, config);
   const rawVault = await readFile(paths.vaultPath, 'utf8');
   assert.equal((await stat(paths.vaultPath)).mode & 0o777, 0o600);
@@ -201,39 +197,40 @@ async function main() {
   record('geode-package-hash-and-one-isolated-loopback-relay');
 
   const { context, nostr } = await loadNostr(PROPERTY_ROOT);
-  vm.runInContext(await readFile(path.join(PROPERTY_ROOT, 'web/agent-pairing.js'), 'utf8'), context, { timeout: 5000 });
   const alphaSecret = nostr.generateSecretKey(), betaSecret = nostr.generateSecretKey();
   const alphaPub = nostr.getPublicKey(alphaSecret), betaPub = nostr.getPublicKey(betaSecret);
-  const alpha = await makeAgent('alpha', alphaPub, alphaSecret, betaPub, 'Agent Beta', geode.url, nostr, context); daemons.push(alpha.daemon);
-  const beta = await makeAgent('beta', betaPub, betaSecret, alphaPub, 'Agent Alpha', geode.url, nostr, context); daemons.push(beta.daemon);
+  const alpha = await makeAgent('alpha', alphaPub, alphaSecret, nostr, context); daemons.push(alpha.daemon);
+  const beta = await makeAgent('beta', betaPub, betaSecret, nostr, context); daemons.push(beta.daemon);
   alphaSecret.fill(0); betaSecret.fill(0);
   for (const profile of ['alpha', 'beta']) {
     const socketPath = resolvePaths(profile, env).socketPath;
     assert.equal((await stat(socketPath)).mode & 0o777, 0o600);
     record(`${profile}-unix-socket-mode-0600`);
   }
-  const invitation = await callUnixJson(alpha.paths.socketPath, 'invite.make', { name: 'Agente Alpha fixture', recipient_pubkey: betaPub });
-  const pairing = context.PropertyAgentPairing.createPairing({ nostr, storage: { getInvite: async () => null, getAccess: async () => null, commitDecision: async () => {}, transitionAccess: async () => {}, listAccess: async () => [] }, now: () => FIXED_NOW });
-  const inspectedInvite = pairing.inspectInvite(invitation.invite, { humanPubkey: betaPub, allowedRelays: [geode.url] });
-  assert.equal(inspectedInvite.agentPubkey, alphaPub);
-  assert.equal(inspectedInvite.agentName, 'Agente Alpha fixture');
-  assert.deepEqual(Array.from(inspectedInvite.relayHints), [geode.url]);
-  record('signed-agent-invite-accepted-by-existing-pwa-pairing-parser');
+  const [alphaInbox, betaInbox] = await Promise.all([
+    callUnixJson(alpha.paths.socketPath, 'relay.add', { relay: geode.url }),
+    callUnixJson(beta.paths.socketPath, 'relay.add', { relay: geode.url }),
+  ]);
+  assert.deepEqual([alphaInbox.announcement_acks, betaInbox.announcement_acks], [1, 1]);
+  const alphaConfig = JSON.parse(await readFile(alpha.paths.configPath, 'utf8'));
+  const betaConfig = JSON.parse(await readFile(beta.paths.configPath, 'utf8'));
+  assert.equal('contacts' in alphaConfig, false); assert.equal('contacts' in betaConfig, false);
+  assert.deepEqual(alphaConfig.blocked_pubkeys, []); assert.deepEqual(betaConfig.blocked_pubkeys, []);
+  record('agents-announce-own-inbox-relays-without-pairing-or-contacts');
 
   const hostA = new McpHost('host-a', 'alpha').start();
   const hostB = new McpHostRawStream('host-b', 'beta').start();
   hosts.push(hostA, hostB);
   await Promise.all([hostA.discover(), hostB.discover()]);
-  for (const [host, expected] of [[hostA, 'alpha'], [hostB, 'beta']]) {
+  for (const host of [hostA, hostB]) {
     const listed = await host.tool('property_list_conversations');
-    assert.equal(listed.isError, false); assert.equal(listed.value.conversations.length, 1);
-    assert.equal(listed.value.conversations[0].pubkey, expected === 'alpha' ? betaPub : alphaPub);
+    assert.equal(listed.isError, false); assert.equal(listed.value.conversations.length, 0);
     const inventory = await host.call('tools/list');
     assert.equal(inventory.result.tools.length, 4);
     assert.deepEqual(inventory.result.tools.map(tool => tool.name), ['property_status', 'property_list_conversations', 'property_read_messages', 'property_send_message']);
     const sendTool = inventory.result.tools.find(tool => tool.name === 'property_send_message');
     assert.deepEqual(sendTool.annotations, { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true });
-    record(`${host.name}-fixed-tool-inventory-and-approved-list`);
+    record(`${host.name}-fixed-tool-inventory-and-empty-unpaired-inbox`);
   }
 
   const send = (host, peer, direction, index) => host.tool('property_send_message', { conversation_pubkey: peer, text: `${direction}-${String(index).padStart(2, '0')}`, in_reply_to: null });
@@ -252,21 +249,39 @@ async function main() {
     assert.equal(lastA.isError, false); assert.equal(lastB.isError, false);
   }
   const aMessages = lastA.value.messages; const bMessages = lastB.value.messages;
-  assert.equal(aMessages.length, 50, 'agent A reads 25 own and 25 peer messages');
-  assert.equal(bMessages.length, 50, 'agent B reads 25 own and 25 peer messages');
-  assert.equal(aMessages.filter(message => message.direction === 'received' && message.body.startsWith('beta-to-alpha-')).length, 25);
-  assert.equal(bMessages.filter(message => message.direction === 'received' && message.body.startsWith('alpha-to-beta-')).length, 25);
+  assert.equal(aMessages.length, 25, 'agent A reads the 25 messages received from its peer');
+  assert.equal(bMessages.length, 25, 'agent B reads the 25 messages received from its peer');
+  assert.ok(aMessages.every(message => message.direction === 'received' && message.body.startsWith('beta-to-alpha-')));
+  assert.ok(bMessages.every(message => message.direction === 'received' && message.body.startsWith('alpha-to-beta-')));
+  const [listedAlpha, listedBeta] = await Promise.all([hostA.tool('property_list_conversations'), hostB.tool('property_list_conversations')]);
+  assert.deepEqual(listedAlpha.value.conversations.map(item => item.pubkey), [betaPub]);
+  assert.deepEqual(listedBeta.value.conversations.map(item => item.pubkey), [alphaPub]);
   record('25-nip17-mcp-reads-per-agent-and-two-way-decryption');
 
+  const unconfiguredSecret = nostr.generateSecretKey();
+  const unconfiguredPeer = nostr.getPublicKey(unconfiguredSecret);
+  unconfiguredSecret.fill(0);
+  const firstContact = await hostA.tool('property_send_message', { conversation_pubkey: unconfiguredPeer, text: 'primeira mensagem sem cadastro', in_reply_to: null });
+  assert.equal(firstContact.isError, false); assert.equal(firstContact.value.status, 'relay_accepted');
   for (let index = 0; index < 10; index++) {
-    const host = index % 2 ? hostA : hostB;
-    const out = index % 2
-      ? await host.tool('property_read_messages', { conversation_pubkey: 'f'.repeat(64), limit: 1 })
-      : await host.tool('property_send_message', { conversation_pubkey: 'f'.repeat(64), text: `out-of-scope-${index}`, in_reply_to: null });
-    assert.equal(out.isError, true);
-    assert.equal(out.value.error, index % 2 ? 'conversation-read-out-of-scope' : 'conversation-send-out-of-scope');
+    const peer = index.toString(16).padStart(64, '0');
+    const out = await hostA.tool('property_read_messages', { conversation_pubkey: peer, limit: 1 });
+    assert.equal(out.isError, false); assert.deepEqual(out.value.messages, []);
   }
-  record('10-out-of-scope-read-and-send-actions-are-denied-without-prompt');
+  record('direct-send-and-empty-read-work-without-contact-pairing');
+
+  const blocked = await callUnixJson(alpha.paths.socketPath, 'agent.block', { pubkey: betaPub });
+  assert.equal(blocked.blocked, true); assert.equal(blocked.changed, true);
+  for (const [method, args] of [
+    ['property_read_messages', { conversation_pubkey: betaPub, limit: 1 }],
+    ['property_send_message', { conversation_pubkey: betaPub, text: 'bloqueado localmente', in_reply_to: null }],
+  ]) {
+    const result = await hostA.tool(method, args); assert.equal(result.isError, true); assert.equal(result.value.error, 'agent-blocked-locally');
+  }
+  const unblocked = await callUnixJson(alpha.paths.socketPath, 'agent.unblock', { pubkey: betaPub });
+  assert.equal(unblocked.blocked, false); assert.equal(unblocked.changed, true);
+  assert.equal((await hostA.tool('property_read_messages', { conversation_pubkey: betaPub, limit: 1 })).isError, false);
+  record('local-block-denies-and-unblock-restores-direct-agent-use');
   for (let index = 0; index < 10; index++) {
     const host = index % 2 ? hostA : hostB;
     const out = await host.tool(`property_nonexistent_${index}`);
@@ -307,11 +322,11 @@ async function main() {
   const report = {
     gate: 'G4', status: 'PASS_TECHNICAL_OFFLINE', seed: SEED, logicalNow: FIXED_NOW,
     environment: { os: 'linux/x64', node: process.version, mcpProtocol: '2026-07-28', externalConnections: 0, externalModels: 0, realParticipants: 0, agents: 2, mcpHostFixtures: ['host-a', 'host-b'], isolatedGeodeRelays: 1, geodeSha256: GEODE_SHA256 },
-    counts: { mcpTools: 4, readsPerAgent: 25, sendsPerAgent: 25, outOfScopeDenials: 10, nonexistentTools: 10, stdioShutdownRestarts: 10, relayDisconnectedErrors: 10, permissionRequestTools: 0, concurrentSends: 2, cases: cases.length },
-    evidence: { encryptedVaultWith600000Iterations: true, vaultMode0600: true, dataDirectoriesMode0700: true, unixSocketsMode0600: true, noTcpListener: true, configuredConversationPolicyEnforced: true, outOfScopeDeniedWithoutApprovalQueue: true, permissionRequestToolAndQueueRemoved: true, propertyDoesNotRequestPerCallApproval: true, sendToolAnnotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }, noSecretReturnedByTools: true, signedInviteAcceptedByExistingPwaParser: true, relayAcknowledgementMeansOnlyLocalRelayAcceptance: true, allMcpStdoutIsJsonRpc: true, externalTraffic: false },
+    counts: { mcpTools: 4, readsPerAgent: 25, sendsPerAgent: 25, unpairedDirectReads: 10, unpairedDirectSends: 1, localBlockDenials: 2, nonexistentTools: 10, stdioShutdownRestarts: 10, relayDisconnectedErrors: 10, permissionRequestTools: 0, concurrentSends: 2, cases: cases.length },
+    evidence: { encryptedVaultWith600000Iterations: true, vaultMode0600: true, dataDirectoriesMode0700: true, unixSocketsMode0600: true, noTcpListener: true, directReadSendWithoutPairing: true, arbitraryUnpairedConversationAllowed: true, localBlocklistEnforced: true, permissionRequestToolAndQueueRemoved: true, propertyDoesNotRequestPerCallApproval: true, sendToolAnnotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }, noSecretReturnedByTools: true, relayAcknowledgementMeansOnlyLocalRelayAcceptance: true, allMcpStdoutIsJsonRpc: true, externalTraffic: false },
     cases,
   };
-  await writeFile(path.join(PROPERTY_ROOT, 'docs/evidence/agent-messaging/G4-offline-report.json'), `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
+  await writeFile(path.join(PROPERTY_ROOT, 'docs/evidence/agent-messaging/G4-direct-offline-report.json'), `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
   process.stdout.write(`PASS_G4_TECHNICAL_OFFLINE\n${JSON.stringify({ seed: SEED, counts: report.counts, caseCount: cases.length, geodeSha256: GEODE_SHA256 })}\n`);
 }
 

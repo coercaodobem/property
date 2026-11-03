@@ -1,0 +1,175 @@
+{
+  "gate": "G4",
+  "status": "PASS_TECHNICAL_OFFLINE",
+  "seed": "property-agent-g4-host-geode-fixed-v1",
+  "logicalNow": 1900000000,
+  "environment": {
+    "os": "linux/x64",
+    "node": "v22.22.1",
+    "mcpProtocol": "2026-07-28",
+    "externalConnections": 0,
+    "externalModels": 0,
+    "realParticipants": 0,
+    "agents": 2,
+    "mcpHostFixtures": [
+      "host-a",
+      "host-b"
+    ],
+    "isolatedGeodeRelays": 1,
+    "geodeSha256": "9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7"
+  },
+  "counts": {
+    "mcpTools": 4,
+    "readsPerAgent": 25,
+    "sendsPerAgent": 25,
+    "unpairedDirectReads": 10,
+    "unpairedDirectSends": 1,
+    "localBlockDenials": 2,
+    "nonexistentTools": 10,
+    "stdioShutdownRestarts": 10,
+    "relayDisconnectedErrors": 10,
+    "permissionRequestTools": 0,
+    "concurrentSends": 2,
+    "cases": 29
+  },
+  "evidence": {
+    "encryptedVaultWith600000Iterations": true,
+    "vaultMode0600": true,
+    "dataDirectoriesMode0700": true,
+    "unixSocketsMode0600": true,
+    "noTcpListener": true,
+    "directReadSendWithoutPairing": true,
+    "arbitraryUnpairedConversationAllowed": true,
+    "localBlocklistEnforced": true,
+    "permissionRequestToolAndQueueRemoved": true,
+    "propertyDoesNotRequestPerCallApproval": true,
+    "sendToolAnnotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
+    "noSecretReturnedByTools": true,
+    "relayAcknowledgementMeansOnlyLocalRelayAcceptance": true,
+    "allMcpStdoutIsJsonRpc": true,
+    "externalTraffic": false
+  },
+  "cases": [
+    {
+      "id": "geode-package-hash-and-one-isolated-loopback-relay",
+      "result": "PASS"
+    },
+    {
+      "id": "alpha-encrypted-vault-mode-and-wrong-password",
+      "result": "PASS"
+    },
+    {
+      "id": "beta-encrypted-vault-mode-and-wrong-password",
+      "result": "PASS"
+    },
+    {
+      "id": "alpha-unix-socket-mode-0600",
+      "result": "PASS"
+    },
+    {
+      "id": "beta-unix-socket-mode-0600",
+      "result": "PASS"
+    },
+    {
+      "id": "agents-announce-own-inbox-relays-without-pairing-or-contacts",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-fixed-tool-inventory-and-empty-unpaired-inbox",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-fixed-tool-inventory-and-empty-unpaired-inbox",
+      "result": "PASS"
+    },
+    {
+      "id": "25-nip17-mcp-sends-per-agent-including-concurrent-call",
+      "result": "PASS"
+    },
+    {
+      "id": "25-nip17-mcp-reads-per-agent-and-two-way-decryption",
+      "result": "PASS"
+    },
+    {
+      "id": "direct-send-and-empty-read-work-without-contact-pairing",
+      "result": "PASS"
+    },
+    {
+      "id": "local-block-denies-and-unblock-restores-direct-agent-use",
+      "result": "PASS"
+    },
+    {
+      "id": "10-nonexistent-tools-rejected",
+      "result": "PASS"
+    },
+    {
+      "id": "no-permission-request-tool-or-approval-queue",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "10-stdio-shutdown-restart-cycles-across-two-hosts",
+      "result": "PASS"
+    },
+    {
+      "id": "10-relay-disconnected-send-errors-not-reported-as-success",
+      "result": "PASS"
+    },
+    {
+      "id": "stdio-stdout-protocol-only-and-no-vault-secrets-or-private-identity-logs",
+      "result": "PASS"
+    }
+  ]
+}

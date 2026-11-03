@@ -1,7 +1,5 @@
 import { lstat } from 'node:fs/promises';
-import { randomBytes } from 'node:crypto';
 import path from 'node:path';
-import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import { loadNostr, validateConfig } from './core.mjs';
 import { AgentService } from './service.mjs';
@@ -43,36 +41,13 @@ export async function runDaemon({ password, profile = 'default', env = process.e
   const transport = new NostrAgentTransport({
     nostr, messages, context, secretHex: unlocked.secretHex, pubkey,
     inboxRelays: (await loadConfig()).inbox_relays,
-    getContact: async key => (await loadConfig()).contacts.find(contact => contact.pubkey === key) || null,
   });
   unlocked.secretHex = '';
   context.propertyAgentSecretHex = '';
-  const createInvite = ({ name, recipientPubkey, relayHints }) => {
-    const createdAt = now();
-    const content = {
-      protocol: 'property-agent-invite/v1',
-      agent_name: name,
-      nonce: randomBytes(16).toString('hex'),
-      expires_at: createdAt + 3600,
-      recipient_pubkey: recipientPubkey,
-      relay_hints: relayHints,
-    };
-    context.propertyAgentInviteTemplate = JSON.stringify({ kind: 30078, created_at: createdAt, tags: [['d', 'property-agent-invite-v1']], content: JSON.stringify(content) });
-    context.propertyAgentInviteSecret = transport.secret;
-    let signed;
-    try {
-      signed = vm.runInContext('NostrTools.finalizeEvent(JSON.parse(propertyAgentInviteTemplate), propertyAgentInviteSecret)', context, { timeout: 5000 });
-      context.propertyAgentInviteEvent = JSON.stringify(signed);
-      if (!vm.runInContext('NostrTools.verifyEvent(JSON.parse(propertyAgentInviteEvent))', context, { timeout: 5000 })) throw new Error('invite-sign-failed');
-    } catch { throw new Error('invite-sign-failed'); }
-    finally { context.propertyAgentInviteTemplate = ''; context.propertyAgentInviteSecret = null; context.propertyAgentInviteEvent = ''; }
-    const encoded = Buffer.from(JSON.stringify(signed), 'utf8').toString('base64url');
-    return { invite: `property-agent-invite:v1:${encoded}`, expires_at: content.expires_at, agent_pubkey: pubkey };
-  };
   const service = new AgentService({
     pubkey, loadConfig,
     saveConfig: config => writePrivateJson(paths.configPath, validateConfig(config)),
-    transport, createInvite, now,
+    transport, now,
   });
   let shutdown;
   const stop = await startUnixJsonServer(paths.socketPath, async (method, params) => {

@@ -7,15 +7,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PROPERTY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const PAIRING_TEST = path.join(PROPERTY_ROOT, 'tests/offline/browser-agent-pairing-smoke.mjs');
+const DIRECT_TEST = path.join(PROPERTY_ROOT, 'tests/offline/browser-agent-direct-smoke.mjs');
 const PLAN = path.join(PROPERTY_ROOT, 'docs/plano-agentes-human-first.md');
 const WRAPPER = fileURLToPath(import.meta.url);
 const EXPECTED = [
-  'accessible_dialog_name', 'visible_agent_controls_named', 'keyboard_focus_stayed_in_modal',
-  'keyboard_cancel_did_not_consume_invite', 'keyboard_approved_exact_scope',
-  'dialog_body_scrollable', 'revoke_control_reachable_after_scroll',
-  'default_scopes_off', 'cancel_did_not_consume_invite', 'approved_scopes_exact',
-  'indexeddb_persisted', 'revocation_cleared_scopes', 'all_requests_loopback'
+  'directAgentConversation', 'noInvitationOrApprovalControls', 'noAccessGrantStored',
+  'humanConversationPreserved', 'externalRequestsBlocked', 'accessibleNamedControls',
+  'keyboardOpenedAgentConversation', 'localAgentBlockAndUnblock', 'blockDisablesComposer',
+  'unblockRestoresComposer'
 ];
 
 function parseArgs(argv) {
@@ -51,7 +50,7 @@ const report = {
   exploratory_chromium_attempt: 'One desktop page attempt ended with renderer crash ERR_INSUFFICIENT_RESOURCES; the fixed repeated matrix below uses the pinned Firefox runtime and does not erase this diagnostic.',
   plan_sha256: await sha256(PLAN),
   wrapper_sha256: await sha256(WRAPPER),
-  pairing_harness_sha256: await sha256(PAIRING_TEST),
+  direct_agent_harness_sha256: await sha256(DIRECT_TEST),
   browser_toolchain: {
     playwright_version: options.playwright_version,
     playwright_package_sha256: options.playwright_package_sha256,
@@ -68,7 +67,7 @@ for (const viewport of ['desktop', 'mobile']) {
     const name = `${viewport}-${String(cycle).padStart(2, '0')}`;
     const cycleOutput = path.join(output, 'cycles', name);
     await mkdir(cycleOutput, { recursive: true, mode: 0o700 });
-    const childArgs = [PAIRING_TEST,
+    const childArgs = [DIRECT_TEST,
       '--playwright-module', options.playwright_module,
       '--executable', options.executable,
       '--playwright-version', options.playwright_version,
@@ -83,7 +82,7 @@ for (const viewport of ['desktop', 'mobile']) {
       .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(-12000);
     await writeFile(logFile, log, { mode: 0o600 });
     let childReport = null;
-    try { childReport = JSON.parse(await readFile(path.join(cycleOutput, 'agent-pairing-browser-report.json'), 'utf8')); } catch {}
+    try { childReport = JSON.parse(await readFile(path.join(cycleOutput, 'agent-direct-browser-report.json'), 'utf8')); } catch {}
     const evidence = childReport?.evidence || {};
     const missing = EXPECTED.filter(key => evidence[key] !== true);
     const passed = child.status === 0 && childReport?.status === 'PASS_TECHNICAL_BROWSER' && missing.length === 0;
@@ -91,9 +90,8 @@ for (const viewport of ['desktop', 'mobile']) {
       id: name,
       viewport: viewport === 'mobile' ? '390x844 viewport emulation' : '1280x900 desktop viewport',
       status: passed ? 'PASS' : 'FAIL',
-      source_report: path.relative(output, path.join(cycleOutput, 'agent-pairing-browser-report.json')),
-      screenshot: path.relative(output, path.join(cycleOutput, `agent-pairing-${viewport}.png`)),
-      scrolled_screenshot: path.relative(output, path.join(cycleOutput, `agent-pairing-${viewport}-scrolled.png`)),
+      source_report: path.relative(output, path.join(cycleOutput, 'agent-direct-browser-report.json')),
+      screenshot: path.relative(output, path.join(cycleOutput, `agent-direct-${viewport}.png`)),
       checks: EXPECTED.map(key => ({ check: key, status: evidence[key] === true ? 'PASS' : 'FAIL' })),
       missing_checks: missing,
       process_exit_code: child.status,
@@ -109,7 +107,7 @@ for (const viewport of ['desktop', 'mobile']) {
 
 const allTenPassed = report.cycles.length === 10 && report.cycles.every(item => item.status === 'PASS');
 report.status = allTenPassed ? 'PASS_TECHNICAL_PENDING_HUMAN' : 'FAIL_OR_INCOMPLETE';
-report.technical_scope = 'Signed invite review, default-deny scopes, keyboard activation/focus confinement, accessible naming, responsive internal scrolling/revocation reachability, local persistence, exact scope grant and cancellation in isolated Firefox contexts. No real participant, screen reader, device OS, or semantic model evaluation.';
+report.technical_scope = 'Direct agent conversation without invitations, pairing, permissions, per-message approval, or an access grant; one-conversation protocol selection; human-conversation preservation; keyboard activation; accessible control names; local browser/IndexedDB only. No real participant, screen reader, physical device OS, relay delivery, or semantic model evaluation.';
 await checkpoint();
 assert.equal(allTenPassed, true, `G6 technical cycles incomplete: ${report.cycles.length}/10 passed`);
 process.stdout.write(`${JSON.stringify({ status: report.status, cycles: report.cycles.length, human_participants: report.human_participants, output }, null, 2)}\n`);

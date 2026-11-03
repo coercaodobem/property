@@ -252,37 +252,31 @@ async function runPwaIntegration(agent, relayUrl) {
     await page.locator('#relay-dialog').waitFor({ state: 'hidden' });
 
     await agent.call('publish-inbox-list', { urls: [relayUrl] });
-    const invite = await agent.call('make-invite', { name: 'Agente G3', recipientPubkey: humanPubkey, relayHints: [relayUrl] });
-    await page.locator('#profile-button').click();
-    await page.locator('#open-agent-manager').click();
-    await page.locator('#agent-invite-input').fill(invite.invite);
-    await page.locator('#inspect-agent-invite').click();
-    await page.locator('#agent-invite-review:not(.hidden)').waitFor();
-    const scopes = page.locator('#agent-permission-list input[type="checkbox"]');
-    for (let index = 0; index < await scopes.count(); index++) assert.equal(await scopes.nth(index).isChecked(), false, 'agent scopes remain opt-in');
-    await page.locator('#approve-agent-invite').click();
-    await page.getByText('AGENTE · ACESSO ATIVO', { exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Abrir conversa' }).click();
-    assert.match(await page.locator('#chat-subtitle').textContent(), /^AGENTE · npub1/);
-    assert.ok((await page.locator('#conversation-list').textContent()).includes('Pessoa preservada'), 'the pre-existing human conversation remains in the list');
-
     const conversation = await AgentMessages.conversationId(humanPubkey, agent.pubkey);
     const unsolicitedMessageId = fixtureId('d', 0), unsolicitedBody = 'Mensagem sem iniciar a conversa';
     const unsolicited = await wrap(agent, humanPubkey, conversation, unsolicitedMessageId, unsolicitedBody);
     await publish(agent, unsolicited.recipient, [relayUrl]);
     if (!observedRelayEventIds.has(unsolicited.recipient.id)) {
       await new Promise((resolve, reject) => {
-        const timer = setTimeout(() => { relayEventWaiters.delete(unsolicited.recipient.id); reject(new Error('PWA não recebeu o envelope local do ensaio antes de validar o bloqueio de mensagem não solicitada.')); }, 10000);
+        const timer = setTimeout(() => { relayEventWaiters.delete(unsolicited.recipient.id); reject(new Error('PWA não recebeu o envelope direto do agente.')); }, 10000);
         relayEventWaiters.set(unsolicited.recipient.id, () => { clearTimeout(timer); relayEventWaiters.delete(unsolicited.recipient.id); resolve(); });
       });
     }
-    for (let repetition = 0; repetition < 3; repetition++) await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => resolve())));
-    const unsolicitedStored = await page.evaluate(async ({ peer, messageId }) => {
+    const agentNpub = N.nip19.npubEncode(agent.pubkey);
+    await page.locator('#conversation-list .conversation-item').filter({ hasText: 'PROTOCOLO DE AGENTE' }).waitFor();
+    const initialMessage = await page.evaluate(async ({ peer, messageId }) => {
       const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
-      return await new Promise((resolve, reject) => { const tx = db.transaction('messages', 'readonly'), request = tx.objectStore('messages').get(`agent:${peer}:${messageId}`); tx.oncomplete = () => resolve(Boolean(request.result)); tx.onerror = () => reject(tx.error); });
+      return await new Promise((resolve, reject) => { const tx = db.transaction(['messages', 'conversations'], 'readonly'), messages = tx.objectStore('messages').get(`agent:${peer}:${messageId}`), conversation = tx.objectStore('conversations').get(peer); tx.oncomplete = () => resolve({ message: messages.result || null, conversation: conversation.result || null }); tx.onerror = () => reject(tx.error); });
     }, { peer: agent.pubkey, messageId: unsolicitedMessageId });
-    assert.equal(unsolicitedStored, false); assert.equal((await page.locator('#messages').textContent()).includes(unsolicitedBody), false);
-    record('G3-pwa-unsolicited-agent-message-ignored-before-human-initiation');
+    assert.equal(initialMessage.message?.fromAgent, true);
+    assert.equal(initialMessage.message?.text, unsolicitedBody);
+    assert.equal(initialMessage.message?.inReplyTo, null);
+    assert.equal(initialMessage.conversation?.agent, true);
+    await page.locator('#conversation-list .conversation-item').filter({ hasText: 'PROTOCOLO DE AGENTE' }).click();
+    assert.match(await page.locator('#chat-subtitle').textContent(), new RegExp(`PROTOCOLO DE AGENTE · ${agentNpub}`));
+    await page.locator('#messages .message-bubble').filter({ hasText: unsolicitedBody }).waitFor();
+    assert.ok((await page.locator('#conversation-list').textContent()).includes('Pessoa preservada'), 'the pre-existing human conversation remains in the list');
+    record('G3-agent-initiates-first-message-without-pairing-or-approval');
 
     const humanBody = 'Resposta humana local G3';
     await page.locator('#message-input').fill(humanBody);
@@ -298,20 +292,23 @@ async function runPwaIntegration(agent, relayUrl) {
     const acceptedHumanRequests = humanMessages.filter(item => item.status === 'accepted-human-text' && item.body === humanBody);
     assert.equal(acceptedHumanRequests.length, 1,
       `queried=${humanEvents.events.length}; receiveStates=${humanMessages.map(item => item.status).join(',')}`);
-    record('G3-pwa-human-initiates-direct-agent-conversation');
+    record('G3-pwa-human-replies-without-approval');
 
     const agentBody = 'Resposta do agente local G3';
     const outgoing = await wrap(agent, humanPubkey, conversation, fixtureId('d', 1), agentBody, acceptedHumanRequests[0].messageId);
     await publish(agent, outgoing.recipient, [relayUrl]);
     await page.locator('#messages .message-bubble').filter({ hasText: agentBody }).waitFor({ timeout: 15000 });
-    assert.equal((await page.locator('.message-row').filter({ hasText: agentBody }).locator('.agent-message-author').textContent()).trim(), 'Agente');
+    assert.match((await page.locator('.message-row').filter({ hasText: agentBody }).locator('.agent-message-author').textContent()).trim(), /Protocolo de agente/);
     const stored = await page.evaluate(async () => {
       const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
       return await new Promise((resolve, reject) => { const tx = db.transaction('messages', 'readonly'), request = tx.objectStore('messages').getAll(); tx.oncomplete = () => resolve(request.result.filter(item => item.fromAgent).map(item => ({ fromAgent: item.fromAgent, agentMessageId: item.agentMessageId, inReplyTo: item.inReplyTo }))); tx.onerror = () => reject(tx.error); });
     });
-    assert.equal(stored.length, 1); assert.equal(stored[0].agentMessageId, fixtureId('d', 1)); assert.equal(stored[0].inReplyTo, acceptedHumanRequests[0].messageId);
+    assert.equal(stored.length, 2);
+    assert.deepEqual(stored.map(item => item.agentMessageId).sort(), [fixtureId('d', 0), fixtureId('d', 1)].sort());
+    assert.equal(stored.find(item => item.agentMessageId === fixtureId('d', 0)).inReplyTo, null);
+    assert.equal(stored.find(item => item.agentMessageId === fixtureId('d', 1)).inReplyTo, acceptedHumanRequests[0].messageId);
 
-    const screenshotDir = path.join(PROPERTY_ROOT, 'docs/evidence/agent-messaging/G3-browser');
+    const screenshotDir = path.join(PROPERTY_ROOT, 'docs/evidence/agent-messaging/G3-direct-browser');
     await mkdir(screenshotDir, { recursive: true });
     await page.screenshot({ path: path.join(screenshotDir, 'agent-direct-conversation.png'), fullPage: false });
     await page.locator('#conversation-list .conversation-item').filter({ hasText: 'Pessoa preservada' }).click();
@@ -321,12 +318,11 @@ async function runPwaIntegration(agent, relayUrl) {
     assert.equal(blockedRequests.length, 0);
     assert.ok(websocketUrls.length >= 1 && websocketUrls.every(url => new URL(url).origin === relayOrigin));
     record('G3-pwa-human-identity-and-relay-inbox');
-    record('G3-pwa-agent-invite-and-label');
-    record('G3-pwa-unsolicited-agent-message-ignored');
-    record('G3-pwa-receives-decrypted-agent-envelope');
-    record('G3-pwa-human-initiates-over-nip17-and-agent-replies');
+    record('G3-pwa-agent-protocol-labeled-without-invite');
+    record('G3-pwa-receives-first-agent-envelope-without-prior-human-message');
+    record('G3-pwa-human-replies-over-nip17-and-agent-answers');
     record('G3-pwa-human-conversation-preserved');
-    return { engine: browserOptions.engine, browser: context.browser().version(), playwright: pkg.version, websocketConnections: websocketUrls.length, blockedExternalRequests: blockedRequests.length, pageErrors: pageErrors.length, pwaIdentityPreserved: true, agentConversationLabeled: true, unsolicitedMessageIgnoredBeforeHumanInitiation: true, humanInitiatedDirectAgentConversation: true, decryptedAgentMessage: true, agentReplyCorrelatedToHumanRequest: true, humanReplyDecryptedByAgentProcess: true, existingHumanConversationPreserved: true, serviceWorkerControlled: false, screenshot: 'docs/evidence/agent-messaging/G3-browser/agent-direct-conversation.png' };
+    return { engine: browserOptions.engine, browser: context.browser().version(), playwright: pkg.version, websocketConnections: websocketUrls.length, blockedExternalRequests: blockedRequests.length, pageErrors: pageErrors.length, pwaIdentityPreserved: true, agentConversationLabeled: true, agentInitiatedWithoutApproval: true, unsolicitedFirstEnvelopeStored: true, humanReplyDecryptedByAgentProcess: true, agentReplyCorrelatedToHumanRequest: true, existingHumanConversationPreserved: true, serviceWorkerControlled: false, screenshot: 'docs/evidence/agent-messaging/G3-direct-browser/agent-direct-conversation.png' };
   } finally {
     if (context) await context.close();
     if (!serverClosed) await new Promise(resolve => localServer.server.close(resolve));
@@ -510,9 +506,9 @@ try {
     pwa,
     caseCount: cases.length, cases,
   };
-  const reportPath = path.join(PROPERTY_ROOT, 'docs/evidence/agent-messaging/G3-geode-offline-report.json');
+  const reportPath = path.join(PROPERTY_ROOT, 'docs/evidence/agent-messaging/G3-direct-geode-offline-report.json');
   await mkdir(path.dirname(reportPath), { recursive: true }); await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
-  process.stdout.write(`${JSON.stringify({ gate: report.gate, status: report.status, seed: report.seed, environment: report.environment, counts: report.counts, caseCount: report.caseCount, reportPath: 'property/docs/evidence/agent-messaging/G3-geode-offline-report.json' }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ gate: report.gate, status: report.status, seed: report.seed, environment: report.environment, counts: report.counts, caseCount: report.caseCount, reportPath: 'property/docs/evidence/agent-messaging/G3-direct-geode-offline-report.json' }, null, 2)}\n`);
 } finally {
   await Promise.all([alpha?.stop(), beta?.stop()]);
   await Promise.all(relayChildren.map(stopRelay));

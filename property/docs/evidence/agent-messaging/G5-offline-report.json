@@ -1,7 +1,7 @@
 {
   "gate": "G5",
   "status": "PASS_TECHNICAL_OFFLINE_PENDING_INDEPENDENT_REVIEW",
-  "seed": "property-g5-hostile-replay-scope-quota-revoke-v1",
+  "seed": "property-g5-hostile-direct-message-block-quota-v2",
   "logicalNow": 1900000000,
   "environment": {
     "os": "linux/x64",
@@ -16,11 +16,11 @@
   "counts": {
     "hostileFixtures": 100,
     "replayDuplicateCopies": 100,
-    "scopeViolations": 50,
+    "directUnpairedReadSendCases": 25,
     "overQuotaAttempts": 50,
     "successfulSendsBeforeQuota": 30,
-    "contactScopeRotationRevocationCycles": 20,
-    "testCases": 365
+    "localBlockUnblockCycles": 20,
+    "testCases": 341
   },
   "hostileFixtureCategories": {
     "prompt-injection-text": 15,
@@ -35,19 +35,18 @@
   },
   "captures": {
     "hostileReadToolCalls": 100,
-    "relayReadRequests": 4,
+    "relayReadRequests": 5,
     "relayPublishFrames": 2,
     "externalConnections": 0,
     "websocketFrames": {
-      "reads": 4,
-      "closes": 4,
+      "reads": 5,
+      "closes": 5,
       "publishedEvents": 2
     }
   },
   "hostileSideEffects": {
     "fixtureReads": 100,
     "relayPublishes": 0,
-    "invitations": 0,
     "configChanged": false
   },
   "fixesExercised": [
@@ -57,12 +56,13 @@
     "bounded MCP stdin line buffering and resynchronization",
     "reject duplicate/deep persisted and IPC JSON",
     "reject symlink, wrong-mode, oversized config files",
-    "apply read/send allowlist and quota before transport"
+    "allow direct messages without pairing",
+    "enforce local block and fixed outbound quota before relay publication"
   ],
   "limitations": [
     "Independent security review has not occurred and remains PENDING.",
     "No commercial host/model was run; semantic prompt-injection behavior inside an external model is not evaluated.",
-    "The 20 cycles cover contact-scope rotation and local revocation, not cryptographic agent-key rotation; no key-rotation command or remote revocation notice exists.",
+    "The 20 cycles cover local block/unblock, not cryptographic agent-key rotation or remote revocation; no key-rotation or remote revocation protocol exists.",
     "No real person or real human identity was used; synthetic data preservation does not prove human G1/G6 UX."
   ],
   "evidence": [
@@ -774,601 +774,601 @@
       "id": "replay-duplicate-001-collapsed",
       "result": "PASS",
       "duplicateIndex": 1,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-002-collapsed",
       "result": "PASS",
       "duplicateIndex": 2,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-003-collapsed",
       "result": "PASS",
       "duplicateIndex": 3,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-004-collapsed",
       "result": "PASS",
       "duplicateIndex": 4,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-005-collapsed",
       "result": "PASS",
       "duplicateIndex": 5,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-006-collapsed",
       "result": "PASS",
       "duplicateIndex": 6,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-007-collapsed",
       "result": "PASS",
       "duplicateIndex": 7,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-008-collapsed",
       "result": "PASS",
       "duplicateIndex": 8,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-009-collapsed",
       "result": "PASS",
       "duplicateIndex": 9,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-010-collapsed",
       "result": "PASS",
       "duplicateIndex": 10,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-011-collapsed",
       "result": "PASS",
       "duplicateIndex": 11,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-012-collapsed",
       "result": "PASS",
       "duplicateIndex": 12,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-013-collapsed",
       "result": "PASS",
       "duplicateIndex": 13,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-014-collapsed",
       "result": "PASS",
       "duplicateIndex": 14,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-015-collapsed",
       "result": "PASS",
       "duplicateIndex": 15,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-016-collapsed",
       "result": "PASS",
       "duplicateIndex": 16,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-017-collapsed",
       "result": "PASS",
       "duplicateIndex": 17,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-018-collapsed",
       "result": "PASS",
       "duplicateIndex": 18,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-019-collapsed",
       "result": "PASS",
       "duplicateIndex": 19,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-020-collapsed",
       "result": "PASS",
       "duplicateIndex": 20,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-021-collapsed",
       "result": "PASS",
       "duplicateIndex": 21,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-022-collapsed",
       "result": "PASS",
       "duplicateIndex": 22,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-023-collapsed",
       "result": "PASS",
       "duplicateIndex": 23,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-024-collapsed",
       "result": "PASS",
       "duplicateIndex": 24,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-025-collapsed",
       "result": "PASS",
       "duplicateIndex": 25,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-026-collapsed",
       "result": "PASS",
       "duplicateIndex": 26,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-027-collapsed",
       "result": "PASS",
       "duplicateIndex": 27,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-028-collapsed",
       "result": "PASS",
       "duplicateIndex": 28,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-029-collapsed",
       "result": "PASS",
       "duplicateIndex": 29,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-030-collapsed",
       "result": "PASS",
       "duplicateIndex": 30,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-031-collapsed",
       "result": "PASS",
       "duplicateIndex": 31,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-032-collapsed",
       "result": "PASS",
       "duplicateIndex": 32,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-033-collapsed",
       "result": "PASS",
       "duplicateIndex": 33,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-034-collapsed",
       "result": "PASS",
       "duplicateIndex": 34,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-035-collapsed",
       "result": "PASS",
       "duplicateIndex": 35,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-036-collapsed",
       "result": "PASS",
       "duplicateIndex": 36,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-037-collapsed",
       "result": "PASS",
       "duplicateIndex": 37,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-038-collapsed",
       "result": "PASS",
       "duplicateIndex": 38,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-039-collapsed",
       "result": "PASS",
       "duplicateIndex": 39,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-040-collapsed",
       "result": "PASS",
       "duplicateIndex": 40,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-041-collapsed",
       "result": "PASS",
       "duplicateIndex": 41,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-042-collapsed",
       "result": "PASS",
       "duplicateIndex": 42,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-043-collapsed",
       "result": "PASS",
       "duplicateIndex": 43,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-044-collapsed",
       "result": "PASS",
       "duplicateIndex": 44,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-045-collapsed",
       "result": "PASS",
       "duplicateIndex": 45,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-046-collapsed",
       "result": "PASS",
       "duplicateIndex": 46,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-047-collapsed",
       "result": "PASS",
       "duplicateIndex": 47,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-048-collapsed",
       "result": "PASS",
       "duplicateIndex": 48,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-049-collapsed",
       "result": "PASS",
       "duplicateIndex": 49,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-050-collapsed",
       "result": "PASS",
       "duplicateIndex": 50,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-051-collapsed",
       "result": "PASS",
       "duplicateIndex": 51,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-052-collapsed",
       "result": "PASS",
       "duplicateIndex": 52,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-053-collapsed",
       "result": "PASS",
       "duplicateIndex": 53,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-054-collapsed",
       "result": "PASS",
       "duplicateIndex": 54,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-055-collapsed",
       "result": "PASS",
       "duplicateIndex": 55,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-056-collapsed",
       "result": "PASS",
       "duplicateIndex": 56,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-057-collapsed",
       "result": "PASS",
       "duplicateIndex": 57,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-058-collapsed",
       "result": "PASS",
       "duplicateIndex": 58,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-059-collapsed",
       "result": "PASS",
       "duplicateIndex": 59,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-060-collapsed",
       "result": "PASS",
       "duplicateIndex": 60,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-061-collapsed",
       "result": "PASS",
       "duplicateIndex": 61,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-062-collapsed",
       "result": "PASS",
       "duplicateIndex": 62,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-063-collapsed",
       "result": "PASS",
       "duplicateIndex": 63,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-064-collapsed",
       "result": "PASS",
       "duplicateIndex": 64,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-065-collapsed",
       "result": "PASS",
       "duplicateIndex": 65,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-066-collapsed",
       "result": "PASS",
       "duplicateIndex": 66,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-067-collapsed",
       "result": "PASS",
       "duplicateIndex": 67,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-068-collapsed",
       "result": "PASS",
       "duplicateIndex": 68,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-069-collapsed",
       "result": "PASS",
       "duplicateIndex": 69,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-070-collapsed",
       "result": "PASS",
       "duplicateIndex": 70,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-071-collapsed",
       "result": "PASS",
       "duplicateIndex": 71,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-072-collapsed",
       "result": "PASS",
       "duplicateIndex": 72,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-073-collapsed",
       "result": "PASS",
       "duplicateIndex": 73,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-074-collapsed",
       "result": "PASS",
       "duplicateIndex": 74,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-075-collapsed",
       "result": "PASS",
       "duplicateIndex": 75,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-076-collapsed",
       "result": "PASS",
       "duplicateIndex": 76,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-077-collapsed",
       "result": "PASS",
       "duplicateIndex": 77,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-078-collapsed",
       "result": "PASS",
       "duplicateIndex": 78,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-079-collapsed",
       "result": "PASS",
       "duplicateIndex": 79,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-080-collapsed",
       "result": "PASS",
       "duplicateIndex": 80,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-081-collapsed",
       "result": "PASS",
       "duplicateIndex": 81,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-082-collapsed",
       "result": "PASS",
       "duplicateIndex": 82,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-083-collapsed",
       "result": "PASS",
       "duplicateIndex": 83,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-084-collapsed",
       "result": "PASS",
       "duplicateIndex": 84,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-085-collapsed",
       "result": "PASS",
       "duplicateIndex": 85,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-086-collapsed",
       "result": "PASS",
       "duplicateIndex": 86,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-087-collapsed",
       "result": "PASS",
       "duplicateIndex": 87,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-088-collapsed",
       "result": "PASS",
       "duplicateIndex": 88,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-089-collapsed",
       "result": "PASS",
       "duplicateIndex": 89,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-090-collapsed",
       "result": "PASS",
       "duplicateIndex": 90,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-091-collapsed",
       "result": "PASS",
       "duplicateIndex": 91,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-092-collapsed",
       "result": "PASS",
       "duplicateIndex": 92,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-093-collapsed",
       "result": "PASS",
       "duplicateIndex": 93,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-094-collapsed",
       "result": "PASS",
       "duplicateIndex": 94,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-095-collapsed",
       "result": "PASS",
       "duplicateIndex": 95,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-096-collapsed",
       "result": "PASS",
       "duplicateIndex": 96,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-097-collapsed",
       "result": "PASS",
       "duplicateIndex": 97,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-098-collapsed",
       "result": "PASS",
       "duplicateIndex": 98,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-099-collapsed",
       "result": "PASS",
       "duplicateIndex": 99,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "replay-duplicate-100-collapsed",
       "result": "PASS",
       "duplicateIndex": 100,
-      "eventSha256": "349e8a45fc9df091e3142ccb4416482955cece3d6a7e007733c9d1c8a2fd084f"
+      "eventSha256": "dcd2454cb22b6239c005af33a92c6047acc7cebfee172befe10657fe70a07328"
     },
     {
       "id": "same-message-id-conflict-collapsed-and-unknown-signed-author-rejected",
@@ -1426,254 +1426,133 @@
       "result": "PASS"
     },
     {
-      "id": "scope-read-01-denied-before-transport",
+      "id": "direct-read-send-without-pairing-01",
       "result": "PASS",
-      "targetSha256": "df0790f236013511e91fa4532fb7761f62320a51a3868dabf4a13fe5f53e3263"
+      "targetSha256": "087bee4b25350ee462142f6270ae6f453ee5bcbd2d7ccb5f0a2223602897c088"
     },
     {
-      "id": "scope-send-01-denied-before-transport",
+      "id": "direct-read-send-without-pairing-02",
       "result": "PASS",
-      "targetSha256": "06dcb600d5beaa7a4dbbbbda6b1247b2dfd5a68cd16312bd588783332f3dc57b"
+      "targetSha256": "3c02342f671786b080e65cda12266248d6565a74e61c701cd0255111da148489"
     },
     {
-      "id": "scope-read-02-denied-before-transport",
+      "id": "direct-read-send-without-pairing-03",
       "result": "PASS",
-      "targetSha256": "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
+      "targetSha256": "d785a54aabc39a9eef45b3e38ac0e598d44b45756e9a610ef851f77aa324e895"
     },
     {
-      "id": "scope-send-02-denied-before-transport",
+      "id": "direct-read-send-without-pairing-04",
       "result": "PASS",
-      "targetSha256": "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
+      "targetSha256": "d02c3b01349ac19c5f08219c9231b0ce7ad4ecb03ef008a9c228a65759eb89b8"
     },
     {
-      "id": "scope-read-03-denied-before-transport",
+      "id": "direct-read-send-without-pairing-05",
       "result": "PASS",
-      "targetSha256": "52b6419d27bd7f547cee3b92f8c17a908b8a49601ecbec161e5030de1dfe9e0a"
+      "targetSha256": "d8707b923173c07643a1dc6e640f87dbdb22613648217abc8004574411f62b9d"
     },
     {
-      "id": "scope-send-03-denied-before-transport",
+      "id": "direct-read-send-without-pairing-06",
       "result": "PASS",
-      "targetSha256": "52b6419d27bd7f547cee3b92f8c17a908b8a49601ecbec161e5030de1dfe9e0a"
+      "targetSha256": "094e2c66cbe2d084d9e1acba523f9c737d84db8b413c9625a2f29fe90639bad0"
     },
     {
-      "id": "scope-read-04-denied-before-transport",
+      "id": "direct-read-send-without-pairing-07",
       "result": "PASS",
-      "targetSha256": "d91323a5298f3b9f814db29efaa271f24fbdccedfdd062491b8abc8e07b7fb69"
+      "targetSha256": "7eeff6966e9270ad30801318e59df577d335aeb5c603a03eaa910201f79e77a7"
     },
     {
-      "id": "scope-send-04-denied-before-transport",
+      "id": "direct-read-send-without-pairing-08",
       "result": "PASS",
-      "targetSha256": "add5b41fc5a881fc87ef4640581ed5ff7fe5eab39640b3a3e6e8b90f0aa71730"
+      "targetSha256": "6841d4809ddd8364456b40123b0135806998081c92e4f833af56bc19003005c4"
     },
     {
-      "id": "scope-read-05-denied-before-transport",
+      "id": "direct-read-send-without-pairing-09",
       "result": "PASS",
-      "targetSha256": "df0790f236013511e91fa4532fb7761f62320a51a3868dabf4a13fe5f53e3263"
+      "targetSha256": "1c1af531d4845f1d73b06d69451008a254426d6a84919238a05c77de5f7824f9"
     },
     {
-      "id": "scope-send-05-denied-before-transport",
+      "id": "direct-read-send-without-pairing-10",
       "result": "PASS",
-      "targetSha256": "06dcb600d5beaa7a4dbbbbda6b1247b2dfd5a68cd16312bd588783332f3dc57b"
+      "targetSha256": "d70263a76849be1187728e413a6fe67d7cdd52d084423901a3e1f4d3f850bc2f"
     },
     {
-      "id": "scope-read-06-denied-before-transport",
+      "id": "direct-read-send-without-pairing-11",
       "result": "PASS",
-      "targetSha256": "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
+      "targetSha256": "83426ed6d7305298bccd709f5a430d5c82356c3205d72b836087968fd8bbb9aa"
     },
     {
-      "id": "scope-send-06-denied-before-transport",
+      "id": "direct-read-send-without-pairing-12",
       "result": "PASS",
-      "targetSha256": "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
+      "targetSha256": "d282932b1fdef0787196b67cd318fc9546e01a3929d366fb3a4741478c45e4be"
     },
     {
-      "id": "scope-read-07-denied-before-transport",
+      "id": "direct-read-send-without-pairing-13",
       "result": "PASS",
-      "targetSha256": "52b6419d27bd7f547cee3b92f8c17a908b8a49601ecbec161e5030de1dfe9e0a"
+      "targetSha256": "e9019e823952019da872ad7d73708876f4490ba86a8d5d040c264b11b5feb881"
     },
     {
-      "id": "scope-send-07-denied-before-transport",
+      "id": "direct-read-send-without-pairing-14",
       "result": "PASS",
-      "targetSha256": "52b6419d27bd7f547cee3b92f8c17a908b8a49601ecbec161e5030de1dfe9e0a"
+      "targetSha256": "d513972e27b822b76c6aeb654a4a6fa1c28593a38cdc62692314d5c3973ce6d8"
     },
     {
-      "id": "scope-read-08-denied-before-transport",
+      "id": "direct-read-send-without-pairing-15",
       "result": "PASS",
-      "targetSha256": "d91323a5298f3b9f814db29efaa271f24fbdccedfdd062491b8abc8e07b7fb69"
+      "targetSha256": "4e6233ba6fc3917f250eccb0e3b8dbf6c7035da15af01e2064c0ca9be9799a66"
     },
     {
-      "id": "scope-send-08-denied-before-transport",
+      "id": "direct-read-send-without-pairing-16",
       "result": "PASS",
-      "targetSha256": "add5b41fc5a881fc87ef4640581ed5ff7fe5eab39640b3a3e6e8b90f0aa71730"
+      "targetSha256": "1ca9ca3b178461811d537baeb4669a5ecaa4d0f15075b0b695a406f4b5d6e80e"
     },
     {
-      "id": "scope-read-09-denied-before-transport",
+      "id": "direct-read-send-without-pairing-17",
       "result": "PASS",
-      "targetSha256": "df0790f236013511e91fa4532fb7761f62320a51a3868dabf4a13fe5f53e3263"
+      "targetSha256": "55fa8ece78cfff15ec5c8b8dc6a54d498c6ad5b67ca6d28855cb9ea87329f543"
     },
     {
-      "id": "scope-send-09-denied-before-transport",
+      "id": "direct-read-send-without-pairing-18",
       "result": "PASS",
-      "targetSha256": "06dcb600d5beaa7a4dbbbbda6b1247b2dfd5a68cd16312bd588783332f3dc57b"
+      "targetSha256": "9c7f3aa0075af1b660381a12493b22464d1690f3908d5371db0e5998ec72711b"
     },
     {
-      "id": "scope-read-10-denied-before-transport",
+      "id": "direct-read-send-without-pairing-19",
       "result": "PASS",
-      "targetSha256": "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
+      "targetSha256": "7fb2de2c94cba16f6120c318fa84a22d51215f770ccd40e06b89f2fbf9d3fc25"
     },
     {
-      "id": "scope-send-10-denied-before-transport",
+      "id": "direct-read-send-without-pairing-20",
       "result": "PASS",
-      "targetSha256": "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
+      "targetSha256": "fa27334831692fc07ca1cf81e8ebbc585eb7f6ef06732bb97ea19cd3e29143e5"
     },
     {
-      "id": "scope-read-11-denied-before-transport",
+      "id": "direct-read-send-without-pairing-21",
       "result": "PASS",
-      "targetSha256": "52b6419d27bd7f547cee3b92f8c17a908b8a49601ecbec161e5030de1dfe9e0a"
+      "targetSha256": "7673e529930d3d67ed30888e1ecc1a4db1bcfd56b55cad81ce963437af395abd"
     },
     {
-      "id": "scope-send-11-denied-before-transport",
+      "id": "direct-read-send-without-pairing-22",
       "result": "PASS",
-      "targetSha256": "52b6419d27bd7f547cee3b92f8c17a908b8a49601ecbec161e5030de1dfe9e0a"
+      "targetSha256": "aad3988244df8219f78a9fd16999f6d0ec862ef95da4c6841aad1fbc404cd229"
     },
     {
-      "id": "scope-read-12-denied-before-transport",
+      "id": "direct-read-send-without-pairing-23",
       "result": "PASS",
-      "targetSha256": "d91323a5298f3b9f814db29efaa271f24fbdccedfdd062491b8abc8e07b7fb69"
+      "targetSha256": "9cf49eeaaa45bd96bd47cf2cfeaeb0df96b82897144c8db521cc1330cc495761"
     },
     {
-      "id": "scope-send-12-denied-before-transport",
+      "id": "direct-read-send-without-pairing-24",
       "result": "PASS",
-      "targetSha256": "add5b41fc5a881fc87ef4640581ed5ff7fe5eab39640b3a3e6e8b90f0aa71730"
+      "targetSha256": "ca0af82b7371f98d130b06157f3f265fe23a090070ba4d4b0f597efd00c8db3e"
     },
     {
-      "id": "scope-read-13-denied-before-transport",
+      "id": "direct-read-send-without-pairing-25",
       "result": "PASS",
-      "targetSha256": "df0790f236013511e91fa4532fb7761f62320a51a3868dabf4a13fe5f53e3263"
+      "targetSha256": "7bdeaebb086d0db991b7edf40221b35d9edc7068593528560c95cf0c403928b2"
     },
     {
-      "id": "scope-send-13-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "06dcb600d5beaa7a4dbbbbda6b1247b2dfd5a68cd16312bd588783332f3dc57b"
-    },
-    {
-      "id": "scope-read-14-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
-    },
-    {
-      "id": "scope-send-14-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
-    },
-    {
-      "id": "scope-read-15-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "52b6419d27bd7f547cee3b92f8c17a908b8a49601ecbec161e5030de1dfe9e0a"
-    },
-    {
-      "id": "scope-send-15-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "52b6419d27bd7f547cee3b92f8c17a908b8a49601ecbec161e5030de1dfe9e0a"
-    },
-    {
-      "id": "scope-read-16-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "d91323a5298f3b9f814db29efaa271f24fbdccedfdd062491b8abc8e07b7fb69"
-    },
-    {
-      "id": "scope-send-16-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "add5b41fc5a881fc87ef4640581ed5ff7fe5eab39640b3a3e6e8b90f0aa71730"
-    },
-    {
-      "id": "scope-read-17-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "df0790f236013511e91fa4532fb7761f62320a51a3868dabf4a13fe5f53e3263"
-    },
-    {
-      "id": "scope-send-17-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "06dcb600d5beaa7a4dbbbbda6b1247b2dfd5a68cd16312bd588783332f3dc57b"
-    },
-    {
-      "id": "scope-read-18-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
-    },
-    {
-      "id": "scope-send-18-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
-    },
-    {
-      "id": "scope-read-19-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "52b6419d27bd7f547cee3b92f8c17a908b8a49601ecbec161e5030de1dfe9e0a"
-    },
-    {
-      "id": "scope-send-19-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "52b6419d27bd7f547cee3b92f8c17a908b8a49601ecbec161e5030de1dfe9e0a"
-    },
-    {
-      "id": "scope-read-20-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "d91323a5298f3b9f814db29efaa271f24fbdccedfdd062491b8abc8e07b7fb69"
-    },
-    {
-      "id": "scope-send-20-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "add5b41fc5a881fc87ef4640581ed5ff7fe5eab39640b3a3e6e8b90f0aa71730"
-    },
-    {
-      "id": "scope-read-21-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "df0790f236013511e91fa4532fb7761f62320a51a3868dabf4a13fe5f53e3263"
-    },
-    {
-      "id": "scope-send-21-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "06dcb600d5beaa7a4dbbbbda6b1247b2dfd5a68cd16312bd588783332f3dc57b"
-    },
-    {
-      "id": "scope-read-22-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
-    },
-    {
-      "id": "scope-send-22-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "a0fab1377f49a759b57f63318262ebe89fabfc990e8e93ceac2984561482b9d4"
-    },
-    {
-      "id": "scope-read-23-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "52b6419d27bd7f547cee3b92f8c17a908b8a49601ecbec161e5030de1dfe9e0a"
-    },
-    {
-      "id": "scope-send-23-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "52b6419d27bd7f547cee3b92f8c17a908b8a49601ecbec161e5030de1dfe9e0a"
-    },
-    {
-      "id": "scope-read-24-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "d91323a5298f3b9f814db29efaa271f24fbdccedfdd062491b8abc8e07b7fb69"
-    },
-    {
-      "id": "scope-send-24-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "add5b41fc5a881fc87ef4640581ed5ff7fe5eab39640b3a3e6e8b90f0aa71730"
-    },
-    {
-      "id": "scope-read-25-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "df0790f236013511e91fa4532fb7761f62320a51a3868dabf4a13fe5f53e3263"
-    },
-    {
-      "id": "scope-send-25-denied-before-transport",
-      "result": "PASS",
-      "targetSha256": "06dcb600d5beaa7a4dbbbbda6b1247b2dfd5a68cd16312bd588783332f3dc57b"
+      "id": "local-block-denies-read-send-and-unblock-restores-direct-use",
+      "result": "PASS"
     },
     {
       "id": "quota-allowed-01",
@@ -2076,164 +1955,164 @@
       "logicalWindow": 31666666
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-01",
+      "id": "direct-use-block-unblock-cycle-01",
       "result": "PASS",
       "logicalNow": 1900000000,
-      "revokedPubkeySha256": "4fb2cf95759aabc45fe8c4664d02d6c24501bc405c07015c8e3d00d02602b93d",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "4fb2cf95759aabc45fe8c4664d02d6c24501bc405c07015c8e3d00d02602b93d",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-02",
+      "id": "direct-use-block-unblock-cycle-02",
       "result": "PASS",
       "logicalNow": 1900000060,
-      "revokedPubkeySha256": "eb37812f3091bb6e9522d7ef40dfe576aa6f8e375152ad0dfbed9fdd7a8eb6dd",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "eb37812f3091bb6e9522d7ef40dfe576aa6f8e375152ad0dfbed9fdd7a8eb6dd",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-03",
+      "id": "direct-use-block-unblock-cycle-03",
       "result": "PASS",
       "logicalNow": 1900000120,
-      "revokedPubkeySha256": "10ae8e67b3900ec3cbdc2080be05ad04e5a7201412d422ab9f51f7022edf5738",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "10ae8e67b3900ec3cbdc2080be05ad04e5a7201412d422ab9f51f7022edf5738",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-04",
+      "id": "direct-use-block-unblock-cycle-04",
       "result": "PASS",
       "logicalNow": 1900000180,
-      "revokedPubkeySha256": "489965fa3db96c544d558afec3b75f5f46e758a79ec9d22ef27554fd18db7d3a",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "489965fa3db96c544d558afec3b75f5f46e758a79ec9d22ef27554fd18db7d3a",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-05",
+      "id": "direct-use-block-unblock-cycle-05",
       "result": "PASS",
       "logicalNow": 1900000240,
-      "revokedPubkeySha256": "b2eff2d7be0428180cde2c44844b058203d8643c12756e881ac12b16c9e976d5",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "b2eff2d7be0428180cde2c44844b058203d8643c12756e881ac12b16c9e976d5",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-06",
+      "id": "direct-use-block-unblock-cycle-06",
       "result": "PASS",
       "logicalNow": 1900000300,
-      "revokedPubkeySha256": "ec7c18aaf7f47e077f568a6d9245633c81fe5112f4135175c4afb0cdd6d82355",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "ec7c18aaf7f47e077f568a6d9245633c81fe5112f4135175c4afb0cdd6d82355",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-07",
+      "id": "direct-use-block-unblock-cycle-07",
       "result": "PASS",
       "logicalNow": 1900000360,
-      "revokedPubkeySha256": "11472119ce3e681295cef731b67c89787ac35e886427d08ff639ec1be80dcef8",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "11472119ce3e681295cef731b67c89787ac35e886427d08ff639ec1be80dcef8",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-08",
+      "id": "direct-use-block-unblock-cycle-08",
       "result": "PASS",
       "logicalNow": 1900000420,
-      "revokedPubkeySha256": "8ec308e973bab70e10c6a96ca6e49ca78087fc06b5782607449260fed8f4420e",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "8ec308e973bab70e10c6a96ca6e49ca78087fc06b5782607449260fed8f4420e",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-09",
+      "id": "direct-use-block-unblock-cycle-09",
       "result": "PASS",
       "logicalNow": 1900000480,
-      "revokedPubkeySha256": "a6e5d0d041e98b895026ccbcc8aa61d519a9827361c0fbe9672dd15ddd43ab94",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "a6e5d0d041e98b895026ccbcc8aa61d519a9827361c0fbe9672dd15ddd43ab94",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-10",
+      "id": "direct-use-block-unblock-cycle-10",
       "result": "PASS",
       "logicalNow": 1900000540,
-      "revokedPubkeySha256": "42133af4ddd2c2dc18f33c0a30cf5562db767dbf64db008c09e993efef38a76e",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "42133af4ddd2c2dc18f33c0a30cf5562db767dbf64db008c09e993efef38a76e",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-11",
+      "id": "direct-use-block-unblock-cycle-11",
       "result": "PASS",
       "logicalNow": 1900000600,
-      "revokedPubkeySha256": "2f79302e5131fa7b90be4d07909c1f171df4cd6419495029ea485f83e254e889",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "2f79302e5131fa7b90be4d07909c1f171df4cd6419495029ea485f83e254e889",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-12",
+      "id": "direct-use-block-unblock-cycle-12",
       "result": "PASS",
       "logicalNow": 1900000660,
-      "revokedPubkeySha256": "77d1fbb215bf8982847119f0326d11d6140a58a805b4c11cd2dcd20ba094d9ab",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "77d1fbb215bf8982847119f0326d11d6140a58a805b4c11cd2dcd20ba094d9ab",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-13",
+      "id": "direct-use-block-unblock-cycle-13",
       "result": "PASS",
       "logicalNow": 1900000720,
-      "revokedPubkeySha256": "4ff6649f240846168bfa6a7352c4708689ad0acc15af458975bab2fa51ecc959",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "4ff6649f240846168bfa6a7352c4708689ad0acc15af458975bab2fa51ecc959",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-14",
+      "id": "direct-use-block-unblock-cycle-14",
       "result": "PASS",
       "logicalNow": 1900000780,
-      "revokedPubkeySha256": "a11191ebcccb6bd12e5a8ccb036ecfd8a9733358bf5eb47c7128552490eaec2d",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "a11191ebcccb6bd12e5a8ccb036ecfd8a9733358bf5eb47c7128552490eaec2d",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-15",
+      "id": "direct-use-block-unblock-cycle-15",
       "result": "PASS",
       "logicalNow": 1900000840,
-      "revokedPubkeySha256": "d97939fbc48cd93a3674d6a09af20a5065dbb45a7b994f8db4b5f0c7783d3bfc",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "d97939fbc48cd93a3674d6a09af20a5065dbb45a7b994f8db4b5f0c7783d3bfc",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-16",
+      "id": "direct-use-block-unblock-cycle-16",
       "result": "PASS",
       "logicalNow": 1900000900,
-      "revokedPubkeySha256": "0e844f19c3a2c54983ee4bad25130cf396f079d6cf7bb0dd4c83d75d82d78076",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "0e844f19c3a2c54983ee4bad25130cf396f079d6cf7bb0dd4c83d75d82d78076",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-17",
+      "id": "direct-use-block-unblock-cycle-17",
       "result": "PASS",
       "logicalNow": 1900000960,
-      "revokedPubkeySha256": "dbe38646884ad6ffbbe757168521fc6d5222b99aae60b0dfbeffd26bd620b1be",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "dbe38646884ad6ffbbe757168521fc6d5222b99aae60b0dfbeffd26bd620b1be",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-18",
+      "id": "direct-use-block-unblock-cycle-18",
       "result": "PASS",
       "logicalNow": 1900001020,
-      "revokedPubkeySha256": "8138a31f83e9a29876d17fcf37e905b1a58808ca4cb80492b4810370ec162a13",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "8138a31f83e9a29876d17fcf37e905b1a58808ca4cb80492b4810370ec162a13",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-19",
+      "id": "direct-use-block-unblock-cycle-19",
       "result": "PASS",
       "logicalNow": 1900001080,
-      "revokedPubkeySha256": "0be4479babfe12222fd11ab7616833eb676d04d421c7d1f519a2f10bd3fddbc7",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "0be4479babfe12222fd11ab7616833eb676d04d421c7d1f519a2f10bd3fddbc7",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
-      "id": "contact-scope-rotation-revocation-cycle-20",
+      "id": "direct-use-block-unblock-cycle-20",
       "result": "PASS",
       "logicalNow": 1900001140,
-      "revokedPubkeySha256": "a2a31a39eeda13bca62193cdc5b07d8d05ee8a6088936bc5670c7ee03a4dc2bb",
-      "postRevokeReadDenied": true,
-      "postRevokeSendDenied": true
+      "peerSha256": "a2a31a39eeda13bca62193cdc5b07d8d05ee8a6088936bc5670c7ee03a4dc2bb",
+      "blockedReadSendDenied": true,
+      "directUseRestored": true
     },
     {
       "id": "synthetic-human-data-sentinel-unchanged",
@@ -2842,9 +2721,9 @@
       "sha256": "d0269a1ee67c5109a74cfa72b2f3335dc2e847718ff096025feb82576b699be1"
     }
   ],
-  "sourceCommitAtRun": "a0a6c6e05aae1e22d28317ddce91328ad286fa53",
-  "planSha256": "5ccf92d97b9f38c4e92bf92c141353b750af11b09a48e7eef616602bf40545de",
-  "threatModelSha256": "37e22b51fe0703a44a203e1774dfce705a43834a8507d54b0b9e88e074f2fe8e",
+  "sourceCommitAtRun": "e45ad969a3ee4b9e9a3bef463747014cf3c52884",
+  "planSha256": "f8dc5250ca14fb636ac951526c56e98df2ca6aef1c0bb2fcfd355383d1f950bb",
+  "threatModelSha256": "a69e9afad4db6c548884d36611d2dc746dc2bafb4b29c82314c7d286b237db0d",
   "corpusManifestSha256": "2f84535bb937a77302af7c7b691af6cc4cf1f6cf201fec9e3d6827da8e4391b4",
-  "fixtureCodeSha256": "1aa7c3fcaee45944f29935f3225a5b58c91e37a05f88fb358ee21bab42e8ab07"
+  "fixtureCodeSha256": "b91d0b18e794cbe8c46f21bf1d6c10f8c1905e1dbadc0ccdb216bf3dad49136a"
 }

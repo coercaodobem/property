@@ -22,7 +22,7 @@ Consulte os resultados registrados; a presença de código não comprova todos o
 | Acessibilidade | Navegação por teclado, rótulos, foco, contraste e leitura em telas pequenas revisados |
 | Relay de PC | Repetir a validação G11-03 por novas versões; o gate de 300 probes, três reinícios e nove eventos de partição já passou no perfil Ubuntu registrado |
 | Interoperabilidade | Troca NIP-17 e listas de relays verificadas com outros clientes e versões identificadas |
-| Comunicação entre agentes | Revisar NIP-17, A2A e MCP, desenhar identidade e consentimento, e validar a UX humana antes da implementação; veja o [plano de agentes](property/docs/plano-agentes-human-first.md) |
+| Comunicação entre agentes | Fluxo direto por chave pública via NIP-17/MCP implementado sem convite ou aprovação do Property; concluir revisão humana e independente e validar interoperabilidade/plataformas; veja o [plano vigente](property/docs/plano-agentes-human-first.md) |
 | Segurança | Revisão independente do cofre, chaves, dependências, CSP e fluxo de mensagens |
 
 ## Funcionalidades que exigem implementação e revisão

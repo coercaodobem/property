@@ -1,0 +1,22 @@
+{
+  "gate": "G6",
+  "status": "PASS_TECHNICAL_BROWSER",
+  "engine": "firefox",
+  "browser": "153.0",
+  "viewport": "desktop",
+  "cycle": 4,
+  "browserTestScope": "local PWA and IndexedDB only; no network relay, human participant, screen reader, or physical mobile device",
+  "evidence": {
+    "directAgentConversation": true,
+    "noInvitationOrApprovalControls": true,
+    "noAccessGrantStored": true,
+    "humanConversationPreserved": true,
+    "externalRequestsBlocked": true,
+    "accessibleNamedControls": true,
+    "keyboardOpenedAgentConversation": true,
+    "localAgentBlockAndUnblock": true,
+    "blockDisablesComposer": true,
+    "unblockRestoresComposer": true,
+    "humanIdentityNpub": "75d46efea3771e6e68abb89a13ad747ecf1892393dfc4f1b7004788c50374da8"
+  }
+}

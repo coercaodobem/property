@@ -1,5 +1,5 @@
 {
-  "seed": "property-g5-hostile-replay-scope-quota-revoke-v1",
+  "seed": "property-g5-hostile-direct-message-block-quota-v2",
   "count": 100,
   "categories": {
     "prompt-injection-text": 15,

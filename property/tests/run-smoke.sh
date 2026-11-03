@@ -22,7 +22,7 @@ for test_file in \
   portable-packages-smoke.mjs \
   relay-package-smoke.mjs \
   agent-messaging-g0-smoke.mjs \
-  agent-pairing-smoke.mjs \
+  agent-service-smoke.mjs \
   agent-messaging-smoke.mjs \
   agent-package-smoke.mjs \
   offline/agent-security-g5.mjs \

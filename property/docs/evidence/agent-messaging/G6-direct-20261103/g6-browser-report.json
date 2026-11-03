@@ -1,0 +1,550 @@
+{
+  "schema_version": 1,
+  "gate": "G6",
+  "status": "PASS_TECHNICAL_PENDING_HUMAN",
+  "host": "Ubuntu/Linux x64",
+  "engine": "firefox",
+  "deterministic_cycles": {
+    "desktop": 5,
+    "mobile_viewport": 5,
+    "total": 10
+  },
+  "human_participants": "PENDING; browser automation is not a participant substitute",
+  "screen_reader": "PENDING; no real assistive-technology session was performed",
+  "physical_android_ios": "PENDING; mobile is viewport/touch emulation only",
+  "baseline_comparison": "PENDING; requires human task observations from G1/G6",
+  "independent_human_review": "PENDING",
+  "exploratory_chromium_attempt": "One desktop page attempt ended with renderer crash ERR_INSUFFICIENT_RESOURCES; the fixed repeated matrix below uses the pinned Firefox runtime and does not erase this diagnostic.",
+  "plan_sha256": "f8dc5250ca14fb636ac951526c56e98df2ca6aef1c0bb2fcfd355383d1f950bb",
+  "wrapper_sha256": "8882cfd71875d03fbdd1796cb30ddcc584758fe5ff599b7daf74e19af43fd8ea",
+  "direct_agent_harness_sha256": "f36babf0b625909c0d736418dc41335bf9bad9416b8692c4f677f0a38a2424eb",
+  "browser_toolchain": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0",
+    "browser_executable_sha256": "26e4198abe0dfb93c339239297008b1319711575d8cbae8e2d5122d2017b29a1"
+  },
+  "cycles": [
+    {
+      "id": "desktop-01",
+      "viewport": "1280x900 desktop viewport",
+      "status": "PASS",
+      "source_report": "cycles/desktop-01/agent-direct-browser-report.json",
+      "screenshot": "cycles/desktop-01/agent-direct-desktop.png",
+      "checks": [
+        {
+          "check": "directAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "noInvitationOrApprovalControls",
+          "status": "PASS"
+        },
+        {
+          "check": "noAccessGrantStored",
+          "status": "PASS"
+        },
+        {
+          "check": "humanConversationPreserved",
+          "status": "PASS"
+        },
+        {
+          "check": "externalRequestsBlocked",
+          "status": "PASS"
+        },
+        {
+          "check": "accessibleNamedControls",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboardOpenedAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "localAgentBlockAndUnblock",
+          "status": "PASS"
+        },
+        {
+          "check": "blockDisablesComposer",
+          "status": "PASS"
+        },
+        {
+          "check": "unblockRestoresComposer",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/desktop-01/runner.log"
+    },
+    {
+      "id": "desktop-02",
+      "viewport": "1280x900 desktop viewport",
+      "status": "PASS",
+      "source_report": "cycles/desktop-02/agent-direct-browser-report.json",
+      "screenshot": "cycles/desktop-02/agent-direct-desktop.png",
+      "checks": [
+        {
+          "check": "directAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "noInvitationOrApprovalControls",
+          "status": "PASS"
+        },
+        {
+          "check": "noAccessGrantStored",
+          "status": "PASS"
+        },
+        {
+          "check": "humanConversationPreserved",
+          "status": "PASS"
+        },
+        {
+          "check": "externalRequestsBlocked",
+          "status": "PASS"
+        },
+        {
+          "check": "accessibleNamedControls",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboardOpenedAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "localAgentBlockAndUnblock",
+          "status": "PASS"
+        },
+        {
+          "check": "blockDisablesComposer",
+          "status": "PASS"
+        },
+        {
+          "check": "unblockRestoresComposer",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/desktop-02/runner.log"
+    },
+    {
+      "id": "desktop-03",
+      "viewport": "1280x900 desktop viewport",
+      "status": "PASS",
+      "source_report": "cycles/desktop-03/agent-direct-browser-report.json",
+      "screenshot": "cycles/desktop-03/agent-direct-desktop.png",
+      "checks": [
+        {
+          "check": "directAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "noInvitationOrApprovalControls",
+          "status": "PASS"
+        },
+        {
+          "check": "noAccessGrantStored",
+          "status": "PASS"
+        },
+        {
+          "check": "humanConversationPreserved",
+          "status": "PASS"
+        },
+        {
+          "check": "externalRequestsBlocked",
+          "status": "PASS"
+        },
+        {
+          "check": "accessibleNamedControls",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboardOpenedAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "localAgentBlockAndUnblock",
+          "status": "PASS"
+        },
+        {
+          "check": "blockDisablesComposer",
+          "status": "PASS"
+        },
+        {
+          "check": "unblockRestoresComposer",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/desktop-03/runner.log"
+    },
+    {
+      "id": "desktop-04",
+      "viewport": "1280x900 desktop viewport",
+      "status": "PASS",
+      "source_report": "cycles/desktop-04/agent-direct-browser-report.json",
+      "screenshot": "cycles/desktop-04/agent-direct-desktop.png",
+      "checks": [
+        {
+          "check": "directAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "noInvitationOrApprovalControls",
+          "status": "PASS"
+        },
+        {
+          "check": "noAccessGrantStored",
+          "status": "PASS"
+        },
+        {
+          "check": "humanConversationPreserved",
+          "status": "PASS"
+        },
+        {
+          "check": "externalRequestsBlocked",
+          "status": "PASS"
+        },
+        {
+          "check": "accessibleNamedControls",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboardOpenedAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "localAgentBlockAndUnblock",
+          "status": "PASS"
+        },
+        {
+          "check": "blockDisablesComposer",
+          "status": "PASS"
+        },
+        {
+          "check": "unblockRestoresComposer",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/desktop-04/runner.log"
+    },
+    {
+      "id": "desktop-05",
+      "viewport": "1280x900 desktop viewport",
+      "status": "PASS",
+      "source_report": "cycles/desktop-05/agent-direct-browser-report.json",
+      "screenshot": "cycles/desktop-05/agent-direct-desktop.png",
+      "checks": [
+        {
+          "check": "directAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "noInvitationOrApprovalControls",
+          "status": "PASS"
+        },
+        {
+          "check": "noAccessGrantStored",
+          "status": "PASS"
+        },
+        {
+          "check": "humanConversationPreserved",
+          "status": "PASS"
+        },
+        {
+          "check": "externalRequestsBlocked",
+          "status": "PASS"
+        },
+        {
+          "check": "accessibleNamedControls",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboardOpenedAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "localAgentBlockAndUnblock",
+          "status": "PASS"
+        },
+        {
+          "check": "blockDisablesComposer",
+          "status": "PASS"
+        },
+        {
+          "check": "unblockRestoresComposer",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/desktop-05/runner.log"
+    },
+    {
+      "id": "mobile-01",
+      "viewport": "390x844 viewport emulation",
+      "status": "PASS",
+      "source_report": "cycles/mobile-01/agent-direct-browser-report.json",
+      "screenshot": "cycles/mobile-01/agent-direct-mobile.png",
+      "checks": [
+        {
+          "check": "directAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "noInvitationOrApprovalControls",
+          "status": "PASS"
+        },
+        {
+          "check": "noAccessGrantStored",
+          "status": "PASS"
+        },
+        {
+          "check": "humanConversationPreserved",
+          "status": "PASS"
+        },
+        {
+          "check": "externalRequestsBlocked",
+          "status": "PASS"
+        },
+        {
+          "check": "accessibleNamedControls",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboardOpenedAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "localAgentBlockAndUnblock",
+          "status": "PASS"
+        },
+        {
+          "check": "blockDisablesComposer",
+          "status": "PASS"
+        },
+        {
+          "check": "unblockRestoresComposer",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/mobile-01/runner.log"
+    },
+    {
+      "id": "mobile-02",
+      "viewport": "390x844 viewport emulation",
+      "status": "PASS",
+      "source_report": "cycles/mobile-02/agent-direct-browser-report.json",
+      "screenshot": "cycles/mobile-02/agent-direct-mobile.png",
+      "checks": [
+        {
+          "check": "directAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "noInvitationOrApprovalControls",
+          "status": "PASS"
+        },
+        {
+          "check": "noAccessGrantStored",
+          "status": "PASS"
+        },
+        {
+          "check": "humanConversationPreserved",
+          "status": "PASS"
+        },
+        {
+          "check": "externalRequestsBlocked",
+          "status": "PASS"
+        },
+        {
+          "check": "accessibleNamedControls",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboardOpenedAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "localAgentBlockAndUnblock",
+          "status": "PASS"
+        },
+        {
+          "check": "blockDisablesComposer",
+          "status": "PASS"
+        },
+        {
+          "check": "unblockRestoresComposer",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/mobile-02/runner.log"
+    },
+    {
+      "id": "mobile-03",
+      "viewport": "390x844 viewport emulation",
+      "status": "PASS",
+      "source_report": "cycles/mobile-03/agent-direct-browser-report.json",
+      "screenshot": "cycles/mobile-03/agent-direct-mobile.png",
+      "checks": [
+        {
+          "check": "directAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "noInvitationOrApprovalControls",
+          "status": "PASS"
+        },
+        {
+          "check": "noAccessGrantStored",
+          "status": "PASS"
+        },
+        {
+          "check": "humanConversationPreserved",
+          "status": "PASS"
+        },
+        {
+          "check": "externalRequestsBlocked",
+          "status": "PASS"
+        },
+        {
+          "check": "accessibleNamedControls",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboardOpenedAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "localAgentBlockAndUnblock",
+          "status": "PASS"
+        },
+        {
+          "check": "blockDisablesComposer",
+          "status": "PASS"
+        },
+        {
+          "check": "unblockRestoresComposer",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/mobile-03/runner.log"
+    },
+    {
+      "id": "mobile-04",
+      "viewport": "390x844 viewport emulation",
+      "status": "PASS",
+      "source_report": "cycles/mobile-04/agent-direct-browser-report.json",
+      "screenshot": "cycles/mobile-04/agent-direct-mobile.png",
+      "checks": [
+        {
+          "check": "directAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "noInvitationOrApprovalControls",
+          "status": "PASS"
+        },
+        {
+          "check": "noAccessGrantStored",
+          "status": "PASS"
+        },
+        {
+          "check": "humanConversationPreserved",
+          "status": "PASS"
+        },
+        {
+          "check": "externalRequestsBlocked",
+          "status": "PASS"
+        },
+        {
+          "check": "accessibleNamedControls",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboardOpenedAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "localAgentBlockAndUnblock",
+          "status": "PASS"
+        },
+        {
+          "check": "blockDisablesComposer",
+          "status": "PASS"
+        },
+        {
+          "check": "unblockRestoresComposer",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/mobile-04/runner.log"
+    },
+    {
+      "id": "mobile-05",
+      "viewport": "390x844 viewport emulation",
+      "status": "PASS",
+      "source_report": "cycles/mobile-05/agent-direct-browser-report.json",
+      "screenshot": "cycles/mobile-05/agent-direct-mobile.png",
+      "checks": [
+        {
+          "check": "directAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "noInvitationOrApprovalControls",
+          "status": "PASS"
+        },
+        {
+          "check": "noAccessGrantStored",
+          "status": "PASS"
+        },
+        {
+          "check": "humanConversationPreserved",
+          "status": "PASS"
+        },
+        {
+          "check": "externalRequestsBlocked",
+          "status": "PASS"
+        },
+        {
+          "check": "accessibleNamedControls",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboardOpenedAgentConversation",
+          "status": "PASS"
+        },
+        {
+          "check": "localAgentBlockAndUnblock",
+          "status": "PASS"
+        },
+        {
+          "check": "blockDisablesComposer",
+          "status": "PASS"
+        },
+        {
+          "check": "unblockRestoresComposer",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/mobile-05/runner.log"
+    }
+  ],
+  "technical_scope": "Direct agent conversation without invitations, pairing, permissions, per-message approval, or an access grant; one-conversation protocol selection; human-conversation preservation; keyboard activation; accessible control names; local browser/IndexedDB only. No real participant, screen reader, physical device OS, relay delivery, or semantic model evaluation."
+}

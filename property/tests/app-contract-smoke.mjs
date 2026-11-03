@@ -10,7 +10,6 @@ const about = await readFile(join(root, 'web/about.html'), 'utf8');
 const manifest = JSON.parse(await readFile(join(root, 'web/manifest.webmanifest'), 'utf8'));
 const app = await readFile(join(root, 'web/app.js'), 'utf8');
 const contact = await readFile(join(root, 'web/contact.js'), 'utf8');
-const agentPairing = await readFile(join(root, 'web/agent-pairing.js'), 'utf8');
 const agentMessages = await readFile(join(root, 'web/agent-messaging.js'), 'utf8');
 const sw = await readFile(join(root, 'web/sw.js'), 'utf8');
 const vault = await readFile(join(root, 'web/vault.js'), 'utf8');
@@ -44,7 +43,7 @@ assert.match(html, /\.\/marketplace\.js/);
 assert.match(sw, /marketplace\.js/);
 assert.match(html, /\.\/campaigns\.js/);
 assert.match(sw, /campaigns\.js/);
-assert.match(sw, /property-shell-v18/);
+assert.match(sw, /property-shell-v19/);
 assert.match(html, /id="locked-node-status"/, 'locked identity shows an explicit active public-node status');
 assert.match(html, /id="stop-locked-node"/, 'locked user can stop the opt-in public bridge');
 assert.match(app, /lockIdentity\(\{ preservePublicBridge = false \} = \{\}\)/, 'manual lock and idle lock have separate bridge behavior');
@@ -57,23 +56,21 @@ assert.match(html, /Nenhum relay é configurado automaticamente/);
 assert.match(html, /Carregar exemplos públicos/);
 assert.match(app, /Campaigns\.selectSponsoredCampaigns/);
 assert.match(html, /\.\/contact\.js/);
-assert.match(html, /\.\/agent-pairing\.js/);
+assert.doesNotMatch(html, /agent-pairing\.js|agent-invite|approve-agent-invite/, 'PWA no longer loads an invitation or approval flow');
 assert.match(html, /\.\/agent-messaging\.js/);
 assert.match(sw, /agent-messaging\.js/);
 assert.match(agentMessages, /property-agent-message\/v1/);
 assert.match(app, /AgentMessages\.decodeEnvelope/);
-assert.match(app, /existingConversation\?\.agentConversationStarted !== true/, 'a paired agent cannot start an unsolicited direct conversation');
-assert.match(app, /agentConversationStarted: true/, 'a human send explicitly starts the direct agent conversation');
+assert.doesNotMatch(app, /agentConversationStarted|agentPairing|approveAgentInvite|inspectAgentInvite/, 'the active app has no agent pairing gate');
 assert.match(app, /AgentMessages\.encodeEnvelope\(/, 'human messages to an agent carry a versioned request envelope');
-assert.match(app, /agent-out:\$\{peer\}:\$\{parsedAgentMessage\.inReplyTo\}/, 'agent replies must correlate to a human request stored on this device');
+assert.match(app, /previous\.agent === true/, 'a user can choose the agent protocol for one direct conversation');
+assert.match(app, /const isAgentProtocol = rumor\.content\.includes\(AgentMessages\.PROTOCOL\)/, 'valid agent messages do not require pairing or a preceding human request');
 assert.match(app, /message\.text/);
 assert.match(html, /id="open-agent-manager"/);
-assert.match(html, /id="agent-invite-input"/);
-assert.match(html, /id="agent-access-list"/);
-assert.match(sw, /agent-pairing\.js/);
-assert.match(agentPairing, /verifyEvent\(event\)/);
-assert.match(agentPairing, /function normalizePermissions/);
-assert.match(agentPairing, /transitionAccess/);
+assert.match(html, /id="agent-mode" type="checkbox"/);
+assert.match(html, /Não há convite, pareamento ou aprovação por mensagem/);
+assert.doesNotMatch(sw, /agent-pairing\.js/);
+await assert.rejects(access(join(root, 'web/agent-pairing.js')), 'obsolete approval-flow module must not be shipped');
 assert.match(app, /Contact\.parsePublicKey/);
 assert.match(contact, /não busca nomes de usuário/);
 assert.match(sw, /contact\.js/);
@@ -183,7 +180,7 @@ assert.doesNotMatch(`${html}\n${about}`, /<(?:script|link)\b[^>]*(?:src|href)=["
   'HTML cannot load executable code or styles from another origin');
 assert.doesNotMatch(`${app}\n${sw}`, /\bimportScripts\s*\(|\bimport\s*\(\s*["']https?:/i,
   'the app and service worker cannot import remote executable code');
-for (const localPath of ['./about.html', './styles.css', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-pairing.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
+for (const localPath of ['./about.html', './styles.css', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }
 await access(join(root, 'relay/dist-parts/manifest.txt'));

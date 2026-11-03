@@ -13,7 +13,6 @@ context.window = context;
 vm.createContext(context);
 vm.runInContext(await readFile(`${root}/web/vendor/nostr-tools-2.25.2.bundle.js`, 'utf8'), context, { timeout: 5000 });
 vm.runInContext(await readFile(`${root}/web/agent-messaging.js`, 'utf8'), context, { timeout: 5000 });
-vm.runInContext(await readFile(`${root}/web/agent-pairing.js`, 'utf8'), context, { timeout: 5000 });
 context.roleSecretHex = `${'00'.repeat(31)}${role === 'alpha' ? 'c9' : 'ca'}`;
 const agent = vm.runInContext(`(() => {
   const secret = Uint8Array.from(roleSecretHex.match(/.{2}/g), value => parseInt(value, 16));
@@ -154,23 +153,6 @@ async function handle(command) {
     case 'make-envelope': {
       const content = AgentMessages.encodeEnvelope({ conversationId: command.conversationId, messageId: command.messageId, inReplyTo: command.inReplyTo ?? null, body: command.body });
       return { wraps: N.nip17.wrapManyEvents(agent.secret, [{ publicKey: command.recipientPubkey }], content) };
-    }
-    case 'make-invite': {
-      context.fixtureInviteOptions = JSON.stringify({
-        agent_name: String(command.name || 'Agente sintético'),
-        nonce: [...webcrypto.getRandomValues(new Uint8Array(16))].map(value => value.toString(16).padStart(2, '0')).join(''),
-        expires_at: Math.floor(Date.now() / 1000) + 3600,
-        recipient_pubkey: command.recipientPubkey,
-        relay_hints: command.relayHints || [],
-      });
-      context.fixtureSecretHex = Buffer.from(agent.secret).toString('hex');
-      const invite = vm.runInContext(`(() => {
-        const data = JSON.parse(fixtureInviteOptions);
-        const secret = Uint8Array.from(fixtureSecretHex.match(/.{2}/g), value => parseInt(value, 16));
-        const event = NostrTools.finalizeEvent({ kind: 30078, created_at: Math.floor(Date.now() / 1000), tags: [['d', 'property-agent-invite-v1']], content: JSON.stringify({ protocol: 'property-agent-invite/v1', agent_name: data.agent_name, nonce: data.nonce, expires_at: data.expires_at, recipient_pubkey: data.recipient_pubkey, relay_hints: data.relay_hints }) }, secret);
-        return PropertyAgentPairing.encodeInvite(event);
-      })()`, context);
-      return { invite };
     }
     case 'publish-inbox-list': {
       context.fixtureRelayUrls = JSON.stringify(command.urls || []);
