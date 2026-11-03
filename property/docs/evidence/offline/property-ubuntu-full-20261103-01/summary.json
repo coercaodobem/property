@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "run_id": "property-ubuntu-full-20261103-01",
+  "profile": "full",
+  "candidate_commit": "d93c9c1523dd30fb632e69ef3a18863ce8eadb02",
+  "observed_head": "d93c9c1523dd30fb632e69ef3a18863ce8eadb02",
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active Codex task runtime",
+  "executor_matches_request": false,
+  "started_utc": "2026-11-03T00:57:05.512Z",
+  "ended_utc": "2026-11-03T01:06:10.161Z",
+  "gate_status": {
+    "G00": "PASS",
+    "G01": "PASS",
+    "G02": "PASS",
+    "G03": "PASS",
+    "G04": "PASS",
+    "G05": "PASS",
+    "G06": "PASS",
+    "G07": "PASS",
+    "G08": "PASS",
+    "G09": "PASS",
+    "G10": "PASS",
+    "G11": "PASS",
+    "G12": "PENDING"
+  },
+  "case_totals": {
+    "PASS": 70,
+    "PENDING": 4
+  },
+  "isolation": "PASS",
+  "ubuntu_scope_pass": true,
+  "deferred_platform_cases": [
+    "G12-02",
+    "G12-03",
+    "G12-04",
+    "G12-05"
+  ],
+  "scope_result": "PROPERTY_UBUNTU_OFFLINE_PASS",
+  "exit_code": 0
+}

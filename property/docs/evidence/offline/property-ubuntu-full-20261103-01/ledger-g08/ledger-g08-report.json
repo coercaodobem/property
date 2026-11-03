@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "result": "PASS",
+  "cases": [
+    {
+      "case": "G08-01",
+      "status": "PASS",
+      "reason": "Each real node/wallet produced an exclusive BTC address, Monero subaddress, or Nano account. An exact atomic payment remained unpublished while pending and the signed campaign appeared once on the local Geode relay only after each ledger adapter reported its confirmation gate."
+    },
+    {
+      "case": "G08-02",
+      "status": "PASS",
+      "reason": "BTC ignored an unrelated address and a currency mismatch, withheld publication at zero confirmations, and a private regtest block invalidation before engine reconciliation reduced the transaction to the pending state. No campaign event was published before reconsideration and reconfirmation."
+    },
+    {
+      "case": "G08-03",
+      "status": "PASS",
+      "reason": "The wallet credited an exclusive Monero subaddress only after the configured 10-confirmation/unlock gate; repeated lookup returned the same transaction and amount. A private fakechain pop before campaign reconciliation kept the campaign unpublished."
+    },
+    {
+      "case": "G08-04",
+      "status": "PASS",
+      "reason": "The local Nano dev ledger kept a one-raw transfer uncredited before confirmation, processed it into its unique account after confirmation, and repeated polling returned the same source block while the account balance remained exactly one raw."
+    },
+    {
+      "case": "G08-05",
+      "status": "PASS",
+      "reason": "All three chains produced signed underpayment refund requests bound to the offer and actual payment. Each real wallet broadcast at most one refund, reported its fee/atomic amount, and a repeated signed request returned the same confirmed transaction after the chain advanced."
+    },
+    {
+      "case": "G08-06",
+      "status": "PASS",
+      "reason": "Observed payment and refund amounts remained integer atomic values on BTC/XMR and raw on Nano. Campaigns stayed unpublished while settlement was pending, mismatched refund amounts were rejected before any broadcast, and fee amounts were recorded separately for reconciliation."
+    },
+    {
+      "case": "G08-07",
+      "status": "PASS",
+      "reason": "BTC/XMR local RPCs required credentials, the Nano loopback gateway rejected unauthenticated and incorrect credentials, and each adapter rejected a wrong network before creating a payment address. Random credentials and the test-only dev genesis key were excluded from reports and signed events."
+    }
+  ],
+  "ledger_networks": {
+    "BTC": {
+      "chain": "regtest",
+      "blocks_before_tests": 0,
+      "local_rpc": "127.0.0.1:34947",
+      "p2p_listeners": false
+    },
+    "XMR": {
+      "nettype": "fakechain",
+      "height": 1,
+      "local_daemon": "127.0.0.1:43745",
+      "authenticated_wallets": 2,
+      "internet_peers": 0
+    },
+    "XNO": {
+      "network": "dev",
+      "network_identifier": "04270D7F11C4B2B472F2854C5A59F2A7E84226CE9ED799DE75744BD7D85FC9D9",
+      "rpc_bind": "::1",
+      "authenticated_gateway": true,
+      "peers_configured": 0
+    }
+  },
+  "payments": [
+    {
+      "currency": "BTC",
+      "address": "bcrt1q9yyjj5wf336hhhuuw8j7g4huvgxm5lm35sxjln",
+      "txid": "d8ac1dc41c0acfa4fd53d6fe5f7041c02d72b70aa2f27f07ee3a6e99ada27249",
+      "amount_atomic": "100000",
+      "pending_gate": "payment_pending",
+      "published": "published"
+    },
+    {
+      "currency": "XMR",
+      "address": "85Fbz91m3GqjgNHjQDYZDvisrFEW2BXZU7Eg5Qtx1UkFBRW54MNWKutP6br2kwJnNJ5HciFw7CsWTbYFr1ES8wTF4QxYxPB",
+      "txid": "b1662a5e89e0392c4e09ac402dc03b293c0f21718a68e6955b1d5873557dba2c",
+      "amount_atomic": "1000000000000",
+      "confirmations": 11,
+      "subaddress": true,
+      "pending_gate": "payment_pending",
+      "published": "published"
+    },
+    {
+      "currency": "XNO",
+      "address": "nano_1tkdu6mnabag8m1ui1se8af3r63i8z1miyst5nc43wtt3xyqjnt51qhys9ft",
+      "txid": "93FC912B839742ACF3430C81EE67B57356D1C1D5693344A09C1A9D2B5051DBEF",
+      "amount_atomic": "1",
+      "pending_gate": "awaiting_payment",
+      "published": "published",
+      "duplicate_poll_same_tx": true
+    },
+    {
+      "currency": "BTC",
+      "case": "preactivation-reorg",
+      "confirmations_after_reorg": 0,
+      "status": "payment_pending",
+      "published": false,
+      "wrong_currency_ignored": true
+    },
+    {
+      "currency": "XMR",
+      "case": "subaddress-repeat-and-pop",
+      "txid": "5d5463409a92eca4eefb8a0953bc16f5e2c2873bde3664a8f800a52253d17833",
+      "original_tx_stable": true,
+      "duplicate_poll_same_amount": true,
+      "status_after_pop": "payment_pending",
+      "unpublished": true
+    },
+    {
+      "currency": "XNO",
+      "case": "raw-one-and-account-isolation",
+      "txid": "494139C3C75A25B2C13DE6538F096F58D8218A5EC24E0D24E2A89B1B9615B699",
+      "amount_atomic": "1",
+      "duplicate_poll_same_tx": true,
+      "isolated_accounts": true,
+      "pending_not_credited": true,
+      "account_balance_before": "0",
+      "account_balance_after": "1",
+      "confirmed": true
+    }
+  ],
+  "refunds": [
+    {
+      "currency": "BTC",
+      "payment_txid": "1b056ae63c4fde986aa51bd294cc6437177bb7308aebfeb7f671ce1221663ba8",
+      "payment_atomic": "100000",
+      "refund_txid": "59b57fea7fe161c255de37646606ad9c3360a220f8010db37b2da7c228448641",
+      "refund_atomic": "100000",
+      "fee_atomic": "1410",
+      "repeated_request_same_txid": true,
+      "signed_request_verified": true
+    },
+    {
+      "currency": "XMR",
+      "payment_txid": "663e07fa7acd0da242b3920f573e739d30178630e7b0d9bc885bb8339105a10e",
+      "payment_atomic": "1000000000000",
+      "refund_txid": "06acd1da8d27a8c4df00ee4ebec1b4f14fd8776b0fc3cc192f79c75d035a620b",
+      "refund_atomic": "1000000000000",
+      "fee_atomic": "2599200000",
+      "repeated_request_same_txid": true,
+      "signed_request_verified": true
+    },
+    {
+      "currency": "XNO",
+      "payment_txid": "037745FE8611DFAA92909476CA148A392770EE333F21571B17929DD43CCEDC48",
+      "payment_atomic": "2",
+      "refund_txid": "1679ED4B2FA2F51B65CCA84F5F4D682B7A625A7258A50ECF0C9988EB0D8C2E0F",
+      "refund_atomic": "2",
+      "fee_atomic": "0",
+      "repeated_request_same_txid": true,
+      "signed_request_verified": true
+    }
+  ],
+  "accounting": [
+    {
+      "status": "PASS",
+      "btc_atomic_precision": true,
+      "xmr_atomic_precision": true,
+      "nano_raw_precision": true,
+      "mismatched_refund_rejected_before_broadcast": true,
+      "no_unconfirmed_campaign_success": true,
+      "fees_by_currency": {
+        "BTC": "1410",
+        "XMR": "2599200000",
+        "XNO": "0"
+      }
+    }
+  ],
+  "auth_checks": [
+    {
+      "currency": "BTC",
+      "rpc_auth": "Basic",
+      "invalid_credentials_rejected": true,
+      "wrong_network_rejected": true
+    },
+    {
+      "currency": "XMR",
+      "rpc_auth": "Digest",
+      "wallet_and_daemon_auth": true,
+      "wrong_network_rejected": true
+    },
+    {
+      "currency": "XNO",
+      "rpc_auth": "loopback Basic-auth gateway",
+      "unauthenticated_rejected": true,
+      "wrong_network_rejected": true
+    }
+  ],
+  "relay_publications": [
+    {
+      "currency": "BTC",
+      "event_id": "7af5fa43bda4b5f29422868ff563eda7d951c5d10a03cca9a2b8e65e97a1065f",
+      "stored": true,
+      "count": 1
+    },
+    {
+      "currency": "XMR",
+      "event_id": "3b1417c9aa8c6ae1942840772565ee002d8c4696b3eb80b02aac8adfce8f1a90",
+      "stored": true,
+      "count": 1
+    },
+    {
+      "currency": "XNO",
+      "event_id": "1e322e46fc2f1fc3320e25a4d2e8c7f21c0a482f1b1853ab6a58850c6083fc48",
+      "stored": true,
+      "count": 1
+    }
+  ],
+  "external_endpoints": [],
+  "credential_scan": {
+    "test_credentials_in_report": false,
+    "test_genesis_key_in_report": false,
+    "environment_secrets_in_events": false
+  },
+  "binary_sha256": {
+    "bitcoind": "580ac61190154da31aac3f82d13c4254ef453d70e1bf2c39d338dac5129c92ac",
+    "bitcoin_cli": "83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d",
+    "monerod": "f035a7c555aec692705012027a64707f38adeabc4a4c9244f259cd78bb2e84f1",
+    "monero_wallet_rpc": "06f36de37bda72ff377c11700ba622fef435d27510c883e9c83a27ba3c46ba1f",
+    "nano_node": "80ae0c647cbe9de174e700e05a653a5c76ccacae523cb5ac4bfffd33dd067587"
+  },
+  "nano_diagnostics": {
+    "advertiser_account": "nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
+    "advertiser_balance_raw": "340282366920938463463374607431768211455",
+    "campaign_account": "nano_1tkdu6mnabag8m1ui1se8af3r63i8z1miyst5nc43wtt3xyqjnt51qhys9ft",
+    "send_block": "93FC912B839742ACF3430C81EE67B57356D1C1D5693344A09C1A9D2B5051DBEF",
+    "source_confirmed": "false",
+    "receivable": {},
+    "account_history": [],
+    "advertiser_wallet_contains_genesis": "1",
+    "local_representative_restart": true,
+    "adapter_observation": "awaiting_payment"
+  }
+}
