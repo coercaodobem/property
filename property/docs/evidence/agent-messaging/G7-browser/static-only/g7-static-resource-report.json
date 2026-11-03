@@ -1,0 +1,1140 @@
+{
+  "schema_version": 1,
+  "gate": "G7",
+  "case": "G7-STATIC-SHELL-SOURCE-INTEGRITY",
+  "status": "PASS_SOURCE_FILES_ONLY",
+  "fixed_repetitions": 10,
+  "service_worker_cache": "property-shell-v18",
+  "local_shell_resource_count": 21,
+  "total_resource_hash_checks": 210,
+  "ordered_shell_manifest_sha256": "c3b5379a9fa7b9ccec12d3361ff3ad2e0e10a749cab6fd4a217297ef6952cd65",
+  "service_worker_sha256": "3cd4eb79b9776d200402c6fc9d136633f7e23b52b55c85a47c8cb1437d653ea9",
+  "harness_sha256": "b83afab53554bdc911fdfc0091dd108073b8a68155de96a067d1dcdf37cb9a18",
+  "plan_sha256": "1ed684d8b3fffeefa239e14543536cafbdc1300ee61767af3892ab39cc08fbd7",
+  "cycles": [
+    {
+      "cycle": 1,
+      "status": "PASS",
+      "checked_resources": 21,
+      "resources": [
+        {
+          "resource": "./",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./index.html",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./about.html",
+          "bytes": 3837,
+          "sha256": "158539ccd24a584d5b562719497de1b323d9c32b7e9da9a7626dc60136dfcc1a"
+        },
+        {
+          "resource": "./styles.css?v=property-v18",
+          "bytes": 16196,
+          "sha256": "805c0031ef096d3757affdb79583aebe28c07cee93f135ac616c927547c89127"
+        },
+        {
+          "resource": "./app.js?v=property-v18",
+          "bytes": 72481,
+          "sha256": "6b4adf447bb38103c77d45441708f43e4b1ffd762dd2f8dbe4ed7e74e781639d"
+        },
+        {
+          "resource": "./vault.js?v=property-v18",
+          "bytes": 3692,
+          "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+        },
+        {
+          "resource": "./routing.js?v=property-v18",
+          "bytes": 1700,
+          "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+        },
+        {
+          "resource": "./forwarding.js?v=property-v18",
+          "bytes": 3703,
+          "sha256": "377029d5059a82f2ba5a261cf5a615cfe41531ddf6fa479c7e2d83c3333027ad"
+        },
+        {
+          "resource": "./nano.js?v=property-v18",
+          "bytes": 1207,
+          "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+        },
+        {
+          "resource": "./money.js?v=property-v18",
+          "bytes": 1868,
+          "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+        },
+        {
+          "resource": "./marketplace.js?v=property-v18",
+          "bytes": 6415,
+          "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+        },
+        {
+          "resource": "./campaigns.js?v=property-v18",
+          "bytes": 6760,
+          "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+        },
+        {
+          "resource": "./contact.js?v=property-v18",
+          "bytes": 1947,
+          "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+        },
+        {
+          "resource": "./agent-pairing.js?v=property-v18",
+          "bytes": 12020,
+          "sha256": "bc67c63238253adcce13fd3945890aaa951e718819228ffb490b31de17c7ee83"
+        },
+        {
+          "resource": "./agent-messaging.js?v=property-v18",
+          "bytes": 7568,
+          "sha256": "da67cc6e1c50f9827007750c69b3ceb2fc7d14be0b12494faa261f4693254e03"
+        },
+        {
+          "resource": "./manifest.webmanifest?v=property-v18",
+          "bytes": 648,
+          "sha256": "8b01ad2ecb0001eeb8df12f1f42f51811dc6471760f71e906de99d11a4f7286b"
+        },
+        {
+          "resource": "./assets/icon.svg?v=property-v18",
+          "bytes": 442,
+          "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+        },
+        {
+          "resource": "./assets/property-icon-180.png?v=property-v18",
+          "bytes": 4969,
+          "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+        },
+        {
+          "resource": "./assets/property-icon-192.png?v=property-v18",
+          "bytes": 5427,
+          "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+        },
+        {
+          "resource": "./assets/property-icon-512.png?v=property-v18",
+          "bytes": 14322,
+          "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+        },
+        {
+          "resource": "./vendor/nostr-tools-2.25.2.bundle.js?v=property-v18",
+          "bytes": 251980,
+          "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+        }
+      ]
+    },
+    {
+      "cycle": 2,
+      "status": "PASS",
+      "checked_resources": 21,
+      "resources": [
+        {
+          "resource": "./",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./index.html",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./about.html",
+          "bytes": 3837,
+          "sha256": "158539ccd24a584d5b562719497de1b323d9c32b7e9da9a7626dc60136dfcc1a"
+        },
+        {
+          "resource": "./styles.css?v=property-v18",
+          "bytes": 16196,
+          "sha256": "805c0031ef096d3757affdb79583aebe28c07cee93f135ac616c927547c89127"
+        },
+        {
+          "resource": "./app.js?v=property-v18",
+          "bytes": 72481,
+          "sha256": "6b4adf447bb38103c77d45441708f43e4b1ffd762dd2f8dbe4ed7e74e781639d"
+        },
+        {
+          "resource": "./vault.js?v=property-v18",
+          "bytes": 3692,
+          "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+        },
+        {
+          "resource": "./routing.js?v=property-v18",
+          "bytes": 1700,
+          "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+        },
+        {
+          "resource": "./forwarding.js?v=property-v18",
+          "bytes": 3703,
+          "sha256": "377029d5059a82f2ba5a261cf5a615cfe41531ddf6fa479c7e2d83c3333027ad"
+        },
+        {
+          "resource": "./nano.js?v=property-v18",
+          "bytes": 1207,
+          "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+        },
+        {
+          "resource": "./money.js?v=property-v18",
+          "bytes": 1868,
+          "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+        },
+        {
+          "resource": "./marketplace.js?v=property-v18",
+          "bytes": 6415,
+          "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+        },
+        {
+          "resource": "./campaigns.js?v=property-v18",
+          "bytes": 6760,
+          "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+        },
+        {
+          "resource": "./contact.js?v=property-v18",
+          "bytes": 1947,
+          "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+        },
+        {
+          "resource": "./agent-pairing.js?v=property-v18",
+          "bytes": 12020,
+          "sha256": "bc67c63238253adcce13fd3945890aaa951e718819228ffb490b31de17c7ee83"
+        },
+        {
+          "resource": "./agent-messaging.js?v=property-v18",
+          "bytes": 7568,
+          "sha256": "da67cc6e1c50f9827007750c69b3ceb2fc7d14be0b12494faa261f4693254e03"
+        },
+        {
+          "resource": "./manifest.webmanifest?v=property-v18",
+          "bytes": 648,
+          "sha256": "8b01ad2ecb0001eeb8df12f1f42f51811dc6471760f71e906de99d11a4f7286b"
+        },
+        {
+          "resource": "./assets/icon.svg?v=property-v18",
+          "bytes": 442,
+          "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+        },
+        {
+          "resource": "./assets/property-icon-180.png?v=property-v18",
+          "bytes": 4969,
+          "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+        },
+        {
+          "resource": "./assets/property-icon-192.png?v=property-v18",
+          "bytes": 5427,
+          "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+        },
+        {
+          "resource": "./assets/property-icon-512.png?v=property-v18",
+          "bytes": 14322,
+          "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+        },
+        {
+          "resource": "./vendor/nostr-tools-2.25.2.bundle.js?v=property-v18",
+          "bytes": 251980,
+          "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+        }
+      ]
+    },
+    {
+      "cycle": 3,
+      "status": "PASS",
+      "checked_resources": 21,
+      "resources": [
+        {
+          "resource": "./",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./index.html",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./about.html",
+          "bytes": 3837,
+          "sha256": "158539ccd24a584d5b562719497de1b323d9c32b7e9da9a7626dc60136dfcc1a"
+        },
+        {
+          "resource": "./styles.css?v=property-v18",
+          "bytes": 16196,
+          "sha256": "805c0031ef096d3757affdb79583aebe28c07cee93f135ac616c927547c89127"
+        },
+        {
+          "resource": "./app.js?v=property-v18",
+          "bytes": 72481,
+          "sha256": "6b4adf447bb38103c77d45441708f43e4b1ffd762dd2f8dbe4ed7e74e781639d"
+        },
+        {
+          "resource": "./vault.js?v=property-v18",
+          "bytes": 3692,
+          "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+        },
+        {
+          "resource": "./routing.js?v=property-v18",
+          "bytes": 1700,
+          "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+        },
+        {
+          "resource": "./forwarding.js?v=property-v18",
+          "bytes": 3703,
+          "sha256": "377029d5059a82f2ba5a261cf5a615cfe41531ddf6fa479c7e2d83c3333027ad"
+        },
+        {
+          "resource": "./nano.js?v=property-v18",
+          "bytes": 1207,
+          "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+        },
+        {
+          "resource": "./money.js?v=property-v18",
+          "bytes": 1868,
+          "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+        },
+        {
+          "resource": "./marketplace.js?v=property-v18",
+          "bytes": 6415,
+          "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+        },
+        {
+          "resource": "./campaigns.js?v=property-v18",
+          "bytes": 6760,
+          "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+        },
+        {
+          "resource": "./contact.js?v=property-v18",
+          "bytes": 1947,
+          "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+        },
+        {
+          "resource": "./agent-pairing.js?v=property-v18",
+          "bytes": 12020,
+          "sha256": "bc67c63238253adcce13fd3945890aaa951e718819228ffb490b31de17c7ee83"
+        },
+        {
+          "resource": "./agent-messaging.js?v=property-v18",
+          "bytes": 7568,
+          "sha256": "da67cc6e1c50f9827007750c69b3ceb2fc7d14be0b12494faa261f4693254e03"
+        },
+        {
+          "resource": "./manifest.webmanifest?v=property-v18",
+          "bytes": 648,
+          "sha256": "8b01ad2ecb0001eeb8df12f1f42f51811dc6471760f71e906de99d11a4f7286b"
+        },
+        {
+          "resource": "./assets/icon.svg?v=property-v18",
+          "bytes": 442,
+          "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+        },
+        {
+          "resource": "./assets/property-icon-180.png?v=property-v18",
+          "bytes": 4969,
+          "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+        },
+        {
+          "resource": "./assets/property-icon-192.png?v=property-v18",
+          "bytes": 5427,
+          "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+        },
+        {
+          "resource": "./assets/property-icon-512.png?v=property-v18",
+          "bytes": 14322,
+          "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+        },
+        {
+          "resource": "./vendor/nostr-tools-2.25.2.bundle.js?v=property-v18",
+          "bytes": 251980,
+          "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+        }
+      ]
+    },
+    {
+      "cycle": 4,
+      "status": "PASS",
+      "checked_resources": 21,
+      "resources": [
+        {
+          "resource": "./",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./index.html",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./about.html",
+          "bytes": 3837,
+          "sha256": "158539ccd24a584d5b562719497de1b323d9c32b7e9da9a7626dc60136dfcc1a"
+        },
+        {
+          "resource": "./styles.css?v=property-v18",
+          "bytes": 16196,
+          "sha256": "805c0031ef096d3757affdb79583aebe28c07cee93f135ac616c927547c89127"
+        },
+        {
+          "resource": "./app.js?v=property-v18",
+          "bytes": 72481,
+          "sha256": "6b4adf447bb38103c77d45441708f43e4b1ffd762dd2f8dbe4ed7e74e781639d"
+        },
+        {
+          "resource": "./vault.js?v=property-v18",
+          "bytes": 3692,
+          "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+        },
+        {
+          "resource": "./routing.js?v=property-v18",
+          "bytes": 1700,
+          "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+        },
+        {
+          "resource": "./forwarding.js?v=property-v18",
+          "bytes": 3703,
+          "sha256": "377029d5059a82f2ba5a261cf5a615cfe41531ddf6fa479c7e2d83c3333027ad"
+        },
+        {
+          "resource": "./nano.js?v=property-v18",
+          "bytes": 1207,
+          "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+        },
+        {
+          "resource": "./money.js?v=property-v18",
+          "bytes": 1868,
+          "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+        },
+        {
+          "resource": "./marketplace.js?v=property-v18",
+          "bytes": 6415,
+          "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+        },
+        {
+          "resource": "./campaigns.js?v=property-v18",
+          "bytes": 6760,
+          "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+        },
+        {
+          "resource": "./contact.js?v=property-v18",
+          "bytes": 1947,
+          "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+        },
+        {
+          "resource": "./agent-pairing.js?v=property-v18",
+          "bytes": 12020,
+          "sha256": "bc67c63238253adcce13fd3945890aaa951e718819228ffb490b31de17c7ee83"
+        },
+        {
+          "resource": "./agent-messaging.js?v=property-v18",
+          "bytes": 7568,
+          "sha256": "da67cc6e1c50f9827007750c69b3ceb2fc7d14be0b12494faa261f4693254e03"
+        },
+        {
+          "resource": "./manifest.webmanifest?v=property-v18",
+          "bytes": 648,
+          "sha256": "8b01ad2ecb0001eeb8df12f1f42f51811dc6471760f71e906de99d11a4f7286b"
+        },
+        {
+          "resource": "./assets/icon.svg?v=property-v18",
+          "bytes": 442,
+          "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+        },
+        {
+          "resource": "./assets/property-icon-180.png?v=property-v18",
+          "bytes": 4969,
+          "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+        },
+        {
+          "resource": "./assets/property-icon-192.png?v=property-v18",
+          "bytes": 5427,
+          "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+        },
+        {
+          "resource": "./assets/property-icon-512.png?v=property-v18",
+          "bytes": 14322,
+          "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+        },
+        {
+          "resource": "./vendor/nostr-tools-2.25.2.bundle.js?v=property-v18",
+          "bytes": 251980,
+          "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+        }
+      ]
+    },
+    {
+      "cycle": 5,
+      "status": "PASS",
+      "checked_resources": 21,
+      "resources": [
+        {
+          "resource": "./",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./index.html",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./about.html",
+          "bytes": 3837,
+          "sha256": "158539ccd24a584d5b562719497de1b323d9c32b7e9da9a7626dc60136dfcc1a"
+        },
+        {
+          "resource": "./styles.css?v=property-v18",
+          "bytes": 16196,
+          "sha256": "805c0031ef096d3757affdb79583aebe28c07cee93f135ac616c927547c89127"
+        },
+        {
+          "resource": "./app.js?v=property-v18",
+          "bytes": 72481,
+          "sha256": "6b4adf447bb38103c77d45441708f43e4b1ffd762dd2f8dbe4ed7e74e781639d"
+        },
+        {
+          "resource": "./vault.js?v=property-v18",
+          "bytes": 3692,
+          "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+        },
+        {
+          "resource": "./routing.js?v=property-v18",
+          "bytes": 1700,
+          "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+        },
+        {
+          "resource": "./forwarding.js?v=property-v18",
+          "bytes": 3703,
+          "sha256": "377029d5059a82f2ba5a261cf5a615cfe41531ddf6fa479c7e2d83c3333027ad"
+        },
+        {
+          "resource": "./nano.js?v=property-v18",
+          "bytes": 1207,
+          "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+        },
+        {
+          "resource": "./money.js?v=property-v18",
+          "bytes": 1868,
+          "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+        },
+        {
+          "resource": "./marketplace.js?v=property-v18",
+          "bytes": 6415,
+          "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+        },
+        {
+          "resource": "./campaigns.js?v=property-v18",
+          "bytes": 6760,
+          "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+        },
+        {
+          "resource": "./contact.js?v=property-v18",
+          "bytes": 1947,
+          "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+        },
+        {
+          "resource": "./agent-pairing.js?v=property-v18",
+          "bytes": 12020,
+          "sha256": "bc67c63238253adcce13fd3945890aaa951e718819228ffb490b31de17c7ee83"
+        },
+        {
+          "resource": "./agent-messaging.js?v=property-v18",
+          "bytes": 7568,
+          "sha256": "da67cc6e1c50f9827007750c69b3ceb2fc7d14be0b12494faa261f4693254e03"
+        },
+        {
+          "resource": "./manifest.webmanifest?v=property-v18",
+          "bytes": 648,
+          "sha256": "8b01ad2ecb0001eeb8df12f1f42f51811dc6471760f71e906de99d11a4f7286b"
+        },
+        {
+          "resource": "./assets/icon.svg?v=property-v18",
+          "bytes": 442,
+          "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+        },
+        {
+          "resource": "./assets/property-icon-180.png?v=property-v18",
+          "bytes": 4969,
+          "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+        },
+        {
+          "resource": "./assets/property-icon-192.png?v=property-v18",
+          "bytes": 5427,
+          "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+        },
+        {
+          "resource": "./assets/property-icon-512.png?v=property-v18",
+          "bytes": 14322,
+          "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+        },
+        {
+          "resource": "./vendor/nostr-tools-2.25.2.bundle.js?v=property-v18",
+          "bytes": 251980,
+          "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+        }
+      ]
+    },
+    {
+      "cycle": 6,
+      "status": "PASS",
+      "checked_resources": 21,
+      "resources": [
+        {
+          "resource": "./",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./index.html",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./about.html",
+          "bytes": 3837,
+          "sha256": "158539ccd24a584d5b562719497de1b323d9c32b7e9da9a7626dc60136dfcc1a"
+        },
+        {
+          "resource": "./styles.css?v=property-v18",
+          "bytes": 16196,
+          "sha256": "805c0031ef096d3757affdb79583aebe28c07cee93f135ac616c927547c89127"
+        },
+        {
+          "resource": "./app.js?v=property-v18",
+          "bytes": 72481,
+          "sha256": "6b4adf447bb38103c77d45441708f43e4b1ffd762dd2f8dbe4ed7e74e781639d"
+        },
+        {
+          "resource": "./vault.js?v=property-v18",
+          "bytes": 3692,
+          "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+        },
+        {
+          "resource": "./routing.js?v=property-v18",
+          "bytes": 1700,
+          "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+        },
+        {
+          "resource": "./forwarding.js?v=property-v18",
+          "bytes": 3703,
+          "sha256": "377029d5059a82f2ba5a261cf5a615cfe41531ddf6fa479c7e2d83c3333027ad"
+        },
+        {
+          "resource": "./nano.js?v=property-v18",
+          "bytes": 1207,
+          "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+        },
+        {
+          "resource": "./money.js?v=property-v18",
+          "bytes": 1868,
+          "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+        },
+        {
+          "resource": "./marketplace.js?v=property-v18",
+          "bytes": 6415,
+          "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+        },
+        {
+          "resource": "./campaigns.js?v=property-v18",
+          "bytes": 6760,
+          "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+        },
+        {
+          "resource": "./contact.js?v=property-v18",
+          "bytes": 1947,
+          "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+        },
+        {
+          "resource": "./agent-pairing.js?v=property-v18",
+          "bytes": 12020,
+          "sha256": "bc67c63238253adcce13fd3945890aaa951e718819228ffb490b31de17c7ee83"
+        },
+        {
+          "resource": "./agent-messaging.js?v=property-v18",
+          "bytes": 7568,
+          "sha256": "da67cc6e1c50f9827007750c69b3ceb2fc7d14be0b12494faa261f4693254e03"
+        },
+        {
+          "resource": "./manifest.webmanifest?v=property-v18",
+          "bytes": 648,
+          "sha256": "8b01ad2ecb0001eeb8df12f1f42f51811dc6471760f71e906de99d11a4f7286b"
+        },
+        {
+          "resource": "./assets/icon.svg?v=property-v18",
+          "bytes": 442,
+          "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+        },
+        {
+          "resource": "./assets/property-icon-180.png?v=property-v18",
+          "bytes": 4969,
+          "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+        },
+        {
+          "resource": "./assets/property-icon-192.png?v=property-v18",
+          "bytes": 5427,
+          "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+        },
+        {
+          "resource": "./assets/property-icon-512.png?v=property-v18",
+          "bytes": 14322,
+          "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+        },
+        {
+          "resource": "./vendor/nostr-tools-2.25.2.bundle.js?v=property-v18",
+          "bytes": 251980,
+          "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+        }
+      ]
+    },
+    {
+      "cycle": 7,
+      "status": "PASS",
+      "checked_resources": 21,
+      "resources": [
+        {
+          "resource": "./",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./index.html",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./about.html",
+          "bytes": 3837,
+          "sha256": "158539ccd24a584d5b562719497de1b323d9c32b7e9da9a7626dc60136dfcc1a"
+        },
+        {
+          "resource": "./styles.css?v=property-v18",
+          "bytes": 16196,
+          "sha256": "805c0031ef096d3757affdb79583aebe28c07cee93f135ac616c927547c89127"
+        },
+        {
+          "resource": "./app.js?v=property-v18",
+          "bytes": 72481,
+          "sha256": "6b4adf447bb38103c77d45441708f43e4b1ffd762dd2f8dbe4ed7e74e781639d"
+        },
+        {
+          "resource": "./vault.js?v=property-v18",
+          "bytes": 3692,
+          "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+        },
+        {
+          "resource": "./routing.js?v=property-v18",
+          "bytes": 1700,
+          "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+        },
+        {
+          "resource": "./forwarding.js?v=property-v18",
+          "bytes": 3703,
+          "sha256": "377029d5059a82f2ba5a261cf5a615cfe41531ddf6fa479c7e2d83c3333027ad"
+        },
+        {
+          "resource": "./nano.js?v=property-v18",
+          "bytes": 1207,
+          "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+        },
+        {
+          "resource": "./money.js?v=property-v18",
+          "bytes": 1868,
+          "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+        },
+        {
+          "resource": "./marketplace.js?v=property-v18",
+          "bytes": 6415,
+          "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+        },
+        {
+          "resource": "./campaigns.js?v=property-v18",
+          "bytes": 6760,
+          "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+        },
+        {
+          "resource": "./contact.js?v=property-v18",
+          "bytes": 1947,
+          "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+        },
+        {
+          "resource": "./agent-pairing.js?v=property-v18",
+          "bytes": 12020,
+          "sha256": "bc67c63238253adcce13fd3945890aaa951e718819228ffb490b31de17c7ee83"
+        },
+        {
+          "resource": "./agent-messaging.js?v=property-v18",
+          "bytes": 7568,
+          "sha256": "da67cc6e1c50f9827007750c69b3ceb2fc7d14be0b12494faa261f4693254e03"
+        },
+        {
+          "resource": "./manifest.webmanifest?v=property-v18",
+          "bytes": 648,
+          "sha256": "8b01ad2ecb0001eeb8df12f1f42f51811dc6471760f71e906de99d11a4f7286b"
+        },
+        {
+          "resource": "./assets/icon.svg?v=property-v18",
+          "bytes": 442,
+          "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+        },
+        {
+          "resource": "./assets/property-icon-180.png?v=property-v18",
+          "bytes": 4969,
+          "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+        },
+        {
+          "resource": "./assets/property-icon-192.png?v=property-v18",
+          "bytes": 5427,
+          "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+        },
+        {
+          "resource": "./assets/property-icon-512.png?v=property-v18",
+          "bytes": 14322,
+          "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+        },
+        {
+          "resource": "./vendor/nostr-tools-2.25.2.bundle.js?v=property-v18",
+          "bytes": 251980,
+          "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+        }
+      ]
+    },
+    {
+      "cycle": 8,
+      "status": "PASS",
+      "checked_resources": 21,
+      "resources": [
+        {
+          "resource": "./",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./index.html",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./about.html",
+          "bytes": 3837,
+          "sha256": "158539ccd24a584d5b562719497de1b323d9c32b7e9da9a7626dc60136dfcc1a"
+        },
+        {
+          "resource": "./styles.css?v=property-v18",
+          "bytes": 16196,
+          "sha256": "805c0031ef096d3757affdb79583aebe28c07cee93f135ac616c927547c89127"
+        },
+        {
+          "resource": "./app.js?v=property-v18",
+          "bytes": 72481,
+          "sha256": "6b4adf447bb38103c77d45441708f43e4b1ffd762dd2f8dbe4ed7e74e781639d"
+        },
+        {
+          "resource": "./vault.js?v=property-v18",
+          "bytes": 3692,
+          "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+        },
+        {
+          "resource": "./routing.js?v=property-v18",
+          "bytes": 1700,
+          "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+        },
+        {
+          "resource": "./forwarding.js?v=property-v18",
+          "bytes": 3703,
+          "sha256": "377029d5059a82f2ba5a261cf5a615cfe41531ddf6fa479c7e2d83c3333027ad"
+        },
+        {
+          "resource": "./nano.js?v=property-v18",
+          "bytes": 1207,
+          "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+        },
+        {
+          "resource": "./money.js?v=property-v18",
+          "bytes": 1868,
+          "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+        },
+        {
+          "resource": "./marketplace.js?v=property-v18",
+          "bytes": 6415,
+          "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+        },
+        {
+          "resource": "./campaigns.js?v=property-v18",
+          "bytes": 6760,
+          "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+        },
+        {
+          "resource": "./contact.js?v=property-v18",
+          "bytes": 1947,
+          "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+        },
+        {
+          "resource": "./agent-pairing.js?v=property-v18",
+          "bytes": 12020,
+          "sha256": "bc67c63238253adcce13fd3945890aaa951e718819228ffb490b31de17c7ee83"
+        },
+        {
+          "resource": "./agent-messaging.js?v=property-v18",
+          "bytes": 7568,
+          "sha256": "da67cc6e1c50f9827007750c69b3ceb2fc7d14be0b12494faa261f4693254e03"
+        },
+        {
+          "resource": "./manifest.webmanifest?v=property-v18",
+          "bytes": 648,
+          "sha256": "8b01ad2ecb0001eeb8df12f1f42f51811dc6471760f71e906de99d11a4f7286b"
+        },
+        {
+          "resource": "./assets/icon.svg?v=property-v18",
+          "bytes": 442,
+          "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+        },
+        {
+          "resource": "./assets/property-icon-180.png?v=property-v18",
+          "bytes": 4969,
+          "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+        },
+        {
+          "resource": "./assets/property-icon-192.png?v=property-v18",
+          "bytes": 5427,
+          "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+        },
+        {
+          "resource": "./assets/property-icon-512.png?v=property-v18",
+          "bytes": 14322,
+          "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+        },
+        {
+          "resource": "./vendor/nostr-tools-2.25.2.bundle.js?v=property-v18",
+          "bytes": 251980,
+          "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+        }
+      ]
+    },
+    {
+      "cycle": 9,
+      "status": "PASS",
+      "checked_resources": 21,
+      "resources": [
+        {
+          "resource": "./",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./index.html",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./about.html",
+          "bytes": 3837,
+          "sha256": "158539ccd24a584d5b562719497de1b323d9c32b7e9da9a7626dc60136dfcc1a"
+        },
+        {
+          "resource": "./styles.css?v=property-v18",
+          "bytes": 16196,
+          "sha256": "805c0031ef096d3757affdb79583aebe28c07cee93f135ac616c927547c89127"
+        },
+        {
+          "resource": "./app.js?v=property-v18",
+          "bytes": 72481,
+          "sha256": "6b4adf447bb38103c77d45441708f43e4b1ffd762dd2f8dbe4ed7e74e781639d"
+        },
+        {
+          "resource": "./vault.js?v=property-v18",
+          "bytes": 3692,
+          "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+        },
+        {
+          "resource": "./routing.js?v=property-v18",
+          "bytes": 1700,
+          "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+        },
+        {
+          "resource": "./forwarding.js?v=property-v18",
+          "bytes": 3703,
+          "sha256": "377029d5059a82f2ba5a261cf5a615cfe41531ddf6fa479c7e2d83c3333027ad"
+        },
+        {
+          "resource": "./nano.js?v=property-v18",
+          "bytes": 1207,
+          "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+        },
+        {
+          "resource": "./money.js?v=property-v18",
+          "bytes": 1868,
+          "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+        },
+        {
+          "resource": "./marketplace.js?v=property-v18",
+          "bytes": 6415,
+          "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+        },
+        {
+          "resource": "./campaigns.js?v=property-v18",
+          "bytes": 6760,
+          "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+        },
+        {
+          "resource": "./contact.js?v=property-v18",
+          "bytes": 1947,
+          "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+        },
+        {
+          "resource": "./agent-pairing.js?v=property-v18",
+          "bytes": 12020,
+          "sha256": "bc67c63238253adcce13fd3945890aaa951e718819228ffb490b31de17c7ee83"
+        },
+        {
+          "resource": "./agent-messaging.js?v=property-v18",
+          "bytes": 7568,
+          "sha256": "da67cc6e1c50f9827007750c69b3ceb2fc7d14be0b12494faa261f4693254e03"
+        },
+        {
+          "resource": "./manifest.webmanifest?v=property-v18",
+          "bytes": 648,
+          "sha256": "8b01ad2ecb0001eeb8df12f1f42f51811dc6471760f71e906de99d11a4f7286b"
+        },
+        {
+          "resource": "./assets/icon.svg?v=property-v18",
+          "bytes": 442,
+          "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+        },
+        {
+          "resource": "./assets/property-icon-180.png?v=property-v18",
+          "bytes": 4969,
+          "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+        },
+        {
+          "resource": "./assets/property-icon-192.png?v=property-v18",
+          "bytes": 5427,
+          "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+        },
+        {
+          "resource": "./assets/property-icon-512.png?v=property-v18",
+          "bytes": 14322,
+          "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+        },
+        {
+          "resource": "./vendor/nostr-tools-2.25.2.bundle.js?v=property-v18",
+          "bytes": 251980,
+          "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+        }
+      ]
+    },
+    {
+      "cycle": 10,
+      "status": "PASS",
+      "checked_resources": 21,
+      "resources": [
+        {
+          "resource": "./",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./index.html",
+          "bytes": 21281,
+          "sha256": "2bd0921dc3c1483d1128ee37eb5d48f507672d6fc54e6b1f906b94ae63ff18bb"
+        },
+        {
+          "resource": "./about.html",
+          "bytes": 3837,
+          "sha256": "158539ccd24a584d5b562719497de1b323d9c32b7e9da9a7626dc60136dfcc1a"
+        },
+        {
+          "resource": "./styles.css?v=property-v18",
+          "bytes": 16196,
+          "sha256": "805c0031ef096d3757affdb79583aebe28c07cee93f135ac616c927547c89127"
+        },
+        {
+          "resource": "./app.js?v=property-v18",
+          "bytes": 72481,
+          "sha256": "6b4adf447bb38103c77d45441708f43e4b1ffd762dd2f8dbe4ed7e74e781639d"
+        },
+        {
+          "resource": "./vault.js?v=property-v18",
+          "bytes": 3692,
+          "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+        },
+        {
+          "resource": "./routing.js?v=property-v18",
+          "bytes": 1700,
+          "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+        },
+        {
+          "resource": "./forwarding.js?v=property-v18",
+          "bytes": 3703,
+          "sha256": "377029d5059a82f2ba5a261cf5a615cfe41531ddf6fa479c7e2d83c3333027ad"
+        },
+        {
+          "resource": "./nano.js?v=property-v18",
+          "bytes": 1207,
+          "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+        },
+        {
+          "resource": "./money.js?v=property-v18",
+          "bytes": 1868,
+          "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+        },
+        {
+          "resource": "./marketplace.js?v=property-v18",
+          "bytes": 6415,
+          "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+        },
+        {
+          "resource": "./campaigns.js?v=property-v18",
+          "bytes": 6760,
+          "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+        },
+        {
+          "resource": "./contact.js?v=property-v18",
+          "bytes": 1947,
+          "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+        },
+        {
+          "resource": "./agent-pairing.js?v=property-v18",
+          "bytes": 12020,
+          "sha256": "bc67c63238253adcce13fd3945890aaa951e718819228ffb490b31de17c7ee83"
+        },
+        {
+          "resource": "./agent-messaging.js?v=property-v18",
+          "bytes": 7568,
+          "sha256": "da67cc6e1c50f9827007750c69b3ceb2fc7d14be0b12494faa261f4693254e03"
+        },
+        {
+          "resource": "./manifest.webmanifest?v=property-v18",
+          "bytes": 648,
+          "sha256": "8b01ad2ecb0001eeb8df12f1f42f51811dc6471760f71e906de99d11a4f7286b"
+        },
+        {
+          "resource": "./assets/icon.svg?v=property-v18",
+          "bytes": 442,
+          "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+        },
+        {
+          "resource": "./assets/property-icon-180.png?v=property-v18",
+          "bytes": 4969,
+          "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+        },
+        {
+          "resource": "./assets/property-icon-192.png?v=property-v18",
+          "bytes": 5427,
+          "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+        },
+        {
+          "resource": "./assets/property-icon-512.png?v=property-v18",
+          "bytes": 14322,
+          "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+        },
+        {
+          "resource": "./vendor/nostr-tools-2.25.2.bundle.js?v=property-v18",
+          "bytes": 251980,
+          "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+        }
+      ]
+    }
+  ],
+  "limitation": "Checks files declared by the service worker against the local checkout. Does not prove a browser installed/controlled the worker, populated CacheStorage, or reloaded offline; those browser cases remain PENDING.",
+  "other_platforms": "PENDING",
+  "plan_sha256_at_execution": "1ed684d8b3fffeefa239e14543536cafbdc1300ee61767af3892ab39cc08fbd7",
+  "plan_sha256_after_result_append": "762fe95bd8343c5812ad07c474c034ce2cc396ac8efe6e2647105f619a5893f8"
+}

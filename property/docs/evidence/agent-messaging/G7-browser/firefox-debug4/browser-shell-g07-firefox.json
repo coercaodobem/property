@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "gate": "G7",
+  "status": "FAIL_OR_INCOMPLETE",
+  "host": "Ubuntu/Linux x64",
+  "engine": "firefox",
+  "browser_version": "153.0",
+  "playwright_version": "1.62.1",
+  "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+  "browser_executable_sha256": "26e4198abe0dfb93c339239297008b1319711575d8cbae8e2d5122d2017b29a1",
+  "service_worker_cache": "property-shell-v18",
+  "shell_manifest_count": 21,
+  "fixed_counts": {
+    "service_worker_open_control": 10,
+    "offline_reload": 10,
+    "static_resource_integrity": 10
+  },
+  "cases": [],
+  "external_network_attempts": [
+    "CONNECT aus5.mozilla.org:443 HTTP/1.1",
+    "CONNECT aus5.mozilla.org:443 HTTP/1.1"
+  ],
+  "browser_page_errors": [
+    "NS_ERROR_FAILURE"
+  ],
+  "browser_console_warnings": [
+    "Property: cache offline indisponível. JSHandle@object"
+  ],
+  "human_review": "PENDING",
+  "non_ubuntu_platforms": "PENDING",
+  "server_404s": [],
+  "error": "page.waitForFunction: Timeout 30000ms exceeded.",
+  "open_control": [
+    {
+      "cycle": 1,
+      "status": "FAIL",
+      "error": "page.waitForFunction: Timeout 30000ms exceeded.",
+      "diagnostics": {
+        "diagnostic_error": "page.evaluate: "
+      }
+    }
+  ],
+  "offline_reload": [],
+  "static_resource_integrity": [],
+  "local_server_requests": [
+    "/property/",
+    "/property/styles.css",
+    "/property/vendor/nostr-tools-2.25.2.bundle.js",
+    "/property/vault.js",
+    "/property/routing.js",
+    "/property/money.js",
+    "/property/forwarding.js",
+    "/property/nano.js",
+    "/property/marketplace.js",
+    "/property/campaigns.js",
+    "/property/contact.js",
+    "/property/agent-pairing.js",
+    "/property/agent-messaging.js",
+    "/property/app.js",
+    "/property/assets/property-icon-192.png",
+    "/property/sw.js",
+    "/property/assets/icon.svg"
+  ]
+}

@@ -20,7 +20,11 @@ function args(argv) {
     if (!values[key]) throw new Error(`Opção obrigatória ausente: --${key.replaceAll('_', '-')}`);
   }
   values.engine ||= 'chromium';
+  values.viewport ||= 'desktop';
+  values.cycle ||= '1';
   if (!['chromium', 'firefox', 'webkit'].includes(values.engine)) throw new Error('Use --engine chromium, firefox ou webkit.');
+  if (!['desktop', 'mobile'].includes(values.viewport)) throw new Error('Use --viewport desktop ou mobile.');
+  if (!/^[1-9][0-9]*$/.test(values.cycle)) throw new Error('--cycle deve ser um inteiro positivo.');
   return values;
 }
 const options = args(process.argv.slice(2));
@@ -57,7 +61,10 @@ const denyProxy = net.createServer(socket => {
 await new Promise((resolve, reject) => { denyProxy.once('error', reject); denyProxy.listen(0, '127.0.0.1', resolve); });
 const profileDir = await mkdtemp(path.join(PROPERTY_ROOT, '.agent-browser-profile-'));
 const context = await playwright[options.engine].launchPersistentContext(profileDir, {
-  headless: true, executablePath: executable, viewport: { width: 1280, height: 900 }, serviceWorkers: 'block',
+  headless: true, executablePath: executable,
+  viewport: options.viewport === 'mobile' ? { width: 390, height: 844 } : { width: 1280, height: 900 },
+  ...(options.viewport === 'mobile' && options.engine === 'chromium' ? { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : {}),
+  serviceWorkers: 'block',
   proxy: { server: `http://127.0.0.1:${denyProxy.address().port}`, bypass: '127.0.0.1,localhost' },
   ...(options.engine === 'chromium' ? { args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-background-networking', '--disable-component-update', '--disable-sync', '--disable-default-apps', '--disable-extensions', '--disable-client-side-phishing-detection', '--disable-variations', '--disable-features=AutofillServerCommunication,AutofillEnableAccountWalletStorage,OptimizationHints,OptimizationGuideModelDownloading,OptimizationHintsFetching,MediaRouter,CertificateTransparencyComponentUpdater,InterestFeedContentSuggestions', '--no-first-run'] } : {}),
   ...(options.engine === 'firefox' ? { firefoxUserPrefs: { 'toolkit.telemetry.enabled': false, 'datareporting.healthreport.uploadEnabled': false, 'app.update.enabled': false, 'browser.newtabpage.enabled': false, 'browser.shell.checkDefaultBrowser': false, 'network.captive-portal-service.enabled': false, 'network.connectivity-service.enabled': false } } : {}),
@@ -92,7 +99,7 @@ const page = await context.newPage();
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 page.on('crash', () => errors.push('renderer-crashed'));
-const result = { browser: browser.version(), origin, all_requests_loopback: true, service_worker_controlled: false, human_identity_preserved: false, default_scopes_off: false, cancel_did_not_consume_invite: false, approved_scopes_exact: false, indexeddb_persisted: false, revocation_cleared_scopes: false, external_requests_blocked: true, page_errors: [] };
+const result = { browser: browser.version(), viewport: options.viewport, cycle: Number(options.cycle), origin, all_requests_loopback: true, service_worker_controlled: false, human_identity_preserved: false, default_scopes_off: false, cancel_did_not_consume_invite: false, approved_scopes_exact: false, indexeddb_persisted: false, revocation_cleared_scopes: false, accessible_dialog_name: false, visible_agent_controls_named: false, keyboard_focus_stayed_in_modal: false, keyboard_cancel_did_not_consume_invite: false, keyboard_approved_exact_scope: false, dialog_body_scrollable: false, revoke_control_reachable_after_scroll: false, external_requests_blocked: true, page_errors: [] };
 try {
   await page.goto(`${origin}/property/`, { waitUntil: 'domcontentloaded' });
   result.service_worker_controlled = false;
@@ -124,15 +131,35 @@ try {
   await page.locator('#profile-button').click();
   await page.locator('#open-agent-manager').click();
   await page.locator('#agent-dialog[open]').waitFor();
+  result.accessible_dialog_name = (await page.locator('#agent-dialog').getAttribute('aria-labelledby')) === 'agent-dialog-title'
+    && (await page.locator('#agent-dialog-title').textContent()).trim() === 'Agentes e permissões';
   await page.locator('#agent-invite-input').fill(fixture.secondInvite);
   await page.locator('#inspect-agent-invite').click();
   await page.locator('#agent-invite-review:not(.hidden)').waitFor();
   const reviewBoxes = page.locator('#agent-permission-list input[type="checkbox"]');
   assert.equal(await reviewBoxes.count(), 2);
+  const controlAudit = await page.locator('#agent-dialog').evaluate(dialog => [...dialog.querySelectorAll('button,input,textarea,select')]
+    .filter(element => element.getClientRects().length > 0)
+    .map(element => {
+      const labelledBy = element.getAttribute('aria-labelledby');
+      const labelledByText = labelledBy ? labelledBy.split(/\s+/).map(id => document.getElementById(id)?.textContent || '').join(' ').trim() : '';
+      const labelText = element.labels ? [...element.labels].map(label => label.textContent || '').join(' ').trim() : '';
+      return { id: element.id || element.tagName.toLowerCase(), name: (element.getAttribute('aria-label') || labelledByText || labelText || element.textContent || '').trim() };
+    }));
+  result.visible_agent_controls_named = controlAudit.length > 0 && controlAudit.every(control => control.name.length > 0);
+  const focusStates = [];
+  await page.locator('#cancel-agent-invite').focus();
+  for (let index = 0; index < 16; index++) {
+    await page.keyboard.press('Tab');
+    focusStates.push(await page.evaluate(() => ({ inside_dialog: document.querySelector('#agent-dialog').contains(document.activeElement), id: document.activeElement.id || document.activeElement.tagName.toLowerCase() })));
+  }
+  result.keyboard_focus_stayed_in_modal = focusStates.length === 16 && focusStates.every(state => state.inside_dialog);
   result.default_scopes_off = await reviewBoxes.nth(0).isChecked() === false && await reviewBoxes.nth(1).isChecked() === false;
   await reviewBoxes.nth(0).check();
-  await page.locator('#cancel-agent-invite').click();
+  await page.locator('#cancel-agent-invite').focus();
+  await page.keyboard.press('Enter');
   assert.equal(await page.locator('#agent-invite-review').isVisible(), false);
+  result.keyboard_cancel_did_not_consume_invite = true;
   await page.locator('#agent-invite-input').fill(fixture.secondInvite);
   await page.locator('#inspect-agent-invite').click();
   await page.locator('#agent-invite-review:not(.hidden)').waitFor();
@@ -146,8 +173,10 @@ try {
   const read = page.locator('#agent-permission-list input[data-scope="read"]');
   const send = page.locator('#agent-permission-list input[data-scope="send"]');
   result.default_scopes_off &&= !(await read.isChecked()) && !(await send.isChecked());
-  await read.check();
-  await page.locator('#approve-agent-invite').click();
+  await read.focus();
+  await page.keyboard.press('Space');
+  await page.locator('#approve-agent-invite').focus();
+  await page.keyboard.press('Enter');
   await page.getByText('AGENTE · ACESSO ATIVO', { exact: true }).waitFor();
   const beforeRevoke = await page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
@@ -160,15 +189,28 @@ try {
   const paired = beforeRevoke.access.find(item => item.pubkey === fixture.agentPubkey);
   assert.ok(paired);
   result.approved_scopes_exact = JSON.stringify(paired.permissions) === JSON.stringify({ read: [fixture.contactPubkey], send: [] });
+  result.keyboard_approved_exact_scope = result.approved_scopes_exact;
   result.indexeddb_persisted = beforeRevoke.invites.length === 1 && beforeRevoke.access.length === 1 && beforeRevoke.invites[0].status === 'approved';
   const stored = JSON.stringify(beforeRevoke);
   assert.doesNotMatch(stored, /property-agent-invite:v1:|"nonce"|"secret"|private.?key/i);
 
   await mkdir(options.output, { recursive: true });
-  await page.screenshot({ path: path.join(options.output, 'agent-pairing-desktop.png'), fullPage: false });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: path.join(options.output, 'agent-pairing-mobile-viewport.png'), fullPage: false });
-  assert.equal(await page.locator('#agent-dialog').evaluate(element => element.getBoundingClientRect().width <= window.innerWidth), true, 'agent manager fits the mobile viewport');
+  const dialogBody = page.locator('#agent-dialog .dialog-body');
+  const scrollResult = await dialogBody.evaluate(element => {
+    const scrollable = getComputedStyle(element).overflowY === 'auto' && element.scrollHeight > element.clientHeight;
+    element.scrollTop = element.scrollHeight;
+    return { scrollable, reached_bottom: element.scrollTop + element.clientHeight >= element.scrollHeight - 1,
+      scroll_height: element.scrollHeight, client_height: element.clientHeight };
+  });
+  result.dialog_body_scrollable = scrollResult.scrollable && scrollResult.reached_bottom;
+  const revokeButton = page.getByRole('button', { name: 'Revogar acesso' });
+  await revokeButton.scrollIntoViewIfNeeded();
+  result.revoke_control_reachable_after_scroll = await revokeButton.isVisible();
+  await dialogBody.evaluate(element => { element.scrollTop = 0; });
+  await page.screenshot({ path: path.join(options.output, `agent-pairing-${options.viewport}.png`), fullPage: false });
+  assert.equal(await page.locator('#agent-dialog').evaluate(element => element.getBoundingClientRect().width <= window.innerWidth), true, 'agent manager fits the selected viewport');
+  await revokeButton.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: path.join(options.output, `agent-pairing-${options.viewport}-scrolled.png`), fullPage: false });
 
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Revogar acesso' }).click();
@@ -188,10 +230,17 @@ try {
   assert.ok(result.approved_scopes_exact);
   assert.ok(result.indexeddb_persisted);
   assert.ok(result.revocation_cleared_scopes);
+  assert.ok(result.accessible_dialog_name);
+  assert.ok(result.visible_agent_controls_named, JSON.stringify(controlAudit));
+  assert.ok(result.keyboard_focus_stayed_in_modal, JSON.stringify(focusStates));
+  assert.ok(result.keyboard_cancel_did_not_consume_invite);
+  assert.ok(result.keyboard_approved_exact_scope);
+  assert.ok(result.dialog_body_scrollable, JSON.stringify(scrollResult));
+  assert.ok(result.revoke_control_reachable_after_scroll);
   assert.deepEqual(errors, []);
   assert.ok(result.all_requests_loopback);
   assert.equal(result.blocked_external_requests, 0);
-  const report = { gate: 'G2', status: 'PASS_TECHNICAL_BROWSER', engine: options.engine, browser: result.browser, browserTestScope: 'service worker disabled in this isolated UI/IndexedDB flow; offline shell is covered separately by sw-update-smoke', scenarios: { canceledInviteReused: true, exactScopeStored: true, localRevocation: true }, evidence: result, requestCount: requests.length };
+  const report = { gate: options.gate === 'G6' ? 'G6' : 'G2', status: 'PASS_TECHNICAL_BROWSER', engine: options.engine, browser: result.browser, viewport: options.viewport, cycle: Number(options.cycle), browserTestScope: 'service worker disabled in this isolated UI/IndexedDB flow; offline shell is covered separately; automation is not a human-participant or screen-reader test', scenarios: { canceledInviteReused: true, exactScopeStored: true, localRevocation: true, keyboardNavigationAndActivation: true, accessibleNamesPresent: true }, evidence: result, requestCount: requests.length };
   await writeFile(path.join(options.output, 'agent-pairing-browser-report.json'), `${JSON.stringify(report, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 } catch (error) {

@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "gate": "G7",
+  "status": "FAIL_OR_INCOMPLETE",
+  "host": "Ubuntu/Linux x64",
+  "engine": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.62.1",
+  "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+  "browser_executable_sha256": "8c599d43aec53f2460a31ae2f4af6bd863f8258b34ff519564bc5d4726bfaa1e",
+  "service_worker_cache": "property-shell-v18",
+  "shell_manifest_count": 21,
+  "fixed_counts": {
+    "service_worker_open_control": 10,
+    "offline_reload": 10,
+    "static_resource_integrity": 10
+  },
+  "cases": [],
+  "app_external_requests": [],
+  "browser_runtime_probes_blocked_by_loopback_proxy": [
+    "GET http://clients2.google.com/time/1/current?cup2key=10:da_UsroKbnW4AMUAfskqPupHBK8hlqzI1gT-RM7PxrY&cup2hreq=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 HTTP/1.1",
+    "CONNECT accounts.google.com:443 HTTP/1.1",
+    "CONNECT update.googleapis.com:443 HTTP/1.1",
+    "CONNECT update.googleapis.com:443 HTTP/1.1",
+    "CONNECT www.google.com:443 HTTP/1.1",
+    "CONNECT www.google.com:443 HTTP/1.1",
+    "CONNECT www.google.com:443 HTTP/1.1"
+  ],
+  "browser_page_errors": [],
+  "browser_console_warnings": [],
+  "human_review": "PENDING",
+  "non_ubuntu_platforms": "PENDING",
+  "server_404s": [],
+  "error": "page.goto: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:45077/property/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+  "open_control": [
+    {
+      "cycle": 1,
+      "status": "FAIL",
+      "error": "page.goto: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:45077/property/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "diagnostics": {
+        "diagnostic_error": "page.evaluate: Target page, context or browser has been closed"
+      }
+    }
+  ],
+  "offline_reload": [],
+  "static_resource_integrity": [],
+  "local_server_requests": []
+}

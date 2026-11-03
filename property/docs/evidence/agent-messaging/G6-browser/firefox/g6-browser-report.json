@@ -1,0 +1,686 @@
+{
+  "schema_version": 1,
+  "gate": "G6",
+  "status": "PASS_TECHNICAL_PENDING_HUMAN",
+  "host": "Ubuntu/Linux x64",
+  "engine": "firefox",
+  "deterministic_cycles": {
+    "desktop": 5,
+    "mobile_viewport": 5,
+    "total": 10
+  },
+  "human_participants": "PENDING; browser automation is not a participant substitute",
+  "screen_reader": "PENDING; no real assistive-technology session was performed",
+  "physical_android_ios": "PENDING; mobile is viewport/touch emulation only",
+  "baseline_comparison": "PENDING; requires human task observations from G1/G6",
+  "independent_human_review": "PENDING",
+  "exploratory_chromium_attempt": "One desktop page attempt ended with renderer crash ERR_INSUFFICIENT_RESOURCES; the fixed repeated matrix below uses the pinned Firefox runtime and does not erase this diagnostic.",
+  "plan_sha256": "1ed684d8b3fffeefa239e14543536cafbdc1300ee61767af3892ab39cc08fbd7",
+  "wrapper_sha256": "82b55fe57cede21b8f9e951c9d6811bbbf06b485a859baa285f2e9f805e54ab9",
+  "pairing_harness_sha256": "148388c2a217630db82097585c093200a9d107f026461203a73ce8423bcfad90",
+  "browser_toolchain": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0",
+    "browser_executable_sha256": "26e4198abe0dfb93c339239297008b1319711575d8cbae8e2d5122d2017b29a1",
+    "engine": "firefox"
+  },
+  "cycles": [
+    {
+      "id": "desktop-01",
+      "viewport": "1280x900 desktop viewport",
+      "status": "PASS",
+      "source_report": "cycles/desktop-01/agent-pairing-browser-report.json",
+      "screenshot": "cycles/desktop-01/agent-pairing-desktop.png",
+      "scrolled_screenshot": "cycles/desktop-01/agent-pairing-desktop-scrolled.png",
+      "checks": [
+        {
+          "check": "accessible_dialog_name",
+          "status": "PASS"
+        },
+        {
+          "check": "visible_agent_controls_named",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_focus_stayed_in_modal",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_approved_exact_scope",
+          "status": "PASS"
+        },
+        {
+          "check": "dialog_body_scrollable",
+          "status": "PASS"
+        },
+        {
+          "check": "revoke_control_reachable_after_scroll",
+          "status": "PASS"
+        },
+        {
+          "check": "default_scopes_off",
+          "status": "PASS"
+        },
+        {
+          "check": "cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "approved_scopes_exact",
+          "status": "PASS"
+        },
+        {
+          "check": "indexeddb_persisted",
+          "status": "PASS"
+        },
+        {
+          "check": "revocation_cleared_scopes",
+          "status": "PASS"
+        },
+        {
+          "check": "all_requests_loopback",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/desktop-01/runner.log"
+    },
+    {
+      "id": "desktop-02",
+      "viewport": "1280x900 desktop viewport",
+      "status": "PASS",
+      "source_report": "cycles/desktop-02/agent-pairing-browser-report.json",
+      "screenshot": "cycles/desktop-02/agent-pairing-desktop.png",
+      "scrolled_screenshot": "cycles/desktop-02/agent-pairing-desktop-scrolled.png",
+      "checks": [
+        {
+          "check": "accessible_dialog_name",
+          "status": "PASS"
+        },
+        {
+          "check": "visible_agent_controls_named",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_focus_stayed_in_modal",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_approved_exact_scope",
+          "status": "PASS"
+        },
+        {
+          "check": "dialog_body_scrollable",
+          "status": "PASS"
+        },
+        {
+          "check": "revoke_control_reachable_after_scroll",
+          "status": "PASS"
+        },
+        {
+          "check": "default_scopes_off",
+          "status": "PASS"
+        },
+        {
+          "check": "cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "approved_scopes_exact",
+          "status": "PASS"
+        },
+        {
+          "check": "indexeddb_persisted",
+          "status": "PASS"
+        },
+        {
+          "check": "revocation_cleared_scopes",
+          "status": "PASS"
+        },
+        {
+          "check": "all_requests_loopback",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/desktop-02/runner.log"
+    },
+    {
+      "id": "desktop-03",
+      "viewport": "1280x900 desktop viewport",
+      "status": "PASS",
+      "source_report": "cycles/desktop-03/agent-pairing-browser-report.json",
+      "screenshot": "cycles/desktop-03/agent-pairing-desktop.png",
+      "scrolled_screenshot": "cycles/desktop-03/agent-pairing-desktop-scrolled.png",
+      "checks": [
+        {
+          "check": "accessible_dialog_name",
+          "status": "PASS"
+        },
+        {
+          "check": "visible_agent_controls_named",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_focus_stayed_in_modal",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_approved_exact_scope",
+          "status": "PASS"
+        },
+        {
+          "check": "dialog_body_scrollable",
+          "status": "PASS"
+        },
+        {
+          "check": "revoke_control_reachable_after_scroll",
+          "status": "PASS"
+        },
+        {
+          "check": "default_scopes_off",
+          "status": "PASS"
+        },
+        {
+          "check": "cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "approved_scopes_exact",
+          "status": "PASS"
+        },
+        {
+          "check": "indexeddb_persisted",
+          "status": "PASS"
+        },
+        {
+          "check": "revocation_cleared_scopes",
+          "status": "PASS"
+        },
+        {
+          "check": "all_requests_loopback",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/desktop-03/runner.log"
+    },
+    {
+      "id": "desktop-04",
+      "viewport": "1280x900 desktop viewport",
+      "status": "PASS",
+      "source_report": "cycles/desktop-04/agent-pairing-browser-report.json",
+      "screenshot": "cycles/desktop-04/agent-pairing-desktop.png",
+      "scrolled_screenshot": "cycles/desktop-04/agent-pairing-desktop-scrolled.png",
+      "checks": [
+        {
+          "check": "accessible_dialog_name",
+          "status": "PASS"
+        },
+        {
+          "check": "visible_agent_controls_named",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_focus_stayed_in_modal",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_approved_exact_scope",
+          "status": "PASS"
+        },
+        {
+          "check": "dialog_body_scrollable",
+          "status": "PASS"
+        },
+        {
+          "check": "revoke_control_reachable_after_scroll",
+          "status": "PASS"
+        },
+        {
+          "check": "default_scopes_off",
+          "status": "PASS"
+        },
+        {
+          "check": "cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "approved_scopes_exact",
+          "status": "PASS"
+        },
+        {
+          "check": "indexeddb_persisted",
+          "status": "PASS"
+        },
+        {
+          "check": "revocation_cleared_scopes",
+          "status": "PASS"
+        },
+        {
+          "check": "all_requests_loopback",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/desktop-04/runner.log"
+    },
+    {
+      "id": "desktop-05",
+      "viewport": "1280x900 desktop viewport",
+      "status": "PASS",
+      "source_report": "cycles/desktop-05/agent-pairing-browser-report.json",
+      "screenshot": "cycles/desktop-05/agent-pairing-desktop.png",
+      "scrolled_screenshot": "cycles/desktop-05/agent-pairing-desktop-scrolled.png",
+      "checks": [
+        {
+          "check": "accessible_dialog_name",
+          "status": "PASS"
+        },
+        {
+          "check": "visible_agent_controls_named",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_focus_stayed_in_modal",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_approved_exact_scope",
+          "status": "PASS"
+        },
+        {
+          "check": "dialog_body_scrollable",
+          "status": "PASS"
+        },
+        {
+          "check": "revoke_control_reachable_after_scroll",
+          "status": "PASS"
+        },
+        {
+          "check": "default_scopes_off",
+          "status": "PASS"
+        },
+        {
+          "check": "cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "approved_scopes_exact",
+          "status": "PASS"
+        },
+        {
+          "check": "indexeddb_persisted",
+          "status": "PASS"
+        },
+        {
+          "check": "revocation_cleared_scopes",
+          "status": "PASS"
+        },
+        {
+          "check": "all_requests_loopback",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/desktop-05/runner.log"
+    },
+    {
+      "id": "mobile-01",
+      "viewport": "390x844 viewport emulation",
+      "status": "PASS",
+      "source_report": "cycles/mobile-01/agent-pairing-browser-report.json",
+      "screenshot": "cycles/mobile-01/agent-pairing-mobile.png",
+      "scrolled_screenshot": "cycles/mobile-01/agent-pairing-mobile-scrolled.png",
+      "checks": [
+        {
+          "check": "accessible_dialog_name",
+          "status": "PASS"
+        },
+        {
+          "check": "visible_agent_controls_named",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_focus_stayed_in_modal",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_approved_exact_scope",
+          "status": "PASS"
+        },
+        {
+          "check": "dialog_body_scrollable",
+          "status": "PASS"
+        },
+        {
+          "check": "revoke_control_reachable_after_scroll",
+          "status": "PASS"
+        },
+        {
+          "check": "default_scopes_off",
+          "status": "PASS"
+        },
+        {
+          "check": "cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "approved_scopes_exact",
+          "status": "PASS"
+        },
+        {
+          "check": "indexeddb_persisted",
+          "status": "PASS"
+        },
+        {
+          "check": "revocation_cleared_scopes",
+          "status": "PASS"
+        },
+        {
+          "check": "all_requests_loopback",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/mobile-01/runner.log"
+    },
+    {
+      "id": "mobile-02",
+      "viewport": "390x844 viewport emulation",
+      "status": "PASS",
+      "source_report": "cycles/mobile-02/agent-pairing-browser-report.json",
+      "screenshot": "cycles/mobile-02/agent-pairing-mobile.png",
+      "scrolled_screenshot": "cycles/mobile-02/agent-pairing-mobile-scrolled.png",
+      "checks": [
+        {
+          "check": "accessible_dialog_name",
+          "status": "PASS"
+        },
+        {
+          "check": "visible_agent_controls_named",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_focus_stayed_in_modal",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_approved_exact_scope",
+          "status": "PASS"
+        },
+        {
+          "check": "dialog_body_scrollable",
+          "status": "PASS"
+        },
+        {
+          "check": "revoke_control_reachable_after_scroll",
+          "status": "PASS"
+        },
+        {
+          "check": "default_scopes_off",
+          "status": "PASS"
+        },
+        {
+          "check": "cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "approved_scopes_exact",
+          "status": "PASS"
+        },
+        {
+          "check": "indexeddb_persisted",
+          "status": "PASS"
+        },
+        {
+          "check": "revocation_cleared_scopes",
+          "status": "PASS"
+        },
+        {
+          "check": "all_requests_loopback",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/mobile-02/runner.log"
+    },
+    {
+      "id": "mobile-03",
+      "viewport": "390x844 viewport emulation",
+      "status": "PASS",
+      "source_report": "cycles/mobile-03/agent-pairing-browser-report.json",
+      "screenshot": "cycles/mobile-03/agent-pairing-mobile.png",
+      "scrolled_screenshot": "cycles/mobile-03/agent-pairing-mobile-scrolled.png",
+      "checks": [
+        {
+          "check": "accessible_dialog_name",
+          "status": "PASS"
+        },
+        {
+          "check": "visible_agent_controls_named",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_focus_stayed_in_modal",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_approved_exact_scope",
+          "status": "PASS"
+        },
+        {
+          "check": "dialog_body_scrollable",
+          "status": "PASS"
+        },
+        {
+          "check": "revoke_control_reachable_after_scroll",
+          "status": "PASS"
+        },
+        {
+          "check": "default_scopes_off",
+          "status": "PASS"
+        },
+        {
+          "check": "cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "approved_scopes_exact",
+          "status": "PASS"
+        },
+        {
+          "check": "indexeddb_persisted",
+          "status": "PASS"
+        },
+        {
+          "check": "revocation_cleared_scopes",
+          "status": "PASS"
+        },
+        {
+          "check": "all_requests_loopback",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/mobile-03/runner.log"
+    },
+    {
+      "id": "mobile-04",
+      "viewport": "390x844 viewport emulation",
+      "status": "PASS",
+      "source_report": "cycles/mobile-04/agent-pairing-browser-report.json",
+      "screenshot": "cycles/mobile-04/agent-pairing-mobile.png",
+      "scrolled_screenshot": "cycles/mobile-04/agent-pairing-mobile-scrolled.png",
+      "checks": [
+        {
+          "check": "accessible_dialog_name",
+          "status": "PASS"
+        },
+        {
+          "check": "visible_agent_controls_named",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_focus_stayed_in_modal",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_approved_exact_scope",
+          "status": "PASS"
+        },
+        {
+          "check": "dialog_body_scrollable",
+          "status": "PASS"
+        },
+        {
+          "check": "revoke_control_reachable_after_scroll",
+          "status": "PASS"
+        },
+        {
+          "check": "default_scopes_off",
+          "status": "PASS"
+        },
+        {
+          "check": "cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "approved_scopes_exact",
+          "status": "PASS"
+        },
+        {
+          "check": "indexeddb_persisted",
+          "status": "PASS"
+        },
+        {
+          "check": "revocation_cleared_scopes",
+          "status": "PASS"
+        },
+        {
+          "check": "all_requests_loopback",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/mobile-04/runner.log"
+    },
+    {
+      "id": "mobile-05",
+      "viewport": "390x844 viewport emulation",
+      "status": "PASS",
+      "source_report": "cycles/mobile-05/agent-pairing-browser-report.json",
+      "screenshot": "cycles/mobile-05/agent-pairing-mobile.png",
+      "scrolled_screenshot": "cycles/mobile-05/agent-pairing-mobile-scrolled.png",
+      "checks": [
+        {
+          "check": "accessible_dialog_name",
+          "status": "PASS"
+        },
+        {
+          "check": "visible_agent_controls_named",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_focus_stayed_in_modal",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "keyboard_approved_exact_scope",
+          "status": "PASS"
+        },
+        {
+          "check": "dialog_body_scrollable",
+          "status": "PASS"
+        },
+        {
+          "check": "revoke_control_reachable_after_scroll",
+          "status": "PASS"
+        },
+        {
+          "check": "default_scopes_off",
+          "status": "PASS"
+        },
+        {
+          "check": "cancel_did_not_consume_invite",
+          "status": "PASS"
+        },
+        {
+          "check": "approved_scopes_exact",
+          "status": "PASS"
+        },
+        {
+          "check": "indexeddb_persisted",
+          "status": "PASS"
+        },
+        {
+          "check": "revocation_cleared_scopes",
+          "status": "PASS"
+        },
+        {
+          "check": "all_requests_loopback",
+          "status": "PASS"
+        }
+      ],
+      "missing_checks": [],
+      "process_exit_code": 0,
+      "runner_log": "cycles/mobile-05/runner.log"
+    }
+  ],
+  "technical_scope": "Signed invite review, default-deny scopes, keyboard activation/focus confinement, accessible naming, responsive internal scrolling/revocation reachability, local persistence, exact scope grant and cancellation in isolated Firefox contexts. No real participant, screen reader, device OS, or semantic model evaluation.",
+  "plan_sha256_at_execution": "1ed684d8b3fffeefa239e14543536cafbdc1300ee61767af3892ab39cc08fbd7",
+  "plan_sha256_after_result_append": "762fe95bd8343c5812ad07c474c034ce2cc396ac8efe6e2647105f619a5893f8",
+  "wrapper_sha256_before_metadata_edit": "c7912090db3a3054f4d7411a39a7973ab0e97e2fe0efc93e38e36d5535ddc2bf",
+  "mobile_viewport_is_device_or_touch_certification": false,
+  "visual_inspection": "Desktop and 390x844 top/scrolled captures inspected; dialog fits width and internal scroll exposes the revoke control."
+}

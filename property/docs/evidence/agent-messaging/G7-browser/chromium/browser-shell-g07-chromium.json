@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "gate": "G7",
+  "status": "FAIL_OR_INCOMPLETE",
+  "host": "Ubuntu/Linux x64",
+  "engine": "chromium",
+  "browser_version": "153.0.8010.12",
+  "playwright_version": "1.62.1",
+  "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+  "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e",
+  "service_worker_cache": "property-shell-v18",
+  "shell_manifest_count": 21,
+  "fixed_counts": {
+    "service_worker_open_control": 10,
+    "offline_reload": 10,
+    "static_resource_integrity": 10
+  },
+  "cases": [],
+  "app_external_requests": [],
+  "browser_runtime_probes_blocked_by_loopback_proxy": [],
+  "browser_page_errors": [],
+  "browser_console_warnings": [
+    "Failed to load resource: net::ERR_INSUFFICIENT_RESOURCES",
+    "Failed to load resource: net::ERR_INSUFFICIENT_RESOURCES"
+  ],
+  "human_review": "PENDING",
+  "non_ubuntu_platforms": "PENDING",
+  "server_404s": [],
+  "error": "page.goto: Page crashed\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:38895/property/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+  "open_control": [
+    {
+      "cycle": 1,
+      "status": "FAIL",
+      "error": "page.goto: Page crashed\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:38895/property/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "diagnostics": {
+        "diagnostic_error": "page.evaluate: Target crashed "
+      }
+    }
+  ],
+  "offline_reload": [],
+  "static_resource_integrity": [],
+  "local_server_requests": [
+    "/property/",
+    "/property/styles.css",
+    "/property/vault.js",
+    "/property/vendor/nostr-tools-2.25.2.bundle.js",
+    "/property/routing.js",
+    "/property/forwarding.js",
+    "/property/nano.js",
+    "/property/money.js",
+    "/property/marketplace.js",
+    "/property/campaigns.js",
+    "/property/contact.js",
+    "/property/agent-pairing.js",
+    "/property/agent-messaging.js",
+    "/property/app.js",
+    "/property/assets/property-icon-192.png"
+  ]
+}

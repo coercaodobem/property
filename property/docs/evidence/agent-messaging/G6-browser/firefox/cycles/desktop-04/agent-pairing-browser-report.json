@@ -1,0 +1,41 @@
+{
+  "gate": "G6",
+  "status": "PASS_TECHNICAL_BROWSER",
+  "engine": "firefox",
+  "browser": "153.0",
+  "viewport": "desktop",
+  "cycle": 4,
+  "browserTestScope": "service worker disabled in this isolated UI/IndexedDB flow; offline shell is covered separately; automation is not a human-participant or screen-reader test",
+  "scenarios": {
+    "canceledInviteReused": true,
+    "exactScopeStored": true,
+    "localRevocation": true,
+    "keyboardNavigationAndActivation": true,
+    "accessibleNamesPresent": true
+  },
+  "evidence": {
+    "browser": "153.0",
+    "viewport": "desktop",
+    "cycle": 4,
+    "origin": "http://127.0.0.1:34713",
+    "all_requests_loopback": true,
+    "service_worker_controlled": false,
+    "human_identity_preserved": true,
+    "default_scopes_off": true,
+    "cancel_did_not_consume_invite": true,
+    "approved_scopes_exact": true,
+    "indexeddb_persisted": true,
+    "revocation_cleared_scopes": true,
+    "accessible_dialog_name": true,
+    "visible_agent_controls_named": true,
+    "keyboard_focus_stayed_in_modal": true,
+    "keyboard_cancel_did_not_consume_invite": true,
+    "keyboard_approved_exact_scope": true,
+    "dialog_body_scrollable": true,
+    "revoke_control_reachable_after_scroll": true,
+    "external_requests_blocked": true,
+    "page_errors": [],
+    "blocked_external_requests": 0
+  },
+  "requestCount": 17
+}
