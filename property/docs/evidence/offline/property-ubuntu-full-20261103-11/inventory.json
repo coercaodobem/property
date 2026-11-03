@@ -1810,7 +1810,7 @@
       "sha256": null
     },
     "openssl": {
-      "path": "/home/guilherme/miniconda/bin/openssl",
+      "path": "/home/<USER>/miniconda/bin/openssl",
       "sha256": "d42b63a20f86fccd88dd91f92e471ec3b9ce6729eec46d1b6ba165749a8efde9"
     },
     "ip": {
