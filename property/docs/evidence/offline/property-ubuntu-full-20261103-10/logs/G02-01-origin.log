@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/g02-origin-smoke.mjs --offline-build --build-timeout-ms 1800000
+started: 2026-11-03T16:00:19.612Z
+ended: 2026-11-03T16:00:19.838Z
+exit_code: 0
+signal: 
+timeout: false
+error: 
+--- stdout ---
+{"result":"PASS","upstream_commit":"948135f7dbbae81d79a0b985282ce673397a7618","linux_geode_sha256":"9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7","vendor_bundle_sha256":"a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407","vendor_license_sha256":"f0510d3b9d1223c45e8fdd2b49270ec8734fff491c7f7d1b948ee70162e1ceff","portable_manifests":{"windows-x64":{"archive_sha256":"f6572a19f26bbd6ec6f6b57a7d876dc18e90e14572abbae8b07351d9269c03a3"},"macos-arm64":{"archive_sha256":"141b50c327439f60f9c6d71b1a3323e961836bcdfcf7f52b45b2000c57d50aa2"}},"checks":["fixed upstream source","local third-party license","pinned Geode packages","matching portable library sets","no remote executable/style/CDN assets"],"offline_rebuild":{"status":"SKIPPED_TOOLCHAIN_INCOMPLETE","reason":"Gradle 9.8.2 is not present in the local wrapper cache; the offline build was not started and no distribution download was attempted."}}
+
+--- stderr ---

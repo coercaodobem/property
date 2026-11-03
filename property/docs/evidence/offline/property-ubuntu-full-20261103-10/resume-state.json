@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "run_id": "property-ubuntu-full-20261103-10",
+  "profile": "full",
+  "candidate_commit": "2be9b798c325499b1c42dbc3b6e863efc8fd1dfd",
+  "manifest_config_sha256": "49605a0ed404b1d2e080c93fd9233f7a8d1d4dbd6a88b76527b029035e534c85",
+  "candidate_state_sha256": "ff9962aceaff9c2c08f44c214ba53266149200168683efc22083a303abeac0cc",
+  "plan_sha256": "b2637f311700bc1d9fb991e772dcd89449348c4d6a7ee785e7f84767f3eca5d1",
+  "external_inputs": {
+    "core_report_sha256": null
+  },
+  "attempt_number": 1,
+  "resumed_from_attempt": null
+}

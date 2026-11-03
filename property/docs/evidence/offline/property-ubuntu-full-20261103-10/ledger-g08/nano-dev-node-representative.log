@@ -1,0 +1,28 @@
+11-03 13:03:27.649] [wallet] [info] Sending from account: nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo to: nano_1tb7y58crukfxft3be97ipfu1m7gh94kwt6531ccmw7ifi4fbtyfqs87joqa, amount: 1
+[2026-11-03 13:03:27.654] [wallet] [info] Cached or provided work for block FE7CAE1D2E156443A9A0B9CE900EEAF6F551446DB823E94C44D584418458A80C account nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo is invalid, regenerating...
+[2026-11-03 13:03:27.654] [distributed_work] [info] Work generation for 89E38B3BB6816BF8A4A32B2614F7FF6EDBC549807EFD41CD5529DB3AAF028A78, with a threshold difficulty of fe00000000000000 (multiplier 0.12x) complete: 0 ms
+[2026-11-03 13:03:27.769] [wallet] [info] Receiving block FE7CAE1D2E156443A9A0B9CE900EEAF6F551446DB823E94C44D584418458A80C from account nano_1tb7y58crukfxft3be97ipfu1m7gh94kwt6531ccmw7ifi4fbtyfqs87joqa, amount: 1
+[2026-11-03 13:03:27.769] [wallet] [info] Cached or provided work for block 69B698832AAD53BCBD3D1A0D9409CFD618ABAD1B5A5D33F7DB17F0177DE9426C account nano_1tb7y58crukfxft3be97ipfu1m7gh94kwt6531ccmw7ifi4fbtyfqs87joqa is invalid, regenerating...
+[2026-11-03 13:03:27.769] [distributed_work] [info] Work generation for 6925F0CCAC6E4DEB7414B0E5859BB04CAE79C52E68830814A9F0B06C04D4EBCD, with a threshold difficulty of fe00000000000000 (multiplier 0.12x) complete: 0 ms
+[2026-11-03 13:03:27.973] [distributed_work] [info] Work generation for E90D067042C40953B25A51C785DA1FFAD98681B6E2FD6E01ADFDF70AF995C727, with a threshold difficulty of ffc0000000000000 (multiplier 1.00x) complete: 0 ms
+[2026-11-03 13:03:28.589] [online_reps] [info] Updated trended weight: 0 (samples: 6)
+[2026-11-03 13:03:28.659] [distributed_work] [info] Work generation for FE7CAE1D2E156443A9A0B9CE900EEAF6F551446DB823E94C44D584418458A80C, with a threshold difficulty of ffc0000000000000 (multiplier 1.00x) complete: 0 ms
+[2026-11-03 13:03:28.773] [distributed_work] [info] Work generation for 69B698832AAD53BCBD3D1A0D9409CFD618ABAD1B5A5D33F7DB17F0177DE9426C, with a threshold difficulty of ffc0000000000000 (multiplier 1.00x) complete: 0 ms
+[2026-11-03 13:03:29.594] [online_reps] [info] Updated trended weight: 0 (samples: 7)
+[2026-11-03 13:03:30.301] [wallet] [info] Deterministically inserted new account: nano_17g5cc35fxsq1tpj6zpd73xc7xzc8cgoujwstskbztxx8cs6cq9gyz1t3mih
+[2026-11-03 13:03:30.324] [wallet] [info] Sending from account: nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo to: nano_17g5cc35fxsq1tpj6zpd73xc7xzc8cgoujwstskbztxx8cs6cq9gyz1t3mih, amount: 2
+[2026-11-03 13:03:30.471] [wallet] [info] Receiving block 764260C019FC993915303630C28763C177C4693D59AF6A732D3A19CFFC37CDC5 from account nano_17g5cc35fxsq1tpj6zpd73xc7xzc8cgoujwstskbztxx8cs6cq9gyz1t3mih, amount: 2
+[2026-11-03 13:03:30.471] [wallet] [info] Cached or provided work for block E52B8B04CDBEB12278DCF84DC234556FE285A1346ABB5163A03030CD29203568 account nano_17g5cc35fxsq1tpj6zpd73xc7xzc8cgoujwstskbztxx8cs6cq9gyz1t3mih is invalid, regenerating...
+[2026-11-03 13:03:30.471] [distributed_work] [info] Work generation for 15C3528236F73706AD127ECB287AA2F7EA329D5DC799D6649FEBBD32B2455CEE, with a threshold difficulty of fe00000000000000 (multiplier 0.12x) complete: 0 ms
+[2026-11-03 13:03:30.597] [online_reps] [info] Updated trended weight: 340,282,366.9 (samples: 8)
+[2026-11-03 13:03:30.760] [wallet] [info] Sending from account: nano_17g5cc35fxsq1tpj6zpd73xc7xzc8cgoujwstskbztxx8cs6cq9gyz1t3mih to: nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo, amount: 2
+[2026-11-03 13:03:30.763] [wallet] [info] Cached or provided work for block 6A9157BD36D1FC3F31807DAF4D342B1CF28AF39700E04B6DB1BE189D3B56D335 account nano_17g5cc35fxsq1tpj6zpd73xc7xzc8cgoujwstskbztxx8cs6cq9gyz1t3mih is invalid, regenerating...
+[2026-11-03 13:03:30.763] [distributed_work] [info] Work generation for E52B8B04CDBEB12278DCF84DC234556FE285A1346ABB5163A03030CD29203568, with a threshold difficulty of fe00000000000000 (multiplier 0.12x) complete: 0 ms
+[2026-11-03 13:03:30.871] [wallet] [info] Receiving block 6A9157BD36D1FC3F31807DAF4D342B1CF28AF39700E04B6DB1BE189D3B56D335 from account nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo, amount: 2
+[2026-11-03 13:03:30.871] [wallet] [info] Cached or provided work for block 03C2A65C70D35F5F6D6A17DB1849ED9CF1F5CB879DC707B134F9455F00FDB4DC account nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo is invalid, regenerating...
+[2026-11-03 13:03:30.871] [distributed_work] [info] Work generation for 764260C019FC993915303630C28763C177C4693D59AF6A732D3A19CFFC37CDC5, with a threshold difficulty of fe00000000000000 (multiplier 0.12x) complete: 0 ms
+[2026-11-03 13:03:31.464] [daemon] [warning] Interrupt signal received (SIGTERM), stopping...
+[2026-11-03 13:03:31.464] [daemon] [info] Stopping...
+[2026-11-03 13:03:31.464] [rpc] [error] Error accepting RPC connection: Operation canceled
+[2026-11-03 13:03:31.464] [node] [info] Stopping...
+[2026-11-03 13:03:31.476] [daemon] [info] Stopped
