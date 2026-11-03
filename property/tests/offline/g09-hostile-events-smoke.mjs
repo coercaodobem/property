@@ -11,6 +11,7 @@ import { publishEvent, startGeode, stopGeode, waitStored, wsQuery } from './brow
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const [portText = '28750', outputText = '/tmp/property-g09-hostile'] = process.argv.slice(2);
 const port = Number(portText), output = path.resolve(outputText);
+const NOW_EPOCH_SECONDS = 1_800_000_000;
 await mkdir(output, { recursive: true, mode: 0o700 });
 const temp = await mkdtemp(path.join(os.tmpdir(), 'property-g09-hostile-'));
 const context = { console, crypto: webcrypto, TextEncoder, TextDecoder, URL, setTimeout, clearTimeout };
@@ -18,11 +19,12 @@ context.window = context; vm.createContext(context);
 vm.runInContext(await (await import('node:fs/promises')).readFile(path.join(ROOT, 'property/web/vendor/nostr-tools-2.25.2.bundle.js'), 'utf8'), context, { timeout: 5000 });
 vm.runInContext(await (await import('node:fs/promises')).readFile(path.join(ROOT, 'property/web/forwarding.js'), 'utf8'), context, { timeout: 5000 });
 const identity = JSON.parse(vm.runInContext(`(() => {const secret=NostrTools.generateSecretKey();return JSON.stringify({secret:[...secret],pubkey:NostrTools.getPublicKey(secret)});})()`, context, { timeout: 5000 }));
-function sign(content, createdAt = Math.floor(Date.now() / 1000)) {
+function sign(content, createdAt = NOW_EPOCH_SECONDS) {
   context.g09Input = JSON.stringify({ content, createdAt, secret: identity.secret });
   return JSON.parse(vm.runInContext(`(() => {const x=JSON.parse(g09Input);return JSON.stringify(NostrTools.finalizeEvent({kind:1,content:x.content,tags:[],created_at:x.createdAt},Uint8Array.from(x.secret)));})()`, context, { timeout: 10000 }));
 }
-const bridge = context.PropertyRelayBridge.createBridge(event => vm.runInContext(`NostrTools.verifyEvent(${JSON.stringify(event)})`, context, { timeout: 5000 }));
+const bridge = context.PropertyRelayBridge.createBridge(event => vm.runInContext(`NostrTools.verifyEvent(${JSON.stringify(event)})`, context, { timeout: 5000 }),
+  4096, () => NOW_EPOCH_SECONDS * 1000);
 let relay;
 try {
   relay = await startGeode(port, temp, 'hostile event relay');
@@ -41,8 +43,9 @@ try {
 
   const oversized = sign('x'.repeat(512_001));
   assert.deepEqual(Array.from(bridge.targets(oversized, 'ws://127.0.0.1:1', ['ws://127.0.0.1:2'])), [], 'bridge excludes events above its size limit');
-  const boundary = Math.floor(Date.now() / 1000);
-  const quotaBridge = context.PropertyRelayBridge.createBridge(event => vm.runInContext(`NostrTools.verifyEvent(${JSON.stringify(event)})`, context, { timeout: 5000 }));
+  const boundary = NOW_EPOCH_SECONDS;
+  const quotaBridge = context.PropertyRelayBridge.createBridge(event => vm.runInContext(`NostrTools.verifyEvent(${JSON.stringify(event)})`, context, { timeout: 5000 }),
+    4096, () => NOW_EPOCH_SECONDS * 1000);
   let acceptedByBridge = 0;
   for (let index = 0; index < 61; index++) {
     const event = sign(`rate-limit-${index}`, boundary);

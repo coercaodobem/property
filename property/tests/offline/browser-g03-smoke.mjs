@@ -255,7 +255,7 @@ async function main() {
     report.sessions = { remembered_profile_auto_unlock_after_restart: true, non_remembered_profile_requires_password: true,
       wrong_password_kept_vault_unchanged: true, correct_password_restored_same_identity: true,
       manual_lock_hid_workspace: true, manual_lock_cleared_session: true,
-      idle_timeout: { status: 'NOT_EXERCISED', reason: 'The product timeout is 30 minutes; this short test does not wait or change production policy.' } };
+      idle_timeout: { status: 'DELEGATED_TO_G11', reason: 'G11 exercises this behavior with the injected logical clock and a fixed repetition count.' } };
     mark('G03-02', 'PASS', 'Persistent browser restart restored A only when requested; B required the correct password, rejected the wrong one without vault mutation, and manual lock cleared the session.');
 
     // G03-04/05: contacts obtained from the profile UI; invalid inputs stay local and explain accepted formats.

@@ -312,8 +312,8 @@ async function main(){
   await record('G12-06',viewport.result.status,viewport.data?.install_fallback?.before_install_prompt_supported===false?
     'No navegador fixado, a PWA continua utilizável sem API de instalação e sem instrução de instalação falsa.':'Fallback de instalação conferido com a mesma sessão responsiva.',
     {viewport_case:viewport.result.status,install_fallback:viewport.data?.install_fallback||null},['later-gates/g10-05/g10-viewport-report.json']);
-  await runAndRead('G10-06','property/tests/offline/g10-performance-smoke.mjs',[manifestPath,String(base+10),path.join(out,'g10-06')],
-    path.join(path.relative(runDir,out),'g10-06/g10-performance-report.json'),data=>data,{timeoutMs:600000});
+  await runAndRead('G10-06','property/tests/offline/g10-volume-smoke.mjs',[manifestPath,String(base+10),path.join(out,'g10-06')],
+    path.join(path.relative(runDir,out),'g10-06/g10-volume-report.json'),data=>data,{timeoutMs:600000});
 
   // Two additional deterministic-flow repetitions: the initial core run is repetition one.
   const g04Args=(dest)=>browserArgs('property/tests/offline/browser-g04-smoke.mjs',dest);
@@ -332,14 +332,14 @@ async function main(){
 
   await runG1102(prior);
 
-  // The five-hour multi-relay soak is independent of financial settlement; dependency eligibility is preserved by the parent runner.
-  const soakDir=path.join(out,'g11-03');
-  const soak=await run('G11-03',process.execPath,['property/tests/offline/g11-multirelay-soak.mjs',manifestPath,soakDir,'17970','60'],
-    {timeoutMs:18_600_000,logName:'g11-03-soak.log'});
-  const soakReport=await json(path.join(path.relative(runDir,out),'g11-03/g11-multirelay-soak-report.json'));
-  await record('G11-03',soak.status==='PASS'&&soakReport?.status==='PASS'&&soakReport?.full_5h_gate_eligible===true?'PASS':soak.status==='FAIL'?'FAIL':'BLOCKED',
-    soakReport?.reason|| (soak.status==='PASS'?'Rede de três relays e duas pontes manteve probes por quase cinco horas reais, sem exceder o limite total de cinco horas.':'Soak interrompido ou fora dos limites reais de até cinco horas.'),
-    soakReport||{exit_code:soak.exit_code},[soak.log,'later-gates/g11-03/g11-multirelay-soak-report.json','later-gates/g11-03/g11-soak-probes.jsonl']);
+  // The fixed-count multi-relay repetitions are independent of financial settlement.
+  const repetitionDir=path.join(out,'g11-03');
+  const repetition=await run('G11-03',process.execPath,['property/tests/offline/g11-multirelay-repetition.mjs',manifestPath,repetitionDir],
+    {timeoutMs:600000,logName:'g11-03-repetitions.log'});
+  const repetitionReport=await json(path.join(path.relative(runDir,out),'g11-03/g11-multirelay-repetition-report.json'));
+  await record('G11-03',repetition.status==='PASS'&&repetitionReport?.status==='PASS'&&repetitionReport?.gate_eligible===true?'PASS':repetition.status==='FAIL'?'FAIL':'BLOCKED',
+    repetitionReport?.reason|| (repetition.status==='PASS'?'300 provas, três reinícios, nove eventos de partição, cinco amostras de deduplicação e bloqueio por relógio lógico passaram.':'As repetições multi-relay não concluíram todos os valores predefinidos.'),
+    repetitionReport||{exit_code:repetition.exit_code},[repetition.log,'later-gates/g11-03/g11-multirelay-repetition-report.json','later-gates/g11-03/g11-repetition-probes.jsonl']);
 
   const rows=await readCoreRows();
   const missingEvidence=[];

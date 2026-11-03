@@ -7,10 +7,16 @@
   const MAX_EVENTS_PER_MINUTE = 60;
   const MAX_BYTES_PER_MINUTE = 2_000_000;
 
-  function createBridge(verifyEvent, maxSeen = 4096) {
-    if (typeof verifyEvent !== 'function' || !Number.isSafeInteger(maxSeen) || maxSeen < 1) throw new Error('Configuração da ponte inválida');
+  // The injected clock lets deterministic tests advance policy windows by fixture steps.
+  function createBridge(verifyEvent, maxSeen = 4096, now = () => Date.now()) {
+    if (typeof verifyEvent !== 'function' || !Number.isSafeInteger(maxSeen) || maxSeen < 1 || typeof now !== 'function') throw new Error('Configuração da ponte inválida');
+    const nowMs = () => {
+      const value = now();
+      if (!Number.isSafeInteger(value) || value < 0) throw new Error('Relógio da ponte inválido');
+      return value;
+    };
     const seen = new Map();
-    let windowStart = Date.now();
+    let windowStart = nowMs();
     let windowEvents = 0;
     let windowBytes = 0;
     function mark(eventId) {
@@ -20,7 +26,7 @@
       while (seen.size > maxSeen) seen.delete(seen.keys().next().value);
       return true;
     }
-    function filter(since = Math.floor(Date.now() / 1000) - 180) {
+    function filter(since = Math.floor(nowMs() / 1000) - 180) {
       if (!Number.isSafeInteger(since) || since < 0) throw new Error('since inválido');
       return { kinds: [...KINDS], since };
     }
@@ -34,14 +40,15 @@
     function route(event, sourceRelay, relayUrls, maxAgeSeconds) {
       if (!event || !Array.isArray(relayUrls)) return [];
       if (!Number.isSafeInteger(event.created_at)) return [];
-      const now = Math.floor(Date.now() / 1000);
-      if (event.created_at < now - maxAgeSeconds || event.created_at > now + 60) return [];
+      const currentSeconds = Math.floor(nowMs() / 1000);
+      if (event.created_at < currentSeconds - maxAgeSeconds || event.created_at > currentSeconds + 60) return [];
       const destinations = [...new Set(relayUrls.filter(url => typeof url === 'string' && url !== sourceRelay))];
       if (!destinations.length) return [];
       let bytes;
       try { bytes = new TextEncoder().encode(JSON.stringify(event)).byteLength; } catch { return []; }
       if (bytes > 512_000) return [];
-      if (Date.now() - windowStart >= 60_000) { windowStart = Date.now(); windowEvents = 0; windowBytes = 0; }
+      const currentMs = nowMs();
+      if (currentMs - windowStart >= 60_000) { windowStart = currentMs; windowEvents = 0; windowBytes = 0; }
       const outboundBytes = bytes * destinations.length;
       if (!Number.isSafeInteger(outboundBytes) || windowEvents >= MAX_EVENTS_PER_MINUTE || windowBytes + outboundBytes > MAX_BYTES_PER_MINUTE) return [];
       try {

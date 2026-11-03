@@ -18,6 +18,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 const WEB = path.join(ROOT, 'property/web');
 const IDS = ['G08-01', 'G08-02', 'G08-03', 'G08-04', 'G08-05', 'G08-06', 'G08-07'];
 const NANO_DEV_GENESIS_KEY = '34F0A37AAD20F4A260F0A5B3CB3D7FB50673212263E58A380BC10474BB039CE4';
+const NOW_EPOCH_SECONDS = 1_800_000_000;
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 
 function argsOf(argv) {
@@ -105,7 +106,7 @@ function runtimeFromBundle() {
   return {
     verifyEvent: event => { context.g08Event = JSON.stringify(event); return vm.runInContext('NostrTools.verifyEvent(JSON.parse(g08Event))', context, { timeout: 10_000 }); },
     identity: () => {
-      const data = JSON.parse(vm.runInContext(`(() => { const secret=NostrTools.generateSecretKey(); const event=NostrTools.finalizeEvent({kind:1,content:'G08 test identity',tags:[],created_at:Math.floor(Date.now()/1000)},secret); return JSON.stringify({secret:[...secret],pubkey:event.pubkey}); })()`, context, { timeout: 10_000 }));
+      const data = JSON.parse(vm.runInContext(`(() => { const secret=NostrTools.generateSecretKey(); const event=NostrTools.finalizeEvent({kind:1,content:'G08 test identity',tags:[],created_at:${NOW_EPOCH_SECONDS}},secret); return JSON.stringify({secret:[...secret],pubkey:event.pubkey}); })()`, context, { timeout: 10_000 }));
       return { secret: Uint8Array.from(data.secret), pubkey: data.pubkey };
     },
     sign: (kind, content, createdAt, secret, tags = []) => {
@@ -380,7 +381,7 @@ async function main() {
 
     stage = 'start local Geode relay and test real campaign signing';
     relay = await startGeode(await freePort('127.0.0.1'), temp, 'G08-local-Geode');
-    const clock = { now: Math.floor(Date.now() / 1000) };
+    const clock = { now: NOW_EPOCH_SECONDS };
     const exactCampaigns = {};
     const adapters = [btcLedger, xmrLedger, nanoLedger];
     const ledgers = { BTC: btcLedger, XMR: xmrLedger, XNO: nanoLedger };

@@ -1,0 +1,104 @@
+{
+  "schema_version": 3,
+  "case": "G11-03",
+  "status": "FAIL",
+  "method": "fixed_repetition_count",
+  "predefined_variables": {
+    "probeCount": 300,
+    "rateWindowProbeBatch": 50,
+    "logicalClockStepMs": 60000,
+    "restartAfterProbeCounts": [
+      60,
+      150,
+      240
+    ],
+    "partitionEventRepetitions": 3,
+    "idleClockStepMs": 60000,
+    "idleClockRepetitions": 31,
+    "idleTimeoutMs": 1800000,
+    "resourceSampleEvery": 25,
+    "uiDedupProbeCounts": [
+      1,
+      60,
+      150,
+      240,
+      300
+    ],
+    "fixedEpochSeconds": 1800000000
+  },
+  "probe_count": 0,
+  "partition_probe_count": 0,
+  "loss_count": 0,
+  "restart_cycles": [],
+  "ui_deduplication_samples": [],
+  "resource_samples": [
+    {
+      "checkpoint_probe_count": 0,
+      "relay_processes": [
+        {
+          "pid": 2324392,
+          "rss_bytes": 155553792
+        },
+        {
+          "pid": 2324943,
+          "rss_bytes": 140390400
+        },
+        {
+          "pid": 2325444,
+          "rss_bytes": 152399872
+        }
+      ],
+      "total_relay_rss_bytes": 448344064,
+      "scratch_bytes": 475393071
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28540/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28540/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28542/",
+    "ws://127.0.0.1:28541/",
+    "ws://127.0.0.1:28542/"
+  ],
+  "relay_count": 3,
+  "bridge_count": 2,
+  "started_utc": "2026-11-03T00:24:48.393Z",
+  "ended_utc": "2026-11-03T00:24:58.258Z",
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "resource_budget": {
+    "available_memory_at_start_bytes": 4851249152,
+    "max_relay_rss_bytes": 3395874406,
+    "max_scratch_bytes": 2147483648
+  },
+  "gate_eligible": false,
+  "reason": "sender is not defined",
+  "page_errors": [],
+  "relay_processes": [
+    {
+      "url": "ws://127.0.0.1:28540",
+      "pid": 2324392,
+      "exit_code": null,
+      "log_tail": "Iniciando relay Property em 127.0.0.1:28540\nDados: /home/guilherme/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Wi3m8A/property-g11-repetitions-Z63U34/repetition relay 1 data\nCtrl+C encerra o processo.\nSLF4J(W): No SLF4J providers were found.\nSLF4J(W): Defaulting to no-operation (NOP) logger implementation\nSLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.\ngeode listening on ws://127.0.0.1:28540/\nNIP-11 info doc: curl -H 'Accept: application/nostr+json' http://127.0.0.1:28540/\n"
+    },
+    {
+      "url": "ws://127.0.0.1:28541",
+      "pid": 2324943,
+      "exit_code": null,
+      "log_tail": "Iniciando relay Property em 127.0.0.1:28541\nDados: /home/guilherme/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Wi3m8A/property-g11-repetitions-Z63U34/repetition relay 2 data\nCtrl+C encerra o processo.\nSLF4J(W): No SLF4J providers were found.\nSLF4J(W): Defaulting to no-operation (NOP) logger implementation\nSLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.\ngeode listening on ws://127.0.0.1:28541/\nNIP-11 info doc: curl -H 'Accept: application/nostr+json' http://127.0.0.1:28541/\n"
+    },
+    {
+      "url": "ws://127.0.0.1:28542",
+      "pid": 2325444,
+      "exit_code": null,
+      "log_tail": "Iniciando relay Property em 127.0.0.1:28542\nDados: /home/guilherme/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Wi3m8A/property-g11-repetitions-Z63U34/repetition relay 3 data\nCtrl+C encerra o processo.\nSLF4J(W): No SLF4J providers were found.\nSLF4J(W): Defaulting to no-operation (NOP) logger implementation\nSLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.\ngeode listening on ws://127.0.0.1:28542/\nNIP-11 info doc: curl -H 'Accept: application/nostr+json' http://127.0.0.1:28542/\n"
+    }
+  ]
+}

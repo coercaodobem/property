@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "run_id": "property-fixed-count-retake-20261102-01",
+  "date_local": "2026-11-02",
+  "profile": "targeted Ubuntu offline retake",
+  "base_commit": "add08cf6147f5901609d21bd023c31f8f59802fc",
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "full_profile_status": "NOT_RUN",
+  "targeted_results": {
+    "run-smoke": {
+      "status": "PASS",
+      "script_count": 16
+    },
+    "G05": {
+      "status": "PASS",
+      "case_count": 7
+    },
+    "G06": {
+      "status": "PASS",
+      "case_count": 5
+    },
+    "G07": {
+      "status": "PASS",
+      "case_count": 7,
+      "late_payment": "refund_due; not published; checked at expiresAt+1",
+      "exposure_window_seconds_logical": 86401
+    },
+    "G08": {
+      "status": "PASS",
+      "case_count": 7,
+      "ledgers": [
+        "Bitcoin regtest",
+        "Monero fakechain",
+        "Nano dev"
+      ],
+      "report": "g08/ledger-g08-report.json"
+    },
+    "G09-04": {
+      "status": "PASS",
+      "events_before_rate_limit": 60,
+      "events_attempted": 61
+    },
+    "G10-06": {
+      "status": "PASS",
+      "direct_messages": 50,
+      "public_notes": 100,
+      "relays": 4,
+      "bridges": 3,
+      "resource_checkpoints": 3
+    },
+    "G11-03": {
+      "status": "PASS",
+      "method": "fixed_repetition_count",
+      "probes": 300,
+      "restart_cycles": 3,
+      "partition_events_reconciled": 9,
+      "losses": 0,
+      "ui_deduplication_samples": 5,
+      "resource_samples": 16,
+      "idle_logical_steps": 31
+    }
+  },
+  "browser_runtime": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "old_duration_based_attempt": {
+    "status": "BLOCKED",
+    "partial_probe_count": 115,
+    "eligible_for_fixed_count_gate": false,
+    "evidence": "history/g11-interrupted-duration-run-blocked.json"
+  },
+  "other_operating_systems": "PENDING"
+}

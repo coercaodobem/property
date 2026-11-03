@@ -12,6 +12,11 @@ import { closeNode, loadRuntime, publishEvent, startAppServer,
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const CASE_IDS = ['G07-01', 'G07-02', 'G07-03', 'G07-04', 'G07-05', 'G07-06', 'G07-07'];
 const TEST_DESTINATION = 'https://campaign.test/property';
+const NOW_EPOCH_SECONDS = 1_800_000_000;
+const LATE_PAYMENT_EXPIRY_SECONDS = 1;
+const LATE_PAYMENT_POST_EXPIRY_STEP_SECONDS = 1;
+const EXPOSURE_WINDOW_SECONDS = 86_400;
+const IDLE_TIMEOUT_MS = 1_800_000;
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -116,7 +121,7 @@ async function main() {
     }
     const [r1, r2] = relays.map(relay => relay.url);
     const advertiser = runtime.createIdentity(), nodeA = runtime.createIdentity(), nodeB = runtime.createIdentity(), buyer = runtime.createIdentity();
-    const simClock = { now: Math.floor(Date.now() / 1000) };
+    const simClock = { now: NOW_EPOCH_SECONDS };
     const ledgerPayments = new Map(), ledgerRefunds = new Map();
     const ledgerCounters = { lookup: 0, refund: 0 };
     const ledger = {
@@ -230,6 +235,19 @@ async function main() {
     await mark('G07-03', 'PASS', 'The persisted production engine traversed awaiting payment → unconfirmed → confirmed → published → expired using a deterministic ledger adapter. It also preserved node B’s rejection and reloaded the same accepted state after restart; expiry removed the campaign copy with a signed NIP-09 tombstone.');
 
     activeCase = 'G07-04'; activeStep = 'reconcile duplicates, late and mismatched payments and signed refunds';
+    const lateOffer = campaignOffer(runtime, advertiser, simClock.now,
+      { expiresAt: simClock.now + LATE_PAYMENT_EXPIRY_SECONDS });
+    const lateAcceptance = await engineA.decide(lateOffer);
+    simClock.now = JSON.parse(lateOffer.content).expires_at + LATE_PAYMENT_POST_EXPIRY_STEP_SECONDS;
+    const latePayment = { address: lateAcceptance.record.payment_address, currency: 'XNO', amount_atomic: '1',
+      txid: 'f'.repeat(64), confirmations: 1, proof: true };
+    ledgerPayments.set(latePayment.address, latePayment);
+    const lateReconciliation = await engineA.reconcile(lateAcceptance.record.campaign_id);
+    assert.equal(lateReconciliation.status, 'refund_due', 'payment first observed after the logical deadline is not published');
+    assert.equal((await engineA.reconcile(lateAcceptance.record.campaign_id)).status, 'refund_due',
+      'repeated late-payment reconciliation remains idempotent');
+    assert.equal((await wsQuery(r1, { kinds: [30078], limit: 50 })).some(event => event.content.includes(lateOffer.id)), false,
+      'late payment never creates an active campaign');
     const mismatchScenarios = [
       { label: 'wrong_amount', patch: { amount_atomic: '2', currency: 'XNO' } },
       { label: 'wrong_currency', patch: { amount_atomic: '1', currency: 'BTC' } },
@@ -263,7 +281,8 @@ async function main() {
     assert.equal(ledgerCounters.refund, beforeRefundCalls + 1, 'repeated signed request does not debit twice');
     assert.equal((await wsQuery(r1, { kinds: [30078], limit: 50 })).some(event => event.id && event.content.includes(refundOffer.id)), false,
       'mismatched amounts never publish a campaign');
-    report.payments.push({ mismatch_scenarios: mismatchRecords, refund_tx: refunded.refund.txid,
+    report.payments.push({ late_payment: { observed_after_expiry: true, status: lateReconciliation.status, published: false,
+      deadline_advance_seconds: LATE_PAYMENT_EXPIRY_SECONDS + LATE_PAYMENT_POST_EXPIRY_STEP_SECONDS }, mismatch_scenarios: mismatchRecords, refund_tx: refunded.refund.txid,
       refund_amount_atomic: refunded.refund.amount_atomic, refund_request_signed: runtime.verifyEvent(refundRequest),
       refund_repeat_debit_count: ledgerCounters.refund - beforeRefundCalls, lookup_count: ledgerCounters.lookup,
       duplicate_payment_notifications: 'same persisted txid reconciled without a second campaign event' });
@@ -271,8 +290,11 @@ async function main() {
 
     activeCase = 'G07-05'; activeStep = 'exercise PWA opt-in, sponsor labeling, local block and local exposure cap';
     const appReport = report;
-    const clientA = await startNode(runtime, origin, appReport, 'viewer-a-node-a', [r1, r2], { secretHex: nodeA.secretHex, inboxRelays: [r1] });
-    const clientB = await startNode(runtime, origin, appReport, 'viewer-b-node-b', [r1, r2], { secretHex: nodeB.secretHex, inboxRelays: [r1], testDestinationUrl: TEST_DESTINATION });
+    const logicalClock = { epochMs: simClock.now * 1000, idleDelayMs: IDLE_TIMEOUT_MS };
+    const clientA = await startNode(runtime, origin, appReport, 'viewer-a-node-a', [r1, r2],
+      { secretHex: nodeA.secretHex, inboxRelays: [r1], logicalClock });
+    const clientB = await startNode(runtime, origin, appReport, 'viewer-b-node-b', [r1, r2],
+      { secretHex: nodeB.secretHex, inboxRelays: [r1], testDestinationUrl: TEST_DESTINATION, logicalClock });
     nodes.push(clientA, clientB);
     assert.equal(clientA.id.pubkey, nodeA.pubkey); assert.equal(clientB.id.pubkey, nodeB.pubkey);
     for (const node of nodes) await node.page.locator('button[data-view="hangout"]').click();
@@ -282,7 +304,6 @@ async function main() {
     const clientCampaign = await wsQuery(r1, { ids: [campaignEvent.id], limit: 1 });
     assert.equal(clientCampaign.length, 0, 'expired ad is no longer served to clients');
     // Reconcile a new funded offer to make a currently live event for the PWA cases.
-    simClock.now = Math.floor(Date.now() / 1000);
     engineA = engineFor(runtime, nodeA, engineAPath, ledger, publishToBoth, () => simClock.now,
       { currencies: ['BTC', 'XMR', 'XNO'], minConfirmations: 1 });
     const uiOffer = campaignOffer(runtime, advertiser, simClock.now, { expiresAt: simClock.now + 1200 });
@@ -304,7 +325,7 @@ async function main() {
     await clientA.page.locator('#refresh-hangout').click();
     await waitUntil(async () => (await clientA.page.locator('#node-campaigns-list .campaign-card').count()) === 0, 5000,
       'second view inside the local exposure window should be capped');
-    await writeExposure(clientA.page, nodeA.pubkey, uiCampaignD, Math.floor(Date.now() / 1000) - 24 * 60 * 60 - 1);
+    await writeExposure(clientA.page, nodeA.pubkey, uiCampaignD, simClock.now - EXPOSURE_WINDOW_SECONDS - 1);
     await clientA.page.locator('#refresh-hangout').click(); await waitForCampaign(clientA.page, uiTitle, true);
     await clientA.page.locator('#node-campaigns-list').getByRole('button', { name: 'Ocultar este node' }).click();
     const blockedSettings = await readCampaignSettings(clientA.page, nodeA.pubkey);
@@ -314,7 +335,7 @@ async function main() {
     report.privacy.pwa_settings = { opt_in_off_by_default_for_both: true, campaign_label: 'PATROCINADO',
       separated_from_hangout_feed: true, local_exposure_recorded: true, immediate_repeat_hidden: true,
       local_node_block: nodeA.pubkey, blocked_only_for_A: true, B_remains_opted_out: true };
-    await mark('G07-05', 'PASS', 'PWA campaigns were off on both devices until opt-in, rendered with a sponsored label in their own section, and stayed separate from Hangout posts. The 24-hour exposure cap, local node block, and distinct device preferences were verified through the PWA’s IndexedDB state.');
+    await mark('G07-05', 'PASS', 'PWA campaigns were off on both devices until opt-in, rendered with a sponsored label in their own section, and stayed separate from Hangout posts. The 86,401-second logical exposure boundary, local node block, and distinct device preferences were verified through the PWA’s IndexedDB state.');
 
     activeCase = 'G07-06'; activeStep = 'inspect browser requests and make one explicit local test-link click';
     assert.deepEqual(report.external_requests, [], 'viewing and refreshing a campaign created no external HTTP request');

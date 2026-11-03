@@ -12,6 +12,9 @@ import {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const CASES = ['G06-01', 'G06-02', 'G06-03', 'G06-04', 'G06-05'];
+const NOW_EPOCH_SECONDS = 1_800_000_000;
+const LOGICAL_CLOCK_STEP_MS = 1_000;
+const IDLE_TIMEOUT_MS = 1_800_000;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1200);
@@ -113,11 +116,12 @@ async function main() {
     const [r1, r2] = relays.map(relay => relay.url);
     const sellerIdentity = runtime.createIdentity();
     const buyerIdentity = runtime.createIdentity();
-    seller = await startNode(runtime, origin, report, 'G06 seller A', [r1], { secretHex: sellerIdentity.secretHex, bridge: false });
-    buyer = await startNode(runtime, origin, report, 'G06 buyer B', [r2], { secretHex: buyerIdentity.secretHex, bridge: false });
+    const logicalClock = { epochMs: NOW_EPOCH_SECONDS * 1000, idleDelayMs: IDLE_TIMEOUT_MS };
+    seller = await startNode(runtime, origin, report, 'G06 seller A', [r1], { secretHex: sellerIdentity.secretHex, bridge: false, logicalClock });
+    buyer = await startNode(runtime, origin, report, 'G06 buyer B', [r2], { secretHex: buyerIdentity.secretHex, bridge: false, logicalClock });
     assert.equal(seller.id.pubkey, sellerIdentity.pubkey);
     assert.equal(buyer.id.pubkey, buyerIdentity.pubkey);
-    bridge = await startNode(runtime, origin, report, 'G06 public relay bridge', [r1, r2]);
+    bridge = await startNode(runtime, origin, report, 'G06 public relay bridge', [r1, r2], { logicalClock });
     nodes.set('seller', seller); nodes.set('buyer', buyer); nodes.set('bridge', bridge);
     report.identities = { seller_pubkey: seller.id.pubkey, buyer_pubkey: buyer.id.pubkey, bridge_pubkey: bridge.id.pubkey };
 
@@ -178,7 +182,8 @@ async function main() {
       const expectedOne = offer.currency === 'BTC' ? '0.00000001 BTC' : offer.currency === 'XMR' ? '0.000000000001 XMR' : `${offer.one} XNO`;
       assert.equal((await initialCard.locator('.product-price').textContent()).trim(), expectedOne);
 
-      await sleep(1100);
+      await seller.page.evaluate(({ repetitions, stepMs }) => window.__propertyTestClock.advance(repetitions, stepMs),
+        { repetitions: 2, stepMs: LOGICAL_CLOCK_STEP_MS });
       await seller.page.locator('#refresh-marketplace').click();
       const ownCard = seller.page.locator('#marketplace-list .product-card').filter({ hasText: offer.title });
       await ownCard.getByRole('button', { name: 'Editar' }).click();
@@ -227,9 +232,9 @@ async function main() {
     const deletion = deletionEvents.find(event => event.tags.some(tag => tag[0] === 'a' && tag[1] === `30018:${seller.id.pubkey}:${btc.product_d}`));
     assert.ok(deletion && runtime.verifyEvent(deletion), 'seller signed an addressable withdrawal event');
     assert.ok(deletion.created_at >= btcLatest.event.created_at);
-    await waitStored(r2, btcLatest.event.id, false, 8000);
+    await waitStored(r2, btcLatest.event.id, false);
     const replayAck = await publishEvent(r2, btcLatest.event);
-    await waitStored(r2, btcLatest.event.id, false, 5000);
+    await waitStored(r2, btcLatest.event.id, false);
     const relayProductsAfterDelete = await productEvents(r2, seller.id.pubkey);
     const activeNamesAfterDelete = await buyer.page.evaluate(events => PropertyMarketplace.selectActiveProducts(events, NostrTools.verifyEvent)
       .map(product => product.data.name), relayProductsAfterDelete);
@@ -247,7 +252,7 @@ async function main() {
     activeStep = 'reject unauthorized deletion';
     const xmrLatest = await latestProduct(r1, seller.id.pubkey, xmr.product_d);
     const address = `30018:${seller.id.pubkey}:${xmr.product_d}`;
-    const unauthorized = runtime.sign(5, '', Math.max(Math.floor(Date.now() / 1000), xmrLatest.event.created_at + 1),
+    const unauthorized = runtime.sign(5, '', xmrLatest.event.created_at + 1,
       buyerIdentity.secret, [['a', address], ['e', xmrLatest.event.id], ['k', '30018']]);
     assert.equal((await publishEvent(r2, unauthorized)).accepted, true, 'relay accepted the validly signed unauthorized deletion fixture');
     await refreshProductFor(buyer, offers[1].title);
@@ -273,12 +278,12 @@ async function main() {
     const safeId = `g06-safe-${crypto.randomUUID()}`;
     const safeFixture = runtime.sign(30018, JSON.stringify({ id: safeId, stall_id: 'g06-security', name: `G06 safe text ${safeId}`,
       description: maliciousHtml, images: ['http://127.0.0.1:9/tracker.svg'], currency: 'BTC', price: 0.00000001, price_atomic: '1' }),
-      Math.floor(Date.now() / 1000), sellerIdentity.secret, [['d', safeId]]);
-    const now = Math.floor(Date.now() / 1000);
+      NOW_EPOCH_SECONDS, sellerIdentity.secret, [['d', safeId]]);
+    const now = NOW_EPOCH_SECONDS;
     const expiredId = `g06-expired-${crypto.randomUUID()}`;
     const expiredFixture = runtime.sign(30018, JSON.stringify({ id: expiredId, stall_id: 'g06-security', name: `G06 expired ${expiredId}`,
       description: '', images: [], currency: 'BTC', price: 0.00000001, price_atomic: '1' }), now, sellerIdentity.secret,
-      [['d', expiredId], ['expiration', String(now)]]);
+      [['d', expiredId], ['expiration', String(now - 1)]]);
     const unknownId = `g06-unknown-${crypto.randomUUID()}`;
     const unknownFixture = runtime.sign(30018, JSON.stringify({ id: unknownId, stall_id: 'g06-security', name: `G06 unknown ${unknownId}`,
       description: '', images: [], currency: 'USD', price: 1, price_atomic: '1' }), now, sellerIdentity.secret, [['d', unknownId]]);
@@ -290,7 +295,7 @@ async function main() {
       [['d', duplicateDId], ['d', `${duplicateDId}-other`]]);
     const futureId = `g06-future-${crypto.randomUUID()}`;
     const futureFixture = runtime.sign(30018, JSON.stringify({ id: futureId, stall_id: 'g06-security', name: `G06 future timestamp ${futureId}`,
-      description: '', images: [], currency: 'BTC', price: 0.00000001, price_atomic: '1' }), now + 3600, sellerIdentity.secret, [['d', futureId]]);
+      description: '', images: [], currency: 'BTC', price: 0.00000001, price_atomic: '1' }), now + 301, sellerIdentity.secret, [['d', futureId]]);
     const fixtures = [safeFixture, unknownFixture, malformedFixture, duplicateDFixture];
     const fixtureAcks = [];
     for (const event of fixtures) {

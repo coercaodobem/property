@@ -15,6 +15,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g05-test!';
+const ABSENCE_QUERY_REPETITIONS = 3;
+const NEGATIVE_BOUNDARY_REPETITIONS = 3;
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const CASES = ['G05-01', 'G05-02', 'G05-03', 'G05-04', 'G05-05', 'G05-06', 'G05-07'];
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -171,13 +173,20 @@ function publishEvent(url, event) {
   });
 }
 async function waitStored(url, id, expected = true, timeoutMs = 15000) {
+  if (!expected) {
+    for (let repetition = 1; repetition <= ABSENCE_QUERY_REPETITIONS; repetition++) {
+      const found = (await wsQuery(url, { ids: [id], limit: 1 })).length > 0;
+      if (found) throw new Error(`Event ${id} was unexpectedly stored at ${url} during absence query ${repetition}/${ABSENCE_QUERY_REPETITIONS}.`);
+    }
+    return false;
+  }
   const deadline = Date.now() + timeoutMs;
   do {
     const found = (await wsQuery(url, { ids: [id], limit: 1 })).length > 0;
-    if (found === expected) return found;
+    if (found) return true;
     await sleep(150);
   } while (Date.now() < deadline);
-  throw new Error(`Event ${id} storage at ${url} expected=${expected} was not observed within ${timeoutMs} ms.`);
+  throw new Error(`Event ${id} storage at ${url} was not observed before the harness watchdog expired (${timeoutMs} ms).`);
 }
 function parseFrame(payload) { try { return JSON.parse(typeof payload === 'string' ? payload : payload.toString()); } catch { return null; } }
 
@@ -207,6 +216,44 @@ async function startNode(runtime, origin, report, label, generalRelays, options 
   const bridgeEnabled = options.bridge !== false;
   const context = await runtime.browser.newContext({ serviceWorkers: 'allow', viewport: mobile ? { width: 390, height: 844 } : undefined,
     isMobile: mobile, hasTouch: mobile, deviceScaleFactor: mobile ? 2 : 1 });
+  if (options.logicalClock) {
+    await context.addInitScript(({ epochMs, idleDelayMs }) => {
+      let nowMs = epochMs;
+      let nextTimerId = 0x70000000;
+      const logicalTimers = new Map();
+      const nativeSetTimeout = window.setTimeout.bind(window);
+      const nativeClearTimeout = window.clearTimeout.bind(window);
+      Date.now = () => nowMs;
+      window.setTimeout = (callback, delay, ...args) => {
+        if (typeof callback === 'function' && Number(delay) === idleDelayMs) {
+          const id = nextTimerId++;
+          logicalTimers.set(id, { dueAt: nowMs + idleDelayMs, callback, args });
+          return id;
+        }
+        return nativeSetTimeout(callback, delay, ...args);
+      };
+      window.clearTimeout = id => {
+        if (!logicalTimers.delete(id)) nativeClearTimeout(id);
+      };
+      window.__propertyTestClock = Object.freeze({
+        async advance(repetitions, stepMs) {
+          if (!Number.isSafeInteger(repetitions) || repetitions < 0 || !Number.isSafeInteger(stepMs) || stepMs < 0) {
+            throw new Error('Logical clock input must use fixed non-negative integers.');
+          }
+          for (let step = 0; step < repetitions; step++) {
+            nowMs += stepMs;
+            const due = [...logicalTimers.entries()].filter(([, timer]) => timer.dueAt <= nowMs);
+            for (const [id, timer] of due) {
+              logicalTimers.delete(id);
+              const result = timer.callback(...timer.args);
+              if (result && typeof result.then === 'function') await result;
+            }
+          }
+          return { now_ms: nowMs, pending_idle_timers: logicalTimers.size };
+        }
+      });
+    }, options.logicalClock);
+  }
   const node = { label, context, page: null, id: null, subscriptions: [], eoses: [], received: [], forwarded: [], errors: [], sockets: [] };
   context.on('page', page => {
     page.on('pageerror', error => { const message = safeText(error.message); node.errors.push(message); report.page_errors.push(`${label}: ${message}`); });
@@ -334,14 +381,11 @@ async function main() {
 
     activeCase = 'G05-02'; await closeNode(nodes.get('P23')); nodes.delete('P23');
     const event2 = runtime.sign(1, `property-g05-p23-down-${crypto.randomUUID()}`); assert.equal((await publishEvent(r1, event2)).accepted, true);
-    await waitStored(r2, event2.id, true); await waitStored(r3, event2.id, false, 2500); await waitStored(r4, event2.id, false, 2500);
+    await waitStored(r2, event2.id, true); await waitStored(r3, event2.id, false); await waitStored(r4, event2.id, false);
     nodes.set('P23', await startNode(runtime, origin, report, 'P23-restarted', [r2, r3]));
     await waitStored(r3, event2.id, true); await waitStored(r4, event2.id, true);
-    const expired = runtime.sign(1, `property-g05-expired-${crypto.randomUUID()}`, Math.floor(Date.now() / 1000) - 301);
-    assert.equal((await publishEvent(r2, expired)).accepted, true, 'Geode accepted the stale fixture so the bridge expiry policy can be exercised');
-    await waitStored(r2, expired.id, true); await waitStored(r3, expired.id, false, 2500); await waitStored(r4, expired.id, false, 2500);
-    report.topologies.p23_failure = { event_id: event2.id, stored_while_partitioned: { R2: true, R3: false, R4: false }, replay_after_restart: { R3: true, R4: true }, expired_event_id: expired.id, expired_event_stored_at_source: true, forwarded_after_expiry: false };
-    mark('G05-02', 'PASS', 'Stopping P23 stopped new delivery at R2; restarting its PWA bridge replayed the eligible event through R3/R4. An accepted event older than the bridge age policy remained at its source.');
+    report.topologies.p23_failure = { event_id: event2.id, stored_while_partitioned: { R2: true, R3: false, R4: false }, replay_after_restart: { R3: true, R4: true } };
+    mark('G05-02', 'PASS', 'Stopping P23 stopped new delivery at R2; restarting its PWA bridge replayed the eligible event through R3/R4. Age boundaries are covered separately with a fixed logical clock in G05-06.');
 
     activeCase = 'G05-03'; await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
     nodes.set('P12', await startNode(runtime, origin, report, 'D-P12', [r1, r2]));
@@ -374,13 +418,13 @@ async function main() {
     const preReplay2 = runtime.sign(1, `property-g05-partition-b-${crypto.randomUUID()}`);
     assert.equal((await publishEvent(r1, preReplay2)).accepted, true); assert.equal((await publishEvent(r1, preReplay1)).accepted, true);
     await waitStored(r2, preReplay1.id, true); await waitStored(r2, preReplay2.id, true);
-    await waitStored(r3, preReplay1.id, false, 2500); await waitStored(r4, preReplay2.id, false, 2500);
+    await waitStored(r3, preReplay1.id, false); await waitStored(r4, preReplay2.id, false);
     nodes.set('Q23', await startNode(runtime, origin, report, 'Q23-rejoined', [r2, r3]));
     await waitStored(r4, preReplay1.id, true); await waitStored(r4, preReplay2.id, true);
     const replayCounts = { first: (await wsQuery(r4, { ids: [preReplay1.id], limit: 10 })).length, second: (await wsQuery(r4, { ids: [preReplay2.id], limit: 10 })).length };
     assert.deepEqual(Object.values(replayCounts), [1, 1]);
-    report.topologies.partition_rejoin = { out_of_order_source_publications: [preReplay2.id, preReplay1.id], reconciled_at_R4: replayCounts, no_duplicate_ids: true, expired_fixture_not_replayed: expired.id };
-    mark('G05-04', 'PASS', 'Relay groups remained partitioned, then rejoined through a restarted P23. Two events published out of order reconciled once at R4; the expired fixture stayed excluded.');
+    report.topologies.partition_rejoin = { out_of_order_source_publications: [preReplay2.id, preReplay1.id], reconciled_at_R4: replayCounts, no_duplicate_ids: true };
+    mark('G05-04', 'PASS', 'Relay groups remained partitioned, then rejoined through a restarted P23. Two events published out of order reconciled once at R4 without duplicate IDs.');
 
     activeCase = 'G05-05'; await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
     const sender = runtime.createIdentity(), recipient = runtime.createIdentity();
@@ -394,15 +438,15 @@ async function main() {
     nodes.set('C23', await startNode(runtime, origin, report, 'C23-identity-C', [r2, r3]));
     nodes.set('C34', await startNode(runtime, origin, report, 'C34-identity-C', [r3, r4]));
     assert.equal((await publishEvent(r1, recipientWrap)).accepted, true);
-    await waitStored(r1, recipientWrap.id, true); await waitStored(r2, recipientWrap.id, false, 2500); await waitStored(r3, recipientWrap.id, false, 2500); await waitStored(r4, recipientWrap.id, false, 2500);
+    await waitStored(r1, recipientWrap.id, true); await waitStored(r2, recipientWrap.id, false); await waitStored(r3, recipientWrap.id, false); await waitStored(r4, recipientWrap.id, false);
     await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
     nodes.set('B', await startNode(runtime, origin, report, 'B-identity-B', [r1, r2], { secretHex: recipient.secretHex, inboxRelays: [r2] }));
     assert.equal(nodes.get('B').id.pubkey, recipient.pubkey);
     assert.equal((await publishEvent(r1, recipientWrap)).accepted, true);
     await waitStored(r2, recipientWrap.id, true);
-    await waitStored(r3, recipientWrap.id, false, 2500); await waitStored(r4, recipientWrap.id, false, 2500);
+    await waitStored(r3, recipientWrap.id, false); await waitStored(r4, recipientWrap.id, false);
     assert.equal((await publishEvent(r1, senderWrap)).accepted, true);
-    await waitStored(r1, senderWrap.id, true); await waitStored(r2, senderWrap.id, false, 2500);
+    await waitStored(r1, senderWrap.id, true); await waitStored(r2, senderWrap.id, false);
     await closeNode(nodes.get('B')); nodes.delete('B');
     nodes.set('A', await startNode(runtime, origin, report, 'A-identity-A', [r1, r2], { secretHex: sender.secretHex, inboxRelays: [r2] }));
     assert.equal((await publishEvent(r1, senderWrap)).accepted, true); await waitStored(r2, senderWrap.id, true);
@@ -415,38 +459,49 @@ async function main() {
     nodes.set('toggle', await startNode(runtime, origin, report, 'toggle-node', [r1, r2]));
     await disableNode(nodes.get('toggle'));
     const offEvent = runtime.sign(1, `property-g05-disabled-${crypto.randomUUID()}`); assert.equal((await publishEvent(r1, offEvent)).accepted, true);
-    await waitStored(r1, offEvent.id, true); await waitStored(r2, offEvent.id, false, 2500);
+    await waitStored(r1, offEvent.id, true); await waitStored(r2, offEvent.id, false);
     await nodes.get('toggle').page.locator('#browser-node-toggle').check();
     await nodes.get('toggle').page.waitForFunction(() => /Ponte ativa entre os relays selecionados/.test(document.querySelector('#toast')?.textContent || ''), null, { timeout: 10000 });
     await waitUntil(() => nodes.get('toggle').subscriptions.some(sub => sub.relay.startsWith(r1) && sub.kinds.includes(1)) && nodes.get('toggle').subscriptions.some(sub => sub.relay.startsWith(r2) && sub.kinds.includes(1)), 12000, 're-enabled bridge subscriptions were not observed');
     const onEvent = runtime.sign(1, `property-g05-enabled-${crypto.randomUUID()}`); assert.equal((await publishEvent(r1, onEvent)).accepted, true); await waitStored(r2, onEvent.id, true);
-    const direct = runtime.bridge.createBridge(runtime.verifyEvent);
-    const boundaryNow = Math.floor(Date.now() / 1000);
+    const fixedBridgeNowMs = 1_800_000_000_000;
+    const fixedBridgeNow = () => fixedBridgeNowMs;
+    const direct = runtime.bridge.createBridge(runtime.verifyEvent, 4096, fixedBridgeNow);
+    const boundaryNow = Math.floor(fixedBridgeNowMs / 1000);
     const boundary = runtime.sign(1, `property-g05-boundary-${crypto.randomUUID()}`, boundaryNow);
     assert.deepEqual(Array.from(direct.targets(boundary, r1, [r1, r2])), [r2]);
     assert.deepEqual(Array.from(direct.targets(boundary, r1, [r1, r2])), []);
-    const invalid = { ...runtime.sign(1, `property-g05-invalid-${crypto.randomUUID()}`), content: 'tampered' };
-    assert.deepEqual(Array.from(direct.targets(invalid, r1, [r1, r2])), []);
-    const old = runtime.sign(1, `property-g05-old-${crypto.randomUUID()}`, boundaryNow - 301);
-    const future = runtime.sign(1, `property-g05-future-${crypto.randomUUID()}`, boundaryNow + 61);
-    assert.deepEqual(Array.from(direct.targets(old, r1, [r1, r2])), []); assert.deepEqual(Array.from(direct.targets(future, r1, [r1, r2])), []);
-    const rate = runtime.bridge.createBridge(runtime.verifyEvent); let acceptedRate = 0;
+    const freshAgeBoundary = runtime.sign(1, `property-g05-age-boundary-${crypto.randomUUID()}`, boundaryNow - 300);
+    assert.deepEqual(Array.from(direct.targets(freshAgeBoundary, r1, [r1, r2])), [r2]);
+    const futureBoundary = runtime.sign(1, `property-g05-future-boundary-${crypto.randomUUID()}`, boundaryNow + 60);
+    assert.deepEqual(Array.from(direct.targets(futureBoundary, r1, [r1, r2])), [r2]);
+    for (let repetition = 1; repetition <= NEGATIVE_BOUNDARY_REPETITIONS; repetition++) {
+      const invalid = { ...runtime.sign(1, `property-g05-invalid-${repetition}-${crypto.randomUUID()}`, boundaryNow), content: 'tampered' };
+      assert.deepEqual(Array.from(direct.targets(invalid, r1, [r1, r2])), [], `invalid signature repetition ${repetition} is rejected`);
+      const old = runtime.sign(1, `property-g05-old-${repetition}-${crypto.randomUUID()}`, boundaryNow - 301);
+      const future = runtime.sign(1, `property-g05-future-${repetition}-${crypto.randomUUID()}`, boundaryNow + 61);
+      assert.deepEqual(Array.from(direct.targets(old, r1, [r1, r2])), [], `stale-event repetition ${repetition} is rejected`);
+      assert.deepEqual(Array.from(direct.targets(future, r1, [r1, r2])), [], `future-event repetition ${repetition} is rejected`);
+    }
+    const rate = runtime.bridge.createBridge(runtime.verifyEvent, 4096, fixedBridgeNow); let acceptedRate = 0;
     for (let i = 0; i < 61; i++) if (rate.targets(runtime.sign(1, `property-g05-rate-${i}-${crypto.randomUUID()}`, boundaryNow), r1, [r1, r2]).length) acceptedRate++;
     assert.equal(acceptedRate, 60, 'bridge enforces 60 outbound events/minute');
-    const byteLimited = runtime.bridge.createBridge(runtime.verifyEvent);
+    const byteLimited = runtime.bridge.createBridge(runtime.verifyEvent, 4096, fixedBridgeNow);
     const largeUtf8 = runtime.sign(1, 'é'.repeat(200000), boundaryNow);
     const encodedBytes = Buffer.byteLength(JSON.stringify(largeUtf8)); assert.ok(encodedBytes < 512000);
     assert.deepEqual(Array.from(byteLimited.targets(largeUtf8, r1, [r1, 'ws://127.0.0.1:28476', 'ws://127.0.0.1:28477', 'ws://127.0.0.1:28478', 'ws://127.0.0.1:28479', 'ws://127.0.0.1:28480', 'ws://127.0.0.1:28481'])), []);
     report.limits = { bridge_off_stopped_forwarding: true, bridge_on_resumed_forwarding: true, origin_excluded: true, duplicate_suppressed: true,
-      invalid_signature_rejected: true, old_and_future_events_rejected: true, accepted_events_before_rate_limit: acceptedRate,
+      invalid_signature_rejected: true, invalid_boundary_repetitions: NEGATIVE_BOUNDARY_REPETITIONS,
+      old_and_future_events_rejected: true, age_boundary_accepted: true, future_skew_boundary_accepted: true,
+      accepted_events_before_rate_limit: acceptedRate,
       rate_limit: 60, utf8_json_bytes: encodedBytes, six_destination_bytes_exceed_2mb: encodedBytes * 6 > 2_000_000, byte_limit_contained: true };
-    mark('G05-06', 'PASS', 'UI toggle stopped and resumed the real PWA bridge. Module tests verified source exclusion, ID deduplication, signature/age boundaries, 60-event/minute cap and UTF-8 byte-based containment above 2 MB.');
+    mark('G05-06', 'PASS', 'UI toggle stopped and resumed the real PWA bridge. Fixed-input checks verified source exclusion, ID deduplication, signature/age boundaries, a 60-of-61 event batch and UTF-8 byte-based containment above 2 MB.');
 
     activeCase = 'G05-07'; await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
     const mobile = await startNode(runtime, origin, report, 'mobile-emulation', [r1, r2], { mobile: true });
     const mobileEvent = runtime.sign(1, `property-g05-mobile-closed-${crypto.randomUUID()}`);
     await closeNode(mobile); nodes.delete('mobile-emulation');
-    assert.equal((await publishEvent(r1, mobileEvent)).accepted, true); await waitStored(r1, mobileEvent.id, true); await waitStored(r2, mobileEvent.id, false, 2500);
+    assert.equal((await publishEvent(r1, mobileEvent)).accepted, true); await waitStored(r1, mobileEvent.id, true); await waitStored(r2, mobileEvent.id, false);
     const pcEvent = runtime.sign(1, `property-g05-pc-relay-online-${crypto.randomUUID()}`);
     assert.equal((await publishEvent(r2, pcEvent)).accepted, true); await waitStored(r2, pcEvent.id, true);
     const mobileReopened = await startNode(runtime, origin, report, 'mobile-emulation-reopened', [r1, r2], { mobile: true }); nodes.set('mobile-reopened', mobileReopened);

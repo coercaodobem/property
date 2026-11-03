@@ -53,13 +53,15 @@ if(platformInventory){
   }
 }
 
-const soak=await load('later-gates/g11-03/g11-multirelay-soak-report.json');
-const soakRow=byCase.get('G11-03');
-assert.equal(soak.status,'PASS','the existing five-hour soak is not PASS');
-assert.equal(soakRow?.status,'PASS','the base case does not preserve the approved soak result');
-assert.ok(soak.duration_observed_seconds>=17998&&soak.duration_observed_seconds<=18000,'soak duration is outside the approved five-hour window');
-assert.equal(soak.loss_count,0,'the approved soak observed lost accepted events');
-assert.equal(soak.planned_middle_relay_restarts?.length,3,'the approved soak lacks its three restart records');
+const repetitions=await load('later-gates/g11-03/g11-multirelay-repetition-report.json');
+const repetitionRow=byCase.get('G11-03');
+assert.equal(repetitions.status,'PASS','the fixed-count multi-relay repetitions are not PASS');
+assert.equal(repetitions.gate_eligible,true,'the fixed-count multi-relay result is not gate eligible');
+assert.equal(repetitionRow?.status,'PASS','the base case does not preserve the approved repetition result');
+assert.equal(repetitions.probe_count,300,'the G11-03 probe repetition count is incomplete');
+assert.equal(repetitions.loss_count,0,'the fixed-count run observed lost accepted events');
+assert.equal(repetitions.restart_cycles?.length,3,'the fixed-count run lacks its three restart cycles');
+assert.equal(repetitions.partition_probe_count,9,'the fixed-count run lacks its nine partition probes');
 
 const gateStatus={};
 for(let i=0;i<=12;i++){
@@ -81,9 +83,10 @@ const consolidated={schema_version:1,run_id:base.run_id,candidate_commit:base.ca
   case_totals:caseTotals,gate_status:gateStatus,
   case_statuses:Object.fromEntries(caseRows.map(row=>[row.case,{status:row.status,gate_eligible:row.gate_eligible,reason:row.reason,evidence:row.evidence||[],observed:row.observed}])),
   retake_overrides:overrides,
-  preserved_soak:{case:'G11-03',status:soak.status,duration_seconds:soak.duration_observed_seconds,loss_count:soak.loss_count,
-    probe_count:soak.probe_count,relay_count:soak.relay_count,bridge_count:soak.bridge_count,restart_count:soak.planned_middle_relay_restarts.length,
-    evidence:'later-gates/g11-03/g11-multirelay-soak-report.json'},
+  preserved_repetitions:{case:'G11-03',status:repetitions.status,loss_count:repetitions.loss_count,
+    probe_count:repetitions.probe_count,partition_probe_count:repetitions.partition_probe_count,
+    relay_count:repetitions.relay_count,bridge_count:repetitions.bridge_count,restart_count:repetitions.restart_cycles.length,
+    evidence:'later-gates/g11-03/g11-multirelay-repetition-report.json'},
   unresolved,generated_utc:new Date().toISOString()};
 const outputDir=path.join(runDir,'later-gates','retakes');
 await mkdir(outputDir,{recursive:true,mode:0o700});
@@ -94,9 +97,9 @@ const lines=[
   `- Candidate: \`${consolidated.candidate_commit}\``,`- Result: **${scopeResult}**`,`- Cases: ${Object.entries(caseTotals).map(([status,count])=>`${status}=${count}`).join(', ')}`,
   `- Requested executor: ${manifest.requested_executor}; actual executor: ${manifest.actual_executor}; identity match: ${executorMatches}`,'',
   '## Gate status','',...Object.entries(gateStatus).map(([gate,status])=>`- ${gate}: ${status}`),'',
-  '## Retests and preserved soak','',
+  '## Retests and preserved repetitions','',
   ...overrides.map(item=>`- ${item.case}: ${item.status} — [retake report](${item.retake_report})`),
-  `- G11-03: PASS, ${soak.duration_observed_seconds} real seconds, ${soak.probe_count} probes, ${soak.loss_count} losses, ${soak.planned_middle_relay_restarts.length} reconciled restarts. The approved five-hour evidence is reused; no soak was rerun.`,
+  `- G11-03: PASS, ${repetitions.probe_count} probes, ${repetitions.partition_probe_count} partition events, ${repetitions.loss_count} losses, ${repetitions.restart_cycles.length} reconciled restarts. The fixed-count report is at ${repetitions.evidence || 'later-gates/g11-03/g11-multirelay-repetition-report.json'}.`,
   '', '## Remaining blockers','',
   ...(unresolved.length?unresolved.map(row=>`- ${row.case}: ${row.status} — ${row.reason}`):['- None.']),''
 ];
