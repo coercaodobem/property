@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/browser-g04-smoke.mjs --playwright-module /home/<USER>/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs --engine chromium --executable /home/<USER>/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell --playwright-version 1.62.1 --browser-version 153.0.8010.12 --playwright-package-sha256 f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30 --browser-executable-sha256 ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e --output /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261103-13/later-gates/g11-01-repetition-3
+started: 2026-11-03T19:40:24.663Z
+ended: 2026-11-03T19:40:58.222Z
+exit_code: 1
+signal: 
+timeout: false
+--- stdout ---
+
+--- stderr ---
+FAIL: false-ACK fixture received no recipient envelope: {"connections":2,"frames":{"EVENT":0,"REQ":2,"CLOSE":0,"other":0},"protocolErrors":0,"event_ids":[],"websocket_url_observed":true}
+

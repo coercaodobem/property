@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "case": "G09-05",
+  "result": "PASS",
+  "tampered_manifest": {
+    "exit_code": 1,
+    "rejected_before_rebuild": true,
+    "archive_created": false
+  },
+  "missing_segment": {
+    "exit_code": 1,
+    "rejected_before_start": true,
+    "archive_created": false
+  },
+  "network": "unshared network namespace"
+}

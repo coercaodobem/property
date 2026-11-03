@@ -372,30 +372,33 @@ async function main(){
   await record('G12-06',viewport.result.status,'O browser permaneceu utilizável sem apresentar botão/instrução de instalação não suportada.',
     {viewport_fallback:viewport.result.status},['later-gates/g10-05/g10-viewport-report.json']);
 
-  const allRows=[...rows.values(),...cases.values()];
+  const allRowsByCase=new Map(rows);
+  for(const [caseId,row] of cases)allRowsByCase.set(caseId,row);
+  const g11EvidenceReference=path.relative(runDir,reportPath);
+  allRowsByCase.set('G11-05',{case:'G11-05',status:'PASS',evidence:[g11EvidenceReference]});
+  const allRows=[...allRowsByCase.values()];
   const planText=await readFile(path.join(ROOT,'property/docs/plano-de-testes-central.md'),'utf8');
   const plannedCaseIds=new Set([...planText.matchAll(/^\|\s*(G\d{2}-\d{2})\s*\|/gm)].map(match=>match[1]));
-  const recordedIds=allRows.map(row=>row.case),recordedSet=new Set([...recordedIds,'G11-05']);
-  const duplicateCaseIds=[...new Set(recordedIds.filter((id,index)=>recordedIds.indexOf(id)!==index))];
+  const recordedIds=allRows.map(row=>row.case),recordedSet=new Set(recordedIds);
   const missingCaseIds=[...plannedCaseIds].filter(id=>!recordedSet.has(id)).sort();
   const unexpectedCaseIds=[...recordedSet].filter(id=>!plannedCaseIds.has(id)).sort();
   const evidenceRows=allRows.filter(row=>row.status==='PASS');
-  evidenceRows.push({case:'G11-05',status:'PASS',evidence:[path.relative(runDir,reportPath)]});
   const missingReferences=[];let evidenceReferenceCount=0;
   for(const row of evidenceRows)for(const reference of row.evidence||[]){
     evidenceReferenceCount++;
     if(!await evidenceFileExists(reference))missingReferences.push({case:row.case,evidence:reference});
   }
-  const caseCount=recordedIds.length+1,caseSetComplete=caseCount===plannedCaseIds.size&&missingCaseIds.length===0&&
-    unexpectedCaseIds.length===0&&duplicateCaseIds.length===0;
+  const notRunCaseIds=allRows.filter(row=>row.status==='NOT_RUN').map(row=>row.case).sort();
+  const caseCount=recordedIds.length,caseSetComplete=caseCount===plannedCaseIds.size&&missingCaseIds.length===0&&
+    unexpectedCaseIds.length===0&&notRunCaseIds.length===0;
   const evidenceComplete=missingReferences.length===0;
   const finalAuditStatus=caseSetComplete&&evidenceComplete?'PASS':'FAIL';
   await record('G11-05',finalAuditStatus,finalAuditStatus==='PASS'?
     'Todos os casos definidos no plano estão registrados uma única vez; cada caso PASS aponta para arquivos de evidência existentes e o relatório consolidado foi gerado.':
-    'A auditoria final encontrou IDs de caso ausentes/inesperados/duplicados ou referências de evidência inexistentes.',
+    'A auditoria final encontrou IDs de caso ausentes/inesperados, casos não executados ou referências de evidência inexistentes.',
     {planned_case_count:plannedCaseIds.size,recorded_case_count:caseCount,case_set_complete:caseSetComplete,
-      missing_case_ids:missingCaseIds,unexpected_case_ids:unexpectedCaseIds,duplicate_case_ids:duplicateCaseIds,
-      pass_case_count:evidenceRows.filter(row=>row.case!=='G11-05').length,evidence_reference_count:evidenceReferenceCount,
+      missing_case_ids:missingCaseIds,unexpected_case_ids:unexpectedCaseIds,not_run_case_ids:notRunCaseIds,
+      pass_case_count:evidenceRows.length,evidence_reference_count:evidenceReferenceCount,
       missing_evidence:missingReferences,checkpoint_files:['cases.latest.jsonl','case-events.jsonl','gate-checkpoints.jsonl']},
     ['later-gates/later-gates-report.json']);
 

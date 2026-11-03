@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G04-01",
+      "status": "PASS",
+      "reason": "A, B and C published signed kind-10050 inbox lists through the UI; independent relay queries verified signatures and B’s two authorized inboxes."
+    },
+    {
+      "case": "G04-02",
+      "status": "PASS",
+      "reason": "A and B exchanged real NIP-17 messages through Geode; both UI contexts decrypted the intended text, C received none, and relay storage contained only valid encrypted gift wraps."
+    },
+    {
+      "case": "G04-03",
+      "status": "PASS",
+      "reason": "B closed, A sent through the real relay, and B recovered the queued NIP-17 message after two browser restarts with one UI copy."
+    },
+    {
+      "case": "G04-04",
+      "status": "FAIL",
+      "reason": "false-ACK fixture received no recipient envelope: {\"connections\":2,\"frames\":{\"EVENT\":0,\"REQ\":2,\"CLOSE\":0,\"other\":0},\"protocolErrors\":0,\"event_ids\":[],\"websocket_url_observed\":true}"
+    },
+    {
+      "case": "G04-05",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    },
+    {
+      "case": "G04-06",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28470",
+      "process_id": 899653,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28471",
+      "process_id": 900152,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:36979/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:36979/"
+  ],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "inbox_checks": {
+    "A": {
+      "signed": true,
+      "newest": true,
+      "relays": [
+        "ws://127.0.0.1:28470"
+      ]
+    },
+    "B": {
+      "signed": true,
+      "newest": true,
+      "relays": [
+        "ws://127.0.0.1:28470",
+        "ws://127.0.0.1:28471"
+      ]
+    },
+    "C": {
+      "signed": true,
+      "relays": [
+        "ws://127.0.0.1:28470"
+      ]
+    },
+    "invalid_or_ambiguous_destinations": "none used"
+  },
+  "message_checks": {
+    "first_a_to_b_visible": true,
+    "response_b_to_a_visible": true,
+    "relay_events_signature_valid": true,
+    "recipient_c_received_none": true,
+    "plaintext_absent_from_relay_envelopes": true,
+    "relay_addresses": [
+      "ws://127.0.0.1:28470",
+      "ws://127.0.0.1:28471"
+    ],
+    "offline_delivery": {
+      "B_closed_before_send": true,
+      "recovered_after_restart": true,
+      "duplicate_count_after_two_reopens": 1
+    }
+  },
+  "failure_checks": {
+    "false_ack_cache_clear": {
+      "deleted": true
+    },
+    "false_ack_fixture": {
+      "connections": 2,
+      "frames": {
+        "EVENT": 1,
+        "REQ": 2,
+        "CLOSE": 0,
+        "other": 0
+      },
+      "protocolErrors": 0,
+      "event_ids": [
+        "39be18cc49e5934812f8287d9c414e80f08e4ef86dd72193f6c957793ebf7940"
+      ],
+      "websocket_url_observed": true
+    }
+  },
+  "reconciliation": {},
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "local_origin": "http://127.0.0.1:45671",
+  "result": "FAIL",
+  "error": "false-ACK fixture received no recipient envelope: {\"connections\":2,\"frames\":{\"EVENT\":0,\"REQ\":2,\"CLOSE\":0,\"other\":0},\"protocolErrors\":0,\"event_ids\":[],\"websocket_url_observed\":true}",
+  "current_stage": "G04-04: independent false-ack query",
+  "relay_process_output": [
+    {
+      "pid": 902307,
+      "tail": "Iniciando relay Property em 127.0.0.1:28470\nDados: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Xwm39f/property-g04-G86mPm/relay zero data\nCtrl+C encerra o processo.\nPicked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx384m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m -Djava.io.tmpdir=/home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Xwm39f\nSLF4J(W): No SLF4J providers were found.\nSLF4J(W): Defaulting to no-operation (NOP) logger implementation\nSLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.\ngeode listening on ws://127.0.0.1:28470/\nNIP-11 info doc: curl -H 'Accept: application/nostr+json' http://127.0.0.1:28470/\n"
+    },
+    {
+      "pid": 900152,
+      "tail": "Iniciando relay Property em 127.0.0.1:28471\nDados: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Xwm39f/property-g04-G86mPm/relay one data\nCtrl+C encerra o processo.\nPicked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx384m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m -Djava.io.tmpdir=/home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Xwm39f\nSLF4J(W): No SLF4J providers were found.\nSLF4J(W): Defaulting to no-operation (NOP) logger implementation\nSLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.\ngeode listening on ws://127.0.0.1:28471/\nNIP-11 info doc: curl -H 'Accept: application/nostr+json' http://127.0.0.1:28471/\n"
+    }
+  ]
+}

@@ -145,7 +145,8 @@ async function stopGeode(relay) {
 
 function startFalseAckRelay() {
   const events = [];
-  const diagnostics = { connections: 0, frames: { EVENT: 0, REQ: 0, CLOSE: 0, other: 0 }, protocolErrors: 0 };
+  const eventWaiters = new Set();
+  const diagnostics = { connections: 0, frames: { EVENT: 0, recipientEnvelope: 0, otherEventKind: 0, REQ: 0, CLOSE: 0, other: 0 }, protocolErrors: 0 };
   const server = http.createServer();
   server.on('upgrade', (request, socket) => {
     diagnostics.connections += 1;
@@ -166,7 +167,15 @@ function startFalseAckRelay() {
         buffer = buffer.subarray(offset + size); if ((first & 0x0f) === 8) { socket.end(); return; }
         if ((first & 0x0f) !== 1) continue;
         let frame; try { frame = JSON.parse(body.toString('utf8')); } catch { diagnostics.protocolErrors += 1; continue; }
-        if (frame[0] === 'EVENT' && frame[1]?.id) { diagnostics.frames.EVENT += 1; events.push(frame[1].id); send(['OK', frame[1].id, true, 'accepted by deliberate false-ack fixture']); }
+        if (frame[0] === 'EVENT' && frame[1]?.id) {
+          diagnostics.frames.EVENT += 1;
+          if (frame[1].kind === 1059) {
+            diagnostics.frames.recipientEnvelope += 1;
+            events.push(frame[1].id);
+            for (const wake of [...eventWaiters]) wake();
+          } else diagnostics.frames.otherEventKind += 1;
+          send(['OK', frame[1].id, true, 'accepted by deliberate false-ack fixture']);
+        }
         else if (frame[0] === 'REQ') { diagnostics.frames.REQ += 1; send(['EOSE', frame[1]]); }
         else if (frame[0] === 'CLOSE') diagnostics.frames.CLOSE += 1;
         else diagnostics.frames.other += 1;
@@ -174,7 +183,24 @@ function startFalseAckRelay() {
     });
     socket.on('error', () => {});
   });
-  return { server, events, diagnostics, ready: new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); }) };
+  const waitForRecipientEnvelopeCount = (count, watchdogMs = 15000) => {
+    if (events.length >= count) return Promise.resolve([...events]);
+    return new Promise((resolve, reject) => {
+      let timer;
+      const wake = () => {
+        if (events.length < count) return;
+        clearTimeout(timer); eventWaiters.delete(wake); resolve([...events]);
+      };
+      timer = setTimeout(() => {
+        eventWaiters.delete(wake);
+        reject(new Error(`False-ACK fixture received ${events.length}/${count} recipient envelopes.`));
+      }, watchdogMs);
+      eventWaiters.add(wake);
+      wake();
+    });
+  };
+  return { server, events, diagnostics, waitForRecipientEnvelopeCount,
+    ready: new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); }) };
 }
 
 function wsQuery(url, filter, timeoutMs = 8000) {
@@ -358,8 +384,10 @@ async function main() {
     stage = 'G04-04: publish false-ack destination'; await pageB.locator('#open-settings').click(); await pageB.locator('#dm-relay-input').fill(falseAckUrl); await pageB.locator('#save-relays').click();
     await pageB.locator('#relay-dialog').waitFor({ state: 'hidden' });
     await pageB.locator('#open-settings').click(); await pageB.locator('#dm-relay-input').fill(falseAckUrl);
-    await pageB.waitForTimeout(1100);
-    await pageB.locator('#publish-inbox-list').click();
+    const publishInboxButton = pageB.locator('#publish-inbox-list');
+    await publishInboxButton.waitFor({ state: 'visible' });
+    assert.equal(await publishInboxButton.isEnabled(), true, 'the inbox-list publish control is ready after the relay input is filled');
+    await publishInboxButton.click();
     await pageB.waitForFunction(() => /Sua lista pública de recebimento NIP-17 foi publicada/.test(document.querySelector('#toast')?.textContent || ''), null, { timeout: 15000 });
     if (await pageB.locator('#relay-dialog').isVisible()) await pageB.locator('#relay-dialog button[aria-label="Fechar"]').click();
     await pageB.locator('#relay-dialog').waitFor({ state: 'hidden', timeout: 5000 });
@@ -388,10 +416,12 @@ async function main() {
     report.failure_checks.false_ack_cache_clear = cacheClear;
     await pageA.reload({ waitUntil: 'domcontentloaded' }); await pageA.locator('#workspace').waitFor({ state: 'visible', timeout: 20000 });
     await openConversation(pageA, b.npub, 'B privado');
-    stage = 'G04-04: independent false-ack query'; const falseAckText = `property-g04-false-ack-${crypto.randomUUID()}`; await sendMessage(pageA, falseAckText);
+    stage = 'G04-04: independent false-ack query'; const falseAckText = `property-g04-false-ack-${crypto.randomUUID()}`;
+    const recipientEnvelopeWaiter = falseAck.waitForRecipientEnvelopeCount(1);
+    await sendMessage(pageA, falseAckText);
     await pageA.waitForFunction(value => [...document.querySelectorAll('#messages .message-row')].some(row => row.textContent.includes(value)), falseAckText, { timeout: 10000 });
     await waitForMessageStatus(pageA, b.pubkey, falseAckText, 'sent');
-    const falseIds = [...falseAck.events];
+    const falseIds = await recipientEnvelopeWaiter;
     report.failure_checks.false_ack_fixture = { ...falseAck.diagnostics, event_ids: falseIds, websocket_url_observed: report.websockets.some(url => url.startsWith(`${falseAckUrl}/`)) };
     assert.ok(falseIds.length >= 1, `false-ACK fixture received no recipient envelope: ${JSON.stringify(report.failure_checks.false_ack_fixture)}`);
     const fakeQuery = await wsQuery(falseAckUrl, { ids: falseIds, limit: 20 });
