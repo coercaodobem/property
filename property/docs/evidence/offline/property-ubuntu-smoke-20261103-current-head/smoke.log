@@ -1,0 +1,460 @@
+
+== money-smoke.mjs ==
+PASS: BTC/satoshi, XMR/piconero e XNO/raw exatos, limites, precisão e rejeição de moedas/unidades inválidas
+
+== nano-units-smoke.mjs ==
+PASS: XNO/raw exact integer conversion, 1 raw/1 XNO boundaries, comma decimals and invalid inputs
+
+== marketplace-smoke.mjs ==
+PASS: marketplace BTC/XMR/XNO exatos, edição addressable, exclusão NIP-09, expiração e validação de listagens
+
+== campaigns-smoke.mjs ==
+PASS: campanhas assinadas, raw exato, URLs/imagens limitadas, expiração, bloqueio local e limite de exposição
+
+== campaign-engine-smoke.mjs ==
+PASS: signed node decisions, independent policy, persisted campaign state machine, exact payment reconciliation, idempotent publication/refund, and expiry tombstone
+
+== ledger-rpc-smoke.mjs ==
+PASS: Nano v28 raw open/state receive history and string confirmation values are reconciled exactly.
+
+== protocol-smoke.mjs ==
+PASS: NIP-17 wrap/unwrap, recipient isolation, kind-10050 inbox routing, local AES-GCM, vendor hash
+
+== vault-smoke.mjs ==
+PASS: criação, senha errada, desbloqueio, sessão persistente e backup cifrado
+
+== forwarding-smoke.mjs ==
+PASS: event signature/time/kind validation, per-event deduplication, source exclusion, private-route boundary, event rate and UTF-8 byte limits
+
+== sw-update-smoke.mjs ==
+PASS: PWA install reloads all local assets, covers versioned HTML references, preserves unrelated caches
+
+== contact-smoke.mjs ==
+PASS: hex/npub/nprofile reais; nome livre, vazio, nsec, bech32 truncado e hints inválidos recebem validação segura em português
+
+== app-contract-smoke.mjs ==
+PASS: local-only web assets, CSP, PWA shell registration, segmented relay package, pinned Pages workflow, no eval, JS/shell syntax
+
+== relay-migration-smoke.mjs ==
+PASS: launcher preserves legacy data/config, new variables override aliases, invalid ports rejected (fixture runtime)
+
+== portable-packages-smoke.mjs ==
+PASS: windows-x64, 85 parts, 89033587 bytes, SHA-256 and launcher pin match
+PASS: macos-arm64, 85 parts, 88601649 bytes, SHA-256 and launcher pin match
+
+== relay-package-smoke.mjs ==
+PASS: 130 relay segments reconstruct 67845545 bytes with the pinned SHA-256
+
+== agent-messaging-g0-smoke.mjs ==
+PASS: G0 protocol snapshots, exact hashes, required protocol semantics, local script sources, and vendored Nostr runtime (17 fixed cases; 38 exact assertions).
+
+== agent-pairing-smoke.mjs ==
+{
+  "gate": "G2",
+  "status": "PASS_TECHNICAL",
+  "seed": "property-agent-g2-fixed-fixtures-v1",
+  "logicalNow": 1900000000,
+  "cases": {
+    "validInvites": 10,
+    "invalidOrTamperedInvites": 10,
+    "declines": 10,
+    "revocations": 10,
+    "replays": 10,
+    "blocks": 10
+  },
+  "caseResults": [
+    {
+      "id": "G2-valid-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-max-lifetime-boundary-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-10",
+      "result": "PASS"
+    }
+  ],
+  "assertions": [
+    "separate agent keys",
+    "selected scopes only",
+    "local block/revoke",
+    "unblock does not restore permissions",
+    "recipient/relay/signature/schema/expired invite/maximum lifetime validation",
+    "hashed replay storage",
+    "no invitation or private key in evidence"
+  ]
+}
+
+== agent-messaging-smoke.mjs ==
+{
+  "gate": "G3",
+  "suite": "envelope-unit",
+  "status": "PASS_TECHNICAL",
+  "seed": "property-agent-envelope-fixed-v1",
+  "logicalNow": 1900000000,
+  "caseCount": 27,
+  "cases": [
+    {
+      "id": "G3-envelope-valid-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-unknown-protocol",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-unknown-version",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-unknown-field",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-missing-field",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-bad-conversation-id",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-bad-message-id",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-bad-correlation",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-body-not-text",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-body-over-8192-bytes",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-duplicate-key",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-excess-depth",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-over-16KiB",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-conversation-id-order-independent",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-conversation-id-rejects-self",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-rate-limit-fixed-window-30",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-rate-limit-resets-next-logical-window",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-id-fixed-random-fixture",
+      "result": "PASS"
+    }
+  ]
+}
+
+== agent-package-smoke.mjs ==
+PASS: manifesto, hashes, pacote fixado, escopo de plataforma e contratos de instalação conferidos.
+
+== offline/agent-security-g5.mjs ==
+PASS_G5_TECHNICAL_OFFLINE_PENDING_INDEPENDENT_REVIEW
+{"seed":"property-g5-hostile-replay-scope-quota-revoke-v1","logicalNow":1900000000,"sourceCommit":"3b2d4092ef4693a4a65e4c7e22aae6bb63669891","counts":{"hostileFixtures":100,"replayDuplicateCopies":100,"scopeViolations":50,"overQuotaAttempts":50,"successfulSendsBeforeQuota":30,"contactScopeRotationRevocationCycles":20,"testCases":365},"categories":{"prompt-injection-text":15,"markdown-links-and-images":10,"url-redirection":10,"spoofed-agent-profile":10,"deep-json-text":10,"duplicate-json-fields":10,"oversized-payload":10,"embedded-commands":10,"secret-exfiltration-requests":15},"records":365,"corpusManifestSha256":"2f84535bb937a77302af7c7b691af6cc4cf1f6cf201fec9e3d6827da8e4391b4","fixtureCodeSha256":"1aa7c3fcaee45944f29935f3225a5b58c91e37a05f88fb358ee21bab42e8ab07"}
+
+== offline/runner-contract-smoke.mjs ==
+PASS: offline runner contract, resume safety and G00-04 interruption verified
+
+== agent-package-smoke.sh ==
+Property Agent instalado/atualizado em /home/<USER>/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.hjPnWe/prefix/share/property/agent
+Execute: /home/<USER>/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.hjPnWe/prefix/bin/property-agent status
+Property Agent instalado/atualizado em /home/<USER>/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.hjPnWe/prefix/share/property/agent
+Execute: /home/<USER>/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.hjPnWe/prefix/bin/property-agent status
+Executáveis Property Agent removidos de /home/<USER>/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.hjPnWe/prefix. Cofres em XDG_DATA_HOME/property/agents não foram alterados.
+PASS: instalação, atualização, remoção, wrapper CLI e preservação do cofre/dados locais.
+
+PASS: suíte smoke local concluída.

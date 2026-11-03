@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "run_id": "property-ubuntu-smoke-20261103-current-head",
+  "profile": "local-smoke-retake",
+  "source_commit": "3b2d4092ef4693a4a65e4c7e22aae6bb63669891",
+  "observed_head": "3b2d4092ef4693a4a65e4c7e22aae6bb63669891",
+  "executor": "Codex GPT-6 (modelo ativo escolhido pelo mantenedor)",
+  "command": "bash property/tests/run-smoke.sh",
+  "exit_code": 0,
+  "result": "PASS",
+  "suite_count": 22,
+  "suites": [
+    "money-smoke.mjs",
+    "nano-units-smoke.mjs",
+    "marketplace-smoke.mjs",
+    "campaigns-smoke.mjs",
+    "campaign-engine-smoke.mjs",
+    "ledger-rpc-smoke.mjs",
+    "protocol-smoke.mjs",
+    "vault-smoke.mjs",
+    "forwarding-smoke.mjs",
+    "sw-update-smoke.mjs",
+    "contact-smoke.mjs",
+    "app-contract-smoke.mjs",
+    "relay-migration-smoke.mjs",
+    "portable-packages-smoke.mjs",
+    "relay-package-smoke.mjs",
+    "agent-messaging-g0-smoke.mjs",
+    "agent-pairing-smoke.mjs",
+    "agent-messaging-smoke.mjs",
+    "agent-package-smoke.mjs",
+    "offline/agent-security-g5.mjs",
+    "offline/runner-contract-smoke.mjs",
+    "agent-package-smoke.sh"
+  ],
+  "g5_technical_status": "PASS_G5_TECHNICAL_OFFLINE_PENDING_INDEPENDENT_REVIEW",
+  "g5_test_cases": 365,
+  "product_tree_objects": {
+    "property/web": "73905e24e93c97b62c2ceba2ea364e4f5a1c9869",
+    "property/relay": "b82cf99a6c9896b547238c93407aecda874fce74",
+    "property/tests": "211702e25ea0e154c5de999a501519c8b3920e77"
+  },
+  "tracked_worktree_clean_before_evidence_write": true,
+  "network_isolation_claimed_by_this_retest": false,
+  "notes": [
+    "A tentativa inicial sem permissao de bind em loopback terminou com EPERM antes de concluir; nao conta como resultado.",
+    "A repeticao autorizada para listeners locais terminou com exit code 0.",
+    "Este reteste smoke nao substitui o perfil offline integral nem revisoes humanas independentes."
+  ]
+}

@@ -31,7 +31,7 @@ A engine financeira de campanhas permanece no escopo planejado, mesmo estando au
 
 Checkout, custódia, escrow e pagamentos de compras do marketplace, grupos privados, Lightning e relay móvel continuamente ativo não estão definidos como funcionalidades do MVP consolidado. Testar explicitamente que o app não simula essas capacidades. Mac Intel e outras arquiteturas de relay continuam expansões pendentes, sem alegação de suporte aprovado. Se o mantenedor ampliar esse escopo, acrescentar casos e gates antes de promover a ampliação.
 
-## 3. Instruções de execução para o Luna Max
+## 3. Instruções de execução para o modelo ativo escolhido pelo mantenedor
 
 1. Ler primeiro este documento, os resumos das fontes e o AGENTS.md mais próximo. Trabalhar em coercaodobem/property, branch modelo-mvp, preservando alterações existentes. Não usar Amethyst upstream ou Gymoo como destino.
 2. Inventariar o que existe e o que falta. Diferenciar teste existente, teste a implementar, funcionalidade ausente e ferramenta de laboratório ausente. Este documento não afirma que os scripts novos da seção 7 já existam.
@@ -334,7 +334,7 @@ Guardar o histórico de tentativa e correção, sem sobrescrever a falha inicial
 
 ## 9. Rastreabilidade do plano anterior
 
-Todos os casos antigos permanecem consultáveis no histórico. A tabela explicita sua cobertura sem apagar requisitos pendentes; para cada caso individual, o relatório do Luna Max deve apontar o novo caso executado e sua evidência.
+Todos os casos antigos permanecem consultáveis no histórico. A tabela explicita sua cobertura sem apagar requisitos pendentes; para cada caso individual, o relatório da execução deve apontar o novo caso executado e sua evidência.
 
 | IDs anteriores | Gates sucessores |
 |---|---|
@@ -392,4 +392,12 @@ G07 passou integrado no run 14. A engine persistente e assinada e o harness real
 
 ### Retestes focados por contagem — 2026-11-02
 
-Os retestes por contagem fixa estão preservados em `property/docs/evidence/offline/property-fixed-count-retake-20261102-01/`: G05 7/7, G06 5/5, G07 7/7, G08 7/7 em Bitcoin regtest/Monero fakechain/Nano dev, G09-04, G10-06, G11-03 e a suíte smoke local passaram. O relatório G08 foi reexecutado após fixar o relógio das identidades e campanhas em `NOW_EPOCH_SECONDS=1800000000`. G11-03 registrou 300 probes, três reinícios, nove eventos de partição reconciliados, zero perda, cinco amostras de deduplicação visual, 16 amostras de recursos e bloqueio por inatividade em 31 passos lógicos. G07 também verificou pagamento observado em `expiresAt+1` sem publicar campanha. Esses retestes dirigidos foram executados por Codex GPT-6 e não substituem a aprovação do perfil integral previsto para Luna Max. A tentativa anterior de duração está preservada como BLOCKED, com 115 probes parciais que não contam para o novo gate. Casos de sistemas diferentes do Ubuntu permanecem pendentes e devem ser identificados individualmente, sem impedir o avanço dos casos executáveis no Ubuntu.
+Os retestes por contagem fixa estão preservados em `property/docs/evidence/offline/property-fixed-count-retake-20261102-01/`: G05 7/7, G06 5/5, G07 7/7, G08 7/7 em Bitcoin regtest/Monero fakechain/Nano dev, G09-04, G10-06, G11-03 e a suíte smoke local passaram. O relatório G08 foi reexecutado após fixar o relógio das identidades e campanhas em `NOW_EPOCH_SECONDS=1800000000`. G11-03 registrou 300 probes, três reinícios, nove eventos de partição reconciliados, zero perda, cinco amostras de deduplicação visual, 16 amostras de recursos e bloqueio por inatividade em 31 passos lógicos. G07 também verificou pagamento observado em `expiresAt+1` sem publicar campanha. A tentativa anterior baseada em duração está preservada como BLOCKED, com 115 probes parciais que não contam para os critérios atuais por contagem. Casos de sistemas diferentes do Ubuntu permanecem pendentes e devem ser identificados individualmente, sem impedir o avanço dos casos executáveis no Ubuntu.
+
+### Perfil integral Ubuntu e reteste do HEAD — 2026-11-03
+
+O perfil `property-ubuntu-full-20261103-09` executou o plano full no commit candidato `70b67d3199d8b342bf3e6770325674063879eb6e`: G00–G11 passaram; G12-01 e G12-06 passaram; G12-02 a G12-05 ficaram PENDING para Windows, macOS, Android e iOS/iPadOS. O total foi 70 PASS e quatro PENDING, sem FAIL, BLOCKED ou NOT_RUN dentro do perfil. Resultado: `PROPERTY_UBUNTU_OFFLINE_PASS`, não `PROPERTY_SCOPE_OFFLINE_PASS`. Relatório, manifesto, casos e hashes: `property/docs/evidence/offline/property-ubuntu-full-20261103-09/`.
+
+O HEAD remoto publicado `3b2d4092ef4693a4a65e4c7e22aae6bb63669891` contém a evidência e os logs sanitizados. A comparação dos caminhos de produto `property/web`, `property/relay` e `property/tests` entre o commit candidato e esse HEAD não encontrou diferenças. Para registrar uma verificação no HEAD exato, `bash property/tests/run-smoke.sh` foi repetido com exit code 0 em 22 executores; o pacote e o resultado estão em `property/docs/evidence/offline/property-ubuntu-smoke-20261103-current-head/`. Esse smoke não substitui o perfil integral nem afirma isolamento de rede por si só.
+
+G11-02 passou pela exceção de reutilização prevista no plano: o rebuild Gradle novo não concluiu offline porque havia dependências não armazenadas em cache; os hashes do runtime instalado coincidiram com dois builds offline anteriores de entradas idênticas. Isso não é reportado como um rebuild novo. G11-03 aprovou exatamente 300 probes, três reinícios, nove eventos de partição reconciliados, zero perda e as amostras fixas previstas. Critérios por duração não fazem parte da aprovação atual. Revisões humanas e independentes continuam pendentes e não foram simuladas; o conjunto de sistemas não Ubuntu também continua pendente conforme a orientação do mantenedor.
