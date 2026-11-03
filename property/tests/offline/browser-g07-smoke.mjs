@@ -67,7 +67,7 @@ async function waitForCampaign(page, title, expected = true) {
 }
 async function readCampaignSettings(page, pubkey) {
   return page.evaluate(async key => new Promise((resolve, reject) => {
-    const request = indexedDB.open('liberdade-local-v1', 1);
+    const request = indexedDB.open('liberdade-local-v1');
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const db = request.result, tx = db.transaction('settings', 'readonly'), get = tx.objectStore('settings').get(key);
@@ -77,7 +77,7 @@ async function readCampaignSettings(page, pubkey) {
 }
 async function writeExposure(page, pubkey, campaignId, timestamp) {
   await page.evaluate(async ({ key, id, at }) => new Promise((resolve, reject) => {
-    const request = indexedDB.open('liberdade-local-v1', 1);
+    const request = indexedDB.open('liberdade-local-v1');
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       const db = request.result, tx = db.transaction('settings', 'readwrite'), store = tx.objectStore('settings');
