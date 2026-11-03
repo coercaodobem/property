@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { access, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { access, lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,6 +47,16 @@ async function run(id,command,args,{timeoutMs=300000,logName=id.toLowerCase()+'.
   return {status:timedOut?'BLOCKED':result.code===0?'PASS':result.code===127?'BLOCKED':'FAIL',exit_code:result.code,signal:result.signal,timed_out:timedOut,stdout:cleanOut,stderr:cleanErr,log:path.relative(runDir,log),started_utc:started,ended_utc:new Date().toISOString()};
 }
 async function json(file){try{return JSON.parse(await readFile(path.resolve(runDir,file),'utf8'));}catch{return null;}}
+function isWithin(parent,candidate){const rel=path.relative(parent,candidate);return rel===''||rel!=='..'&&!rel.startsWith(`..${path.sep}`)&&!path.isAbsolute(rel);}
+async function evidenceFileExists(reference){
+  if(typeof reference!=='string'||!reference.trim()||path.isAbsolute(reference))return false;
+  for(const base of [runDir,ROOT]){
+    const candidate=path.resolve(base,reference);
+    if(!isWithin(base,candidate))continue;
+    try{if((await lstat(candidate)).isFile())return true;}catch{}
+  }
+  return false;
+}
 async function childCase(id,script,args=[],opts={}){
   const result=await run(id,process.execPath,[script,...args],opts);
   return result;
@@ -230,7 +240,8 @@ async function runG1102(prior){
     changed_build_files:changedBuildFiles,origin_case:originCase?.status||'MISSING',
     source_rebuild_claim:treeRepeatPass?'CURRENT_REPEAT_BUILD':priorBuildReuse?.eligible?'REUSED_PRIOR_EXACT_INPUT_EVIDENCE':'NOT_PROVEN'},
     [hashRun.log,pwaRun.log,path.relative(runDir,path.join(packageOut,'pwa-package-manifest.json')),gradleVersionRun.log,buildRun.log,buildRepeatRun.log,
-      path.relative(runDir,path.join(out,'g11-02-build-manifest-1.json')),path.relative(runDir,path.join(out,'g11-02-build-manifest-2.json')),
+      ...(firstTree?[path.relative(runDir,path.join(out,'g11-02-build-manifest-1.json'))]:[]),
+      ...(secondTree?[path.relative(runDir,path.join(out,'g11-02-build-manifest-2.json'))]:[]),
       priorBuildReuse?.eligible?path.relative(runDir,path.join(out,'g11-02-build-reuse.json')):null,
       ...(priorBuildReuse?.eligible?priorBuildReuse.evidence:[]),'logs/G02-01-origin.log'].filter(Boolean));
 }
@@ -352,8 +363,6 @@ async function main(){
   const reconStatus=missingEvidence.length===0&&secretFindings.length===0?'PASS':'FAIL';
   await record('G11-04',reconStatus,reconStatus==='PASS'?'Todos os casos PASS referenciam evidência existente; corpus financeiro e artefatos foram verificados sem material secreto.':'Evidência ausente ou padrão de segredo encontrado no relatório.',
     {core_pass_case_count:passedCore,g08_report_present:g08Evidence,missing_evidence:missingEvidence,secret_artifact_paths:secretFindings},[]);
-  await record('G11-05','PASS','Registro dos 74 casos, checkpoints e consolidação/hashes serão finalizados pelo runner após retornar este conjunto.',
-    {planned_total_case_count:74,recorded_later_cases:cases.size,checkpoint_files:['cases.latest.jsonl','case-events.jsonl','gate-checkpoints.jsonl']},['later-gates/later-gates-report.json']);
 
   await runG1201(prior);
   await record('G12-02','PENDING','Execução nativa Windows foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'Windows x64',native_execution_deferred:true},[]);
@@ -362,6 +371,33 @@ async function main(){
   await record('G12-05','PENDING','Execução nativa iOS/iPadOS foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'iOS/iPadOS',native_execution_deferred:true},[]);
   await record('G12-06',viewport.result.status,'O browser permaneceu utilizável sem apresentar botão/instrução de instalação não suportada.',
     {viewport_fallback:viewport.result.status},['later-gates/g10-05/g10-viewport-report.json']);
+
+  const allRows=[...rows.values(),...cases.values()];
+  const planText=await readFile(path.join(ROOT,'property/docs/plano-de-testes-central.md'),'utf8');
+  const plannedCaseIds=new Set([...planText.matchAll(/^\|\s*(G\d{2}-\d{2})\s*\|/gm)].map(match=>match[1]));
+  const recordedIds=allRows.map(row=>row.case),recordedSet=new Set([...recordedIds,'G11-05']);
+  const duplicateCaseIds=[...new Set(recordedIds.filter((id,index)=>recordedIds.indexOf(id)!==index))];
+  const missingCaseIds=[...plannedCaseIds].filter(id=>!recordedSet.has(id)).sort();
+  const unexpectedCaseIds=[...recordedSet].filter(id=>!plannedCaseIds.has(id)).sort();
+  const evidenceRows=allRows.filter(row=>row.status==='PASS');
+  evidenceRows.push({case:'G11-05',status:'PASS',evidence:[path.relative(runDir,reportPath)]});
+  const missingReferences=[];let evidenceReferenceCount=0;
+  for(const row of evidenceRows)for(const reference of row.evidence||[]){
+    evidenceReferenceCount++;
+    if(!await evidenceFileExists(reference))missingReferences.push({case:row.case,evidence:reference});
+  }
+  const caseCount=recordedIds.length+1,caseSetComplete=caseCount===plannedCaseIds.size&&missingCaseIds.length===0&&
+    unexpectedCaseIds.length===0&&duplicateCaseIds.length===0;
+  const evidenceComplete=missingReferences.length===0;
+  const finalAuditStatus=caseSetComplete&&evidenceComplete?'PASS':'FAIL';
+  await record('G11-05',finalAuditStatus,finalAuditStatus==='PASS'?
+    'Todos os casos definidos no plano estão registrados uma única vez; cada caso PASS aponta para arquivos de evidência existentes e o relatório consolidado foi gerado.':
+    'A auditoria final encontrou IDs de caso ausentes/inesperados/duplicados ou referências de evidência inexistentes.',
+    {planned_case_count:plannedCaseIds.size,recorded_case_count:caseCount,case_set_complete:caseSetComplete,
+      missing_case_ids:missingCaseIds,unexpected_case_ids:unexpectedCaseIds,duplicate_case_ids:duplicateCaseIds,
+      pass_case_count:evidenceRows.filter(row=>row.case!=='G11-05').length,evidence_reference_count:evidenceReferenceCount,
+      missing_evidence:missingReferences,checkpoint_files:['cases.latest.jsonl','case-events.jsonl','gate-checkpoints.jsonl']},
+    ['later-gates/later-gates-report.json']);
 
   baseReport.ended_utc=new Date().toISOString();
   baseReport.result='RECORDED';
