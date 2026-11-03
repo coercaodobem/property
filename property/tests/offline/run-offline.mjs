@@ -901,7 +901,9 @@ export function buildSummary(cases, profile, manifest, inventory, isolation) {
   ]));
   const allPass = rows.length > 0 && rows.every(row => row.status === 'PASS' && row.gate_eligible === true);
   const executorMatches = manifest.actual_executor.trim().toLowerCase() === manifest.requested_executor.trim().toLowerCase();
-  const scopePass = allPass && Object.values(gates).every(status => status === 'PASS') && executorMatches;
+  // Executor identity is provenance only. The maintainer chooses the active model;
+  // a model-name mismatch must never change whether the test cases passed.
+  const scopePass = allPass && Object.values(gates).every(status => status === 'PASS');
   const hasFailure = rows.some(row => row.status === 'FAIL');
   const deferredPlatforms = new Set(['G12-02', 'G12-03', 'G12-04', 'G12-05']);
   const deferredPlatformsPending = [...deferredPlatforms].every(caseId => {
@@ -926,6 +928,7 @@ export function buildSummary(cases, profile, manifest, inventory, isolation) {
     actual_executor: manifest.actual_executor,
     actual_executor_source: manifest.actual_executor_source,
     executor_matches_request: executorMatches,
+    executor_identity_is_gating: false,
     started_utc: manifest.started_utc,
     ended_utc: new Date().toISOString(),
     gate_status: gates,

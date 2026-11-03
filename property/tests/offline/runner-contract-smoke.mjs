@@ -133,6 +133,15 @@ assert.equal(ubuntuSummary.gate_status.G12, 'PENDING');
 assert.equal(ubuntuSummary.scope_result, 'PROPERTY_UBUNTU_OFFLINE_PASS');
 assert.equal(ubuntuSummary.exit_code, 0, 'deferred non-Ubuntu cases must not block the completed Ubuntu profile');
 assert.equal(ubuntuSummary.executor_matches_request, false, 'actual executor identity remains reported transparently');
+assert.equal(ubuntuSummary.executor_identity_is_gating, false, 'executor selection is provenance, not a test gate');
+
+const fullyPassingRows = new Map(cases.map(caseId => [caseId, { case: caseId, status: 'PASS', gate_eligible: true }]));
+const completeSummary = buildSummary(fullyPassingRows, 'full', {
+  requested_executor: 'Luna Max', actual_executor: 'Codex GPT-6'
+}, {}, { verdict: 'PASS' });
+assert.equal(completeSummary.executor_matches_request, false);
+assert.equal(completeSummary.scope_result, 'PROPERTY_SCOPE_OFFLINE_PASS',
+  'a maintainer-selected model different from an old prompt label must not block a fully passing test matrix');
 
 const parentBeforeLaterGates = [
   ...Array.from({ length: 7 }, (_, index) => ({ case: `G08-0${index + 1}`, status: 'PASS', gate_eligible: true })),

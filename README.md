@@ -31,10 +31,10 @@ O objetivo de plataforma inclui Windows, macOS, Linux/Ubuntu, Android e iOS. A i
 | Mensagens | Fluxos NIP-17 e listas de inbox relays kind 10050, com testes locais | Validação ampliada de interoperabilidade e redes reais |
 | Relay de PC | Geode com runtime incluído para Linux x86_64, Windows x64 e macOS Apple Silicon | Matriz por plataforma e gate multi-relay G11-03 com 300 probes, três reinícios e nove eventos de partição; veja o [status do plano](property/docs/plano-de-testes-central.md) |
 | Ponte voluntária | Encaminhamento limitado entre relays enquanto a PWA está ativa | Operação móvel contínua não é suportada pela PWA |
-| Marketplace e campanhas | Ofertas com preços BTC/XMR/XNO e leitor opcional de campanhas assinadas | Checkout e engine de aceite, pagamento BTC, XMR, XNO e reembolso |
-| Hangout | Feed público kind 1 com leitura e publicação | Integração completa e validação para o Property |
+| Marketplace e campanhas | Ofertas e leitor opcional na PWA; engine de node e adaptadores BTC/XMR/XNO testados em redes privadas locais | Integrar operação do node e revisar políticas antes de ativar campanhas; checkout continua fora do MVP |
+| Hangout | Feed público kind 1; jornada automatizada de leitura, publicação e contato passou no perfil Ubuntu | Revisão humana de usabilidade e validação em outras plataformas |
 
-A publicação do app não significa que todo o plano foi concluído. Consulte o [plano de testes](property/docs/plano-de-testes-central.md) para resultados e limitações. Pagamentos e monetização automática de nodes não estão ativados nesta versão.
+A publicação do app não significa que todo o plano foi concluído. O perfil offline Ubuntu registrou 70 casos PASS; os quatro casos nativos de Windows, macOS, Android e iOS/iPadOS estão PENDING. Consulte o [relatório e plano de testes](property/docs/plano-de-testes-central.md) para resultados e limitações. O marketplace não faz checkout; campanhas de node ainda não têm fluxo de operação/ativação em produção.
 
 ## Começar em poucos minutos
 

@@ -1,6 +1,6 @@
 # Roadmap do Property
 
-Atualizado em 2026-10-31. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Os critérios detalhados estão no [plano central](property/docs/plano-central.md) e no [plano de testes](property/docs/plano-de-testes-central.md).
+Atualizado em 2026-11-03. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Os critérios detalhados estão no [plano central](property/docs/plano-central.md) e no [plano de testes](property/docs/plano-de-testes-central.md).
 
 ## Base disponível para testar
 
@@ -9,6 +9,7 @@ Atualizado em 2026-10-31. Este mapa orienta contribuições; não é promessa de
 - Relay Geode com runtime para Linux x86_64, Windows x64 e macOS Apple Silicon, com testes de integração por plataforma.
 - Ponte voluntária enquanto a PWA está ativa.
 - Fluxos iniciais de ofertas e leitura opcional de campanhas assinadas.
+- Engine local de campanhas e adaptadores BTC/XMR/XNO exercitados com redes privadas locais; a operação/ativação de campaigns no produto ainda não está integrada.
 
 Consulte os resultados registrados; a presença de código não comprova todos os fluxos na internet ou em aparelhos reais.
 
@@ -19,7 +20,7 @@ Consulte os resultados registrados; a presença de código não comprova todos o
 | Primeiro uso e recuperação | Passos claros de criar identidade, exportar backup e restaurar usando dados descartáveis |
 | Android e iOS | Matriz de navegador/aparelho, instalação PWA, rede e suspensão com resultados reproduzíveis |
 | Acessibilidade | Navegação por teclado, rótulos, foco, contraste e leitura em telas pequenas revisados |
-| Relay de PC | Gate multi-relay G11-03 com 300 probes, três reinícios, nove eventos de partição, recuperação e reconciliação |
+| Relay de PC | Repetir a validação G11-03 por novas versões; o gate de 300 probes, três reinícios e nove eventos de partição já passou no perfil Ubuntu registrado |
 | Interoperabilidade | Troca NIP-17 e listas de relays verificadas com outros clientes e versões identificadas |
 | Comunicação entre agentes | Revisar NIP-17, A2A e MCP, desenhar identidade e consentimento, e validar a UX humana antes da implementação; veja o [plano de agentes](property/docs/plano-agentes-human-first.md) |
 | Segurança | Revisão independente do cofre, chaves, dependências, CSP e fluxo de mensagens |
@@ -28,8 +29,8 @@ Consulte os resultados registrados; a presença de código não comprova todos o
 
 - Marketplace completo e checkout BTC/XMR/XNO, com taxas, confirmação e reembolso específicos de cada moeda.
 - Relay para Mac Intel e outras arquiteturas Linux; avaliar solução nativa Android/iOS sem root e sem exigir tela acesa.
-- Engine local de campanhas: oferta, aceite, endereço exclusivo, confirmação BTC/XMR/XNO por adaptadores independentes, expiração e reembolso idempotente.
-- Hangout integrado e validado para o Property.
+- Integrar a engine de campanhas existente a uma experiência de operação para nodes, definir políticas de produção e concluir revisão independente antes de ativá-la.
+- Revisão humana de usabilidade do Hangout e demais fluxos, além da validação técnica automatizada registrada no perfil Ubuntu.
 - Solução de plataforma para colaboração móvel contínua; uma PWA não garante execução permanente com a tela apagada.
 
 Mudanças em pagamentos, chaves e protocolos precisam de desenho discutido antes da implementação. Não há prazos de lançamento definidos para essas frentes.

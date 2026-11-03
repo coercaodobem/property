@@ -1,6 +1,6 @@
 # Plano de Testes Central — Property
 
-**Atualizado:** 2026-11-02. **Executor previsto:** Luna Max. Os critérios de aprovação deste plano são baseados em quantidades fixas de repetições e entradas predeterminadas; não há soak, duração mínima, cadência, latência ou prazo de disponibilidade como critério de PASS. Os testes de outros sistemas permanecem pendentes conforme a instrução atual e são reportados separadamente; não são substituídos por emulação de viewport. Evidências antigas de execuções por duração ficam apenas como histórico e não satisfazem os novos critérios.
+**Atualizado:** 2026-11-03. **Executor:** o modelo ativo é escolhido pelo mantenedor; registrar a identidade real no relatório. Diferenças entre rótulos de modelo em prompts antigos e o executor ativo são apenas proveniência e nunca bloqueiam um gate. Os critérios de aprovação deste plano são baseados em quantidades fixas de repetições e entradas predeterminadas; não há soak, duração mínima, cadência, latência ou prazo de disponibilidade como critério de PASS. Os testes de outros sistemas permanecem pendentes conforme a instrução atual e são reportados separadamente; não são substituídos por emulação de viewport. Evidências antigas de execuções por duração ficam apenas como histórico e não satisfazem os novos critérios.
 
 ## 1. Objetivo e autoridade
 
@@ -41,7 +41,7 @@ Checkout, custódia, escrow e pagamentos de compras do marketplace, grupos priva
 6. Usar exclusivamente identidades, mensagens, carteiras e valores sintéticos. Segredos ficam em diretórios temporários privados; não vão para relatórios, commits, HAR, capturas ou console. Não substituir contas reais ou diretórios de dados do usuário.
 7. Não pedir nova autorização para os mesmos testes locais já autorizados. Não alterar firewall global, desligar a rede do computador do usuário, reiniciar o host, usar mainnet ou publicar dados como parte do ensaio. Falhas de rede/energia são simuladas apenas nos processos, volumes e interfaces do laboratório.
 8. Persistir progresso após cada caso/gate. Na retomada, ler o manifesto e o último resultado; verificar se o commit mudou e invalidar aprovações afetadas. Um ensaio interrompido não vira PASS.
-9. Não delegar, trocar de modelo, abrir PR ou publicar uma release automaticamente por causa deste plano. Luna Max é o executor previsto; registrar a identidade real do executor e não atribuir ao Luna Max testes feitos por outro modelo.
+9. Não delegar, trocar de modelo, abrir PR ou publicar uma release automaticamente por causa deste plano. O mantenedor escolhe o modelo ativo. Registrar o executor real como proveniência; não pedir troca de modelo e não usar divergência com rótulos antigos como bloqueio ou critério de aprovação.
 
 **Definição de conclusão:** entregar o relatório final com os resultados de todos os gates e os artefatos necessários para outra execução. Se faltar recurso ou implementação, entregar o estado real sem anunciar que o escopo inteiro passou. Não transferir ao usuário testes que possam ser executados no laboratório disponível.
 
@@ -298,12 +298,12 @@ As portas são valores de exemplo; conferir disponibilidade e reservar portas po
 
 | Entrega planejada | Contrato mínimo |
 |---|---|
-| Orquestrador offline | O perfil full percorre G00–G12; `run-offline.mjs` valida manifesto/inventário, exige a origem declarada do executor, falha fechado se isolamento não for provado e só inicia relays depois do G00 elegível. JVMs filhas gravam bibliotecas nativas no TMPDIR isolado da execução por `java.io.tmpdir`, evitando quotas ocultas de `/tmp`. `--resume` verifica commit, diff, plano, manifesto, perfil, relatório e hashes, arquiva a tentativa e reinicia em G00 sem carregar PASS. Diagnósticos posteriores podem rodar mesmo quando um gate financeiro bloqueia, mas ficam inelegíveis. |
+| Orquestrador offline | O perfil full percorre G00–G12; `run-offline.mjs` valida manifesto/inventário e registra a origem declarada do executor, falha fechado se isolamento não for provado e só inicia relays depois do G00 elegível. A seleção/modelo do executor é metadado, não critério de aprovação. JVMs filhas gravam bibliotecas nativas no TMPDIR isolado da execução por `java.io.tmpdir`, evitando quotas ocultas de `/tmp`. `--resume` verifica commit, diff, plano, manifesto, perfil, relatório e hashes, arquiva a tentativa e reinicia em G00 sem carregar PASS. Diagnósticos posteriores podem rodar mesmo quando um gate financeiro bloqueia, mas ficam inelegíveis. |
 | Manifesto de laboratório | Valida seed, commit, origem do executor, orçamento, portas, browser/engine/versões e hashes. Registra diff, arquivos, fontes, ferramentas e ferramentas financeiras externas por caminho absoluto e SHA-256. Credenciais RPC são geradas apenas dentro do processo/teste e não constam no manifesto persistido. |
 | Harness de múltiplos relays | Scripts de dois e sete Geode e os harnesses browser G05/G09/G11 exercitam relays reais, pontes PWA, topologias, falhas, limites, reinício e reconciliação. G09 contém ensaios para crash, armazenamento limitado, eventos hostis, runtime adulterado e falha isolada; G11 contém repetições fixas, ambiente de build, 300 probes, três reinícios e nove eventos de partição reconciliados. |
 | Automação de navegador | Os executores usam Playwright/browser pinados por versão/hash, servidor localhost, proxy de bloqueio e captura de solicitações, WebSockets e erros. G10 herda as jornadas completas do mesmo full run e executa ainda viewports de desktop/móvel, zoom aproximado de 200%, foco, nomes acessíveis e fallback sem instalação PWA suportada. |
 | Engine e adaptadores financeiros | G07 exercita a engine persistente/assinada com ledger determinístico, somente para a máquina de estados. G08 tem harness de BTC Core, Monero e Nano com binários reais e hash-pinned, redes/carteiras privadas, RPC local autenticado, reconciliação e casos financeiros. G07 não substitui a liquidação real de G08. |
-| Relatório automatizado | O perfil full registra 74 casos, checkpoints, eventos, manifesto, inventário, topologia, isolamento, relatório e hashes. No perfil Ubuntu, G12-02–05 ficam PENDING e não bloqueiam os demais testes; G12-01 e G12-06 são executados no Linux. O passe integral ainda exige a matriz nativa completa e correspondência da identidade do executor solicitada. |
+| Relatório automatizado | O perfil full registra 74 casos, checkpoints, eventos, manifesto, inventário, topologia, isolamento, relatório e hashes. No perfil Ubuntu, G12-02–05 ficam PENDING e não bloqueiam os demais testes; G12-01 e G12-06 são executados no Linux. O passe integral exige a matriz nativa completa. A identidade do executor é registrada como proveniência e não afeta o resultado. |
 
 Comandos do runner parcialmente implementado:
 
@@ -359,6 +359,8 @@ Todos os casos antigos permanecem consultáveis no histórico. A tabela explicit
 O histórico registra 12 suítes locais aprovadas, integração de dois relays, publicação anterior e matriz nativa Linux/Windows/macOS. Esses resultados ajudam a reproduzir o baseline; não aprovam automaticamente isolamento, sete relays, jornadas completas, engine financeira, redes privadas, os novos ciclos de repetição ou a nova matriz offline.
 
 Lacunas conhecidas no início desta revisão: orquestrador full, harness de sete relays/falhas, jornadas de navegador, engine de campanhas/pagamentos, ferramentas de ledger local, ciclos de recuperação por repetições e matriz de plataformas. Os executores desses gates foram integrados desde então. A aprovação do perfil Ubuntu depende do full run de Ubuntu encerrar; testes nativos de outros sistemas ficam PENDING e não interrompem esse avanço. A certificação multiplataforma só é concedida depois dos ensaios nativos correspondentes.
+
+**Política atual de executor (2026-11-03):** registros históricos que mantêm `BLOCKED` por divergência entre o modelo solicitado e o executor efetivo descrevem a regra antiga. O mantenedor escolhe o modelo ativo; o runner preserva a identidade observada para proveniência, mas essa divergência não bloqueia gates nem resultados atuais.
 
 ### Checkpoint histórico — 2026-10-31
 

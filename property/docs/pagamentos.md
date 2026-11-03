@@ -1,10 +1,10 @@
 # BTC, XMR e XNO no Property
 
-Atualizado em 2026-10-31. A mudança incorpora o requisito do commit `55e379c9dbdf8637b32422d32e982460aa5862e5`.
+Atualizado em 2026-11-03. A mudança incorpora o requisito do commit `55e379c9dbdf8637b32422d32e982460aa5862e5` e o estado atual da engine local de campanhas.
 
 ## Implementado e planejado
 
-O cliente publica preços de ofertas em BTC, XMR ou XNO e lê campanhas assinadas que declaram essas moedas. Ele verifica formato e assinatura Nostr. Não contém carteira, checkout, cobrança, confirmação de blockchain ou reembolso automático. Referências de pagamento em campanhas são declarações do node; a interface não as apresenta como pagamentos verificados.
+O cliente PWA publica preços de ofertas em BTC, XMR ou XNO e lê campanhas assinadas; verifica formato e assinatura, mas não contém carteira nem checkout. Separadamente, a biblioteca local do relay inclui uma engine de campanhas e adaptadores para Bitcoin Core, Monero Wallet RPC e Nano RPC. Os gates G07–G08 exercitam a engine e esses adaptadores com nós/carteiras reais em redes privadas locais, sem fundos reais. Isso não equivale a uma operação de campanhas pronta para produção: ainda faltam uma experiência de operação para os mantenedores de nodes, políticas finais e revisão independente. A PWA nunca deve tratar uma declaração de pagamento do evento como confirmação própria.
 
 | Moeda | Unidade mínima | Unidades por moeda | Limite do campo inteiro |
 |---|---|---|---|
@@ -33,15 +33,13 @@ O payload mantém `title`, `body`, `link`, `expires_at`, `offer_event_id`, `acce
 
 O leitor aceita também `liberdade-sponsored-v1`, estritamente como XNO, com `amount_raw` e `payment_block_hash`. Nunca reinterpreta uma campanha antiga como Monero nem altera eventos já assinados. O opt-in, bloqueio local e limite local de repetição continuam aplicáveis. O app não envia eventos de clique/visualização.
 
-## Engine futura: critérios obrigatórios
+## Operação e ativação em produção: pendências
 
-1. Oferta e aceite assinados vinculam moeda, unidade, montante, campanha, destinatário, expiração e condições de devolução. Recusa anterior ao pagamento não gera cobrança.
-2. Adaptadores separados para Nano e Monero, com carteiras distintas da chave Nostr, RPC local autenticado, limites e logs sanitizados. Nenhuma seed ou credencial RPC na PWA ou em eventos Nostr.
-3. Associar pagamento a endereço exclusivo; em Monero, avaliar subendereço por oferta e verificar recebimento pela carteira sincronizada. Um hash público isolado não basta.
-4. Nano exige confirmação e recebimento processado. Monero exige política explícita de confirmações, desbloqueio, taxas e tratamento de reorganização; publicar apenas após o gate da moeda. Registrar a política adotada e sua validação antes de ativar pagamentos.
-5. Reembolsos idempotentes e retomáveis, com reconciliação de recebimento, taxa e valor líquido. Monero não revela um endereço de origem utilizável para devolução: obter endereço de reembolso autenticado no acordo. Nunca copiar a regra Nano de devolver automaticamente à origem para XMR.
-6. Não prometer custo zero ou viabilidade de micropagamento em XMR: definir mínimo e política de taxas com evidência. Sem fundos de produção nos testes.
-7. Usar Nano testnet/local e Monero regtest/stagenet; testar pagamento duplicado, atraso, valor/moeda errados, carteira não sincronizada, falhas, reorganização, expiração e devolução. Somente ativar após testes e revisão independente.
+1. Integrar a engine a uma ferramenta de operação do node, documentando criação, revisão/aceite, recusa, monitoramento, parada e recuperação sem exigir segredo da identidade Nostr.
+2. Revisar de forma independente a autenticação RPC local, o isolamento de carteiras, limites, logs sanitizados, geração de endereço e manuseio de credenciais.
+3. Fixar e publicar políticas de confirmações, desbloqueio, valor mínimo, taxas e tratamento de reorganização por moeda; os parâmetros usados no laboratório não são automaticamente parâmetros de produção.
+4. Revisar as regras de devolução e idempotência em cada moeda; Bitcoin e Monero exigem endereço de reembolso autenticado no acordo, sem presumir origem utilizável.
+5. Não prometer custo zero nem viabilidade de micropagamento em XMR. Não ativar uso com fundos reais antes de revisão de segurança, política e operação.
 
 ## Bitcoin
 
