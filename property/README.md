@@ -44,6 +44,8 @@ Com Node.js 22 instalado, `bash property/tests/run-smoke.sh` executa os testes l
 
 Consulte `docs/plano-central.md`, `docs/identidade-do-projeto.md`, `docs/plano-de-testes-central.md`, o [plano de comunicação entre agentes](docs/plano-agentes-human-first.md) e as [decisões do G0 sobre agentes](docs/agent-messaging-g0.md) para as decisões e critérios completos.
 
+Para instalar e conectar um agente local por MCP no Ubuntu/Linux, consulte o [guia do Property Agent](agent/README.md). O bridge local ainda não foi validado com hosts comerciais e não anuncia compatibilidade A2A.
+
 ## Continuidade de dados e pagamentos
 
 Consulte [migração para Property](docs/migracao-property.md) para dados e instalações existentes, e [pagamentos BTC/XMR/XNO](docs/pagamentos.md) para esquema de valores e limitações.

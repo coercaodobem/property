@@ -65,25 +65,3 @@ export async function replaceContact(file, pubkey, contact) {
   if (next.length > 100) throw new Error('O limite de contatos aprovados foi atingido.');
   await writePrivateJson(file, { ...config, contacts: next });
 }
-
-export async function setInboxRelays(file, pubkey, relays) {
-  const config = validateConfig(await readJson(file));
-  if (config.pubkey !== pubkey) throw new Error('A identidade da configuração não corresponde ao cofre.');
-  await writePrivateJson(file, { ...config, inbox_relays: relays });
-}
-
-export async function decideApproval(file, pubkey, requestId, decision) {
-  const config = validateConfig(await readJson(file));
-  if (config.pubkey !== pubkey) throw new Error('A identidade da configuração não corresponde ao cofre.');
-  const index = config.pending_approvals.findIndex(item => item.id === requestId && item.status === 'pending');
-  if (index < 0) throw new Error('approval-request-not-found');
-  const request = config.pending_approvals[index];
-  if (decision === 'approve') {
-    const contact = config.contacts.find(item => item.pubkey === request.conversation_pubkey && item.status === 'approved');
-    if (!contact) throw new Error('Aprove primeiro o contato e seus relays com `property-agent contact grant`.');
-    contact[request.permission] = true;
-    config.pending_approvals[index] = { ...request, status: 'approved' };
-  } else config.pending_approvals[index] = { ...request, status: 'denied' };
-  await writePrivateJson(file, config);
-  return config.pending_approvals[index];
-}

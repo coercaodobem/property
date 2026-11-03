@@ -2,10 +2,10 @@
 import { open } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadNostr, normalizeRelay, profileName, validateConfig } from './core.mjs';
+import { loadNostr, normalizeRelay, profileName } from './core.mjs';
 import { runDaemon } from './daemon.mjs';
 import { callUnixJson } from './ipc.mjs';
-import { decideApproval, ensurePrivateDirectory, readJson, replaceContact, resolvePaths, setInboxRelays, writePrivateJson } from './store.mjs';
+import { ensurePrivateDirectory, readJson, resolvePaths, writePrivateJson } from './store.mjs';
 import { createVault } from './vault.mjs';
 
 const AGENT_ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -24,7 +24,7 @@ function usage() {
     '  property-agent invite --name <nome> [--for <npub|hex>] [--profile default]',
     '  property-agent contact grant <npub|hex> --name <nome> --relay <url> [--read] [--send]',
     '  property-agent contact revoke <npub|hex> [--profile default]',
-    '  property-agent requests [--profile default]',
+    '  property-agent requests [--review] [--profile default]',
     '  property-agent request decide <id> <approve|deny> [--profile default]',
     '  property-agent backup <arquivo-destino-absoluto> [--profile default]',
     '', 'Senha é lida somente de um TTY local e nunca aceita por argumento ou variável de ambiente.', '',
@@ -77,6 +77,69 @@ async function confirmHuman(message, expected = 'CONFIRMAR') {
 
 function profileAndPaths(args) { const result = parseProfile(args); return { ...result, paths: resolvePaths(result.profile) }; }
 
+function safeTerminalText(value) {
+  return String(value).replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufeff]/g, character => '\\u' + character.codePointAt(0).toString(16).padStart(4, '0'));
+}
+
+async function callAgentDaemon(paths, method, params) {
+  try { return await callUnixJson(paths.socketPath, method, params); }
+  catch (error) {
+    if (error.message === 'agent-daemon-unavailable') throw new Error('O daemon local está bloqueado ou indisponível. Mantenha property-agent unlock ativo em outra sessão e tente novamente.');
+    if (error.message === 'approval-contact-not-approved') throw new Error('Aprove primeiro o contato e seus relays com property-agent contact grant, depois revise o pedido.');
+    if (error.message === 'contact-not-found') throw new Error('Contato não encontrado.');
+    if (error.message === 'contact-limit-reached') throw new Error('O limite de 100 contatos aprovados foi atingido.');
+    if (error.message === 'contact-self-forbidden') throw new Error('A identidade do agente não pode ser adicionada como contato.');
+    if (error.message === 'relay-limit-reached') throw new Error('O limite local é três relays de inbox.');
+    if (error.message === 'relay-already-configured') throw new Error('Este relay já está configurado.');
+    if (error.message === 'approval-queue-full') throw new Error('A fila atingiu 100 pedidos pendentes. Revise ou negue pedidos antes de criar novos.');
+    throw error;
+  }
+}
+
+async function listPendingApprovals(paths) {
+  const result = await callAgentDaemon(paths, 'approval.list', {});
+  if (!Array.isArray(result.request_ids) || result.request_ids.length > 100 || result.request_ids.some(id => typeof id !== 'string' || !/^[0-9a-f]{32}$/.test(id))) throw new Error('Resposta de pedidos de aprovação inválida.');
+  const requests = [];
+  for (const id of result.request_ids) {
+    try { requests.push(await callAgentDaemon(paths, 'approval.get', { request_id: id })); }
+    catch (error) { if (error.message !== 'approval-request-not-found') throw error; }
+  }
+  return requests;
+}
+
+function formatApprovalRequest(request, nostr) {
+  const permission = request.permission === 'read' ? 'ler mensagens' : 'enviar mensagens';
+  const createdAt = request.created_at >= 0 && request.created_at <= 8_640_000_000_000
+    ? new Date(request.created_at * 1000).toISOString()
+    : 'timestamp inválido';
+  return [
+    'ID: ' + request.id,
+    'Contato: ' + nostr.nip19.npubEncode(request.conversation_pubkey),
+    'Permissão: ' + permission,
+    'Criado em: ' + createdAt,
+    'Motivo: ' + safeTerminalText(request.reason),
+  ].join('\n');
+}
+
+async function reviewApprovalRequests(paths, requests, nostr) {
+  if (!process.stdin.isTTY) throw new Error('A revisão exige um terminal interativo.');
+  const { createInterface } = await import('node:readline/promises');
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  try {
+    for (const request of requests) {
+      process.stderr.write('\n' + formatApprovalRequest(request, nostr) + '\n');
+      const answer = (await rl.question('Digite APROVAR ' + request.id + ', NEGAR ' + request.id + ' ou PULAR: ')).trim();
+      const decision = answer === 'APROVAR ' + request.id ? 'approve' : answer === 'NEGAR ' + request.id ? 'deny' : null;
+      if (!decision) {
+        process.stderr.write('Pedido mantido pendente.\n');
+        continue;
+      }
+      const result = await callAgentDaemon(paths, 'approval.decide', { request_id: request.id, decision });
+      process.stderr.write('Pedido ' + result.status + '.\n');
+    }
+  } finally { rl.close(); }
+}
+
 async function init(profile) {
   const paths = resolvePaths(profile);
   await ensurePrivateDirectory(paths.dataDir);
@@ -105,15 +168,13 @@ function decodePublicKey(input, nostr) {
 }
 
 async function changeContact(args, profile, action) {
+  const paths = resolvePaths(profile);
   if (action === 'revoke') {
     if (args.length !== 1) throw new Error('Uso: property-agent contact revoke <npub|hex>.');
     const { nostr } = await loadNostr(PROPERTY_ROOT);
     const pubkey = decodePublicKey(args[0], nostr);
-    const paths = resolvePaths(profile); const config = validateConfig(await readJson(paths.configPath));
-    const existing = config.contacts.find(item => item.pubkey === pubkey);
-    if (!existing) throw new Error('Contato não encontrado.');
     await confirmHuman(`Revogar leitura e envio para ${nostr.nip19.npubEncode(pubkey)}?`, 'REVOGAR');
-    await replaceContact(paths.configPath, config.pubkey, { ...existing, read: false, send: false, status: 'revoked' });
+    await callAgentDaemon(paths, 'contact.revoke', { pubkey });
     process.stdout.write('Permissões locais revogadas. O Property Agent não publica um aviso NIP-17 de revogação nesta versão.\n');
     return;
   }
@@ -129,10 +190,8 @@ async function changeContact(args, profile, action) {
     else throw new Error(`Opção de contato desconhecida: ${value}`);
   }
   if (!name.trim() || name.length > 80 || !relays.length || relays.length > 3 || (!read && !send)) throw new Error('Informe --name, ao menos um --relay, no máximo três relays e pelo menos um escopo --read/--send.');
-  const paths = resolvePaths(profile); const config = validateConfig(await readJson(paths.configPath));
-  if (pubkey === config.pubkey) throw new Error('A identidade do agente não pode ser adicionada como contato.');
   await confirmHuman(`Adicionar ${name} (${nostr.nip19.npubEncode(pubkey)}) com read=${read}, send=${send} e ${relays.length} relay(s)?`, 'APROVAR');
-  await replaceContact(paths.configPath, config.pubkey, { pubkey, name: name.trim(), relays: [...new Set(relays)], read, send, status: 'approved' });
+  await callAgentDaemon(paths, 'contact.grant', { pubkey, name: name.trim(), relays: [...new Set(relays)], read, send });
   process.stdout.write('Contato e escopos locais aprovados. Revogue-os com `property-agent contact revoke`.\n');
 }
 
@@ -171,10 +230,10 @@ async function run() {
   }
   if (command === 'relay') {
     if (args[0] !== 'add' || args.length !== 2) throw new Error('Uso: property-agent relay add <wss-url|ws://localhost>.');
-    const relay = normalizeRelay(args[1]); const { nostr } = await loadNostr(PROPERTY_ROOT);
-    const config = validateConfig(await readJson(paths.configPath)); await confirmHuman(`Adicionar relay de inbox ${relay} à identidade ${nostr.nip19.npubEncode(config.pubkey)}?`, 'APROVAR');
-    const relays = [...new Set([...config.inbox_relays, relay])]; if (relays.length > 3) throw new Error('O limite local é três relays de inbox.');
-    await setInboxRelays(paths.configPath, config.pubkey, relays); process.stdout.write('Relay de inbox salvo. Reinicie o daemon para aplicar.\n'); return;
+    const relay = normalizeRelay(args[1]);
+    await confirmHuman('Adicionar relay de inbox ' + relay + '?', 'APROVAR');
+    const result = await callAgentDaemon(paths, 'relay.add', { relay });
+    process.stdout.write('Relay de inbox salvo (' + result.relay_count + '/3). Reinicie o daemon para aplicar.\n'); return;
   }
   if (command === 'contact') {
     const [action, ...contactArgs] = args;
@@ -184,18 +243,23 @@ async function run() {
     return;
   }
   if (command === 'requests') {
-    if (args.length) throw new Error('requests não aceita parâmetros adicionais.');
-    const config = validateConfig(await readJson(paths.configPath));
-    const pending = config.pending_approvals.filter(item => item.status === 'pending');
-    process.stdout.write(pending.length ? pending.map(item => `${item.id} ${item.permission} ${item.conversation_pubkey} ${item.reason}`).join('\n') + '\n' : 'Nenhum pedido pendente.\n'); return;
+    if (args.length > 1 || (args.length === 1 && args[0] !== '--review')) throw new Error('Uso: property-agent requests [--review].');
+    const pending = await listPendingApprovals(paths);
+    if (!pending.length) { process.stdout.write('Nenhum pedido pendente.\n'); return; }
+    const { nostr } = await loadNostr(PROPERTY_ROOT);
+    if (args[0] === '--review') await reviewApprovalRequests(paths, pending, nostr);
+    else process.stdout.write(pending.map(item => formatApprovalRequest(item, nostr)).join('\n\n') + '\n\nPara revisar um por um, execute: property-agent requests --review\n');
+    return;
   }
   if (command === 'request' && args[0] === 'decide') {
     if (args.length !== 3 || !/^[0-9a-f]{32}$/.test(args[1]) || !['approve', 'deny'].includes(args[2])) throw new Error('Uso: property-agent request decide <id> <approve|deny>.');
-    const config = validateConfig(await readJson(paths.configPath)); const item = config.pending_approvals.find(entry => entry.id === args[1] && entry.status === 'pending');
-    if (!item) throw new Error('approval-request-not-found');
+    const item = await callAgentDaemon(paths, 'approval.get', { request_id: args[1] });
     const { nostr } = await loadNostr(PROPERTY_ROOT);
-    await confirmHuman(`${args[2] === 'approve' ? 'Aprovar' : 'Negar'} ${item.permission} para ${nostr.nip19.npubEncode(item.conversation_pubkey)}? Motivo: ${item.reason}`, args[2] === 'approve' ? 'APROVAR' : 'NEGAR');
-    const result = await decideApproval(paths.configPath, config.pubkey, args[1], args[2]); process.stdout.write(`Pedido ${result.status}.\n`); return;
+    const decision = args[2];
+    const confirmation = (decision === 'approve' ? 'APROVAR ' : 'NEGAR ') + item.id;
+    await confirmHuman((decision === 'approve' ? 'Aprovar' : 'Negar') + ' ' + item.permission + ' para ' + nostr.nip19.npubEncode(item.conversation_pubkey) + '? Motivo: ' + safeTerminalText(item.reason), confirmation);
+    const result = await callAgentDaemon(paths, 'approval.decide', { request_id: item.id, decision });
+    process.stdout.write('Pedido ' + result.status + '.\n'); return;
   }
   if (command === 'backup') {
     if (args.length !== 1 || !path.isAbsolute(args[0])) throw new Error('Informe um caminho absoluto para o backup cifrado.');
