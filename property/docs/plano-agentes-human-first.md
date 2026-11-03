@@ -1,10 +1,10 @@
 # Plano de comunicação entre agentes no Property
 
-**Estado do produto:** proposta em execução; nenhuma capacidade de comunicação entre agentes está declarada como implementada.
+**Estado do produto:** comunicação direta entre agentes implementada em ensaio offline no G3; bridge local MCP, revisão independente, sessões humanas e compatibilidade multiplataforma continuam pendentes.
 **Atualizado:** 2026-11-03.
 **Escopo:** agentes conversando por meio do Property, com a interface e o controle humano como requisitos obrigatórios.
 
-**Estado dos gates nesta execução:** G0 **PASS** ([decisão e ameaças](agent-messaging-g0.md), [snapshots e hashes](protocol-snapshots/README.md)); G1 permanece **PENDING** até concluir cinco sessões com pessoas reais e corrigir/repetir qualquer falha crítica. A inspeção visual responsiva no Firefox foi executada e registrada, mas não substitui as sessões humanas. Por instrução expressa do responsável em 2026-11-03, G2–G7 podem avançar tecnicamente como se a pré-condição G1 estivesse aprovada, sem alterar o estado/evidência de G1 e sem dispensar o gate humano: resultados posteriores registram evidência técnica própria, mas nenhuma conclusão de piloto/pronto é válida enquanto G1 e G6 não passarem com pessoas reais. Consulte o [registro G1](evidence/agent-messaging/G1-20261103.md) e o [registro da autorização de continuidade](evidence/agent-messaging/continuation-authorization-20261103.md).
+**Estado dos gates nesta execução:** G0 **PASS** ([decisão e ameaças](agent-messaging-g0.md), [snapshots e hashes](protocol-snapshots/README.md)); G1 permanece **PENDING** até concluir cinco sessões com pessoas reais e corrigir/repetir qualquer falha crítica. G2 **PASS técnico** e G3 **PASS técnico offline** têm evidências abaixo. A inspeção visual responsiva no Firefox foi executada e registrada, mas não substitui as sessões humanas. Por instrução expressa do responsável em 2026-11-03, G2–G7 podem avançar tecnicamente como se a pré-condição G1 estivesse aprovada, sem alterar o estado/evidência de G1 e sem dispensar o gate humano: G4–G7 ainda estão pendentes; nenhuma conclusão de piloto/pronto é válida enquanto G1 e G6 não passarem com pessoas reais. Consulte o [registro G1](evidence/agent-messaging/G1-20261103.md), o [registro da autorização de continuidade](evidence/agent-messaging/continuation-authorization-20261103.md), o [registro G2](evidence/agent-messaging/G2-20261103.md) e o [registro G3](evidence/agent-messaging/G3-20261103.md).
 
 ## 1. Objetivo
 
@@ -47,7 +47,7 @@ As seguintes jornadas permanecem completas e sem etapas adicionais obrigatórias
 2. O agente compartilha um link ou QR de convite com sua `npub` e informações assinadas. Abrir o convite mostra um resumo em português, com identidade, origem do convite, capabilities declaradas e relays que seriam usados.
 3. A UI distingue fatos verificados (por exemplo, assinatura válida da identidade) de alegações do perfil (nome, proprietário ou capacidades). Não inferir que um agente é confiável por usar o nome Property.
 4. Antes do primeiro envio, a pessoa confirma o agente, escolhe os limites e vê uma prévia do que o agente poderá ler ou enviar. Cancelar e voltar à conversa humana são ações visíveis.
-5. A conversa mostra um rótulo permanente de agente, estado de conexão explicado em linguagem comum e uma ação fácil para pausar, bloquear ou revogar o acesso.
+5. A conversa mostra um rótulo permanente de agente, estado de conexão explicado em linguagem comum e uma ação fácil para pausar, bloquear ou revogar o acesso. O primeiro envio precisa partir da pessoa; envelopes recebidos sem referência a um pedido local enviado são ignorados.
 6. Sem bridge ou host de agente instalado, o humano ainda pode adicionar, identificar e conversar com contatos normalmente; a UI explica o requisito do agente sem erro técnico bruto.
 
 ### 4.2 Regras de apresentação
@@ -182,6 +182,8 @@ Qualquer falha em permissão, identidade, destinatário ou uso básico humano re
 - conteúdo desconhecido é apresentado como texto não confiável ou rejeitado com explicação, sem executar ação;
 - UI humana continua lendo, respondendo e bloqueando contatos humanos sem perfil de agente.
 
+**Registro de execução:** G3 passou em ensaio técnico offline fixo no Ubuntu/Linux x64, com dois processos agentes independentes, três relays Geode isolados e a PWA em Firefox. O primeiro contato direto agente-pessoa foi iniciado pela pessoa; mensagens sem `in_reply_to` correspondente a um envio local anterior foram ignoradas antes de serem armazenadas ou exibidas. O relatório registra 360 casos, 100 mensagens cifradas na rede em ambas as direções, 20 respostas correlacionadas, três reinícios por agente, nove eventos de partição/reconexão e as contagens adversariais do gate. A suíte completa de smoke também passou. Consulte [`G3-20261103.md`](evidence/agent-messaging/G3-20261103.md), o [relatório Geode](evidence/agent-messaging/G3-geode-offline-report.json), os [testes de envelope](../tests/agent-messaging-smoke.mjs), a [captura do fluxo](evidence/agent-messaging/G3-browser/agent-direct-conversation.png) e o [smoke integral](evidence/agent-messaging/G3-full-smoke.log). A sessão automatizada não ficou controlada por service worker; isso não é critério de aprovação G3 e não é usado como evidência de controle offline do shell. A tentativa suplementar de Chromium caiu por limitação de recursos do ambiente e permanece pendente para a matriz G7; não é apresentada como aprovada.
+
 ### Fase 4 — Bridge MCP e SDK/CLI local (G4)
 
 **Entregáveis:** pacote autocontido, setup assistido, configuração reproduzível por host, contrato de tools versionado e exemplo de agente de demonstração.
@@ -233,6 +235,7 @@ Repetir as tarefas fixas de G1 com cinco participantes; executar ainda cinco cic
 **Entregáveis:** matriz de compatibilidade, guias humanos e de agentes, release candidate reproduzível e procedimento de rollback.
 
 - Executar primeiro no Ubuntu com runtimes locais e relays isolados, seguindo os gates fixos acima.
+- No Ubuntu, validar o shell PWA em Firefox e Chromium: dez ciclos fixos de abertura/controle do service worker, dez ciclos de recarga com rede desabilitada e dez verificações dos recursos estáticos locais. Falha de controle/offline permanece pendente; emulação de viewport não conta como teste de dispositivo.
 - Marcar testes Windows, macOS, Android e iOS como PENDING até serem executados nos ambientes correspondentes; não inferir suporte pelo build ou viewport.
 - Comparar pelo menos duas implementações de agente contra o formato aprovado. Para qualquer alegação de conformidade A2A, executar e arquivar a suíte aplicável da especificação adotada.
 - Pilotar opt-in para um grupo limitado de colaboradores; tornar reversível a desativação da função sem migração destrutiva de identidade ou mensagens humanas.
