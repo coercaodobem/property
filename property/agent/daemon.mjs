@@ -43,6 +43,8 @@ export async function runDaemon({ password, profile = 'default', env = process.e
     inboxRelays: (await loadConfig()).inbox_relays,
     getContact: async key => (await loadConfig()).contacts.find(contact => contact.pubkey === key) || null,
   });
+  unlocked.secretHex = '';
+  context.propertyAgentSecretHex = '';
   const createInvite = ({ name, recipientPubkey, relayHints }) => {
     const createdAt = now();
     const content = {
@@ -86,9 +88,8 @@ export async function runDaemon({ password, profile = 'default', env = process.e
     stopped = true;
     await stop();
     transport.secret.fill(0);
-    transport.secretHex = '00'.repeat(32);
-    context.propertyAgentSecretHex = '00'.repeat(32);
-    unlocked.secretHex = '00'.repeat(32);
+    context.propertyAgentSecretHex = '';
+    unlocked.secretHex = '';
     checkSecret.fill(0);
   };
   const onSignal = () => { void shutdown().finally(() => process.exit(0)); };

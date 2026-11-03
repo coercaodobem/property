@@ -25,6 +25,7 @@ for test_file in \
   agent-pairing-smoke.mjs \
   agent-messaging-smoke.mjs \
   agent-package-smoke.mjs \
+  offline/agent-security-g5.mjs \
   offline/runner-contract-smoke.mjs
 do
   printf '\n== %s ==\n' "$test_file"

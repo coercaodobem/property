@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { createInterface } from 'node:readline';
 import { callUnixJson, parseStrictJson } from './ipc.mjs';
 import { MCP_VERSION, exactObject, profileName } from './core.mjs';
 
@@ -10,6 +9,33 @@ const profile = profileName(process.env.PROPERTY_AGENT_PROFILE || 'default');
 const runtimeDir = process.env.XDG_RUNTIME_DIR || `/run/user/${typeof process.getuid === 'function' ? process.getuid() : 'unknown'}`;
 const socketPath = `${runtimeDir}/property-agent/${profile}.sock`;
 const OUTPUT_LIMIT = 64 * 1024;
+
+async function* boundedLines(stream) {
+  let buffer = Buffer.alloc(0);
+  let droppingOversizeLine = false;
+  for await (const chunk of stream) {
+    let start = 0;
+    for (let index = 0; index < chunk.length; index++) {
+      if (chunk[index] !== 0x0a) continue;
+      const segment = chunk.subarray(start, index);
+      if (droppingOversizeLine) droppingOversizeLine = false;
+      else {
+        const line = Buffer.concat([buffer, segment]);
+        yield line.length > OUTPUT_LIMIT ? null : line.toString('utf8');
+      }
+      buffer = Buffer.alloc(0);
+      start = index + 1;
+    }
+    if (droppingOversizeLine) continue;
+    const tail = chunk.subarray(start);
+    if (buffer.length + tail.length > OUTPUT_LIMIT) {
+      buffer = Buffer.alloc(0);
+      droppingOversizeLine = true;
+      yield null;
+    } else buffer = Buffer.concat([buffer, tail]);
+  }
+  if (buffer.length && !droppingOversizeLine) yield buffer.toString('utf8');
+}
 
 const tools = [
   {
@@ -88,9 +114,8 @@ async function dispatch(request) {
   return { jsonrpc: '2.0', id, error: mcpError(-32601, 'Método MCP não implementado.') };
 }
 
-const input = createInterface({ input: process.stdin, crlfDelay: Infinity, terminal: false });
-for await (const line of input) {
-  if (Buffer.byteLength(line, 'utf8') > OUTPUT_LIMIT) { send({ jsonrpc: '2.0', id: null, error: mcpError(-32700, 'Mensagem MCP excede o limite local.') }); continue; }
+for await (const line of boundedLines(process.stdin)) {
+  if (line === null) { send({ jsonrpc: '2.0', id: null, error: mcpError(-32700, 'Mensagem MCP excede o limite local.') }); continue; }
   try {
     const request = parseStrictJson(line);
     const response = await dispatch(request);

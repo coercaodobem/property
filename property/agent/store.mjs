@@ -1,7 +1,10 @@
 import { open, readFile, rename, mkdir, chmod, lstat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { parseStrictJson } from './ipc.mjs';
 import { profileName, createEmptyConfig, validateConfig } from './core.mjs';
+
+const MAX_STORE_BYTES = 256 * 1024;
 
 export function resolvePaths(profile = 'default', env = process.env, home = os.homedir()) {
   const selectedProfile = profileName(profile);
@@ -34,7 +37,11 @@ export async function writePrivateJson(file, value) {
 }
 
 export async function readJson(file) {
-  return JSON.parse(await readFile(file, 'utf8'));
+  const info = await lstat(file);
+  if (!info.isFile() || info.isSymbolicLink() || (typeof process.getuid === 'function' && info.uid !== process.getuid())) throw new Error('Arquivo local não é regular ou não pertence ao usuário atual.');
+  if ((info.mode & 0o777) !== 0o600) throw new Error('Arquivo local precisa ter permissão 0600.');
+  if (info.size > MAX_STORE_BYTES) throw new Error('Arquivo local excede o limite de tamanho.');
+  return parseStrictJson(await readFile(file, 'utf8'), MAX_STORE_BYTES);
 }
 
 export async function loadOrCreateConfig(file, pubkey) {

@@ -3,8 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { lstat, chmod, mkdir, unlink } from 'node:fs/promises';
 import { MAX_IPC_BYTES, exactObject } from './core.mjs';
 
-export function parseStrictJson(raw) {
-  if (Buffer.byteLength(raw, 'utf8') > MAX_IPC_BYTES) throw new Error('ipc-frame-too-large');
+export function parseStrictJson(raw, maxBytes = MAX_IPC_BYTES) {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || Buffer.byteLength(raw, 'utf8') > maxBytes) throw new Error('ipc-frame-too-large');
   let index = 0;
   const ws = () => { while (/[\u0009\u000a\u000d\u0020]/.test(raw[index] || '')) index++; };
   function string() {

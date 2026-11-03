@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { conversationId, eventInContext, normalizeRelay, secretBytesInContext } from './core.mjs';
 
 const MAX_QUERY_EVENTS = 500;
+const MAX_RELAY_FRAME_BYTES = 64 * 1024;
 const WATCHDOG_MS = 5000;
 
 function waitSocketOpen(socket) {
@@ -17,7 +18,6 @@ export class NostrAgentTransport {
     this.nostr = nostr;
     this.messages = messages;
     this.context = context;
-    this.secretHex = secretHex;
     this.secret = secretBytesInContext(context, secretHex);
     this.pubkey = pubkey;
     this.inboxRelays = inboxRelays.map(normalizeRelay);
@@ -30,20 +30,27 @@ export class NostrAgentTransport {
     const all = [];
     for (const url of this.inboxRelays) all.push(...await this.#query(url, { kinds: [1059], '#p': [this.pubkey], limit: MAX_QUERY_EVENTS }));
     const dedupe = new Set();
+    const messageDedupe = new Set();
     const decoded = [];
     const expectedConversation = conversationId(this.pubkey, peer);
     for (const event of all) {
-      if (dedupe.has(event.id)) continue;
-      dedupe.add(event.id);
+      if (!event || typeof event !== 'object') continue;
       this.context.propertyAgentEventJson = JSON.stringify(event);
-      const candidate = eventInContext(this.context, event);
-      if (!this.nostr.verifyEvent(candidate)) continue;
+      let candidate;
+      try { candidate = eventInContext(this.context, event); } catch { continue; }
+      let authentic = false;
+      try { authentic = this.nostr.verifyEvent(candidate); } catch { /* evento malformado: rejeitar sem abortar a leitura */ }
+      if (!authentic) continue;
+      if (typeof candidate.id !== 'string' || dedupe.has(candidate.id)) continue;
+      dedupe.add(candidate.id);
       let rumor;
       try { rumor = this.nostr.nip17.unwrapEvent(candidate, this.secret); } catch { continue; }
       if (!rumor || rumor.kind !== 14 || ![this.pubkey, peer].includes(rumor.pubkey) || typeof rumor.content !== 'string') continue;
       let envelope;
       try { envelope = this.messages.decodeEnvelope(rumor.content); } catch { continue; }
       if (envelope.conversationId !== expectedConversation) continue;
+      if (messageDedupe.has(envelope.messageId)) continue;
+      messageDedupe.add(envelope.messageId);
       decoded.push({ message_id: envelope.messageId, in_reply_to: envelope.inReplyTo, conversation_pubkey: peer, direction: rumor.pubkey === this.pubkey ? 'sent' : 'received', body: envelope.body, created_at: Number.isSafeInteger(rumor.created_at) ? rumor.created_at : event.created_at, relay_event_id: event.id });
     }
     decoded.sort((a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id));
@@ -90,8 +97,14 @@ export class NostrAgentTransport {
         const onError = () => { cleanup(); reject(new Error('relay-unreachable')); };
         const listener = event => {
           let frame;
-          try { frame = JSON.parse(event.data); } catch { return; }
-          if (frame[0] === 'EVENT' && frame[1] === subId && frame[2]) { events.push(frame[2]); return; }
+          try {
+            if (typeof event.data !== 'string' || Buffer.byteLength(event.data, 'utf8') > MAX_RELAY_FRAME_BYTES) throw new Error('relay-frame-too-large');
+            frame = JSON.parse(event.data);
+          } catch (error) {
+            if (error?.message === 'relay-frame-too-large') { cleanup(); socket.close(); reject(error); }
+            return;
+          }
+          if (frame[0] === 'EVENT' && frame[1] === subId && frame[2]) { if (events.length < MAX_QUERY_EVENTS) events.push(frame[2]); return; }
           if (frame[0] === 'EOSE' && frame[1] === subId) { cleanup(); resolve(events.slice(0, MAX_QUERY_EVENTS)); }
         };
         socket.addEventListener('message', listener);
@@ -111,7 +124,13 @@ export class NostrAgentTransport {
         const onError = () => { cleanup(); reject(new Error('relay-unreachable')); };
         const listener = frameEvent => {
           let frame;
-          try { frame = JSON.parse(frameEvent.data); } catch { return; }
+          try {
+            if (typeof frameEvent.data !== 'string' || Buffer.byteLength(frameEvent.data, 'utf8') > MAX_RELAY_FRAME_BYTES) throw new Error('relay-frame-too-large');
+            frame = JSON.parse(frameEvent.data);
+          } catch (error) {
+            if (error?.message === 'relay-frame-too-large') { cleanup(); socket.close(); reject(error); }
+            return;
+          }
           if (frame[0] !== 'OK' || frame[1] !== event.id) return;
           cleanup();
           resolve(frame[2] === true);

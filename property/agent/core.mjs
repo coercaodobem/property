@@ -89,12 +89,14 @@ export async function loadNostr(PROPERTY_ROOT) {
 export function secretBytesInContext(context, secretHex) {
   if (!/^[0-9a-f]{64}$/.test(secretHex)) throw new Error('A chave do agente no cofre é inválida.');
   context.propertyAgentSecretHex = secretHex;
-  return vm.runInContext('Uint8Array.from(propertyAgentSecretHex.match(/.{2}/g), value => parseInt(value, 16))', context, { timeout: 1000 });
+  try { return vm.runInContext('Uint8Array.from(propertyAgentSecretHex.match(/.{2}/g), value => parseInt(value, 16))', context, { timeout: 1000 }); }
+  finally { context.propertyAgentSecretHex = ''; }
 }
 
 export function eventInContext(context, event) {
   context.propertyAgentEventJson = JSON.stringify(event);
-  return vm.runInContext('JSON.parse(propertyAgentEventJson)', context, { timeout: 1000 });
+  try { return vm.runInContext('JSON.parse(propertyAgentEventJson)', context, { timeout: 1000 }); }
+  finally { context.propertyAgentEventJson = ''; }
 }
 
 export function conversationId(first, second) {
