@@ -552,10 +552,26 @@ export function createNanoNodeLedger(options = {}) {
     const receive = (history.history || []).find(row => {
       const isReceive = row.type === 'receive' || row.type === 'open' ||
         (row.type === 'state' && row.subtype === 'receive');
-      return isReceive && TXID.test(row.hash || '') && TXID.test(row.link || row.source || '');
+      return isReceive && TXID.test(row.hash || '');
     });
-    if (!receive) return null;
-    const record = { source_txid: receive.link || receive.source, receive_txid: receive.hash, amount_atomic: String(receive.amount || ''), address };
+    let sourceTxid = receive?.link || receive?.source;
+    let receiveInfo = null;
+    if (receive && !TXID.test(sourceTxid || '')) {
+      // Some Nano RPC gateways normalize account_history even when raw=true
+      // and omit the source block hash. Recover it from the confirmed receive
+      // block itself instead of treating a real payment as absent.
+      receiveInfo = await rpc('block_info', { hash: receive.hash, json_block: 'true' });
+      let contents = receiveInfo.contents;
+      if (typeof contents === 'string') {
+        try { contents = JSON.parse(contents); }
+        catch { contents = null; }
+      }
+      sourceTxid = contents?.link || contents?.source || receiveInfo.source_hash;
+    }
+    if (!receive || !TXID.test(sourceTxid || '')) return null;
+    const amountAtomic = String(receive.amount || receiveInfo?.amount || '');
+    if (!/^\d+$/.test(amountAtomic)) return null;
+    const record = { source_txid: sourceTxid, receive_txid: receive.hash, amount_atomic: amountAtomic, address };
     (await loadJournal()).receipts[address] = record;
     await atomicJson(statePath, journal);
     return { ...record, confirmations: nanoConfirmed(receive.confirmed) ? 1 : 0 };
