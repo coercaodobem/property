@@ -80,6 +80,14 @@ O host de IA pode ler o conteúdo autorizado e conservar uma cópia em seu próp
 
 O modelo não promete proteção contra malware ou administrador comprometendo o mesmo dispositivo/host já desbloqueado; esse risco é explicado e permanece fora do limite criptográfico do aplicativo.
 
+### Revisão técnica G5 — adições ao modelo
+
+Em 2026-11-03, a implementação e as fixtures offline acrescentaram controles para quatro caminhos que não estavam detalhados no primeiro quadro: evento com assinatura inválida que compartilha ID com cópia válida; JSON persistido adulterado com chaves duplicadas ou arquivo inadequado; frame de relay/linha MCP oversized; e cópias repetidas da mesma mensagem sob o mesmo `message_id`. O bridge agora verifica a assinatura antes de deduplicar, limita cada frame de relay a 64 KiB e o acúmulo por relay a 500 eventos, limita a linha MCP a 64 KiB, faz parsing estrito de configuração (máximo 256 KiB, sem chaves duplicadas, symlinks ou modo diferente de `0600`) e descarta cópias duplicadas por ID do evento/mensagem. Chaves hexadecimais e frames de evento também deixam de permanecer nos campos temporários do contexto VM; o segredo em memória é limpo ao bloquear o daemon.
+
+O ensaio G5 usa corpos hostis apenas como texto sintético. Ele mostra que a bridge não interpreta esse corpo nem inicia ferramentas, publicação ou alterações de permissão por conta própria; não executa um modelo externo e portanto não avalia se um host de IA comercial seria induzido semanticamente a chamar uma ferramenta autorizada. A captura de tráfego G5 é uma WebSocket fixture em processo, não captura de pacotes do sistema operacional. O resultado técnico e seus limites estão em [`G5-threat-model-review.md`](evidence/agent-messaging/G5-threat-model-review.md). A revisão independente exigida pelo G5 continua pendente; este registro de implementação não a substitui.
+
+Identidade de agente não tem comando de rotação nesta versão e revogação remota ainda não é publicada pelo bridge. As 20 repetições G5 giram contatos sintéticos e revogam seus escopos localmente em janelas de relógio lógico distintas; não representam rotação criptográfica da identidade. Não alegar eliminação de cópias já lidas por relay/host.
+
 ## 4. Inventário de dependências relevante
 
 - A PWA existente é JavaScript estático; Node.js 22+ é requisito documentado das suítes e será o runtime inicial da bridge local.
