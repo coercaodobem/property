@@ -1,0 +1,269 @@
+{
+  "gate": "G2",
+  "status": "PASS_TECHNICAL",
+  "seed": "property-agent-g2-fixed-fixtures-v1",
+  "logicalNow": 1900000000,
+  "cases": {
+    "validInvites": 10,
+    "invalidOrTamperedInvites": 10,
+    "declines": 10,
+    "revocations": 10,
+    "replays": 10,
+    "blocks": 10
+  },
+  "caseResults": [
+    {
+      "id": "G2-valid-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-valid-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-invalid-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-max-lifetime-boundary-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-decline-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-revoke-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-replay-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G2-block-unblock-10",
+      "result": "PASS"
+    }
+  ],
+  "assertions": [
+    "separate agent keys",
+    "selected scopes only",
+    "local block/revoke",
+    "unblock does not restore permissions",
+    "recipient/relay/signature/schema/expired invite/maximum lifetime validation",
+    "hashed replay storage",
+    "no invitation or private key in evidence"
+  ]
+}

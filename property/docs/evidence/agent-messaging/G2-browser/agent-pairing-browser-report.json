@@ -1,0 +1,28 @@
+{
+  "gate": "G2",
+  "status": "PASS_TECHNICAL_BROWSER",
+  "engine": "firefox",
+  "browser": "153.0",
+  "browserTestScope": "service worker disabled in this isolated UI/IndexedDB flow; offline shell is covered separately by sw-update-smoke",
+  "scenarios": {
+    "canceledInviteReused": true,
+    "exactScopeStored": true,
+    "localRevocation": true
+  },
+  "evidence": {
+    "browser": "153.0",
+    "origin": "http://127.0.0.1:38083",
+    "all_requests_loopback": true,
+    "service_worker_controlled": false,
+    "human_identity_preserved": true,
+    "default_scopes_off": true,
+    "cancel_did_not_consume_invite": true,
+    "approved_scopes_exact": true,
+    "indexeddb_persisted": true,
+    "revocation_cleared_scopes": true,
+    "external_requests_blocked": true,
+    "page_errors": [],
+    "blocked_external_requests": 0
+  },
+  "requestCount": 16
+}

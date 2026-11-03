@@ -10,6 +10,7 @@ const about = await readFile(join(root, 'web/about.html'), 'utf8');
 const manifest = JSON.parse(await readFile(join(root, 'web/manifest.webmanifest'), 'utf8'));
 const app = await readFile(join(root, 'web/app.js'), 'utf8');
 const contact = await readFile(join(root, 'web/contact.js'), 'utf8');
+const agentPairing = await readFile(join(root, 'web/agent-pairing.js'), 'utf8');
 const sw = await readFile(join(root, 'web/sw.js'), 'utf8');
 const vault = await readFile(join(root, 'web/vault.js'), 'utf8');
 const routing = await readFile(join(root, 'web/routing.js'), 'utf8');
@@ -42,7 +43,7 @@ assert.match(html, /\.\/marketplace\.js/);
 assert.match(sw, /marketplace\.js/);
 assert.match(html, /\.\/campaigns\.js/);
 assert.match(sw, /campaigns\.js/);
-assert.match(sw, /property-shell-v15/);
+assert.match(sw, /property-shell-v17/);
 assert.match(html, /id="locked-node-status"/, 'locked identity shows an explicit active public-node status');
 assert.match(html, /id="stop-locked-node"/, 'locked user can stop the opt-in public bridge');
 assert.match(app, /lockIdentity\(\{ preservePublicBridge = false \} = \{\}\)/, 'manual lock and idle lock have separate bridge behavior');
@@ -55,6 +56,14 @@ assert.match(html, /Nenhum relay é configurado automaticamente/);
 assert.match(html, /Carregar exemplos públicos/);
 assert.match(app, /Campaigns\.selectSponsoredCampaigns/);
 assert.match(html, /\.\/contact\.js/);
+assert.match(html, /\.\/agent-pairing\.js/);
+assert.match(html, /id="open-agent-manager"/);
+assert.match(html, /id="agent-invite-input"/);
+assert.match(html, /id="agent-access-list"/);
+assert.match(sw, /agent-pairing\.js/);
+assert.match(agentPairing, /verifyEvent\(event\)/);
+assert.match(agentPairing, /function normalizePermissions/);
+assert.match(agentPairing, /transitionAccess/);
 assert.match(app, /Contact\.parsePublicKey/);
 assert.match(contact, /não busca nomes de usuário/);
 assert.match(sw, /contact\.js/);
@@ -164,7 +173,7 @@ assert.doesNotMatch(`${html}\n${about}`, /<(?:script|link)\b[^>]*(?:src|href)=["
   'HTML cannot load executable code or styles from another origin');
 assert.doesNotMatch(`${app}\n${sw}`, /\bimportScripts\s*\(|\bimport\s*\(\s*["']https?:/i,
   'the app and service worker cannot import remote executable code');
-for (const localPath of ['./about.html', './styles.css', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
+for (const localPath of ['./about.html', './styles.css', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-pairing.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }
 await access(join(root, 'relay/dist-parts/manifest.txt'));

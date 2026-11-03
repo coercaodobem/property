@@ -6,7 +6,7 @@
   const PUBLIC_RELAY_EXAMPLES = ['wss://relay.damus.io', 'wss://nos.lol'];
   // Stable legacy database ID: preserve existing identities and sessions on this origin.
   const DB_NAME = 'liberdade-local-v1';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   const Vault = window.PropertyVault;
   const Routing = window.PropertyNostrRouting;
   const Bridge = window.PropertyRelayBridge;
@@ -15,13 +15,15 @@
   const Marketplace = window.PropertyMarketplace;
   const Campaigns = window.PropertyCampaigns;
   const Contact = window.PropertyContact;
+  const AgentPairing = window.PropertyAgentPairing;
   const eventSourceHints = new WeakMap();
   const state = {
     db: null, account: null, secret: null, pubkey: '', npub: '', relays: [],
     inboxRelays: [], peerInboxRelays: new Map(), peerRelayHints: new Map(),
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0,
-    bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null
+    bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
+    agentPairing: null, pendingAgentInvite: '', storageReady: false
   };
   const N = window.NostrTools;
   const bridge = Bridge?.createBridge(event => N.verifyEvent(event));
@@ -37,6 +39,14 @@
   function showAuthPane(name) {
     for (const pane of ['auth-choice', 'auth-setup', 'auth-import']) $(pane).classList.toggle('hidden', pane !== name);
     showError('auth-error'); showError('setup-error'); showError('import-error');
+  }
+  function setStorageReady(ready, message = '') {
+    state.storageReady = ready;
+    document.querySelectorAll('[data-requires-storage]').forEach(button => { button.disabled = !ready; });
+    const status = $('storage-status');
+    if (!status) return;
+    status.textContent = message || 'Preparando armazenamento local neste aparelho…';
+    status.classList.toggle('hidden', ready);
   }
   function setConnectionStatus() {
     const open = [...state.sockets.values()].filter(item => item.socket.readyState === WebSocket.OPEN).length;
@@ -60,7 +70,7 @@
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
         const db = request.result;
-        for (const [name, keyPath] of [['vault', 'id'], ['settings', 'id'], ['conversations', 'pubkey'], ['messages', 'id']]) {
+        for (const [name, keyPath] of [['vault', 'id'], ['settings', 'id'], ['conversations', 'pubkey'], ['messages', 'id'], ['agentInvites', 'id'], ['agentAccess', 'pubkey']]) {
           if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath });
         }
       };
@@ -83,6 +93,147 @@
   const all = store => dbRequest(store, 'getAll');
   const put = (store, value) => dbRequest(store, 'put', value);
   const del = (store, key) => dbRequest(store, 'delete', key);
+  function createAgentPairing() {
+    const storage = {
+      getInvite: id => get('agentInvites', id),
+      getAccess: pubkey => get('agentAccess', pubkey),
+      listAccess: () => all('agentAccess'),
+      commitDecision(inviteRecord, accessRecord) {
+        return new Promise((resolve, reject) => {
+          const tx = state.db.transaction(['agentInvites', 'agentAccess'], 'readwrite');
+          const inviteStore = tx.objectStore('agentInvites');
+          const accessStore = tx.objectStore('agentAccess');
+          const current = accessStore.get(inviteRecord.agentPubkey);
+          current.onsuccess = () => {
+            const old = current.result;
+            const disallowed = old?.status === 'blocked' || old?.status === 'approved' || (inviteRecord.status === 'approved' && old?.status === 'approved');
+            if (disallowed) { tx.abort(); return; }
+            inviteStore.add(inviteRecord);
+            if (accessRecord) accessStore.put(accessRecord);
+          };
+          current.onerror = () => tx.abort();
+          tx.oncomplete = () => resolve();
+          tx.onabort = () => reject(tx.error || new Error('Convite já usado ou estado do agente alterado em outra aba.'));
+          tx.onerror = () => reject(tx.error || new Error('Falha ao salvar o pareamento local.'));
+        });
+      },
+      transitionAccess(pubkey, action, now) {
+        return new Promise((resolve, reject) => {
+          const tx = state.db.transaction('agentAccess', 'readwrite');
+          const store = tx.objectStore('agentAccess');
+          const request = store.get(pubkey);
+          let result;
+          request.onsuccess = () => {
+            const access = request.result;
+            if (!access) { tx.abort(); return; }
+            if (action === 'revoked' && access.status !== 'approved') { tx.abort(); return; }
+            if (action === 'unblocked' && access.status !== 'blocked') { tx.abort(); return; }
+            if (action === 'blocked' && !['approved', 'revoked', 'blocked'].includes(access.status)) { tx.abort(); return; }
+            result = { ...access, status: action === 'unblocked' ? 'revoked' : action, permissions: { read: [], send: [] }, updatedAt: now };
+            result.revocationNotice = 'not-sent';
+            store.put(result);
+          };
+          request.onerror = () => tx.abort();
+          tx.oncomplete = () => resolve(result);
+          tx.onabort = () => reject(tx.error || new Error('O estado local do agente mudou; atualize a lista e tente novamente.'));
+          tx.onerror = () => reject(tx.error || new Error('Falha ao alterar o acesso local do agente.'));
+        });
+      }
+    };
+    return AgentPairing.createPairing({ nostr: N, storage });
+  }
+  function agentScopeText(access) {
+    const reads = access.permissions?.read?.length || 0;
+    const sends = access.permissions?.send?.length || 0;
+    return `Leitura: ${reads} conversa${reads === 1 ? '' : 's'} · envio: ${sends} conversa${sends === 1 ? '' : 's'}`;
+  }
+  async function renderAgentAccessList() {
+    const list = $('agent-access-list');
+    list.replaceChildren();
+    const entries = await state.agentPairing.list();
+    if (!entries.length) {
+      const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = 'Nenhum agente pareado neste aparelho.'; list.append(empty); return;
+    }
+    for (const access of entries.sort((a, b) => b.updatedAt - a.updatedAt)) {
+      const card = document.createElement('article'); card.className = 'node-card';
+      const title = document.createElement('h3'); title.textContent = access.name;
+      const label = document.createElement('p'); label.className = 'eyebrow'; label.textContent = `AGENTE · ${access.status === 'approved' ? 'ACESSO ATIVO' : access.status === 'blocked' ? 'BLOQUEADO' : 'REVOGADO'}`;
+      const key = document.createElement('code'); key.className = 'break-code'; key.textContent = access.pubkey;
+      const scopes = document.createElement('p'); scopes.className = 'fine-print'; scopes.textContent = access.status === 'approved' ? agentScopeText(access) : 'Nenhuma permissão ativa.';
+      card.append(label, title, key, scopes);
+      if (access.status === 'approved' || access.status === 'revoked') {
+        const action = document.createElement('button'); action.type = 'button'; action.className = access.status === 'approved' ? 'button danger full' : 'button secondary full';
+        action.textContent = access.status === 'approved' ? 'Revogar acesso' : 'Bloquear convites futuros';
+        action.addEventListener('click', async () => {
+          const prompt = access.status === 'approved'
+            ? 'Revogar agora bloqueará leituras e envios neste aparelho. O agente só receberá aviso quando a integração de rede estiver concluída; cópias anteriores não serão apagadas. Continuar?'
+            : 'Bloquear este agente neste aparelho? Um novo convite não poderá reativá-lo até você desbloquear explicitamente.';
+          if (!window.confirm(prompt)) return;
+          try { await (access.status === 'approved' ? state.agentPairing.revoke(access.pubkey) : state.agentPairing.block(access.pubkey)); await renderAgentAccessList(); }
+          catch (error) { showError('agent-pairing-error', error.message); }
+        });
+        card.append(action);
+      } else if (access.status === 'blocked') {
+        const action = document.createElement('button'); action.type = 'button'; action.className = 'button secondary full'; action.textContent = 'Desbloquear agente';
+        action.addEventListener('click', async () => {
+          if (!window.confirm('Desbloquear permite que um novo convite seja analisado; não restaura permissões anteriores. Continuar?')) return;
+          try { await state.agentPairing.unblock(access.pubkey); await renderAgentAccessList(); }
+          catch (error) { showError('agent-pairing-error', error.message); }
+        }); card.append(action);
+      }
+      list.append(card);
+    }
+  }
+  async function inspectAgentInvite() {
+    showError('agent-pairing-error');
+    $('agent-invite-review').classList.add('hidden');
+    $('agent-permission-list').replaceChildren();
+    try {
+      const input = $('agent-invite-input').value.trim();
+      const invite = state.agentPairing.inspectInvite(input, { humanPubkey: state.pubkey, allowedRelays: state.relays });
+      state.pendingAgentInvite = input;
+      $('agent-invite-name').textContent = invite.agentName;
+      $('agent-invite-pubkey').textContent = invite.agentPubkey;
+      $('agent-invite-relays').textContent = invite.relayHints.length ? `${invite.relayHints.length} relay(s) já escolhido(s) por você; nenhum novo relay foi conectado.` : 'O convite não sugere relays.';
+      const conversations = (await all('conversations')).filter(item => /^[0-9a-f]{64}$/.test(item.pubkey));
+      if (!conversations.length) {
+        const empty = document.createElement('p'); empty.className = 'fine-print'; empty.textContent = 'Você ainda não tem conversas locais. É possível adicionar o agente sem permissões e revisar o acesso depois.';
+        $('agent-permission-list').append(empty);
+      }
+      for (const conversation of conversations.slice(0, 100)) {
+        const row = document.createElement('fieldset'); row.className = 'agent-permission-row';
+        const legend = document.createElement('legend'); legend.textContent = displayName(conversation.pubkey, conversation.title || 'Contato'); row.append(legend);
+        for (const [kind, label] of [['read', 'Pode ler esta conversa'], ['send', 'Pode enviar texto nesta conversa']]) {
+          const wrapper = document.createElement('label'); wrapper.className = 'check-row';
+          const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.dataset.scope = kind; checkbox.dataset.conversation = conversation.pubkey;
+          const text = document.createElement('span'); text.textContent = label; wrapper.append(checkbox, text); row.append(wrapper);
+        }
+        $('agent-permission-list').append(row);
+      }
+      $('agent-invite-review').classList.remove('hidden');
+    } catch (error) { state.pendingAgentInvite = ''; showError('agent-pairing-error', error.message || 'Não foi possível verificar o convite.'); }
+  }
+  async function approveAgentInvite() {
+    try {
+      const contacts = (await all('conversations')).map(item => item.pubkey).filter(value => /^[0-9a-f]{64}$/.test(value)).slice(0, 100);
+      const groups = new Map();
+      for (const checkbox of $('agent-permission-list').querySelectorAll('input[type="checkbox"]')) {
+        const entry = groups.get(checkbox.dataset.conversation) || { conversationPubkey: checkbox.dataset.conversation, read: false, send: false };
+        entry[checkbox.dataset.scope] = checkbox.checked; groups.set(checkbox.dataset.conversation, entry);
+      }
+      const permissions = [...groups.values()].filter(item => item.read || item.send);
+      await state.agentPairing.approve(state.pendingAgentInvite, { humanPubkey: state.pubkey, allowedRelays: state.relays, contacts, permissions });
+      state.pendingAgentInvite = ''; $('agent-invite-input').value = ''; $('agent-invite-review').classList.add('hidden');
+      await renderAgentAccessList(); showToast('Agente pareado. Nenhuma mensagem foi enviada.');
+    } catch (error) { showError('agent-pairing-error', error.message || 'Não foi possível salvar o pareamento.'); }
+  }
+  async function declineAgentInvite() {
+    try {
+      await state.agentPairing.decline(state.pendingAgentInvite, { humanPubkey: state.pubkey, allowedRelays: state.relays });
+      state.pendingAgentInvite = ''; $('agent-invite-input').value = ''; $('agent-invite-review').classList.add('hidden');
+      showToast('Convite recusado. Ele não pode ser reutilizado.');
+    } catch (error) { showError('agent-pairing-error', error.message || 'Não foi possível recusar o convite.'); }
+  }
   const toBase64 = Vault.toBase64;
   const fromBase64 = Vault.fromBase64;
   const encryptBytes = Vault.encryptBytes;
@@ -817,7 +968,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v15', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v17', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -830,6 +981,17 @@
     $('unlock-button').addEventListener('click', tryUnlock);
     $('password').addEventListener('keydown', event => { if (event.key === 'Enter') tryUnlock(); });
     $('profile-button').addEventListener('click', () => $('profile-dialog').showModal());
+    $('open-agent-manager').addEventListener('click', async () => {
+      $('profile-dialog').close(); $('agent-dialog').showModal();
+      $('agent-invite-input').value = ''; $('agent-invite-review').classList.add('hidden'); state.pendingAgentInvite = '';
+      showError('agent-pairing-error'); await renderAgentAccessList();
+    });
+    $('inspect-agent-invite').addEventListener('click', () => inspectAgentInvite());
+    $('approve-agent-invite').addEventListener('click', () => approveAgentInvite());
+    $('decline-agent-invite').addEventListener('click', () => declineAgentInvite());
+    $('cancel-agent-invite').addEventListener('click', () => {
+      state.pendingAgentInvite = ''; $('agent-invite-review').classList.add('hidden'); showError('agent-pairing-error');
+    });
     const openRelaySettings = async () => {
       $('relay-input').value = state.relays.join('\n');
       $('dm-relay-input').value = state.inboxRelays.join('\n');
@@ -927,12 +1089,14 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentPairing || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.bridgeRefreshTimer = window.setInterval(refreshBridgeSubscriptions, 60_000);
     registerOfflineShell();
     try {
       state.db = await openDatabase();
+      state.agentPairing = createAgentPairing();
+      setStorageReady(true);
       state.account = await get('vault', 'account');
       const relaySettings = await get('settings', 'relays');
       if (relaySettings?.values?.length) state.relays = relaySettings.values.map(normalizeRelay);
@@ -946,6 +1110,7 @@
       if (state.bridgeEnabled) for (const url of state.relays) connectRelay(url);
       setConnectionStatus(); updateLockedBridgeStatus();
     } catch (error) {
+      setStorageReady(false, `Armazenamento local indisponível: ${error.message || 'erro do navegador'}`);
       showAuthPane('auth-choice'); showError('auth-error', `Armazenamento local indisponível: ${error.message || 'erro do navegador'}`);
     }
   }

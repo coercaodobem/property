@@ -4,7 +4,7 @@
 **Atualizado:** 2026-11-03.
 **Escopo:** agentes conversando por meio do Property, com a interface e o controle humano como requisitos obrigatórios.
 
-**Estado dos gates nesta execução:** G0 **PASS** ([decisão e ameaças](agent-messaging-g0.md), [snapshots e hashes](protocol-snapshots/README.md)); protótipo e guia inicial de linguagem do G1 foram preparados, mas G1 permanece **PENDING** até concluir a inspeção visual no browser, as sessões com cinco pessoas reais e a correção/repetição de qualquer falha crítica; G2–G7 permanecem **PENDING** por dependência sequencial e não foram iniciados. Consulte o [registro G1](evidence/agent-messaging/G1-20261103.md).
+**Estado dos gates nesta execução:** G0 **PASS** ([decisão e ameaças](agent-messaging-g0.md), [snapshots e hashes](protocol-snapshots/README.md)); G1 permanece **PENDING** até concluir cinco sessões com pessoas reais e corrigir/repetir qualquer falha crítica. A inspeção visual responsiva no Firefox foi executada e registrada, mas não substitui as sessões humanas. Por instrução expressa do responsável em 2026-11-03, G2–G7 podem avançar tecnicamente como se a pré-condição G1 estivesse aprovada, sem alterar o estado/evidência de G1 e sem dispensar o gate humano: resultados posteriores registram evidência técnica própria, mas nenhuma conclusão de piloto/pronto é válida enquanto G1 e G6 não passarem com pessoas reais. Consulte o [registro G1](evidence/agent-messaging/G1-20261103.md) e o [registro da autorização de continuidade](evidence/agent-messaging/continuation-authorization-20261103.md).
 
 ## 1. Objetivo
 
@@ -114,7 +114,7 @@ Se um host local não suportar MCP, o plano prevê uma SDK/CLI de mesmo contrato
 
 ## 6. Fases de implementação e gates
 
-Os gates são sequenciais quando houver dependência. Um gate só passa com todos os critérios e evidências; `PENDING`, `BLOCKED`, falha crítica de UX ou teste parcial impede avançar o gate dependente. Trabalho diagnóstico independente pode continuar, mas não é aprovação.
+Os gates são sequenciais quando houver dependência. Um gate só passa com todos os critérios e evidências; `PENDING`, `BLOCKED`, falha crítica de UX ou teste parcial impede avanço normal do gate dependente. Exceção de execução registrada em 2026-11-03 por instrução expressa do responsável: enquanto G1 continua `PENDING`, a equipe pode executar G2–G7 tecnicamente como se G1 estivesse aprovada. Essa autorização não preenche dados de participantes, não muda G1 para PASS, não elimina a validação humana obrigatória e não autoriza declarar o piloto pronto. Todo gate continua limitado a evidências realmente produzidas; estados individuais continuam registrados como PASS, PENDING ou BLOCKED, sem promoção automática por esta exceção.
 
 ### Fase 0 — Descoberta, arquitetura e ameaça (G0)
 
@@ -152,7 +152,7 @@ Qualquer falha em permissão, identidade, destinatário ou uso básico humano re
 
 **Entregáveis:** fluxo de identidade separada, convite verificável, armazenamento local, allowlist, bloqueio e revogação.
 
-**Cenários:** dois agentes sintéticos, dois usuários humanos e relays locais isolados; repetir 10 convites válidos, 10 inválidos/adulterados, 10 recusas, 10 revogações e 10 tentativas de replay com semente e relógio lógico predeterminados.
+**Cenários:** dois agentes sintéticos e duas identidades humanas sintéticas; validar relays pela allowlist sem abrir conexão de rede nesta fase. Repetir 10 convites válidos, 10 inválidos/adulterados, 10 recusas, 10 revogações e 10 tentativas de replay com semente e relógio lógico predeterminados. A conexão e o transporte pelos relays locais começam no G3; o fluxo G2 deve permanecer sem tráfego externo.
 
 **Critérios G2:**
 
@@ -162,6 +162,8 @@ Qualquer falha em permissão, identidade, destinatário ou uso básico humano re
 - recusar, cancelar, bloquear e revogar têm resultado claro e não afetam as conversas humanas;
 - chave inválida, perfil adulterado, convite repetido/expirado e relay não autorizado falham fechado;
 - nenhuma chave, convite secreto ou conversa privada aparece em logs/evidência.
+
+**Registro de execução:** implementação local de convite assinado, validação de alvo/relays/validade, consentimento por conversa, allowlist, recusa, bloqueio e revogação fica em `web/agent-pairing.js` e na tela opcional de perfil. O convite não abre conexão ou envia mensagem; o aviso de revogação permanece `não enviado` até o transporte ser implementado no G3. A evidência G2 separa testes técnicos determinísticos e browser da validação humana pendente em G1. Consulte [`G2-20261103.md`](evidence/agent-messaging/G2-20261103.md) e o relatório de browser em `evidence/agent-messaging/G2-browser/`.
 
 ### Fase 3 — Transporte de mensagem agente-agente (G3)
 

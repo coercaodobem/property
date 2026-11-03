@@ -7,26 +7,27 @@
   <meta name="description" content="Property: comunicação Nostr com identidade local e relays escolhidos por você.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>Property</title>
-  <link rel="icon" href="./assets/property-icon-192.png?v=property-v15" type="image/png" sizes="192x192">
-  <link rel="icon" href="./assets/icon.svg?v=property-v15" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v15">
-  <link rel="manifest" href="./manifest.webmanifest?v=property-v15">
-  <link rel="stylesheet" href="./styles.css?v=property-v15">
-  <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v15"></script>
-  <script defer src="./vault.js?v=property-v15"></script>
-  <script defer src="./routing.js?v=property-v15"></script>
-  <script defer src="./forwarding.js?v=property-v15"></script>
-  <script defer src="./nano.js?v=property-v15"></script>
-  <script defer src="./money.js?v=property-v15"></script>
-  <script defer src="./marketplace.js?v=property-v15"></script>
-  <script defer src="./campaigns.js?v=property-v15"></script>
-  <script defer src="./contact.js?v=property-v15"></script>
-  <script defer src="./app.js?v=property-v15"></script>
+  <link rel="icon" href="./assets/property-icon-192.png?v=property-v17" type="image/png" sizes="192x192">
+  <link rel="icon" href="./assets/icon.svg?v=property-v17" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v17">
+  <link rel="manifest" href="./manifest.webmanifest?v=property-v17">
+  <link rel="stylesheet" href="./styles.css?v=property-v17">
+  <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v17"></script>
+  <script defer src="./vault.js?v=property-v17"></script>
+  <script defer src="./routing.js?v=property-v17"></script>
+  <script defer src="./forwarding.js?v=property-v17"></script>
+  <script defer src="./nano.js?v=property-v17"></script>
+  <script defer src="./money.js?v=property-v17"></script>
+  <script defer src="./marketplace.js?v=property-v17"></script>
+  <script defer src="./campaigns.js?v=property-v17"></script>
+  <script defer src="./contact.js?v=property-v17"></script>
+  <script defer src="./agent-pairing.js?v=property-v17"></script>
+  <script defer src="./app.js?v=property-v17"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
     <header class="topbar">
-      <a class="brand" href="#inicio" aria-label="Property início"><img class="brand-mark" src="./assets/property-icon-192.png?v=property-v15" alt=""><span>Property</span></a>
+      <a class="brand" href="#inicio" aria-label="Property início"><img class="brand-mark" src="./assets/property-icon-192.png?v=property-v17" alt=""><span>Property</span></a>
       <div class="connection"><span id="connection-dot" class="dot"></span><span id="connection-label">offline</span></div>
       <button id="mobile-open-settings" class="icon-button mobile-relay-settings" aria-label="Configurar relays" title="Configurar relays">⚙</button>
       <button id="profile-button" class="profile-button" aria-label="Perfil e configurações"><span id="profile-initial">?</span></button>
@@ -52,10 +53,11 @@
           <p class="muted">Uma chave aleatória é criada no navegador e protegida pela sua senha. A senha não é enviada ao relay.</p>
           <label class="field"><span>Senha</span><input id="password" type="password" autocomplete="current-password" minlength="12" placeholder="Use 12 caracteres ou mais"></label>
           <label class="check-row"><input id="remember-login" type="checkbox" checked><span>Manter sessão iniciada neste aparelho</span></label>
-          <button id="unlock-button" class="button primary full">Desbloquear</button>
-          <button id="create-account-button" class="button secondary full">Criar identidade</button>
-          <button id="import-account-button" class="button text full">Importar chave Nostr</button>
+          <button id="unlock-button" class="button primary full" data-requires-storage disabled>Desbloquear</button>
+          <button id="create-account-button" class="button secondary full" data-requires-storage disabled>Criar identidade</button>
+          <button id="import-account-button" class="button text full" data-requires-storage disabled>Importar chave Nostr</button>
           <p id="auth-error" class="error" role="alert"></p>
+          <p id="storage-status" class="fine-print" role="status" aria-live="polite">Preparando armazenamento local neste aparelho…</p>
           <p class="fine-print">Sem servidor de recuperação. Exporte um backup criptografado para poder migrar de aparelho.</p>
         </div>
         <div id="auth-setup" class="auth-pane hidden">
@@ -64,7 +66,7 @@
           <label class="field"><span>Confirme a senha</span><input id="confirm-password" type="password" autocomplete="new-password"></label>
           <label class="check-row"><input id="remember-device" type="checkbox" checked><span>Manter sessão iniciada neste aparelho</span></label>
           <p class="fine-print">A sessão persistente é conveniente, mas alguém com acesso ao navegador já desbloqueado pode agir como você. Use bloqueio de tela no aparelho.</p>
-          <button id="finish-create-button" class="button primary full">Criar e continuar</button>
+          <button id="finish-create-button" class="button primary full" data-requires-storage disabled>Criar e continuar</button>
           <button class="button text full back-auth">Voltar</button>
           <p id="setup-error" class="error" role="alert"></p>
         </div>
@@ -73,7 +75,7 @@
           <label class="field"><span>Chave secreta nsec ou hex</span><textarea id="import-secret" rows="3" autocomplete="off" spellcheck="false"></textarea></label>
           <label class="field"><span>Crie uma senha local</span><input id="import-password" type="password" autocomplete="new-password" minlength="12"></label>
           <label class="check-row"><input id="remember-import" type="checkbox"><span>Manter sessão iniciada neste aparelho</span></label>
-          <button id="finish-import-button" class="button primary full">Importar com segurança</button>
+          <button id="finish-import-button" class="button primary full" data-requires-storage disabled>Importar com segurança</button>
           <button class="button text full back-auth">Voltar</button>
           <p id="import-error" class="error" role="alert"></p>
         </div>
@@ -130,7 +132,9 @@
 
   <dialog id="delete-product-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">RETIRADA NOSTR</p><h2>Retirar oferta?</h2></div><button class="icon-button" aria-label="Cancelar">×</button></form><div class="dialog-body"><p id="delete-product-label" class="muted"></p><button id="confirm-delete-product" class="button danger full" type="button">Assinar e publicar pedido</button><p id="delete-product-error" class="error" role="alert"></p></div></dialog>
 
-  <dialog id="profile-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">IDENTIDADE LOCAL</p><h2>Perfil e segurança</h2></div><button class="icon-button" aria-label="Fechar">×</button></form><div class="dialog-body"><p><strong>npub</strong></p><code id="profile-npub" class="break-code"></code><label class="field"><span>Nome público</span><input id="profile-name" maxlength="80" placeholder="Como quer aparecer"></label><button id="save-profile" class="button secondary full" type="button">Salvar perfil</button><button id="export-backup" class="button secondary full" type="button">Baixar backup criptografado</button><button id="copy-npub" class="button text full" type="button">Copiar npub</button><button id="lock-account" class="button danger full" type="button">Bloquear e limpar sessão</button><p id="profile-error" class="error" role="alert"></p></div></dialog>
+  <dialog id="profile-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">IDENTIDADE LOCAL</p><h2>Perfil e segurança</h2></div><button class="icon-button" aria-label="Fechar">×</button></form><div class="dialog-body"><p><strong>npub</strong></p><code id="profile-npub" class="break-code"></code><label class="field"><span>Nome público</span><input id="profile-name" maxlength="80" placeholder="Como quer aparecer"></label><button id="save-profile" class="button secondary full" type="button">Salvar perfil</button><button id="export-backup" class="button secondary full" type="button">Baixar backup criptografado</button><button id="copy-npub" class="button text full" type="button">Copiar npub</button><button id="open-agent-manager" class="button secondary full" type="button">Agentes e permissões</button><button id="lock-account" class="button danger full" type="button">Bloquear e limpar sessão</button><p id="profile-error" class="error" role="alert"></p></div></dialog>
+
+  <dialog id="agent-dialog" class="dialog-card agent-manager-dialog"><form method="dialog" class="dialog-head"><div><p class="eyebrow">ACESSO OPCIONAL</p><h2>Agentes e permissões</h2></div><button class="icon-button" aria-label="Fechar" autofocus>×</button></form><div class="dialog-body"><p class="fine-print">Sua conversa humana continua independente. Um convite identifica uma chave de agente; o nome é apenas uma declaração. Permissões de leitura e envio são separadas e começam desligadas. Verificar convite não conecta nenhum relay nem envia mensagem.</p><label class="field"><span>Link ou convite assinado do agente</span><textarea id="agent-invite-input" rows="4" maxlength="24000" autocomplete="off" spellcheck="false" placeholder="Cole aqui o convite Property recebido"></textarea></label><button id="inspect-agent-invite" class="button secondary full" type="button">Verificar identidade</button><section id="agent-invite-review" class="agent-invite-review hidden" aria-labelledby="agent-review-title"><h3 id="agent-review-title">Confira o agente</h3><p><strong>Nome declarado</strong><br><span id="agent-invite-name"></span></p><p><strong>Chave pública completa</strong><br><code id="agent-invite-pubkey" class="break-code"></code></p><p id="agent-invite-relays" class="fine-print"></p><p class="fine-print">Marque somente as conversas e ações que você entende. O host do agente pode guardar cópias que receber.</p><div id="agent-permission-list" class="agent-permission-list"></div><div class="dialog-actions"><button id="approve-agent-invite" class="button primary" type="button">Adicionar com estas permissões</button><button id="decline-agent-invite" class="button danger" type="button">Recusar convite</button><button id="cancel-agent-invite" class="button text" type="button">Cancelar revisão</button></div></section><p id="agent-pairing-error" class="error" role="alert"></p><hr><h3>Agentes neste aparelho</h3><p class="fine-print">Bloquear ou revogar interrompe permissões locais. O agente só receberá um aviso quando o transporte de controle estiver implementado; mensagens já copiadas não podem ser apagadas.</p><div id="agent-access-list" class="agent-access-list" aria-live="polite"></div></div></dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <footer class="app-footer"><span>Property · código local</span><span><a href="./about.html">Sobre o projeto</a></span></footer>
