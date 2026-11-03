@@ -244,7 +244,7 @@ async function sendMessage(page, text) {
 }
 async function messageAudit(page, peer) {
   return await page.evaluate(async peerKey => {
-    const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1', 1); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
     const rows = await new Promise((resolve, reject) => { const request = db.transaction('messages').objectStore('messages').getAll(); request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error); });
     db.close(); return rows.filter(row => row.peer === peerKey).map(({ id, text, direction, status }) => ({ id, text, direction, status }));
   }, peer);
@@ -252,7 +252,7 @@ async function messageAudit(page, peer) {
 async function waitForMessageStatus(page, peer, text, status) {
   await page.waitForFunction(async ({ peerKey, messageText, expectedStatus }) => {
     const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open('liberdade-local-v1', 1);
+      const request = indexedDB.open('liberdade-local-v1');
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -361,7 +361,7 @@ async function main() {
     assert.ok(bAfterFalseAckList?.tags.some(tag => tag[0] === 'relay' && tag[1] === falseAckUrl),
       `Geode latest kind-10050 did not reflect false-ACK inbox ${falseAckUrl}`);
     await pageA.evaluate(async peer => {
-      const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1', 1); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+      const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
       await new Promise((resolve, reject) => { const tx = db.transaction('settings', 'readwrite'); const request = tx.objectStore('settings').delete(`peer-inbox-${peer}`); request.onsuccess = resolve; request.onerror = () => reject(request.error); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); }); db.close();
     }, b.pubkey);
     await pageA.reload({ waitUntil: 'domcontentloaded' }); await pageA.locator('#workspace').waitFor({ state: 'visible', timeout: 20000 });
