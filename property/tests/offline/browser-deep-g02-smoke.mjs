@@ -82,11 +82,11 @@ async function startAppServer(state) {
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end('<!doctype html><title>local seed page</title>');
         return;
       }
-      if (url.pathname.endsWith('/_property_test/update-v18.js')) {
-        response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }).end('window.__propertyUpdateV18 = true;');
+      if (url.pathname.endsWith('/_property_test/update-v19.js')) {
+        response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }).end('window.__propertyUpdateV19 = true;');
         return;
       }
-      if (url.pathname.endsWith('/_property_test/interrupted-v19.js') || url.pathname.endsWith('/_property_test/mixed-v20.js')) {
+      if (url.pathname.endsWith('/_property_test/interrupted-v20.js')) {
         response.writeHead(503, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }).end('offline update fixture unavailable');
         return;
       }
@@ -258,7 +258,7 @@ async function seedLegacyDatabase(page, data) {
 async function queryVault(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open('liberdade-local-v1', 1);
+      const request = indexedDB.open('liberdade-local-v1');
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -426,7 +426,7 @@ async function main() {
     await corruptPage.waitForFunction(() => /Senha incorreta|Backup Property inválido/.test(document.querySelector('#import-error')?.textContent || ''), null, { timeout: 20000 });
     assert.match(await corruptPage.locator('#import-error').textContent(), /Senha incorreta|Backup Property inválido/);
     const emptyVault = await corruptPage.evaluate(async () => {
-      const db = await new Promise((resolve, reject) => { const req = indexedDB.open('liberdade-local-v1', 1); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
+      const db = await new Promise((resolve, reject) => { const req = indexedDB.open('liberdade-local-v1'); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
       const value = await new Promise((resolve, reject) => { const req = db.transaction('vault').objectStore('vault').get('account'); req.onsuccess = () => resolve(req.result || null); req.onerror = () => reject(req.error); });
       db.close(); return value;
     });
@@ -475,7 +475,7 @@ async function main() {
     const maliciousPayload = '<img src=x onerror="window.__propertyXss=true"><script>window.__propertyXss=true</script>';
     const maliciousPubkey = await page.evaluate(() => NostrTools.getPublicKey(NostrTools.generateSecretKey()));
     await page.evaluate(async ({ pubkey, payload }) => {
-      const db = await new Promise((resolve, reject) => { const req = indexedDB.open('liberdade-local-v1', 1); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
+      const db = await new Promise((resolve, reject) => { const req = indexedDB.open('liberdade-local-v1'); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
       await new Promise((resolve, reject) => { const tx = db.transaction('conversations', 'readwrite'); tx.objectStore('conversations').put({ pubkey, title: payload, lastMessage: payload, lastAt: Date.now() }); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
       db.close();
     }, { pubkey: maliciousPubkey, payload: maliciousPayload });
