@@ -146,7 +146,7 @@ Prazos de `waitFor`, socket, subprocesso e watchdog são apenas proteções cont
 
 | Caso | Procedimento e aprovação |
 |---|---|
-| G01-01 | Executar todas as 15 suítes atuais de run-smoke.sh dentro do isolamento. Conferir individualmente resultado, código de saída e o número de suítes; validar casos negativos. Atualizar esta contagem quando a lista de suítes mudar. |
+| G01-01 | Executar todas as 16 suítes atuais de run-smoke.sh dentro do isolamento. Conferir individualmente resultado, código de saída e o número de suítes; validar casos negativos. Atualizar esta contagem quando a lista de suítes mudar. |
 | G01-02 | Executar integração entre dois relays reais e integração nativa do launcher. Verificar ACK positivo, consulta por IDs e persistência exata após reinício, não só contagem total. Ampliar o teste existente se só comparar contagens. |
 | G01-03 | Demonstrar sensibilidade dos testes: adulterar apenas fixtures isoladas de assinatura, bundle/hash, preço atômico e backup; cada caso deve falhar pelo motivo previsto. Restaurar fixtures sem editar esperado ou desativar checks. |
 
