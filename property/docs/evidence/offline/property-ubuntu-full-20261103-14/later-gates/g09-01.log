@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/g09-campaign-crash-smoke.mjs 28700 /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261103-14/later-gates/g09-01
+started: 2026-11-03T19:59:10.875Z
+ended: 2026-11-03T19:59:20.178Z
+exit_code: 0
+signal: 
+timeout: false
+--- stdout ---
+{"schema_version":1,"result":"PASS","case":"G09-01","abrupt_campaign_crashes":2,"state_after_first_crash":"awaiting_payment","state_after_second_crash":"published","publication_calls_after_recovery":0,"relay_campaign_copies":1,"campaign_event_id":"00ed8b9e9bc454c639b6d512948d7cd1ed4b41cf84fd16d140b2da81028d8b3a","relay_url":"ws://127.0.0.1:28700","temp_state_private":true}
+
+--- stderr ---
+

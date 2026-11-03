@@ -1,0 +1,38 @@
+command: bash ./gradlew --offline --no-daemon --rerun-tasks :geode:installDist --console=plain
+started: 2026-11-03T20:01:17.042Z
+ended: 2026-11-03T20:01:22.654Z
+exit_code: 1
+signal: 
+timeout: false
+--- stdout ---
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+--- stderr ---
+Picked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx384m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m -Djava.io.tmpdir=/home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Wvr9ga
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file '/home/<USER>/Liberdade/amethyst-upstream/build.gradle.kts' line: 35
+
+* What went wrong:
+Plugin [id: 'com.android.application', version: '9.4.1', apply: false] was not found in any of the following sources:
+
+- Gradle Core Plugins (plugin is not in 'org.gradle' namespace)
+- Included Builds (No included builds contain this plugin)
+- Plugin Repositories (could not resolve plugin artifact 'com.android.application:com.android.application.gradle.plugin:9.4.1')
+  Searched in the following repositories:
+    Google
+    MavenRepo
+    Gradle Central Plugin Repository
+    maven(https://jitpack.io)
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 5s
+

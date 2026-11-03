@@ -43,6 +43,11 @@ Também foi acrescentado ao teste smoke um caso fixo que simula esse histórico 
 - O banco do wallet de teste permanece apenas no diretório local privado `.property-xno-mainnet-20261103`, com permissões restritas. A seed e a chave privada não foram exportadas nem incluídas neste repositório.
 - Este arquivo documenta somente evidências públicas de transação e resultados técnicos; nenhum segredo ou dado de usuário está incluído.
 
+## Reconsulta pública da cadeia
+
+Em 2026-11-03, uma chamada de leitura `blocks_info` ao endpoint público `https://rpc.nano.to/` revalidou os três hashes registrados acima. O bloco do faucet (`0687ED8B65D9307C620C89024F1DDB2E55F5DAB6BD84499D82203E361F284F40`) retornou `confirmed=true` e `amount=500000000000000000000000000` raw (`0.0005 XNO`). O envio de teste (`4905F92452181D2A71D50B630F1FE8381C79E8C8902D4C184A2BC5ACE5E561B7`) retornou `subtype=send`, `amount=1` raw e `confirmed=true`. O recebimento (`3ED509CCF8A9BFE464B0C74C0D1D5E6316F4527341EB9F7BB340036CCA596EF1`) retornou `subtype=receive`, `amount=1` raw, `confirmed=true` e `link` igual ao hash do envio. Essa reconsulta foi somente leitura e não transmitiu uma nova transação.
+
 ## Fontes técnicas
 
 - [Protocolo RPC oficial do Nano](https://docs.nano.org/commands/rpc-protocol/) — `block_create`, `process`, `block_info`, histórico e confirmação.
+- [Documentação do Nano.to RPC](https://rpc.nano.to/docs/rpc) — endpoint público JSON HTTP POST usado para a reconsulta independente dos hashes.
