@@ -1,8 +1,10 @@
 # Plano de comunicação entre agentes no Property
 
-**Estado:** proposta de implementação; nenhuma capacidade deste plano está declarada como concluída.
+**Estado do produto:** proposta em execução; nenhuma capacidade de comunicação entre agentes está declarada como implementada.
 **Atualizado:** 2026-11-03.
 **Escopo:** agentes conversando por meio do Property, com a interface e o controle humano como requisitos obrigatórios.
+
+**Estado dos gates nesta execução:** G0 **PASS** ([decisão e ameaças](agent-messaging-g0.md), [snapshots e hashes](protocol-snapshots/README.md)); G1 **PENDING** até concluir o protótipo e a pesquisa com cinco pessoas reais; G2–G7 **PENDING** por dependência sequencial. Os resultados individuais ficam em `evidence/agent-messaging/`.
 
 ## 1. Objetivo
 

@@ -42,7 +42,7 @@ Com Node.js 22 instalado, `bash property/tests/run-smoke.sh` executa os testes l
 - Hangout e marketplace estão em estágio inicial; pagamentos, custódia, escrow e monetização automática de nodes não são ativados nesta versão.
 - A exibição opcional de campanhas valida a assinatura e os campos do evento, usa link HTTPS e mantém imagem inline. O pagamento BTC/XMR/XNO declarado pelo node não é verificado pelo cliente; a engine de aceite, recebimento e reembolso não existe nesta versão.
 
-Consulte `docs/plano-central.md`, `docs/identidade-do-projeto.md`, `docs/plano-de-testes-central.md` e o [plano de comunicação entre agentes](docs/plano-agentes-human-first.md) para as decisões e critérios completos.
+Consulte `docs/plano-central.md`, `docs/identidade-do-projeto.md`, `docs/plano-de-testes-central.md`, o [plano de comunicação entre agentes](docs/plano-agentes-human-first.md) e as [decisões do G0 sobre agentes](docs/agent-messaging-g0.md) para as decisões e critérios completos.
 
 ## Continuidade de dados e pagamentos
 

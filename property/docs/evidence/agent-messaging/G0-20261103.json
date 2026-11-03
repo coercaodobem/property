@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "plan": "property/docs/plano-agentes-human-first.md",
+  "gate": "G0",
+  "status": "PASS",
+  "date": "2026-11-03",
+  "tested_local_commit": "d2326131abd65732af5511d066b58cac600097a1",
+  "verified_remote_base_head": "f3616f015609eb82d4655d6d8271e2b6f11bbe30",
+  "environment": {
+    "os": "Ubuntu Linux x86_64",
+    "kernel": "7.0.0-38-generic",
+    "node": "v22.22.1",
+    "network_policy": "No public relay, payment network, real account, or participant was used. The smoke suite uses local fixtures and 127.0.0.1 loopback only."
+  },
+  "fixed_cases": {
+    "protocol_snapshot_integrity": {
+      "status": "PASS",
+      "files": 10,
+      "git_blob_sha1_matches": 10,
+      "sha256_matches": 10,
+      "protocol_semantics_and_policy_cases": 7,
+      "exact_assertions": 38
+    },
+    "property_smoke_suite": {
+      "status": "PASS",
+      "command": "bash property/tests/run-smoke.sh",
+      "passed_scripts": 17,
+      "scripts": [
+        "money-smoke.mjs",
+        "nano-units-smoke.mjs",
+        "marketplace-smoke.mjs",
+        "campaigns-smoke.mjs",
+        "campaign-engine-smoke.mjs",
+        "ledger-rpc-smoke.mjs",
+        "protocol-smoke.mjs",
+        "vault-smoke.mjs",
+        "forwarding-smoke.mjs",
+        "sw-update-smoke.mjs",
+        "contact-smoke.mjs",
+        "app-contract-smoke.mjs",
+        "relay-migration-smoke.mjs",
+        "portable-packages-smoke.mjs",
+        "relay-package-smoke.mjs",
+        "agent-messaging-g0-smoke.mjs",
+        "offline/runner-contract-smoke.mjs"
+      ]
+    }
+  },
+  "snapshot_manifest": {
+    "path": "property/docs/protocol-snapshots/README.md",
+    "sha256": "5ad868a7a5fa9e39aafdcda013eba1d100daf0cad5d3b26c5bb2396c17720b2b"
+  },
+  "reviewed_document_sha256": {
+    "property/docs/plano-agentes-human-first.md": "4cd5db11376e5cc633c1144658edb95cbb4fce9122a406575c14154d5788bad5",
+    "property/docs/agent-messaging-g0.md": "55b45d57f8232ac2e399e86eb73c2bc17cca0dfff62417866eaf1ba857d1e698",
+    "property/tests/agent-messaging-g0-smoke.mjs": "b1d2dc7fc6a3695644308099020dd09edb7f9b6d6b7c40f0e512c9a983d9e0ee"
+  },
+  "human_participant_evidence": "none; no participant outcome was fabricated or simulated",
+  "sandbox_note": "The first full-suite attempt was refused because loopback listeners were blocked. The same command was rerun with approved local loopback access and all 17 scripts passed.",
+  "limitations": [
+    "This gate records architecture decisions and local protocol-source integrity, not an implementation or independent security audit.",
+    "G1 human research is not part of this PASS and must not be inferred from this report."
+  ]
+}
