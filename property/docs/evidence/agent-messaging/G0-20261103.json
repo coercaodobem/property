@@ -4,7 +4,11 @@
   "gate": "G0",
   "status": "PASS",
   "date": "2026-11-03",
-  "tested_local_commit": "d2326131abd65732af5511d066b58cac600097a1",
+  "tested_local_commit": "4c1f04e968523fea7349c353eed84553d8651cdc",
+  "tested_local_tree_sha1": "6c5af6483fdf398eca241606d63018b12975283b",
+  "published_gate_commit": "4c1f04e968523fea7349c353eed84553d8651cdc",
+  "remote_head_verified_after_publication": "4c1f04e968523fea7349c353eed84553d8651cdc",
+  "remote_files_hash_verified": 19,
   "verified_remote_base_head": "f3616f015609eb82d4655d6d8271e2b6f11bbe30",
   "environment": {
     "os": "Ubuntu Linux x86_64",

@@ -4,7 +4,7 @@
 **Atualizado:** 2026-11-03.
 **Escopo:** agentes conversando por meio do Property, com a interface e o controle humano como requisitos obrigatórios.
 
-**Estado dos gates nesta execução:** G0 **PASS** ([decisão e ameaças](agent-messaging-g0.md), [snapshots e hashes](protocol-snapshots/README.md)); G1 **PENDING** até concluir o protótipo e a pesquisa com cinco pessoas reais; G2–G7 **PENDING** por dependência sequencial. Os resultados individuais ficam em `evidence/agent-messaging/`.
+**Estado dos gates nesta execução:** G0 **PASS** ([decisão e ameaças](agent-messaging-g0.md), [snapshots e hashes](protocol-snapshots/README.md)); protótipo e guia inicial de linguagem do G1 foram preparados, mas G1 permanece **PENDING** até concluir a inspeção visual no browser, as sessões com cinco pessoas reais e a correção/repetição de qualquer falha crítica; G2–G7 permanecem **PENDING** por dependência sequencial e não foram iniciados. Consulte o [registro G1](evidence/agent-messaging/G1-20261103.md).
 
 ## 1. Objetivo
 
