@@ -14,6 +14,19 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const TEST_PASSWORD = 'Property-offline-test-2026!';
+function nextShellVersion(version) {
+  const match = String(version).match(/^v(\d+)$/);
+  if (!match) throw new Error(`Unsupported Property shell cache version: ${version}`);
+  return `v${Number(match[1]) + 1}`;
+}
+
+async function currentShellVersion() {
+  const worker = await readFile(path.join(WEB, 'sw.js'), 'utf8');
+  const match = worker.match(/const CACHE = ['"]property-shell-(v\d+)['"]/);
+  if (!match) throw new Error('Property service worker cache version is missing or unrecognized.');
+  return match[1];
+}
+
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
 
@@ -82,11 +95,11 @@ async function startAppServer(state) {
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end('<!doctype html><title>local seed page</title>');
         return;
       }
-      if (url.pathname.endsWith('/_property_test/update-v19.js')) {
-        response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }).end('window.__propertyUpdateV19 = true;');
+      if (url.pathname.endsWith('/_property_test/update-success.js')) {
+        response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }).end('window.__propertyUpdateSucceeded = true;');
         return;
       }
-      if (url.pathname.endsWith('/_property_test/interrupted-v20.js')) {
+      if (url.pathname.endsWith('/_property_test/update-interrupted.js')) {
         response.writeHead(503, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }).end('offline update fixture unavailable');
         return;
       }
@@ -98,15 +111,15 @@ async function startAppServer(state) {
       let body = await readFile(target);
       if (path.basename(target) === 'sw.js' && state.update_version) {
         const version = state.update_version;
-        const asset = version === 'v19' ? './_property_test/update-v19.js' :
-          version === 'v20' ? './_property_test/interrupted-v20.js' : './_property_test/mixed-v21.js';
+        const asset = state.update_kind === 'complete' ? './_property_test/update-success.js' :
+          state.update_kind === 'interrupted' ? './_property_test/update-interrupted.js' : './_property_test/missing-mixed-package.js';
         const source = body.toString('utf8')
-          .replaceAll('property-shell-v18', `property-shell-${version}`)
-          .replaceAll('property-v18', `property-${version}`)
+          .replaceAll(`property-shell-${state.base_version}`, `property-shell-${version}`)
+          .replaceAll(`property-${state.base_version}`, `property-${version}`)
           .replace('const SHELL = [', `const SHELL = ['${asset}', `);
         body = Buffer.from(source);
       } else if (path.basename(target) === 'index.html' && state.update_version) {
-        body = Buffer.from(body.toString('utf8').replaceAll('property-v18', `property-${state.update_version}`));
+        body = Buffer.from(body.toString('utf8').replaceAll(`property-${state.base_version}`, `property-${state.update_version}`));
       }
       const types = new Map([['.css', 'text/css; charset=utf-8'], ['.html', 'text/html; charset=utf-8'],
         ['.js', 'text/javascript; charset=utf-8'], ['.json', 'application/json; charset=utf-8'],
@@ -337,9 +350,13 @@ async function main() {
   const setCase = (id, status, reason) => Object.assign(report.cases.find(item => item.case === id), { status, reason });
   try {
     options = parseArgs(process.argv.slice(2));
+    const baseVersion = await currentShellVersion();
+    const successfulVersion = nextShellVersion(baseVersion);
+    const interruptedVersion = nextShellVersion(successfulVersion);
+    const mixedVersion = nextShellVersion(interruptedVersion);
     const validIdentity = await createCert(temp, 'valid');
     const invalidIdentity = await createCert(temp, 'invalid');
-    appServer = await startAppServer({ update_version: null });
+    appServer = await startAppServer({ base_version: baseVersion, update_version: null, update_kind: null });
     denyProxy = await startDenyProxy();
     validTls = startTlsServer(validIdentity);
     invalidTls = startTlsServer(invalidIdentity);
@@ -359,34 +376,37 @@ async function main() {
     await page.locator('#save-profile').click();
     await page.evaluate(async () => { const cache = await caches.open('another-app-data'); await cache.put('/sentinel', new Response('keep')); });
     const beforeCaches = await page.evaluate(() => caches.keys());
-    assert.ok(beforeCaches.includes('property-shell-v18'));
-    appServer.state.update_version = 'v19';
+    assert.ok(beforeCaches.includes(`property-shell-${baseVersion}`));
+    appServer.state.update_version = successfulVersion;
+    appServer.state.update_kind = 'complete';
     const successfulUpdate = await updateServiceWorker(page);
     assert.equal(successfulUpdate.state, 'activated', 'complete update activates');
-    await page.waitForFunction(async () => (await caches.keys()).includes('property-shell-v19'), null, { timeout: 10000 });
+    await page.waitForFunction(version => caches.keys().then(keys => keys.includes(`property-shell-${version}`)), successfulVersion, { timeout: 10000 });
     const afterUpdate = await page.evaluate(() => caches.keys());
-    assert.equal(afterUpdate.includes('property-shell-v18'), false, 'old Property cache is retired after activation');
+    assert.equal(afterUpdate.includes(`property-shell-${baseVersion}`), false, 'old Property cache is retired after activation');
     assert.equal(afterUpdate.includes('another-app-data'), true, 'unrelated application cache is preserved');
     assert.equal((await page.locator('#profile-npub').textContent()).trim(), npub, 'identity is unchanged after full update');
     assert.equal((await page.locator('#profile-name').inputValue()), 'Conta de atualização');
 
-    appServer.state.update_version = 'v20';
+    appServer.state.update_version = interruptedVersion;
+    appServer.state.update_kind = 'interrupted';
     const interruptedUpdate = await updateServiceWorker(page);
     assert.ok(['redundant', 'timeout:installing', 'timeout:redundant'].includes(interruptedUpdate.state),
       `interrupted update must not activate: ${interruptedUpdate.state}`);
-    assert.ok(interruptedUpdate.cache_names.includes('property-shell-v19'), 'previous complete shell remains cached');
-    assert.equal(interruptedUpdate.cache_names.includes('property-shell-v20'), false, 'partial interrupted cache is removed');
+    assert.ok(interruptedUpdate.cache_names.includes(`property-shell-${successfulVersion}`), 'previous complete shell remains cached');
+    assert.equal(interruptedUpdate.cache_names.includes(`property-shell-${interruptedVersion}`), false, 'partial interrupted cache is removed');
     assert.equal((await page.locator('#profile-npub').textContent()).trim(), npub);
 
-    appServer.state.update_version = 'v21';
+    appServer.state.update_version = mixedVersion;
+    appServer.state.update_kind = 'mixed';
     const mixedUpdate = await updateServiceWorker(page);
     assert.ok(['redundant', 'timeout:installing', 'timeout:redundant'].includes(mixedUpdate.state),
       `mixed package with a missing required asset must not activate: ${mixedUpdate.state}`);
-    assert.ok(mixedUpdate.cache_names.includes('property-shell-v19'), 'last complete shell remains active after mixed package rejection');
-    assert.equal(mixedUpdate.cache_names.includes('property-shell-v21'), false, 'partial mixed cache is removed');
+    assert.ok(mixedUpdate.cache_names.includes(`property-shell-${successfulVersion}`), 'last complete shell remains active after mixed package rejection');
+    assert.equal(mixedUpdate.cache_names.includes(`property-shell-${mixedVersion}`), false, 'partial mixed cache is removed');
     assert.equal((await page.locator('#profile-npub').textContent()).trim(), npub);
     assert.ok(afterUpdate.includes('another-app-data'));
-    report.update_checks = { previous_cache: 'property-shell-v18', successful_update: successfulUpdate,
+    report.update_checks = { previous_cache: `property-shell-${baseVersion}`, successful_cache: `property-shell-${successfulVersion}`, successful_update: successfulUpdate,
       after_success_cache_names: afterUpdate, interrupted_update: interruptedUpdate, mixed_update: mixedUpdate,
       identity_preserved: true, unrelated_cache_preserved: true };
     setCase('G02-04', 'PASS', 'Complete update activated; interrupted and mixed packages were rejected while the previous shell, identity and unrelated cache remained available.');
