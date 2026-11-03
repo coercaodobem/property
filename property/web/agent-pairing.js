@@ -145,6 +145,7 @@
       const access = {
         pubkey: invite.agentPubkey,
         name: invite.agentName,
+        relayHints: [...invite.relayHints],
         status: 'approved',
         permissions: grants,
         pairedAt: now(),
@@ -152,7 +153,7 @@
         revocationNotice: 'not-sent',
       };
       await storage.commitDecision(decision, access);
-      return { ...access, permissions: { read: [...grants.read], send: [...grants.send] } };
+      return { ...access, relayHints: [...invite.relayHints], permissions: { read: [...grants.read], send: [...grants.send] } };
     }
 
     async function decline(input, { humanPubkey, allowedRelays = [] } = {}) {

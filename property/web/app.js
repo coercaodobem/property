@@ -16,6 +16,7 @@
   const Campaigns = window.PropertyCampaigns;
   const Contact = window.PropertyContact;
   const AgentPairing = window.PropertyAgentPairing;
+  const AgentMessages = window.PropertyAgentMessages;
   const eventSourceHints = new WeakMap();
   const state = {
     db: null, account: null, secret: null, pubkey: '', npub: '', relays: [],
@@ -161,6 +162,18 @@
       const key = document.createElement('code'); key.className = 'break-code'; key.textContent = access.pubkey;
       const scopes = document.createElement('p'); scopes.className = 'fine-print'; scopes.textContent = access.status === 'approved' ? agentScopeText(access) : 'Nenhuma permissão ativa.';
       card.append(label, title, key, scopes);
+      if (access.status === 'approved') {
+        const open = document.createElement('button'); open.type = 'button'; open.className = 'button secondary full'; open.textContent = 'Abrir conversa';
+        open.addEventListener('click', async () => {
+          try {
+            const previous = await get('conversations', access.pubkey) || { pubkey: access.pubkey, lastAt: 0, lastMessage: '' };
+            await put('conversations', { ...previous, title: access.name, agent: true, relayHints: [...(access.relayHints || [])] });
+            $('agent-dialog').close();
+            await selectConversation(access.pubkey);
+          } catch (error) { showError('agent-pairing-error', error.message); }
+        });
+        card.append(open);
+      }
       if (access.status === 'approved' || access.status === 'revoked') {
         const action = document.createElement('button'); action.type = 'button'; action.className = access.status === 'approved' ? 'button danger full' : 'button secondary full';
         action.textContent = access.status === 'approved' ? 'Revogar acesso' : 'Bloquear convites futuros';
@@ -470,12 +483,33 @@
     if (!rumor || rumor.kind !== 14 || typeof rumor.content !== 'string' || rumor.content.length > 20000) return;
     if (rumor.pubkey === state.pubkey) return;
     const peer = rumor.pubkey;
-    const id = rumor.id || event.id;
+    const agentAccess = await get('agentAccess', peer);
+    if (agentAccess && agentAccess.status !== 'approved') return;
+    const existingConversation = await get('conversations', peer);
+    if (agentAccess?.status === 'approved' && existingConversation?.agentConversationStarted !== true) return;
+    let text = rumor.content;
+    let parsedAgentMessage = null;
+    let agentMessageError = '';
+    if (agentAccess?.status === 'approved') {
+      try {
+        parsedAgentMessage = AgentMessages.decodeEnvelope(rumor.content);
+        const expectedConversation = await AgentMessages.conversationId(state.pubkey, peer);
+        if (parsedAgentMessage.conversationId !== expectedConversation) throw new Error('Conversa de agente diferente da aprovada.');
+        if (!parsedAgentMessage.inReplyTo) return;
+        const initiatedMessage = await get('messages', `agent-out:${peer}:${parsedAgentMessage.inReplyTo}`);
+        if (initiatedMessage?.direction !== 'sent' || initiatedMessage.agentMessageId !== parsedAgentMessage.inReplyTo) return;
+        text = parsedAgentMessage.body;
+      } catch (error) {
+        text = 'Esta mensagem do agente usa um formato que esta versão não reconhece. O conteúdo não foi executado.';
+        agentMessageError = error?.code || 'invalid-agent-envelope';
+      }
+    }
+    const id = parsedAgentMessage ? `agent:${peer}:${parsedAgentMessage.messageId}` : rumor.id || event.id;
     if (await get('messages', id)) return;
-    const message = { id, peer, text: rumor.content, createdAt: rumor.created_at * 1000, direction: 'received', status: 'delivered' };
+    const message = { id, peer, text, createdAt: rumor.created_at * 1000, direction: 'received', status: 'delivered', ...(agentAccess ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
     await put('messages', message);
-    const previous = await get('conversations', peer) || { pubkey: peer, title: '' };
-    await put('conversations', { ...previous, lastMessage: rumor.content, lastAt: message.createdAt });
+    const previous = existingConversation || { pubkey: peer, title: '' };
+    await put('conversations', { ...previous, ...(agentAccess ? { agent: true, title: agentAccess.name, relayHints: [...(agentAccess.relayHints || [])] } : {}), lastMessage: text, lastAt: message.createdAt });
     await renderConversations();
     if (state.activePeer === peer) await renderMessages(peer);
   }
@@ -595,7 +629,10 @@
       const info = document.createElement('span'); info.className = 'conversation-preview';
       const title = document.createElement('strong'); title.textContent = displayName(conversation.pubkey, conversation.title);
       const preview = document.createElement('small'); preview.textContent = conversation.lastMessage || conversation.pubkey.slice(0, 16);
-      info.append(title, preview); button.append(avatar, info); button.addEventListener('click', () => selectConversation(conversation.pubkey)); list.append(button);
+      info.append(title);
+      const agentAccess = await get('agentAccess', conversation.pubkey);
+      if (conversation.agent || agentAccess?.status === 'approved') { const agentBadge = document.createElement('small'); agentBadge.className = 'agent-chat-badge'; agentBadge.textContent = 'AGENTE'; info.append(agentBadge); }
+      info.append(preview); button.append(avatar, info); button.addEventListener('click', () => selectConversation(conversation.pubkey)); list.append(button);
     }
   }
   async function selectConversation(pubkey) {
@@ -603,7 +640,8 @@
     $('empty-conversation').classList.add('hidden');
     $('conversation-pane').classList.remove('hidden');
     $('chat-title').textContent = displayName(pubkey, (await get('conversations', pubkey))?.title || '');
-    $('chat-subtitle').textContent = N.nip19.npubEncode(pubkey);
+    const agentAccess = await get('agentAccess', pubkey);
+    $('chat-subtitle').textContent = agentAccess?.status === 'approved' ? `AGENTE · ${N.nip19.npubEncode(pubkey)}` : N.nip19.npubEncode(pubkey);
     $('chat-avatar').textContent = $('chat-title').textContent.slice(0, 1).toUpperCase();
     await renderMessages(pubkey);
     await renderConversations();
@@ -617,6 +655,7 @@
     }
     for (const message of entries) {
       const row = document.createElement('div'); row.className = `message-row${message.direction === 'sent' ? ' mine' : ''}`;
+      if (message.fromAgent) { const author = document.createElement('span'); author.className = 'agent-message-author'; author.textContent = message.agentMessageError ? 'Agente · mensagem não reconhecida' : 'Agente'; row.append(author); }
       const bubble = document.createElement('div'); bubble.className = 'message-bubble'; bubble.textContent = message.text;
       const delivery = message.status === 'pending' ? ' · aguardando relay' : message.status === 'partial' ? ' · entrega parcial' : '';
       const meta = document.createElement('span'); meta.className = 'message-meta'; meta.textContent = `${new Date(message.createdAt).toLocaleString()}${delivery}`;
@@ -625,6 +664,8 @@
     container.scrollTop = container.scrollHeight;
   }
   async function sendPrivateMessage(peer, text) {
+    const agentAccess = await get('agentAccess', peer);
+    if (agentAccess && agentAccess.status !== 'approved') throw new Error('Este agente está revogado ou bloqueado neste aparelho. Reative o pareamento para enviar uma mensagem.');
     if (!state.inboxRelays.length) {
       state.inboxRelays = await discoverInboxRelays(state.pubkey);
       if (!state.inboxRelays.length) throw new Error('Configure e publique seus relays de recebimento NIP-17 nas configurações.');
@@ -639,15 +680,23 @@
       await put('settings', { id: `peer-inbox-${peer}`, values: peerRelays });
       await connectAllRelays();
     }
-    const wraps = N.nip17.wrapManyEvents(state.secret, [{ publicKey: peer }], text);
+    const agentConversation = agentAccess?.status === 'approved';
+    const agentMessageId = agentConversation ? AgentMessages.createMessageId() : null;
+    const wireContent = agentConversation ? AgentMessages.encodeEnvelope({
+      conversationId: await AgentMessages.conversationId(state.pubkey, peer),
+      messageId: agentMessageId,
+      inReplyTo: null,
+      body: text,
+    }) : text;
+    const wraps = N.nip17.wrapManyEvents(state.secret, [{ publicKey: peer }], wireContent);
     const routePlan = Routing.planGiftWraps(wraps, state.pubkey, peer, state.inboxRelays, peerRelays, N.verifyEvent);
     if (!routePlan.ready) throw new Error('A mensagem NIP-17 não tem os dois envelopes válidos ou as listas de recebimento necessárias.');
     if (!Array.isArray(wraps) || wraps.length < 2 || wraps.some(event => event.kind !== 1059)) throw new Error('A biblioteca não gerou envelopes NIP-17 válidos.');
-    const id = `${state.pubkey}:${crypto.randomUUID()}`;
-    const message = { id, peer, text, createdAt: Date.now(), direction: 'sent', status: 'pending' };
+    const id = agentConversation ? `agent-out:${peer}:${agentMessageId}` : `${state.pubkey}:${crypto.randomUUID()}`;
+    const message = { id, peer, text, createdAt: Date.now(), direction: 'sent', status: 'pending', ...(agentConversation ? { agentMessageId, inReplyTo: null } : {}) };
     const previous = await get('conversations', peer) || { pubkey: peer, title: '' };
     await put('messages', message);
-    await put('conversations', { ...previous, lastMessage: text, lastAt: message.createdAt });
+    await put('conversations', { ...previous, ...(agentAccess?.status === 'approved' ? { agent: true, agentConversationStarted: true } : {}), lastMessage: text, lastAt: message.createdAt });
     await renderMessages(peer); await renderConversations();
     let sent = 0;
     for (const delivery of routePlan.deliveries) if (await publishToRelays(delivery.event, delivery.relays)) sent += 1;
@@ -968,7 +1017,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v17', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v18', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -1089,7 +1138,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentPairing || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentPairing || !AgentMessages || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.bridgeRefreshTimer = window.setInterval(refreshBridgeSubscriptions, 60_000);
     registerOfflineShell();

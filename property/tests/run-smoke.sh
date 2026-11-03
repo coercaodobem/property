@@ -23,6 +23,7 @@ for test_file in \
   relay-package-smoke.mjs \
   agent-messaging-g0-smoke.mjs \
   agent-pairing-smoke.mjs \
+  agent-messaging-smoke.mjs \
   offline/runner-contract-smoke.mjs
 do
   printf '\n== %s ==\n' "$test_file"
