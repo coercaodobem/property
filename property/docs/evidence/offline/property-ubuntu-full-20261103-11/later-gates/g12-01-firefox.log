@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/browser-g04-smoke.mjs --playwright-module /home/<USER>/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs --engine firefox --executable /home/<USER>/.cache/ms-playwright/firefox-1538/firefox/firefox --playwright-version 1.62.1 --browser-version 153.0 --playwright-package-sha256 f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30 --browser-executable-sha256 26e4198abe0dfb93c339239297008b1319711575d8cbae8e2d5122d2017b29a1 --output /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261103-11/later-gates/firefox-browser
+started: 2026-11-03T18:36:57.301Z
+ended: 2026-11-03T18:37:43.682Z
+exit_code: 0
+signal: 
+timeout: false
+--- stdout ---
+{"result":"PASS","cases":[{"case":"G04-01","status":"PASS","reason":"A, B and C published signed kind-10050 inbox lists through the UI; independent relay queries verified signatures and B’s two authorized inboxes."},{"case":"G04-02","status":"PASS","reason":"A and B exchanged real NIP-17 messages through Geode; both UI contexts decrypted the intended text, C received none, and relay storage contained only valid encrypted gift wraps."},{"case":"G04-03","status":"PASS","reason":"B closed, A sent through the real relay, and B recovered the queued NIP-17 message after two browser restarts with one UI copy."},{"case":"G04-04","status":"PASS","reason":"The live inbox carried messages when the second relay was down; all-inbox outage stayed pending; relay restart restored delivery; an intentional false ACK was caught by an independent query."},{"case":"G04-05","status":"PASS","reason":"The UI refused to send without the sender’s kind-10050 inbox list, emitted no fallback, and a real relay rejected a post-signature envelope mutation without storing it."},{"case":"G04-06","status":"PASS","reason":"The delivered corpus reconciled one-for-one in both browser databases and real relay storage; no plaintext, duplicate UI copy, third-party recipient or read receipt was observed."}],"output":"/home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261103-11/later-gates/firefox-browser"}
+
+--- stderr ---
+

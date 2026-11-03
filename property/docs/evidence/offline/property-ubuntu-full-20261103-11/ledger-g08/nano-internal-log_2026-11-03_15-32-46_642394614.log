@@ -1,0 +1,91 @@
+[2026-11-03 15:32:46.642] [daemon] [info] Daemon started
+[2026-11-03 15:32:46.642] [daemon] [info] Version: V28.2
+[2026-11-03 15:32:46.642] [daemon] [info] Build info: 0d8eea4 "GNU C++ version " "15.2.0" "BOOST 108600" BUILT "Oct 31 2026"
+[2026-11-03 15:32:46.642] [daemon] [info] Data path: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.kaQ2Uf/property-g08-fbBEtS/nano/data
+[2026-11-03 15:32:46.642] [daemon] [info] Start time: Tue Nov  3 18:32:46 2026 UTC
+[2026-11-03 15:32:46.642] [daemon] [info] Starting up Nano node...
+[2026-11-03 15:32:46.642] [daemon] [info] Hardware concurrency: 16 (configured: 16)
+[2026-11-03 15:32:46.642] [daemon] [info] File descriptors limit: 524288
+[2026-11-03 15:32:46.642] [init] [info] Using data directory: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.kaQ2Uf/property-g08-fbBEtS/nano/data
+[2026-11-03 15:32:46.642] [init] [info] Loaded local node ID: node_3rbw6tb3um5aors6sdih7hjbq1ih4z1iguoz1ea6ejzkbrns47sdz1ma8e63
+[2026-11-03 15:32:46.643] [lmdb] [info] Initializing ledger store: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.kaQ2Uf/property-g08-fbBEtS/nano/data/data.ldb
+[2026-11-03 15:32:46.643] [wallet] [info] Loading wallets from: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.kaQ2Uf/property-g08-fbBEtS/nano/data/wallets.ldb
+[2026-11-03 15:32:46.644] [wallet] [info] Found 2 wallet(s)
+[2026-11-03 15:32:46.644] [wallet] [info] Wallet: [REDACTED_WALLET_ID]
+[2026-11-03 15:32:46.644] [wallet] [info] Wallet: [REDACTED_WALLET_ID]
+[2026-11-03 15:32:46.644] [wallet] [info] Wallet unlocked
+[2026-11-03 15:32:46.644] [wallet] [info] Wallet unlocked
+[2026-11-03 15:32:46.644] [ledger] [info] Loading ledger, this may take a while...
+[2026-11-03 15:32:46.652] [ledger] [info] Block count:              1
+[2026-11-03 15:32:46.652] [ledger] [info] Cemented count:           1
+[2026-11-03 15:32:46.652] [ledger] [info] Account count:            1
+[2026-11-03 15:32:46.652] [ledger] [info] Pruned count:             0
+[2026-11-03 15:32:46.652] [ledger] [info] Representative count:     1
+[2026-11-03 15:32:46.652] [ledger] [info] Active balance: 340,282,366 | pending: 0 | burned: 0
+[2026-11-03 15:32:46.652] [ledger] [info] Weight committed: 340,282,366 | unused: 0
+[2026-11-03 15:32:46.669] [node] [info] Version: V28.2
+[2026-11-03 15:32:46.670] [node] [info] Build information: 0d8eea4 "GNU C++ version " "15.2.0" "BOOST 108600" BUILT "Oct 31 2026"
+[2026-11-03 15:32:46.670] [node] [info] Active network: dev
+[2026-11-03 15:32:46.670] [node] [info] Database backend: LMDB 0.9.70
+[2026-11-03 15:32:46.670] [node] [info] Data path: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.kaQ2Uf/property-g08-fbBEtS/nano/data
+[2026-11-03 15:32:46.670] [node] [info] Ledger path: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.kaQ2Uf/property-g08-fbBEtS/nano/data/data.ldb
+[2026-11-03 15:32:46.670] [node] [info] Work pool threads: 1 (CPU)
+[2026-11-03 15:32:46.670] [node] [info] Work peers: 0
+[2026-11-03 15:32:46.670] [node] [info] Node ID: node_3rbw6tb3um5aors6sdih7hjbq1ih4z1iguoz1ea6ejzkbrns47sdz1ma8e63
+[2026-11-03 15:32:46.670] [node] [info] Number of buckets: 63
+[2026-11-03 15:32:46.670] [node] [info] Genesis block: 04270D7F11C4B2B472F2854C5A59F2A7E84226CE9ED799DE75744BD7D85FC9D9
+[2026-11-03 15:32:46.670] [node] [info] Genesis account: nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo
+[2026-11-03 15:32:46.670] [node] [info] Outbound bandwidth limit: 10485760 bytes/s, burst ratio: 3
+[2026-11-03 15:32:46.670] [node] [info] Voting is enabled, more system resources will be used, local representatives: 0
+[2026-11-03 15:32:46.670] [network] [warning] Realtime TCP is disabled
+[2026-11-03 15:32:46.670] [node] [warning] Peering is disabled
+[2026-11-03 15:32:46.671] [online_reps] [info] Initial trended weight: 0 (samples: 0)
+[2026-11-03 15:32:46.672] [monitor] [info] Blocks confirmed: 1 | total: 1 (backlog: 0)
+[2026-11-03 15:32:46.672] [monitor] [info] Peers: 0 (realtime: 0 | bootstrap: 0) (inbound: 0 | outbound: 0)
+[2026-11-03 15:32:46.672] [monitor] [info] Quorum: 40,200,000 (stake peered: 0 | stake online: 0)
+[2026-11-03 15:32:46.672] [monitor] [info] Elections active: 0 (priority: 0 | hinted: 0 | optimistic: 0)
+[2026-11-03 15:32:46.672] [node] [info] Adding cached initial peers: 0
+[2026-11-03 15:32:46.672] [rpc] [info] RPC listening address: [::1]:34569
+[2026-11-03 15:32:47.672] [online_reps] [info] Updated trended weight: 0 (samples: 1)
+[2026-11-03 15:32:48.677] [online_reps] [info] Updated trended weight: 0 (samples: 2)
+[2026-11-03 15:32:49.681] [online_reps] [info] Updated trended weight: 0 (samples: 3)
+[2026-11-03 15:32:50.688] [online_reps] [info] Updated trended weight: 0 (samples: 4)
+[2026-11-03 15:32:51.019] [wallet] [info] Deterministically inserted new account: nano_131r666x3xqp7im7rxe57n5r4xuqgpp84cfwr9i7sja68abup8tjtc4q1ren
+[2026-11-03 15:32:51.051] [wallet] [info] Sending from account: nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo to: nano_131r666x3xqp7im7rxe57n5r4xuqgpp84cfwr9i7sja68abup8tjtc4q1ren, amount: 1
+[2026-11-03 15:32:51.054] [wallet] [info] Cached or provided work for block 77C350F762F17B11F10520AC1B54A6CF74AECA7D43BA9E93E31E3BAC61D27085 account nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo is invalid, regenerating...
+[2026-11-03 15:32:51.054] [distributed_work] [info] Work generation for 04270D7F11C4B2B472F2854C5A59F2A7E84226CE9ED799DE75744BD7D85FC9D9, with a threshold difficulty of fe00000000000000 (multiplier 0.12x) complete: 0 ms
+[2026-11-03 15:32:51.058] [local_block_broadcaster] [info] 1 blocks in local broadcasting set
+[2026-11-03 15:32:51.177] [wallet] [info] Receiving block 77C350F762F17B11F10520AC1B54A6CF74AECA7D43BA9E93E31E3BAC61D27085 from account nano_131r666x3xqp7im7rxe57n5r4xuqgpp84cfwr9i7sja68abup8tjtc4q1ren, amount: 1
+[2026-11-03 15:32:51.177] [wallet] [info] Cached or provided work for block B36B00BF3689299C3ABC71C5957BC6785F177314538B2E4A6BC50DBEC8D90871 account nano_131r666x3xqp7im7rxe57n5r4xuqgpp84cfwr9i7sja68abup8tjtc4q1ren is invalid, regenerating...
+[2026-11-03 15:32:51.177] [distributed_work] [info] Work generation for 04182109D0F6F62C265C75832D0781777775AC6129BCC1E05CC5043213BB1B51, with a threshold difficulty of fe00000000000000 (multiplier 0.12x) complete: 0 ms
+[2026-11-03 15:32:51.691] [online_reps] [info] Updated trended weight: 0 (samples: 5)
+[2026-11-03 15:32:51.895] [wallet] [info] Deterministically inserted new account: nano_3isazdkishoxh4t6agme3iydgde7fsqgy4hohapwpjt7c6im7k36wphqqj4p
+[2026-11-03 15:32:51.903] [wallet] [info] Sending from account: nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo to: nano_3isazdkishoxh4t6agme3iydgde7fsqgy4hohapwpjt7c6im7k36wphqqj4p, amount: 1
+[2026-11-03 15:32:51.909] [wallet] [info] Cached or provided work for block 178B3B9CE4ADC014A705F79B8DE5A6FD2957EF7B0C0BA4C056D5E2DCE52D987F account nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo is invalid, regenerating...
+[2026-11-03 15:32:51.909] [distributed_work] [info] Work generation for 77C350F762F17B11F10520AC1B54A6CF74AECA7D43BA9E93E31E3BAC61D27085, with a threshold difficulty of fe00000000000000 (multiplier 0.12x) complete: 0 ms
+[2026-11-03 15:32:52.078] [wallet] [info] Receiving block 178B3B9CE4ADC014A705F79B8DE5A6FD2957EF7B0C0BA4C056D5E2DCE52D987F from account nano_3isazdkishoxh4t6agme3iydgde7fsqgy4hohapwpjt7c6im7k36wphqqj4p, amount: 1
+[2026-11-03 15:32:52.078] [wallet] [info] Cached or provided work for block 5C514555B4CD6DEB308CF6B8F78136CB4C422FAEE78F74F5AE610DE6158AAA6F account nano_3isazdkishoxh4t6agme3iydgde7fsqgy4hohapwpjt7c6im7k36wphqqj4p is invalid, regenerating...
+[2026-11-03 15:32:52.078] [distributed_work] [info] Work generation for C328FAE50CBEBD78B4443A6C0C3CB72D856E6EEF09F57A2DCB4745512132C824, with a threshold difficulty of fe00000000000000 (multiplier 0.12x) complete: 0 ms
+[2026-11-03 15:32:52.181] [distributed_work] [info] Work generation for B36B00BF3689299C3ABC71C5957BC6785F177314538B2E4A6BC50DBEC8D90871, with a threshold difficulty of ffc0000000000000 (multiplier 1.00x) complete: 0 ms
+[2026-11-03 15:32:52.697] [online_reps] [info] Updated trended weight: 0 (samples: 6)
+[2026-11-03 15:32:52.913] [distributed_work] [info] Work generation for 178B3B9CE4ADC014A705F79B8DE5A6FD2957EF7B0C0BA4C056D5E2DCE52D987F, with a threshold difficulty of ffc0000000000000 (multiplier 1.00x) complete: 0 ms
+[2026-11-03 15:32:53.082] [distributed_work] [info] Work generation for 5C514555B4CD6DEB308CF6B8F78136CB4C422FAEE78F74F5AE610DE6158AAA6F, with a threshold difficulty of ffc0000000000000 (multiplier 1.00x) complete: 0 ms
+[2026-11-03 15:32:53.701] [online_reps] [info] Updated trended weight: 0 (samples: 7)
+[2026-11-03 15:32:54.659] [wallet] [info] Deterministically inserted new account: nano_1dcphiymzwckwrwnktbw4hu87k6qnied4aqwoe9i9pedz48yfrjqhqnwukpk
+[2026-11-03 15:32:54.684] [wallet] [info] Sending from account: nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo to: nano_1dcphiymzwckwrwnktbw4hu87k6qnied4aqwoe9i9pedz48yfrjqhqnwukpk, amount: 2
+[2026-11-03 15:32:54.707] [online_reps] [info] Updated trended weight: 340,282,366.9 (samples: 8)
+[2026-11-03 15:32:54.880] [wallet] [info] Receiving block A9FA69D543723D3A6BED99D332F87C138660F2D52DF03E20E65A294048D0419E from account nano_1dcphiymzwckwrwnktbw4hu87k6qnied4aqwoe9i9pedz48yfrjqhqnwukpk, amount: 2
+[2026-11-03 15:32:54.880] [wallet] [info] Cached or provided work for block 05CB8C58127FE4C89F275D1A4AE91E2848078B5464FE19EE095752FD1869316D account nano_1dcphiymzwckwrwnktbw4hu87k6qnied4aqwoe9i9pedz48yfrjqhqnwukpk is invalid, regenerating...
+[2026-11-03 15:32:54.880] [distributed_work] [info] Work generation for 2D567C3D3FF152E63949693C13F662C897A418B122FCAB0F03D98BF88DE6E237, with a threshold difficulty of fe00000000000000 (multiplier 0.12x) complete: 0 ms
+[2026-11-03 15:32:55.120] [wallet] [info] Sending from account: nano_1dcphiymzwckwrwnktbw4hu87k6qnied4aqwoe9i9pedz48yfrjqhqnwukpk to: nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo, amount: 2
+[2026-11-03 15:32:55.123] [wallet] [info] Cached or provided work for block BA18DD10AC4561223240258765625E4B0C294B7E41F27D65681C7113096674DB account nano_1dcphiymzwckwrwnktbw4hu87k6qnied4aqwoe9i9pedz48yfrjqhqnwukpk is invalid, regenerating...
+[2026-11-03 15:32:55.123] [distributed_work] [info] Work generation for 05CB8C58127FE4C89F275D1A4AE91E2848078B5464FE19EE095752FD1869316D, with a threshold difficulty of fe00000000000000 (multiplier 0.12x) complete: 0 ms
+[2026-11-03 15:32:55.280] [wallet] [info] Receiving block BA18DD10AC4561223240258765625E4B0C294B7E41F27D65681C7113096674DB from account nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo, amount: 2
+[2026-11-03 15:32:55.280] [wallet] [info] Cached or provided work for block 96F475B40FF38145ADFFE95C2E4693FA444FC6A3E4676EC6202D356D1A89CC0E account nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo is invalid, regenerating...
+[2026-11-03 15:32:55.280] [distributed_work] [info] Work generation for A9FA69D543723D3A6BED99D332F87C138660F2D52DF03E20E65A294048D0419E, with a threshold difficulty of fe00000000000000 (multiplier 0.12x) complete: 0 ms
+[2026-11-03 15:32:55.710] [online_reps] [info] Updated trended weight: 340,282,366.9 (samples: 9)
+[2026-11-03 15:32:55.829] [daemon] [warning] Interrupt signal received (SIGTERM), stopping...
+[2026-11-03 15:32:55.829] [daemon] [info] Stopping...
+[2026-11-03 15:32:55.829] [rpc] [error] Error accepting RPC connection: Operation canceled
+[2026-11-03 15:32:55.829] [node] [info] Stopping...
+[2026-11-03 15:32:55.886] [daemon] [info] Stopped
