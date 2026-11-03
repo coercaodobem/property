@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/relay-migration-smoke.mjs
+started: 2026-11-03T15:42:03.312Z
+ended: 2026-11-03T15:42:03.566Z
+exit_code: 0
+signal: 
+timeout: false
+--- stdout ---
+PASS: launcher preserves legacy data/config, new variables override aliases, invalid ports rejected (fixture runtime)
+
+--- stderr ---
+

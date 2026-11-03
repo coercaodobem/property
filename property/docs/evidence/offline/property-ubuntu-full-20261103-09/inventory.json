@@ -1,0 +1,1932 @@
+{
+  "run_id": "property-ubuntu-full-20261103-09",
+  "requested_executor": "Codex GPT-6",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active Codex task runtime; model chosen by the maintainer per current instruction.",
+  "candidate_commit": "70b67d3199d8b342bf3e6770325674063879eb6e",
+  "observed_head": "70b67d3199d8b342bf3e6770325674063879eb6e",
+  "candidate_commit_matches_head": true,
+  "working_tree_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "working_tree_diff_bytes": 0,
+  "working_tree_status": "?? property/docs/evidence/offline/.scratch/?? property/docs/evidence/offline/property-ubuntu-core-20261102-01/?? property/docs/evidence/offline/property-ubuntu-core-20261102-02/?? property/docs/evidence/offline/property-ubuntu-full-20261102-01/?? property/docs/evidence/offline/property-ubuntu-full-20261102-02/?? property/docs/evidence/offline/property-ubuntu-full-20261103-02/?? property/docs/evidence/offline/property-ubuntu-full-20261103-03/?? property/docs/evidence/offline/property-ubuntu-full-20261103-04/?? property/docs/evidence/offline/property-ubuntu-full-20261103-05/?? property/docs/evidence/offline/property-ubuntu-full-20261103-06/?? property/docs/evidence/offline/property-ubuntu-full-20261103-08/",
+  "changed_files": [
+    {
+      "path": "property/docs/evidence/offline/.scratch/property-ubuntu-full-20261103-02-manifest.json",
+      "bytes": 3015,
+      "sha256": "ce4009956420b98be36b4955ad4ea87afda41f2b6f47e0cbafb36682403707cf"
+    },
+    {
+      "path": "property/docs/evidence/offline/.scratch/property-ubuntu-full-20261103-03-manifest.json",
+      "bytes": 3013,
+      "sha256": "4d450bd1a3a30f8bb0df6ad517fa67417da8075f2cb23926153eccc17007be47"
+    },
+    {
+      "path": "property/docs/evidence/offline/.scratch/property-ubuntu-full-20261103-04-manifest.json",
+      "bytes": 3013,
+      "sha256": "296bcf5a89aff63bc05548677905a50096a23b707e6da89d6faa82db50c418ac"
+    },
+    {
+      "path": "property/docs/evidence/offline/.scratch/property-ubuntu-full-20261103-05-manifest.json",
+      "bytes": 3013,
+      "sha256": "bad584ec73661fb6a7e5deecabf4bcbb7cd36d20473c0ce8afdb23a75b42458d"
+    },
+    {
+      "path": "property/docs/evidence/offline/.scratch/property-ubuntu-full-20261103-06-manifest.json",
+      "bytes": 3013,
+      "sha256": "e47ec3f142698340925ac1a042925a41b788ae97d5e884b86de410040c3140ec"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/SHA256SUMS",
+      "bytes": 2329,
+      "sha256": "50c5db418083c76fabcdb033a9c2c5c83f57ecc39e5cfe93fc2400bb640b8433"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/browser-deep-g02/browser-deep-g02-report.json",
+      "bytes": 1271,
+      "sha256": "08f5ec41cdb62e4c265c7210f0c179b3984c806ca2f3eaba541f04b26121ebf3"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/browser/browser-pwa-report.json",
+      "bytes": 1120,
+      "sha256": "a414d09013ce043108fa42c90fc7c14223ceb0787310c9869086745d01fcbc21"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/case-events.jsonl",
+      "bytes": 21851,
+      "sha256": "899d12059f8700427e61adf405562a6601841a6f9631fa97c54f688640e1561a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/cases.jsonl",
+      "bytes": 63968,
+      "sha256": "b413eba4f2149c242e73a316ea61fd748d423a0fc83493d19cd3404c0c39ba75"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/cases.latest.jsonl",
+      "bytes": 63968,
+      "sha256": "b413eba4f2149c242e73a316ea61fd748d423a0fc83493d19cd3404c0c39ba75"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/g00-04/harness-verification.json",
+      "bytes": 336,
+      "sha256": "c6056c7811aecc5f6881bc59e75afd56d37392d1c21c5bb29d51f6ebc4283aa6"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/g00-04/interrupted-cases.jsonl",
+      "bytes": 149,
+      "sha256": "06631741755651e6f8e896ecaad253fd44b12e3cb5097e4d8381fe0bb8a57575"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/g00-04/interrupted-summary.json",
+      "bytes": 169,
+      "sha256": "f0634a9157018a43bb3521f24fbb93e235501b12e9871db50fbd73183a17c7ca"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/gate-checkpoints.jsonl",
+      "bytes": 233,
+      "sha256": "6f3d9a4cf020c70e46362a27d4f7e4077d930c2c26a2ae29d352a178d11adda4"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/inventory.json",
+      "bytes": 5630,
+      "sha256": "9de3d71b64864c2af776baf296b16932456eae99d4c689ac993b4d587dede9fa"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/isolation.json",
+      "bytes": 2856,
+      "sha256": "8979f8712720f251ab1ef33c41679d148f79a0a52d6661ee93081d8ee17f9731"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/manifest.json",
+      "bytes": 1980,
+      "sha256": "7e615c6bb900ce6091f66167271714388f3e0e9bfcedd1e41a3fdc14829e14ef"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/report.md",
+      "bytes": 7827,
+      "sha256": "460c988b3f022a288d89de7f35b198334afe7ce51c43c654be7ec2b425dc71db"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/resume-state.json",
+      "bytes": 552,
+      "sha256": "90903eea8c805c5cc438c2e5e1b6d8290dddde744418d217928232e67130867b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/summary.json",
+      "bytes": 918,
+      "sha256": "bb240cb0e33564b63ccfc7e7533563f78df8edea513e6f6afc65fa6d567c2a86"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-01/topology.json",
+      "bytes": 465,
+      "sha256": "1101fceaf35f1b7a9c7563824b3828196e87bc8ff55a885022da690589eaf46f"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/G05-app-reconnect/browser-g05-report.json",
+      "bytes": 17205,
+      "sha256": "76dda9f587584ec77587d46bdc1c77e7f16bd550ad70b53747238ddf1d090356"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/SHA256SUMS",
+      "bytes": 10074,
+      "sha256": "511ec83fd287ce8045e0308769c07144112c87ad5996580f585b4514a9569878"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/browser-deep-g02/browser-deep-g02-report.json",
+      "bytes": 3278,
+      "sha256": "04cc9e656ebe4f469b2658042a3bda13e34264e340744aa5774038a986a0518e"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/browser-g03/browser-g03-report.json",
+      "bytes": 4856,
+      "sha256": "e3a485a8f263b0afc005ee9c87548718b869e165e7d2a0fd358e1369fd8df966"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/browser-g04/browser-g04-report.json",
+      "bytes": 6416,
+      "sha256": "8d12e9af49ba9fe2d741a1efed6ba4b46cc2db022ac27896e47e2827338e78d8"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/browser-g05/browser-g05-report.json",
+      "bytes": 17205,
+      "sha256": "4a4f5d275f3e67d25b5b2b428403d1e0586acf2ba354c30f97e5b868632d3c9c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/browser-g06/browser-g06-report.json",
+      "bytes": 10110,
+      "sha256": "b768183990a4d75c16bc163eeb4ea8a2098de19534666536e3b999854cc85924"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/browser-g07/browser-g07-report.json",
+      "bytes": 8464,
+      "sha256": "811b8ba2256eaa021fa736194571c2080ec37b4b08994e9c3ae6a2023f502af5"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/browser/browser-pwa-report.json",
+      "bytes": 1120,
+      "sha256": "92f9d06ac3aa75f19d9cb2927b4bbbab488e5ecb89a1f8f7ed8ab175ff2e4715"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/case-events.jsonl",
+      "bytes": 66350,
+      "sha256": "7dc537da3c1287adb09a85de3bbc0abccc102b1acb2c6efd246cb2f53d9a4a38"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/cases.jsonl",
+      "bytes": 85787,
+      "sha256": "0b2224e03e2c33d5e8039163d12c74b273d81de825120857c47638cd12f817ce"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/cases.latest.jsonl",
+      "bytes": 85787,
+      "sha256": "0b2224e03e2c33d5e8039163d12c74b273d81de825120857c47638cd12f817ce"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g00-04/harness-verification.json",
+      "bytes": 336,
+      "sha256": "8a737779cb3bce8eef2291f6c22cd439ce7d17d321aec2df6f4b1cbfbbb3e7c8"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g00-04/interrupted-cases.jsonl",
+      "bytes": 149,
+      "sha256": "06631741755651e6f8e896ecaad253fd44b12e3cb5097e4d8381fe0bb8a57575"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g00-04/interrupted-summary.json",
+      "bytes": 169,
+      "sha256": "5c3367d74cfe21eb65199c70d5ea8d98edcc3b72f7c6c8773a4ef451ff3e61f0"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-build-reuse.json",
+      "bytes": 1599,
+      "sha256": "46da215d30cb1b883300f18e8571a336fd948236098f4cd1849d21342f74f295"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package-manifest.json",
+      "bytes": 3904,
+      "sha256": "905b509025d84ab2fd5ddd2e8055e1ceec4f22aa22c99bc8f1c32d6f7bda65cc"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/about.html",
+      "bytes": 3837,
+      "sha256": "fc32624be694c906174165519fb9fc79a062e40284cf18b92fa928951e0b1426"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/app.js",
+      "bytes": 56946,
+      "sha256": "c0b579585d18fef6e5303d52b11a3a5897f53d6f8628b729895d33906dfb7560"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/icon.svg",
+      "bytes": 442,
+      "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/property-brand.png",
+      "bytes": 38402,
+      "sha256": "eaf0c0e7b36ede4ffb62324c372df8882880c96fb170e102e4798b773b23c077"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/property-icon-180.png",
+      "bytes": 4969,
+      "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/property-icon-192.png",
+      "bytes": 5427,
+      "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/property-icon-512.png",
+      "bytes": 14322,
+      "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/campaigns.js",
+      "bytes": 6760,
+      "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/contact.js",
+      "bytes": 1947,
+      "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/forwarding.js",
+      "bytes": 3324,
+      "sha256": "e68f00e77e832e33a588331d7a7ecb63436520f5d6a308dd249dc9769a40129c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/index.html",
+      "bytes": 18437,
+      "sha256": "a9e35a40a24098accd45606557b3bb04ffcf91435883b090ca0d6bf89dcf62ff"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/manifest.webmanifest",
+      "bytes": 648,
+      "sha256": "f4d56a21747d826b8d0250b70108341c82a6a7717fe87213ccc6c354262e47f6"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/marketplace.js",
+      "bytes": 6415,
+      "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/money.js",
+      "bytes": 1868,
+      "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/nano.js",
+      "bytes": 1207,
+      "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/routing.js",
+      "bytes": 1700,
+      "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/styles.css",
+      "bytes": 15288,
+      "sha256": "1ee50bf3893c09a760c2992fcadea204c00b3baba1184f287a3bef31d0f0af15"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/sw.js",
+      "bytes": 1947,
+      "sha256": "5a06e3383028e4ba7f879d6b7d59b723491335a2fe33702029b834a699600af3"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/vault.js",
+      "bytes": 3692,
+      "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/vendor/README.md",
+      "bytes": 842,
+      "sha256": "31622a7ae4b154c9fc96b8884c65335f088b36686b3daa010fd733a3452dff64"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/vendor/nostr-tools-2.25.2.bundle.js",
+      "bytes": 251980,
+      "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/vendor/nostr-tools-LICENSE",
+      "bytes": 1210,
+      "sha256": "f0510d3b9d1223c45e8fdd2b49270ec8734fff491c7f7d1b948ee70162e1ceff"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-01/later-gates/retakes/G11-02/later-gates-report.json",
+      "bytes": 4264,
+      "sha256": "f8a8946544f93805f477f3480c765e952ffd04dd362a16e646322a8ac60ed3b7"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/cases.latest.jsonl",
+      "bytes": 85787,
+      "sha256": "0b2224e03e2c33d5e8039163d12c74b273d81de825120857c47638cd12f817ce"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-build-reuse.json",
+      "bytes": 1599,
+      "sha256": "46da215d30cb1b883300f18e8571a336fd948236098f4cd1849d21342f74f295"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package-manifest.json",
+      "bytes": 3904,
+      "sha256": "905b509025d84ab2fd5ddd2e8055e1ceec4f22aa22c99bc8f1c32d6f7bda65cc"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/about.html",
+      "bytes": 3837,
+      "sha256": "fc32624be694c906174165519fb9fc79a062e40284cf18b92fa928951e0b1426"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/app.js",
+      "bytes": 56946,
+      "sha256": "c0b579585d18fef6e5303d52b11a3a5897f53d6f8628b729895d33906dfb7560"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/icon.svg",
+      "bytes": 442,
+      "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/property-brand.png",
+      "bytes": 38402,
+      "sha256": "eaf0c0e7b36ede4ffb62324c372df8882880c96fb170e102e4798b773b23c077"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/property-icon-180.png",
+      "bytes": 4969,
+      "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/property-icon-192.png",
+      "bytes": 5427,
+      "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/property-icon-512.png",
+      "bytes": 14322,
+      "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/campaigns.js",
+      "bytes": 6760,
+      "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/contact.js",
+      "bytes": 1947,
+      "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/forwarding.js",
+      "bytes": 3324,
+      "sha256": "e68f00e77e832e33a588331d7a7ecb63436520f5d6a308dd249dc9769a40129c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/index.html",
+      "bytes": 18437,
+      "sha256": "a9e35a40a24098accd45606557b3bb04ffcf91435883b090ca0d6bf89dcf62ff"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/manifest.webmanifest",
+      "bytes": 648,
+      "sha256": "f4d56a21747d826b8d0250b70108341c82a6a7717fe87213ccc6c354262e47f6"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/marketplace.js",
+      "bytes": 6415,
+      "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/money.js",
+      "bytes": 1868,
+      "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/nano.js",
+      "bytes": 1207,
+      "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/routing.js",
+      "bytes": 1700,
+      "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/styles.css",
+      "bytes": 15288,
+      "sha256": "1ee50bf3893c09a760c2992fcadea204c00b3baba1184f287a3bef31d0f0af15"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/sw.js",
+      "bytes": 1947,
+      "sha256": "5a06e3383028e4ba7f879d6b7d59b723491335a2fe33702029b834a699600af3"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/vault.js",
+      "bytes": 3692,
+      "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/vendor/README.md",
+      "bytes": 842,
+      "sha256": "31622a7ae4b154c9fc96b8884c65335f088b36686b3daa010fd733a3452dff64"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/vendor/nostr-tools-2.25.2.bundle.js",
+      "bytes": 251980,
+      "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/vendor/nostr-tools-LICENSE",
+      "bytes": 1210,
+      "sha256": "f0510d3b9d1223c45e8fdd2b49270ec8734fff491c7f7d1b948ee70162e1ceff"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/g11-02-reuse-check-02/later-gates/retakes/G11-02/later-gates-report.json",
+      "bytes": 4349,
+      "sha256": "66af805afe600b6a1da97e0574c69925bba4ff9b6c0a0da43c13cc3fe873599c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/gate-checkpoints.jsonl",
+      "bytes": 1076,
+      "sha256": "6f6e9bdecb4cc2b5baae4cc728343f93c4a8b4844420ae5f14fdef0d8c82058e"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/inventory.json",
+      "bytes": 9656,
+      "sha256": "f334a06b2897b11d7bc4cfed792b3231a99a74dfc0ce510acc5dd7990f047a50"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/isolation.json",
+      "bytes": 2856,
+      "sha256": "fddb256600cf6adaabb0c7f49c9e072615ac9e36f1fbdab254313613679d61a3"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G02-04-final/browser-deep-g02-report.json",
+      "bytes": 3278,
+      "sha256": "dc08877e61873b468ce21f7fd18a76649bf3ff0e258e27880d67650bbe8b297e"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G08/ledger-g08/ledger-g08-report.json",
+      "bytes": 8880,
+      "sha256": "251d18b52cc0d9d9fd5da07bedad537ac6e139ae069deeef4ba0b3e3eb099c5c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G08/ledger-g08/monero-wallet-advertiser.out",
+      "bytes": 5000,
+      "sha256": "9b38bb29d1a65e04001a84be1248c95b8a401e89602e48cd79d8affd7cbb431d"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G08/ledger-g08/monero-wallet-nodewallet.out",
+      "bytes": 5000,
+      "sha256": "6dd30f2ca907acefa867ddb743a7fbe33e314add1789da0a5970880c09db87a9"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G09-01/g09-campaign-crash-report.json",
+      "bytes": 421,
+      "sha256": "34d489fe7c8d1bb08a490aad0c0607bd7c97de6a142af264aa7b6478df67f6c9"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G09-03/g09-storage-report.json",
+      "bytes": 1504,
+      "sha256": "54e3ba3ffa46ec223a063d099f03b40918a1389199ed4416727b19aff871702b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G09-04/g09-hostile-report.json",
+      "bytes": 441,
+      "sha256": "8cf086840d3e1705de2705c026859685a1971009143ea0437cf37bbaf7db2b35"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G09-05/g09-package-report.json",
+      "bytes": 337,
+      "sha256": "a302e85cbf3395dbe5f3f029f8414ac61d1529ea1bd434366c8d50f892296d67"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G10-05/g10-viewport-report.json",
+      "bytes": 3968,
+      "sha256": "577a433f1a2acc71d00297cd6d638fcc511b96b4715885d12b06435e05d11387"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G10-06/g10-performance-report.json",
+      "bytes": 7781,
+      "sha256": "cffce589c0a4d0bc0aaa4534ccc2273475486fb73c404e0a1bc101d5475c83f6"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-01-repeat-2/browser-g04-report.json",
+      "bytes": 6445,
+      "sha256": "6d2affc564e5d0ac1cabec9066b537b00306be2d993a2bc6a1b7917fa6e8a0ca"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-01-repeat-3/browser-g04-report.json",
+      "bytes": 6445,
+      "sha256": "6b968b415533f2a288bf4d4b73052d43c974475ab20de39128b3b055b8d6207c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package-manifest.json",
+      "bytes": 3904,
+      "sha256": "8cc4e66109761941de4c532f688c97f641da585bc7612f8d83cceabe9f17d27d"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/about.html",
+      "bytes": 3837,
+      "sha256": "fc32624be694c906174165519fb9fc79a062e40284cf18b92fa928951e0b1426"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/app.js",
+      "bytes": 56946,
+      "sha256": "6001cb26d05a1998dc588a621b29866f70d04110b20e97806a981724d7f42b17"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/icon.svg",
+      "bytes": 442,
+      "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/property-brand.png",
+      "bytes": 38402,
+      "sha256": "eaf0c0e7b36ede4ffb62324c372df8882880c96fb170e102e4798b773b23c077"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/property-icon-180.png",
+      "bytes": 4969,
+      "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/property-icon-192.png",
+      "bytes": 5427,
+      "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/assets/property-icon-512.png",
+      "bytes": 14322,
+      "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/campaigns.js",
+      "bytes": 6760,
+      "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/contact.js",
+      "bytes": 1947,
+      "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/forwarding.js",
+      "bytes": 3324,
+      "sha256": "e68f00e77e832e33a588331d7a7ecb63436520f5d6a308dd249dc9769a40129c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/index.html",
+      "bytes": 18437,
+      "sha256": "a9e35a40a24098accd45606557b3bb04ffcf91435883b090ca0d6bf89dcf62ff"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/manifest.webmanifest",
+      "bytes": 648,
+      "sha256": "f4d56a21747d826b8d0250b70108341c82a6a7717fe87213ccc6c354262e47f6"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/marketplace.js",
+      "bytes": 6415,
+      "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/money.js",
+      "bytes": 1868,
+      "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/nano.js",
+      "bytes": 1207,
+      "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/routing.js",
+      "bytes": 1700,
+      "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/styles.css",
+      "bytes": 15288,
+      "sha256": "1ee50bf3893c09a760c2992fcadea204c00b3baba1184f287a3bef31d0f0af15"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/sw.js",
+      "bytes": 1947,
+      "sha256": "5a06e3383028e4ba7f879d6b7d59b723491335a2fe33702029b834a699600af3"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/vault.js",
+      "bytes": 3692,
+      "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/vendor/README.md",
+      "bytes": 842,
+      "sha256": "31622a7ae4b154c9fc96b8884c65335f088b36686b3daa010fd733a3452dff64"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/vendor/nostr-tools-2.25.2.bundle.js",
+      "bytes": 251980,
+      "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/g11-02-pwa/pwa-package/vendor/nostr-tools-LICENSE",
+      "bytes": 1210,
+      "sha256": "f0510d3b9d1223c45e8fdd2b49270ec8734fff491c7f7d1b948ee70162e1ceff"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-02/later-gates-report.json",
+      "bytes": 1804,
+      "sha256": "6c48073e2b76dd220055b854b3fcbd922b5b5eb702f4ff0e80172ba023baf8d5"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-03-diagnostic-pathfix-01/g11-multirelay-soak-report.json",
+      "bytes": 9598,
+      "sha256": "beb635c5f3531d7f66cd76dca3dc6e6dde1dab92e1a65d9e257708237312f275"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-03-diagnostic-pathfix-01/g11-soak-probes.jsonl",
+      "bytes": 197,
+      "sha256": "3372986c88fb57ed79f10591a7913956aee60dfa642a82dee5d3bbb3e4ba17a2"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-03-diagnostic-reconnect-01/g11-multirelay-soak-report.json",
+      "bytes": 4620,
+      "sha256": "f2a1239a59203bec2610083b44d6141f164d460512083018ea1f36863a77f726"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-03-diagnostic-reconnect-01/g11-soak-probes.jsonl",
+      "bytes": 395,
+      "sha256": "0b380ce50829e1dae81b5c08421f9a1e623788a8b2ae0b07ae2470729d1844a4"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-03-diagnostic/g11-multirelay-soak-report.json",
+      "bytes": 861,
+      "sha256": "b81830014d529147c134e7aa8f2164a51bd9620b5ed0631468f1f03544b93eb7"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G11-03-diagnostic/g11-soak-probes.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G12-01/firefox-browser/browser-g04-report.json",
+      "bytes": 6549,
+      "sha256": "2dd4f1f9318bb955741ddc59929254e549c085a2cc80399e1279a781e27fa3e2"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/later-gates/retakes/G12-01/later-gates-report.json",
+      "bytes": 1729,
+      "sha256": "e48b16e495b60031fbe4115b52763c410d937d1d6b0e68cbb1c239e1ce4c3f6e"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/manifest.json",
+      "bytes": 1976,
+      "sha256": "5c8ddd479e329c03e66cc37c13f32c30f1e6aa6d459d69fb7c9fc1af36c440ff"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/report.md",
+      "bytes": 13499,
+      "sha256": "f9c23b91f3e01901ee35cf927a9e909863880fa7ce4437e4328ccc649bc96fd1"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/resume-state.json",
+      "bytes": 552,
+      "sha256": "533de63584897045c558636332d3d880a45427b8714908e45497b4d25d436143"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/summary.json",
+      "bytes": 891,
+      "sha256": "daf3c99a3671b6e672bc1b901f50be124445760fcebc9ecf3baf588a41af2768"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/topology.json",
+      "bytes": 465,
+      "sha256": "474d4bccca5aa2597c26379dede26bf1827ae082c89038571a17d4761281c67b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/ubuntu-evidence-integrity.json",
+      "bytes": 276,
+      "sha256": "7bcf344f71450cdd4c4df281e61a635777130a2c11411a194be623a9ed3b0195"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/ubuntu-retakes-cases.jsonl",
+      "bytes": 109875,
+      "sha256": "bd0c0f93fc810ee453f7891c4f1805fbdd03aed18db2d4aeac763ad9d149ecec"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/ubuntu-retakes-status.json",
+      "bytes": 1869,
+      "sha256": "3f882c084d9abdaf1b7739b0acb793ce29cca9d55d81da47b89a4fbc831500d3"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-core-20261102-02/ubuntu-retakes-summary.md",
+      "bytes": 4492,
+      "sha256": "72cb6224ffd67a15e2ac609face33f6d49c03893dd85cce353e8e239c703de4f"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/SHA256SUMS",
+      "bytes": 6469,
+      "sha256": "d01ef2c015a430d398b3533db430bd8d9842a2ed7990326c2cb9e8aa5b7690be"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/browser-deep-g02/browser-deep-g02-report.json",
+      "bytes": 3278,
+      "sha256": "8a1d8973608a49926c279ccafedc49e0bb505cd9f2f29f5547fc299bd08393d6"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/browser-g03/browser-g03-report.json",
+      "bytes": 4856,
+      "sha256": "44b5f002968991ccf85dce45ba48550744ed536b5e5b01333d32c4c363ff787f"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/browser-g04/browser-g04-report.json",
+      "bytes": 6445,
+      "sha256": "b0ff50276e949f103414406961f1e8352b8337d27de6da3972ab956d553f2361"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/browser-g05/browser-g05-report.json",
+      "bytes": 17205,
+      "sha256": "8571fdb5d7ff69a8db96b764ec4dde524aa23acf3539eaea31807599f2f0724b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/browser-g06/browser-g06-report.json",
+      "bytes": 10110,
+      "sha256": "f64edc7256165cb80a7b8ad05dcffd9cfe46979820b904111ac32693977d31e5"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/browser-g07/browser-g07-report.json",
+      "bytes": 8464,
+      "sha256": "3016d7afa05acf63711dee28bc0dfbfdd5c3929b7d122fe2693434687c484b43"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/browser/browser-pwa-report.json",
+      "bytes": 1120,
+      "sha256": "ea96a13345a2d41f9e602d37bc73d7d3022155c83c9bff65dfc1ea79e03eaae4"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/case-events.jsonl",
+      "bytes": 121083,
+      "sha256": "6390e3446e0f1ab4f82d5b7135ac0d2869518157d5fdd9d510bee82f1c82974a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/cases.jsonl",
+      "bytes": 114760,
+      "sha256": "7c608ded1f36f84476a06c929b3b678635510b4ebcab9a3d3abc6664290f66a0"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/cases.latest.jsonl",
+      "bytes": 114760,
+      "sha256": "7c608ded1f36f84476a06c929b3b678635510b4ebcab9a3d3abc6664290f66a0"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/g00-04/harness-verification.json",
+      "bytes": 336,
+      "sha256": "d9ca5a59d3b39a9e2e089d50a3508b69689a434868cf527c1a48301ae2394c45"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/g00-04/interrupted-cases.jsonl",
+      "bytes": 149,
+      "sha256": "06631741755651e6f8e896ecaad253fd44b12e3cb5097e4d8381fe0bb8a57575"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/g00-04/interrupted-summary.json",
+      "bytes": 169,
+      "sha256": "d3a85b832ffdfb687095c502194af04753574a98c83395682cc2d552c9612680"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/gate-checkpoints.jsonl",
+      "bytes": 1502,
+      "sha256": "4b9561c7daeeb21a4632a5cef01d5921cbb1637eda5722f1bdb08fad0036e0c0"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/inventory.json",
+      "bytes": 43200,
+      "sha256": "a42908cbf88ed721590334ea698525356685101cfdb9ac650b21afff3fa2252c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/isolation.json",
+      "bytes": 2856,
+      "sha256": "5ba282423aff5967de79e4c742bd2541ed0ec503e49a9c8c4efc18ad936878ba"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/later-gates/g09-01/g09-campaign-crash-report.json",
+      "bytes": 421,
+      "sha256": "5f60826016fe3fcbc0be6a84d2cdb9287fd36f03f44a5a77d0035fb04d8ff855"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/later-gates/g09-03/g09-storage-report.json",
+      "bytes": 1499,
+      "sha256": "0f831ffa3ae148f416849dd25c89d314e123e85c4e2c5cb2f9677911e00e6162"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/later-gates/g09-04/g09-hostile-report.json",
+      "bytes": 441,
+      "sha256": "2d42165a1be9ae8631a82dbe3b2d6384740cf9a59f23738009fa21e749bc9503"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/later-gates/g09-05/g09-package-report.json",
+      "bytes": 337,
+      "sha256": "a302e85cbf3395dbe5f3f029f8414ac61d1529ea1bd434366c8d50f892296d67"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/later-gates/g10-05/g10-viewport-report.json",
+      "bytes": 3968,
+      "sha256": "577a433f1a2acc71d00297cd6d638fcc511b96b4715885d12b06435e05d11387"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/later-gates/g10-06/g10-performance-report.json",
+      "bytes": 7905,
+      "sha256": "dfa549e4e88cf155f2f1c6dde043d01389498eb0f4c282deaf9d8ce65e84bf48"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/later-gates/later-gates-report.json",
+      "bytes": 26779,
+      "sha256": "f951fb9fa8142538917cb9d36302dc5cc277026694bfade8c267d01a750af3d3"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/ledger-g08/ledger-g08-report.json",
+      "bytes": 8880,
+      "sha256": "003a3e474e32db933281d5f23817392fd0219aa4541f28bfa56937ca682070e5"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/ledger-g08/monero-wallet-advertiser.out",
+      "bytes": 5000,
+      "sha256": "a6ac443285b27e985f30f15b84906b4c07d9fae31275901ab6285906ab1e56d2"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/ledger-g08/monero-wallet-nodewallet.out",
+      "bytes": 5000,
+      "sha256": "962282e99c49a692efadb0de7449f1cac6ac2c10206677d6aab1097f44658464"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/manifest.json",
+      "bytes": 3036,
+      "sha256": "ee29a50dd72126a183a1074ecb3d73bdb36a67ca3bcfc16946bd64cfda588db3"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/report.md",
+      "bytes": 18165,
+      "sha256": "933ce1417944bba6050a37a1922bb58fac17a50cea609aeb926d7d4c4d05f39e"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/resume-state.json",
+      "bytes": 552,
+      "sha256": "b816b1bd51e463c7a2f451deac3a893e75fa1b51a4d269bc32e707391fc20dec"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/summary.json",
+      "bytes": 1011,
+      "sha256": "05b178d924e726894e438ae6cff317b2e232675aab1d1907f25c60ad708d09da"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-01/topology.json",
+      "bytes": 465,
+      "sha256": "5b9d4feeb87a204832ff12001283a7c900cf872549ec8bb8a0f9c0da9756b01a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/browser-deep-g02/browser-deep-g02-report.json",
+      "bytes": 3278,
+      "sha256": "63914e9a75c059c9f5cdf6b94d69f3019d3e5f037c3eeb0a4c0c71650e644b80"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/browser-g03/browser-g03-report.json",
+      "bytes": 4856,
+      "sha256": "da074d88748691d7188ee1b9859eff3307ddb95790eed5c456dd3920b26850c5"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/browser-g04/browser-g04-report.json",
+      "bytes": 6474,
+      "sha256": "64bce51e332628c431b00c230b28562a7ee97b243a8715a86b0a8086a2726bb1"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/browser-g05/browser-g05-report.json",
+      "bytes": 17205,
+      "sha256": "fb3847ddd6a356e7dde57adee88eda53ad3a2879d8a02b8ef347b16ee9ff4182"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/browser-g06/browser-g06-report.json",
+      "bytes": 10110,
+      "sha256": "ca9f0c2cc1dfa0e363aa009d89c6d815e76166811a95282c580d54fc536c32ce"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/browser-g07/browser-g07-report.json",
+      "bytes": 8464,
+      "sha256": "e1f33f12a47af5068770ea8549d45aaf360023c4e078e89fb4942cd04090f78f"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/browser/browser-pwa-report.json",
+      "bytes": 1120,
+      "sha256": "7eec9b6164b4f0e6e3accbb8f98d1b6557e5a9d771b23e704a72642b57efda98"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/case-events.jsonl",
+      "bytes": 75060,
+      "sha256": "30f180a942468ea128b57f6ea4354970fa50bea2650e831d91aaec85cc9f62c3"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/cases.latest.jsonl",
+      "bytes": 89570,
+      "sha256": "3c715af0c11e9d65f2bf6afba6d505c7a699f87c012fb1ed67a96612792c9121"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/g00-04/harness-verification.json",
+      "bytes": 336,
+      "sha256": "371c88f6440e6b793b16a88625ea878a1989ba468beaf3641b8a4fceed3f41e1"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/g00-04/interrupted-cases.jsonl",
+      "bytes": 149,
+      "sha256": "06631741755651e6f8e896ecaad253fd44b12e3cb5097e4d8381fe0bb8a57575"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/g00-04/interrupted-summary.json",
+      "bytes": 169,
+      "sha256": "bad548780bc72a92f89de70f5272fabf492b1a23d1f32c203aaf2fbcd508b7ba"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/gate-checkpoints.jsonl",
+      "bytes": 1103,
+      "sha256": "3c6a03c66db67f2d3cd258aaaf739816acd2b76ee1957c78502a5d19040e757e"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/inventory.json",
+      "bytes": 50562,
+      "sha256": "2c5cacbc2cabc9fa243396923bea034b0c110dc78ccf519762bb384e8e65b44b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/isolation.json",
+      "bytes": 1853,
+      "sha256": "c99787c12bd1a93cfe3ebbc8a9220e9043c724e7c7b4393a191479eccf15236f"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g09-01/g09-campaign-crash-report.json",
+      "bytes": 421,
+      "sha256": "43e7ba48a9fc11902d0cd610729184296cfd21876c183f0f4581d98e28b10de0"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g09-03/g09-storage-report.json",
+      "bytes": 1499,
+      "sha256": "9d1c9f9462d1c178f21a9e74f30715a769bca5d0b75573f25723200333532509"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g09-04/g09-hostile-report.json",
+      "bytes": 441,
+      "sha256": "493c07aa699fd7c6b86e0ec3c09b35f356112b92cfe7f59959388f90fc8c5332"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g09-05/g09-package-report.json",
+      "bytes": 337,
+      "sha256": "a302e85cbf3395dbe5f3f029f8414ac61d1529ea1bd434366c8d50f892296d67"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g10-05/g10-viewport-report.json",
+      "bytes": 3968,
+      "sha256": "577a433f1a2acc71d00297cd6d638fcc511b96b4715885d12b06435e05d11387"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g10-06/g10-performance-report.json",
+      "bytes": 7784,
+      "sha256": "681c7080c8c5aa986c95e4f9c612bd1319a82a511e60a8e3e202736f197c7278"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-01-repetition-2/browser-g04-report.json",
+      "bytes": 6445,
+      "sha256": "10b39c5ff485d84b3b7c5b6173f59e7b1de4f5a22033f6389413a0bd0ec5432a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-01-repetition-3/browser-g04-report.json",
+      "bytes": 6445,
+      "sha256": "894b51eb9fb45eb9e5fc87bd50270174c1611f66c6f61813ce105bc16cc1d777"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-build-reuse.json",
+      "bytes": 1599,
+      "sha256": "46da215d30cb1b883300f18e8571a336fd948236098f4cd1849d21342f74f295"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package-manifest.json",
+      "bytes": 3904,
+      "sha256": "905b509025d84ab2fd5ddd2e8055e1ceec4f22aa22c99bc8f1c32d6f7bda65cc"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/about.html",
+      "bytes": 3837,
+      "sha256": "fc32624be694c906174165519fb9fc79a062e40284cf18b92fa928951e0b1426"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/app.js",
+      "bytes": 56946,
+      "sha256": "c0b579585d18fef6e5303d52b11a3a5897f53d6f8628b729895d33906dfb7560"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/assets/icon.svg",
+      "bytes": 442,
+      "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/assets/property-brand.png",
+      "bytes": 38402,
+      "sha256": "eaf0c0e7b36ede4ffb62324c372df8882880c96fb170e102e4798b773b23c077"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/assets/property-icon-180.png",
+      "bytes": 4969,
+      "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/assets/property-icon-192.png",
+      "bytes": 5427,
+      "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/assets/property-icon-512.png",
+      "bytes": 14322,
+      "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/campaigns.js",
+      "bytes": 6760,
+      "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/contact.js",
+      "bytes": 1947,
+      "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/forwarding.js",
+      "bytes": 3324,
+      "sha256": "e68f00e77e832e33a588331d7a7ecb63436520f5d6a308dd249dc9769a40129c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/index.html",
+      "bytes": 18437,
+      "sha256": "a9e35a40a24098accd45606557b3bb04ffcf91435883b090ca0d6bf89dcf62ff"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/manifest.webmanifest",
+      "bytes": 648,
+      "sha256": "f4d56a21747d826b8d0250b70108341c82a6a7717fe87213ccc6c354262e47f6"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/marketplace.js",
+      "bytes": 6415,
+      "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/money.js",
+      "bytes": 1868,
+      "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/nano.js",
+      "bytes": 1207,
+      "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/routing.js",
+      "bytes": 1700,
+      "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/styles.css",
+      "bytes": 15288,
+      "sha256": "1ee50bf3893c09a760c2992fcadea204c00b3baba1184f287a3bef31d0f0af15"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/sw.js",
+      "bytes": 1947,
+      "sha256": "5a06e3383028e4ba7f879d6b7d59b723491335a2fe33702029b834a699600af3"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/vault.js",
+      "bytes": 3692,
+      "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/vendor/README.md",
+      "bytes": 842,
+      "sha256": "31622a7ae4b154c9fc96b8884c65335f088b36686b3daa010fd733a3452dff64"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/vendor/nostr-tools-2.25.2.bundle.js",
+      "bytes": 251980,
+      "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-02-pwa/pwa-package/vendor/nostr-tools-LICENSE",
+      "bytes": 1210,
+      "sha256": "f0510d3b9d1223c45e8fdd2b49270ec8734fff491c7f7d1b948ee70162e1ceff"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-03/g11-multirelay-soak-report.json",
+      "bytes": 76299,
+      "sha256": "1da63d344d0995aa37d05b5756850cb67061c94f64d3700b66cbe1d09f7c1bf5"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/g11-03/g11-soak-probes.jsonl",
+      "bytes": 23242,
+      "sha256": "8eace3b1a021aabde3c01406dece5820db023b9ac4fe7517a4675ec46211b92c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/later-gates/later-gates-report.json",
+      "bytes": 127864,
+      "sha256": "d1d329f1a8ba8464fad7fb57bce215344a6672171fda321e381eba584aa35019"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/ledger-g08/ledger-g08-report.json",
+      "bytes": 8880,
+      "sha256": "2d967d158dc2feb71b1d72e7b60c46bfc83e93abb66b2917f3895f5cc6a74518"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/ledger-g08/monero-wallet-advertiser.out",
+      "bytes": 5000,
+      "sha256": "a8ccbbc52b092609f493edbb2202bbe5ec4d8cf402a0b345c86e9e7abe822a7c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/ledger-g08/monero-wallet-nodewallet.out",
+      "bytes": 5000,
+      "sha256": "a95e351ca5c273ef409494fe1c5eb9de2e05a18103a99a369c38142f072c4c1c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/manifest.json",
+      "bytes": 3036,
+      "sha256": "6d59d0688e0c3fcd26e2d07ca9bd60b652f23dd209e79522b45e971892b60ffe"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/resume-state.json",
+      "bytes": 552,
+      "sha256": "1a9d7fe196854dbb6ad7f7cbcc2853173e17c8877be2ce8dbd7206e0206ada19"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261102-02/topology.json",
+      "bytes": 465,
+      "sha256": "5b9d4feeb87a204832ff12001283a7c900cf872549ec8bb8a0f9c0da9756b01a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/SHA256SUMS",
+      "bytes": 1380,
+      "sha256": "bc234afb5998609798b7d9e37c8aca24fd000e3953218298e3a55b36e521f3c7"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/case-events.jsonl",
+      "bytes": 29855,
+      "sha256": "9205ab23d40278bc50da9b473fcbabc37db3030e28119cff4e2b0d86110049da"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/cases.jsonl",
+      "bytes": 63368,
+      "sha256": "e219823a34d8c86a953427c796260cc78d17805e27a7c8b342136a92eade053a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/cases.latest.jsonl",
+      "bytes": 63368,
+      "sha256": "e219823a34d8c86a953427c796260cc78d17805e27a7c8b342136a92eade053a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/g00-04/harness-verification.json",
+      "bytes": 336,
+      "sha256": "4730f5522f8e3b6f0a448b352ff60d9b8ab508582d7de4da1dc784b87bdc8dbe"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/g00-04/interrupted-cases.jsonl",
+      "bytes": 149,
+      "sha256": "06631741755651e6f8e896ecaad253fd44b12e3cb5097e4d8381fe0bb8a57575"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/g00-04/interrupted-summary.json",
+      "bytes": 169,
+      "sha256": "6b2c4b7aa992809a4afc716765294657af74bee0d34b54eb22781d1d93ca0f52"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/gate-checkpoints.jsonl",
+      "bytes": 121,
+      "sha256": "66c9a46c373511cac83b2cb81a8bcbac20eef62081979842a22a972694cca9f0"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/inventory.json",
+      "bytes": 64369,
+      "sha256": "e9ea91303dcbdaf737cf41c73e4eb17ae5216732ff404e5ecef18f95ad5b7b1c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/isolation.json",
+      "bytes": 2856,
+      "sha256": "a1743a8110faf9020a6dfcd2f7ba7019c5e2f5aa32e642fd0b190a4816837887"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/manifest.json",
+      "bytes": 3083,
+      "sha256": "5436b06a8143fb5c8c547ca47fdbd2fc17801c83535e5b57f4de18f41394c23c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/report.md",
+      "bytes": 8674,
+      "sha256": "4981ae0c6cb5563bbef70eabe3fc5f4ea5f353c852d0d2377ae7151a5eeb5d67"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/resume-state.json",
+      "bytes": 552,
+      "sha256": "e7e671161b3806032ba0703fff64defe14ff21f09d431491fa66efb9b7479382"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/summary.json",
+      "bytes": 1087,
+      "sha256": "681e85cf28b30e51198bedd56274d512933c3ac5d83b14fec40b4d7d0519e47d"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-02/topology.json",
+      "bytes": 469,
+      "sha256": "79a685b1b4cdf31a7c98c28d6b05768730a4cf031dd9ce0684918e9bd5ed4083"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/SHA256SUMS",
+      "bytes": 2329,
+      "sha256": "3ad51fb9b453f553963cf23d11500f838deba03cb06b69d4c03b622c96df01bd"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/browser-deep-g02/browser-deep-g02-report.json",
+      "bytes": 1223,
+      "sha256": "f38b9efd389493a9f99409ee4eb306faa3e7b637ccf5ab561c37c5965416f4b5"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/browser/browser-pwa-report.json",
+      "bytes": 1120,
+      "sha256": "3e98df987f28929d621ba0c217dba58efcdacb520ffb5ec16c0c9a34285031ee"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/case-events.jsonl",
+      "bytes": 53600,
+      "sha256": "888bc519e6c63cfed049bb558b96410d1a3f4f5025d7ac13641eb95c0610bcfd"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/cases.jsonl",
+      "bytes": 79803,
+      "sha256": "e9f49954762613ad047db436383c24a7409f3d86cf3651fda4bfd869dc2d49e9"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/cases.latest.jsonl",
+      "bytes": 79803,
+      "sha256": "e9f49954762613ad047db436383c24a7409f3d86cf3651fda4bfd869dc2d49e9"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/g00-04/harness-verification.json",
+      "bytes": 336,
+      "sha256": "bc948792a1ee2439feed41188f474b7a19aa0653722cff78a34fcd66892c005d"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/g00-04/interrupted-cases.jsonl",
+      "bytes": 149,
+      "sha256": "06631741755651e6f8e896ecaad253fd44b12e3cb5097e4d8381fe0bb8a57575"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/g00-04/interrupted-summary.json",
+      "bytes": 169,
+      "sha256": "a99bea69bc54cee7611e288f4af03867baeed3cc28453ae21d002289ea8dac08"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/gate-checkpoints.jsonl",
+      "bytes": 233,
+      "sha256": "72ee4d98c49183527b0909131f787604a7badbc37017ff426a1f2f91ce3838bd"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/inventory.json",
+      "bytes": 67901,
+      "sha256": "3df408e157fd8cae822a13d99e26c8261539f755ed13388661aa40cab1a95d2d"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/isolation.json",
+      "bytes": 2856,
+      "sha256": "c2a7e111101ccfa45f8b4d150468faf3ccf93318ab85ca63ae981c3f689d80b5"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/manifest.json",
+      "bytes": 3081,
+      "sha256": "81833792d853b09f6567de6d98e452d76ceee7513ff6fc133868f002ef05995b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/report.md",
+      "bytes": 8856,
+      "sha256": "03d56c7af2110b370293d63817f5e1ab8a36aedcef198c2a9cd90de130c8bcac"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/resume-state.json",
+      "bytes": 552,
+      "sha256": "6d6be2c47740805d85ae3775f250d554a1c3f1e4f4ef78eeae1c916d6db4fb0b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/summary.json",
+      "bytes": 1082,
+      "sha256": "3e3c96cf2a466606a6676f65b8b738abdd422e954a49e6df51a2ea866ec3ab6a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-03/topology.json",
+      "bytes": 467,
+      "sha256": "4666aaa2b3127c4a34e4587f5467a43b9c2bba383cd0489f277ecfbf03cb9b34"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/SHA256SUMS",
+      "bytes": 2524,
+      "sha256": "07dfe77f30319c40a63b7453451d547bd28262d7e1ccd6bb761493202f355137"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/browser-deep-g02/browser-deep-g02-report.json",
+      "bytes": 3278,
+      "sha256": "e0c4dd097e97b58c597c95032d2db901ea52d843ffa41e6e7c4f5c1203d3c287"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/browser-g03/browser-g03-report.json",
+      "bytes": 1589,
+      "sha256": "d5e5e0dc3879eca6d181fd025282d1e95121d026993e4f86cf06a98d60251b1c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/browser/browser-pwa-report.json",
+      "bytes": 1120,
+      "sha256": "576d91062eb1a004865786b8e21dfa47586f1bfbbe0f5538c936d4cb37cdf903"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/case-events.jsonl",
+      "bytes": 61231,
+      "sha256": "9099123cb23d9c34b0ed8441a07bc74e8b7ea900820db5480161bff62e52557b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/cases.jsonl",
+      "bytes": 82258,
+      "sha256": "ef82add343dde5138f6c510c81315a534911ec5e3948c41912f9e49e4aab9187"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/cases.latest.jsonl",
+      "bytes": 82258,
+      "sha256": "ef82add343dde5138f6c510c81315a534911ec5e3948c41912f9e49e4aab9187"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/g00-04/harness-verification.json",
+      "bytes": 336,
+      "sha256": "d03aa91f7169568061dea13fbb46008e496797eb6350d4cb18c30f3311cb5eee"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/g00-04/interrupted-cases.jsonl",
+      "bytes": 149,
+      "sha256": "06631741755651e6f8e896ecaad253fd44b12e3cb5097e4d8381fe0bb8a57575"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/g00-04/interrupted-summary.json",
+      "bytes": 169,
+      "sha256": "ef6ef1d8b61dcbafb2c78964dc4c220d7d4bcee483e6aaba839fc0ef3f386b53"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/gate-checkpoints.jsonl",
+      "bytes": 511,
+      "sha256": "6a5767c540e917c19355bc783d024e49d4bff1a0148f2ddaea112e9c1bea60db"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/inventory.json",
+      "bytes": 71909,
+      "sha256": "f6a0043d4f10c434e22fd6c56b6eb2996afb7ced65cc33a74820f7d3a5d4e9d1"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/isolation.json",
+      "bytes": 2856,
+      "sha256": "490a48fd3d2a9889d913e8ee2754d7ee801af766c6feed8e2fad57307e03e9c2"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/manifest.json",
+      "bytes": 3081,
+      "sha256": "92523bd6487b3928df2d07c6830c8fa66b03887a6e38114e693f7e4f47d3c09c"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/report.md",
+      "bytes": 9057,
+      "sha256": "3ef719f270a244f803ce43841ffd10310378fdfdcd36d360ee2d3a6a6e3b5262"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/resume-state.json",
+      "bytes": 552,
+      "sha256": "66391f6d82e84a77e408caf7d53ab537d05a4a65e7022875078e7e77b79b1867"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/summary.json",
+      "bytes": 1097,
+      "sha256": "a021e433f7a72d92dd864461a14d8aa9af3f9f631e5ab9a7acce28dcf44c6a6a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-04/topology.json",
+      "bytes": 467,
+      "sha256": "f378331567eb8c506226307569856dd287ed38e62fb91eaec69b8a73cfbb5108"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/SHA256SUMS",
+      "bytes": 2719,
+      "sha256": "c007828aa04e2cb842ccf76f3fd231ccae5cb4fc1d5b495d22a1a01dd17c6373"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/browser-deep-g02/browser-deep-g02-report.json",
+      "bytes": 3278,
+      "sha256": "090f1696332f0147d4fcbf25fc86c16b9c66cf07c13b26f392e320d09c739f3b"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/browser-g03/browser-g03-report.json",
+      "bytes": 4855,
+      "sha256": "fea0e75000e90a723813e1bb2d621a4b17032ca91e5981d0b8010d748119daaf"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/browser-g04/browser-g04-report.json",
+      "bytes": 3685,
+      "sha256": "66628b92cf02db7e5a70c62e8428946531c4f6054a0b44d9014a4c4677feee63"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/browser/browser-pwa-report.json",
+      "bytes": 1120,
+      "sha256": "b1f133ad2b21c7e861e2f46a74024ad91ac3bed01b08b6823255b27f0dee1119"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/case-events.jsonl",
+      "bytes": 69679,
+      "sha256": "6c0f655507e3aa81638461061344faa1533bc042335da2fcd658b08a29691de0"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/cases.jsonl",
+      "bytes": 86150,
+      "sha256": "d3327b4e1d2f07f75431db1e41babefb3589925c669235845457621d8e73e117"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/cases.latest.jsonl",
+      "bytes": 86150,
+      "sha256": "d3327b4e1d2f07f75431db1e41babefb3589925c669235845457621d8e73e117"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/g00-04/harness-verification.json",
+      "bytes": 336,
+      "sha256": "4c1b93ece0e4006a185a3feb3f77e7f31aedbdd3bab76c0848d7574daebc5f06"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/g00-04/interrupted-cases.jsonl",
+      "bytes": 149,
+      "sha256": "06631741755651e6f8e896ecaad253fd44b12e3cb5097e4d8381fe0bb8a57575"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/g00-04/interrupted-summary.json",
+      "bytes": 169,
+      "sha256": "76323b1a23f4d35dbe725be0c7a005cccaa650724f0f472fe6370b22a835b4cb"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/gate-checkpoints.jsonl",
+      "bytes": 650,
+      "sha256": "453d6e35c12fbda6515604e51386f6152ed6f39a8b5080cbe088aa5aeb2ad471"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/inventory.json",
+      "bytes": 76151,
+      "sha256": "265b509d94e1a3c8a5cf80b38c000e79e6d8bc6b69e11f88c00fa71d3072c60e"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/isolation.json",
+      "bytes": 2856,
+      "sha256": "8b2d47bec3316eaa4f4e8a1175dff4a638deab9eae0426e6cc0d118b3f3db012"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/manifest.json",
+      "bytes": 3081,
+      "sha256": "b8356c84f9b3fe5ae5c5a028af0563d739602fba421888cb431829ee180945af"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/report.md",
+      "bytes": 9917,
+      "sha256": "d8eda82d0fd37fe1260d06ade5b560d1377b96eba311dc7a435f77334ef9846d"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/resume-state.json",
+      "bytes": 552,
+      "sha256": "f3bdb8b67eaf91148de6018955168a7691f1f24c21e6922e5cf477d121b7194a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/summary.json",
+      "bytes": 1094,
+      "sha256": "2a8b91abe7f5f24470705edd88fbf2a551dc0462cce99e5078cd93b00298ddf7"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-05/topology.json",
+      "bytes": 467,
+      "sha256": "a731c2c5b85824c7367b64aeb086e31d9af9fc2a9f578c8b220d84c2d05c7a8a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/SHA256SUMS",
+      "bytes": 3304,
+      "sha256": "e395adca437824a524efd91823ea5a78fcbb46aec62e894942dbcd4e6321198f"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/browser-deep-g02/browser-deep-g02-report.json",
+      "bytes": 3278,
+      "sha256": "76f1a8d5fc8b73c966dc7acbe54bf5c2f5baa06d6e38ca53abbee6a6a1769899"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/browser-g03/browser-g03-report.json",
+      "bytes": 4855,
+      "sha256": "a67fd42517482412481cd32486f53eae748ccca70aedee67a942d99c70636f3e"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/browser-g04/browser-g04-report.json",
+      "bytes": 6445,
+      "sha256": "72e76677957e201eb308361bcbd52369ef55e15c9a38e0c1d01661419711a8cf"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/browser-g05/browser-g05-report.json",
+      "bytes": 17032,
+      "sha256": "c2f8e04d183d03b2db8d2d53e0f283b7a9e24f3eb0f9ae0b7651593feec51b1e"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/browser-g06/browser-g06-report.json",
+      "bytes": 10070,
+      "sha256": "48792422910e1b521dd736f4565b3a91ebfe945668a471d3cb663bb0083eb98f"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/browser-g07/browser-g07-report.json",
+      "bytes": 15635,
+      "sha256": "af84c18579562755d6bc74636e731198d0096080a5444beac87cc236fa3406b7"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/browser/browser-pwa-report.json",
+      "bytes": 1120,
+      "sha256": "39b97235cfcf9fd6ca7e2702e6f90b3c40a92bebe1d8ccb522ee6631d5c9920e"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/case-events.jsonl",
+      "bytes": 99409,
+      "sha256": "c84903e95a2ddaf8e8111c9551902e5156e72d6e198592e8b277e2a874c5a1ea"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/cases.jsonl",
+      "bytes": 99512,
+      "sha256": "95f26638eccd2488d04af723ff222f0b496118725b314f1835bd439615bddbe0"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/cases.latest.jsonl",
+      "bytes": 99512,
+      "sha256": "95f26638eccd2488d04af723ff222f0b496118725b314f1835bd439615bddbe0"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/g00-04/harness-verification.json",
+      "bytes": 336,
+      "sha256": "665c4c65e0065a60ead8f6019d40a78c01ae712c3013803ea72b05a4c78839b9"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/g00-04/interrupted-cases.jsonl",
+      "bytes": 149,
+      "sha256": "06631741755651e6f8e896ecaad253fd44b12e3cb5097e4d8381fe0bb8a57575"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/g00-04/interrupted-summary.json",
+      "bytes": 169,
+      "sha256": "e2cfa2738e15d11fa4d3b49a46769779ed72fc7281061d8e352ac5077dcaed92"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/gate-checkpoints.jsonl",
+      "bytes": 1076,
+      "sha256": "7e2692349a8193f1d5d779b344a92764078989589bbd955ca9db9e0bcdad9eb3"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/inventory.json",
+      "bytes": 80627,
+      "sha256": "ceb45fabda854b5458113a5708c2934dc2005e3e87d6f72ee680f43e128bfd0a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/isolation.json",
+      "bytes": 2856,
+      "sha256": "4837a7786144f96f764e7e22a34d7fff4d9936a1f975698d103149013281209d"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/manifest.json",
+      "bytes": 3081,
+      "sha256": "63139463acfd0aa1b069ed58350a794db9b2951cdde26b1b3d9987b6ef309604"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/report.md",
+      "bytes": 13001,
+      "sha256": "c52ef71207ab70138a04066f2c91dd1479ddab539d1ec6e958039ef69bf509b7"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/resume-state.json",
+      "bytes": 552,
+      "sha256": "64258b46d8f62686b67aa3e017d906e73cc8f6f564b1dd21a6bced30b5ece7ad"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/summary.json",
+      "bytes": 1085,
+      "sha256": "cdb8c956b1c0fc429af9f69c732f84ac71139df788aab6a39a11df5837a7db2a"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-06/topology.json",
+      "bytes": 467,
+      "sha256": "3874420044e11af9359f10a5d03ee596f31d2f98fd66b0ba3ed70adaa706237d"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/SHA256SUMS",
+      "bytes": 2719,
+      "sha256": "8b53cdf0a7c021e46d321cc296da1398c1c1e84e45b7ec92c9c1c03672c36682"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/browser-deep-g02/browser-deep-g02-report.json",
+      "bytes": 3278,
+      "sha256": "6eb64afd403f1ef476e04a6766d8d56a7603e60dc8d43de39d56c4d80e8c7ddb"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/browser-g03/browser-g03-report.json",
+      "bytes": 4855,
+      "sha256": "153385c4e7f7945ae2dcf3206d100bfde1ecc90473451816a9e61d18609201bd"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/browser-g04/browser-g04-report.json",
+      "bytes": 4224,
+      "sha256": "a8ecbde26e43a86a32310b004e366660bb752c570db7def6a9c0109994b078af"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/browser/browser-pwa-report.json",
+      "bytes": 1120,
+      "sha256": "04f8281300010a8da62dd05180b6b87ecc20fab3d126f9eecd16a9edcb3463c2"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/case-events.jsonl",
+      "bytes": 69603,
+      "sha256": "83d53ba09a372950aa6f0e19a7db944c0f87e63f31928cf793a877d9d11e3796"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/cases.jsonl",
+      "bytes": 86074,
+      "sha256": "3d07d9e80076b80c4040cb0c0db21c7cb5f18c236c6b38ca24a761c46c04387d"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/cases.latest.jsonl",
+      "bytes": 86074,
+      "sha256": "3d07d9e80076b80c4040cb0c0db21c7cb5f18c236c6b38ca24a761c46c04387d"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/g00-04/harness-verification.json",
+      "bytes": 336,
+      "sha256": "334febe036301f63904f14c064b2150b20508ec0e5f0d23ffba27600ccb51e67"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/g00-04/interrupted-cases.jsonl",
+      "bytes": 149,
+      "sha256": "06631741755651e6f8e896ecaad253fd44b12e3cb5097e4d8381fe0bb8a57575"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/g00-04/interrupted-summary.json",
+      "bytes": 169,
+      "sha256": "7b5a02954cbf3133ad05963a5ce1b05d9a3e5d09507506805bdf5ea8687b2404"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/gate-checkpoints.jsonl",
+      "bytes": 650,
+      "sha256": "3a06315c185dfc313b4e34d4e9e9959591521044434704ef82fa0bd4d18967e0"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/inventory.json",
+      "bytes": 85606,
+      "sha256": "82a5915a3f334b8f55883425eee7852ab0e633ecd6e74fe670cf416844098cd7"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/isolation.json",
+      "bytes": 2856,
+      "sha256": "d20ce717c5abd84776a7adb0ff3c1e831c04457b76840959f14b6021a3755ab1"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/manifest.json",
+      "bytes": 3098,
+      "sha256": "3417bb8bdcf44433c02475e613ceaad34e0222b3b957abc4d14cfb76156f4e89"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/report.md",
+      "bytes": 9895,
+      "sha256": "5ff2317ac3a0087cd59587760b742524d7d9498a726665e95db75d114c9d9287"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/resume-state.json",
+      "bytes": 552,
+      "sha256": "5fcd27b2c529fd9289f3c74c68d40b58df61e9abb4625cb16898c122c96f35a8"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/summary.json",
+      "bytes": 1150,
+      "sha256": "866c9a8eaed4f510ec704cba471773d3cebf4dff0c44a06b8ca1c00f9f06f303"
+    },
+    {
+      "path": "property/docs/evidence/offline/property-ubuntu-full-20261103-08/topology.json",
+      "bytes": 467,
+      "sha256": "07ac29b424af9eaff8a40a2a2d4d09916b2905827bb902e509a8656a01eb262d"
+    }
+  ],
+  "working_tree_state_sha256": "2a5805bfd0974872a60247c491032c437431670991215baa14a8400e86be17cc",
+  "candidate_state_sha256": "504496088bef63e607cded59027fc040a1d7a6df750cb48ff4a242c38df16889",
+  "inventory_excluded_output": "property/docs/evidence/offline/property-ubuntu-full-20261103-09",
+  "source_documents": [
+    {
+      "path": "AGENTS.md",
+      "present": true,
+      "bytes": 34724,
+      "sha256": "daf6ddac1ba23ec6ab031b2405e0f4558f6aa4a586f40bf64e7cee90cfe4a496"
+    },
+    {
+      "path": "property/docs/identidade-do-projeto.md",
+      "present": true,
+      "bytes": 11286,
+      "sha256": "a257f003073ca3fbccf700308c604324a165671c415eb8e4aed1bd7c68de3a73"
+    },
+    {
+      "path": "property/docs/plano-central.md",
+      "present": true,
+      "bytes": 20836,
+      "sha256": "58fedd65bc839161b0f87354bcc7ab6e1f43155fbc2f9f5a6588eec184115192"
+    },
+    {
+      "path": "property/docs/pagamentos.md",
+      "present": true,
+      "bytes": 4934,
+      "sha256": "6a936ccbc573367a1f650026db33c9d5205d6212d857d9ad411dff5817e2037b"
+    },
+    {
+      "path": "property/docs/migracao-property.md",
+      "present": true,
+      "bytes": 3270,
+      "sha256": "ba0fe203f08b17ba2888bdb537981bbfb6067c955b3acb1f58ae284485bf6a62"
+    },
+    {
+      "path": "property/docs/plano-de-testes-central.md",
+      "present": true,
+      "bytes": 60740,
+      "sha256": "97b402c63c87cb582d8b4fbc54211c164552fa526f6396fcb688b69d93c641f9"
+    }
+  ],
+  "integrity": {
+    "git_state_complete": true,
+    "sources_complete": true,
+    "missing_sources": [],
+    "manifest_sha256": "5223be850ab4b2ad3536321cec460be851762640affaf53d44a67d469ddaca85",
+    "ready_for_g00_01": true
+  },
+  "host": {
+    "platform": "linux",
+    "architecture": "x64",
+    "release": "7.0.0-38-generic",
+    "logical_cpus": 16,
+    "ram_total_bytes": 32970711040,
+    "ram_available_bytes": 9306529792,
+    "tmp_available_bytes": 538513678336
+  },
+  "cgroup_limits": {
+    "raw": {
+      "cpu": null,
+      "cpuset": "0-15",
+      "memory": null,
+      "processes": null
+    },
+    "cpu_quota": null,
+    "cpuset_cpu_count": 16,
+    "runtime_parallelism": 16,
+    "effective_cpu_count": 16,
+    "memory_quota_bytes": null,
+    "process_quota": null
+  },
+  "tools": {
+    "bash": {
+      "path": "/usr/bin/bash",
+      "sha256": "3efccc187bafa75ff1e37d246270ab3e7aa559f242c7a52bf3ec2a1b5450bdbd"
+    },
+    "node": {
+      "path": "/usr/bin/node",
+      "sha256": "d0efb6fcb9d023ba4e2b160ec2384dc28fe4f17732141ef47f676828fa960505"
+    },
+    "java": {
+      "path": "/usr/bin/java",
+      "sha256": "00261dabda30e0dbf1a799d052a615fe404afff7530e50444eb75a30c4f8d9d5"
+    },
+    "gradle": {
+      "path": null,
+      "sha256": null
+    },
+    "openssl": {
+      "path": "/home/<USER>/miniconda/bin/openssl",
+      "sha256": "d42b63a20f86fccd88dd91f92e471ec3b9ce6729eec46d1b6ba165749a8efde9"
+    },
+    "ip": {
+      "path": "/usr/sbin/ip",
+      "sha256": "19d7990bf9e818121a7423179611ac59be9d37b3f21b3cb9249c048072a06a08"
+    },
+    "nft": {
+      "path": "/usr/sbin/nft",
+      "sha256": "7b3efd79bd3a70d72275b7bbfe19f2234a837968a3c0ad5528126a396a00d42f"
+    },
+    "iptables-save": {
+      "path": "/usr/sbin/iptables-save",
+      "sha256": "603f55a8877a2db138615f961901ef23ba77451ac0a53233bd01f1c9b216636a"
+    },
+    "ip6tables-save": {
+      "path": "/usr/sbin/ip6tables-save",
+      "sha256": "603f55a8877a2db138615f961901ef23ba77451ac0a53233bd01f1c9b216636a"
+    },
+    "firefox": {
+      "path": "/usr/bin/firefox",
+      "sha256": "0ed9f1a3e4c189165e94979eafa0751fdd20fded42c46679a6caa2adfbd46c7f"
+    },
+    "bitcoin-cli": {
+      "path": null,
+      "sha256": null
+    },
+    "bitcoind": {
+      "path": null,
+      "sha256": null
+    },
+    "monerod": {
+      "path": null,
+      "sha256": null
+    },
+    "monero-wallet-rpc": {
+      "path": null,
+      "sha256": null
+    },
+    "nano_node": {
+      "path": null,
+      "sha256": null
+    },
+    "adb": {
+      "path": null,
+      "sha256": null
+    },
+    "xcrun": {
+      "path": null,
+      "sha256": null
+    },
+    "docker": {
+      "path": "/usr/bin/docker",
+      "sha256": "40cdaf7fd0f21089dd9e15b0c3a7dd7f2399027f010e366dac6304ae0615954a"
+    },
+    "podman": {
+      "path": null,
+      "sha256": null
+    },
+    "firejail": {
+      "path": null,
+      "sha256": null
+    }
+  },
+  "ledger_tools": {
+    "bitcoin": {
+      "bitcoind": {
+        "path": "/tmp/property-ledger-tools/bitcoin-extract/bitcoin-32.1/bin/bitcoind",
+        "expected_sha256": "580ac61190154da31aac3f82d13c4254ef453d70e1bf2c39d338dac5129c92ac",
+        "observed_sha256": "580ac61190154da31aac3f82d13c4254ef453d70e1bf2c39d338dac5129c92ac"
+      },
+      "bitcoin_cli": {
+        "path": "/tmp/property-ledger-tools/bitcoin-extract/bitcoin-32.1/bin/bitcoin-cli",
+        "expected_sha256": "83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d",
+        "observed_sha256": "83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d"
+      }
+    },
+    "monero": {
+      "monerod": {
+        "path": "/tmp/property-ledger-tools/monero-extract/monero-x86_64-linux-gnu-v0.18.5.4/monerod",
+        "expected_sha256": "f035a7c555aec692705012027a64707f38adeabc4a4c9244f259cd78bb2e84f1",
+        "observed_sha256": "f035a7c555aec692705012027a64707f38adeabc4a4c9244f259cd78bb2e84f1"
+      },
+      "monero_wallet_rpc": {
+        "path": "/tmp/property-ledger-tools/monero-extract/monero-x86_64-linux-gnu-v0.18.5.4/monero-wallet-rpc",
+        "expected_sha256": "06f36de37bda72ff377c11700ba622fef435d27510c883e9c83a27ba3c46ba1f",
+        "observed_sha256": "06f36de37bda72ff377c11700ba622fef435d27510c883e9c83a27ba3c46ba1f"
+      }
+    },
+    "nano": {
+      "nano_node": {
+        "path": "/tmp/property-ledger-tools/nano-node/build/nano_node",
+        "expected_sha256": "80ae0c647cbe9de174e700e05a653a5c76ccacae523cb5ac4bfffd33dd067587",
+        "observed_sha256": "80ae0c647cbe9de174e700e05a653a5c76ccacae523cb5ac4bfffd33dd067587"
+      }
+    }
+  },
+  "ports": {
+    "bridge_source": 28550,
+    "bridge_target": 28551,
+    "seven_relay_base": 28560,
+    "native_relay": 28570
+  },
+  "test_seed": "property-full-20261103-09-70b67d31",
+  "runtime_memory_budget": {
+    "status": "PASS",
+    "minimum_physical_ram_bytes": 8589934592,
+    "physical_ram_bytes": 32970711040,
+    "available_ram_at_start_bytes": 9306529792,
+    "max_child_ram_fraction": 0.7,
+    "aggregate_child_budget_bytes": 6514570854,
+    "maximum_concurrent_geode_relays": 7,
+    "per_geode_jvm_budget_bytes": 930652979,
+    "jvm_heap_bytes": 402653184,
+    "jvm_metaspace_bytes": 134217728,
+    "jvm_code_cache_bytes": 67108864,
+    "jvm_direct_memory_bytes": 67108864,
+    "java_tool_options_applied_to_test_children": true
+  }
+}

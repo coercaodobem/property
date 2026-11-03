@@ -1,0 +1,13 @@
+command: bash property/tests/run-bridge-integration.sh 28550 28551
+started: 2026-11-03T15:37:41.303Z
+ended: 2026-11-03T15:37:45.294Z
+exit_code: 0
+signal: 
+timeout: false
+error: 
+--- stdout ---
+PASS: signed public event replicated ws://127.0.0.1:28550→ws://127.0.0.1:28551; encrypted NIP-17 wrap reached only the recipient inbox relay; relay echo ignored
+PASS: relay ws://127.0.0.1:28551 handled encrypted NIP-17, kind-10050 routing, exact-raw NIP-15 create/update, and signed withdrawal
+PASS: bancos distintos, dados 700, configurações 600; processos serão encerrados e o laboratório temporário removido.
+
+--- stderr ---

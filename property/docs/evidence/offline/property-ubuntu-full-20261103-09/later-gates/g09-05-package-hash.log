@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/relay-package-smoke.mjs
+started: 2026-11-03T15:42:03.566Z
+ended: 2026-11-03T15:42:03.904Z
+exit_code: 0
+signal: 
+timeout: false
+--- stdout ---
+PASS: 130 relay segments reconstruct 67845545 bytes with the pinned SHA-256
+
+--- stderr ---
+

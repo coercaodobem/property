@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "child_exit_code": 130,
+  "observed_ready": true,
+  "captured_output": "READY WORKER_PID=3535060\n",
+  "interrupted_run_status": "BLOCKED",
+  "interrupted_run_exit_code": 130,
+  "child_cleanup_verified": true,
+  "evidence_preserved": true,
+  "checksums_verified": true,
+  "child_pid": 3535060,
+  "error": null
+}
