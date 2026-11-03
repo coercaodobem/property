@@ -6,3 +6,5 @@ Source run: `property-full-netns-20261031-21`
 Source candidate: `305ae9ab2d0c89755a8323aed787b2e3b65b087f`
 
 The current run did not perform a new Geode source build: its local Gradle cache lacked plugins/dependencies. G11-02 is PASS only under the plan’s exact-input reuse rule. The copied logs report two successful builds; the current install tree matches both output manifests byte-for-byte.
+
+The final `G11-02` records in `cases.jsonl`, `cases.latest.jsonl`, and `later-gates/later-gates-report.json` now link these local copies and the copied tree manifests. This evidence-only amendment does not change any case status or expected result.

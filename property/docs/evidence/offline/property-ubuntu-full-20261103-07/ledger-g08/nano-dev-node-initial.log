@@ -1,0 +1,53 @@
+ /home/guilherme/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Q8XM24/property-g08-Jnn9ab/nano/data
+[2026-11-03 11:37:37.487] [init] [info] Generated new local node ID: node_1jny857c1apeoejtccpucgejucxe8mxg7nxcx5pd57377u8jnds1iamuwe1m
+[2026-11-03 11:37:37.488] [lmdb] [info] Initializing ledger store: /home/guilherme/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Q8XM24/property-g08-Jnn9ab/nano/data/data.ldb
+[2026-11-03 11:37:37.488] [lmdb] [info] Upgrading database from v21 to v22...
+[2026-11-03 11:37:37.488] [lmdb] [info] Upgrading database from v21 to v22 completed
+[2026-11-03 11:37:37.488] [lmdb] [info] Upgrading database from v22 to v23...
+[2026-11-03 11:37:37.491] [lmdb] [info] Done processing 0 accounts
+[2026-11-03 11:37:37.491] [lmdb] [info] Upgrading database from v22 to v23 completed
+[2026-11-03 11:37:37.491] [lmdb] [info] Upgrading database from v23 to v24...
+[2026-11-03 11:37:37.491] [lmdb] [info] Upgrading database from v23 to v24 completed
+[2026-11-03 11:37:37.491] [lmdb] [info] Database upgraded successfully to version 24
+Config file `config-log.toml` not found, using default configuration
+Logging to file: /home/guilherme/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Q8XM24/property-g08-Jnn9ab/nano/data/log/log_2026-11-03_11-37-37_487276562.log
+[2026-11-03 11:37:37.494] [wallet] [info] Loading wallets from: /home/guilherme/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Q8XM24/property-g08-Jnn9ab/nano/data/wallets.ldb
+[2026-11-03 11:37:37.498] [wallet] [info] Found 0 wallet(s)
+[2026-11-03 11:37:37.498] [ledger] [info] Loading ledger, this may take a while...
+[2026-11-03 11:37:37.498] [ledger] [info] Initializing ledger with genesis block
+[2026-11-03 11:37:37.509] [ledger] [info] Block count:              1
+[2026-11-03 11:37:37.509] [ledger] [info] Cemented count:           1
+[2026-11-03 11:37:37.509] [ledger] [info] Account count:            1
+[2026-11-03 11:37:37.509] [ledger] [info] Pruned count:             0
+[2026-11-03 11:37:37.509] [ledger] [info] Representative count:     1
+[2026-11-03 11:37:37.509] [ledger] [info] Active balance: 340,282,366 | pending: 0 | burned: 0
+[2026-11-03 11:37:37.509] [ledger] [info] Weight committed: 340,282,366 | unused: 0
+[2026-11-03 11:37:37.525] [node] [info] Version: V28.2
+[2026-11-03 11:37:37.525] [node] [info] Build information: 0d8eea4 "GNU C++ version " "15.2.0" "BOOST 108600" BUILT "Oct 31 2026"
+[2026-11-03 11:37:37.525] [node] [info] Active network: dev
+[2026-11-03 11:37:37.525] [node] [info] Database backend: LMDB 0.9.70
+[2026-11-03 11:37:37.525] [node] [info] Data path: /home/guilherme/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Q8XM24/property-g08-Jnn9ab/nano/data
+[2026-11-03 11:37:37.525] [node] [info] Ledger path: /home/guilherme/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Q8XM24/property-g08-Jnn9ab/nano/data/data.ldb
+[2026-11-03 11:37:37.525] [node] [info] Work pool threads: 1 (CPU)
+[2026-11-03 11:37:37.525] [node] [info] Work peers: 0
+[2026-11-03 11:37:37.525] [node] [info] Node ID: node_1jny857c1apeoejtccpucgejucxe8mxg7nxcx5pd57377u8jnds1iamuwe1m
+[2026-11-03 11:37:37.525] [node] [info] Number of buckets: 63
+[2026-11-03 11:37:37.525] [node] [info] Genesis block: 04270D7F11C4B2B472F2854C5A59F2A7E84226CE9ED799DE75744BD7D85FC9D9
+[2026-11-03 11:37:37.525] [node] [info] Genesis account: nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo
+[2026-11-03 11:37:37.525] [node] [info] Outbound bandwidth limit: 10485760 bytes/s, burst ratio: 3
+[2026-11-03 11:37:37.525] [node] [info] Voting is enabled, more system resources will be used, local representatives: 0
+[2026-11-03 11:37:37.526] [network] [warning] Realtime TCP is disabled
+[2026-11-03 11:37:37.526] [node] [warning] Peering is disabled
+[2026-11-03 11:37:37.527] [online_reps] [info] Initial trended weight: 0 (samples: 0)
+[2026-11-03 11:37:37.527] [monitor] [info] Blocks confirmed: 1 | total: 1 (backlog: 0)
+[2026-11-03 11:37:37.527] [monitor] [info] Peers: 0 (realtime: 0 | bootstrap: 0) (inbound: 0 | outbound: 0)
+[2026-11-03 11:37:37.527] [monitor] [info] Quorum: 40,200,000 (stake peered: 0 | stake online: 0)
+[2026-11-03 11:37:37.527] [monitor] [info] Elections active: 0 (priority: 0 | hinted: 0 | optimistic: 0)
+[2026-11-03 11:37:37.527] [node] [info] Adding cached initial peers: 0
+[2026-11-03 11:37:37.527] [rpc] [info] RPC listening address: [::1]:34051
+[2026-11-03 11:37:37.909] [wallet] [info] Deterministically inserted new account: nano_1cp45p988148bxt3ainsyiwogyyj56swxmnu3bqn1ypkykitoc97fk4mwrif
+[2026-11-03 11:37:37.914] [daemon] [warning] Interrupt signal received (SIGTERM), stopping...
+[2026-11-03 11:37:37.914] [daemon] [info] Stopping...
+[2026-11-03 11:37:37.914] [rpc] [error] Error accepting RPC connection: Operation canceled
+[2026-11-03 11:37:37.914] [node] [info] Stopping...
+[2026-11-03 11:37:37.923] [daemon] [info] Stopped

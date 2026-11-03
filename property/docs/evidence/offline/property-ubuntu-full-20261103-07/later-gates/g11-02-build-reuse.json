@@ -24,10 +24,24 @@
       "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/later-gates-report.json",
       "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-1.json",
       "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-2.json",
-      "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build.log",
-      "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build-repeat.log"
+      "property/docs/evidence/offline/property-ubuntu-full-20261103-07/later-gates/g11-02-build-manifest-1.json",
+      "property/docs/evidence/offline/property-ubuntu-full-20261103-07/later-gates/g11-02-build-manifest-2.json",
+      "property/docs/evidence/offline/property-ubuntu-full-20261103-07/later-gates/inherited-g11-02/g11-02-offline-build.log",
+      "property/docs/evidence/offline/property-ubuntu-full-20261103-07/later-gates/inherited-g11-02/g11-02-offline-build-repeat.log"
     ],
     "portable_local_copies": [
+      {
+        "source_path": "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-1.json",
+        "local_path": "later-gates/g11-02-build-manifest-1.json",
+        "bytes": 9706,
+        "sha256": "cf504ad1e11b4034a50fd9caa3f9561c45883aa4d4234e1d0954784ab6838e96"
+      },
+      {
+        "source_path": "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-2.json",
+        "local_path": "later-gates/g11-02-build-manifest-2.json",
+        "bytes": 9706,
+        "sha256": "cf504ad1e11b4034a50fd9caa3f9561c45883aa4d4234e1d0954784ab6838e96"
+      },
       {
         "source_path": "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build.log",
         "local_path": "later-gates/inherited-g11-02/g11-02-offline-build.log",

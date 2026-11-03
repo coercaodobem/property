@@ -846,9 +846,9 @@
         "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/later-gates-report.json",
         "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-1.json",
         "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-2.json",
-        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build.log",
-        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build-repeat.log",
-        "logs/G02-01-origin.log"
+        "logs/G02-01-origin.log",
+        "later-gates/inherited-g11-02/g11-02-offline-build.log",
+        "later-gates/inherited-g11-02/g11-02-offline-build-repeat.log"
       ]
     },
     {
