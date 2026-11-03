@@ -4,7 +4,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
-export const AGENT_VERSION = '0.1.0';
+export const AGENT_VERSION = '0.2.0';
 export const MCP_VERSION = '2026-07-28';
 export const MAX_IPC_BYTES = 32 * 1024;
 export const MAX_TOOL_BODY_BYTES = 8 * 1024;
@@ -36,8 +36,9 @@ export function exactObject(value, keys) {
 }
 
 export function validateConfig(value) {
-  if (!exactObject(value, ['schema', 'version', 'pubkey', 'inbox_relays', 'contacts', 'pending_approvals', 'quota'])) throw new Error('Configuração do agente inválida.');
-  if (value.schema !== 'property-agent-config/v1' || value.version !== 1 || !PUBKEY.test(value.pubkey) || !Array.isArray(value.inbox_relays) || value.inbox_relays.length > 3 || !Array.isArray(value.contacts) || value.contacts.length > 100 || !Array.isArray(value.pending_approvals) || value.pending_approvals.length > 100 || !exactObject(value.quota, ['window', 'count'])) throw new Error('Configuração do agente incompatível.');
+  const legacyV1 = exactObject(value, ['schema', 'version', 'pubkey', 'inbox_relays', 'contacts', 'pending_approvals', 'quota']) && value.schema === 'property-agent-config/v1' && value.version === 1 && Array.isArray(value.pending_approvals) && value.pending_approvals.length <= 100;
+  const currentV2 = exactObject(value, ['schema', 'version', 'pubkey', 'inbox_relays', 'contacts', 'quota']) && value.schema === 'property-agent-config/v2' && value.version === 2;
+  if ((!legacyV1 && !currentV2) || !PUBKEY.test(value.pubkey) || !Array.isArray(value.inbox_relays) || value.inbox_relays.length > 3 || !Array.isArray(value.contacts) || value.contacts.length > 100 || !exactObject(value.quota, ['window', 'count'])) throw new Error('Configuração do agente incompatível.');
   const relays = [...new Set(value.inbox_relays.map(normalizeRelay))];
   if (relays.length !== value.inbox_relays.length) throw new Error('A lista local de relays contém duplicatas.');
   const seen = new Set();
@@ -48,16 +49,14 @@ export function validateConfig(value) {
     const targets = [...new Set(contact.relays.map(normalizeRelay))];
     if (targets.length !== contact.relays.length) throw new Error('Relays duplicados no contato.');
   }
-  for (const request of value.pending_approvals) {
-    if (!exactObject(request, ['id', 'conversation_pubkey', 'permission', 'reason', 'created_at', 'status']) || !/^[0-9a-f]{32}$/.test(request.id) || !PUBKEY.test(request.conversation_pubkey) || !['read', 'send'].includes(request.permission) || typeof request.reason !== 'string' || request.reason.length > 300 || !Number.isSafeInteger(request.created_at) || !['pending', 'approved', 'denied'].includes(request.status)) throw new Error('Pedido de aprovação local inválido.');
-  }
   if (!(value.quota.window === null || (Number.isSafeInteger(value.quota.window) && value.quota.window >= 0)) || !Number.isSafeInteger(value.quota.count) || value.quota.count < 0 || value.quota.count > SEND_LIMIT) throw new Error('Estado da cota do agente inválido.');
+  if (legacyV1) return { schema: 'property-agent-config/v2', version: 2, pubkey: value.pubkey, inbox_relays: value.inbox_relays, contacts: value.contacts, quota: value.quota };
   return value;
 }
 
 export function createEmptyConfig(pubkey) {
   if (!PUBKEY.test(pubkey)) throw new Error('Identidade pública do agente inválida.');
-  return { schema: 'property-agent-config/v1', version: 1, pubkey, inbox_relays: [], contacts: [], pending_approvals: [], quota: { window: null, count: 0 } };
+  return { schema: 'property-agent-config/v2', version: 2, pubkey, inbox_relays: [], contacts: [], quota: { window: null, count: 0 } };
 }
 
 export async function loadNostr(PROPERTY_ROOT) {

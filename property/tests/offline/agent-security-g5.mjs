@@ -284,9 +284,9 @@ async function testScopeViolations() {
   const results = [];
   for (let index = 0; index < 25; index++) {
     const readTarget = readTargets[index % readTargets.length];
-    await assert.rejects(service.dispatch('read', { conversation_pubkey: readTarget, limit: 1 }), /conversation-read-not-approved/);
+    await assert.rejects(service.dispatch('read', { conversation_pubkey: readTarget, limit: 1 }), /conversation-read-out-of-scope/);
     const sendTarget = sendTargets[index % sendTargets.length];
-    await assert.rejects(service.dispatch('send', { conversation_pubkey: sendTarget, text: `scope-${index}`, in_reply_to: null }), /conversation-send-not-approved/);
+    await assert.rejects(service.dispatch('send', { conversation_pubkey: sendTarget, text: `scope-${index}`, in_reply_to: null }), /conversation-send-out-of-scope/);
     results.push(record(`scope-read-${String(index + 1).padStart(2, '0')}-denied-before-transport`, { targetSha256: digest(readTarget) }));
     results.push(record(`scope-send-${String(index + 1).padStart(2, '0')}-denied-before-transport`, { targetSha256: digest(sendTarget) }));
   }
@@ -337,8 +337,8 @@ async function testContactRotationAndRevocation(temp) {
     assert.equal(success.status, 'relay_accepted');
     await replaceContact(configPath, FIXTURE_AGENT, { ...approved, read: false, send: false, status: 'revoked' });
     assert.equal((await readJson(configPath)).contacts.some(contact => contact.pubkey === peer), false);
-    await assert.rejects(service.dispatch('read', { conversation_pubkey: peer, limit: 1 }), /conversation-read-not-approved/); denied++;
-    await assert.rejects(service.dispatch('send', { conversation_pubkey: peer, text: 'after-revoke', in_reply_to: null }), /conversation-send-not-approved/); denied++;
+    await assert.rejects(service.dispatch('read', { conversation_pubkey: peer, limit: 1 }), /conversation-read-out-of-scope/); denied++;
+    await assert.rejects(service.dispatch('send', { conversation_pubkey: peer, text: 'after-revoke', in_reply_to: null }), /conversation-send-out-of-scope/); denied++;
     results.push(record(`contact-scope-rotation-revocation-cycle-${String(cycle + 1).padStart(2, '0')}`, { logicalNow, revokedPubkeySha256: digest(peer), postRevokeReadDenied: true, postRevokeSendDenied: true }));
   }
   assert.equal(accepted, 20); assert.equal(denied, 40); assert.equal(deniedTransport, 0);

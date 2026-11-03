@@ -33,8 +33,10 @@ export async function runDaemon({ password, profile = 'default', env = process.e
   checkSecret.fill(0);
   if (pubkey !== vault.pubkey) throw new Error('A identidade desbloqueada não corresponde ao cofre.');
   const loadConfig = async () => {
-    const config = validateConfig(await readJson(paths.configPath));
+    const stored = await readJson(paths.configPath);
+    const config = validateConfig(stored);
     if (config.pubkey !== pubkey) throw new Error('A configuração não corresponde à identidade do cofre.');
+    if (stored.schema !== config.schema || stored.version !== config.version) await writePrivateJson(paths.configPath, config);
     return config;
   };
   await loadConfig();

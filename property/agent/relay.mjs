@@ -59,7 +59,7 @@ export class NostrAgentTransport {
 
   async sendMessage(peer, body, inReplyTo = null) {
     const contact = await this.getContact(peer);
-    if (!contact || contact.status !== 'approved' || contact.send !== true) throw new Error('conversation-send-not-approved');
+    if (!contact || contact.status !== 'approved' || contact.send !== true) throw new Error('conversation-send-out-of-scope');
     const id = this.messages.createMessageId();
     const envelope = this.messages.encodeEnvelope({ conversationId: conversationId(this.pubkey, peer), messageId: id, inReplyTo, body });
     const wraps = this.nostr.nip17.wrapManyEvents(this.secret, [{ publicKey: peer }], envelope);

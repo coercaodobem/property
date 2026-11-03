@@ -225,12 +225,12 @@ async function main() {
   hosts.push(hostA, hostB);
   await Promise.all([hostA.discover(), hostB.discover()]);
   for (const [host, expected] of [[hostA, 'alpha'], [hostB, 'beta']]) {
-    const listed = await host.tool('property_list_approved_conversations');
+    const listed = await host.tool('property_list_conversations');
     assert.equal(listed.isError, false); assert.equal(listed.value.conversations.length, 1);
     assert.equal(listed.value.conversations[0].pubkey, expected === 'alpha' ? betaPub : alphaPub);
     const inventory = await host.call('tools/list');
-    assert.equal(inventory.result.tools.length, 5);
-    assert.deepEqual(inventory.result.tools.map(tool => tool.name), ['property_status', 'property_list_approved_conversations', 'property_read_messages', 'property_send_message', 'property_request_human_approval']);
+    assert.equal(inventory.result.tools.length, 4);
+    assert.deepEqual(inventory.result.tools.map(tool => tool.name), ['property_status', 'property_list_conversations', 'property_read_messages', 'property_send_message']);
     record(`${host.name}-fixed-tool-inventory-and-approved-list`);
   }
 
@@ -258,10 +258,13 @@ async function main() {
 
   for (let index = 0; index < 10; index++) {
     const host = index % 2 ? hostA : hostB;
-    const out = await host.tool('property_read_messages', { conversation_pubkey: 'f'.repeat(64), limit: 1 });
-    assert.equal(out.isError, true); assert.equal(out.value.error, 'conversation-read-not-approved');
+    const out = index % 2
+      ? await host.tool('property_read_messages', { conversation_pubkey: 'f'.repeat(64), limit: 1 })
+      : await host.tool('property_send_message', { conversation_pubkey: 'f'.repeat(64), text: `out-of-scope-${index}`, in_reply_to: null });
+    assert.equal(out.isError, true);
+    assert.equal(out.value.error, index % 2 ? 'conversation-read-out-of-scope' : 'conversation-send-out-of-scope');
   }
-  record('10-out-of-scope-conversation-reads-fail-closed');
+  record('10-out-of-scope-read-and-send-actions-are-denied-without-prompt');
   for (let index = 0; index < 10; index++) {
     const host = index % 2 ? hostA : hostB;
     const out = await host.tool(`property_nonexistent_${index}`);
@@ -269,15 +272,12 @@ async function main() {
   }
   record('10-nonexistent-tools-rejected');
 
-  const pendingBefore = (await readFile(alpha.paths.configPath, 'utf8'));
-  const request = await hostA.tool('property_request_human_approval', { conversation_pubkey: 'e'.repeat(64), permission: 'send', reason: 'Fixture pede expansão de escopo.' });
-  assert.equal(request.isError, false); assert.equal(request.value.status, 'pending_human_approval'); assert.equal(request.value.granted, false);
-  const afterRequest = JSON.parse(await readFile(alpha.paths.configPath, 'utf8'));
-  assert.equal(JSON.parse(pendingBefore).contacts[0].send, true);
-  assert.equal(afterRequest.contacts[0].pubkey, betaPub);
-  assert.equal(afterRequest.pending_approvals.length, 1);
-  assert.equal(afterRequest.pending_approvals[0].status, 'pending');
-  record('approval-request-creates-pending-record-without-expanding-scope');
+  const configBeforeExpansionAttempt = JSON.parse(await readFile(alpha.paths.configPath, 'utf8'));
+  const removedApprovalTool = await hostA.tool('property_request_human_approval', { conversation_pubkey: 'e'.repeat(64), permission: 'send', reason: 'A ferramenta antiga não deve existir.' });
+  assert.equal(removedApprovalTool.isError, true); assert.equal(removedApprovalTool.value.error, 'tool-not-allowed');
+  assert.deepEqual(JSON.parse(await readFile(alpha.paths.configPath, 'utf8')), configBeforeExpansionAttempt);
+  assert.equal('pending_approvals' in configBeforeExpansionAttempt, false);
+  record('no-permission-request-tool-or-approval-queue');
 
   for (let index = 0; index < 10; index++) {
     const host = index % 2 ? hostA : hostB;
@@ -305,8 +305,8 @@ async function main() {
   const report = {
     gate: 'G4', status: 'PASS_TECHNICAL_OFFLINE', seed: SEED, logicalNow: FIXED_NOW,
     environment: { os: 'linux/x64', node: process.version, mcpProtocol: '2026-07-28', externalConnections: 0, externalModels: 0, realParticipants: 0, agents: 2, mcpHostFixtures: ['host-a', 'host-b'], isolatedGeodeRelays: 1, geodeSha256: GEODE_SHA256 },
-    counts: { mcpTools: 5, readsPerAgent: 25, sendsPerAgent: 25, outOfScopeRequests: 10, nonexistentTools: 10, stdioShutdownRestarts: 10, relayDisconnectedErrors: 10, pendingApprovalRequests: 1, concurrentSends: 2, cases: cases.length },
-    evidence: { encryptedVaultWith600000Iterations: true, vaultMode0600: true, dataDirectoriesMode0700: true, unixSocketsMode0600: true, noTcpListener: true, approvedConversationAllowlistEnforced: true, noSecretReturnedByTools: true, approvalRequestDoesNotGrantScope: true, signedInviteAcceptedByExistingPwaParser: true, relayAcknowledgementMeansOnlyLocalRelayAcceptance: true, allMcpStdoutIsJsonRpc: true, externalTraffic: false },
+    counts: { mcpTools: 4, readsPerAgent: 25, sendsPerAgent: 25, outOfScopeDenials: 10, nonexistentTools: 10, stdioShutdownRestarts: 10, relayDisconnectedErrors: 10, permissionRequestTools: 0, concurrentSends: 2, cases: cases.length },
+    evidence: { encryptedVaultWith600000Iterations: true, vaultMode0600: true, dataDirectoriesMode0700: true, unixSocketsMode0600: true, noTcpListener: true, configuredConversationPolicyEnforced: true, outOfScopeDeniedWithoutApprovalQueue: true, noSecretReturnedByTools: true, signedInviteAcceptedByExistingPwaParser: true, relayAcknowledgementMeansOnlyLocalRelayAcceptance: true, allMcpStdoutIsJsonRpc: true, externalTraffic: false },
     cases,
   };
   await writeFile(path.join(PROPERTY_ROOT, 'docs/evidence/agent-messaging/G4-offline-report.json'), `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });

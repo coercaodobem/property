@@ -1,10 +1,10 @@
 # Plano de comunicação entre agentes no Property
 
-**Estado do produto:** conversa agente-agente e bridge local MCP implementadas e aprovadas tecnicamente em ensaio offline G3/G4 no Ubuntu; revisão independente, sessões humanas e compatibilidade multiplataforma continuam pendentes.
+**Estado do produto:** conversa agente-agente passou pelo ensaio técnico offline G3; a bridge MCP recebeu uma alteração para quatro tools sem pedidos de aprovação em operação e aguarda validação G4. Revisão independente, sessões humanas e compatibilidade multiplataforma continuam pendentes.
 **Atualizado:** 2026-11-03.
 **Escopo:** agentes conversando por meio do Property, com a interface e o controle humano como requisitos obrigatórios.
 
-**Estado dos gates nesta execução:** G0 **PASS** ([decisão e ameaças](agent-messaging-g0.md), [snapshots e hashes](protocol-snapshots/README.md)); G1 permanece **PENDING** até concluir cinco sessões com pessoas reais e corrigir/repetir qualquer falha crítica. G2 **PASS técnico** e G3 **PASS técnico offline** têm evidências abaixo. G4 permanece **PENDING** para validar a revisão dos comandos locais de administração e aprovação; o registro anterior prova apenas o baseline MCP descrito nele. G5 passou os ensaios técnicos offline, mas permanece **PENDING** pela revisão independente obrigatória e pela falta de avaliação semântica em hosts/modelos externos. G6 passou dez ciclos técnicos em Firefox e a suíte smoke, mas permanece **PENDING** para pessoas reais, leitor de tela e comparação humana. G7 completou no Ubuntu/Linux x64 as matrizes técnicas 10× de controle, reload offline e integridade de cache em Firefox e Chromium; o gate continua **PENDING** para sistemas não executados, comparação de implementações independentes, piloto e revisão humana. Por instrução expressa do responsável em 2026-11-03, os ensaios técnicos posteriores podem avançar como se as pendências humanas estivessem aprovadas, sem alterar seus estados nem dispensar validação humana. Nenhuma conclusão de piloto/pronto é válida enquanto G1/G4/G5/G6/G7 e os demais critérios pendentes não forem concluídos. Consulte o [registro G1](evidence/agent-messaging/G1-20261103.md), o [registro da autorização de continuidade](evidence/agent-messaging/continuation-authorization-20261103.md), os [registros G2–G5](evidence/agent-messaging/) e os [registros G6/G7](evidence/agent-messaging/G6-20261103.md) e [G7](evidence/agent-messaging/G7-20261103.md).
+**Estado dos gates nesta execução:** G0 **PASS**, com requisito de uso revisado pelo responsável em 2026-11-03 ([decisão e ameaças](agent-messaging-g0.md), [snapshots e hashes](protocol-snapshots/README.md)); G1 permanece **PENDING** até concluir cinco sessões com pessoas reais e corrigir/repetir qualquer falha crítica. G2 **PASS técnico** e G3 **PASS técnico offline** têm evidências abaixo. G4 permanece **PENDING** para validar o contrato MCP de quatro tools, a configuração inicial de escopos e a recusa automática fora da política; o registro anterior prova apenas o baseline MCP de cinco tools. G5 passou os ensaios técnicos offline, mas permanece **PENDING** pela revisão independente obrigatória e pela falta de avaliação semântica em hosts/modelos externos. G6 passou dez ciclos técnicos em Firefox e a suíte smoke, mas permanece **PENDING** para pessoas reais, leitor de tela e comparação humana. G7 completou no Ubuntu/Linux x64 as matrizes técnicas 10× de controle, reload offline e integridade de cache em Firefox e Chromium; o gate continua **PENDING** para sistemas não executados, comparação de implementações independentes, piloto e revisão humana. Por instrução expressa do responsável em 2026-11-03, os ensaios técnicos posteriores podem avançar como se as pendências humanas estivessem aprovadas, sem alterar seus estados nem dispensar validação humana. Nenhuma conclusão de piloto/pronto é válida enquanto G1/G4/G5/G6/G7 e os demais critérios pendentes não forem concluídos. Consulte o [registro G1](evidence/agent-messaging/G1-20261103.md), o [registro da autorização de continuidade](evidence/agent-messaging/continuation-authorization-20261103.md), os [registros G2–G5](evidence/agent-messaging/) e os [registros G6/G7](evidence/agent-messaging/G6-20261103.md) e [G7](evidence/agent-messaging/G7-20261103.md).
 
 ## 1. Objetivo
 
@@ -100,13 +100,14 @@ MCP e A2A cumprem papéis diferentes: avaliar MCP como interface local entre um 
 
 O caminho proposto para o primeiro protótipo é um processo local iniciado pelo host de IA, sem porta HTTP pública. A escolha final de linguagem e runtime fica para G0, considerando instalação simples nos sistemas visados, compatibilidade com o pacote autocontido e reaproveitamento do código Nostr local.
 
-Contrato mínimo de tools, se MCP for aprovado:
+Contrato mínimo de tools MCP:
 
 - `property_status`: retorna estado e identidade de agente aprovada, sem segredos;
-- `property_list_approved_conversations`: lista apenas conversas na allowlist;
+- `property_list_conversations`: lista apenas conversas incluídas na política local;
 - `property_read_messages`: lê uma conversa explicitamente permitida;
-- `property_send_message`: envia texto para um contato autorizado, respeitando a política local;
-- `property_request_human_approval`: solicita consentimento quando uma ação ou destino estiver fora do escopo.
+- `property_send_message`: envia texto para um contato autorizado, respeitando a política local.
+
+Os contatos e escopos são definidos uma vez na configuração inicial. Depois, chamadas dentro da política funcionam sem prompts durante o uso; destinos ou ações fora da política são recusados automaticamente. Não existe tool de solicitação de permissão nem fila de aprovação.
 
 O bridge não expõe ferramentas genéricas de shell, filesystem, chave, assinatura arbitrária ou publicação arbitrária de eventos. Chaves e segredos nunca entram no contexto do modelo, em argumentos de tool, logs, relatórios ou telemetria. Saída de diagnóstico vai para stderr; stdout fica reservado ao transporte MCP.
 
@@ -188,21 +189,21 @@ Qualquer falha em permissão, identidade, destinatário ou uso básico humano re
 
 **Entregáveis:** pacote autocontido, setup assistido, configuração reproduzível por host, contrato de tools versionado e exemplo de agente de demonstração.
 
-**Trabalho:** iniciar pelo protocolo/contrato independente do host; implementar somente tools aprovadas em G0; manter a chave do agente no cofre local; restringir cada chamada à identidade e conversas aprovadas; não expor endpoint de rede; incluir remoção/desconexão guiada.
+**Trabalho:** iniciar pelo protocolo/contrato independente do host; implementar somente as tools definidas em G0; manter a chave do agente no cofre local; restringir cada chamada à identidade e conversas incluídas na política local; não expor endpoint de rede; incluir remoção/desconexão guiada.
 
-**Cenários fixos:** 2 hosts MCP de referência, 2 agentes, 25 chamadas de leitura e 25 de envio por agente, 10 pedidos fora de escopo, 10 tentativas de tool inexistente, 10 desligamentos/reinícios e 10 respostas de erro. Testar também chamada simultânea e relay desconectado sem espera por timeout como critério de sucesso.
+**Cenários fixos:** 2 hosts MCP de referência, 2 agentes, 25 chamadas de leitura e 25 de envio por agente, 10 recusas automáticas de leitura/envio fora do escopo, 10 tentativas de tool inexistente, 10 desligamentos/reinícios e 10 respostas de erro. Testar também chamada simultânea e relay desconectado sem espera por timeout como critério de sucesso. O inventário MCP deve conter quatro tools e nenhuma delas deve solicitar expansão ou aprovação.
 
 **Critérios G4:**
 
 - nenhuma tool lista ou lê conversas fora da allowlist;
 - nenhuma tool retorna chave privada, senha, token, arquivo arbitrário ou comando executável;
-- envio usa destinatário e limite da aprovação visível; pedido fora do escopo exige ação humana e não tem fallback permissivo;
+- escopos são configurados no pareamento inicial; nenhuma ação durante o uso normal depende de aprovação humana, e tentativas fora do escopo falham sem criar fila nem ampliar permissões;
 - instalação, atualização, remoção e falha do bridge têm instruções compreensíveis e não quebram o app sem bridge;
 - a implementação e dependências são versionadas, licenciadas, empacotadas e verificadas sem baixar código durante uso.
 
 **Registro de execução:** G4 passou tecnicamente em Ubuntu/Linux x64 com Node.js 22.22.1. Dois processos de agente com cofres cifrados, um relay Geode loopback isolado e dois clientes MCP offline (um por framing readline e outro por parser byte-stream) exercitaram as cinco tools. Foram concluídas 25 leituras e 25 publicações NIP-17 por agente; cada lado decifrou as mensagens da conversa. Também passaram dez pedidos fora da allowlist, dez nomes de tool inexistentes, dez ciclos de encerramento/reinício `stdio`, dez envios com relay indisponível, duas chamadas simultâneas e um pedido de expansão que permaneceu `pending` sem alterar permissões. O convite de agente gerado pelo daemon foi validado pelo parser de pareamento já usado pela PWA. O pedido de expansão local só pode ser decidido por pessoa no TTY; a UX com participantes continua pendente em G1/G6. Os clientes MCP do ensaio são fixtures técnicos, não aplicativos comerciais; integração com hosts específicos ainda não foi alegada. Consulte [`G4-20261103.md`](evidence/agent-messaging/G4-20261103.md), o [relatório estruturado](evidence/agent-messaging/G4-offline-report.json), o [smoke integral](evidence/agent-messaging/G4-full-smoke.log), o [harness de relay/hosts](../tests/offline/agent-bridge-g4.mjs), o [teste do pacote](../tests/agent-package-smoke.mjs) e a [documentação do runtime](../agent/README.md). O pacote e o wrapper também passaram por instalação, atualização e remoção em prefixo temporário; o marcador de dados de usuário sobreviveu à remoção. Windows, macOS, Android, iOS e hosts MCP de terceiros não foram testados.
 
-**Acompanhamento de implementação (2026-11-03, ainda sem validação):** a CLI agora lista e revisa pedidos no terminal local e encaminha decisões, contatos e alterações de relay pelo daemon serializado. Isso evita que a CLI grave uma configuração concorrente enquanto o daemon está ativo. A revisão dos comandos pode ser feita com `property-agent requests --review`; a PWA não acessa essa fila local. As evidências G4 acima antecedem este acompanhamento e não validam estes comandos; por isso G4 está **PENDING** até uma verificação própria. Não foi introduzido endpoint HTTP/TCP nem ferramenta MCP que aprove permissões.
+**Revisão do requisito e acompanhamento (2026-11-03, ainda sem validação):** o responsável definiu que agentes devem usar o Property sem solicitações de aprovação durante a operação. A ferramenta `property_request_human_approval`, a fila correspondente e os comandos de revisão foram removidos. A configuração inicial do contato fixa os escopos; tentativas fora deles são recusadas imediatamente. Configurações v1 migram para v2 preservando contatos, relays e cota e descartando apenas a antiga fila de pedidos. O harness G4 foi atualizado para o contrato de quatro tools, mas não foi executado nesta revisão. Os registros G4 anteriores são históricos e não validam esta alteração; G4 continua **PENDING**. A configuração local da CLI e a identidade/escopos exibidos no pareamento inicial continuam ações de setup; não há prompt por mensagem ou sessão.
 
 ### Fase 5 — Segurança, abuso e privacidade (G5)
 
@@ -280,7 +281,7 @@ O MVP de comunicação entre agentes fica pronto para piloto somente quando G0�
 3. Como o pareamento local comprova a origem do host sem inventar uma autoridade central?
 4. Que dados de Agent Card são úteis para pessoas, e quais devem ficar privados ou ser tratados como declarações não verificadas?
 5. Qual runtime/SDK permite bridge local autocontida, assinada e suportável sem ferramenta global pré-instalada?
-6. Como mostrar limites de leitura/envio e pedir aprovação sem interromper cada conversa humana nem permitir consentimento confuso?
+6. Como explicar os limites de leitura/envio definidos no pareamento inicial sem interromper o uso normal nem tornar o consentimento confuso?
 7. Qual política de retenção e remoção pode ser prometida quando relays e agentes controlam cópias próprias?
 
 Nenhuma resposta pode reduzir a identidade humana a uma credencial de agente nem introduzir uma conexão central obrigatória.

@@ -2,7 +2,7 @@
 import { open } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadNostr, normalizeRelay, profileName } from './core.mjs';
+import { AGENT_VERSION, loadNostr, normalizeRelay, profileName } from './core.mjs';
 import { runDaemon } from './daemon.mjs';
 import { callUnixJson } from './ipc.mjs';
 import { ensurePrivateDirectory, readJson, resolvePaths, writePrivateJson } from './store.mjs';
@@ -13,7 +13,7 @@ const PROPERTY_ROOT = path.resolve(AGENT_ROOT, '..');
 
 function usage() {
   return [
-    'Property Agent 0.1.0 — Node.js 22+, Linux/Ubuntu inicial',
+    `Property Agent ${AGENT_VERSION} — Node.js 22+, Linux/Ubuntu inicial`,
     '', 'Uso:',
     '  property-agent init [--profile default]',
     '  property-agent unlock [--profile default]',
@@ -22,10 +22,8 @@ function usage() {
     '  property-agent lock [--profile default]',
     '  property-agent relay add <wss-url|ws://localhost> [--profile default]',
     '  property-agent invite --name <nome> [--for <npub|hex>] [--profile default]',
-    '  property-agent contact grant <npub|hex> --name <nome> --relay <url> [--read] [--send]',
+    '  property-agent contact configure <npub|hex> --name <nome> --relay <url> [--read] [--send]',
     '  property-agent contact revoke <npub|hex> [--profile default]',
-    '  property-agent requests [--review] [--profile default]',
-    '  property-agent request decide <id> <approve|deny> [--profile default]',
     '  property-agent backup <arquivo-destino-absoluto> [--profile default]',
     '', 'Senha é lida somente de um TTY local e nunca aceita por argumento ou variável de ambiente.', '',
   ].join('\n');
@@ -77,67 +75,17 @@ async function confirmHuman(message, expected = 'CONFIRMAR') {
 
 function profileAndPaths(args) { const result = parseProfile(args); return { ...result, paths: resolvePaths(result.profile) }; }
 
-function safeTerminalText(value) {
-  return String(value).replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufeff]/g, character => '\\u' + character.codePointAt(0).toString(16).padStart(4, '0'));
-}
-
 async function callAgentDaemon(paths, method, params) {
   try { return await callUnixJson(paths.socketPath, method, params); }
   catch (error) {
     if (error.message === 'agent-daemon-unavailable') throw new Error('O daemon local está bloqueado ou indisponível. Mantenha property-agent unlock ativo em outra sessão e tente novamente.');
-    if (error.message === 'approval-contact-not-approved') throw new Error('Aprove primeiro o contato e seus relays com property-agent contact grant, depois revise o pedido.');
     if (error.message === 'contact-not-found') throw new Error('Contato não encontrado.');
     if (error.message === 'contact-limit-reached') throw new Error('O limite de 100 contatos aprovados foi atingido.');
     if (error.message === 'contact-self-forbidden') throw new Error('A identidade do agente não pode ser adicionada como contato.');
     if (error.message === 'relay-limit-reached') throw new Error('O limite local é três relays de inbox.');
     if (error.message === 'relay-already-configured') throw new Error('Este relay já está configurado.');
-    if (error.message === 'approval-queue-full') throw new Error('A fila atingiu 100 pedidos pendentes. Revise ou negue pedidos antes de criar novos.');
     throw error;
   }
-}
-
-async function listPendingApprovals(paths) {
-  const result = await callAgentDaemon(paths, 'approval.list', {});
-  if (!Array.isArray(result.request_ids) || result.request_ids.length > 100 || result.request_ids.some(id => typeof id !== 'string' || !/^[0-9a-f]{32}$/.test(id))) throw new Error('Resposta de pedidos de aprovação inválida.');
-  const requests = [];
-  for (const id of result.request_ids) {
-    try { requests.push(await callAgentDaemon(paths, 'approval.get', { request_id: id })); }
-    catch (error) { if (error.message !== 'approval-request-not-found') throw error; }
-  }
-  return requests;
-}
-
-function formatApprovalRequest(request, nostr) {
-  const permission = request.permission === 'read' ? 'ler mensagens' : 'enviar mensagens';
-  const createdAt = request.created_at >= 0 && request.created_at <= 8_640_000_000_000
-    ? new Date(request.created_at * 1000).toISOString()
-    : 'timestamp inválido';
-  return [
-    'ID: ' + request.id,
-    'Contato: ' + nostr.nip19.npubEncode(request.conversation_pubkey),
-    'Permissão: ' + permission,
-    'Criado em: ' + createdAt,
-    'Motivo: ' + safeTerminalText(request.reason),
-  ].join('\n');
-}
-
-async function reviewApprovalRequests(paths, requests, nostr) {
-  if (!process.stdin.isTTY) throw new Error('A revisão exige um terminal interativo.');
-  const { createInterface } = await import('node:readline/promises');
-  const rl = createInterface({ input: process.stdin, output: process.stderr });
-  try {
-    for (const request of requests) {
-      process.stderr.write('\n' + formatApprovalRequest(request, nostr) + '\n');
-      const answer = (await rl.question('Digite APROVAR ' + request.id + ', NEGAR ' + request.id + ' ou PULAR: ')).trim();
-      const decision = answer === 'APROVAR ' + request.id ? 'approve' : answer === 'NEGAR ' + request.id ? 'deny' : null;
-      if (!decision) {
-        process.stderr.write('Pedido mantido pendente.\n');
-        continue;
-      }
-      const result = await callAgentDaemon(paths, 'approval.decide', { request_id: request.id, decision });
-      process.stderr.write('Pedido ' + result.status + '.\n');
-    }
-  } finally { rl.close(); }
 }
 
 async function init(profile) {
@@ -155,7 +103,7 @@ async function init(profile) {
     const pubkey = nostr.getPublicKey(secret);
     const vault = createVault(secretBuffer, pubkey, first);
     await writePrivateJson(paths.vaultPath, vault);
-    await writePrivateJson(paths.configPath, { schema: 'property-agent-config/v1', version: 1, pubkey, inbox_relays: [], contacts: [], pending_approvals: [], quota: { window: null, count: 0 } });
+    await writePrivateJson(paths.configPath, { schema: 'property-agent-config/v2', version: 2, pubkey, inbox_relays: [], contacts: [], quota: { window: null, count: 0 } });
     process.stdout.write(`Identidade local criada: ${nostr.nip19.npubEncode(pubkey)}\nCofre cifrado em ${paths.vaultPath}. Faça backup cifrado com o comando property-agent backup <arquivo>.\n`);
   } finally { secretBuffer.fill(0); secret.fill(0); context.propertyAgentSecretHex = ''; }
 }
@@ -190,15 +138,15 @@ async function changeContact(args, profile, action) {
     else throw new Error(`Opção de contato desconhecida: ${value}`);
   }
   if (!name.trim() || name.length > 80 || !relays.length || relays.length > 3 || (!read && !send)) throw new Error('Informe --name, ao menos um --relay, no máximo três relays e pelo menos um escopo --read/--send.');
-  await confirmHuman(`Adicionar ${name} (${nostr.nip19.npubEncode(pubkey)}) com read=${read}, send=${send} e ${relays.length} relay(s)?`, 'APROVAR');
-  await callAgentDaemon(paths, 'contact.grant', { pubkey, name: name.trim(), relays: [...new Set(relays)], read, send });
-  process.stdout.write('Contato e escopos locais aprovados. Revogue-os com `property-agent contact revoke`.\n');
+  await confirmHuman(`Configurar ${name} (${nostr.nip19.npubEncode(pubkey)}) com read=${read}, send=${send} e ${relays.length} relay(s)?`, 'CONFIGURAR');
+  await callAgentDaemon(paths, 'contact.configure', { pubkey, name: name.trim(), relays: [...new Set(relays)], read, send });
+  process.stdout.write('Contato e escopos locais configurados. Altere-os com `property-agent contact configure` ou remova-os com `property-agent contact revoke`.\n');
 }
 
 async function run() {
   const [command = 'help', ...rawArgs] = process.argv.slice(2);
   if (command === 'help' || command === '--help' || command === '-h') { process.stdout.write(usage()); return; }
-  if (command === 'version' || command === '--version') { process.stdout.write('property-agent 0.1.0; MCP 2026-07-28; Nostr tools 2.25.2 local\n'); return; }
+  if (command === 'version' || command === '--version') { process.stdout.write(`property-agent ${AGENT_VERSION}; MCP 2026-07-28; Nostr tools 2.25.2 local\n`); return; }
   const { profile, args, paths } = profileAndPaths(rawArgs);
   if (command === 'init') { if (args.length) throw new Error('init não recebe senha ou parâmetros extras.'); await init(profile); return; }
   if (command === 'unlock' || command === 'daemon') {
@@ -213,7 +161,7 @@ async function run() {
     if (args.length) throw new Error('status não aceita parâmetros adicionais.');
     const { nostr } = await loadNostr(PROPERTY_ROOT);
     const state = await callUnixJson(paths.socketPath, 'status', {});
-    process.stdout.write(`Desbloqueado: ${state.unlocked ? 'sim' : 'não'}\nIdentidade: ${nostr.nip19.npubEncode(state.pubkey)}\nConversas aprovadas: ${state.approved_conversations}\nRelays de inbox: ${state.relay_count}\n`); return;
+    process.stdout.write(`Desbloqueado: ${state.unlocked ? 'sim' : 'não'}\nIdentidade: ${nostr.nip19.npubEncode(state.pubkey)}\nConversas configuradas: ${state.configured_conversations}\nRelays de inbox: ${state.relay_count}\n`); return;
   }
   if (command === 'lock') { if (args.length) throw new Error('lock não aceita parâmetros adicionais.'); await callUnixJson(paths.socketPath, 'daemon.lock', {}); process.stdout.write('Daemon bloqueado.\n'); return; }
   if (command === 'invite') {
@@ -231,35 +179,16 @@ async function run() {
   if (command === 'relay') {
     if (args[0] !== 'add' || args.length !== 2) throw new Error('Uso: property-agent relay add <wss-url|ws://localhost>.');
     const relay = normalizeRelay(args[1]);
-    await confirmHuman('Adicionar relay de inbox ' + relay + '?', 'APROVAR');
+    await confirmHuman('Configurar relay de inbox ' + relay + '?', 'CONFIGURAR');
     const result = await callAgentDaemon(paths, 'relay.add', { relay });
     process.stdout.write('Relay de inbox salvo (' + result.relay_count + '/3). Reinicie o daemon para aplicar.\n'); return;
   }
   if (command === 'contact') {
     const [action, ...contactArgs] = args;
-    if (action === 'grant') await changeContact(contactArgs, profile, 'grant');
+    if (action === 'configure') await changeContact(contactArgs, profile, 'configure');
     else if (action === 'revoke') await changeContact(contactArgs, profile, 'revoke');
-    else throw new Error('Use `property-agent contact grant|revoke`.');
+    else throw new Error('Use `property-agent contact configure|revoke`.');
     return;
-  }
-  if (command === 'requests') {
-    if (args.length > 1 || (args.length === 1 && args[0] !== '--review')) throw new Error('Uso: property-agent requests [--review].');
-    const pending = await listPendingApprovals(paths);
-    if (!pending.length) { process.stdout.write('Nenhum pedido pendente.\n'); return; }
-    const { nostr } = await loadNostr(PROPERTY_ROOT);
-    if (args[0] === '--review') await reviewApprovalRequests(paths, pending, nostr);
-    else process.stdout.write(pending.map(item => formatApprovalRequest(item, nostr)).join('\n\n') + '\n\nPara revisar um por um, execute: property-agent requests --review\n');
-    return;
-  }
-  if (command === 'request' && args[0] === 'decide') {
-    if (args.length !== 3 || !/^[0-9a-f]{32}$/.test(args[1]) || !['approve', 'deny'].includes(args[2])) throw new Error('Uso: property-agent request decide <id> <approve|deny>.');
-    const item = await callAgentDaemon(paths, 'approval.get', { request_id: args[1] });
-    const { nostr } = await loadNostr(PROPERTY_ROOT);
-    const decision = args[2];
-    const confirmation = (decision === 'approve' ? 'APROVAR ' : 'NEGAR ') + item.id;
-    await confirmHuman((decision === 'approve' ? 'Aprovar' : 'Negar') + ' ' + item.permission + ' para ' + nostr.nip19.npubEncode(item.conversation_pubkey) + '? Motivo: ' + safeTerminalText(item.reason), confirmation);
-    const result = await callAgentDaemon(paths, 'approval.decide', { request_id: item.id, decision });
-    process.stdout.write('Pedido ' + result.status + '.\n'); return;
   }
   if (command === 'backup') {
     if (args.length !== 1 || !path.isAbsolute(args[0])) throw new Error('Informe um caminho absoluto para o backup cifrado.');

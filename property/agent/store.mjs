@@ -46,8 +46,10 @@ export async function readJson(file) {
 
 export async function loadOrCreateConfig(file, pubkey) {
   try {
-    const config = validateConfig(await readJson(file));
+    const stored = await readJson(file);
+    const config = validateConfig(stored);
     if (config.pubkey !== pubkey) throw new Error('A identidade da configuração não corresponde ao cofre.');
+    if (stored.schema !== config.schema || stored.version !== config.version) await writePrivateJson(file, config);
     return config;
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
