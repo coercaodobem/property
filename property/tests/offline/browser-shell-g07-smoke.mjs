@@ -193,6 +193,23 @@ try {
     return evidence;
   }
 
+  async function verifyControlledPage(page, verify) {
+    // First installation can trigger the app's controllerchange reload. Playwright
+    // destroys the old document context during that expected navigation, so retry
+    // the control predicate and the associated page verification only for that
+    // specific lifecycle transition.
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, { timeout: 30000 });
+        await page.locator('#create-account-button').waitFor({ state: 'visible', timeout: 30000 });
+        return await verify();
+      } catch (issue) {
+        if (!/execution context was destroyed.*navigation/i.test(issue.message) || attempt === 3) throw issue;
+        await page.waitForLoadState('domcontentloaded', { timeout: 30000 });
+      }
+    }
+  }
+
   for (let cycle = 1; cycle <= 10; cycle++) {
     const context = await newContext();
     const page = await context.newPage();
@@ -202,8 +219,7 @@ try {
     try {
       await page.goto(`${origin}/property/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
       await page.locator('#create-account-button').waitFor({ state: 'visible', timeout: 30000 });
-      await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, { timeout: 30000 });
-      const shellEvidence = await verifyShell(page, cycle);
+      const shellEvidence = await verifyControlledPage(page, () => verifyShell(page, cycle));
       assert.equal(error, null);
       openChecks.push({ cycle, status: 'PASS', controller_script: shellEvidence.controller_script,
         cache_exists: shellEvidence.cache_exists, checked_resources: shellEvidence.cached_resources.length,
@@ -233,12 +249,7 @@ try {
   offlinePage.on('pageerror', error => pageErrors.push(safe(error.message)));
   await offlinePage.goto(`${origin}/property/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await offlinePage.locator('#create-account-button').waitFor({ state: 'visible', timeout: 30000 });
-  await offlinePage.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, { timeout: 30000 });
-  await verifyShell(offlinePage, 'offline-prime');
-  await new Promise((resolve, reject) => {
-    server.close(error => error ? reject(error) : resolve());
-    server.closeAllConnections?.();
-  });
+  await verifyControlledPage(offlinePage, () => verifyShell(offlinePage, 'offline-prime'));
   await offlineContext.setOffline(true);
   for (let cycle = 1; cycle <= 10; cycle++) {
     try {
@@ -277,8 +288,7 @@ try {
     try {
       await page.goto(`${origin}/property/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
       await page.locator('#create-account-button').waitFor({ state: 'visible', timeout: 30000 });
-      await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, { timeout: 30000 });
-      const checked = await verifyShell(page, `static-${cycle}`);
+      const checked = await verifyControlledPage(page, () => verifyShell(page, `static-${cycle}`));
       staticChecks.push({ cycle, status: 'PASS', checked_resources: checked.cached_resources.length,
         all_static_hashes_match_checkout: true, resources: checked.cached_resources.map(({ resource, bytes, sha256 }) => ({ resource, bytes, sha256 })) });
     } catch (issue) {
@@ -292,6 +302,11 @@ try {
     ];
     await checkpoint();
   }
+
+  await new Promise((resolve, reject) => {
+    server.close(error => error ? reject(error) : resolve());
+    server.closeAllConnections?.();
+  });
 
   report.result_counts = { open_control_pass: openChecks.filter(item => item.status === 'PASS').length,
     offline_reload_pass: offlineReloads.filter(item => item.status === 'PASS').length,
