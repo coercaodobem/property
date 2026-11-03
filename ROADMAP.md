@@ -21,6 +21,7 @@ Consulte os resultados registrados; a presença de código não comprova todos o
 | Acessibilidade | Navegação por teclado, rótulos, foco, contraste e leitura em telas pequenas revisados |
 | Relay de PC | Gate multi-relay G11-03 com 300 probes, três reinícios, nove eventos de partição, recuperação e reconciliação |
 | Interoperabilidade | Troca NIP-17 e listas de relays verificadas com outros clientes e versões identificadas |
+| Comunicação entre agentes | Revisar NIP-17, A2A e MCP, desenhar identidade e consentimento, e validar a UX humana antes da implementação; veja o [plano de agentes](property/docs/plano-agentes-human-first.md) |
 | Segurança | Revisão independente do cofre, chaves, dependências, CSP e fluxo de mensagens |
 
 ## Funcionalidades que exigem implementação e revisão

@@ -103,6 +103,7 @@ Para trabalho assistido por IA, consulte [`AGENTS.md`](AGENTS.md), as instruçõ
 - [Identidade e princípios](property/docs/identidade-do-projeto.md)
 - [Plano central](property/docs/plano-central.md)
 - [Resultados e plano de testes](property/docs/plano-de-testes-central.md)
+- [Plano de comunicação entre agentes, com UX humano como critério](property/docs/plano-agentes-human-first.md)
 - [Detalhes do MVP e da publicação](property/README.md)
 
 O snapshot de origem é o Amethyst no commit [948135f](https://github.com/vitorpamplona/amethyst/tree/948135f7dbbae81d79a0b985282ce673397a7618). Reaproveitamos sua base e o relay Geode. A PWA usa JavaScript e o pacote local versionado `nostr-tools`; não é uma compilação web da interface Android do Amethyst. O cliente não baixa scripts executáveis de CDN durante o uso. O histórico upstream completo permanece no repositório original.

@@ -103,6 +103,7 @@ AI coding agents should follow [`AGENTS.md`](AGENTS.md), the scoped [`property/A
 - [Project identity and principles](property/docs/identidade-do-projeto.md) (Português)
 - [Central execution plan](property/docs/plano-central.md) (Português)
 - [Test plan and results](property/docs/plano-de-testes-central.md) (Português)
+- [Agent communication plan with human-first UX gates](property/docs/plano-agentes-human-first.md) (Português)
 - [Detailed MVP and publishing notes](property/README.md) (Português)
 
 The source snapshot is Amethyst at commit [`948135f`](https://github.com/vitorpamplona/amethyst/tree/948135f7dbbae81d79a0b985282ce673397a7618). Property reuses its codebase and the Geode relay. The PWA uses JavaScript and a locally bundled, version-pinned `nostr-tools` package; it is not a web build of Amethyst's Android interface. The client does not download executable scripts from a CDN at runtime. The complete upstream history remains in the original repository.
