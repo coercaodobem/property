@@ -1,0 +1,32 @@
+{
+  "name": "property-agent-local",
+  "version": "0.1.0",
+  "platformsImplemented": ["linux-x64"],
+  "platformsPending": ["windows", "macos", "android", "ios"],
+  "node": ">=22",
+  "mcpProtocol": "2026-07-28",
+  "transport": "stdio",
+  "externalNodeDependencies": [],
+  "runtimeCodeDownloads": false,
+  "nostrTools": {
+    "version": "2.25.2",
+    "license": "Unlicense",
+    "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407",
+    "source": "property/web/vendor/nostr-tools-2.25.2.bundle.js"
+  },
+  "files": [
+    "property-agent.mjs",
+    "bin/property-agent",
+    "mcp-server.mjs",
+    "daemon.mjs",
+    "core.mjs",
+    "service.mjs",
+    "relay.mjs",
+    "ipc.mjs",
+    "store.mjs",
+    "vault.mjs",
+    "agent-messaging.js",
+    "vendor/nostr-tools-2.25.2.bundle.js",
+    "vendor/nostr-tools-LICENSE"
+  ]
+}

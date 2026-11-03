@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+set -eu
+resolved="$(readlink -f -- "$0")"
+script_dir="$(CDPATH= cd -- "$(dirname -- "$resolved")" && pwd)"
+exec node "$script_dir/../property-agent.mjs" "$@"

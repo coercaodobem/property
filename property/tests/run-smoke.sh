@@ -24,10 +24,14 @@ for test_file in \
   agent-messaging-g0-smoke.mjs \
   agent-pairing-smoke.mjs \
   agent-messaging-smoke.mjs \
+  agent-package-smoke.mjs \
   offline/runner-contract-smoke.mjs
 do
   printf '\n== %s ==\n' "$test_file"
   node "$TEST_DIR/$test_file"
 done
+
+printf '\n== agent-package-smoke.sh ==\n'
+bash "$TEST_DIR/agent-package-smoke.sh"
 
 printf '\nPASS: suíte smoke local concluída.\n'

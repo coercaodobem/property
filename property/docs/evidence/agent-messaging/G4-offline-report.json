@@ -1,0 +1,161 @@
+{
+  "gate": "G4",
+  "status": "PASS_TECHNICAL_OFFLINE",
+  "seed": "property-agent-g4-host-geode-fixed-v1",
+  "logicalNow": 1900000000,
+  "environment": {
+    "os": "linux/x64",
+    "node": "v22.22.1",
+    "mcpProtocol": "2026-07-28",
+    "externalConnections": 0,
+    "externalModels": 0,
+    "realParticipants": 0,
+    "agents": 2,
+    "mcpHostFixtures": [
+      "host-a",
+      "host-b"
+    ],
+    "isolatedGeodeRelays": 1,
+    "geodeSha256": "9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7"
+  },
+  "counts": {
+    "mcpTools": 5,
+    "readsPerAgent": 25,
+    "sendsPerAgent": 25,
+    "outOfScopeRequests": 10,
+    "nonexistentTools": 10,
+    "stdioShutdownRestarts": 10,
+    "relayDisconnectedErrors": 10,
+    "pendingApprovalRequests": 1,
+    "concurrentSends": 2,
+    "cases": 28
+  },
+  "evidence": {
+    "encryptedVaultWith600000Iterations": true,
+    "vaultMode0600": true,
+    "dataDirectoriesMode0700": true,
+    "unixSocketsMode0600": true,
+    "noTcpListener": true,
+    "approvedConversationAllowlistEnforced": true,
+    "noSecretReturnedByTools": true,
+    "approvalRequestDoesNotGrantScope": true,
+    "signedInviteAcceptedByExistingPwaParser": true,
+    "relayAcknowledgementMeansOnlyLocalRelayAcceptance": true,
+    "allMcpStdoutIsJsonRpc": true,
+    "externalTraffic": false
+  },
+  "cases": [
+    {
+      "id": "geode-package-hash-and-one-isolated-loopback-relay",
+      "result": "PASS"
+    },
+    {
+      "id": "alpha-encrypted-vault-mode-and-wrong-password",
+      "result": "PASS"
+    },
+    {
+      "id": "beta-encrypted-vault-mode-and-wrong-password",
+      "result": "PASS"
+    },
+    {
+      "id": "alpha-unix-socket-mode-0600",
+      "result": "PASS"
+    },
+    {
+      "id": "beta-unix-socket-mode-0600",
+      "result": "PASS"
+    },
+    {
+      "id": "signed-agent-invite-accepted-by-existing-pwa-pairing-parser",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-fixed-tool-inventory-and-approved-list",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-fixed-tool-inventory-and-approved-list",
+      "result": "PASS"
+    },
+    {
+      "id": "25-nip17-mcp-sends-per-agent-including-concurrent-call",
+      "result": "PASS"
+    },
+    {
+      "id": "25-nip17-mcp-reads-per-agent-and-two-way-decryption",
+      "result": "PASS"
+    },
+    {
+      "id": "10-out-of-scope-conversation-reads-fail-closed",
+      "result": "PASS"
+    },
+    {
+      "id": "10-nonexistent-tools-rejected",
+      "result": "PASS"
+    },
+    {
+      "id": "approval-request-creates-pending-record-without-expanding-scope",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "host-a-server-discover",
+      "result": "PASS"
+    },
+    {
+      "id": "10-stdio-shutdown-restart-cycles-across-two-hosts",
+      "result": "PASS"
+    },
+    {
+      "id": "10-relay-disconnected-send-errors-not-reported-as-success",
+      "result": "PASS"
+    },
+    {
+      "id": "stdio-stdout-protocol-only-and-no-vault-secrets-or-private-identity-logs",
+      "result": "PASS"
+    }
+  ]
+}
