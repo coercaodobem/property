@@ -26,6 +26,20 @@
       "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-2.json",
       "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build.log",
       "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build-repeat.log"
+    ],
+    "portable_local_copies": [
+      {
+        "source_path": "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build.log",
+        "local_path": "later-gates/inherited-g11-02/g11-02-offline-build.log",
+        "bytes": 2147,
+        "sha256": "d2ea665d9c963bb47ba21aed8d510e49e88df9aafa4083640645ed79be1b5d24"
+      },
+      {
+        "source_path": "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build-repeat.log",
+        "local_path": "later-gates/inherited-g11-02/g11-02-offline-build-repeat.log",
+        "bytes": 2147,
+        "sha256": "876031fb638a28c46f70682c2152c902dc3681563f211076418031cde5b2251c"
+      }
     ]
   }
 }
