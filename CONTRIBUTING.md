@@ -58,10 +58,10 @@ Para integração entre dois relays isolados:
 bash property/tests/run-bridge-integration.sh 17450 17451
 ```
 
-O ensaio contínuo de um relay é separado e fica limitado a cinco horas reais (18.000 segundos). Execute-o quando a contribuição exigir essa validação, preservando o log e o resultado final. Ele é um diagnóstico de um relay e não substitui o gate multi-relay G11-03:
+O gate multi-relay G11-03 usa repetições e relógio lógico fixos, com contagens definidas no [plano central de testes](property/docs/plano-de-testes-central.md). Execute-o pelo runner offline, com um manifesto do laboratório e isolamento comprovado:
 
 ```bash
-node property/tests/relay-soak.mjs 18000 60 17447
+bash property/tests/offline/run-isolated.sh node property/tests/offline/run-offline.mjs --profile full --manifest /caminho/lab.json --output property/docs/evidence/offline/property-run-20261103-01
 ```
 
 Para documentação, confira links e comandos alterados. Para UI, exercite o fluxo no navegador e informe tamanho de tela, navegador, resultado e capturas quando úteis. Use dados de teste e identidades descartáveis. Testes unitários não substituem a inspeção visual de uma tela alterada.

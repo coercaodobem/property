@@ -19,7 +19,7 @@ Consulte os resultados registrados; a presença de código não comprova todos o
 | Primeiro uso e recuperação | Passos claros de criar identidade, exportar backup e restaurar usando dados descartáveis |
 | Android e iOS | Matriz de navegador/aparelho, instalação PWA, rede e suspensão com resultados reproduzíveis |
 | Acessibilidade | Navegação por teclado, rótulos, foco, contraste e leitura em telas pequenas revisados |
-| Relay de PC | Ensaio multi-relay G11-03 de até cinco horas, com log persistente, recuperação após reinício e reconciliação comprovadas |
+| Relay de PC | Gate multi-relay G11-03 com 300 probes, três reinícios, nove eventos de partição, recuperação e reconciliação |
 | Interoperabilidade | Troca NIP-17 e listas de relays verificadas com outros clientes e versões identificadas |
 | Segurança | Revisão independente do cofre, chaves, dependências, CSP e fluxo de mensagens |
 

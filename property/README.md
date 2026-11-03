@@ -32,7 +32,7 @@ Na raiz do checkout, execute:
 
 O script usa armazenamento persistente em `~/.local/share/property-relay` e por padrão escuta somente em `127.0.0.1:7447`. O pacote portátil incluído na branch contém o relay e seu runtime Java em segmentos; na primeira execução, o script remonta o tarball, valida o hash e extrai os arquivos para o diretório do usuário. Isso é adequado para teste local; para acesso público, configure conscientemente endereço, TLS, firewall e armazenamento.
 
-Com Node.js 22 instalado, `bash property/tests/run-smoke.sh` executa os testes locais sem abrir portas. `bash property/tests/run-bridge-integration.sh [porta-origem] [porta-destino]` inicia dois relays isolados em `127.0.0.1`, testa replicação/NIP-17/NIP-15 e remove os diretórios temporários ao terminar. `node property/tests/relay-soak.mjs` executa o ensaio de até cinco horas, com limite aplicado, reinícios e verificações de persistência.
+Com Node.js 22 instalado, `bash property/tests/run-smoke.sh` executa os testes locais sem abrir portas. `bash property/tests/run-bridge-integration.sh [porta-origem] [porta-destino]` inicia dois relays isolados em `127.0.0.1`, testa replicação/NIP-17/NIP-15 e remove os diretórios temporários ao terminar. O perfil offline completo usa manifesto, isolamento e as contagens fixas de G11-03 definidas no [plano de testes](docs/plano-de-testes-central.md); o ensaio por duração não é critério de aprovação.
 
 ## Limites conhecidos
 
@@ -50,4 +50,4 @@ Consulte [migração para Property](docs/migracao-property.md) para dados e inst
 
 ## Validação Property de 2026-10-31
 
-O commit `31956a60c485d77629cc6e549026822d05a7ae56` passou no [CI com 12 suítes e três sistemas nativos](https://github.com/coercaodobem/property/actions/runs/41186913676) e no [Pages](https://github.com/coercaodobem/property/actions/runs/41186913639). A URL principal mostrou Property e as opções BTC/XMR/XNO; nenhum erro/aviso no console. Os 17 arquivos públicos e o HTML da raiz corresponderam aos hashes da fonte. Registros: [publicação](docs/evidence/pages-property-2026-10-31.json) e [plataformas](docs/evidence/native-platforms-2026-10-31.json). Isso não comprova checkout, liquidação financeira, o novo ensaio G11-03 de 24 horas ou dispositivos móveis reais.
+O commit `31956a60c485d77629cc6e549026822d05a7ae56` passou no [CI com 12 suítes e três sistemas nativos](https://github.com/coercaodobem/property/actions/runs/41186913676) e no [Pages](https://github.com/coercaodobem/property/actions/runs/41186913639). A URL principal mostrou Property e as opções BTC/XMR/XNO; nenhum erro/aviso no console. Os 17 arquivos públicos e o HTML da raiz corresponderam aos hashes da fonte. Registros: [publicação](docs/evidence/pages-property-2026-10-31.json) e [plataformas](docs/evidence/native-platforms-2026-10-31.json). Isso não comprova checkout, liquidação financeira, o G11-03 atual por contagens fixas ou dispositivos móveis reais.

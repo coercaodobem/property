@@ -23,4 +23,4 @@ O Windows preserva os arquivos do JRE ZIP; o macOS usa os arquivos de `Contents/
 
 `portable-packages-smoke.mjs` verifica cada segmento, tamanho total, hash do pacote, pin do launcher e identidade dos JARs entre plataformas. A matriz de CI executa o relay nativo em Windows x64, macOS arm64 e Linux x86_64, com SQLite, NIP-17, ofertas BTC/XMR/XNO e reinício persistente. Somente uma execução concluída comprova o resultado do respectivo sistema; consultar os links no plano de testes.
 
-Mac Intel não está incluído: o driver SQLite do snapshot não contém a biblioteca JNI necessária. Android/iOS usam a PWA; os pacotes desktop não significam relay móvel contínuo. Instalação em dispositivos reais, distribuição assinada/notarizada e o ensaio G11-03 de 24 horas reais são gates adicionais.
+Mac Intel não está incluído: o driver SQLite do snapshot não contém a biblioteca JNI necessária. Android/iOS usam a PWA; os pacotes desktop não significam relay móvel contínuo. Instalação em dispositivos reais e distribuição assinada/notarizada são gates adicionais; o G11-03 usa contagens fixas descritas no plano central de testes.

@@ -29,7 +29,7 @@ O objetivo de plataforma inclui Windows, macOS, Linux/Ubuntu, Android e iOS. A i
 | Interface web | PWA publicada em HTTPS; arquivos de execução servidos do próprio pacote | Validação completa em Android/iOS e acessibilidade |
 | Identidade | Chave aleatória local, cofre cifrado por senha, sessão persistente e backup cifrado | Mais testes de recuperação e uso em aparelhos reais |
 | Mensagens | Fluxos NIP-17 e listas de inbox relays kind 10050, com testes locais | Validação ampliada de interoperabilidade e redes reais |
-| Relay de PC | Geode com runtime incluído para Linux x86_64, Windows x64 e macOS Apple Silicon | Matriz por plataforma e ensaio multi-relay G11-03 de até cinco horas; veja o [status do plano](property/docs/plano-de-testes-central.md) |
+| Relay de PC | Geode com runtime incluído para Linux x86_64, Windows x64 e macOS Apple Silicon | Matriz por plataforma e gate multi-relay G11-03 com 300 probes, três reinícios e nove eventos de partição; veja o [status do plano](property/docs/plano-de-testes-central.md) |
 | Ponte voluntária | Encaminhamento limitado entre relays enquanto a PWA está ativa | Operação móvel contínua não é suportada pela PWA |
 | Marketplace e campanhas | Ofertas com preços BTC/XMR/XNO e leitor opcional de campanhas assinadas | Checkout e engine de aceite, pagamento BTC, XMR, XNO e reembolso |
 | Hangout | Feed público kind 1 com leitura e publicação | Integração completa e validação para o Property |
@@ -73,7 +73,7 @@ Para executar a suíte local, com Node.js 22 ou superior:
 bash property/tests/run-smoke.sh
 ```
 
-Esses testes não dependem de pagamentos ou publicação de mensagens em relays públicos. Os ensaios que abrem relays locais e o teste contínuo de até cinco horas têm comandos separados no [guia de contribuição](CONTRIBUTING.md).
+Esses testes não dependem de pagamentos ou publicação de mensagens em relays públicos. Os gates de integração local usam repetições fixas, manifesto e isolamento de rede conforme o [plano central de testes](property/docs/plano-de-testes-central.md).
 
 ## Onde está cada parte
 

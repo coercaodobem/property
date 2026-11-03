@@ -29,7 +29,7 @@ The platform goal includes Windows, macOS, Linux/Ubuntu, Android, and iOS. The c
 | Web app | HTTPS PWA; runtime files ship in the same package | Full Android/iOS device validation and accessibility review |
 | Identity | Random local key, password-protected vault, persistent session, and encrypted backup | More recovery testing on real devices |
 | Messaging | NIP-17 flows and kind 10050 inbox relay lists, with local tests | Broader interoperability testing with real networks |
-| PC relay | Geode with bundled runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon | Platform matrix and multi-relay G11-03 run of up to five hours; see the [test plan status](property/docs/plano-de-testes-central.md) |
+| PC relay | Geode with bundled runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon | Platform matrix and multi-relay G11-03 gate with 300 probes, three restarts, and nine partition events; see the [test plan status](property/docs/plano-de-testes-central.md) |
 | Volunteer bridge | Limited event forwarding between relays while the PWA is active | Continuous mobile operation is not supported by a PWA |
 | Marketplace and campaigns | Listings priced in BTC/XMR/XNO and an optional reader for signed campaigns | Checkout and acceptance engine, payments, and refunds |
 | Hangout | Public kind 1 feed with reading and posting | Complete integration and validation for Property |
@@ -73,7 +73,7 @@ To run the local smoke suite, use Node.js 22 or newer:
 bash property/tests/run-smoke.sh
 ```
 
-These tests do not make payments or publish messages to public relays. Separate commands for local relay tests and the run of up to five hours are documented in the [contribution guide](CONTRIBUTING.en.md).
+These tests do not make payments or publish messages to public relays. Local integration gates use fixed repetitions, a lab manifest, and network isolation as specified in the [central test plan](property/docs/plano-de-testes-central.md).
 
 ## Repository map
 

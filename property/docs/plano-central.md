@@ -102,7 +102,7 @@ Para reconstituir a base upstream em uma auditoria separada: clonar `vitorpamplo
 - Permitir colaboração do celular somente como ação voluntária e de melhor esforço enquanto a PWA está ativa: encaminhar eventos públicos assinados entre relays escolhidos e encaminhar gift wraps NIP-17 somente quando destinados à identidade local, e somente para os inbox relays dessa identidade. A ponte exclui o relay de origem, deduplica IDs, verifica assinatura/idade/tipo e limita encaminhamento a 60 eventos e 2 MB de tráfego de saída por minuto, contando cada destino. Não apresentar a PWA móvel como relay público de entrada sempre ligado.
 - Não divulgar o celular como relay sempre ligado nem exigir tela acesa, root ou serviço pago.
 
-**Gate:** ensaio operacional G11-03 de 24 horas, com três reinícios e retomada idempotente aprovados para o node de PC; comportamento móvel documentado como best effort.
+**Gate:** executar o G11-03 por contagens fixas do Plano de Testes Central: 300 probes, três reinícios, nove eventos de partição reconciliados, zero perda e checkpoints por quantidade; comportamento móvel documentado como best effort.
 
 ### 6. Hangout, marketplace e sustentabilidade
 
@@ -162,4 +162,4 @@ Por solicitação posterior do mantenedor, BTC é moeda aceita nas ofertas e cam
 
 ### Resultado da matriz de computador
 
-A execução [41186913676](https://github.com/coercaodobem/property/actions/runs/41186913676), no commit `31956a60c485d77629cc6e549026822d05a7ae56`, concluiu as quatro jobs com sucesso: 12 suítes smoke e integração nativa em Linux x86_64, Windows x64 e macOS arm64. Cada relay usou seu Java incluído e preservou eventos após reinício. O primeiro erro Windows foi corrigido sem desabilitar a verificação de hash. Ver [registro sanitizado](evidence/native-platforms-2026-10-31.json). Não equivale ao ensaio G11-03 atual de 24 horas nem a teste físico de Android/iOS.
+A execução [41186913676](https://github.com/coercaodobem/property/actions/runs/41186913676), no commit `31956a60c485d77629cc6e549026822d05a7ae56`, concluiu as quatro jobs com sucesso: 12 suítes smoke e integração nativa em Linux x86_64, Windows x64 e macOS arm64. Cada relay usou seu Java incluído e preservou eventos após reinício. O primeiro erro Windows foi corrigido sem desabilitar a verificação de hash. Ver [registro sanitizado](evidence/native-platforms-2026-10-31.json). Esse resultado histórico não equivale ao G11-03 atual por contagens fixas nem a teste físico de Android/iOS.

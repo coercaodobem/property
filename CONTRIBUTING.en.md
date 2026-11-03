@@ -58,10 +58,10 @@ For integration between two isolated relays:
 bash property/tests/run-bridge-integration.sh 17450 17451
 ```
 
-The separate relay soak is limited to five hours (18,000 seconds). Run it when the contribution requires this validation, and preserve its log and final result. A one-relay soak does not replace the multi-relay G11-03 gate:
+The multi-relay G11-03 gate uses fixed repetitions and a logical clock, with counts defined in the [central test plan](property/docs/plano-de-testes-central.md). Run it through the offline runner with a lab manifest and proven network isolation:
 
 ```bash
-node property/tests/relay-soak.mjs 18000 60 17447
+bash property/tests/offline/run-isolated.sh node property/tests/offline/run-offline.mjs --profile full --manifest /path/to/lab.json --output property/docs/evidence/offline/property-run-20261103-01
 ```
 
 For documentation changes, check the links and commands you changed. For UI work, exercise the affected flow in a browser and report the viewport, browser, result, and useful screenshots. Use disposable test identities. Unit tests do not replace visual inspection.
