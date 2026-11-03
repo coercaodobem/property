@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Protótipo de agentes — Property</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d1114; color: #edf1f4; --panel: #172129; --line: #34424b; --muted: #a7b2ba; --accent: #d8f36b; --danger: #ffb0a7; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at top, #152128 0, #0d1114 52rem); }
+    button, input { font: inherit; }
+    button { min-height: 44px; border: 1px solid var(--line); border-radius: 12px; padding: .7rem 1rem; background: #202c34; color: inherit; cursor: pointer; }
+    button:hover { border-color: #82909a; }
+    button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    button.primary { color: #12180a; background: var(--accent); border-color: var(--accent); font-weight: 750; }
+    button.danger { color: #321310; background: var(--danger); border-color: var(--danger); font-weight: 700; }
+    button.ghost { background: transparent; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem clamp(1rem, 4vw, 2.5rem); border-bottom: 1px solid #27333a; }
+    .brand { font-size: 1.2rem; font-weight: 800; letter-spacing: .02em; }
+    .brand-mark { display: inline-grid; place-items: center; width: 2rem; height: 2rem; margin-right: .5rem; border-radius: 10px; color: #10150b; background: var(--accent); }
+    .notice { max-width: 66rem; margin: 1rem auto 0; padding: .75rem 1rem; border: 1px solid #526146; border-radius: 12px; color: #e2f4b1; background: #202b1a; font-size: .92rem; }
+    main { width: min(100% - 2rem, 66rem); margin: 1rem auto 4rem; }
+    .shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); min-height: 38rem; overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: rgba(18, 25, 30, .92); box-shadow: 0 1.5rem 4rem #0005; }
+    aside { padding: 1rem; border-right: 1px solid var(--line); background: #151d22; }
+    aside h2 { margin: .25rem .4rem 1rem; font-size: 1rem; }
+    .nav-button { display: flex; width: 100%; align-items: center; justify-content: flex-start; gap: .65rem; margin: .35rem 0; text-align: left; }
+    .nav-button.active { border-color: #75874b; background: #29331d; }
+    .nav-button small { display: block; color: var(--muted); }
+    .agent-mark { display: inline-flex; align-items: center; min-height: 1.4rem; padding: .12rem .45rem; border: 1px solid #93a657; border-radius: 999px; color: #e8f6b4; background: #26321b; font-size: .72rem; font-weight: 700; }
+    .content { min-width: 0; padding: clamp(1rem, 4vw, 2rem); }
+    .content h1, .content h2 { margin: 0 0 .65rem; line-height: 1.2; }
+    .content h1 { font-size: clamp(1.55rem, 4vw, 2rem); }
+    .content h2 { font-size: 1.4rem; }
+    .lead { max-width: 42rem; margin: 0 0 1.4rem; color: var(--muted); line-height: 1.6; }
+    .card { margin: 1rem 0; padding: 1rem; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); }
+    .card p:last-child { margin-bottom: 0; }
+    .stack { display: grid; gap: .85rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.25rem; }
+    .contact-row { display: flex; align-items: center; gap: .8rem; padding: .8rem 0; border-bottom: 1px solid #2b373e; }
+    .contact-row:last-child { border: 0; }
+    .avatar { display: grid; flex: 0 0 2.6rem; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; color: #14200a; background: var(--accent); font-weight: 800; }
+    .avatar.person { color: #e8f0f5; background: #526777; }
+    .contact-meta { display: grid; gap: .2rem; min-width: 0; }
+    .contact-meta small, .muted, .fine { color: var(--muted); }
+    .fine { font-size: .88rem; line-height: 1.5; }
+    .field { display: grid; gap: .45rem; margin: .9rem 0; font-weight: 650; }
+    input[type="text"] { width: 100%; min-height: 46px; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: 10px; background: #10171c; color: inherit; }
+    .choice { display: grid; grid-template-columns: 1.2rem minmax(0, 1fr); gap: .7rem; align-items: start; padding: .95rem; border: 1px solid var(--line); border-radius: 12px; background: #11191e; }
+    .choice input { width: 1.15rem; height: 1.15rem; margin: .15rem 0 0; accent-color: var(--accent); }
+    .choice span { display: grid; gap: .25rem; }
+    .choice small { color: var(--muted); font-weight: 400; line-height: 1.45; }
+    .fingerprint { display: block; overflow-wrap: anywhere; padding: .7rem; border-radius: 9px; background: #0c1216; color: #e0e8ed; font: .85rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .warning { border-color: #75604a; background: #2b241d; color: #f6dfc1; }
+    .success { border-color: #667844; background: #222d1b; color: #e5f3be; }
+    .message { max-width: 34rem; margin: .6rem 0; padding: .8rem .95rem; border-radius: 14px; line-height: 1.5; }
+    .message.human { background: #283741; }
+    .message.agent { background: #28321e; }
+    .status { margin-top: .3rem; color: var(--muted); font-size: .8rem; }
+    [hidden] { display: none !important; }
+    footer { margin: 1rem 0; color: var(--muted); font-size: .82rem; text-align: center; }
+    @media (max-width: 700px) {
+      .shell { display: block; min-height: auto; border-radius: 16px; }
+      aside { display: none; }
+      .content { padding: 1.1rem; }
+      header { align-items: flex-start; }
+      header .fine { max-width: 11rem; text-align: right; }
+      .actions button { flex: 1 1 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="brand-mark" aria-hidden="true">P</span>Property</div>
+    <div class="fine">Protótipo offline · sem conexão com relays</div>
+  </header>
+  <div class="notice" role="status" aria-live="polite" id="prototype-notice">Demonstração com dados fictícios. Nenhuma assinatura é validada, mensagem enviada ou permissão gravada.</div>
+  <main>
+    <div class="shell">
+      <aside aria-label="Navegação de demonstração">
+        <h2>Conversas</h2>
+        <button class="nav-button active" id="nav-human" type="button"><span class="avatar person" aria-hidden="true">L</span><span>Lia<small>Pessoa</small></span></button>
+        <button class="nav-button" id="nav-agent" type="button" hidden><span class="avatar" aria-hidden="true">A</span><span>Agente local<small><span class="agent-mark">AGENTE</span> <span id="agent-nav-status">Acesso ativo</span></small></span></button>
+        <button class="nav-button" id="nav-add" type="button">＋ <span>Adicionar agente</span></button>
+        <p class="fine">Sua identidade humana continua separada. Você pode usar as conversas humanas sem conectar agentes.</p>
+      </aside>
+      <div class="content">
+        <section class="screen" id="screen-home" aria-labelledby="title-home">
+          <h1 id="title-home" tabindex="-1">Suas conversas</h1>
+          <p class="lead">Conecte um agente quando quiser. Ele terá uma identidade própria e só poderá acessar o que você autorizar.</p>
+          <div class="card">
+            <div class="contact-row"><span class="avatar person" aria-hidden="true">L</span><div class="contact-meta"><strong>Lia</strong><small>Pessoa · conversa privada</small></div><button id="open-human" type="button">Abrir</button></div>
+            <div class="contact-row" id="agent-row" hidden><span class="avatar" aria-hidden="true">A</span><div class="contact-meta"><strong>Agente local</strong><small><span class="agent-mark">AGENTE</span> <span id="agent-home-status">identidade separada</span></small></div><button id="open-agent" type="button">Abrir</button></div>
+          </div>
+          <div class="card">
+            <h2>Você decide o acesso</h2>
+            <p class="fine">A chave da sua identidade humana não é compartilhada. Ler uma conversa e enviar mensagens são permissões separadas e começam desligadas.</p>
+            <button class="primary" id="add-agent" type="button">Adicionar agente</button>
+          </div>
+        </section>
+
+        <section class="screen" id="screen-human" aria-labelledby="title-human" hidden>
+          <h1 id="title-human" tabindex="-1">Lia <span class="muted">· pessoa</span></h1>
+          <p class="lead">Conversa humana de demonstração. Este fluxo não exige configurar nem iniciar um agente.</p>
+          <div class="card"><p class="message human">Oi! Você pode abrir e responder esta conversa mesmo sem conectar um agente.</p><p class="status">Mensagem fictícia · sem rede</p></div>
+          <div class="actions"><button id="human-back" type="button">Voltar às conversas</button></div>
+        </section>
+
+        <section class="screen" id="screen-invite" aria-labelledby="title-invite" hidden>
+          <h1 id="title-invite" tabindex="-1">Adicionar um agente</h1>
+          <p class="lead">Use o convite que recebeu do agente. Confira a identidade antes de permitir acesso.</p>
+          <label class="field" for="invite-input">Link de convite ou chave pública<input id="invite-input" type="text" autocomplete="off" placeholder="Cole aqui o convite recebido"></label>
+          <p class="fine">Não cole sua senha, chave privada ou frase de recuperação. O convite deve identificar apenas o agente.</p>
+          <div class="actions"><button id="load-demo" class="primary" type="button">Carregar convite fictício</button><button class="ghost" id="invite-cancel" type="button">Cancelar</button></div>
+        </section>
+
+        <section class="screen" id="screen-verify" aria-labelledby="title-verify" hidden>
+          <h1 id="title-verify" tabindex="-1">Confira quem pediu acesso</h1>
+          <p class="lead">O nome é escolhido pelo agente. Confira a chave pública do convite com a pessoa que o enviou.</p>
+          <div class="card">
+            <p><strong>Nome declarado</strong><br>Agente local</p>
+            <p><strong>Chave pública do fixture</strong></p>
+            <code class="fingerprint">npub1exemploidentidadeficticiaprototipo000000000000000000</code>
+            <p class="fine">Fixture ilustrativo. Este protótipo não valida uma assinatura nem comprova o nome declarado.</p>
+          </div>
+          <div class="card warning"><strong>Agente não é uma pessoa.</strong><p class="fine">As mensagens dele terão um rótulo próprio. A chave humana não é entregue ao agente.</p></div>
+          <div class="actions"><button id="verify-continue" class="primary" type="button">Continuar para permissões</button><button class="ghost" id="verify-cancel" type="button">Cancelar convite</button></div>
+        </section>
+
+        <section class="screen" id="screen-permissions" aria-labelledby="title-permissions" hidden>
+          <h1 id="title-permissions" tabindex="-1">O que este agente poderá fazer?</h1>
+          <p class="lead">Escolha cada permissão. Nada fica selecionado por padrão; você pode recusar ou cancelar.</p>
+          <div class="stack">
+            <label class="choice"><input type="checkbox" id="permission-read"><span><strong>Ler a conversa com Lia</strong><small>O agente poderá ler as mensagens desta conversa. Não terá acesso às outras conversas.</small></span></label>
+            <label class="choice"><input type="checkbox" id="permission-send"><span><strong>Enviar mensagens de texto para Lia</strong><small>O agente poderá responder somente nesta conversa. Não poderá iniciar conversas com outras pessoas.</small></span></label>
+          </div>
+          <div class="card warning"><strong>Limite importante</strong><p class="fine">O host de IA pode guardar cópias do que ler. Revogar impede novos acessos quando o agente recebe o aviso, mas não apaga mensagens já lidas.</p></div>
+          <div class="actions"><button id="permissions-back" type="button">Voltar</button><button id="permissions-cancel" class="ghost" type="button">Cancelar</button><button id="approve-agent" class="primary" type="button">Adicionar com estas permissões</button></div>
+        </section>
+
+        <section class="screen" id="screen-cancelled" aria-labelledby="title-cancelled" hidden>
+          <h1 id="title-cancelled" tabindex="-1">Convite cancelado</h1>
+          <div class="card success"><strong>Nenhuma permissão foi concedida.</strong><p class="fine">A conversa com Lia continua disponível.</p></div>
+          <div class="actions"><button id="cancelled-home" class="primary" type="button">Voltar às conversas</button><button id="cancelled-retry" type="button">Rever convite</button></div>
+        </section>
+
+        <section class="screen" id="screen-paired" aria-labelledby="title-paired" hidden>
+          <h1 id="title-paired" tabindex="-1">Agente adicionado</h1>
+          <div class="card success"><strong><span class="agent-mark">AGENTE</span> Agente local</strong><p class="fine" id="granted-summary">Permissões aplicadas apenas ao escopo que você escolheu.</p></div>
+          <div class="card">
+            <h2>Conversa com Agente local</h2>
+            <p class="message agent"><span class="agent-mark">AGENTE</span> Olá. Sou uma identidade separada e só vejo as conversas que você autorizou.</p>
+            <p class="status">Fixture fictício · estado de envio não conectado a relay</p>
+          </div>
+          <div class="actions"><button id="revoke-open" class="danger" type="button">Revogar permissões</button><button id="paired-home" type="button">Voltar às conversas</button></div>
+        </section>
+
+        <section class="screen" id="screen-revoke" aria-labelledby="title-revoke" hidden>
+          <h1 id="title-revoke" tabindex="-1">Revogar acesso do agente?</h1>
+          <div class="card warning"><p><strong>O Property bloqueará novas leituras e envios locais quando você confirmar.</strong></p><p class="fine">Se o agente estiver offline, ele só aplicará a revogação quando receber o aviso. Cópias já lidas por um host ou relay não podem ser apagadas por você.</p></div>
+          <div class="actions"><button id="revoke-confirm" class="danger" type="button">Confirmar revogação</button><button id="revoke-cancel" type="button">Manter permissões</button></div>
+        </section>
+
+        <section class="screen" id="screen-revoked" aria-labelledby="title-revoked" hidden>
+          <h1 id="title-revoked" tabindex="-1">Acesso local revogado</h1>
+          <div class="card warning"><strong>Novos acessos estão bloqueados neste dispositivo.</strong><p class="fine">O aviso ao agente ainda não foi enviado nem confirmado: este protótipo não se conecta à rede. Mensagens já lidas ou copiadas pelo host não são apagadas. A interface real deve mostrar separadamente bloqueio local, aviso enviado e confirmação do agente.</p></div>
+          <div class="actions"><button id="revoked-home" class="primary" type="button">Voltar às conversas</button></div>
+        </section>
+      </div>
+    </div>
+    <footer>Property · protótipo de pesquisa G1 · todos os nomes e identificadores são fictícios</footer>
+  </main>
+  <script>
+    (function () {
+      'use strict';
+      var screens = Array.prototype.slice.call(document.querySelectorAll('.screen'));
+      var notice = document.getElementById('prototype-notice');
+      var agentAdded = false;
+      var agentRevoked = false;
+      function show(id) {
+        screens.forEach(function (screen) { screen.hidden = screen.id !== 'screen-' + id; });
+        var title = document.querySelector('#screen-' + id + ' h1');
+        if (title) title.focus();
+        document.getElementById('nav-human').classList.toggle('active', id === 'home' || id === 'human');
+        document.getElementById('nav-agent').classList.toggle('active', id === 'paired' || id === 'revoke' || id === 'revoked');
+      }
+      function cancel() {
+        document.getElementById('permission-read').checked = false;
+        document.getElementById('permission-send').checked = false;
+        notice.textContent = 'Convite cancelado na demonstração. Nenhuma permissão foi concedida.';
+        show('cancelled');
+      }
+      function toHome() {
+        notice.textContent = 'Demonstração com dados fictícios. Nenhuma assinatura é validada, mensagem enviada ou permissão gravada.';
+        show('home');
+      }
+      function pairAgent() {
+        var read = document.getElementById('permission-read').checked;
+        var send = document.getElementById('permission-send').checked;
+        var parts = [];
+        if (read) parts.push('Ler a conversa com Lia');
+        if (send) parts.push('Enviar texto somente para Lia');
+        document.getElementById('granted-summary').textContent = parts.length ? 'Permissões demonstrativas: ' + parts.join('; ') + '.' : 'Agente adicionado sem permissão de leitura nem de envio.';
+        agentAdded = true;
+        agentRevoked = false;
+        document.getElementById('agent-nav-status').textContent = 'Acesso ativo';
+        document.getElementById('agent-home-status').textContent = 'identidade separada · acesso ativo';
+        document.getElementById('nav-agent').hidden = false;
+        document.getElementById('agent-row').hidden = false;
+        notice.textContent = 'Agente adicionado no estado fictício deste protótipo; nada foi salvo nem enviado.';
+        show('paired');
+      }
+      document.getElementById('add-agent').addEventListener('click', function () { show('invite'); });
+      document.getElementById('nav-add').addEventListener('click', function () { show('invite'); });
+      document.getElementById('load-demo').addEventListener('click', function () {
+        document.getElementById('invite-input').value = 'Convite fictício de demonstração';
+        notice.textContent = 'Fixture fictício carregado. Nenhuma assinatura real será verificada.';
+        show('verify');
+      });
+      document.getElementById('verify-continue').addEventListener('click', function () { show('permissions'); });
+      document.getElementById('invite-cancel').addEventListener('click', cancel);
+      document.getElementById('verify-cancel').addEventListener('click', cancel);
+      document.getElementById('permissions-cancel').addEventListener('click', cancel);
+      document.getElementById('permissions-back').addEventListener('click', function () { show('verify'); });
+      document.getElementById('approve-agent').addEventListener('click', pairAgent);
+      document.getElementById('cancelled-home').addEventListener('click', toHome);
+      document.getElementById('cancelled-retry').addEventListener('click', function () { show('invite'); });
+      document.getElementById('open-human').addEventListener('click', function () { show('human'); });
+      document.getElementById('nav-human').addEventListener('click', toHome);
+      document.getElementById('human-back').addEventListener('click', toHome);
+      function openAgent() { if (agentAdded) show(agentRevoked ? 'revoked' : 'paired'); }
+      document.getElementById('open-agent').addEventListener('click', openAgent);
+      document.getElementById('nav-agent').addEventListener('click', openAgent);
+      document.getElementById('revoke-open').addEventListener('click', function () { show('revoke'); });
+      document.getElementById('revoke-confirm').addEventListener('click', function () {
+        agentRevoked = true;
+        document.getElementById('agent-nav-status').textContent = 'Acesso revogado';
+        document.getElementById('agent-home-status').textContent = 'identidade separada · acesso revogado';
+        notice.textContent = 'Acesso bloqueado localmente no estado fictício; nenhum aviso de rede foi enviado.';
+        show('revoked');
+      });
+      document.getElementById('revoke-cancel').addEventListener('click', function () { show('paired'); });
+      document.getElementById('revoked-home').addEventListener('click', toHome);
+      document.getElementById('paired-home').addEventListener('click', toHome);
+    })();
+  </script>
+</body>
+</html>
