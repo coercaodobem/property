@@ -305,8 +305,11 @@ function safeEnv() {
   const env = { ...process.env };
   for (const key of PROXY_KEYS) delete env[key];
   delete env.NODE_OPTIONS;
-  const javaOptions = env.PROPERTY_OFFLINE_TEST_JAVA_TOOL_OPTIONS;
-  if (javaOptions) env.JAVA_TOOL_OPTIONS = javaOptions;
+  const javaOptions = env.PROPERTY_OFFLINE_TEST_JAVA_TOOL_OPTIONS || env.JAVA_TOOL_OPTIONS || '';
+  // JVM native libraries ignore TMPDIR unless java.io.tmpdir is set explicitly.
+  // Keep extraction inside the run-scoped scratch filesystem instead of /tmp, where
+  // per-user quotas can fail despite statfs reporting free space.
+  env.JAVA_TOOL_OPTIONS = [javaOptions, `-Djava.io.tmpdir=${os.tmpdir()}`].filter(Boolean).join(' ');
   delete env.PROPERTY_OFFLINE_TEST_JAVA_TOOL_OPTIONS;
   return env;
 }

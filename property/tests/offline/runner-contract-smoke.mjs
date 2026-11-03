@@ -27,6 +27,8 @@ import {
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
 const plan = await readFile(path.join(root, 'property/docs/plano-de-testes-central.md'), 'utf8');
 const runnerSource = await readFile(path.join(root, 'property/tests/offline/run-offline.mjs'), 'utf8');
+assert.match(runnerSource, /-Djava\.io\.tmpdir=\$\{os\.tmpdir\(\)\}/,
+  'Java children use the isolated run scratch directory for temporary native libraries');
 assert.match(runnerSource, /browser-g05-smoke\.mjs/, 'full profile executes the G05 multi-relay harness');
 assert.match(runnerSource, /const g05Ids = \['G05-01', 'G05-02', 'G05-03', 'G05-04', 'G05-05', 'G05-06', 'G05-07'\]/,
   'runner records every G05 case individually');
