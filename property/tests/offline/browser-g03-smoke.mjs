@@ -154,7 +154,7 @@ async function createIdentity(page, remember) {
 async function vaultAudit(page) {
   return await page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open('liberdade-local-v1', 1);
+      const request = indexedDB.open('liberdade-local-v1');
       request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
     });
     const transaction = db.transaction(['vault', 'settings', 'conversations', 'messages']);
@@ -268,7 +268,7 @@ async function main() {
     await clickNewChat(pageA); await pageA.locator('#peer-input').fill(profileHint); await pageA.locator('#start-chat-button').click();
     await pageA.locator('#new-chat-dialog').waitFor({ state: 'hidden' });
     const hintRecord = await pageA.evaluate(async pubkey => {
-      const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1', 1); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+      const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
       const row = await new Promise((resolve, reject) => { const request = db.transaction('conversations').objectStore('conversations').get(pubkey); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
       db.close(); return row;
     }, auditB.pubkey);
