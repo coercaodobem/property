@@ -18,6 +18,8 @@ const CASES = ['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
+const safeDiagnostic = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
+  .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(-3500);
 
 function parseArgs(argv) {
   const options = {};
@@ -143,8 +145,10 @@ async function stopGeode(relay) {
 
 function startFalseAckRelay() {
   const events = [];
+  const diagnostics = { connections: 0, frames: { EVENT: 0, REQ: 0, CLOSE: 0, other: 0 }, protocolErrors: 0 };
   const server = http.createServer();
   server.on('upgrade', (request, socket) => {
+    diagnostics.connections += 1;
     const key = request.headers['sec-websocket-key']; if (!key) return socket.destroy();
     const accept = createHash('sha1').update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest('base64');
     socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
@@ -161,15 +165,16 @@ function startFalseAckRelay() {
         if (masked) { const mask = buffer.subarray(offset - 4, offset); for (let i = 0; i < body.length; i++) body[i] ^= mask[i % 4]; }
         buffer = buffer.subarray(offset + size); if ((first & 0x0f) === 8) { socket.end(); return; }
         if ((first & 0x0f) !== 1) continue;
-        let frame; try { frame = JSON.parse(body.toString('utf8')); } catch { continue; }
-        if (frame[0] === 'EVENT' && frame[1]?.id) { events.push(frame[1].id); send(['OK', frame[1].id, true, 'accepted by deliberate false-ack fixture']); }
-        else if (frame[0] === 'REQ') send(['EOSE', frame[1]]);
-        else if (frame[0] === 'CLOSE') continue;
+        let frame; try { frame = JSON.parse(body.toString('utf8')); } catch { diagnostics.protocolErrors += 1; continue; }
+        if (frame[0] === 'EVENT' && frame[1]?.id) { diagnostics.frames.EVENT += 1; events.push(frame[1].id); send(['OK', frame[1].id, true, 'accepted by deliberate false-ack fixture']); }
+        else if (frame[0] === 'REQ') { diagnostics.frames.REQ += 1; send(['EOSE', frame[1]]); }
+        else if (frame[0] === 'CLOSE') diagnostics.frames.CLOSE += 1;
+        else diagnostics.frames.other += 1;
       }
     });
     socket.on('error', () => {});
   });
-  return { server, events, ready: new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); }) };
+  return { server, events, diagnostics, ready: new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); }) };
 }
 
 function wsQuery(url, filter, timeoutMs = 8000) {
@@ -217,12 +222,13 @@ async function configureRelays(page, general, inbox, publishInbox = true) {
   await page.locator('#open-settings').click(); await page.locator('#relay-dialog').waitFor({ state: 'visible' });
   await page.locator('#relay-input').fill(general.join('\n')); await page.locator('#dm-relay-input').fill(inbox.join('\n'));
   await page.locator('#save-relays').click(); await page.locator('#relay-dialog').waitFor({ state: 'hidden' });
-  await page.waitForFunction(() => /[1-9]\d*\/\d+ relay/.test(document.querySelector('#connection-label')?.textContent || ''), null, { timeout: 12000 });
+  const expectedConnections = `${general.length}/${general.length} relay${general.length === 1 ? '' : 's'}`;
+  await page.waitForFunction(expected => document.querySelector('#connection-label')?.textContent === expected, expectedConnections, { timeout: 20000 });
   if (!publishInbox) return;
   await page.locator('#open-settings').click(); await page.locator('#dm-relay-input').fill(inbox.join('\n')); await page.locator('#publish-inbox-list').click();
   await page.waitForFunction(() => /Sua lista pública de recebimento NIP-17 foi publicada/.test(document.querySelector('#toast')?.textContent || '') || Boolean(document.querySelector('#relay-error')?.textContent?.trim()), null, { timeout: 15000 });
   const relayError = (await page.locator('#relay-error').textContent()).trim();
-  assert.equal(relayError, '', `kind-10050 publish UI error: ${relayError}`);
+  assert.equal(relayError, '', `kind-10050 publish UI error: ${relayError}; connection=${(await page.locator('#connection-label').textContent())?.trim()}; toast=${(await page.locator('#toast').textContent())?.trim()}`);
   if (await page.locator('#relay-dialog').isVisible()) await page.locator('#relay-dialog button[aria-label="Fechar"]').click();
   await page.locator('#relay-dialog').waitFor({ state: 'hidden', timeout: 5000 });
 }
@@ -360,21 +366,41 @@ async function main() {
     const bAfterFalseAckList = validInbox(await wsQuery(relay0.url, { kinds: [10050], authors: [b.pubkey], limit: 10 }))[0];
     assert.ok(bAfterFalseAckList?.tags.some(tag => tag[0] === 'relay' && tag[1] === falseAckUrl),
       `Geode latest kind-10050 did not reflect false-ACK inbox ${falseAckUrl}`);
-    await pageA.evaluate(async peer => {
+    const cacheClear = await pageA.evaluate(async peer => {
       const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
-      await new Promise((resolve, reject) => { const tx = db.transaction('settings', 'readwrite'); const request = tx.objectStore('settings').delete(`peer-inbox-${peer}`); request.onsuccess = resolve; request.onerror = () => reject(request.error); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); }); db.close();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction('settings', 'readwrite');
+        tx.objectStore('settings').delete(`peer-inbox-${peer}`);
+        tx.oncomplete = resolve;
+        tx.onabort = () => reject(tx.error || new Error('peer inbox cache deletion transaction aborted'));
+        tx.onerror = () => reject(tx.error || new Error('peer inbox cache deletion transaction failed'));
+      });
+      const remaining = await new Promise((resolve, reject) => {
+        const tx = db.transaction('settings', 'readonly');
+        const request = tx.objectStore('settings').get(`peer-inbox-${peer}`);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error);
+      });
+      db.close();
+      return { deleted: remaining === null };
     }, b.pubkey);
+    assert.equal(cacheClear.deleted, true, 'peer inbox cache deletion committed before the recipient list is rediscovered');
+    report.failure_checks.false_ack_cache_clear = cacheClear;
     await pageA.reload({ waitUntil: 'domcontentloaded' }); await pageA.locator('#workspace').waitFor({ state: 'visible', timeout: 20000 });
     await openConversation(pageA, b.npub, 'B privado');
     stage = 'G04-04: independent false-ack query'; const falseAckText = `property-g04-false-ack-${crypto.randomUUID()}`; await sendMessage(pageA, falseAckText);
     await pageA.waitForFunction(value => [...document.querySelectorAll('#messages .message-row')].some(row => row.textContent.includes(value)), falseAckText, { timeout: 10000 });
     await waitForMessageStatus(pageA, b.pubkey, falseAckText, 'sent');
-    const falseIds = [...falseAck.events]; assert.ok(falseIds.length >= 1, 'false-ACK fixture received an actual recipient envelope');
+    const falseIds = [...falseAck.events];
+    report.failure_checks.false_ack_fixture = { ...falseAck.diagnostics, event_ids: falseIds, websocket_url_observed: report.websockets.some(url => url.startsWith(`${falseAckUrl}/`)) };
+    assert.ok(falseIds.length >= 1, `false-ACK fixture received no recipient envelope: ${JSON.stringify(report.failure_checks.false_ack_fixture)}`);
     const fakeQuery = await wsQuery(falseAckUrl, { ids: falseIds, limit: 20 });
     assert.deepEqual(fakeQuery, [], 'independent query detects the false ACK did not persist the event');
     report.failure_checks = { one_of_two_inboxes_down_delivered_over_remaining_relay: true, both_inboxes_down_marked_pending: true,
       recovered_after_relay_restart: true, false_ack_event_ids: falseIds, false_ack_independent_query_count: fakeQuery.length,
-      false_ack_client_status_after_ack: 'sent', false_ack_detected_by_independent_query: true };
+      false_ack_client_status_after_ack: 'sent', false_ack_detected_by_independent_query: true,
+      false_ack_cache_clear: cacheClear,
+      false_ack_fixture: { ...falseAck.diagnostics, event_ids: falseIds, websocket_url_observed: report.websockets.some(url => url.startsWith(`${falseAckUrl}/`)) } };
     mark('G04-04', 'PASS', 'The live inbox carried messages when the second relay was down; all-inbox outage stayed pending; relay restart restored delivery; an intentional false ACK was caught by an independent query.');
 
     // G04-05: no kind-10050 means no private send; signature tampering is rejected by real Geode.
@@ -436,7 +462,11 @@ async function main() {
     for (const row of report.cases) if (row.status === 'NOT_RUN') Object.assign(row, { status: 'BLOCKED', reason: 'A prior G04 case failed; dependent end-to-end flow was not started.' });
     report.result = report.cases.some(row => row.status === 'FAIL') ? 'FAIL' : 'BLOCKED'; report.error = safeText(error.message || error); report.current_stage = stage;
     report.denied_proxy_attempts = [...(proxy?.attempts || [])];
-    await writeReport(path.resolve(options?.output || path.join(temp, 'report')), report).catch(() => {});
+    await new Promise(resolve => setTimeout(resolve, 250));
+    report.relay_process_output = [relay0, relay1].filter(Boolean).map(relay => ({ pid: relay.child?.pid || null, tail: safeDiagnostic(relay.diagnostic?.() || '') }));
+    if (falseAck) report.failure_checks.false_ack_fixture = { ...falseAck.diagnostics, event_ids: [...falseAck.events], websocket_url_observed: report.websockets.includes(`ws://127.0.0.1:${falseAck.server.address()?.port}/`) };
+    try { await writeReport(path.resolve(options?.output || path.join(temp, 'report')), report); }
+    catch (writeError) { process.stderr.write(`REPORT_WRITE_FAILED: ${safeText(writeError.message || writeError)}\n`); }
     process.stderr.write(`${report.result}: ${report.error}\n`); return report.result === 'BLOCKED' ? 2 : 1;
   } finally {
     await closeContext(contextD); await closeContext(contextC); await closeContext(contextB); await closeContext(contextA);
