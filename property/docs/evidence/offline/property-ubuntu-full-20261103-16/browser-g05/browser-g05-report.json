@@ -1,0 +1,552 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G05-01",
+      "status": "PASS",
+      "reason": "A signed public event traversed three actual PWA bridge contexts and four independent Geode relays in the R1→R2→R3→R4 chain; each hop and the final inbox were independently reconciled."
+    },
+    {
+      "case": "G05-02",
+      "status": "PASS",
+      "reason": "Stopping P23 stopped new delivery at R2; restarting its PWA bridge replayed the eligible event through R3/R4. Age boundaries are covered separately with a fixed logical clock in G05-06."
+    },
+    {
+      "case": "G05-03",
+      "status": "PASS",
+      "reason": "Diamond, cycle and star topologies delivered through independent real browser bridges; relay ID queries showed one stored copy, and stopping one diamond path preserved delivery over the other."
+    },
+    {
+      "case": "G05-04",
+      "status": "PASS",
+      "reason": "Relay groups remained partitioned, then rejoined through a restarted P23. Two events published out of order reconciled once at R4 without duplicate IDs."
+    },
+    {
+      "case": "G05-05",
+      "status": "PASS",
+      "reason": "Three non-recipient bridge identities did not forward B’s envelope. B’s real PWA bridge forwarded only B’s recipient wrap to B’s inbox; A’s sender copy followed A’s inbox when A was the bridge identity."
+    },
+    {
+      "case": "G05-06",
+      "status": "PASS",
+      "reason": "UI toggle stopped and resumed the real PWA bridge. Fixed-input checks verified source exclusion, ID deduplication, signature/age boundaries, a 60-of-61 event batch and UTF-8 byte-based containment above 2 MB."
+    },
+    {
+      "case": "G05-07",
+      "status": "PASS",
+      "reason": "Closing the mobile-sized browser context stopped its bridge while both independent Geode relays remained available; a reopened context resumed forwarding. This is desktop viewport emulation only and does not certify physical mobile suspension/background behavior."
+    }
+  ],
+  "nodes": [
+    {
+      "label": "P12",
+      "pubkey": "b5aeab2bc709cb979f93a708feb7c6e984f9ce5b7868eba14a81e08c641d4598",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "P23",
+      "pubkey": "06fccac2291dc949e2c06d261a51da1d704b0ae284f0f1cfb77eae5c9610a35e",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "P34",
+      "pubkey": "afad0e38e8a97400e3babffafe35f91c866e86bb1459365bd08c1bc07941278a",
+      "general_relays": [
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "P23-restarted",
+      "pubkey": "d58861ddbaf95bb2c621f4f1be20f2d54688d0dc6c54ec090998a2548dc4cf55",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "D-P12",
+      "pubkey": "9a2764bc09c9445688f1b4fa6af5edfeed15b4ae349992b532c53d60a8491241",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "D-P13",
+      "pubkey": "5d984fd9bc4626585caa9baa44e4755fcec0121b8f159eae7793aa9757d6cdc4",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "D-P24",
+      "pubkey": "db3312b9a0f7bf37cb1790301e754adf7a76a5583314977d304d79dbaf6b2905",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "D-P34",
+      "pubkey": "d8565722cd5e41f1593484cbbbba73c76dcf5e5c1999cf5ca4349357fa182523",
+      "general_relays": [
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "D-P41",
+      "pubkey": "54759e99d74c8c84963e711e0113edb6858da96382de344d2093cbde6f1389bd",
+      "general_relays": [
+        "ws://127.0.0.1:28475",
+        "ws://127.0.0.1:28472"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "S12",
+      "pubkey": "5b3588ee8220aea3cbeacc9aeea0ca5769f208fe38ca321bc0d25d7092480d98",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "S13",
+      "pubkey": "a4c67a88e4813d5c2b1f085ca0ef6dee27313750ce7e88978f76d8a73f9381fb",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "S14",
+      "pubkey": "4935cd29854db254c6adac009484d5a575239170ee35d2769eda41aa942c0f6f",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "Q12",
+      "pubkey": "4753193b986f4bd4edad1cf43677bb2e6d284df6e691fe53725db992f932a63f",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "Q34",
+      "pubkey": "c64d3a382f3486c00ab94ab0e52a64b7bbd96956c5a2d39626a0aad649a9c3e0",
+      "general_relays": [
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "Q23-rejoined",
+      "pubkey": "97d7d272722026beff6bf55a0fcb499a0efe433950c1bc3fc16d61da7b726feb",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "C12-identity-C",
+      "pubkey": "b14c9e97d94e4f0e9525ce0b9181cf40a07c0527a5e3832d6a78b8bc44745d43",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "C23-identity-C",
+      "pubkey": "f505ddc8d98bb93db2ae16f8feae7956522f3300f88d70cabfbc7395945d1b38",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "C34-identity-C",
+      "pubkey": "186aa926361e59fa429146a40ac7536abac30f890f09bba91f77f70a1113a754",
+      "general_relays": [
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "B-identity-B",
+      "pubkey": "b08f8cb6347ba94f3115085fbef4d94af5f8fbcf9e9a81bc3728233edbc99add",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [
+        "ws://127.0.0.1:28473"
+      ],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "A-identity-A",
+      "pubkey": "684c283539da3db9ee40db93e5784c1ca1113583a48f00e298ab1c13ca73b680",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [
+        "ws://127.0.0.1:28473"
+      ],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "toggle-node",
+      "pubkey": "eb0e7f5cb08ab71bfb725074b0fff8e1a045b935ff4bc40f5949a527236c0d06",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "mobile-emulation",
+      "pubkey": "65a53dc87a2520014567e827e6fa21c2f2fc1d45e50dfe05279ba7ab1c5eb079",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": true,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "mobile-emulation-reopened",
+      "pubkey": "9336628c19f99ff39b0545ceff0065238d1104275771e19a6e99e6abfef1e7ea",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": true,
+      "browser_bridge_enabled": true
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28472",
+      "process_id": 1812798,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28473",
+      "process_id": 1813366,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28474",
+      "process_id": 1813810,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28475",
+      "process_id": 1814505,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/"
+  ],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "topologies": {
+    "browser_engine_check": {
+      "valid": true,
+      "targets": [
+        "ws://127.0.0.1:28473"
+      ]
+    },
+    "chain": {
+      "relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "bridge_hops": [
+        "P12:R1->R2",
+        "P23:R2->R3",
+        "P34:R3->R4"
+      ],
+      "counts": {
+        "R1": 1,
+        "R2": 1,
+        "R3": 1,
+        "R4": 1
+      },
+      "event_id": "702d1b2feb42424704b8f09307ea95952ebffb01761bacfb6ff727b184f4a29c",
+      "signature_valid": true
+    },
+    "p23_failure": {
+      "event_id": "7fb3d9466d12e33d1968e2fa58f0651382c694c38fda08c547df2dc59fd3cac8",
+      "stored_while_partitioned": {
+        "R2": true,
+        "R3": false,
+        "R4": false
+      },
+      "replay_after_restart": {
+        "R3": true,
+        "R4": true
+      }
+    },
+    "diamond_and_cycle": {
+      "event_id": "e2f4e26e9463f68c9b8dc2a381eee8c4bc5935f94e079514da649143e34db477",
+      "per_relay_unique_count": 1,
+      "edges": {
+        "P12": [
+          "ws://127.0.0.1:28473"
+        ],
+        "P13": [
+          "ws://127.0.0.1:28474"
+        ],
+        "P24": [
+          "ws://127.0.0.1:28475"
+        ],
+        "P34": [
+          "ws://127.0.0.1:28474"
+        ],
+        "P41": [
+          "ws://127.0.0.1:28475"
+        ]
+      },
+      "alternate_path_after_P12_stopped": {
+        "event_id": "5357a9feb062bd1d2c45b93d7eebab26d8aeb692c62263fc42e0889918a7e853",
+        "R4_received": true
+      }
+    },
+    "star": {
+      "event_id": "5df49f9349ddb05f7de47b874f118de43a2eb8d85467685addc96f55cd3b6c7e",
+      "center": "ws://127.0.0.1:28472",
+      "leaves": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "per_relay_unique_count": 1
+    },
+    "partition_rejoin": {
+      "out_of_order_source_publications": [
+        "a2491090924cebbea113fed6483e067a3779f6c40c5aee91b17e2c91d96aec67",
+        "c67b7510a2c9a94a5519a770331574ee5b324c2b237c25753f6d4c70d2b9f0c6"
+      ],
+      "reconciled_at_R4": {
+        "first": 1,
+        "second": 1
+      },
+      "no_duplicate_ids": true
+    }
+  },
+  "privacy": {
+    "recipient_event_id": "783c1a1ce6707c8004367a4840149344d43ef1da17e4e2118203a715966c814f",
+    "sender_copy_event_id": "c4384dd5fa72525d9b5959c856b4f2469271542b18002ca8c581e9d29c1887f6",
+    "outsider_C_forwarded_recipient_event": false,
+    "B_forwarded_own_recipient_envelope_only_to_B_inbox": true,
+    "B_forwarded_A_sender_copy": false,
+    "A_forwarded_own_sender_copy_to_A_inbox": true,
+    "plaintext_test_content_in_relay_events": true
+  },
+  "limits": {
+    "bridge_off_stopped_forwarding": true,
+    "bridge_on_resumed_forwarding": true,
+    "origin_excluded": true,
+    "duplicate_suppressed": true,
+    "invalid_signature_rejected": true,
+    "invalid_boundary_repetitions": 3,
+    "old_and_future_events_rejected": true,
+    "age_boundary_accepted": true,
+    "future_skew_boundary_accepted": true,
+    "accepted_events_before_rate_limit": 60,
+    "rate_limit": 60,
+    "utf8_json_bytes": 400342,
+    "six_destination_bytes_exceed_2mb": true,
+    "byte_limit_contained": true
+  },
+  "mobile_emulation": {
+    "viewport": "390x844",
+    "context_closed_before_test_message": true,
+    "browser_bridge_stopped": true,
+    "independent_geode_relays_remained_available": true,
+    "reopened_context_resumed_forwarding": true,
+    "physical_mobile_os_suspension_or_background_service_certified": false
+  },
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "local_origin": "http://127.0.0.1:38773",
+  "result": "PASS"
+}

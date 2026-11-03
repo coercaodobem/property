@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "run_id": "96550dbb-abef-4166-8ad7-ba9b9bea6c4b",
+  "candidate_commit": "505c000c0e36d0149d76acc1d9948dd3202c4030",
+  "source_was_modified_after_candidate_commit": true,
+  "relay_soak_source_sha256": "f5c8c4bc6ac91c11e11a064fa2d33cafe9d257f51f173d484d12069266dd9e9b",
+  "command": "bash property/tests/offline/run-isolated.sh node property/tests/relay-soak.mjs 16 1 17449",
+  "wrapper_exit_code": 0,
+  "start_utc": "2026-11-03T22:32:24.767Z",
+  "end_utc": "2026-11-03T22:32:40.777Z",
+  "required_seconds": 16,
+  "observed_seconds": 16.009,
+  "scheduled_failures": 2,
+  "recovered_failures": 2,
+  "published_events": 10,
+  "reconciled_events": 10,
+  "scope_note": "Short harness validation only; it does not satisfy the separate real 24-hour soak requirement or any platform gate."
+}

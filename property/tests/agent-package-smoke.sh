@@ -24,7 +24,7 @@ if XDG_DATA_HOME="$DATA_HOME" "$LAUNCHER" unlock --password fixture >"$TEMP/stdo
   printf 'unlock aceitou uma senha por argumento\n' >&2
   exit 1
 fi
-rg -q 'não aceita senha por argumento' "$TEMP/stderr"
+grep -Fq -- 'não aceita senha por argumento' "$TEMP/stderr"
 
 mkdir -p -- "$DATA_HOME/property/agents/default"
 printf 'preserve-local-data\n' > "$DATA_HOME/property/agents/default/marker"

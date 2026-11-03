@@ -1,0 +1,25 @@
+{"at":"2026-11-03T22:32:22.417Z","event":"soak-preflight","relay":"ws://127.0.0.1:17449","requiredSeconds":16,"intervalSeconds":1,"runId":"96550dbb-abef-4166-8ad7-ba9b9bea6c4b","reconciliationBatchSize":50,"plannedFailureSignals":["SIGTERM","SIGKILL"]}
+{"at":"2026-11-03T22:32:24.586Z","event":"relay-ready","port":17449}
+{"at":"2026-11-03T22:32:24.767Z","event":"soak-window-start","startUtc":"2026-11-03T22:32:24.767Z","monotonicStartMs":2492.19254,"requiredSeconds":16,"persistenceMarkerId":"4ea3f77632cb6bf74e9ffee90bf511e3cf8ccb705c99f9a69d510d947db050f2"}
+{"at":"2026-11-03T22:32:25.789Z","event":"probe-pass","elapsedSeconds":1,"checks":2,"eventId":"c91c8f9eb6b0213d9a09cb74c66cbb67ffbe46f8b965ba86fef1e5aef6d7d4c3"}
+{"at":"2026-11-03T22:32:26.912Z","event":"probe-pass","elapsedSeconds":2,"checks":3,"eventId":"e7e8f3be31fa83283abb0135372dce48dba599d7034937e0b2f4bf0834dca01f"}
+{"at":"2026-11-03T22:32:28.030Z","event":"probe-pass","elapsedSeconds":3,"checks":4,"eventId":"d1fc23c9ad5ebf2dc89f9801f0eef3bfa934b0a5861fbfd91e4dc06aef22548d"}
+{"at":"2026-11-03T22:32:29.167Z","event":"probe-pass","elapsedSeconds":4,"checks":5,"eventId":"6e31bef36c8b11d73d9feece15ecab16b5d46f59bb7397ed537c7e3418d59f24"}
+{"at":"2026-11-03T22:32:29.867Z","event":"planned-failure-injected","failureNumber":1,"signal":"SIGTERM","elapsedSeconds":5}
+{"at":"2026-11-03T22:32:29.890Z","event":"relay-stopped","requestedSignal":"SIGTERM","exitedInTime":true}
+{"at":"2026-11-03T22:32:29.892Z","event":"relay-outage-observed","attempt":1}
+{"at":"2026-11-03T22:32:31.984Z","event":"relay-ready","port":17449}
+{"at":"2026-11-03T22:32:32.029Z","event":"planned-failure-recovery-pass","failureNumber":1,"signal":"SIGTERM","elapsedSeconds":5,"persistenceMarkerId":"4ea3f77632cb6bf74e9ffee90bf511e3cf8ccb705c99f9a69d510d947db050f2","latestEventId":"6e31bef36c8b11d73d9feece15ecab16b5d46f59bb7397ed537c7e3418d59f24"}
+{"at":"2026-11-03T22:32:33.234Z","event":"probe-pass","elapsedSeconds":8,"checks":6,"eventId":"4959c0717447f052bbd505b8d120f26e23e39d4a99ad9520c598fe405ace24f1"}
+{"at":"2026-11-03T22:32:34.350Z","event":"probe-pass","elapsedSeconds":9,"checks":7,"eventId":"4bd8f62fd007c11b97873afb8c0378e7949d53e5dbcdc1fb5ee567811b8d2d51"}
+{"at":"2026-11-03T22:32:34.867Z","event":"planned-failure-injected","failureNumber":2,"signal":"SIGKILL","elapsedSeconds":10}
+{"at":"2026-11-03T22:32:34.882Z","event":"relay-stopped","requestedSignal":"SIGKILL","exitedInTime":true}
+{"at":"2026-11-03T22:32:34.883Z","event":"relay-outage-observed","attempt":1}
+{"at":"2026-11-03T22:32:36.968Z","event":"relay-ready","port":17449}
+{"at":"2026-11-03T22:32:37.011Z","event":"planned-failure-recovery-pass","failureNumber":2,"signal":"SIGKILL","elapsedSeconds":10,"persistenceMarkerId":"4ea3f77632cb6bf74e9ffee90bf511e3cf8ccb705c99f9a69d510d947db050f2","latestEventId":"4bd8f62fd007c11b97873afb8c0378e7949d53e5dbcdc1fb5ee567811b8d2d51"}
+{"at":"2026-11-03T22:32:38.218Z","event":"probe-pass","elapsedSeconds":13,"checks":8,"eventId":"5faf2e99d35a555da4c844d4abb0d8cd80f56413c634fc8bb1b1c2cfdff5c1c3"}
+{"at":"2026-11-03T22:32:39.334Z","event":"probe-pass","elapsedSeconds":14,"checks":9,"eventId":"2e7688603436d418a4ed39177d34ba370a33a787610b0eca9ffc5de39e03f264"}
+{"at":"2026-11-03T22:32:40.351Z","event":"probe-pass","elapsedSeconds":15,"checks":10,"eventId":"9ba5018e435bf110a8f419400099a9824011666ba12a35a75b1b116651c7701c"}
+{"at":"2026-11-03T22:32:40.777Z","event":"final-reconciliation-pass","publishedEvents":10,"reconciledEvents":10,"exactOnce":true,"batchSize":50}
+{"at":"2026-11-03T22:32:40.777Z","event":"soak-pass","startUtc":"2026-11-03T22:32:24.767Z","endUtc":"2026-11-03T22:32:40.777Z","requiredSeconds":16,"observedSeconds":16.009,"checks":10,"plannedFailures":2,"completedRecoveries":2,"publishedEvents":10,"reconciledEvents":10,"clock":"performance.now monotonic"}
+{"at":"2026-11-03T22:32:40.811Z","event":"relay-stopped","requestedSignal":"SIGTERM","exitedInTime":true}

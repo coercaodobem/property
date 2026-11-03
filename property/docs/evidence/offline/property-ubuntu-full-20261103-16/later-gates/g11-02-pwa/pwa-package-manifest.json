@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "case": "G11-02-PWA",
+  "status": "PASS",
+  "builder": "Node.js v22.22.1; built-in filesystem and SHA-256; no fetched dependencies",
+  "source": "property/web static PWA tree",
+  "asset_count": 23,
+  "total_asset_bytes": 457470,
+  "source_package_sha256": "e062920e391e6b64c445ed5dce0b356d64b6c796e4701120f9202ad8f553ff2b",
+  "first_build_sha256": "e062920e391e6b64c445ed5dce0b356d64b6c796e4701120f9202ad8f553ff2b",
+  "second_build_sha256": "e062920e391e6b64c445ed5dce0b356d64b6c796e4701120f9202ad8f553ff2b",
+  "builds_match_source": true,
+  "assets": [
+    {
+      "path": "about.html",
+      "bytes": 3837,
+      "sha256": "9e33d6e4b2c84d5ece38fd486e0c1e92618437d6718069a51566bf7d9314f72f"
+    },
+    {
+      "path": "agent-messaging.js",
+      "bytes": 7568,
+      "sha256": "da67cc6e1c50f9827007750c69b3ceb2fc7d14be0b12494faa261f4693254e03"
+    },
+    {
+      "path": "app.js",
+      "bytes": 62600,
+      "sha256": "44219170edc5a90237c95360c7f311aa6a19b24c63bfab8d39dd92cac7433b40"
+    },
+    {
+      "path": "assets/icon.svg",
+      "bytes": 442,
+      "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479"
+    },
+    {
+      "path": "assets/property-brand.png",
+      "bytes": 38402,
+      "sha256": "eaf0c0e7b36ede4ffb62324c372df8882880c96fb170e102e4798b773b23c077"
+    },
+    {
+      "path": "assets/property-icon-180.png",
+      "bytes": 4969,
+      "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa"
+    },
+    {
+      "path": "assets/property-icon-192.png",
+      "bytes": 5427,
+      "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678"
+    },
+    {
+      "path": "assets/property-icon-512.png",
+      "bytes": 14322,
+      "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df"
+    },
+    {
+      "path": "campaigns.js",
+      "bytes": 6760,
+      "sha256": "d15dde4c808542693a86e870d409f6fb26173c5492dbf89be56d79c33c9fd75b"
+    },
+    {
+      "path": "contact.js",
+      "bytes": 1947,
+      "sha256": "56c1c905d8819ef469b5c3bc5523fe9cd5fb7e3056c2f3de8627f896739d2b80"
+    },
+    {
+      "path": "forwarding.js",
+      "bytes": 3703,
+      "sha256": "377029d5059a82f2ba5a261cf5a615cfe41531ddf6fa479c7e2d83c3333027ad"
+    },
+    {
+      "path": "index.html",
+      "bytes": 20243,
+      "sha256": "32dde4a42e73422b5564f0afd4c18a88e7fa2a1be1c6536994f1b7b7c0a1340b"
+    },
+    {
+      "path": "manifest.webmanifest",
+      "bytes": 648,
+      "sha256": "adbdf373871a5ac07e76728d3b742c7d7ca8e03eefb7014f72a6df8f62b05366"
+    },
+    {
+      "path": "marketplace.js",
+      "bytes": 6415,
+      "sha256": "47da3f85683c51fc5796b262affc052b07dd4ebfdac6453ac66deb07d1c43a3c"
+    },
+    {
+      "path": "money.js",
+      "bytes": 1868,
+      "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268"
+    },
+    {
+      "path": "nano.js",
+      "bytes": 1207,
+      "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c"
+    },
+    {
+      "path": "routing.js",
+      "bytes": 1700,
+      "sha256": "723d7a7db063a2d3c33f0f0e1da3f4c9bb9252c9323069deaec872552af8d62f"
+    },
+    {
+      "path": "styles.css",
+      "bytes": 15702,
+      "sha256": "dcfff23ba549f225dfc9f1a2969370cd6bafbf99a26d2552c22c399375273acd"
+    },
+    {
+      "path": "sw.js",
+      "bytes": 1986,
+      "sha256": "59528efe72795947bea48657537cee502b512a5ae762bcbaa2d11e21050caee8"
+    },
+    {
+      "path": "vault.js",
+      "bytes": 3692,
+      "sha256": "437fee86397db747d487b186e6713962a1c84855da29e43d371db78ee16f0846"
+    },
+    {
+      "path": "vendor/README.md",
+      "bytes": 842,
+      "sha256": "31622a7ae4b154c9fc96b8884c65335f088b36686b3daa010fd733a3452dff64"
+    },
+    {
+      "path": "vendor/nostr-tools-2.25.2.bundle.js",
+      "bytes": 251980,
+      "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407"
+    },
+    {
+      "path": "vendor/nostr-tools-LICENSE",
+      "bytes": 1210,
+      "sha256": "f0510d3b9d1223c45e8fdd2b49270ec8734fff491c7f7d1b948ee70162e1ceff"
+    }
+  ]
+}
