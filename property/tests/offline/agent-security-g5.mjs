@@ -22,6 +22,8 @@ const categories = Object.create(null);
 const corpusManifest = [];
 const captures = { hostileReadToolCalls: 0, relayReadRequests: 0, relayPublishFrames: 0, externalConnections: 0 };
 let tempRoot;
+let hostileSideEffects;
+let readOnlyFrameCapture;
 
 function record(id, details = {}) { return { id, result: 'PASS', ...details }; }
 function digest(raw) { return createHash('sha256').update(raw).digest('hex'); }
@@ -84,6 +86,7 @@ async function testHostileCorpus() {
   assert.equal(JSON.stringify(beforeConfig), baseline, 'leitura hostil não alterou identidade, contatos, relays ou escopos');
   assert.equal(captures.relayPublishFrames, 0, 'leitura hostil não publicou em relay');
   assert.equal(inviteCalls, 0, 'leitura hostil não criou convites');
+  hostileSideEffects = { fixtureReads: corpus.length, relayPublishes: captures.relayPublishFrames, invitations: inviteCalls, configChanged: JSON.stringify(beforeConfig) !== baseline };
   return results;
 }
 
@@ -169,6 +172,7 @@ async function testAuthenticityAndReplay() {
     assert.equal(CapturingWebSocket.frames.filter(frame => frame === 'REQ').length, 2);
     assert.equal(CapturingWebSocket.frames.filter(frame => frame === 'EVENT').length, 0, 'leitura e ataques não publicam eventos');
     assert.equal(CapturingWebSocket.frames.filter(frame => frame === 'CLOSE').length, 2);
+    readOnlyFrameCapture = { readRequests: 2, closeFrames: 2, publishEvents: 0 };
     assert.equal(nostr.verifyEvent(valid), true);
     assert.equal(nostr.verifyEvent(JSON.parse(JSON.stringify(poison))), false);
 
@@ -216,7 +220,7 @@ async function testAuthenticityAndReplay() {
     record('relay-event-accumulation-capped-at-500-events'),
     record('oversized-publish-ack-rejected-and-never-reported-as-success'),
     record('temporary-secret-and-event-json-cleared-from-vm-context'),
-    record('network-frame-capture-observed-REQ-and-CLOSE-only-no-EVENT-publication'),
+    record('read-path-capture-has-no-publish-event', readOnlyFrameCapture),
   ];
 }
 
@@ -362,6 +366,7 @@ async function main() {
     counts: { hostileFixtures: corpusManifest.length, replayDuplicateCopies: 100, scopeViolations: 50, overQuotaAttempts: 50, successfulSendsBeforeQuota: 30, contactScopeRotationRevocationCycles: 20, testCases: records.length },
     hostileFixtureCategories: categories,
     captures: { ...captures, websocketFrames: { reads: CapturingWebSocket.frames.filter(frame => frame === 'REQ').length, closes: CapturingWebSocket.frames.filter(frame => frame === 'CLOSE').length, publishedEvents: CapturingWebSocket.frames.filter(frame => frame === 'EVENT').length } },
+    hostileSideEffects,
     fixesExercised: ['verify event before deduplication', 'deduplicate NIP-17 event IDs and message IDs across configured relays', 'bound relay frame before JSON parsing', 'bounded MCP stdin line buffering and resynchronization', 'reject duplicate/deep persisted and IPC JSON', 'reject symlink, wrong-mode, oversized config files', 'apply read/send allowlist and quota before transport'],
     limitations: ['Independent security review has not occurred and remains PENDING.', 'No commercial host/model was run; semantic prompt-injection behavior inside an external model is not evaluated.', 'The 20 cycles cover contact-scope rotation and local revocation, not cryptographic agent-key rotation; no key-rotation command or remote revocation notice exists.', 'No real person or real human identity was used; synthetic data preservation does not prove human G1/G6 UX.'],
     evidence: records,
@@ -372,6 +377,8 @@ async function main() {
     let text = ''; child.stdout.on('data', chunk => { text += chunk.toString(); }); child.on('exit', code => resolve(code === 0 ? text.trim() : 'unknown'));
   });
   summary.sourceCommitAtRun = source;
+  summary.planSha256 = digest(await readFile(path.join(ROOT, 'docs/plano-agentes-human-first.md')));
+  summary.threatModelSha256 = digest(await readFile(path.join(ROOT, 'docs/agent-messaging-g0.md')));
   summary.corpusManifestSha256 = digest(JSON.stringify(corpusManifest));
   summary.fixtureCodeSha256 = digest(await readFile(fileURLToPath(import.meta.url)));
   if (process.env.PROPERTY_G5_WRITE_EVIDENCE === '1') {
