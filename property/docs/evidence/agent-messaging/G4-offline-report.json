@@ -19,14 +19,14 @@
     "geodeSha256": "9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7"
   },
   "counts": {
-    "mcpTools": 5,
+    "mcpTools": 4,
     "readsPerAgent": 25,
     "sendsPerAgent": 25,
-    "outOfScopeRequests": 10,
+    "outOfScopeDenials": 10,
     "nonexistentTools": 10,
     "stdioShutdownRestarts": 10,
     "relayDisconnectedErrors": 10,
-    "pendingApprovalRequests": 1,
+    "permissionRequestTools": 0,
     "concurrentSends": 2,
     "cases": 28
   },
@@ -36,9 +36,17 @@
     "dataDirectoriesMode0700": true,
     "unixSocketsMode0600": true,
     "noTcpListener": true,
-    "approvedConversationAllowlistEnforced": true,
+    "configuredConversationPolicyEnforced": true,
+    "outOfScopeDeniedWithoutApprovalQueue": true,
+    "permissionRequestToolAndQueueRemoved": true,
+    "propertyDoesNotRequestPerCallApproval": true,
+    "sendToolAnnotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
+    },
     "noSecretReturnedByTools": true,
-    "approvalRequestDoesNotGrantScope": true,
     "signedInviteAcceptedByExistingPwaParser": true,
     "relayAcknowledgementMeansOnlyLocalRelayAcceptance": true,
     "allMcpStdoutIsJsonRpc": true,
@@ -94,7 +102,7 @@
       "result": "PASS"
     },
     {
-      "id": "10-out-of-scope-conversation-reads-fail-closed",
+      "id": "10-out-of-scope-read-and-send-actions-are-denied-without-prompt",
       "result": "PASS"
     },
     {
@@ -102,7 +110,7 @@
       "result": "PASS"
     },
     {
-      "id": "approval-request-creates-pending-record-without-expanding-scope",
+      "id": "no-permission-request-tool-or-approval-queue",
       "result": "PASS"
     },
     {

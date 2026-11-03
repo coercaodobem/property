@@ -231,6 +231,8 @@ async function main() {
     const inventory = await host.call('tools/list');
     assert.equal(inventory.result.tools.length, 4);
     assert.deepEqual(inventory.result.tools.map(tool => tool.name), ['property_status', 'property_list_conversations', 'property_read_messages', 'property_send_message']);
+    const sendTool = inventory.result.tools.find(tool => tool.name === 'property_send_message');
+    assert.deepEqual(sendTool.annotations, { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true });
     record(`${host.name}-fixed-tool-inventory-and-approved-list`);
   }
 
@@ -306,7 +308,7 @@ async function main() {
     gate: 'G4', status: 'PASS_TECHNICAL_OFFLINE', seed: SEED, logicalNow: FIXED_NOW,
     environment: { os: 'linux/x64', node: process.version, mcpProtocol: '2026-07-28', externalConnections: 0, externalModels: 0, realParticipants: 0, agents: 2, mcpHostFixtures: ['host-a', 'host-b'], isolatedGeodeRelays: 1, geodeSha256: GEODE_SHA256 },
     counts: { mcpTools: 4, readsPerAgent: 25, sendsPerAgent: 25, outOfScopeDenials: 10, nonexistentTools: 10, stdioShutdownRestarts: 10, relayDisconnectedErrors: 10, permissionRequestTools: 0, concurrentSends: 2, cases: cases.length },
-    evidence: { encryptedVaultWith600000Iterations: true, vaultMode0600: true, dataDirectoriesMode0700: true, unixSocketsMode0600: true, noTcpListener: true, configuredConversationPolicyEnforced: true, outOfScopeDeniedWithoutApprovalQueue: true, noSecretReturnedByTools: true, signedInviteAcceptedByExistingPwaParser: true, relayAcknowledgementMeansOnlyLocalRelayAcceptance: true, allMcpStdoutIsJsonRpc: true, externalTraffic: false },
+    evidence: { encryptedVaultWith600000Iterations: true, vaultMode0600: true, dataDirectoriesMode0700: true, unixSocketsMode0600: true, noTcpListener: true, configuredConversationPolicyEnforced: true, outOfScopeDeniedWithoutApprovalQueue: true, permissionRequestToolAndQueueRemoved: true, propertyDoesNotRequestPerCallApproval: true, sendToolAnnotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }, noSecretReturnedByTools: true, signedInviteAcceptedByExistingPwaParser: true, relayAcknowledgementMeansOnlyLocalRelayAcceptance: true, allMcpStdoutIsJsonRpc: true, externalTraffic: false },
     cases,
   };
   await writeFile(path.join(PROPERTY_ROOT, 'docs/evidence/agent-messaging/G4-offline-report.json'), `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });

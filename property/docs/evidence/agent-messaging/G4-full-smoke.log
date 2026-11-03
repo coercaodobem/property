@@ -15,7 +15,7 @@ PASS: campanhas assinadas, raw exato, URLs/imagens limitadas, expiração, bloqu
 PASS: signed node decisions, independent policy, persisted campaign state machine, exact payment reconciliation, idempotent publication/refund, and expiry tombstone
 
 == ledger-rpc-smoke.mjs ==
-PASS: Nano v28 raw open/state receive history and string confirmation values are reconciled exactly.
+PASS: Nano v28 open/state history, normalized history fallback, and string confirmation values reconcile exactly.
 
 == protocol-smoke.mjs ==
 PASS: NIP-17 wrap/unwrap, recipient isolation, kind-10050 inbox routing, local AES-GCM, vendor hash
@@ -442,15 +442,19 @@ PASS: G0 protocol snapshots, exact hashes, required protocol semantics, local sc
 == agent-package-smoke.mjs ==
 PASS: manifesto, hashes, pacote fixado, escopo de plataforma e contratos de instalação conferidos.
 
+== offline/agent-security-g5.mjs ==
+PASS_G5_TECHNICAL_OFFLINE_PENDING_INDEPENDENT_REVIEW
+{"seed":"property-g5-hostile-replay-scope-quota-revoke-v1","logicalNow":1900000000,"sourceCommit":"ad168c09b6745e362b5d601389f1914f54e0c6ad","counts":{"hostileFixtures":100,"replayDuplicateCopies":100,"scopeViolations":50,"overQuotaAttempts":50,"successfulSendsBeforeQuota":30,"contactScopeRotationRevocationCycles":20,"testCases":365},"categories":{"prompt-injection-text":15,"markdown-links-and-images":10,"url-redirection":10,"spoofed-agent-profile":10,"deep-json-text":10,"duplicate-json-fields":10,"oversized-payload":10,"embedded-commands":10,"secret-exfiltration-requests":15},"records":365,"corpusManifestSha256":"2f84535bb937a77302af7c7b691af6cc4cf1f6cf201fec9e3d6827da8e4391b4","fixtureCodeSha256":"4bb37c7a1f58a7d5608714cb4d4441c004c80c35023edc2a03ed80798bfe212c"}
+
 == offline/runner-contract-smoke.mjs ==
 PASS: offline runner contract, resume safety and G00-04 interruption verified
 
 == agent-package-smoke.sh ==
-Property Agent instalado/atualizado em /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.33kzJf/prefix/share/property/agent
-Execute: /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.33kzJf/prefix/bin/property-agent status
-Property Agent instalado/atualizado em /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.33kzJf/prefix/share/property/agent
-Execute: /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.33kzJf/prefix/bin/property-agent status
-Executáveis Property Agent removidos de /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.33kzJf/prefix. Cofres em XDG_DATA_HOME/property/agents não foram alterados.
+Property Agent instalado/atualizado em /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.ZjFvIo/prefix/share/property/agent
+Execute: /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.ZjFvIo/prefix/bin/property-agent status
+Property Agent instalado/atualizado em /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.ZjFvIo/prefix/share/property/agent
+Execute: /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.ZjFvIo/prefix/bin/property-agent status
+Executáveis Property Agent removidos de /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.ZjFvIo/prefix. Cofres em XDG_DATA_HOME/property/agents não foram alterados.
 PASS: instalação, atualização, remoção, wrapper CLI e preservação do cofre/dados locais.
 
 PASS: suíte smoke local concluída.

@@ -1,6 +1,6 @@
 # Property Agent local
 
-Runtime inicial para Ubuntu/Linux com Node.js 22 ou mais recente. Ele mantém uma identidade Nostr separada, cifra a chave em um cofre local e oferece ao host MCP apenas cinco ferramentas fechadas. O processo MCP usa `stdio` e encaminha pedidos por um socket Unix privado ao daemon desbloqueado. Não abre um endpoint HTTP/TCP, não oferece shell/filesystem e não baixa código em runtime.
+Runtime inicial para Ubuntu/Linux com Node.js 22 ou mais recente. Ele mantém uma identidade Nostr separada, cifra a chave em um cofre local e oferece ao host MCP apenas quatro ferramentas fechadas. O processo MCP usa `stdio` e encaminha pedidos por um socket Unix privado ao daemon desbloqueado. Não abre um endpoint HTTP/TCP, não oferece shell/filesystem e não baixa código em runtime.
 
 ## Instalação e remoção
 
@@ -45,7 +45,7 @@ A PWA verifica o convite e, no pareamento inicial, a pessoa escolhe os escopos d
 property-agent contact configure npub1... --name "Pessoa" --relay wss://relay.example --read --send
 ```
 
-Use `--read` e `--send` para definir a política desse contato. Essa confirmação de configuração é feita uma vez por contato; o agente não recebe permissões fora desses escopos. Depois da configuração, o agente usa as ferramentas automaticamente dentro da política, sem aprovação por mensagem ou sessão. Uma tentativa fora do escopo é recusada imediatamente; não há pedido, fila ou ampliação automática. Para alterar a política ou revogar localmente, use `property-agent contact configure` com os novos escopos ou `property-agent contact revoke npub1...`. A revogação bloqueia novas chamadas locais, mas esta versão não publica um controle NIP-17 de revogação remota.
+Use `--read` e `--send` para definir a política desse contato no setup. O agente não recebe permissões fora desses escopos. Depois de salvar a configuração, o agente usa as ferramentas automaticamente dentro da política, sem aprovação por mensagem ou sessão. Uma tentativa fora do escopo é recusada imediatamente; não há pedido, fila ou ampliação automática. Para alterar a política ou revogar localmente, use `property-agent contact configure` com os novos escopos ou `property-agent contact revoke npub1...`. A revogação bloqueia novas chamadas locais, mas esta versão não publica um controle NIP-17 de revogação remota.
 
 Perfis antigos são migrados ao desbloquear: contatos, relays e cota são preservados; pedidos pendentes da antiga fila de aprovação são descartados.
 
@@ -66,14 +66,14 @@ Mantenha `property-agent unlock` ativo em uma sessão local do usuário. Configu
 }
 ```
 
-O caminho é de exemplo e deve ser substituído pelo caminho local escolhido. O servidor anuncia somente `server/discover`, `tools/list` e `tools/call` na versão MCP fixada `2026-07-28`. Tools: `property_status`, `property_list_conversations`, `property_read_messages` e `property_send_message`. Nenhuma tool retorna chave, senha, arquivo, comando, configuração arbitrária ou evento para assinatura. Envio exige contato com escopo `send`, texto até 8 KiB e cota de 30 envios por agente por janela lógica de 60 segundos; o ACK do relay não significa entrega/leitura. Chamadas fora da política configurada são recusadas automaticamente.
+O caminho é de exemplo e deve ser substituído pelo caminho local escolhido. O servidor anuncia somente `server/discover`, `tools/list` e `tools/call` na versão MCP fixada `2026-07-28`. Tools: `property_status`, `property_list_conversations`, `property_read_messages` e `property_send_message`. Nenhuma tool retorna chave, senha, arquivo, comando, configuração arbitrária ou evento para assinatura. Envio exige contato com escopo `send`, texto até 8 KiB e cota de 30 envios por agente por janela lógica de 60 segundos; o ACK do relay não significa entrega/leitura. Chamadas dentro dos escopos configurados funcionam sem pedido de aprovação ao Property; chamadas fora deles são recusadas imediatamente e sem fila. O envio MCP é marcado como aditivo e não idempotente. O host MCP pode impor confirmações próprias; isso depende da política do host e não é controlado pela bridge.
 
 O socket fica sob `$XDG_RUNTIME_DIR/property-agent/`, com modo `0600`; se `XDG_RUNTIME_DIR` não existir, o runtime tenta `/run/user/<uid>` e falha se não puder restringir o diretório. `property-agent lock` encerra o daemon e remove o socket. O cofre permanece cifrado em disco.
 
-O bloco acima é uma configuração MCP genérica para hosts que aceitam servidores locais por stdio. O G4 usou clientes MCP de referência; Codex, ChatGPT, Claude e outros hosts comerciais ainda não foram testados. Ajuste o formato ao host escolhido e não presuma compatibilidade até uma conexão real ser verificada. O Property não anuncia conformidade A2A.
+O bloco acima é uma configuração MCP genérica para hosts que aceitam servidores locais por stdio. O G4 usou clientes MCP de referência; Codex, ChatGPT, Claude e outros hosts comerciais ainda não foram testados. Ajuste o formato ao host escolhido e não presuma compatibilidade até uma conexão real ser verificada. O host pode exigir confirmação por chamada segundo sua configuração própria. O Property não anuncia conformidade A2A.
 
 ## Dependências e compatibilidade
 
 O runtime não instala dependências Node externas. Reusa `nostr-tools` 2.25.2 local, Unlicense, SHA-256 `a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407`, e `web/agent-messaging.js` do mesmo checkout/pacote. O host precisa fornecer Node.js 22+ e o sistema operacional precisa fornecer socket Unix e WebSocket nativo do Node.
 
-A evidência G4 disponível cobre a bridge anterior, com cinco tools. O contrato atual de quatro tools ainda aguarda validação offline própria. Windows e macOS continuam pendentes para IPC/armazenamento nativos; iOS e Android não executam este daemon. O uso humano continua disponível pela PWA sem bridge. G1 e G6 exigem sessões humanas reais antes de declarar UX validada ou piloto pronto.
+A evidência G4 cobre o contrato atual de quatro tools em ensaio técnico offline no Ubuntu/Linux x64. Windows e macOS continuam pendentes para IPC/armazenamento nativos; iOS e Android não executam este daemon. O uso humano continua disponível pela PWA sem bridge. G1 e G6 exigem sessões humanas reais antes de declarar UX validada ou piloto pronto. Hosts MCP comerciais ainda não foram testados.
