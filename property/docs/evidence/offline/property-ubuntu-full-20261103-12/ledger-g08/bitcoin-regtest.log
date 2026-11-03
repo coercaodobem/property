@@ -1,0 +1,60 @@
+87 tx=210 date='2026-11-03T19:19:40Z' progress=1.000000 cache=0.3MiB(210txo)
+2026-11-03T19:19:40Z [advertiser] AddToWallet 0677a56e29fee2ac3dc2caa6fe193ba18e7264c135c7f633a9d0c61430ee5868 new Confirmed (block=2fcec043cc55aff8019b5f672d6bd99159955a8e572e19438c8f768743f6b6e7, height=206, index=0)
+2026-11-03T19:19:40Z [advertiser] AddToWallet 6fd0f67ef64f2524fb685fa7b3ddfbc133dcd3c1c3e9f6617d9f525e0096fb67 update Confirmed (block=2fcec043cc55aff8019b5f672d6bd99159955a8e572e19438c8f768743f6b6e7, height=206, index=1)
+2026-11-03T19:19:41Z [property-node] AddToWallet 6fd0f67ef64f2524fb685fa7b3ddfbc133dcd3c1c3e9f6617d9f525e0096fb67 update Confirmed (block=2fcec043cc55aff8019b5f672d6bd99159955a8e572e19438c8f768743f6b6e7, height=206, index=1)
+2026-11-03T19:19:41Z [property-node] Coin Selection: Algorithm:knapsack, Waste Metric Score:990
+2026-11-03T19:19:41Z [property-node] Fee Calculation: Fee:1410 Bytes:141, Source: Fallback fee
+2026-11-03T19:19:41Z [property-node] Coin Selection: Algorithm:knapsack, Waste Metric Score:990
+2026-11-03T19:19:41Z [property-node] Fee Calculation: Fee:4120 Bytes:412, Source: Fallback fee
+2026-11-03T19:19:41Z [property-node] Fee non-grouped = 1410, grouped = 4120, using non-grouped
+2026-11-03T19:19:41Z [property-node] CommitTransaction:
+CTransaction(hash=bd40ce2b8b, ver=2, vin.size=1, vout.size=2, nLockTime=206)
+    CTxIn(COutPoint(b7bbc70f3f, 0), scriptSig=, nSequence=4294967293)
+    CScriptWitness(3044022006c1a10de46369136e2c1f172bef144888826702c84de68a6fab19a6582cb2de022036a203fb537bd6f3792dcadef48004bd71dd1ca8a725c607ec83a4059c832eee01, 02ac657e5464416e4e82eaa55b163bb27c87b13263a75d540d0f46b13b970c903e)
+    CTxOut(nValue=0.00100000, scriptPubKey=0014e598922200c2d2a89837ba70f9)
+    CTxOut(nValue=49.99898590, scriptPubKey=0014f3ba53aa9a9a3bbc99be2a2c31)
+2026-11-03T19:19:41Z [property-node] AddToWallet bd40ce2b8bd9c6593bd4f99052f4f317710d5b83f3510fe034e507edaa632c14 new, update Inactive (abandoned=0)
+2026-11-03T19:19:41Z [property-node] Submitting wtx bd40ce2b8bd9c6593bd4f99052f4f317710d5b83f3510fe034e507edaa632c14 to mempool and for broadcast to peers
+2026-11-03T19:19:41Z [advertiser] AddToWallet bd40ce2b8bd9c6593bd4f99052f4f317710d5b83f3510fe034e507edaa632c14 new InMempool
+2026-11-03T19:19:41Z [property-node] AddToWallet bd40ce2b8bd9c6593bd4f99052f4f317710d5b83f3510fe034e507edaa632c14 no-change InMempool
+2026-11-03T19:19:41Z UpdateTip: new best=6c489cefb03727a728e31b21bd902d69902284afad6eb0737a482fbc5ebea545 height=207 version=0x30000000 log2_work=8.700440 tx=212 date='2026-11-03T19:19:41Z' progress=1.000000 cache=0.3MiB(213txo)
+2026-11-03T19:19:41Z [advertiser] AddToWallet 7539a64a816d17041403744747222930a5116a970264545923033a22ee5aa350 new Confirmed (block=6c489cefb03727a728e31b21bd902d69902284afad6eb0737a482fbc5ebea545, height=207, index=0)
+2026-11-03T19:19:41Z [advertiser] AddToWallet bd40ce2b8bd9c6593bd4f99052f4f317710d5b83f3510fe034e507edaa632c14 update Confirmed (block=6c489cefb03727a728e31b21bd902d69902284afad6eb0737a482fbc5ebea545, height=207, index=1)
+2026-11-03T19:19:41Z [property-node] AddToWallet bd40ce2b8bd9c6593bd4f99052f4f317710d5b83f3510fe034e507edaa632c14 update Confirmed (block=6c489cefb03727a728e31b21bd902d69902284afad6eb0737a482fbc5ebea545, height=207, index=1)
+2026-11-03T19:19:43Z [warning] ThreadRPCServer incorrect password attempt from 127.0.0.1:50804
+2026-11-03T19:19:44Z http.07 thread exit
+2026-11-03T19:19:44Z http.08 thread exit
+2026-11-03T19:19:44Z http.06 thread exit
+2026-11-03T19:19:44Z http.09 thread exit
+2026-11-03T19:19:44Z http.15 thread exit
+2026-11-03T19:19:44Z http.10 thread exit
+2026-11-03T19:19:44Z http.12 thread exit
+2026-11-03T19:19:44Z http.01 thread exit
+2026-11-03T19:19:44Z Shutdown in progress...
+2026-11-03T19:19:44Z net thread exit
+2026-11-03T19:19:44Z http.00 thread exit
+2026-11-03T19:19:44Z http.03 thread exit
+2026-11-03T19:19:44Z http.05 thread exit
+2026-11-03T19:19:44Z http.11 thread exit
+2026-11-03T19:19:44Z http.02 thread exit
+2026-11-03T19:19:44Z http.14 thread exit
+2026-11-03T19:19:44Z http.13 thread exit
+2026-11-03T19:19:44Z http.04 thread exit
+2026-11-03T19:19:44Z addcon thread exit
+2026-11-03T19:19:44Z msghand thread exit
+2026-11-03T19:19:44Z http thread exit
+2026-11-03T19:19:44Z [property-node] Releasing wallet property-node..
+2026-11-03T19:19:44Z [advertiser] Releasing wallet advertiser..
+2026-11-03T19:19:44Z scheduler thread exit
+2026-11-03T19:19:44Z Writing 0 mempool transactions to file...
+2026-11-03T19:19:44Z Writing 0 unbroadcast transactions to file.
+2026-11-03T19:19:44Z Dumped mempool: 0.000s to copy, 0.002s to dump, 27 bytes dumped to file
+2026-11-03T19:19:44Z prevout.00 thread exit
+2026-11-03T19:19:44Z prevout.03 thread exit
+2026-11-03T19:19:44Z prevout.05 thread exit
+2026-11-03T19:19:44Z prevout.04 thread exit
+2026-11-03T19:19:44Z prevout.07 thread exit
+2026-11-03T19:19:44Z prevout.02 thread exit
+2026-11-03T19:19:44Z prevout.06 thread exit
+2026-11-03T19:19:44Z prevout.01 thread exit
+2026-11-03T19:19:44Z Shutdown done

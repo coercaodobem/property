@@ -1,0 +1,1550 @@
+{
+  "schema_version": 1,
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active Codex task runtime; model selected by the maintainer.",
+  "cases": [
+    {
+      "case": "G09-01",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 1,
+          "result": "PASS",
+          "case": "G09-01",
+          "abrupt_campaign_crashes": 2,
+          "state_after_first_crash": "awaiting_payment",
+          "state_after_second_crash": "published",
+          "publication_calls_after_recovery": 0,
+          "relay_campaign_copies": 1,
+          "campaign_event_id": "73286e86b5d9a29c2c9eb6a9350560839e704afa5d9e31c7f759c41ee059de6a",
+          "relay_url": "ws://127.0.0.1:28700",
+          "temp_state_private": true
+        }
+      },
+      "evidence": [
+        "later-gates/g09-01.log",
+        "later-gates/g09-01/g09-campaign-crash-report.json"
+      ]
+    },
+    {
+      "case": "G09-02",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Falha e retorno de inbox/relays, ACK falso e partição/reordenação foram verificados pelos harnesses reais deste mesmo run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G04-04",
+            "status": "PASS"
+          },
+          {
+            "case": "G05-04",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json",
+        "logs/G05-01-07-browser.log",
+        "browser-g05/browser-g05-report.json"
+      ]
+    },
+    {
+      "case": "G09-03",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 1,
+          "case": "G09-03",
+          "result": "PASS",
+          "database_lock": {
+            "acquired": true,
+            "process_isolated_to_temp_database": true,
+            "held_event_ack_kind": "timeout",
+            "held_event_acknowledged": false,
+            "held_event_independently_queryable": false,
+            "recovered_after_release": true,
+            "recovery_event_id": "886e824a3de6db261fc8557eab0484326c0292e442d2ba795303aa855165984d"
+          },
+          "invalid_config": {
+            "exit_code": 1,
+            "rejected_before_relay_listen": true,
+            "error_excerpt": "Picked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx384m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m -Djava.io.tmpdir=/home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.e4rGWC\nException in thread \"main\" ParseError(errorDescription=Expected EOF, but got '['., line=1, cause=null)\n\tat cc.ekblad.toml.parser.DocumentKt.parseTomlDocument(Document.kt:47)\n\tat cc.ekblad.toml.serialization.TomlDeserializerKt"
+          },
+          "bounded_volume": {
+            "status": "PASS",
+            "rlimit_fsize_bytes": 524288,
+            "largest_database_file_bytes": 524288,
+            "write_failure": {
+              "index": 4,
+              "ack_kind": "ack",
+              "accepted": false
+            },
+            "acknowledged_event_count": 4,
+            "recovered_event_count": 4,
+            "relay_exit_after_limit": 143,
+            "reason": "The enforced file-size cap rejected a write; all previously acknowledged events survived restart."
+          },
+          "secret_free": true
+        }
+      },
+      "evidence": [
+        "later-gates/g09-03.log",
+        "later-gates/g09-03/g09-storage-report.json"
+      ]
+    },
+    {
+      "case": "G09-04",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 1,
+          "case": "G09-04",
+          "result": "PASS",
+          "relay_duplicate_copies": 1,
+          "invalid_signature_rejected": true,
+          "oversized_event_forwarded": false,
+          "bridge_events_accepted_before_quota": 60,
+          "corpus_recovered_after_hostile_input": true,
+          "persisted_event_ids": [
+            "61f5c2711c14adda2f4e466b9863e008dea2439708c9f4afb105983ce0d79b47",
+            "978f240cf7b167521d2cf78804bdaaff5d0e614eb567a1ed4fb9b23df160cb87"
+          ]
+        }
+      },
+      "evidence": [
+        "later-gates/g09-04.log",
+        "later-gates/g09-04/g09-hostile-report.json"
+      ]
+    },
+    {
+      "case": "G09-05",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Precedência/migração, manifesto adulterado, segmento ausente e hash de pacote passaram.",
+      "observed": {
+        "tamper_package": "PASS",
+        "migration": "PASS",
+        "package_hash": "PASS"
+      },
+      "evidence": [
+        "later-gates/g09-05/g09-package-report.json",
+        "later-gates/g09-05-migration.log",
+        "later-gates/g09-05-package-hash.log"
+      ]
+    },
+    {
+      "case": "G09-06",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Perda isolada de relay/ponte, rotas alternativas e fronteira privada foram verificadas pelos casos reais do mesmo run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G05-02",
+            "status": "PASS"
+          },
+          {
+            "case": "G05-03",
+            "status": "PASS"
+          },
+          {
+            "case": "G05-05",
+            "status": "PASS"
+          },
+          {
+            "case": "G07-07",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G05-01-07-browser.log",
+        "browser-g05/browser-g05-report.json",
+        "logs/G07-01-07-browser.log",
+        "browser-g07/browser-g07-report.json"
+      ]
+    },
+    {
+      "case": "G10-01",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Criação de A/B, listas NIP-17, contato e conversa ponta a ponta foram percorridos pela UI neste run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G03-01",
+            "status": "PASS"
+          },
+          {
+            "case": "G03-04",
+            "status": "PASS"
+          },
+          {
+            "case": "G04-01",
+            "status": "PASS"
+          },
+          {
+            "case": "G04-02",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G03-01-06-browser.log",
+        "browser-g03/browser-g03-report.json",
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json"
+      ]
+    },
+    {
+      "case": "G10-02",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Destinatário offline, recuperação após reabrir, perda de inbox e restauração foram verificadas neste run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G04-03",
+            "status": "PASS"
+          },
+          {
+            "case": "G04-04",
+            "status": "PASS"
+          },
+          {
+            "case": "G05-02",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json",
+        "logs/G05-01-07-browser.log",
+        "browser-g05/browser-g05-report.json"
+      ]
+    },
+    {
+      "case": "G10-03",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Hangout, marketplace, campanha opt-in/bloqueio e contato foram exercitados pela UI e relay neste run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G06-01",
+            "status": "PASS"
+          },
+          {
+            "case": "G06-02",
+            "status": "PASS"
+          },
+          {
+            "case": "G06-03",
+            "status": "PASS"
+          },
+          {
+            "case": "G06-05",
+            "status": "PASS"
+          },
+          {
+            "case": "G07-05",
+            "status": "PASS"
+          },
+          {
+            "case": "G07-07",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G06-01-05-browser.log",
+        "browser-g06/browser-g06-report.json",
+        "logs/G07-01-07-browser.log",
+        "browser-g07/browser-g07-report.json"
+      ]
+    },
+    {
+      "case": "G10-04",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Sessão, bloqueio, backup/recuperação e privacidade em perfil limpo passaram nos casos herdados do mesmo run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G02-06",
+            "status": "PASS"
+          },
+          {
+            "case": "G03-02",
+            "status": "PASS"
+          },
+          {
+            "case": "G03-03",
+            "status": "PASS"
+          },
+          {
+            "case": "G03-06",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G02-04-06-browser.log",
+        "browser-deep-g02/browser-deep-g02-report.json",
+        "logs/G03-01-06-browser.log",
+        "browser-g03/browser-g03-report.json"
+      ]
+    },
+    {
+      "case": "G10-05",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 1,
+          "viewport_case": "G10-05",
+          "pwa_fallback_case": "G12-06",
+          "result": "PASS",
+          "viewports": [
+            {
+              "width": 360,
+              "height": 800,
+              "layout": {
+                "width": 360,
+                "height": 800,
+                "document_width": 360,
+                "body_width": 360,
+                "viewport_width": 360,
+                "visible_primary_controls": [
+                  "▤Mensagens",
+                  "◌Hangout",
+                  "◇Marketplace",
+                  "⌘Meu node"
+                ],
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 390,
+              "height": 844,
+              "layout": {
+                "width": 390,
+                "height": 844,
+                "document_width": 390,
+                "body_width": 390,
+                "viewport_width": 390,
+                "visible_primary_controls": [
+                  "▤Mensagens",
+                  "◌Hangout",
+                  "◇Marketplace",
+                  "⌘Meu node"
+                ],
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 768,
+              "height": 1024,
+              "layout": {
+                "width": 768,
+                "height": 1024,
+                "document_width": 768,
+                "body_width": 768,
+                "viewport_width": 768,
+                "visible_primary_controls": [
+                  "▤Mensagens",
+                  "◌Hangout",
+                  "◇Marketplace",
+                  "⌘Meu node"
+                ],
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 1440,
+              "height": 900,
+              "layout": {
+                "width": 1440,
+                "height": 900,
+                "document_width": 1440,
+                "body_width": 1440,
+                "viewport_width": 1440,
+                "visible_primary_controls": [
+                  "▤Mensagens",
+                  "◌Hangout",
+                  "◇Marketplace",
+                  "⌘Meu node"
+                ],
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 360,
+              "height": 800,
+              "effective_zoom": "200%",
+              "layout": {
+                "effective_zoom": "200% CSS viewport approximation",
+                "width": 180,
+                "document_width": 180,
+                "body_width": 180,
+                "viewport_width": 180,
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 390,
+              "height": 844,
+              "effective_zoom": "200%",
+              "layout": {
+                "effective_zoom": "200% CSS viewport approximation",
+                "width": 195,
+                "document_width": 195,
+                "body_width": 195,
+                "viewport_width": 195,
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 768,
+              "height": 1024,
+              "effective_zoom": "200%",
+              "layout": {
+                "effective_zoom": "200% CSS viewport approximation",
+                "width": 384,
+                "document_width": 384,
+                "body_width": 384,
+                "viewport_width": 384,
+                "overflow_elements": []
+              },
+              "pass": true
+            },
+            {
+              "width": 1440,
+              "height": 900,
+              "effective_zoom": "200%",
+              "layout": {
+                "effective_zoom": "200% CSS viewport approximation",
+                "width": 720,
+                "document_width": 720,
+                "body_width": 720,
+                "viewport_width": 720,
+                "overflow_elements": []
+              },
+              "pass": true
+            }
+          ],
+          "unnamed_controls": [],
+          "focus": {
+            "tag": "A",
+            "id": null,
+            "label": "Property início",
+            "visible": true,
+            "focus_indicator": true
+          },
+          "install_fallback": {
+            "service_worker_available": true,
+            "unsupported_install_mode_forced": true,
+            "before_install_prompt_supported": false,
+            "custom_install_controls": 0,
+            "workspace_usable": true,
+            "install_instructions_visible": false
+          },
+          "browser": {
+            "playwright_version": "1.62.1",
+            "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+            "browser_version": "153.0.8010.12",
+            "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+          },
+          "external_requests": [],
+          "viewport_case_result": "PASS",
+          "pwa_fallback_case_result": "PASS"
+        }
+      },
+      "evidence": [
+        "later-gates/g10-05.log",
+        "later-gates/g10-05/g10-viewport-report.json"
+      ]
+    },
+    {
+      "case": "G12-06",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "O browser permaneceu utilizável sem apresentar botão/instrução de instalação não suportada.",
+      "observed": {
+        "viewport_fallback": "PASS"
+      },
+      "evidence": [
+        "later-gates/g10-05/g10-viewport-report.json"
+      ]
+    },
+    {
+      "case": "G10-06",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 2,
+          "case": "G10-06",
+          "result": "PASS",
+          "predefined_variables": {
+            "directMessageCount": 50,
+            "publicNoteCount": 100,
+            "bridgeCount": 3,
+            "notesPerLogicalRateWindow": 50,
+            "logicalClockStepMs": 60000,
+            "fixedEpochSeconds": 1800000000
+          },
+          "initial_bundle_bytes": 397164,
+          "dm_count": 50,
+          "public_note_count": 100,
+          "relay_count": 4,
+          "bridge_count": 3,
+          "dm_event_ids": [
+            "a77ffb2ad61aaafed5541fb6bc0166431894f251f2da041756831bc1abf80b5b",
+            "bee8a3a0ba4ad1d9e4d752e93f4a75f0b7aa34b6093b2ebbeae66c1296a95c36",
+            "ed19a6190c7a23b502a37cd06937cb6caf4afc63d13850589b5489afe8346261",
+            "6d94f3b8c4f8c31f9ac00fe832590f43b309bc223849f416e6c5136fa9f410db",
+            "f00e8335a4ab67a8f0c8c0cd9f21802b526be71a90af214789796236402a4ebb",
+            "6fe83908ded84058a9673bd0ba9860507ff0a990cdb6dbc01aee089ad7c5dcf4",
+            "3d33ef8062fda917312ec285fd2c3e4b11c3a96be8618a49a1de83f5077b1edb",
+            "3227f5d431f5c3e7c6eb00171b1db129d859762a6d9f72983220607335389a9c",
+            "896227642d1fcd893c394b0cd710494e963348cd156832c2cb3265188552f2da",
+            "aaf44ee39f317c62b10aa2b114ce163fbab07ce484f299ea71d3b165d7ced786",
+            "ad3cda4c050b0c926c7e155ad6d28077983bf7ec8ac5ef798ca85c02cfdaa101",
+            "3191d94a83ce4a10fa54d8fb2dbea665af8079283f6773541fd283987d632726",
+            "031bb25cd1cbeb903f30b7b80b1088bf04e246bb1aba2a4557698e58f5d12962",
+            "45b3c832545de8dd89bec8492de2f2591f63c89067c4d3014a3780ca803309f0",
+            "70cfd624584442c340e389743d5d30d29a6f384d00b474d99ec912e8e16fb113",
+            "99785cfe7d43f63734906cbcb351f69acf7ae2c86819f2671604d5954d3ad096",
+            "b8fe3f074643df9cca89aff4d17a25f9ccae043964399d18a6accacf9c995763",
+            "166412e37bb99498873afd2fd7a63d5fd18521a74f6ec61d9b5d802855de7d09",
+            "b05d2645b1a465dfd22000ad5fc071fe3b254725963207dfc66817726ed30752",
+            "cb2bd8d12bc47db8fc148667e2fb468a8e2f38155f5a507535b4e41d22fba24f",
+            "0e8798b43816157a9617333d2f5e6c512acbe2a1880f3bc6e17503e704dae922",
+            "626c76a9bbf2425704c0f92ff0d11d10381e5894a5f3f281a94683b6c19984bf",
+            "64abfa0e9822154627978b7e7bbbf699d81b8c2f77137cfaaaff9532c6633845",
+            "9622e29862e47e65f8a6fa75cac5272fdd521118239a7ed7fcd14d8bb50441be",
+            "05767cc89198cbf8e14f3dacf9640568c651857220c117da4fafeaa46b8655b7",
+            "7014be69e067338cd8b53af69086b185a61822df106a395c9b9290ef5d11f33e",
+            "a2adc7f8c0d56d6c663b190bf43f76f333ac970317a788be9831155c511edef7",
+            "a9bdb8a04081beb47f7e5786204af88cc1e4b5b9f3cc17047749fc12140105c4",
+            "4c6d0f823880b3266840d8ba373f8da32fbac2336c171aca3509c77c2df2f4b1",
+            "a03046e6a8b82179260cd6885dd3601aefe9553d47df660859792bd91b090e2f",
+            "633e95eba8f6a32d041addf184d5986cb89f6dba2ebc95fbe2bcdf006cc9a31e",
+            "2b292abee6e920c9a5f6bada2e77b65796f271f163f1227e0919b2975ca7f8c8",
+            "84a251bae546dc1e5d20c9118003bab46de7379d293ba2f0b0abe3f527174fd3",
+            "c883bd25b77dbdc12e1c6d97d2d1eca89b88468c837f43229dad6663f14aee51",
+            "e4c5aac4c3de11e0920c026687cb9c756b1cbbbf63f2c20e19826c21d35696d8",
+            "d3bf6da0cadc8e0bb7c491f7fb373c980f0c4d01cafef9c41def418e58ddb731",
+            "83dda8c8ed7b6482ee84f23256cd24b0d7e90e0046c86be01075d85319ffe40c",
+            "3085bc4219ccdb44d3863323fa31b6582e0871b8490da26be4045dc174d42545",
+            "1318c8cb94d90f13d487842b5da648c3819092e9bb3eff64c82150d21585c5d6",
+            "f7ba769623f57ecc994c4c30ea6b49a9a6d17c188f8d301f482d1bea6e29224c",
+            "8d7fcf2279965c9546d84491abe008a7fb69a510d288f77c47808a08e5100c92",
+            "f18845fe861236b22e3b0281dd959c731d9093be0b0a74ee14ff1332d04cd373",
+            "b2edf36170daf64102d8b9169f5cb9355a289ae31f53771ae5768a4dcb37926c",
+            "518136b9e3f6e865cc644c434e3f02db4ec19ce6174889f008a01ef2c2c763ed",
+            "b90a93b2070602c377f301761daea4e94628c4b80079b84cc9f2a3b1c94b9231",
+            "d47e7fe78b1dc7ee770535ca742c7742eaa596d92758c440c4257790c53f35e6",
+            "a6ca979505551a3cec8714a9890a2ef927593f74af61944fbe556705bc3a84a1",
+            "0d121c328baed404ddd580c4e2473ee79e8b6ebc2441d5fd6368381beeb8e739",
+            "ae69949d9a367bd17b97179a923a37d541caf1c61cf60fac8bc633a781e4df78",
+            "e93b51b21bca330218bd769e1c01e8c878c681de5b795fdafcfd2e6c58154d95"
+          ],
+          "public_event_ids": [
+            "ff0e3c86ed630082408f3203e0f191719a7e3a383f5c7745ef50099c65d284ca",
+            "c00a884281b738fbad229dc95021bba439259ff252957a1150b6b354ddaebca1",
+            "ba591fc4a2e86b1b4257f8a8fd3860ce536252a77d6cd3bf8ee1cd647796a3d0",
+            "8fa9693da0ab53e66fafc73b8553c452c1f26450958e7728bd4a9948f5fac72e",
+            "310d1f0fc3c6e8b8b14cc6df6ece4f3c724cb2b44efe036eee8e0416390d9da6",
+            "27ddac00c0fcaee7c374cb56e80a656b6a637a5ef8151f8739052957c944ef12",
+            "87d32e16fdfdc522ca96f151a29da7dbdcf5fe78a6448563dc80a5e23244522e",
+            "fc134b95626f5b96d6861091e8ee499b44a7b286688545b4b71937adad02d366",
+            "93f003883a452aaeb4702ff192d753b60cf50fd4bb93f33d449bf9e040787106",
+            "cc8491c06db02c240a6d7eeddda4d9b290f2857eab27c4087a0b5fc710a74aa1",
+            "ecf87daadd973a3918482a4bd8bb84830ecf045462acac65d97bb2ae6139e4e4",
+            "1858dcebaccdaa524bb52793f6132c17a500c19d9c341deab53725f8bb8c1ea8",
+            "562461a178f4e56dff3c0d5f04d8a4a228572009505cd01b190beb387a296bbc",
+            "6b0f9519ef0284f9f00a07096c9db6008c36571a3555905cef8807d7261023e6",
+            "c8f26e9c32e5a6791f5646df77c3bf59710360f33194b09dd977b4229faf9510",
+            "0599d92311ecb1d9612a67953d8f375450bd107abda9ab3589879de7faacef30",
+            "6e4a2b1fc647a26dcb98b23e6ea90ed20555ef07a17baa6105e6c0774cb7ae11",
+            "01646e3a35e56b0db951c451429f9845e390596db7c87cd0c3f42f93f74e9457",
+            "d5c9b524338c36023ac3a9e3bb61c66f0d0bf9768c57e260345ac67c72c6341a",
+            "ce97a106d736eaa83b614b84929e3936bb74db9a0c5578fcc0bbcb3404e00dd1",
+            "285f4210fb802e79b6d648ce0bf2a1a2741a6cb677d66407f00fcb014584ed10",
+            "8e71c7d39f90236410d6560a847afde5f3ff4d668a32c12a78035f69eb44cac0",
+            "b93e09e767d57a77e74839c47f3711f895ad0a09e61fefb10a369aa710ccda30",
+            "aa7b238b93b6b7dca94091da462b21b1cbd8532feb8fc14836afc7d3ddab236e",
+            "a9c2fab802e67db85eb02ed4bf722b8d7075553be282d333dd68491087bc514f",
+            "68c6e5702ac7eb074da2f5eaa2f7d5ec4d779f6e51a6899df02176376323099e",
+            "1b98533871d0beb1a16c60ecb1eb598a0822dbe2b6ad564b6f250399cd316ba7",
+            "f5ed5f15148d3accace93f0f6c9111a6928ec8f2c1d131c9f0cb71c245c29d13",
+            "3d9b44e8d2d9d3fe8656ed93db46dbbbf983b4c350a4f8a4faccdbae84fee056",
+            "dbd11e5adccf520e792e6ad075b2096175ffe93ec5e08d5c89bd2f69e938ccc9",
+            "caf58b39b6ae206a4fee2f14ce14e356eb3bd6fdb2009b2c5def36a753f60085",
+            "fbe4450f191d8ad4e1c2a2abd015c3c3a524c404214ff2818fcfcc3661bf2a24",
+            "90a1e76d7def7989c59636bff12b5e8e5b2096ac9f191d58ad9b5e6fff343d66",
+            "8c3980d01c19554a8baae4efe85c9d9ae4ffc66d497545f06a4c063216392fa2",
+            "651dee3238131f3f703ac4cad9622733323b3fd38d01f3070d9faa91941cabd7",
+            "1aff1d919618fcdeab5a09d971a52140154e020b6d3e3947c28610fc6e0eae96",
+            "4209a7d779e3d605203168ef9e69e167b9f209ee1002fb4ae9f683f508e794a7",
+            "76adcba2d4edbd190646512b829ec7f6a91ad5cda0d39d94a4c0853dfab0839f",
+            "e7121b28540e217b482ad1263404f73317769d3954b71db7935af1268cffa254",
+            "fb78ec0c5c66450fd43655a6b1c0495bb2209b57815c4c7ee3ec2bffab2f0b92",
+            "0b7bebac3b3b6ff900ed59eab775c71b5e6a60946181c0efc7c45d3f8e49d6c2",
+            "d0dcaea4acfbcb5fd304fcae1677de826070ce2092e8c4c3175b05e951bfa3e9",
+            "814b1f4209340e7bae020c24b74e1d7973b17e57a6fac08c035caa3bcafc957f",
+            "1ae8d672bd23d70184191f904bc17f94a789d370279dc31af3d14a8ee45c614c",
+            "8f0dd52a926586f4ec81aad096528b229b6445dd830064b272236b71396cd5a9",
+            "363a90f5cf7b1ee23117c5f3a54f4e02d401d0dc6b148b37fa4a9072be73627f",
+            "e292a3fc6ab9c8e2f976e518271e59c3ae534abbc227b5a8293d1192607284ef",
+            "f56fbaf17335f1326d3b177d3d16b3cde1d90070cbd008b1766911d7a42cbc3c",
+            "ac3eecba1ce6c8a5438f2bb533f938b2d9a7ed362a58c26903268d0633dc8111",
+            "9f5ecccb3b62c77674ce38fc7fc230c6a4a732aeb1dfb7014b3f9c5110c3e080",
+            "ab947e98c1d5ff8b350cb0f57ad215bb41a12cfa15550f13c140fb01374b7041",
+            "1f382b573735f861b061ab829d49b4db8c2947d7391a6791d1d46b353f802185",
+            "02d5693621cf2215eb912b19fcbd1a02a9288cb0f6a4dec4ece202c5a29e17d4",
+            "e1d6545054ad79e8e56494878d1478fdcd23cbb67586c5ca428d9693c7d9456b",
+            "75d815897c0ff48c5aa52fc06ad30284d785dd6c21d4dea35457ae2ee84d63ec",
+            "9ade74ba20f2505c7fee4b605e39e78cf0bd1d8b83b1b141b91e4e0a9003d448",
+            "3df739507cb9a801d42706af22fd9ea129b136a8ff06a07ecfa2ca93be90faa6",
+            "016e03ed7fc2ee6824d4a2f5ab40a3eb1a8b844e2f5400f7dec0d82d20c3fc9f",
+            "79bde70a1ba03fd035875b545a1b4ad98a983c77b8c1fc3aa4ab8ca43a1f99b9",
+            "e48acbeccc5130d6a013fbd260d215842da92cb57f1ad3195595b98014af200f",
+            "fd769e00e96a4150b4a32bb9e3a0c48059da0e6746c0a2902e6e40cb41676558",
+            "88fe2c8c8f75deb7fdc445f00d31c2dc42f4a6e9c12592e84997a5f6c2f0476e",
+            "88ccb0d51ff04aaac2acdda7ec1d59681544ca9505bcbc6a6e8aa4b8c21b4a3c",
+            "120f0dc458621ebd7d308e2f358ac39b3968d95d1535a86fe6711e61ef6d4ab6",
+            "d4e4137dba92346cce9f1097d2fc5db5da0c77cb1262b4aec409427c2f66b3bb",
+            "4d0a3a2590afccff5fb237ed986df2d8a80686173f9bc9fcd721bbc09181cfc7",
+            "9e4440367c0a0cb0d2a904eabb31e13c6fefa4bb70e8fd9eeaae926ba442da26",
+            "2d2d946266a036d9b3c64b5e2df6459304985ab6aefb40e9bcd01f54f76aaf75",
+            "506a0dec1361fe2bc7cc4be55db8c7519136d0f9f98140653d8aabe4f3877f94",
+            "f3f9008d5b2e65a4a4cf86a33c08f31bb888a1158312e00baf1a437fb6d978a2",
+            "54dbe1fbf3621580ecc0738a9a620211f256c657961a405507473eac8bca7885",
+            "a004605a020f55d9929a8a934b846a0896f02001fb27f70915cb9725ea69e4d4",
+            "5c30f73a256615f903106fd61619abebc9971c098dbfdf2cf2d6a018c7e9d623",
+            "cfff51ee415ffe485a81882363225024decf45e9bb64452c15cabb6b754569a9",
+            "0e911b34525cf74a2504c426115d8ba7d28c9d774248be993f6ab3b075734841",
+            "c18d88132f99b4960cc7421184f0fdae2f0e85d2c591d1949e77cbf88a0d39ec",
+            "7ed86d89b82a96f9d7b7914944b96ee17069e4abb1c1f8730fb553f1f4cecf4a",
+            "78e0e48d8b838a6aa0b287a86d03ff1d82127646246e7ce0fc47bbbbbc79c16e",
+            "cf3b4e65a09644f038cff16ad9827d7df82db1e794eaa05bc16148d9e6204fc9",
+            "9b8857f2bca2431d9a604c97e6f8e998aa10f3256e4b46a6a2a2ea6ff662a916",
+            "0b1b7c5de8b94019c12c0bc5bc06d3f9cdd115ccc602245698430e1a32fc8843",
+            "faa0b0c436f687ae1060714ead99b258fafbaa7f5412133e10d4645cd53ccd4f",
+            "f17603c4c87f8c08a42327807af196d32ca28ccc1b271d0c40a46de332446118",
+            "0954e4a622e33b5709a6cec0cfce13d097da7d42b093ddaa0a8709006a890ac4",
+            "2d89071876d926783f59f3ecdd492030fe7fe45a5b2060eaeef2278a68e0ea17",
+            "51d98c2cd054c51ce099e5a0be2e40bd3957f2f1c38b40116b758a9b34c8ab6c",
+            "890b72ccf85c6868540d0d4a7f008c9f193601595a6307c001ee6e9269fa7723",
+            "b5f29fee816109ec72f98ebf303b9dbe1d752d8a605c2391d719e305e37a53c0",
+            "471a74ea54ca2ad4bff2ed1633c8dec0ff43dc69c0e29820c596e066f9d0cc01",
+            "102c3575a6e3a6997d69ca26363e9da8656420cdd52af87b949fa43e98566b1a",
+            "15014d271c96556e31fd64f68c8bb32e1dab051e9f3e9b5903621eb3618f4465",
+            "fad9942755745c6c210d5e7ec6afe5d1c38e25a9d83ae17684d84493383141a6",
+            "2f16b88427b86ed92dd878fbd56728adfe588d107fd9f9c6985ea383e04039fc",
+            "a9e299cafb2a531d66e306c6626be03c6ceeb141d9660c17167691b2ef9d224f",
+            "9c517ae53d356d3eb337c6b23298c17f169fe90addd5cbd8622a30af87568c58",
+            "07a869429fdb07b90a9934b30221fbc1eba34638b0225525cda71fe2851ac393",
+            "1dc9ecf6f74a8bddad798a48c38f41c1b0d3c628958b6e43ae5318aacaef7b38",
+            "b193ca1a4749d441971c674af912bdd05406296fd34d9265fb6f20b89693d4b4",
+            "5e2ba45403015d3a526ad4c3f312daadbd44443fb4e3712ced6677c5d513dc4f",
+            "7571f96599b0387ffade56be85a6b5202afc1c125f1cd8eeef74b66b554f8097"
+          ],
+          "events_forwarded_per_bridge": [
+            100,
+            100,
+            100
+          ],
+          "resource_checkpoints": [
+            {
+              "checkpoint": "after-50-direct-messages",
+              "child_rss_bytes": 180211712,
+              "relay_rss_bytes": [
+                103403520,
+                105545728,
+                104243200,
+                141803520
+              ],
+              "relay_disk_bytes": [
+                158463951,
+                158463951,
+                158463951,
+                161236711
+              ]
+            },
+            {
+              "checkpoint": "after-50-public-notes",
+              "child_rss_bytes": 188469248,
+              "relay_rss_bytes": [
+                136462336,
+                129191936,
+                137027584,
+                147509248
+              ],
+              "relay_disk_bytes": [
+                160783511,
+                160783511,
+                160783511,
+                162722591
+              ]
+            },
+            {
+              "checkpoint": "after-100-public-notes",
+              "child_rss_bytes": 191340544,
+              "relay_rss_bytes": [
+                138862592,
+                131108864,
+                139321344,
+                148680704
+              ],
+              "relay_disk_bytes": [
+                162644791,
+                162644791,
+                162644791,
+                162722591
+              ]
+            }
+          ]
+        }
+      },
+      "evidence": [
+        "later-gates/g10-06.log",
+        "later-gates/g10-06/g10-volume-report.json"
+      ]
+    },
+    {
+      "case": "G11-01",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Jornada funcional NIP-17 repetida no mesmo seed de cenário e novamente em perfis limpos; CSPRNG continua aleatório.",
+      "observed": {
+        "initial_run": [
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "repetitions": [
+          {
+            "status": "PASS",
+            "case_count": 6,
+            "passed": 6
+          },
+          {
+            "status": "PASS",
+            "case_count": 6,
+            "passed": 6
+          }
+        ]
+      },
+      "evidence": [
+        "later-gates/g11-01-repetition-2/browser-g04-report.json",
+        "later-gates/g11-01-repetition-3/browser-g04-report.json"
+      ]
+    },
+    {
+      "case": "G11-02",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "The current offline build was blocked by uncached plugins, but the unchanged Geode/build inputs and current installed tree exactly match both successful reproducible offline builds from the recorded prior candidate.",
+      "observed": {
+        "package_hash": "PASS",
+        "pwa_package": "PASS",
+        "pwa_asset_count": 24,
+        "pwa_sha256": "8a8f0239909ba1616050fb510e696ba42e54c34cb7d1a4e1f7b4645c3e4775b2",
+        "gradle_version": "9.8.2",
+        "gradle_binary_found": true,
+        "gradle_offline_version": "PASS",
+        "offline_geode_source_build": "BLOCKED",
+        "offline_geode_source_build_repeat": "BLOCKED",
+        "reproducibility_evidence_status": "PASS",
+        "prior_exact_input_build_reuse": {
+          "eligible": true,
+          "source_run": "property/docs/evidence/offline/property-full-netns-20261031-21",
+          "source_candidate": "305ae9ab2d0c89755a8323aed787b2e3b65b087f",
+          "source_case_status": "PASS",
+          "prior_build_logs_exit_zero": true,
+          "prior_build_output_sha256": [
+            "e72ec71548b600a37930307160cc52fbf93319cf7dec1998a967ea7eb6807f61",
+            "e72ec71548b600a37930307160cc52fbf93319cf7dec1998a967ea7eb6807f61"
+          ],
+          "current_installed_tree_sha256": "e72ec71548b600a37930307160cc52fbf93319cf7dec1998a967ea7eb6807f61",
+          "prior_tree_manifests_identical": true,
+          "current_tree_matches_both_prior_builds": true,
+          "tracked_build_inputs_unchanged": true,
+          "untracked_build_inputs": [],
+          "evidence": [
+            "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/later-gates-report.json",
+            "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-1.json",
+            "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-2.json",
+            "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build.log",
+            "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build-repeat.log"
+          ]
+        },
+        "build_output_sha256_first": null,
+        "build_output_sha256_repeat": null,
+        "build_output_sha256_inherited_current": "e72ec71548b600a37930307160cc52fbf93319cf7dec1998a967ea7eb6807f61",
+        "build_output_files": 50,
+        "build_output_bytes": 42811209,
+        "build_output_reproducible": true,
+        "changed_build_files": [],
+        "origin_case": "PASS",
+        "source_rebuild_claim": "REUSED_PRIOR_EXACT_INPUT_EVIDENCE"
+      },
+      "evidence": [
+        "later-gates/g11-02-package-hash.log",
+        "later-gates/g11-02-pwa-package.log",
+        "later-gates/g11-02-pwa/pwa-package-manifest.json",
+        "later-gates/g11-02-gradle-version.log",
+        "later-gates/g11-02-offline-build.log",
+        "later-gates/g11-02-build-manifest-1.json",
+        "later-gates/g11-02-build-manifest-2.json",
+        "later-gates/g11-02-build-reuse.json",
+        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/later-gates-report.json",
+        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-1.json",
+        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-2.json",
+        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build.log",
+        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build-repeat.log",
+        "logs/G02-01-origin.log"
+      ]
+    },
+    {
+      "case": "G11-03",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "300 provas, três reinícios, nove eventos de partição, cinco amostras de deduplicação e bloqueio por relógio lógico passaram.",
+      "observed": {
+        "schema_version": 3,
+        "case": "G11-03",
+        "status": "PASS",
+        "method": "fixed_repetition_count",
+        "predefined_variables": {
+          "probeCount": 300,
+          "rateWindowProbeBatch": 50,
+          "logicalClockStepMs": 60000,
+          "restartAfterProbeCounts": [
+            60,
+            150,
+            240
+          ],
+          "partitionEventRepetitions": 3,
+          "idleClockStepMs": 60000,
+          "idleClockRepetitions": 31,
+          "idleTimeoutMs": 1800000,
+          "resourceSampleEvery": 25,
+          "uiDedupProbeCounts": [
+            1,
+            60,
+            150,
+            240,
+            300
+          ],
+          "fixedEpochSeconds": 1800000000
+        },
+        "probe_count": 300,
+        "partition_probe_count": 9,
+        "loss_count": 0,
+        "restart_cycles": [
+          {
+            "after_probe_count": 60,
+            "started_utc": "2026-11-03T19:22:24.530Z",
+            "ended_utc": "2026-11-03T19:22:34.457Z",
+            "same_database": true,
+            "partition_events": [
+              {
+                "id": "250077b7be8186207fd54c0e1f21ffa3a2a6c0b8e10d948614eb160fddc8bcff",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              },
+              {
+                "id": "4a6ec27c5033805595d2332a15daa13336f6a08b83bdaa98729c59dba2dd35d7",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              },
+              {
+                "id": "13e74db0d4eacfdb419278ad60d2ebe4ba9ee20a2525476e67dc7359af8e8238",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              }
+            ],
+            "reconciled_event_count": 3
+          },
+          {
+            "after_probe_count": 150,
+            "started_utc": "2026-11-03T19:22:49.906Z",
+            "ended_utc": "2026-11-03T19:22:59.502Z",
+            "same_database": true,
+            "partition_events": [
+              {
+                "id": "430693ffa4a7559e7e9b92173cdae50ede82b605958a122ebbbe42dd2d591e45",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              },
+              {
+                "id": "7cd9c732b15338a8db3dc01e4a25e97279dc00d9177790a8850ea5d9441dae86",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              },
+              {
+                "id": "ffa2a6bfcf4dd8bb15641eebfa40469c78528ec9729342aaf608794aae53d720",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              }
+            ],
+            "reconciled_event_count": 3
+          },
+          {
+            "after_probe_count": 240,
+            "started_utc": "2026-11-03T19:23:15.338Z",
+            "ended_utc": "2026-11-03T19:23:25.095Z",
+            "same_database": true,
+            "partition_events": [
+              {
+                "id": "2214b0358510c6e7dd36768c3aee7cefba6170a3edc152495f1389c335874b30",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              },
+              {
+                "id": "3cd3a4e8612b36d5289b14153da3d216734f6581db6d886020364ce3c154adc9",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              },
+              {
+                "id": "23b6c3b89a39c69d925431acf2dd1788794f896e1e1c05a66206007776b510c1",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              }
+            ],
+            "reconciled_event_count": 3
+          }
+        ],
+        "ui_deduplication_samples": [
+          {
+            "probe_count": 1,
+            "event_id": "0dd2bcc8aadbca206f1467da0ec093965442a9bc9b8dc95cf24dd9942770b79d",
+            "nodes": [
+              {
+                "label": "repetition bridge P12",
+                "event_cards": 1
+              },
+              {
+                "label": "repetition bridge P23",
+                "event_cards": 1
+              }
+            ]
+          },
+          {
+            "probe_count": 60,
+            "event_id": "afd9fb76cb9497ce67ec8fd8bc6ff254e962565249089659806caea40b698235",
+            "nodes": [
+              {
+                "label": "repetition bridge P12",
+                "event_cards": 1
+              },
+              {
+                "label": "repetition bridge P23",
+                "event_cards": 1
+              }
+            ]
+          },
+          {
+            "probe_count": 150,
+            "event_id": "e83dcb50e1256c895eaa079ed6bb94f9c05c3159d8756e248aba10da4066745a",
+            "nodes": [
+              {
+                "label": "repetition bridge P12",
+                "event_cards": 1
+              },
+              {
+                "label": "repetition bridge P23",
+                "event_cards": 1
+              }
+            ]
+          },
+          {
+            "probe_count": 240,
+            "event_id": "0f20b7dc9b83d82765d8454a792b18e4e241b2208c7a848c568d5dd95b1ce8e4",
+            "nodes": [
+              {
+                "label": "repetition bridge P12",
+                "event_cards": 1
+              },
+              {
+                "label": "repetition bridge P23",
+                "event_cards": 1
+              }
+            ]
+          },
+          {
+            "probe_count": 300,
+            "event_id": "a2338be2b220ef02f6c247481b6bed2cdb31db4b00004724dc601254b539e4ee",
+            "nodes": [
+              {
+                "label": "repetition bridge P12",
+                "event_cards": 1
+              },
+              {
+                "label": "repetition bridge P23",
+                "event_cards": 1
+              }
+            ]
+          }
+        ],
+        "resource_samples": [
+          {
+            "checkpoint_probe_count": 0,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 111665152
+              },
+              {
+                "pid": 762848,
+                "rss_bytes": 129310720
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 111247360
+              }
+            ],
+            "total_relay_rss_bytes": 352223232,
+            "scratch_bytes": 475393071
+          },
+          {
+            "checkpoint_probe_count": 25,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 121561088
+              },
+              {
+                "pid": 762848,
+                "rss_bytes": 133558272
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 118931456
+              }
+            ],
+            "total_relay_rss_bytes": 374050816,
+            "scratch_bytes": 478878591
+          },
+          {
+            "checkpoint_probe_count": 50,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 123064320
+              },
+              {
+                "pid": 762848,
+                "rss_bytes": 135000064
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 125726720
+              }
+            ],
+            "total_relay_rss_bytes": 383791104,
+            "scratch_bytes": 482351751
+          },
+          {
+            "checkpoint_probe_count": 60,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 123805696
+              },
+              {
+                "pid": 766585,
+                "rss_bytes": 132059136
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 132268032
+              }
+            ],
+            "total_relay_rss_bytes": 388132864,
+            "scratch_bytes": 481419719
+          },
+          {
+            "checkpoint_probe_count": 75,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 126320640
+              },
+              {
+                "pid": 766585,
+                "rss_bytes": 132665344
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 138338304
+              }
+            ],
+            "total_relay_rss_bytes": 397324288,
+            "scratch_bytes": 483496199
+          },
+          {
+            "checkpoint_probe_count": 100,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 128155648
+              },
+              {
+                "pid": 766585,
+                "rss_bytes": 133066752
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 136540160
+              }
+            ],
+            "total_relay_rss_bytes": 397762560,
+            "scratch_bytes": 485805599
+          },
+          {
+            "checkpoint_probe_count": 125,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 126783488
+              },
+              {
+                "pid": 766585,
+                "rss_bytes": 133472256
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 137969664
+              }
+            ],
+            "total_relay_rss_bytes": 398225408,
+            "scratch_bytes": 487115759
+          },
+          {
+            "checkpoint_probe_count": 150,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 127655936
+              },
+              {
+                "pid": 769290,
+                "rss_bytes": 117362688
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 139583488
+              }
+            ],
+            "total_relay_rss_bytes": 384602112,
+            "scratch_bytes": 484037807
+          },
+          {
+            "checkpoint_probe_count": 150,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 127655936
+              },
+              {
+                "pid": 769290,
+                "rss_bytes": 117362688
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 139583488
+              }
+            ],
+            "total_relay_rss_bytes": 384602112,
+            "scratch_bytes": 484037807
+          },
+          {
+            "checkpoint_probe_count": 175,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 128327680
+              },
+              {
+                "pid": 769290,
+                "rss_bytes": 118099968
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 140398592
+              }
+            ],
+            "total_relay_rss_bytes": 386826240,
+            "scratch_bytes": 485759391
+          },
+          {
+            "checkpoint_probe_count": 200,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 137641984
+              },
+              {
+                "pid": 769290,
+                "rss_bytes": 118652928
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 140771328
+              }
+            ],
+            "total_relay_rss_bytes": 397066240,
+            "scratch_bytes": 487489791
+          },
+          {
+            "checkpoint_probe_count": 225,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 130600960
+              },
+              {
+                "pid": 769290,
+                "rss_bytes": 119500800
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 141324288
+              }
+            ],
+            "total_relay_rss_bytes": 391426048,
+            "scratch_bytes": 488296231
+          },
+          {
+            "checkpoint_probe_count": 240,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 131338240
+              },
+              {
+                "pid": 772722,
+                "rss_bytes": 137515008
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 141721600
+              }
+            ],
+            "total_relay_rss_bytes": 410574848,
+            "scratch_bytes": 484312071
+          },
+          {
+            "checkpoint_probe_count": 250,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 131575808
+              },
+              {
+                "pid": 772722,
+                "rss_bytes": 138043392
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 142065664
+              }
+            ],
+            "total_relay_rss_bytes": 411684864,
+            "scratch_bytes": 485037191
+          },
+          {
+            "checkpoint_probe_count": 275,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 133328896
+              },
+              {
+                "pid": 772722,
+                "rss_bytes": 138514432
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 142168064
+              }
+            ],
+            "total_relay_rss_bytes": 414011392,
+            "scratch_bytes": 486783591
+          },
+          {
+            "checkpoint_probe_count": 300,
+            "relay_processes": [
+              {
+                "pid": 762331,
+                "rss_bytes": 133644288
+              },
+              {
+                "pid": 772722,
+                "rss_bytes": 139051008
+              },
+              {
+                "pid": 763471,
+                "rss_bytes": 142417920
+              }
+            ],
+            "total_relay_rss_bytes": 415113216,
+            "scratch_bytes": 488464311
+          }
+        ],
+        "external_requests": [],
+        "websockets": [
+          "ws://127.0.0.1:28740/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28740/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28742/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28742/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/",
+          "ws://127.0.0.1:28741/"
+        ],
+        "relay_count": 3,
+        "bridge_count": 2,
+        "started_utc": "2026-11-03T19:22:04.088Z",
+        "ended_utc": "2026-11-03T19:23:35.720Z",
+        "browser": {
+          "playwright_version": "1.62.1",
+          "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+          "browser_version": "153.0.8010.12",
+          "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+        },
+        "resource_budget": {
+          "available_memory_at_start_bytes": 9103478784,
+          "max_relay_rss_bytes": 6372435148,
+          "max_scratch_bytes": 2147483648
+        },
+        "logical_rate_window_advances": 5,
+        "idle_lock_public_bridge": {
+          "verified": true,
+          "logical_clock_step_ms": 60000,
+          "logical_clock_repetitions": 31,
+          "contexts": 2,
+          "secrets_cleared_from_ui": true,
+          "public_bridge_preserved": true
+        },
+        "locked_bridge_stop": {
+          "verified": true,
+          "repetitions": 2,
+          "relay_sockets_closed": [
+            true,
+            true
+          ]
+        },
+        "page_errors": [],
+        "gate_eligible": true
+      },
+      "evidence": [
+        "later-gates/g11-03-repetitions.log",
+        "later-gates/g11-03/g11-multirelay-repetition-report.json",
+        "later-gates/g11-03/g11-repetition-probes.jsonl"
+      ]
+    },
+    {
+      "case": "G11-04",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Todos os casos PASS referenciam evidência existente; corpus financeiro e artefatos foram verificados sem material secreto.",
+      "observed": {
+        "core_pass_case_count": 51,
+        "g08_report_present": true,
+        "missing_evidence": [],
+        "secret_artifact_paths": []
+      },
+      "evidence": []
+    },
+    {
+      "case": "G11-05",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Registro dos 74 casos, checkpoints e consolidação/hashes serão finalizados pelo runner após retornar este conjunto.",
+      "observed": {
+        "planned_total_case_count": 74,
+        "recorded_later_cases": 17,
+        "checkpoint_files": [
+          "cases.latest.jsonl",
+          "case-events.jsonl",
+          "gate-checkpoints.jsonl"
+        ]
+      },
+      "evidence": [
+        "later-gates/later-gates-report.json"
+      ]
+    },
+    {
+      "case": "G12-01",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Linux x86_64 relay launcher, private paths/config, SQLite persistence/restart, Chromium and pinned Firefox browser journeys passed; relay started without Java in PATH.",
+      "observed": {
+        "platform": "linux/x64",
+        "native_relay_integration": "PASS",
+        "relay_path_without_java": true,
+        "chromium_cases": [
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "firefox_run_status": "PASS",
+        "firefox_result": "PASS",
+        "firefox_cases": [
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "firefox_browser": {
+          "playwright_version": "1.62.1",
+          "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+          "browser_version": "153.0",
+          "browser_executable_sha256": "26e4198abe0dfb93c339239297008b1319711575d8cbae8e2d5122d2017b29a1"
+        }
+      },
+      "evidence": [
+        "later-gates/g12-01-native.log",
+        "later-gates/g12-01-firefox.log",
+        "later-gates/firefox-browser/browser-g04-report.json",
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json"
+      ]
+    },
+    {
+      "case": "G12-02",
+      "status": "PENDING",
+      "gate_eligible": false,
+      "command": null,
+      "reason": "Execução nativa Windows foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.",
+      "observed": {
+        "required_platform": "Windows x64",
+        "native_execution_deferred": true
+      },
+      "evidence": []
+    },
+    {
+      "case": "G12-03",
+      "status": "PENDING",
+      "gate_eligible": false,
+      "command": null,
+      "reason": "Execução nativa macOS foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.",
+      "observed": {
+        "required_platform": "macOS Apple Silicon",
+        "native_execution_deferred": true
+      },
+      "evidence": []
+    },
+    {
+      "case": "G12-04",
+      "status": "PENDING",
+      "gate_eligible": false,
+      "command": null,
+      "reason": "Execução Android foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.",
+      "observed": {
+        "required_platform": "Android",
+        "native_execution_deferred": true
+      },
+      "evidence": []
+    },
+    {
+      "case": "G12-05",
+      "status": "PENDING",
+      "gate_eligible": false,
+      "command": null,
+      "reason": "Execução nativa iOS/iPadOS foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.",
+      "observed": {
+        "required_platform": "iOS/iPadOS",
+        "native_execution_deferred": true
+      },
+      "evidence": []
+    }
+  ],
+  "started_utc": "2026-11-03T19:19:50.256Z",
+  "ended_utc": "2026-11-03T19:24:38.882Z",
+  "result": "RECORDED"
+}

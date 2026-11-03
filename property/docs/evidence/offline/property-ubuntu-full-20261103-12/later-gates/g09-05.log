@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/g09-package-hardening-smoke.mjs /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261103-12/later-gates/g09-05
+started: 2026-11-03T19:20:23.726Z
+ended: 2026-11-03T19:20:23.933Z
+exit_code: 0
+signal: 
+timeout: false
+--- stdout ---
+{"schema_version":1,"case":"G09-05","result":"PASS","tampered_manifest":{"exit_code":1,"rejected_before_rebuild":true,"archive_created":false},"missing_segment":{"exit_code":1,"rejected_before_start":true,"archive_created":false},"network":"unshared network namespace"}
+
+--- stderr ---
+
