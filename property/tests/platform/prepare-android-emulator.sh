@@ -6,19 +6,35 @@ if [[ -z "$SDK_ROOT" ]]; then
   echo 'ANDROID_SDK_ROOT or ANDROID_HOME is required.' >&2
   exit 2
 fi
-SDKMANAGER="$(command -v sdkmanager || true)"
-AVDMANAGER="$(command -v avdmanager || true)"
-EMULATOR="$(command -v emulator || true)"
-ADB="$(command -v adb || true)"
-for binary in "$SDKMANAGER" "$AVDMANAGER" "$EMULATOR" "$ADB"; do
-  if [[ -z "$binary" ]]; then echo 'Android command-line tools, emulator, and adb must be installed.' >&2; exit 2; fi
+SDKMANAGER="${SDKMANAGER:-$(command -v sdkmanager || true)}"
+if [[ -z "$SDKMANAGER" ]]; then
+  for candidate in "$SDK_ROOT"/cmdline-tools/*/bin/sdkmanager; do
+    if [[ -x "$candidate" ]]; then SDKMANAGER="$candidate"; break; fi
+  done
+fi
+AVDMANAGER="${AVDMANAGER:-$(command -v avdmanager || true)}"
+if [[ -z "$AVDMANAGER" && -n "$SDKMANAGER" ]]; then
+  candidate="$(dirname "$SDKMANAGER")/avdmanager"
+  [[ ! -x "$candidate" ]] || AVDMANAGER="$candidate"
+fi
+EMULATOR="${EMULATOR:-$(command -v emulator || true)}"
+[[ -x "$EMULATOR" ]] || EMULATOR="$SDK_ROOT/emulator/emulator"
+ADB="${ADB:-$(command -v adb || true)}"
+[[ -x "$ADB" ]] || ADB="$SDK_ROOT/platform-tools/adb"
+for name in SDKMANAGER AVDMANAGER EMULATOR ADB; do
+  if [[ ! -x "${!name}" ]]; then printf 'Android SDK component %s is missing: %s\n' "$name" "${!name}" >&2; exit 2; fi
 done
+export PATH="$(dirname "$SDKMANAGER"):$(dirname "$AVDMANAGER"):$(dirname "$EMULATOR"):$(dirname "$ADB"):$PATH"
 
 IMAGE='system-images;android-35;google_apis_playstore;x86_64'
 AVD='property-g12-api35'
 DEVICE='pixel_6'
+set +o pipefail
 yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null
+set -o pipefail
+set +o pipefail
 yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install emulator platform-tools 'platforms;android-35' "$IMAGE"
+set -o pipefail
 printf 'no\n' | "$AVDMANAGER" create avd --force --name "$AVD" --package "$IMAGE" --device "$DEVICE"
 "$EMULATOR" -avd "$AVD" -port 5554 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data -no-metrics >"${RUNNER_TEMP:-/tmp}/property-android-emulator.log" 2>&1 &
 EMULATOR_PID=$!
