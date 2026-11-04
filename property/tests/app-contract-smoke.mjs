@@ -68,7 +68,7 @@ assert.match(app, /const isAgentProtocol = rumor\.content\.includes\(AgentMessag
 assert.match(app, /message\.text/);
 assert.match(html, /id="open-agent-manager"/);
 assert.match(html, /id="agent-mode" type="checkbox"/);
-assert.match(html, /Não há convite, pareamento ou aprovação por mensagem/);
+assert.match(html, /There are no invitations, pairing, or per-message approvals/);
 assert.doesNotMatch(sw, /agent-pairing\.js/);
 await assert.rejects(access(join(root, 'web/agent-pairing.js')), 'obsolete approval-flow module must not be shipped');
 assert.match(app, /Contact\.parsePublicKey/);
