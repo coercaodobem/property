@@ -8,8 +8,8 @@
   "started_utc": "2026-11-04T02:14:46.939Z",
   "required_seconds": 86400,
   "probe_interval_seconds": 60,
-  "probe_passes_observed": 24,
-  "last_event_utc": "2026-11-04T02:38:47.430Z",
+  "probe_passes_observed": 32,
+  "last_event_utc": "2026-11-04T02:46:47.540Z",
   "planned_faults": [
     "SIGTERM at one-third of the window",
     "SIGKILL at two-thirds of the window"
@@ -32,7 +32,7 @@
     ],
     "diff": "empty between tested source commit and delivery head; intervening commits contain evidence files only"
   },
-  "checkpoint_updated_utc": "2026-11-04T02:38:10Z",
+  "checkpoint_updated_utc": "2026-11-04T02:46:50.051Z",
   "network_observation": {
     "captured_utc": "2026-11-04T02:38:10Z",
     "host_namespace": "net:[4026531833]",

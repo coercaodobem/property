@@ -80,7 +80,7 @@
           "invalid_config": {
             "exit_code": 1,
             "rejected_before_relay_listen": true,
-            "error_excerpt": "Picked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx384m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m -Djava.io.tmpdir=/home/<USER>/Liberdade/.property-lab-runs/property-full-20261104-04/tmp\nException in thread \"main\" ParseError(errorDescription=Expected EOF, but got '['., line=1, cause=null)\n\tat cc.ekblad.toml.parser.DocumentKt.parseTomlDocument(Document.kt:47)\n\tat cc.ekblad.toml.serialization.TomlDeserializerKt.from(TomlDeserializ"
+            "error_excerpt": "Picked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx384m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m -Djava.io.tmpdir=[LOCAL_HOME_PATH] in thread \"main\" ParseError(errorDescription=Expected EOF, but got '['., line=1, cause=null)\n\tat cc.ekblad.toml.parser.DocumentKt.parseTomlDocument(Document.kt:47)\n\tat cc.ekblad.toml.serialization.TomlDeserializerKt.from(TomlDeserializ"
           },
           "bounded_volume": {
             "status": "PASS",
@@ -820,8 +820,8 @@
             "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/later-gates-report.json",
             "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-1.json",
             "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-2.json",
-            "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build.log",
-            "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build-repeat.log"
+            "cross-run/G11-02/g11-02-offline-build.log",
+            "cross-run/G11-02/g11-02-offline-build-repeat.log"
           ]
         },
         "build_output_sha256_first": null,
@@ -844,8 +844,8 @@
         "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/later-gates-report.json",
         "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-1.json",
         "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-2.json",
-        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build.log",
-        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build-repeat.log",
+        "cross-run/G11-02/g11-02-offline-build.log",
+        "cross-run/G11-02/g11-02-offline-build-repeat.log",
         "logs/G02-01-origin.log"
       ]
     },

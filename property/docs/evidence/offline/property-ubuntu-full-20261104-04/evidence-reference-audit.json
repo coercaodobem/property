@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "captured_utc": "2026-11-04T03:00:40.835Z",
+  "candidate_commit": "136a7f4b5b6aeedc1ed5dc35049e989d58fe44fc",
+  "delivery_head_at_audit": "8848e9875e21af0d45c36c204688daf8b6f7815d",
+  "source_case_file": "cases.latest.jsonl",
+  "case_count": 74,
+  "unique_case_count": 74,
+  "duplicate_case_ids": [],
+  "status_counts": {
+    "PASS": 70,
+    "PENDING": 4
+  },
+  "evidence_references": 181,
+  "unique_evidence_paths": 60,
+  "reference_path_types": {
+    "package_relative": 178,
+    "repository_root": 3
+  },
+  "missing_evidence": [],
+  "untracked_evidence": [],
+  "package_file_count": 79,
+  "indexed_package_file_count": 79,
+  "untracked_package_files": [],
+  "index_missing_package_files": [],
+  "checks": {
+    "cases": true,
+    "unique_cases": true,
+    "statuses": true,
+    "references_resolve": true,
+    "references_tracked": true,
+    "package_files_tracked": true
+  },
+  "result": "PASS"
+}

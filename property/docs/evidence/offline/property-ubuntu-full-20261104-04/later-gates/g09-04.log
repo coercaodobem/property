@@ -1,0 +1,10 @@
+command: /usr/bin/node property/tests/offline/g09-hostile-events-smoke.mjs 29102 [LOCAL_HOME_PATH]
+started: 2026-11-04T02:03:33.536Z
+ended: 2026-11-04T02:03:42.448Z
+exit_code: 0
+signal:
+timeout: false
+--- stdout ---
+{"schema_version":1,"case":"G09-04","result":"PASS","relay_duplicate_copies":1,"invalid_signature_rejected":true,"oversized_event_forwarded":false,"bridge_events_accepted_before_quota":60,"corpus_recovered_after_hostile_input":true,"persisted_event_ids":["44ddc27ed88568d31612b9ffea20d1943648664375fa097898a4634febf127a0","a92a4a745d6e3b446858aaf42ddc333f07d68a5c36d91916924273ea0a19837b"]}
+
+--- stderr ---

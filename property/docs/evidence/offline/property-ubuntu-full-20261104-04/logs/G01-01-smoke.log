@@ -1,0 +1,202 @@
+command: bash property/tests/run-smoke.sh
+started: 2026-11-04T01:59:30.874Z
+ended: 2026-11-04T01:59:40.282Z
+exit_code: 0
+signal:
+timeout: false
+error:
+--- stdout ---
+
+== money-smoke.mjs ==
+PASS: BTC/satoshi, XMR/piconero e XNO/raw exatos, limites, precisão e rejeição de moedas/unidades inválidas
+
+== nano-units-smoke.mjs ==
+PASS: XNO/raw exact integer conversion, 1 raw/1 XNO boundaries, comma decimals and invalid inputs
+
+== marketplace-smoke.mjs ==
+PASS: marketplace BTC/XMR/XNO exatos, edição addressable, exclusão NIP-09, expiração e validação de listagens
+
+== campaigns-smoke.mjs ==
+PASS: campanhas assinadas, raw exato, URLs/imagens limitadas, expiração, bloqueio local e limite de exposição
+
+== campaign-engine-smoke.mjs ==
+PASS: signed node decisions, independent policy, persisted campaign state machine, exact payment reconciliation, idempotent publication/refund, and expiry tombstone
+
+== ledger-rpc-smoke.mjs ==
+PASS: Nano v28 open/state history, normalized history fallback, and string confirmation values reconcile exactly.
+
+== protocol-smoke.mjs ==
+PASS: NIP-17 wrap/unwrap, recipient isolation, kind-10050 inbox routing, local AES-GCM, vendor hash
+
+== vault-smoke.mjs ==
+PASS: criação, senha errada, desbloqueio, sessão persistente e backup cifrado
+
+== forwarding-smoke.mjs ==
+PASS: event signature/time/kind validation, per-event deduplication, source exclusion, private-route boundary, event rate and UTF-8 byte limits
+
+== sw-update-smoke.mjs ==
+PASS: PWA install reloads all local assets, covers versioned HTML references, preserves unrelated caches
+
+== contact-smoke.mjs ==
+PASS: hex/npub/nprofile reais; nome livre, vazio, nsec, bech32 truncado e hints inválidos recebem validação segura em português
+
+== app-contract-smoke.mjs ==
+PASS: local-only web assets, CSP, PWA shell registration, segmented relay package, pinned Pages workflow, no eval, JS/shell syntax
+
+== relay-migration-smoke.mjs ==
+PASS: launcher preserves legacy data/config, new variables override aliases, invalid ports rejected (fixture runtime)
+
+== portable-packages-smoke.mjs ==
+PASS: windows-x64, 85 parts, 89033587 bytes, SHA-256 and launcher pin match
+PASS: macos-arm64, 85 parts, 88601649 bytes, SHA-256 and launcher pin match
+
+== relay-package-smoke.mjs ==
+PASS: 130 relay segments reconstruct 67845545 bytes with the pinned SHA-256
+
+== agent-messaging-g0-smoke.mjs ==
+PASS: G0 protocol snapshots, exact hashes, required protocol semantics, local script sources, and vendored Nostr runtime (17 fixed cases; 38 exact assertions).
+
+== agent-service-smoke.mjs ==
+PASS: agentes leem e enviam sem pareamento, sem pedido de aprovação e com bloqueio local revogável; migração v3 preserva somente bloqueios.
+
+== agent-messaging-smoke.mjs ==
+{
+  "gate": "G3",
+  "suite": "envelope-unit",
+  "status": "PASS_TECHNICAL",
+  "seed": "property-agent-envelope-fixed-v1",
+  "logicalNow": 1900000000,
+  "caseCount": 27,
+  "cases": [
+    {
+      "id": "G3-envelope-valid-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-unknown-protocol",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-unknown-version",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-unknown-field",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-missing-field",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-bad-conversation-id",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-bad-message-id",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-bad-correlation",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-body-not-text",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-body-over-8192-bytes",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-duplicate-key",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-excess-depth",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-over-16KiB",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-conversation-id-order-independent",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-conversation-id-rejects-self",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-rate-limit-fixed-window-30",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-rate-limit-resets-next-logical-window",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-id-fixed-random-fixture",
+      "result": "PASS"
+    }
+  ]
+}
+
+== agent-package-smoke.mjs ==
+PASS: manifesto, hashes, pacote fixado, escopo de plataforma e contratos de instalação conferidos.
+
+== offline/agent-security-g5.mjs ==
+PASS_G5_TECHNICAL_OFFLINE_PENDING_INDEPENDENT_REVIEW
+{"seed":"property-g5-hostile-direct-message-block-quota-v2","logicalNow":1900000000,"sourceCommit":"136a7f4b5b6aeedc1ed5dc35049e989d58fe44fc","counts":{"hostileFixtures":100,"replayDuplicateCopies":100,"directUnpairedReadSendCases":25,"overQuotaAttempts":50,"successfulSendsBeforeQuota":30,"localBlockUnblockCycles":20,"testCases":341},"categories":{"prompt-injection-text":15,"markdown-links-and-images":10,"url-redirection":10,"spoofed-agent-profile":10,"deep-json-text":10,"duplicate-json-fields":10,"oversized-payload":10,"embedded-commands":10,"secret-exfiltration-requests":15},"records":341,"corpusManifestSha256":"2f84535bb937a77302af7c7b691af6cc4cf1f6cf201fec9e3d6827da8e4391b4","fixtureCodeSha256":"b91d0b18e794cbe8c46f21bf1d6c10f8c1905e1dbadc0ccdb216bf3dad49136a"}
+
+== offline/runner-contract-smoke.mjs ==
+PASS: offline runner contract, resume safety and G00-04 interruption verified
+
+== agent-package-smoke.sh ==
+Property Agent instalado/atualizado em [LOCAL_HOME_PATH]
+Execute: [LOCAL_HOME_PATH] status
+Property Agent instalado/atualizado em [LOCAL_HOME_PATH]
+Execute: [LOCAL_HOME_PATH] status
+Executáveis Property Agent removidos de [LOCAL_HOME_PATH] Cofres em XDG_DATA_HOME/property/agents não foram alterados.
+PASS: instalação, atualização, remoção, wrapper CLI e preservação do cofre/dados locais.
+
+PASS: suíte smoke local concluída.
+
+--- stderr ---

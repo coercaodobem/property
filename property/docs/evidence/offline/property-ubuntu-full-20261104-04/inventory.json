@@ -1945,7 +1945,7 @@
       "sha256": null
     },
     "openssl": {
-      "path": "/home/<USER>/miniconda/bin/openssl",
+      "path": "[LOCAL_HOME_PATH]",
       "sha256": "d42b63a20f86fccd88dd91f92e471ec3b9ce6729eec46d1b6ba165749a8efde9"
     },
     "ip": {
@@ -2012,31 +2012,31 @@
   "ledger_tools": {
     "bitcoin": {
       "bitcoind": {
-        "path": "/tmp/property-ledger-tools/bitcoin-extract/bitcoin-32.1/bin/bitcoind",
+        "path": "[LOCAL_TMP_PATH]",
         "expected_sha256": "580ac61190154da31aac3f82d13c4254ef453d70e1bf2c39d338dac5129c92ac",
         "observed_sha256": "580ac61190154da31aac3f82d13c4254ef453d70e1bf2c39d338dac5129c92ac"
       },
       "bitcoin_cli": {
-        "path": "/tmp/property-ledger-tools/bitcoin-extract/bitcoin-32.1/bin/bitcoin-cli",
+        "path": "[LOCAL_TMP_PATH]",
         "expected_sha256": "83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d",
         "observed_sha256": "83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d"
       }
     },
     "monero": {
       "monerod": {
-        "path": "/tmp/property-ledger-tools/monero-extract/monero-x86_64-linux-gnu-v0.18.5.4/monerod",
+        "path": "[LOCAL_TMP_PATH]",
         "expected_sha256": "f035a7c555aec692705012027a64707f38adeabc4a4c9244f259cd78bb2e84f1",
         "observed_sha256": "f035a7c555aec692705012027a64707f38adeabc4a4c9244f259cd78bb2e84f1"
       },
       "monero_wallet_rpc": {
-        "path": "/tmp/property-ledger-tools/monero-extract/monero-x86_64-linux-gnu-v0.18.5.4/monero-wallet-rpc",
+        "path": "[LOCAL_TMP_PATH]",
         "expected_sha256": "06f36de37bda72ff377c11700ba622fef435d27510c883e9c83a27ba3c46ba1f",
         "observed_sha256": "06f36de37bda72ff377c11700ba622fef435d27510c883e9c83a27ba3c46ba1f"
       }
     },
     "nano": {
       "nano_node": {
-        "path": "/tmp/property-ledger-tools/nano-node/build/nano_node",
+        "path": "[LOCAL_TMP_PATH]",
         "expected_sha256": "80ae0c647cbe9de174e700e05a653a5c76ccacae523cb5ac4bfffd33dd067587",
         "observed_sha256": "80ae0c647cbe9de174e700e05a653a5c76ccacae523cb5ac4bfffd33dd067587"
       }

@@ -20,18 +20,18 @@
     "native_relay": 29070
   },
   "browser_automation": {
-    "playwright_module": "/home/<USER>/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs",
+    "playwright_module": "[LOCAL_HOME_PATH]",
     "engine": "chromium",
-    "executable": "/home/<USER>/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell",
+    "executable": "[LOCAL_HOME_PATH]",
     "playwright_version": "1.62.1",
     "browser_version": "153.0.8010.12",
     "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
     "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
   },
   "browser_automation_firefox": {
-    "playwright_module": "/home/<USER>/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs",
+    "playwright_module": "[LOCAL_HOME_PATH]",
     "engine": "firefox",
-    "executable": "/home/<USER>/.cache/ms-playwright/firefox-1538/firefox/firefox",
+    "executable": "[LOCAL_HOME_PATH]",
     "playwright_version": "1.62.1",
     "browser_version": "153.0",
     "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
@@ -39,23 +39,23 @@
   },
   "ledger_tools": {
     "bitcoin": {
-      "bitcoind": "/tmp/property-ledger-tools/bitcoin-extract/bitcoin-32.1/bin/bitcoind",
-      "bitcoin_cli": "/tmp/property-ledger-tools/bitcoin-extract/bitcoin-32.1/bin/bitcoin-cli",
+      "bitcoind": "[LOCAL_TMP_PATH]",
+      "bitcoin_cli": "[LOCAL_TMP_PATH]",
       "bitcoind_sha256": "580ac61190154da31aac3f82d13c4254ef453d70e1bf2c39d338dac5129c92ac",
       "bitcoin_cli_sha256": "83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d"
     },
     "monero": {
-      "monerod": "/tmp/property-ledger-tools/monero-extract/monero-x86_64-linux-gnu-v0.18.5.4/monerod",
-      "monero_wallet_rpc": "/tmp/property-ledger-tools/monero-extract/monero-x86_64-linux-gnu-v0.18.5.4/monero-wallet-rpc",
+      "monerod": "[LOCAL_TMP_PATH]",
+      "monero_wallet_rpc": "[LOCAL_TMP_PATH]",
       "monerod_sha256": "f035a7c555aec692705012027a64707f38adeabc4a4c9244f259cd78bb2e84f1",
       "monero_wallet_rpc_sha256": "06f36de37bda72ff377c11700ba622fef435d27510c883e9c83a27ba3c46ba1f"
     },
     "nano": {
-      "nano_node": "/tmp/property-ledger-tools/nano-node/build/nano_node",
+      "nano_node": "[LOCAL_TMP_PATH]",
       "nano_node_sha256": "80ae0c647cbe9de174e700e05a653a5c76ccacae523cb5ac4bfffd33dd067587"
     }
   },
-  "public_artifact_sanitization": "Absolute local home-directory prefixes in textual evidence are redacted as /home/<USER> before publication.",
+  "public_artifact_sanitization": "Absolute local home-directory prefixes in textual evidence are redacted as [LOCAL_HOME_PATH] before publication.",
   "reference_commit": "cbbf170bb5fb49f26531531d2555999bb77990bc",
   "started_utc": "2026-11-04T01:59:21.046Z",
   "attempt_number": 1

@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/browser-g06-smoke.mjs --playwright-module [LOCAL_HOME_PATH] --engine chromium --executable [LOCAL_HOME_PATH] --playwright-version 1.62.1 --browser-version 153.0.8010.12 --playwright-package-sha256 f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30 --browser-executable-sha256 ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e --output [LOCAL_HOME_PATH]
+started: 2026-11-04T02:01:53.245Z
+ended: 2026-11-04T02:02:10.783Z
+exit_code: 0
+signal:
+timeout: false
+error:
+--- stdout ---
+{"result":"PASS","cases":[{"case":"G06-01","status":"PASS","reason":"A signed public kind-1 post traversed the actual PWA bridge from R1 to R2. Buyer B saw the author, and the contact action selected that author in private-message navigation while the post remained public."},{"case":"G06-02","status":"PASS","reason":"The browser published, discovered, and edited one satoshi, one piconero, and one raw through two actual Geode relays and a real PWA bridge. Exact atomic strings, event authorship, stable d tags, signatures, and rendered prices survived each round-trip; currency maxima and overflow were checked."},{"case":"G06-03","status":"PASS","reason":"Seller withdrawal hid the offer even after the older signed event was replayed to R2. Geode rejected reinsertion under its deletion tombstone. Another author could not remove an offer; the client reducer ignored an older deletion timestamp without sending that fixture to the relay."},{"case":"G06-04","status":"PASS","reason":"Expired and future-timestamp, unknown-currency, malformed, and ambiguous-address listings were filtered. The browser blocked excess precision, overflow, and unsupported-currency submissions; unsafe image URLs were not linked or fetched, and injected markup remained literal text."},{"case":"G06-05","status":"PASS","reason":"Contact from the marketplace opened the correct seller conversation target without changing the displayed offer, publishing any payment/checkout/private-message event, or exposing a checkout control. The UI identifies NIP-15 as draft and states that payments/custody are not handled."}],"output":"[LOCAL_HOME_PATH]
+
+--- stderr ---

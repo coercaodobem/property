@@ -1,0 +1,10 @@
+command: /usr/bin/node property/tests/offline/g11-02-pwa-package-smoke.mjs [LOCAL_HOME_PATH]
+started: 2026-11-04T02:05:14.905Z
+ended: 2026-11-04T02:05:15.049Z
+exit_code: 0
+signal:
+timeout: false
+--- stdout ---
+{"result":"PASS","asset_count":23,"total_asset_bytes":458474,"sha256":"09568357b884249ef664115e6b5dbf13534a77c51bb0f18928b25da4c673c9cb"}
+
+--- stderr ---

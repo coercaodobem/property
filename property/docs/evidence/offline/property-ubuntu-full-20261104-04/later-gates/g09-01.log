@@ -1,0 +1,10 @@
+command: /usr/bin/node property/tests/offline/g09-campaign-crash-smoke.mjs 29100 [LOCAL_HOME_PATH]
+started: 2026-11-04T02:03:09.748Z
+ended: 2026-11-04T02:03:19.032Z
+exit_code: 0
+signal:
+timeout: false
+--- stdout ---
+{"schema_version":1,"result":"PASS","case":"G09-01","abrupt_campaign_crashes":2,"state_after_first_crash":"awaiting_payment","state_after_second_crash":"published","publication_calls_after_recovery":0,"relay_campaign_copies":1,"campaign_event_id":"5737009173d988ec0b36b9d2d7887b8e1a9515986a758beaaf5658943a132730","relay_url":"ws://127.0.0.1:29100","temp_state_private":true}
+
+--- stderr ---

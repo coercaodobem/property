@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/later-gates.mjs --manifest [LOCAL_HOME_PATH] --output [LOCAL_HOME_PATH]
+started: 2026-11-04T02:03:09.628Z
+ended: 2026-11-04T02:08:00.253Z
+exit_code: 0
+signal:
+timeout: false
+error:
+--- stdout ---
+{"result":"RECORDED","cases":23,"report":"[LOCAL_HOME_PATH]
+
+--- stderr ---

@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/mutation-sensitivity-smoke.mjs
+started: 2026-11-04T01:59:53.642Z
+ended: 2026-11-04T01:59:54.392Z
+exit_code: 0
+signal:
+timeout: false
+error:
+--- stdout ---
+PASS: G01-03 detected signature, bundle hash, atomic-price and encrypted-backup mutations for the expected reasons
+
+--- stderr ---
