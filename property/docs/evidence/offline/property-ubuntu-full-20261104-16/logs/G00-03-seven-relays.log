@@ -1,0 +1,11 @@
+command: bash property/tests/seven-relays-smoke.sh 29260
+started: 2026-11-04T12:56:03.508Z
+ended: 2026-11-04T12:56:08.402Z
+exit_code: 0
+signal:
+timeout: false
+error:
+--- stdout ---
+PASS: 7 Geode reais prontos por WebSocket em 127.0.0.1, portas 29260-29266; bancos/configurações distintos, permissões 700/600 e encerramento verificado.
+
+--- stderr ---

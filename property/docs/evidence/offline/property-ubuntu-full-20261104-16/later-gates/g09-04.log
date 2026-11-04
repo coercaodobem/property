@@ -1,0 +1,10 @@
+command: /usr/bin/node property/tests/offline/g09-hostile-events-smoke.mjs 29302 /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261104-16/later-gates/g09-04
+started: 2026-11-04T12:59:42.639Z
+ended: 2026-11-04T12:59:45.650Z
+exit_code: 0
+signal:
+timeout: false
+--- stdout ---
+{"schema_version":1,"case":"G09-04","result":"PASS","relay_duplicate_copies":1,"invalid_signature_rejected":true,"oversized_event_forwarded":false,"bridge_events_accepted_before_quota":60,"corpus_recovered_after_hostile_input":true,"persisted_event_ids":["fd80db1425fff587bf9b64b5faa6d3a1977e82fa9a2fb57e8f0c5bcddc9e82ad","2d6da48bc0ccb930de486b6853df396d1102a965c51826df6e195ec3178a6b84"]}
+
+--- stderr ---

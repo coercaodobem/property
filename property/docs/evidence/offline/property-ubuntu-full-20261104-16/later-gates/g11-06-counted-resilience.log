@@ -1,0 +1,10 @@
+command: /usr/bin/node property/tests/offline/g11-multirelay-resilience.mjs /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261104-16/manifest.json /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261104-16/later-gates/g11-06
+started: 2026-11-04T13:02:50.734Z
+ended: 2026-11-04T13:04:07.578Z
+exit_code: 0
+signal:
+timeout: false
+--- stdout ---
+{"status":"PASS","gate_eligible":true,"probes":96,"restarts":4,"partition_events_reconciled":12}
+
+--- stderr ---

@@ -1,0 +1,10 @@
+command: /usr/bin/node property/tests/forwarding-smoke.mjs
+started: 2026-11-04T12:59:45.652Z
+ended: 2026-11-04T12:59:46.123Z
+exit_code: 0
+signal:
+timeout: false
+--- stdout ---
+PASS: event signature/time/kind validation, per-event deduplication, source exclusion, private-route boundary, event rate and UTF-8 byte limits
+
+--- stderr ---
