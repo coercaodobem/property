@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "captured_utc": "2026-11-04T02:27:48Z",
+  "candidate_commit": "136a7f4b5b6aeedc1ed5dc35049e989d58fe44fc",
+  "host": {
+    "os": "Ubuntu Linux",
+    "architecture": "x86_64",
+    "kernel": "7.0.0-38-generic"
+  },
+  "available_native_runners": [
+    "Linux x86_64"
+  ],
+  "unavailable_tools": {
+    "android_sdk_root": false,
+    "adb": false,
+    "android_emulator": false,
+    "kvm_device": false,
+    "qemu_system_x86_64": false,
+    "virtualbox": false,
+    "vmware": false,
+    "libvirt_virsh": false,
+    "powershell": false,
+    "pwsh": false,
+    "xcrun": false
+  },
+  "cases": {
+    "G12-02": {
+      "status": "PENDING",
+      "platform": "Windows x64",
+      "reason": "No Windows runner, PowerShell, KVM/QEMU, VirtualBox, VMware, or libvirt host is available in this Ubuntu environment."
+    },
+    "G12-03": {
+      "status": "PENDING",
+      "platform": "macOS Apple Silicon",
+      "reason": "Host is Linux x86_64; Xcode tooling and an Apple Silicon Mac or compatible VM are unavailable."
+    },
+    "G12-04": {
+      "status": "PENDING",
+      "platform": "Android",
+      "reason": "No Android SDK, adb, emulator, or KVM device is available; an Android browser/device could not be exercised."
+    },
+    "G12-05": {
+      "status": "PENDING",
+      "platform": "iOS/iPadOS",
+      "reason": "No Apple host, xcrun, simulator, or connected iOS device is available."
+    }
+  },
+  "not_substituted_with": [
+    "viewport simulation",
+    "Linux WebKit",
+    "Wine",
+    "GitHub Actions"
+  ],
+  "no_external_platform_runner_used": true,
+  "scope_note": "This records environment availability only; it is not a test result or platform approval."
+}

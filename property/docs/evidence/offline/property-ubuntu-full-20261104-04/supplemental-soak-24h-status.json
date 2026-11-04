@@ -8,8 +8,8 @@
   "started_utc": "2026-11-04T02:14:46.939Z",
   "required_seconds": 86400,
   "probe_interval_seconds": 60,
-  "probe_passes_observed": 10,
-  "last_event_utc": "2026-11-04T02:24:47.120Z",
+  "probe_passes_observed": 13,
+  "last_event_utc": "2026-11-04T02:27:47.165Z",
   "planned_faults": [
     "SIGTERM at one-third of the window",
     "SIGKILL at two-thirds of the window"
