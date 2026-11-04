@@ -33,6 +33,7 @@ const runnerSource = await readFile(path.join(root, 'property/tests/offline/run-
 const viewportSource = await readFile(path.join(root, 'property/tests/offline/g10-viewport-smoke.mjs'), 'utf8');
 const laterGatesSource = await readFile(path.join(root, 'property/tests/offline/later-gates.mjs'), 'utf8');
 const resilienceSource = await readFile(path.join(root, 'property/tests/offline/g11-multirelay-resilience.mjs'), 'utf8');
+const platformBrowserSource = await readFile(path.join(root, 'property/tests/platform/platform-browser-smoke.mjs'), 'utf8');
 assert.match(runnerSource, /-Djava\.io\.tmpdir=\$\{os\.tmpdir\(\)\}/,
   'Java children use the isolated run scratch directory for temporary native libraries');
 assert.match(runnerSource, /browser-g05-smoke\.mjs/, 'full profile executes the G05 multi-relay harness');
@@ -60,6 +61,8 @@ assert.match(resilienceSource, /window\.__propertyTestClock\.advance\(1,\s*stepM
   'all six relay bridges advance their logical clock by the same fixed count');
 assert.doesNotMatch(resilienceSource, /monotonic|probe_interval|failure_offsets|scheduled_offset|elapsed_ms|required_duration_ms|24.hour/i,
   'G11-06 has no elapsed-time, interval, or 24-hour acceptance logic');
+assert.doesNotMatch(platformBrowserSource, /https:\/\/example\.com|browserOfflineProbe|blocked_external_probe/,
+  'native platform journeys do not send external probes to verify network isolation');
 assert.ok(laterGatesSource.indexOf("if(!gatePassed('G11'))") < laterGatesSource.lastIndexOf('await runG1201(prior)'),
   'G11 reconciliation barrier precedes every G12 case');
 assert.ok(laterGatesSource.indexOf("if(!gatePassed('G10'))") < laterGatesSource.indexOf("const g04Args="),
@@ -347,16 +350,16 @@ const nativeHostIsolationProof = { schema_version: 1, kind: 'native-egress-isola
   platform: 'win32/x64', policy: 'no-public-default-routes-local-lab-allowed-no-external-proxies',
   start: nativeHostIsolation, end: nativeHostIsolation };
 const nativePlatformSchemaFixture = {
-  schema_version: 1, case: 'G12-02', candidate_commit: 'd'.repeat(40), result: 'PASS',
+  schema_version: 2, case: 'G12-02', candidate_commit: 'd'.repeat(40), result: 'PASS',
   platform: { os: 'win32', arch: 'x64' }, native_relay: { status: 'PASS', platform: 'win32/x64' },
   toolchain: { node: '22.22.1', appium: '3.9.0', package_lock_sha256: 'f'.repeat(64),
     drivers: [{ package: 'appium-chromium-driver', version: '3.2.0', registered: true }] },
   network_isolation: { verdict: 'PASS', policy: 'deny-all loopback HTTP proxy and no usable IPv4/IPv6 default route',
     host_egress_blocked: true, host_egress: nativeHostIsolationProof,
-    blocked_external_probe: true, local_loopback_preserved: true,
-    deny_proxy_requests: [{ method: 'CONNECT', host: 'example.com:443' }], runner_processes_remain_online_for_ci: false },
+    intentional_external_probe_count: 0, external_proxy_request_count: 0, local_loopback_preserved: true,
+    deny_proxy_requests: [], runner_processes_remain_online_for_ci: false },
   browsers: ['Edge', 'Chrome'].map(browser => ({ browser, status: 'PASS', identity: 'PASS', messaging: 'PASS',
-    capabilities: { platformName: 'windows', browserName: browser === 'Edge' ? 'microsoftedge' : 'chrome' }, offline_probe: { blocked: true }, pwa: {
+    capabilities: { platformName: 'windows', browserName: browser === 'Edge' ? 'microsoftedge' : 'chrome' }, external_probe_performed: false, pwa: {
       secureContext: true, serviceWorkerSupported: true, manifest: './manifest.webmanifest'
     }, cycles: [{ cycle: 1, delivered_once: true }] })),
   local_asset_requests: 6, physical_installation_proven: false,
@@ -367,6 +370,9 @@ const nativePlatformSchemaFixture = {
 assert.equal(validateNativePlatformReport(nativePlatformSchemaFixture, {
   caseId: 'G12-02', candidateCommit: 'd'.repeat(40)
 }).status, 'PASS');
+assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture, schema_version: 1 }, {
+  caseId: 'G12-02', candidateCommit: 'd'.repeat(40)
+}).status, 'FAIL', 'legacy platform reports with intentional external probes are not accepted');
 assert.equal(validateNativePlatformReport(nativePlatformSchemaFixture, {
   caseId: 'G12-02', candidateCommit: 'e'.repeat(40)
 }).status, 'BLOCKED');
@@ -374,7 +380,8 @@ assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture, plat
   caseId: 'G12-02', candidateCommit: 'd'.repeat(40)
 }).status, 'FAIL');
 assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture,
-  network_isolation: { ...nativePlatformSchemaFixture.network_isolation, deny_proxy_requests: [] }
+  network_isolation: { ...nativePlatformSchemaFixture.network_isolation,
+    deny_proxy_requests: [{ method: 'CONNECT', host: 'external.example:443' }], external_proxy_request_count: 1 }
 }, { caseId: 'G12-02', candidateCommit: 'd'.repeat(40) }).status, 'FAIL');
 assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture,
   network_isolation: { ...nativePlatformSchemaFixture.network_isolation,

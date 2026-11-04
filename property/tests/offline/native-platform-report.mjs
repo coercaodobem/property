@@ -35,7 +35,7 @@ export function validateNativePlatformReport(report, { caseId, candidateCommit }
   if (report.result !== 'PASS') return { status: 'BLOCKED', reason: `Native platform runner reported ${report.result || 'no result'}.` };
 
   const failures = [];
-  if (report.schema_version !== 1) failures.push('unsupported report schema');
+  if (report.schema_version !== 2) failures.push('unsupported report schema');
   if (`${report.platform?.os}/${report.platform?.arch}` !== spec.host) failures.push(`host must be ${spec.host}`);
   const toolchainDrivers = Array.isArray(report.toolchain?.drivers) ? report.toolchain.drivers : [];
   if (report.toolchain?.appium !== '3.9.0' || !/^22\./.test(String(report.toolchain?.node || '')) ||
@@ -48,7 +48,8 @@ export function validateNativePlatformReport(report, { caseId, candidateCommit }
     failures.push(`native packaged relay did not pass on ${spec.host}`);
   }
   const isolation = report.network_isolation;
-  if (isolation?.verdict !== 'PASS' || isolation?.blocked_external_probe !== true || isolation?.local_loopback_preserved !== true) {
+  if (isolation?.verdict !== 'PASS' || isolation?.intentional_external_probe_count !== 0 ||
+      isolation?.external_proxy_request_count !== 0 || isolation?.local_loopback_preserved !== true) {
     failures.push('browser egress isolation or local loopback proof is incomplete');
   }
   if (!/deny-all/i.test(String(isolation?.policy || ''))) failures.push('the native browser session did not declare a deny-all external proxy');
@@ -65,9 +66,8 @@ export function validateNativePlatformReport(report, { caseId, candidateCommit }
       isolation?.runner_processes_remain_online_for_ci !== false) {
     failures.push('native host egress isolation was not proven independently of the browser proxy');
   }
-  if (!Array.isArray(isolation?.deny_proxy_requests) ||
-      !isolation.deny_proxy_requests.some(request => /example\.com/i.test(String(request.host || '')))) {
-    failures.push('the denied external probe is absent from proxy evidence');
+  if (!Array.isArray(isolation?.deny_proxy_requests) || isolation.deny_proxy_requests.length !== 0) {
+    failures.push('the offline journey made an external proxy request');
   }
   if (!Array.isArray(report.browsers)) failures.push('browser results are missing');
   const browsers = Array.isArray(report.browsers) ? report.browsers : [];
@@ -89,7 +89,7 @@ export function validateNativePlatformReport(report, { caseId, candidateCommit }
     if (String(browser.capabilities?.browserName || '').toLowerCase() !== BROWSER_NAMES[caseId][browser.browser]) {
       failures.push(`${browser.browser || 'browser'} did not report the required native browser`);
     }
-    if (browser.offline_probe?.blocked !== true) failures.push(`${browser.browser || 'browser'} did not prove external egress was blocked`);
+    if (browser.external_probe_performed !== false) failures.push(`${browser.browser || 'browser'} performed a prohibited external probe`);
     if (browser.pwa?.secureContext !== true || browser.pwa?.serviceWorkerSupported !== true || !browser.pwa?.manifest) {
       failures.push(`${browser.browser || 'browser'} did not load the secure PWA shell`);
     }

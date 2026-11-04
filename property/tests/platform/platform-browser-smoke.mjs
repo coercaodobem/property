@@ -68,10 +68,6 @@ function startAppServer() {
     try {
       if (request.method !== 'GET') return response.writeHead(405).end();
       const url = new URL(request.url, 'http://127.0.0.1');
-      if (url.pathname === '/__property_g12_egress_probe.html') {
-        response.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-        return response.end('<!doctype html><meta charset="utf-8"><title>Property offline probe</title><main>Offline egress probe</main>');
-      }
       let relative = url.pathname === '/' || url.pathname === '/property' || url.pathname === '/property/' ? 'index.html' :
         url.pathname.startsWith('/property/') ? url.pathname.slice('/property/'.length) : url.pathname.replace(/^\/+/, '');
       relative = decodeURIComponent(relative);
@@ -203,17 +199,6 @@ async function startAppium(outputDir) {
     await stopChild(proc);
     throw error;
   }
-}
-
-async function browserOfflineProbe(driver) {
-  const result = await driver.executeAsync(`const done=arguments[arguments.length-1];
-    const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),4000);
-    fetch('https://example.com/',{mode:'no-cors',cache:'no-store',signal:controller.signal})
-      .then(()=>done({blocked:false}))
-      .catch(error=>done({blocked:true,error:String(error?.name||'network-error')}))
-      .finally(()=>clearTimeout(timer));`);
-  assert.equal(result?.blocked, true, 'browser reached an external origin while the platform test was offline');
-  return result;
 }
 
 function startDenyProxy() {
@@ -440,11 +425,8 @@ async function runBrowser(spec, originA, originB, relayUrl, port, tempDir, isMob
   const result = { browser: spec.name, capabilities: { platformName: String(driver.capabilities.platformName), browserName: String(driver.capabilities.browserName),
     browserVersion: String(driver.capabilities.browserVersion || driver.capabilities['appium:browserVersion'] || 'unknown'),
     platformVersion: String(driver.capabilities.platformVersion || driver.capabilities['appium:platformVersion'] || 'unknown') },
-    identity: 'NOT_RUN', messaging: 'NOT_RUN', recovery: 'NOT_RUN', reconnect: 'NOT_RUN', cycles: [], offline_probe: null };
+    identity: 'NOT_RUN', messaging: 'NOT_RUN', recovery: 'NOT_RUN', reconnect: 'NOT_RUN', cycles: [], external_probe_performed: false };
   try {
-    await driver.go(`${originA}/__property_g12_egress_probe.html`);
-    await driver.waitUntil("document.readyState === 'complete' || document.readyState === 'interactive'");
-    result.offline_probe = await browserOfflineProbe(driver);
     const npubA = await createIdentity(driver, originA, relayUrl, 'A');
     const npubB = await createIdentity(driver, originB, relayUrl, 'B');
     assert.notEqual(npubA, npubB, 'separate web origins reused the same local identity');
@@ -523,7 +505,7 @@ async function main() {
   const hostNetworkIsolation = await inspectNativeNetworkIsolation();
   await writeFile(path.join(outputDir, 'g12-platform-network-isolation.json'), JSON.stringify(hostNetworkIsolation, null, 2) + '\n', { mode: 0o600 });
   if (options.preflight) { await runPreflight(specs, outputDir, hostNetworkIsolation); return; }
-  const report = { schema_version: 1, case: options.caseId, candidate_commit: '', platform: {
+  const report = { schema_version: 2, case: options.caseId, candidate_commit: '', platform: {
       os: process.platform, release: os.release(), arch: process.arch },
     network_isolation: { verdict: 'NOT_PROVEN', host_egress: hostNetworkIsolation },
     result: 'NOT_RUN', browsers: [], evidence: [], physical_installation_proven: false,
@@ -576,7 +558,7 @@ async function main() {
     appium = await startAppium(outputDir);
     report.network_isolation = { verdict: 'IN_PROGRESS', host_egress: hostNetworkIsolation,
       policy: 'The native host has no usable public/default IPv4/IPv6 route, permits only local lab routes, and has no external proxy; each WebDriver browser also uses a deny-all loopback HTTP proxy, bypassing only localhost and loopback for local Property assets and relay.',
-      android_adb_reverse: androidForwards, blocked_external_probe: false };
+      android_adb_reverse: androidForwards, intentional_external_probe_count: 0 };
     const mobile = specs[0].mobile;
     const cycleCount = mobile ? 3 : 1;
     for (const spec of specs) {
@@ -584,8 +566,10 @@ async function main() {
       report.browsers.push(browser);
       assert.equal(browser.status, 'PASS');
     }
-    assert.ok(report.browsers.every(browser => browser.offline_probe?.blocked === true), 'every browser must prove its external fetch was blocked');
-    assert.ok(denyProxy.requests.some(request => /example\.com/i.test(request.host)), 'deny proxy did not observe the external offline probe');
+    assert.ok(report.browsers.every(browser => browser.external_probe_performed === false),
+      'the platform journey must not make an intentional request to any external origin');
+    assert.equal(denyProxy.requests.length, 0,
+      `browser attempted external requests during the offline journey: ${JSON.stringify(denyProxy.requests)}`);
     const hostIsolationEnd = await inspectNativeNetworkIsolation();
     const hostIsolationProof = { schema_version: 1, kind: 'native-egress-isolation-checkpoints',
       result: hostNetworkIsolation.result === 'PASS' && hostIsolationEnd.result === 'PASS' &&
@@ -598,13 +582,15 @@ async function main() {
       error.code = 'PROPERTY_PLATFORM_ISOLATION_BLOCKED';
       throw error;
     }
-    report.network_isolation = { ...report.network_isolation, verdict: 'PASS', host_egress_blocked: true, blocked_external_probe: true,
+    report.network_isolation = { ...report.network_isolation, verdict: 'PASS', host_egress_blocked: true,
+      intentional_external_probe_count: 0, external_proxy_request_count: denyProxy.requests.length,
       host_egress: hostIsolationProof,
       deny_proxy_requests: denyProxy.requests, local_loopback_preserved: true,
       runner_processes_remain_online_for_ci: false };
     assert.ok(app.requested.length > 0, 'browser never requested any packaged PWA asset');
     report.local_asset_requests = app.requested.length;
-    report.external_asset_requests = { denied_by_proxy: denyProxy.requests.length, attempted_hosts: [...new Set(denyProxy.requests.map(request => request.host))] };
+    report.external_asset_requests = { denied_by_proxy: denyProxy.requests.length,
+      attempted_hosts: [...new Set(denyProxy.requests.map(request => request.host))] };
     report.installability = report.browsers.map(browser => ({ browser: browser.browser,
       manifest_present: Boolean(browser.pwa?.manifest), service_worker_supported: browser.pwa?.serviceWorkerSupported === true,
       install_prompt_api_supported: browser.pwa?.installPromptSupported === true,
