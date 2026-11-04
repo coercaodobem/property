@@ -76,7 +76,7 @@ assert.match(contact, /não busca nomes de usuário/);
 assert.match(sw, /contact\.js/);
 assert.match(app, /campaigns-\$\{state\.pubkey\}/);
 assert.match(app, /noopener noreferrer/);
-assert.match(html, /não confirma pagamentos BTC, XMR ou XNO nas respectivas redes/i);
+assert.match(about, /A node signature does not confirm payment on the Bitcoin, Monero, or Nano networks/i);
 assert.match(html, /id="show-node-campaigns" type="checkbox"/);
 assert.match(campaigns, /verifyEvent\(event\)/);
 assert.match(app, /navigator\.serviceWorker\.register/);
