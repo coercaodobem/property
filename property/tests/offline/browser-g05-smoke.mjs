@@ -11,6 +11,8 @@ import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGroup } from './process-groups.mjs';
+installProcessGroupSignalCleanup();
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
@@ -131,20 +133,25 @@ async function startGeode(port, base, label) {
   const env = { ...process.env, PROPERTY_RELAY_HOST: '127.0.0.1', PROPERTY_RELAY_PORT: String(port), PROPERTY_RELAY_DATA_DIR: data, PROPERTY_RELAY_CONFIG_DIR: config, PROPERTY_RELAY_CONFIG: path.join(config, 'relay.toml') };
   for (const key of PROXY_KEYS) delete env[key];
   const child = spawn('bash', [path.join(ROOT, 'property/relay/start.sh')], { cwd: ROOT, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  registerProcessGroup(child);
   let diagnostic = ''; for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => { diagnostic = (diagnostic + chunk.toString()).slice(-3000); });
-  for (let i = 0; i < 120; i++) {
-    if (child.exitCode !== null) throw new Error(`Geode ${label} exited ${child.exitCode}: ${safeText(diagnostic)}`);
-    const ready = await new Promise(resolve => { const socket = net.connect(port, '127.0.0.1'); socket.setTimeout(300); socket.once('connect', () => { socket.destroy(); resolve(true); }); socket.once('error', () => { socket.destroy(); resolve(false); }); socket.once('timeout', () => { socket.destroy(); resolve(false); }); });
-    if (ready) return { child, port, url: `ws://127.0.0.1:${port}`, data, config, diagnostic: () => diagnostic };
-    await sleep(250);
+  try {
+    for (let i = 0; i < 120; i++) {
+      if (child.exitCode !== null) throw new Error(`Geode ${label} exited ${child.exitCode}: ${safeText(diagnostic)}`);
+      const ready = await new Promise(resolve => { const socket = net.connect(port, '127.0.0.1'); socket.setTimeout(300); socket.once('connect', () => { socket.destroy(); resolve(true); }); socket.once('error', () => { socket.destroy(); resolve(false); }); socket.once('timeout', () => { socket.destroy(); resolve(false); }); });
+      if (ready) return { child, port, url: `ws://127.0.0.1:${port}`, data, config, diagnostic: () => diagnostic };
+      await sleep(250);
+    }
+    throw new Error(`Geode ${label} did not become ready: ${safeText(diagnostic)}`);
+  } catch (error) {
+    await stopProcessGroup(child);
+    throw error;
   }
-  throw new Error(`Geode ${label} did not become ready: ${safeText(diagnostic)}`);
 }
 async function stopGeode(relay) {
-  if (!relay?.child || relay.child.exitCode !== null) return;
-  try { process.kill(-relay.child.pid, 'SIGTERM'); } catch {}
-  await Promise.race([new Promise(resolve => relay.child.once('exit', resolve)), sleep(6000)]);
-  if (relay.child.exitCode === null) { try { process.kill(-relay.child.pid, 'SIGKILL'); } catch {} }
+  if (!relay?.child) return;
+  const result = await stopProcessGroup(relay.child, { graceMs: 6000, verifyMs: 1500 });
+  if (!result.stopped) throw new Error(`Geode process group ${relay.child.pid} survived cleanup.`);
 }
 function wsQuery(url, filter, timeoutMs = 6000) {
   const socket = new WebSocket(url);
@@ -334,6 +341,7 @@ export { startAppServer, startProxy, loadRuntime, startGeode, stopGeode, wsQuery
   openApp, createAccount, startNode, closeNode, waitUntil, assertNoExternal };
 
 async function main() {
+  installProcessGroupSignalCleanup();
   const options = parseArgs(process.argv.slice(2));
   const temp = await mkdtemp(path.join(os.tmpdir(), 'property-g05-'));
   const report = { schema_version: 1, cases: CASES.map(id => ({ case: id, status: 'NOT_RUN', reason: 'Case has not started.' })),

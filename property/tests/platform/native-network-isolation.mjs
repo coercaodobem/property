@@ -1,54 +1,101 @@
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
 import net from 'node:net';
+import { spawnSync } from 'node:child_process';
 
 const REJECT_ROUTE_TYPES = new Set(['blackhole', 'prohibit', 'throw', 'unreachable']);
 const PROXY_VARIABLE = /^(?:HTTP|HTTPS|ALL|FTP|SOCKS|WS|WSS)_PROXY$/i;
 
-function isIpv4LoopbackDestination(destination) {
-  const [address, prefixText] = String(destination || '').toLowerCase().split('/');
-  if (address === '127') return prefixText === undefined || Number(prefixText) >= 8;
-  const octets = address.split('.');
-  if (octets.length !== 4 || octets.some(part => !/^\d{1,3}$/.test(part) || Number(part) > 255) || Number(octets[0]) !== 127) return false;
-  return prefixText === undefined || (/^\d+$/.test(prefixText) && Number(prefixText) >= 8 && Number(prefixText) <= 32);
+function parseIpv4Route(destination) {
+  let [address = '', prefixText] = String(destination || '').toLowerCase().split('/');
+  if (address === 'default' || address === '0.0.0.0') return null;
+  if (address === 'localhost') address = '127.0.0.0';
+  if (address === '127') address = '127.0.0.0';
+  const parts = address.split('.');
+  if (parts.length < 1 || parts.length > 4 || parts.some(part => !/^\d{1,3}$/.test(part) || Number(part) > 255)) return null;
+  const originalPartCount = parts.length;
+  while (parts.length < 4) parts.push('0');
+  const fullAddress = parts.join('.');
+  if (net.isIP(fullAddress) !== 4) return null;
+  const prefix = prefixText === undefined ? originalPartCount * 8 : Number(prefixText);
+  if (!Number.isInteger(prefix) || prefix < 0 || prefix > 32) return null;
+  const value = parts.reduce((result, part) => (result << 8n) | BigInt(Number(part)), 0n);
+  return { value, prefix };
 }
 
-function isLoopbackOnlyRoute(platform, family, route) {
-  if (platform === 'linux') {
-    const device = String(route?.dev || '');
-    const destination = String(route?.dst || '').toLowerCase();
-    const loopbackDevice = device === 'lo';
-    const loopbackDestination = family === '4'
-      ? isIpv4LoopbackDestination(destination)
-      : new Set(['::1/128', '::1']).has(destination);
-    return loopbackDevice && loopbackDestination;
+function parseIpv6Route(destination) {
+  let [address = '', prefixText] = String(destination || '').toLowerCase().split('/');
+  if (!address || address === 'default' || net.isIP(address.replace(/%[^%]+$/, '')) !== 6) return null;
+  address = address.replace(/%[^%]+$/, '');
+  const [leftText, rightText = ''] = address.split('::');
+  const left = leftText ? leftText.split(':') : [];
+  const right = rightText ? rightText.split(':') : [];
+  const missing = 8 - left.length - right.length;
+  if (missing < 0 || (address.includes('::') === false && missing !== 0)) return null;
+  const groups = [...left, ...Array(missing).fill('0'), ...right];
+  if (groups.length !== 8 || groups.some(group => !/^[0-9a-f]{1,4}$/.test(group))) return null;
+  const prefix = prefixText === undefined ? 128 : Number(prefixText);
+  if (!Number.isInteger(prefix) || prefix < 0 || prefix > 128) return null;
+  return { value: groups.reduce((result, group) => (result << 16n) | BigInt(`0x${group}`), 0n), prefix };
+}
+
+function isAllowedLocalRoute(destination, family) {
+  if (family === '4') {
+    const route = parseIpv4Route(destination);
+    if (!route) return false;
+    const ranges = [
+      { network: 0x0a000000n, prefix: 8 },       // RFC 1918
+      { network: 0xac100000n, prefix: 12 },      // RFC 1918
+      { network: 0xc0a80000n, prefix: 16 },      // RFC 1918
+      { network: 0x7f000000n, prefix: 8 },       // loopback
+      { network: 0xa9fe0000n, prefix: 16 },      // link local
+      { network: 0x64400000n, prefix: 10 },      // shared address space
+      { network: 0xe0000000n, prefix: 4 },       // multicast
+      { network: 0xf0000000n, prefix: 4 }        // reserved/broadcast
+    ];
+    return ranges.some(range => {
+      if (route.prefix < range.prefix) return false;
+      const mask = ((1n << BigInt(range.prefix)) - 1n) << BigInt(32 - range.prefix);
+      return (route.value & mask) === range.network;
+    });
   }
-  if (platform === 'win32') {
-    const device = String(route?.InterfaceAlias || '');
-    const destination = String(route?.DestinationPrefix || '').toLowerCase();
-    const loopbackDevice = /^loopback(?:\s|$)/i.test(device);
-    const loopbackDestination = family === '4'
-      ? isIpv4LoopbackDestination(destination)
-      : new Set(['::1/128']).has(destination);
-    return loopbackDevice && loopbackDestination;
-  }
-  if (platform === 'darwin') {
-    const fields = String(route || '').trim().split(/\s+/);
-    const destination = (fields[0] || '').toLowerCase();
-    const interfaceName = fields[3] || '';
-    const loopbackDestination = family === '4'
-      ? destination === 'localhost' || isIpv4LoopbackDestination(destination)
-      : new Set(['::1', '::1/128', 'localhost']).has(destination);
-    return interfaceName === 'lo0' && loopbackDestination;
+  if (family === '6') {
+    const route = parseIpv6Route(destination);
+    if (!route) return false;
+    const ranges = [
+      { network: 1n, prefix: 128 },
+      { network: 0xfe800000000000000000000000000000n, prefix: 10 },
+      { network: 0xfc000000000000000000000000000000n, prefix: 7 },
+      { network: 0xff000000000000000000000000000000n, prefix: 8 }
+    ];
+    return ranges.some(range => {
+      if (route.prefix < range.prefix) return false;
+      const mask = ((1n << BigInt(range.prefix)) - 1n) << BigInt(128 - range.prefix);
+      return (route.value & mask) === range.network;
+    });
   }
   return false;
+}
+
+function routeDestination(platform, family, route) {
+  if (platform === 'linux') return String(route?.dst || 'default').toLowerCase();
+  if (platform === 'win32') return String(route?.DestinationPrefix || 'default').toLowerCase();
+  if (platform === 'darwin') {
+    const destination = String(route || '').trim().split(/\s+/)[0]?.toLowerCase() || 'default';
+    if (destination.startsWith('link#')) return '127.0.0.0/8';
+    return destination === 'localhost' && family === '4' ? '127.0.0.0/8' : destination;
+  }
+  return 'default';
+}
+
+function isLocalOnlyRoute(platform, family, route) {
+  return isAllowedLocalRoute(routeDestination(platform, family, route), family);
 }
 
 export function summarizeRoutes(platform, output, family) {
   if (platform === 'linux') {
     const rows = JSON.parse(String(output || '[]'));
     if (!Array.isArray(rows)) throw new Error('Linux route output must be a JSON array.');
-    const offMachine = rows.filter(row => !isLoopbackOnlyRoute(platform, family, row));
+    const offMachine = rows.filter(row => !isLocalOnlyRoute(platform, family, row));
     return {
       usable: offMachine.filter(row => !REJECT_ROUTE_TYPES.has(String(row.type || 'unicast').toLowerCase())).length,
       rejected: offMachine.filter(row => REJECT_ROUTE_TYPES.has(String(row.type || '').toLowerCase())).length
@@ -58,7 +105,7 @@ export function summarizeRoutes(platform, output, family) {
     const text = String(output || '').replace(/^\uFEFF/, '').trim();
     const parsed = text ? JSON.parse(text) : [];
     const rows = Array.isArray(parsed) ? parsed : parsed && typeof parsed === 'object' ? [parsed] : [];
-    const offMachine = rows.filter(row => !isLoopbackOnlyRoute(platform, family, row));
+    const offMachine = rows.filter(row => !isLocalOnlyRoute(platform, family, row));
     return { usable: offMachine.length, rejected: 0 };
   }
   if (platform === 'darwin') {
@@ -66,7 +113,7 @@ export function summarizeRoutes(platform, output, family) {
       const first = line.trim().split(/\s+/)[0]?.toLowerCase();
       return first && first !== 'destination' && /^\s*\S+\s+\S+\s+\S+\s+\S+/.test(line);
     });
-    const offMachine = rows.filter(line => !isLoopbackOnlyRoute(platform, family, line));
+    const offMachine = rows.filter(line => !isLocalOnlyRoute(platform, family, line));
     const rejected = offMachine.filter(line => {
       const flags = line.trim().split(/\s+/)[2] || '';
       return /\b(?:reject|blackhole)\b/i.test(line) || /[RB]/.test(flags);
@@ -131,8 +178,8 @@ export async function inspectNativeNetworkIsolation({ platform = process.platfor
     ipv6Output = routeTableOutput(platform, '6');
     ipv4 = summarizeRoutes(platform, ipv4Output, '4');
     ipv6 = summarizeRoutes(platform, ipv6Output, '6');
-    if (ipv4.usable) reasons.push('one or more usable IPv4 non-loopback routes are present');
-    if (ipv6.usable) reasons.push('one or more usable IPv6 non-loopback routes are present');
+    if (ipv4.usable) reasons.push('one or more usable public or default IPv4 routes are present');
+    if (ipv6.usable) reasons.push('one or more usable public or default IPv6 routes are present');
   } catch (error) {
     reasons.push(error?.message || 'route-table inspection failed');
   }
@@ -144,7 +191,7 @@ export async function inspectNativeNetworkIsolation({ platform = process.platfor
     kind: 'native-egress-isolation',
     result: reasons.length ? 'BLOCKED' : 'PASS',
     platform: `${platform}/${arch}`,
-    policy: 'loopback-routes-only-no-external-proxies',
+    policy: 'no-public-default-routes-local-lab-allowed-no-external-proxies',
     ipv4: { usable_non_loopback_route_count: ipv4.usable, rejected_non_loopback_route_count: ipv4.rejected,
       route_table_sha256: createHash('sha256').update(ipv4Output).digest('hex') },
     ipv6: { usable_non_loopback_route_count: ipv6.usable, rejected_non_loopback_route_count: ipv6.rejected,

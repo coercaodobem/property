@@ -25,6 +25,7 @@ import {
 } from './run-offline.mjs';
 import { validateNativePlatformReport } from './native-platform-report.mjs';
 import { summarizeRoutes } from '../platform/native-network-isolation.mjs';
+import { downstreamCaseIds, gateRowsPassed } from './gate-sequencing.mjs';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
 const plan = await readFile(path.join(root, 'property/docs/plano-de-testes-central.md'), 'utf8');
@@ -39,6 +40,20 @@ assert.match(runnerSource, /const g05Ids = \['G05-01', 'G05-02', 'G05-03', 'G05-
 assert.match(viewportSource, /page\.screenshot\(/, 'G10-05 captures viewport screenshots for visual review');
 assert.match(viewportSource, /required_screenshots: 8/, 'G10-05 requires captures for all fixed viewport/zoom cases');
 assert.match(laterGatesSource, /viewportScreenshots/, 'the G10-05 gate records its screenshot evidence paths');
+assert.match(laterGatesSource, /if\(!gatePassed\('G11'\)\)/, 'G12 does not start before the complete G11 gate passes');
+assert.ok(laterGatesSource.indexOf("if(!gatePassed('G11'))") < laterGatesSource.lastIndexOf('await runG1201(prior)'),
+  'G11 reconciliation barrier precedes every G12 case');
+assert.ok(laterGatesSource.indexOf("if(!gatePassed('G10'))") < laterGatesSource.indexOf("const g04Args="),
+  'G11 cases do not start before G10 passes');
+const gate09Rows = ['G09-01', 'G09-02'].map(caseId => ({ case: caseId, status: 'PASS', gate_eligible: true }));
+assert.equal(gateRowsPassed(gate09Rows, ['G09-01', 'G09-02']), true);
+assert.equal(gateRowsPassed([...gate09Rows, { case: 'G09-03', status: 'NOT_RUN', gate_eligible: false }],
+  ['G09-01', 'G09-02', 'G09-03']), false, 'NOT_RUN keeps a gate closed');
+assert.equal(gateRowsPassed([{ ...gate09Rows[0], gate_eligible: false }, gate09Rows[1]], ['G09-01', 'G09-02']), false,
+  'a PASS status without gate eligibility keeps a gate closed');
+assert.equal(gateRowsPassed([...gate09Rows, gate09Rows[0]], ['G09-01', 'G09-02']), false,
+  'duplicate case records keep a gate closed');
+assert.deepEqual(downstreamCaseIds(['G09-01', 'G10-01', 'G11-01', 'G12-01'], 'G10'), ['G11-01', 'G12-01']);
 await access(path.join(root, 'property/tests/offline/browser-g05-smoke.mjs'));
 assert.match(runnerSource, /browser-g06-smoke\.mjs/, 'full profile executes the G06 Hangout and marketplace harness');
 assert.match(runnerSource, /const g06Ids = \['G06-01', 'G06-02', 'G06-03', 'G06-04', 'G06-05'\]/,
@@ -55,10 +70,10 @@ await access(path.join(root, 'property/tests/offline/g08-ledger-smoke.mjs'));
 await access(path.join(root, 'property/relay/campaign-engine.mjs'));
 const cases = parsePlanCases(plan);
 const details = parsePlanCaseDetails(plan);
-assert.equal(cases.length, 74);
-assert.equal(details.size, 74);
+assert.equal(cases.length, 75);
+assert.equal(details.size, 75);
 assert.ok([...details.values()].every(value => value.trim().length > 0));
-assert.equal(new Set(cases).size, 74);
+assert.equal(new Set(cases).size, 75);
 assert.equal(cases[0], 'G00-01');
 assert.equal(cases.at(-1), 'G12-06');
 const registryStart = plan.indexOf('## 6. Casos obrigatórios por gate');
@@ -158,7 +173,7 @@ const parentBeforeLaterGates = [
 const laterGatesReport = [
   ...Array.from({ length: 6 }, (_, index) => ({ case: `G09-0${index + 1}`, status: 'PASS', gate_eligible: true })),
   ...Array.from({ length: 6 }, (_, index) => ({ case: `G10-0${index + 1}`, status: 'PASS', gate_eligible: true })),
-  ...Array.from({ length: 5 }, (_, index) => ({ case: `G11-0${index + 1}`, status: 'BLOCKED', gate_eligible: true }))
+  ...Array.from({ length: 6 }, (_, index) => ({ case: `G11-0${index + 1}`, status: 'BLOCKED', gate_eligible: true }))
 ];
 assert.deepEqual(deriveLaterGateEligibility(parentBeforeLaterGates, laterGatesReport), {
   G09: true, G10: true, G11: true, G12: false
@@ -305,12 +320,12 @@ assert.equal(sanitized.includes('/home/alice'), false);
 
 // Parser-only fixtures prove rejection/acceptance branches. They are never written as gate evidence.
 const nativeHostIsolation = { schema_version: 1, kind: 'native-egress-isolation', result: 'PASS',
-  platform: 'win32/x64', policy: 'loopback-routes-only-no-external-proxies',
+  platform: 'win32/x64', policy: 'no-public-default-routes-local-lab-allowed-no-external-proxies',
   ipv4: { usable_non_loopback_route_count: 0, rejected_non_loopback_route_count: 0, route_table_sha256: '1'.repeat(64) },
   ipv6: { usable_non_loopback_route_count: 0, rejected_non_loopback_route_count: 0, route_table_sha256: '2'.repeat(64) },
   proxy_variable_names: [], loopback_probe: 'PASS', reasons: [] };
 const nativeHostIsolationProof = { schema_version: 1, kind: 'native-egress-isolation-checkpoints', result: 'PASS',
-  platform: 'win32/x64', policy: 'loopback-routes-only-no-external-proxies',
+  platform: 'win32/x64', policy: 'no-public-default-routes-local-lab-allowed-no-external-proxies',
   start: nativeHostIsolation, end: nativeHostIsolation };
 const nativePlatformSchemaFixture = {
   schema_version: 1, case: 'G12-02', candidate_commit: 'd'.repeat(40), result: 'PASS',
@@ -348,16 +363,17 @@ assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture,
       start: { ...nativePlatformSchemaFixture.network_isolation.host_egress.start,
         ipv4: { ...nativePlatformSchemaFixture.network_isolation.host_egress.start.ipv4, usable_non_loopback_route_count: 1 } } } }
 }, { caseId: 'G12-02', candidateCommit: 'd'.repeat(40) }).status, 'FAIL');
-assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '10.0.0.0/8', type: 'unreachable', dev: 'eth0' }] ), '4'), { usable: 0, rejected: 1 });
-assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '10.0.0.0/8', type: 'unicast', dev: 'eth0' }] ), '4'), { usable: 1, rejected: 0 });
+assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '10.0.0.0/8', type: 'unreachable', dev: 'eth0' }] ), '4'), { usable: 0, rejected: 0 });
+assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '10.0.0.0/8', type: 'unicast', dev: 'eth0' }] ), '4'), { usable: 0, rejected: 0 });
 assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '127.0.0.0/8', type: 'local', dev: 'lo' }] ), '4'), { usable: 0, rejected: 0 });
 assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '127.255.255.255/32', type: 'broadcast', dev: 'lo' }] ), '4'), { usable: 0, rejected: 0 });
 assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '127.0.0.0/7', type: 'unicast', dev: 'lo' }] ), '4'), { usable: 1, rejected: 0 });
 assert.deepEqual(summarizeRoutes('win32', '[]', '4'), { usable: 0, rejected: 0 });
 assert.deepEqual(summarizeRoutes('win32', '[{"DestinationPrefix":"0.0.0.0/0","InterfaceAlias":"Ethernet"}]', '4'), { usable: 1, rejected: 0 });
 assert.deepEqual(summarizeRoutes('win32', '[{"DestinationPrefix":"127.0.0.0/8","InterfaceAlias":"Loopback Pseudo-Interface 1"}]', '4'), { usable: 0, rejected: 0 });
+assert.deepEqual(summarizeRoutes('win32', '[{"DestinationPrefix":"192.168.1.0/24","InterfaceAlias":"Ethernet"}]', '4'), { usable: 0, rejected: 0 });
 assert.deepEqual(summarizeRoutes('darwin', 'Destination Gateway Flags Netif\n127 127.0.0.1 UCS lo0', '4'), { usable: 0, rejected: 0 });
-assert.deepEqual(summarizeRoutes('darwin', 'Destination Gateway Flags Netif\n192.168.1/24 link#4 UCS en0', '4'), { usable: 1, rejected: 0 });
+assert.deepEqual(summarizeRoutes('darwin', 'Destination Gateway Flags Netif\n192.168.1/24 link#4 UCS en0', '4'), { usable: 0, rejected: 0 });
 assert.deepEqual(summarizeRoutes('darwin', 'Destination Gateway Flags Netif\ndefault 192.0.2.1 UGSc en0', '4'), { usable: 1, rejected: 0 });
 assert.deepEqual(summarizeRoutes('darwin', 'Destination Gateway Flags Netif\ndefault link#1 R en0', '4'), { usable: 0, rejected: 1 });
 

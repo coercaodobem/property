@@ -6,6 +6,7 @@ import { access, lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFil
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { downstreamCaseIds, gateRowsPassed } from './gate-sequencing.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../..');
 const options={};
@@ -18,7 +19,7 @@ const out=options.only_case?path.join(runDir,'later-gates','retakes',options.onl
 const reportPath=path.join(out,'later-gates-report.json');
 const cases=new Map();
 const knownCases=[...Array.from({length:6},(_,i)=>`G09-0${i+1}`),...Array.from({length:6},(_,i)=>`G10-0${i+1}`),
-  ...Array.from({length:5},(_,i)=>`G11-0${i+1}`),...Array.from({length:6},(_,i)=>`G12-0${i+1}`)];
+  ...Array.from({length:6},(_,i)=>`G11-0${i+1}`),...Array.from({length:6},(_,i)=>`G12-0${i+1}`)];
 const baseReport={schema_version:1,requested_executor:manifest.requested_executor,actual_executor:manifest.actual_executor,
   actual_executor_source:manifest.actual_executor_source,cases:[],started_utc:new Date().toISOString()};
 const proxyKeys=/proxy/i;
@@ -29,6 +30,36 @@ function persist(){baseReport.cases=[...cases.values()];return writeFile(reportP
 function record(id,status,reason,observed={},evidence=[],command=null){
   const row={case:id,status,gate_eligible:status==='PASS',command,reason:safe(reason),observed,evidence:[...new Set(evidence)]};
   cases.set(id,row);return persist();
+}
+function gateCaseIds(gate){return knownCases.filter(id=>id.startsWith(`${gate}-`));}
+function gatePassed(gate){return gateRowsPassed([...cases.values()].filter(row=>row.case.startsWith(`${gate}-`)),gateCaseIds(gate));}
+async function finishReport(){
+  const coreRows=await readCoreRows();
+  const planText=await readFile(path.join(ROOT,'property/docs/plano-de-testes-central.md'),'utf8');
+  const plannedIds=new Set([...planText.matchAll(/^\|\s*(G\d{2}-\d{2})\s*\|/gm)].map(match=>match[1]));
+  const byCase=new Map([...coreRows].filter(([caseId])=>/^G\d{2}-\d{2}$/.test(caseId)));
+  for(const [caseId,row] of cases)if(/^G\d{2}-\d{2}$/.test(caseId))byCase.set(caseId,row);
+  const rows=[...byCase.values()],recordedIds=rows.map(row=>row.case),recordedSet=new Set(recordedIds);
+  const missingIds=[...plannedIds].filter(id=>!recordedSet.has(id)).sort();
+  const unexpectedIds=[...recordedSet].filter(id=>!plannedIds.has(id)).sort();
+  const missingEvidence=[];
+  for(const row of rows)if(row.status==='PASS')for(const evidence of row.evidence||[])
+    if(!await evidenceFileExists(evidence))missingEvidence.push({case:row.case,evidence});
+  const statusCounts=Object.fromEntries(['PASS','FAIL','BLOCKED','NOT_RUN','PENDING'].map(status=>
+    [status,rows.filter(row=>row.status===status).length]));
+  baseReport.final_matrix_audit={scope:'G00-G12',planned_case_count:plannedIds.size,recorded_case_count:recordedIds.length,
+    missing_case_ids:missingIds,unexpected_case_ids:unexpectedIds,status_counts:statusCounts,
+    missing_evidence:missingEvidence,
+    complete:recordedIds.length===plannedIds.size&&missingIds.length===0&&unexpectedIds.length===0&&missingEvidence.length===0,
+    all_cases_passed:recordedIds.length===plannedIds.size&&missingIds.length===0&&unexpectedIds.length===0&&
+      rows.every(row=>row.status==='PASS'&&row.gate_eligible===true)&&missingEvidence.length===0};
+  baseReport.ended_utc=new Date().toISOString();baseReport.result='RECORDED';await persist();
+  process.stdout.write(JSON.stringify({result:baseReport.result,cases:cases.size,report:reportPath})+'\n');
+}
+async function stopAfterGate(gate,reason){
+  for(const id of downstreamCaseIds(knownCases,gate))if(!cases.has(id))
+    await record(id,'NOT_RUN',reason,{prerequisite_gate:gate,dependent_gate_started:false},[]);
+  await finishReport();
 }
 async function readCoreRows(){
   const p=path.join(runDir,'cases.latest.jsonl');
@@ -289,7 +320,8 @@ async function main(){
     return;
   }
   const upstreamG08=Array.from({length:7},(_,i)=>prior.get(`G08-0${i+1}`));
-  const g08Pass=upstreamG08.length===7&&upstreamG08.every(row=>row?.status==='PASS');
+  const g08Pass=gateRowsPassed(upstreamG08,Array.from({length:7},(_,i)=>`G08-0${i+1}`));
+  if(!g08Pass){await stopAfterGate('G08','G08 não passou por completo; G09–G12 não foram iniciados.');return;}
   const base=Number(manifest.ports.native_relay||28470)+30;
   await runAndRead('G09-01','property/tests/offline/g09-campaign-crash-smoke.mjs',[String(base),path.join(out,'g09-01')],
     path.join(path.relative(runDir,out),'g09-01/g09-campaign-crash-report.json'),data=>data,{timeoutMs:Math.max(manifest.case_timeout_ms,120000)});
@@ -313,6 +345,7 @@ async function main(){
   await record('G09-05',g905Status,g905Status==='PASS'?'Precedência/migração, manifesto adulterado, segmento ausente e hash de pacote passaram.':'Migração, segmentos ou hash do pacote não concluíram o conjunto completo.',
     {tamper_package:packageRun.result.status,migration:migration.status,package_hash:packageHash.status},['later-gates/g09-05/g09-package-report.json',migration.log,packageHash.log]);
   await inherited('G09-06',['G05-02','G05-03','G05-05','G07-07'],'Perda isolada de relay/ponte, rotas alternativas e fronteira privada foram verificadas pelos casos reais do mesmo run.');
+  if(!gatePassed('G09')){await stopAfterGate('G09','G09 não passou por completo; G10–G12 não foram iniciados.');return;}
 
   await inherited('G10-01',['G03-01','G03-04','G04-01','G04-02'],'Criação de A/B, listas NIP-17, contato e conversa ponta a ponta foram percorridos pela UI neste run.');
   await inherited('G10-02',['G04-03','G04-04','G05-02'],'Destinatário offline, recuperação após reabrir, perda de inbox e restauração foram verificadas neste run.');
@@ -321,15 +354,13 @@ async function main(){
   const viewport=await runAndRead('G10-05','property/tests/offline/g10-viewport-smoke.mjs',[manifestPath,path.join(out,'g10-05')],
     path.join(path.relative(runDir,out),'g10-05/g10-viewport-report.json'),data=>data,{timeoutMs:180000});
   const viewportScreenshots=(viewport.data?.evidence||[]).map(file=>path.join('later-gates/g10-05',file));
-  await record('G12-06',viewport.result.status,viewport.data?.install_fallback?.before_install_prompt_supported===false?
-    'No navegador fixado, a PWA continua utilizável sem API de instalação e sem instrução de instalação falsa.':'Fallback de instalação conferido com a mesma sessão responsiva.',
-    {viewport_case:viewport.result.status,install_fallback:viewport.data?.install_fallback||null},['later-gates/g10-05/g10-viewport-report.json']);
   await record('G10-05',viewport.result.status,viewport.result.status==='PASS'?
     'Viewports, zoom, acessibilidade, fallback e oito capturas automatizadas passaram; aprovação humana das capturas permanece explicitamente pendente.':'A jornada responsiva ou a captura visual não concluiu todos os casos.',
     {viewport_case:viewport.result.status,visual_review:viewport.data?.visual_review||null,screenshots:viewportScreenshots},
     ['later-gates/g10-05/g10-viewport-report.json',...viewportScreenshots]);
   await runAndRead('G10-06','property/tests/offline/g10-volume-smoke.mjs',[manifestPath,String(base+10),path.join(out,'g10-06')],
     path.join(path.relative(runDir,out),'g10-06/g10-volume-report.json'),data=>data,{timeoutMs:600000});
+  if(!gatePassed('G10')){await stopAfterGate('G10','G10 não passou por completo; G11–G12 não foram iniciados.');return;}
 
   // Two additional deterministic-flow repetitions: the initial core run is repetition one.
   const g04Args=(dest)=>browserArgs('property/tests/offline/browser-g04-smoke.mjs',dest);
@@ -357,6 +388,18 @@ async function main(){
     repetitionReport?.reason|| (repetition.status==='PASS'?'300 provas, três reinícios, nove eventos de partição, cinco amostras de deduplicação e bloqueio por relógio lógico passaram.':'As repetições multi-relay não concluíram todos os valores predefinidos.'),
     repetitionReport||{exit_code:repetition.exit_code},[repetition.log,'later-gates/g11-03/g11-multirelay-repetition-report.json','later-gates/g11-03/g11-repetition-probes.jsonl']);
 
+  const soakDir=path.join(out,'g11-06');
+  const soak=await run('G11-06',process.execPath,['property/tests/offline/g11-24h-soak.mjs',manifestPath,soakDir],
+    {timeoutMs:90_000_000,logName:'g11-06-24h-soak.log'});
+  const soakReport=await json(path.join(path.relative(runDir,out),'g11-06/g11-24h-soak-report.json'));
+  const soakEligible=soak.status==='PASS'&&soakReport?.status==='PASS'&&soakReport?.gate_eligible===true&&
+    soakReport?.candidate_commit===manifest.candidate_commit&&soakReport?.monotonic_duration_ms>=86_400_000&&
+    soakReport?.completed_probe_count===96&&soakReport?.failure_cycles?.length===4&&soakReport?.relay_count===7&&soakReport?.bridge_count===6;
+  await record('G11-06',soakEligible?'PASS':soak.status==='FAIL'?'FAIL':'BLOCKED',
+    soakEligible?'Ensaio monotônico de 24 horas reais passou com 96 probes, sete Geode, seis pontes PWA e quatro ciclos de falha/reconciliação.':'O ensaio de 24 horas reais não completou todos os probes, relays, pontes, ciclos ou provas do candidato.',
+    soakReport||{exit_code:soak.exit_code,signal:soak.signal},[soak.log,'later-gates/g11-06/g11-24h-soak-report.json',
+      'later-gates/g11-06/g11-24h-probes.jsonl','later-gates/g11-06/g11-24h-heartbeats.jsonl']);
+
   const rows=await readCoreRows();
   const missingEvidence=[];
   for(const row of rows.values())if(row.status==='PASS')for(const item of row.evidence||[])try{await access(path.join(runDir,item));}catch{missingEvidence.push({case:row.case,evidence:item});}
@@ -369,21 +412,14 @@ async function main(){
   await record('G11-04',reconStatus,reconStatus==='PASS'?'Todos os casos PASS referenciam evidência existente; corpus financeiro e artefatos foram verificados sem material secreto.':'Evidência ausente ou padrão de segredo encontrado no relatório.',
     {core_pass_case_count:passedCore,g08_report_present:g08Evidence,missing_evidence:missingEvidence,secret_artifact_paths:secretFindings},[]);
 
-  await runG1201(prior);
-  await record('G12-02','PENDING','Execução nativa Windows foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'Windows x64',native_execution_deferred:true},[]);
-  await record('G12-03','PENDING','Execução nativa macOS foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'macOS Apple Silicon',native_execution_deferred:true},[]);
-  await record('G12-04','PENDING','Execução Android foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'Android',native_execution_deferred:true},[]);
-  await record('G12-05','PENDING','Execução nativa iOS/iPadOS foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'iOS/iPadOS',native_execution_deferred:true},[]);
-  await record('G12-06',viewport.result.status,'O browser permaneceu utilizável sem apresentar botão/instrução de instalação não suportada.',
-    {viewport_fallback:viewport.result.status},['later-gates/g10-05/g10-viewport-report.json']);
-
-  const allRowsByCase=new Map(rows);
-  for(const [caseId,row] of cases)allRowsByCase.set(caseId,row);
+  const allRowsByCase=new Map([...rows].filter(([caseId])=>/^G(?:0\d|1[01])-/.test(caseId)));
+  for(const [caseId,row] of cases)if(/^G(?:0\d|1[01])-/.test(caseId))allRowsByCase.set(caseId,row);
   const g11EvidenceReference=path.relative(runDir,reportPath);
-  allRowsByCase.set('G11-05',{case:'G11-05',status:'PASS',evidence:[g11EvidenceReference]});
+  allRowsByCase.set('G11-05',{case:'G11-05',status:'PASS',gate_eligible:true,evidence:[g11EvidenceReference]});
   const allRows=[...allRowsByCase.values()];
   const planText=await readFile(path.join(ROOT,'property/docs/plano-de-testes-central.md'),'utf8');
-  const plannedCaseIds=new Set([...planText.matchAll(/^\|\s*(G\d{2}-\d{2})\s*\|/gm)].map(match=>match[1]));
+  const plannedCaseIds=new Set([...planText.matchAll(/^\|\s*(G\d{2}-\d{2})\s*\|/gm)].map(match=>match[1])
+    .filter(caseId=>/^G(?:0\d|1[01])-/.test(caseId)));
   const recordedIds=allRows.map(row=>row.case),recordedSet=new Set(recordedIds);
   const missingCaseIds=[...plannedCaseIds].filter(id=>!recordedSet.has(id)).sort();
   const unexpectedCaseIds=[...recordedSet].filter(id=>!plannedCaseIds.has(id)).sort();
@@ -399,18 +435,26 @@ async function main(){
   const evidenceComplete=missingReferences.length===0;
   const finalAuditStatus=caseSetComplete&&evidenceComplete?'PASS':'FAIL';
   await record('G11-05',finalAuditStatus,finalAuditStatus==='PASS'?
-    'Todos os casos definidos no plano estão registrados uma única vez; cada caso PASS aponta para arquivos de evidência existentes e o relatório consolidado foi gerado.':
-    'A auditoria final encontrou IDs de caso ausentes/inesperados, casos não executados ou referências de evidência inexistentes.',
+    'Todos os casos G00–G11 definidos no plano estão registrados uma única vez; cada caso PASS aponta para arquivos de evidência existentes antes de iniciar G12.':
+    'A auditoria pré-G12 encontrou IDs G00–G11 ausentes/inesperados, casos não executados ou referências de evidência inexistentes.',
     {planned_case_count:plannedCaseIds.size,recorded_case_count:caseCount,case_set_complete:caseSetComplete,
       missing_case_ids:missingCaseIds,unexpected_case_ids:unexpectedCaseIds,not_run_case_ids:notRunCaseIds,
       pass_case_count:evidenceRows.length,evidence_reference_count:evidenceReferenceCount,
-      missing_evidence:missingReferences,checkpoint_files:['cases.latest.jsonl','case-events.jsonl','gate-checkpoints.jsonl']},
+      missing_evidence:missingReferences,checkpoint_files:['cases.latest.jsonl','case-events.jsonl','gate-checkpoints.jsonl'],
+      audit_scope:'G00-G11 before G12; final full-matrix audit is stored separately after G12.'},
     ['later-gates/later-gates-report.json']);
 
-  baseReport.ended_utc=new Date().toISOString();
-  baseReport.result='RECORDED';
-  await persist();
-  process.stdout.write(JSON.stringify({result:baseReport.result,cases:cases.size,report:reportPath})+'\n');
+  if(!gatePassed('G11')){await stopAfterGate('G11','G11 não passou por completo; G12 não foi iniciado.');return;}
+
+  await runG1201(prior);
+  await record('G12-02','PENDING','Execução nativa Windows foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'Windows x64',native_execution_deferred:true},[]);
+  await record('G12-03','PENDING','Execução nativa macOS foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'macOS Apple Silicon',native_execution_deferred:true},[]);
+  await record('G12-04','PENDING','Execução Android foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'Android',native_execution_deferred:true},[]);
+  await record('G12-05','PENDING','Execução nativa iOS/iPadOS foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.',{required_platform:'iOS/iPadOS',native_execution_deferred:true},[]);
+  await record('G12-06',viewport.result.status,'O browser permaneceu utilizável sem apresentar botão/instrução de instalação não suportada.',
+    {viewport_fallback:viewport.result.status},['later-gates/g10-05/g10-viewport-report.json']);
+
+  await finishReport();
 }
 
 process.once('SIGTERM',()=>{if(activeChild){try{process.platform==='win32'?activeChild.kill('SIGTERM'):process.kill(-activeChild.pid,'SIGTERM');}catch{}}});

@@ -801,12 +801,19 @@ export async function verifyInterruptionHarness(outputRoot) {
   const sumsValid = await access(path.join(inner, 'SHA256SUMS')).then(() => verifySelfTestSums(inner)).catch(() => false);
   const childPid = Number(summary?.child_pid || output.match(/WORKER_PID=(\d+)/)?.[1] || 0);
   const cleanupObserved = childPid > 0 && !processExists(childPid);
+  const target = path.join(outputRoot, 'g00-04');
+  await mkdir(target, { recursive: true, mode: 0o700 });
+  const groupCleanupPath = path.join(target, 'process-group-interruption.json');
+  const groupCleanupRun = spawnSync(process.execPath, [path.join(ROOT, 'property/tests/offline/process-group-interruption-smoke.mjs'), '--output', groupCleanupPath], {
+    cwd: ROOT, env: safeEnv(), encoding: 'utf8', timeout: 10_000, maxBuffer: 1024 * 1024, windowsHide: true
+  });
+  let groupCleanup = null;
+  try { groupCleanup = JSON.parse(await readFile(groupCleanupPath, 'utf8')); } catch {}
+  const relayGroupCleanupVerified = groupCleanupRun.status === 0 && groupCleanup?.result === 'PASS' && groupCleanup?.detached_worker_group_stopped === true;
   const passes = result.code !== 0 && result.code !== null && summary?.status === 'BLOCKED' &&
     summary?.exit_code !== 0 && summary?.child_cleanup_verified === true &&
     cleanupObserved && summary?.evidence_preserved === true && caseRecord?.case === 'G00-04' &&
-    caseRecord?.status === 'BLOCKED' && sumsValid;
-  const target = path.join(outputRoot, 'g00-04');
-  await mkdir(target, { recursive: true, mode: 0o700 });
+    caseRecord?.status === 'BLOCKED' && sumsValid && relayGroupCleanupVerified;
   if (summary && caseRecord) {
     await copyFile(summaryPath, path.join(target, 'interrupted-summary.json'));
     await copyFile(casePath, path.join(target, 'interrupted-cases.jsonl'));
@@ -823,10 +830,14 @@ export async function verifyInterruptionHarness(outputRoot) {
     evidence_preserved: summary?.evidence_preserved ?? false,
     checksums_verified: sumsValid,
     child_pid: childPid,
+    detached_relay_group_cleanup_verified: relayGroupCleanupVerified,
+    detached_relay_group_report: path.relative(outputRoot, groupCleanupPath),
+    detached_relay_group_exit_code: groupCleanupRun.status,
+    detached_relay_group_diagnostic: sanitizeText(groupCleanupRun.stderr || groupCleanupRun.stdout || groupCleanupRun.error?.message || ''),
     error: result.error
   }, null, 2) + '\n', { mode: 0o600 });
   await rm(temp, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
-  return { status: passes ? 'PASS' : 'FAIL', evidence: ['g00-04/harness-verification.json'] };
+  return { status: passes ? 'PASS' : 'FAIL', evidence: ['g00-04/harness-verification.json', 'g00-04/process-group-interruption.json'] };
 }
 
 async function writeChecksums(outputDir) {
@@ -1731,11 +1742,11 @@ async function runCoreProfile(profile, manifest, outputDir, cases, inventory, is
 }
 
 async function runLaterGates(manifest, outputDir, cases) {
-  const priorGates = ['G00','G01','G02','G03','G04','G05','G06','G07'].map(gate =>
+  const priorGates = ['G00','G01','G02','G03','G04','G05','G06','G07','G08'].map(gate =>
     deriveGateStatus([...cases.values()].filter(row => row.case.startsWith(gate + '-'))));
   if (priorGates.some(status => status !== 'PASS')) {
     for (const row of cases.values()) if (/^G(?:09|10|11|12)-/.test(row.case)) setCase(cases,row.case,{
-      status:'NOT_RUN',gate_eligible:false,reason:'G00–G07 não passaram; o diagnóstico posterior depende dos casos de núcleo já iniciados.'
+      status:'NOT_RUN',gate_eligible:false,reason:'G00–G08 não passaram por completo; os gates dependentes não foram iniciados.'
     });
     return;
   }
@@ -1758,7 +1769,8 @@ async function runLaterGates(manifest, outputDir, cases) {
       continue;
     }
     const allowed=eligibility[id.slice(0,3)];
-    const reason=allowed?row.reason:`Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (${id.slice(0,3)}). ${row.reason}`;
+    const reason=row.status==='NOT_RUN'?row.reason:allowed?row.reason:
+      `Diagnóstico executado; certificação dependente permanece bloqueada por gate anterior (${id.slice(0,3)}). ${row.reason}`;
     setCase(cases,id,{...row,gate:id.slice(0,3),requirement:cases.get(id).requirement,expected:cases.get(id).expected,
       gate_eligible:allowed&&row.status==='PASS',reason,started_utc:row.started_utc||helper.started_utc,
       ended_utc:row.ended_utc||helper.ended_utc,exit_code:row.exit_code??helper.exit_code,

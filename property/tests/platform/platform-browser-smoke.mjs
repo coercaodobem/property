@@ -495,7 +495,7 @@ async function runPreflight(specs, outputDir, hostNetworkIsolation) {
   if (hostNetworkIsolation.result !== 'PASS') {
     report.result = 'BLOCKED';
     await writeFile(path.join(outputDir, 'g12-platform-preflight.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
-    throw new Error('Native platform preflight requires loopback-only IPv4/IPv6 routes and no external proxy.');
+    throw new Error('Native platform preflight requires no usable public/default IPv4/IPv6 route and no external proxy.');
   }
   const appium = await startAppium(outputDir);
   try {
@@ -535,7 +535,7 @@ async function main() {
   const relayLog = path.join(outputDir, 'g12-platform-relay.log');
   try {
     if (hostNetworkIsolation.result !== 'PASS') {
-      const error = new Error('Native platform case cannot pass unless the host has loopback-only IPv4/IPv6 routes and no external proxy.');
+      const error = new Error('Native platform case requires no usable public/default IPv4/IPv6 route and no external proxy.');
       error.code = 'PROPERTY_PLATFORM_ISOLATION_BLOCKED';
       throw error;
     }
@@ -575,7 +575,7 @@ async function main() {
     process.env.PROPERTY_BLOCK_EGRESS_PROXY = `http://127.0.0.1:${proxyPort}`;
     appium = await startAppium(outputDir);
     report.network_isolation = { verdict: 'IN_PROGRESS', host_egress: hostNetworkIsolation,
-      policy: 'The native host has only loopback IPv4/IPv6 routes and no external proxy; each WebDriver browser also uses a deny-all loopback HTTP proxy, bypassing only localhost and loopback for local Property assets and relay.',
+      policy: 'The native host has no usable public/default IPv4/IPv6 route, permits only local lab routes, and has no external proxy; each WebDriver browser also uses a deny-all loopback HTTP proxy, bypassing only localhost and loopback for local Property assets and relay.',
       android_adb_reverse: androidForwards, blocked_external_probe: false };
     const mobile = specs[0].mobile;
     const cycleCount = mobile ? 3 : 1;
