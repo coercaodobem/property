@@ -1,95 +1,89 @@
-# Contribuir com o Property
+# Contributing to Property
 
-[English](CONTRIBUTING.en.md) · **Português (Brasil)**
+**English** · [Português (Brasil)](CONTRIBUTING.pt-BR.md)
 
-Obrigado pelo interesse. O projeto é mantido em [coercaodobem/property](https://github.com/coercaodobem/property), e a branch padrão e de desenvolvimento é **`modelo-mvp`**. Bugs, ideias e pull requests do Property devem ser enviados aqui.
+Thanks for your interest. The project is maintained at [coercaodobem/property](https://github.com/coercaodobem/property), and **`modelo-mvp`** is its default development branch. Send Property bug reports, ideas, and pull requests here.
 
-O MVP segue em validação. Leia o [README em português](README.md) ou a [versão em inglês](README.en.md), o [roadmap](ROADMAP.md) e o [plano de testes](property/docs/plano-de-testes-central.md) para distinguir funcionalidades disponíveis de propostas. Se alterar fatos, comandos ou o estado do projeto nos READMEs, mantenha as duas versões sincronizadas.
+The MVP is still under validation. Read the [README](README.md), [roadmap](ROADMAP.md), and [test plan index](property/docs/README.md) to distinguish available behavior from proposed work.
 
-## Formas de ajudar
+## Ways to help
 
-- Relatar um problema com passos de reprodução e dados de ambiente.
-- Melhorar documentação, tradução da interface, acessibilidade e navegação móvel.
-- Executar testes e registrar resultados, inclusive limitações encontradas.
-- Propor correções ou funcionalidades pequenas e alinhadas ao roadmap.
+- Report a bug with reproduction steps and environment details.
+- Improve documentation, accessibility, mobile navigation, or translations.
+- Run a relevant check and record its actual result, including limitations.
+- Propose a focused fix or feature that fits the roadmap.
 
-Não exigimos bounty, doação ou pagamento para receber propostas. Os labels `good first issue` e `help wanted`, quando usados em issues, indicam tarefas para colaboração; a ausência de um label não impede uma proposta. Converse em uma issue antes de iniciar mudanças extensas.
+No bounty, donation, or payment is required. Issue labels such as `good first issue` and `help wanted` can help identify tasks, but their absence does not prevent a contribution. Discuss large changes in an issue before starting them.
 
-## Preparar um fork
+Property's human-facing app is English by default, with a persistent **Português (Brasil)** option. Do not translate user-written posts, offers, names, or private messages. Agent message content is passed through unchanged; agents can use the language their participants choose.
 
-Faça um fork no GitHub. Substitua `SEU_USUARIO` pelo seu login:
+## Create a fork
+
+Create a GitHub fork and replace `YOUR_USERNAME` below with your account name:
 
 ```bash
-git clone --branch modelo-mvp https://github.com/SEU_USUARIO/property.git
+git clone --branch modelo-mvp https://github.com/YOUR_USERNAME/property.git
 cd property
 git remote add upstream https://github.com/coercaodobem/property.git
-git switch -c minha-contribuicao
+git switch -c my-contribution
 ```
 
-`origin` aponta para seu fork, e `upstream` aponta para o Property. Use uma branch própria para cada contribuição. Preserve alterações locais ao atualizar sua cópia.
+`origin` should point to your fork and `upstream` to Property. Use a separate branch for each contribution, and preserve any local changes when updating your checkout.
 
-## Executar e validar
+## Run and validate
 
-A PWA está em `property/web/` e não exige compilar Android. Com Python 3:
+The PWA lives in `property/web/`; it does not require an Android build. With Python 3, serve it locally:
 
 ```bash
 python3 -m http.server 8080 --directory property/web
 ```
 
-Abra `http://localhost:8080`. Com Node.js 22 ou superior, execute a suíte local:
+Open `http://localhost:8080`. With Node.js 22 or newer, run the local smoke suite:
 
 ```bash
 bash property/tests/run-smoke.sh
 ```
 
-Ela valida unidades Nano/raw, marketplace, campanhas, protocolo, cofre, ponte, contrato da PWA e pacote do relay, usando código e fixtures locais. A CI **Validar Property** executa esse mesmo comando em pushes e pull requests para `modelo-mvp`. PRs de forks podem depender da aprovação de execução do mantenedor no GitHub.
+It validates Nano/raw units, marketplace data, campaigns, protocol flows, the vault, relay bridge, PWA contracts, and the relay package. It does not publish messages to public relays or make payments. The **Validar Property** CI workflow runs the same command on pushes and pull requests to `modelo-mvp`. Pull requests from forks may require maintainer approval before GitHub runs CI.
 
-Os harnesses de navegador aceitam `PROPERTY_PLAYWRIGHT_MODULE` e `PROPERTY_BROWSER_EXECUTABLE` para localizar as instalações locais quando um manifesto de evidências sanitizado ocultar caminhos da máquina. Esses overrides mudam apenas os caminhos: versão, hash do pacote Playwright e hash do navegador continuam obrigatoriamente validados. Execute o harness dentro do isolamento offline do plano.
+Browser harnesses accept `PROPERTY_PLAYWRIGHT_MODULE` and `PROPERTY_BROWSER_EXECUTABLE` to locate local installations when a sanitized evidence manifest hides machine paths. These overrides change paths only: the expected version and package/browser hashes remain validated. Run the harness within the offline isolation specified in the test plan.
 
-Para testar o relay no Ubuntu Linux x86_64:
+To start the relay on Ubuntu Linux x86_64:
 
 ```bash
 ./property/relay/start.sh
 ```
 
-Para integração entre dois relays isolados:
+For integration between two isolated relays:
 
 ```bash
 bash property/tests/run-bridge-integration.sh 17450 17451
 ```
 
-O gate multi-relay G11-03 usa repetições e relógio lógico fixos, com contagens definidas no [plano central de testes](property/docs/plano-de-testes-central.md). Execute-o pelo runner offline, com um manifesto do laboratório e isolamento comprovado:
+The multi-relay G11-03 gate uses fixed repetitions and a logical clock, with counts defined in the [English test plan](property/docs/plano-de-testes-central.md). Run it through the offline runner with a lab manifest and proven network isolation:
 
 ```bash
-bash property/tests/offline/run-isolated.sh node property/tests/offline/run-offline.mjs --profile full --manifest /caminho/lab.json --output property/docs/evidence/offline/property-run-20261103-01
+bash property/tests/offline/run-isolated.sh node property/tests/offline/run-offline.mjs --profile full --manifest /path/to/lab.json --output property/docs/evidence/offline/property-run-20261103-01
 ```
 
-Para documentação, confira links e comandos alterados. Para UI, exercite o fluxo no navegador e informe tamanho de tela, navegador, resultado e capturas quando úteis. Use dados de teste e identidades descartáveis. Testes unitários não substituem a inspeção visual de uma tela alterada.
+For documentation changes, check the links and commands you changed. For UI work, exercise the affected flow in a browser and report the viewport, browser, result, and useful screenshots. Use disposable test identities. Unit tests do not replace visual inspection.
 
-Ao modificar módulos Kotlin herdados, siga também [AGENTS.md](AGENTS.md), as instruções mais próximas do arquivo e [BUILDING.md](BUILDING.md). Formate Kotlin com `./gradlew spotlessApply` e execute os testes pertinentes ao módulo. Uma contribuição somente web ou documental não exige compilar todos os alvos Android/desktop.
+When modifying inherited Kotlin modules, also follow the root [`AGENTS.md`](AGENTS.md), the nearest local instructions, and [`BUILDING.md`](BUILDING.md). Format Kotlin with `./gradlew spotlessApply` and run the relevant module checks. A web-only or documentation-only change does not require compiling every Android or desktop target.
 
-## Enviar um pull request
+## Open a pull request
 
-1. Faça commits focados, com mensagens como `fix:`, `feat:` ou `docs:`.
-2. Envie sua branch ao seu fork: `git push -u origin minha-contribuicao`.
-3. Abra o PR com base em **`coercaodobem/property:modelo-mvp`**.
-4. Explique o problema, o comportamento resultante e como validou. Declare o que não conseguiu testar.
-5. Aguarde revisão. Uma proposta pode precisar de ajustes antes de ser incorporada.
+1. Make focused commits with messages such as `fix:`, `feat:`, or `docs:`.
+2. Push your branch to your fork: `git push -u origin my-contribution`.
+3. Open a pull request targeting **`coercaodobem/property:modelo-mvp`**.
+4. Explain the problem, resulting behavior, and validation. State anything you could not test.
+5. Wait for review; the maintainer may request changes before merging.
 
-Não desative hooks nem use `--no-verify`. Mudanças em criptografia, armazenamento de chaves, interpretação de NIPs, pagamentos ou distribuição devem ser discutidas com o mantenedor antes de uma implementação extensa. Nunca exponha segredos, dados de usuários ou conversas reais para demonstrar um bug.
+Do not disable hooks or use `--no-verify`. Discuss extensive changes to keys, cryptography, NIPs, payments, or distribution with the maintainer before implementation. Never expose secrets, user data, or private conversations in an issue or bug report.
 
-## Uso de IA
+## AI assistance, security, and license
 
-Assistência de IA é aceita, com responsabilidade humana pela alteração. Leia [CONTRIBUTING-WITH-AI.md](CONTRIBUTING-WITH-AI.md); não declare testes ou revisão que não aconteceram.
+AI assistance is welcome, with the contributor responsible for understanding and reviewing the change. Follow [`AGENTS.md`](AGENTS.md), [`property/AGENTS.md`](property/AGENTS.md), and [`CONTRIBUTING-WITH-AI.md`](CONTRIBUTING-WITH-AI.md). Do not claim a test or human review that did not happen.
 
-## Segurança e licença
+Report vulnerabilities through the private channel in [`SECURITY.md`](SECURITY.md), not in a public issue. Contributions are licensed under MIT. Preserve notices and licenses for third-party code, and verify the origin and license of new dependencies.
 
-Relate vulnerabilidades pelo [canal privado do Property](SECURITY.md). Não abra uma issue pública com detalhes exploráveis.
-
-Ao contribuir, você licencia sua contribuição sob [MIT](LICENSE). Preserve os avisos e as licenças de qualquer código de terceiros. Dependências novas precisam ter origem e licença verificadas.
-
-A documentação técnica original do Amethyst continua disponível no [commit de origem](https://github.com/vitorpamplona/amethyst/blob/948135f7dbbae81d79a0b985282ce673397a7618/CONTRIBUTING.md). Ela é uma referência para os módulos reaproveitados; o fluxo de contribuição do Property é o descrito acima.
-
-### Atualização da PWA
-
-Ao alterar o shell web, atualizar conjuntamente a versão dos URLs locais em HTML/manifesto, a lista `SHELL`, o nome do cache e a URL de registro do service worker. A instalação usa `cache: reload` para evitar mistura de arquivos antigos e novos; nunca apagar IndexedDB para atualizar a marca. `sw-update-smoke.mjs` verifica cobertura offline, política de atualização e preservação de caches alheios.
+The original Amethyst documentation remains available in the [pinned source commit](https://github.com/vitorpamplona/amethyst/blob/948135f7dbbae81d79a0b985282ce673397a7618/CONTRIBUTING.md). It is reference material for reused modules; the Property contribution flow is the one described here.

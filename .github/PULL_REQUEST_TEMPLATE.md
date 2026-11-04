@@ -1,33 +1,35 @@
-## Problema e resultado
+<!-- English is the default. Contributors may write in Português (Brasil); see CONTRIBUTING.pt-BR.md. -->
 
-<!-- Explique o problema e como o comportamento fica com esta alteração. Relacione uma issue do Property, se houver. -->
+## Problem and outcome
 
-## Área alterada
+<!-- Explain the problem and resulting behavior. Link a Property issue when relevant. -->
 
-- [ ] PWA / experiência no navegador
-- [ ] Relay / protocolo / ponte
-- [ ] Documentação / testes / CI
-- [ ] Módulos Kotlin herdados
+## Area changed
 
-## Validação realizada
+- [ ] PWA / browser experience
+- [ ] Relay / protocol / bridge
+- [ ] Documentation / tests / CI
+- [ ] Inherited Kotlin modules
 
-<!-- Liste comandos, resultados e ambiente. Para UI, descreva o fluxo exercitado no navegador ou dispositivo e inclua capturas úteis. Documentação não exige compilar Android. Declare tudo que não conseguiu verificar. -->
+## Validation performed
 
-## Compatibilidade e limites
+<!-- List commands, results, and environment. For UI, describe the browser/device flow and include useful screenshots. Documentation changes do not require an Android build. State anything you could not verify. -->
 
-<!-- Informe efeitos em armazenamento, chaves, NIPs ou dados existentes. Use dados sintéticos e não inclua senhas, chaves, tokens ou conversas pessoais. -->
+## Compatibility and limits
 
-## Revisão
+<!-- Describe effects on storage, keys, NIPs, or existing data. Use synthetic data; do not include passwords, keys, tokens, or personal messages. -->
 
-- [ ] Li o diff completo e consigo explicar a alteração.
-- [ ] Consultei CONTRIBUTING.md e realizei a validação adequada à área modificada.
-- [ ] Declarei limitações de teste e preservei autoria/licenças de terceiros.
-- [ ] Se modifiquei Kotlin, executei a formatação e os testes pertinentes.
+## Review
 
-## Assistência de IA
+- [ ] I reviewed the complete diff and can explain the change.
+- [ ] I read CONTRIBUTING.md and performed the appropriate validation.
+- [ ] I stated test limitations and preserved third-party authorship/licenses.
+- [ ] If I changed Kotlin, I ran formatting and the relevant checks.
 
-<!-- Se houve assistência substancial, descreva em uma linha. A responsabilidade e a revisão são humanas. Consulte CONTRIBUTING-WITH-AI.md. -->
+## AI assistance
 
-## Licença
+<!-- If AI substantially assisted, describe it in one line. Human review and responsibility remain required. See CONTRIBUTING-WITH-AI.md. -->
 
-- [ ] Licencio minha contribuição sob MIT e preservei os avisos do código de terceiros.
+## License
+
+- [ ] I license my contribution under MIT and preserved third-party notices.

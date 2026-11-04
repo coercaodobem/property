@@ -1,42 +1,42 @@
-# Roadmap do Property
+# Property Roadmap
 
-Atualizado em 2026-11-03. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Os critérios detalhados estão no [plano central](property/docs/plano-central.md) e no [plano de testes](property/docs/plano-de-testes-central.md).
+Updated 2026-11-03. This roadmap guides contributions; it is not a schedule or a promise that a feature is complete. The working branch is `modelo-mvp`. Detailed criteria are in the [central plan](property/docs/plano-central.md) and [test plan](property/docs/plano-de-testes-central.md). [Português (Brasil)](ROADMAP.pt-BR.md)
 
-## Base disponível para testar
+## Available foundations to validate
 
-- PWA em HTTPS, cofre local por senha e backup cifrado.
-- Mensagens NIP-17 e listas de inbox relays kind 10050, com validações locais.
-- Relay Geode com runtime para Linux x86_64, Windows x64 e macOS Apple Silicon, com testes de integração por plataforma.
-- Ponte voluntária enquanto a PWA está ativa.
-- Fluxos iniciais de ofertas e leitura opcional de campanhas assinadas.
-- Engine local de campanhas e adaptadores BTC/XMR/XNO exercitados com redes privadas locais; a operação/ativação de campaigns no produto ainda não está integrada.
+- HTTPS PWA, local password-protected vault, and encrypted backup.
+- NIP-17 messaging and kind 10050 inbox relay lists, with local checks.
+- Geode relay with bundled runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon, with per-platform integration checks.
+- Voluntary relay bridge while the PWA is active.
+- Initial offer flows and optional display of signed campaigns.
+- Local campaign engine and BTC/XMR/XNO adapters exercised against private local networks; campaign operation and activation are not integrated into the product yet.
 
-Consulte os resultados registrados; a presença de código não comprova todos os fluxos na internet ou em aparelhos reais.
+See the recorded results. The presence of code alone does not prove every flow works online or on real devices.
 
-## Prioridade: validar e tornar o MVP utilizável
+## Priority: validate and make the MVP usable
 
-| Frente | Próximo resultado verificável |
+| Area | Next verifiable result |
 |---|---|
-| Primeiro uso e recuperação | Passos claros de criar identidade, exportar backup e restaurar usando dados descartáveis |
-| Android e iOS | Matriz de navegador/aparelho, instalação PWA, rede e suspensão com resultados reproduzíveis |
-| Acessibilidade | Navegação por teclado, rótulos, foco, contraste e leitura em telas pequenas revisados |
-| Relay de PC | Repetir a validação G11-03 por novas versões; o gate de 300 probes, três reinícios e nove eventos de partição já passou no perfil Ubuntu registrado |
-| Interoperabilidade | Troca NIP-17 e listas de relays verificadas com outros clientes e versões identificadas |
-| Comunicação entre agentes | Fluxo direto por chave pública via NIP-17/MCP implementado sem convite ou aprovação do Property; concluir revisão humana e independente e validar interoperabilidade/plataformas; veja o [plano vigente](property/docs/plano-agentes-human-first.md) |
-| Segurança | Revisão independente do cofre, chaves, dependências, CSP e fluxo de mensagens |
+| First use and recovery | Clear steps to create an identity, export a backup, and restore with disposable data |
+| Android and iOS | Reproducible browser/device, PWA installation, network, and suspension results |
+| Accessibility | Review keyboard navigation, labels, focus, contrast, and small-screen reading |
+| PC relay | Repeat G11-03 validation for future versions; the recorded Ubuntu profile passed the gate with 300 probes, three restarts, and nine partition events |
+| Interoperability | Verify NIP-17 messages and relay lists with other clients and identified versions |
+| Agent communication | Direct public-key messaging over NIP-17/MCP is implemented without Property invitations or approvals; complete human and independent review and validate interoperability/platforms; see the [current plan](property/docs/plano-agentes-human-first.md) |
+| Security | Independent review of the vault, keys, dependencies, CSP, and messaging flow |
 
-## Funcionalidades que exigem implementação e revisão
+## Features that need implementation and review
 
-- Marketplace completo e checkout BTC/XMR/XNO, com taxas, confirmação e reembolso específicos de cada moeda.
-- Relay para Mac Intel e outras arquiteturas Linux; avaliar solução nativa Android/iOS sem root e sem exigir tela acesa.
-- Integrar a engine de campanhas existente a uma experiência de operação para nodes, definir políticas de produção e concluir revisão independente antes de ativá-la.
-- Revisão humana de usabilidade do Hangout e demais fluxos, além da validação técnica automatizada registrada no perfil Ubuntu.
-- Solução de plataforma para colaboração móvel contínua; uma PWA não garante execução permanente com a tela apagada.
+- Full marketplace and BTC/XMR/XNO checkout, including currency-specific fees, confirmation, and refunds.
+- Relay packages for Intel Mac and other Linux architectures; assess a native Android/iOS option that needs neither root nor an always-on screen.
+- Integrate the existing campaign engine with a node-operator experience, define production policies, and complete independent review before activation.
+- Human usability review of Hangout and other flows, in addition to the automated technical validation recorded for Ubuntu.
+- A platform solution for continuous mobile collaboration; a PWA cannot guarantee permanent execution with the screen off.
 
-Mudanças em pagamentos, chaves e protocolos precisam de desenho discutido antes da implementação. Não há prazos de lançamento definidos para essas frentes.
+Discuss design before changing payment, key, or protocol behavior. No release dates are set for these areas.
 
-## Por onde começar a contribuir
+## Good places to start
 
-Documentar um fluxo de primeiro uso com uma identidade descartável, relatar um problema de acessibilidade ou registrar um teste de instalação PWA são boas contribuições iniciais. Veja as [issues abertas](https://github.com/coercaodobem/property/issues), procure `good first issue` e `help wanted`, ou [proponha uma tarefa](https://github.com/coercaodobem/property/issues/new/choose). Evite duplicar uma discussão existente e registre ambiente, passos e resultado.
+Document a first-use flow with a disposable identity, report an accessibility issue, or record a PWA installation test. Browse [open issues](https://github.com/coercaodobem/property/issues), look for `good first issue` and `help wanted`, or [propose a task](https://github.com/coercaodobem/property/issues/new/choose). Avoid duplicating an existing discussion; include environment, steps, and results.
 
-O [guia de contribuição](CONTRIBUTING.md) explica como preparar um fork, validar e abrir um PR. Nenhuma contribuição depende de bounty ou pagamento.
+The [contribution guide](CONTRIBUTING.md) explains how to fork, validate, and open a pull request. Contributions do not depend on a bounty or payment.

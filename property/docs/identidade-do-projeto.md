@@ -1,70 +1,73 @@
-# Identidade do Projeto — Property
+# Property Project Identity
 
-**Status:** visão do produto e registro da primeira implementação local na branch `modelo-mvp`; o app tem publicação inicial; a marca e a URL Property têm publicação e validação próprias registradas no plano de testes.
-**Atualizado:** 2026-10-31.
+**English** · [Português (Brasil)](identidade-do-projeto.pt-BR.md)
 
-## Propósito
+**Status:** product vision and record of the first local implementation on `modelo-mvp`; the app has an initial deployment, and Property branding/URL publication has separate validation records in the test plan.
 
-Property é um cliente de comunicação e convivência digital baseado em Nostr. A pessoa usa uma interface web instalável no celular ou computador, controla a própria identidade e escolhe por quais relays publicar e receber eventos. A interface não deve ser dona das contas nem intermediária obrigatória das mensagens.
+**Updated:** 2026-10-31.
 
-O projeto pretende aproveitar ao máximo o trabalho existente no Amethyst, em vez de reimplementar desde o início os componentes que já funcionam. A adaptação deve preservar a autonomia de execução: o código usado pelo Property fica no seu repositório e no pacote publicado, sem baixar código executável de serviços externos durante o uso.
+## Purpose
 
-## Princípios
+Property is a Nostr-based client for communication and digital community. People use an installable web interface on a phone or computer, control their own identity, and choose which relays carry their events. The interface must not own accounts or become a mandatory message intermediary.
 
-1. **Identidade sob controle da pessoa.** Não há servidor central de contas. O cliente cria uma chave Nostr aleatória com fonte criptográfica segura, protege a chave localmente com uma senha e permite recuperação por um segredo de recuperação. O navegador mantém a identidade entre sessões e oferece a opção de continuar conectado naquele dispositivo, com bloqueio manual e política local de inatividade. Nome de usuário é perfil/identificador, não a chave.
-2. **A senha não é a chave privada.** A senha desbloqueia uma chave aleatória armazenada cifrada localmente. Uma função de derivação de chave resistente a tentativa de senha, com parâmetros e implementação fixados no projeto, protege essa chave. A senha não é enviada a relays nem ao host. Perder senha e recuperação significa perder acesso; não existe redefinição central.
-3. **Mensagens privadas com criptografia ponta a ponta.** Para conversas individuais, adotar protocolo Nostr maduro e compatível, inicialmente NIP-17 após revisão da especificação e da implementação reaproveitada. O remetente e o destinatário podem ler o conteúdo; relays e host veem no máximo eventos cifrados e metadados observáveis pelo protocolo.
-4. **Conexão direta com relays.** O JavaScript executado no navegador abre conexões seguras diretamente aos relays selecionados. GitHub Pages serve arquivos estáticos do app; não recebe nem encaminha o conteúdo das mensagens.
-5. **Ponte voluntária entre relays.** Quando habilitada, a PWA pode encaminhar eventos públicos assinados entre relays selecionados. Gift wraps NIP-17 só são encaminhados se foram endereçados à identidade local e apenas para os relays inbox dessa identidade; o app não decifra a mensagem para encaminhá-la. A ponte não lê, altera nem cria uma rota para envelopes de outras pessoas. Ela limita encaminhamento a 60 eventos e 2 MB de tráfego de saída por minuto, contando cada destino, e funciona somente enquanto a PWA estiver ativa.
-6. **Camadas claras.** A interface é cliente; relays transportam e armazenam eventos conforme suas políticas; nodes operados por pessoas podem oferecer serviços adicionais e permanecer online em PCs. A ponte no celular é best effort, pode transferir dados móveis e não equivale a relay público de entrada nem a serviço sempre ligado. Não introduzir protocolo P2P próprio antes de demonstrar necessidade.
-7. **Sem promessa falsa de segundo plano.** No celular, a pessoa pode habilitar colaboração do node enquanto o navegador/app está ativo. O sistema operacional pode suspender a PWA; o projeto não promete relay móvel sempre ligado, tela acesa, root ou funcionamento oculto. PCs podem operar nodes continuamente.
-8. **Código auditável e pacote autônomo.** Código-fonte, versões de dependências e artefatos necessários à execução pertencem ao repositório/pacote do Property. O cliente não carrega scripts, módulos, fontes ou rastreadores executáveis de CDNs em tempo de uso. Builds e versões de origem devem ser identificáveis e verificáveis.
-9. **Descentralização prática.** A pessoa escolhe mais de um relay e pode operar um node. Uma falha ou recusa de um relay não deve transformar o host do app em ponto central de comunicação.
-10. **Financiamento voluntário e transparente.** Um node pode aceitar ou recusar campanhas de marketing remuneradas em BTC, XMR ou XNO. A aceitação vem antes do pagamento. Uma campanha paga é apresentada como patrocinada, separada de mensagens e sem rastreamento centralizado de cliques ou leituras.
+The project aims to reuse as much working Amethyst code as possible instead of rebuilding proven components from scratch. Execution remains autonomous: code used by Property belongs in its repository and published package, with no executable code fetched from outside services at runtime.
 
-## Produto e experiência
+## Principles
 
-- **Primeiro acesso:** criar ou recuperar identidade, guardar recuperação com clareza, escolher relays e iniciar conversa sem terminal. O login pode persistir no navegador; senha em texto puro nunca fica armazenada.
-- **Comunicação:** mensagens privadas, conversas e espaços públicos/grupais conforme protocolos Nostr suportados e validados.
-- **Agentes:** identidade Nostr independente pode trocar mensagens diretamente por chave pública, sem convite, pareamento ou aprovação do Property. A conversa de agente é identificada e separada; a pessoa pode bloquear localmente, e mensagens recebidas não são executadas. Revisão humana, segurança independente, interoperabilidade externa e matriz multiplataforma ainda exigem evidência própria.
-- **Hangout:** a primeira versão é um feed de notas públicas Nostr kind 1, consultado e publicado diretamente nos relays escolhidos. Comunidades fechadas/grupos não fazem parte da implementação inicial.
-- **Campanhas de nodes:** a PWA pode, por opt-in local desligado por padrão, ler eventos assinados e exibi-los separados do Hangout; não envia telemetria de clique/visualização nem contém carteiras. A biblioteca do relay tem engine e adaptadores BTC/XMR/XNO, exercitados em G07–G08 com redes e carteiras locais privadas. Isso não ativa uma experiência de operação do node em produção; revisão de segurança e política de produção continuam necessárias antes de usar fundos reais.
-- **Marketplace:** a primeira versão publica e descobre ofertas no formato NIP-15. O padrão está em draft e marcado como não recomendado pela especificação atual; esta versão é uma experiência de compatibilidade. Compra, checkout, custódia e escrow não são implementados. O marketplace de produtos e o mercado de publicidade de nodes são capacidades distintas.
-- **Nodes:** preferência por nodes de PC para disponibilidade contínua; colaboração do navegador móvel é voluntária e limitada ao tempo em que o app permanecer ativo.
-- **Distribuição:** PWA utilizável em navegador e adicionável à tela inicial nos navegadores que suportarem a instalação. Não exigir publicação em loja ou root para o caminho principal.
+1. **Identity stays under the person's control.** There is no central account server. The client creates a random Nostr key using a cryptographically secure source, protects it locally with a password, and supports recovery with a recovery secret. The browser retains identity between sessions and can stay signed in on that device by choice, with manual lock and a local idle policy. A username is a profile identifier, not the key.
+2. **A password is not a private key.** The password unlocks a random key encrypted in local storage. A password-resistant key derivation function, with implementation and parameters pinned in the project, protects the key. The password is not sent to relays or the app host. Losing both the password and recovery secret means losing access; there is no central reset.
+3. **Private messages use end-to-end encryption.** Individual conversations use a mature, compatible Nostr protocol, initially NIP-17 after reviewing its specification and reused implementation. Sender and recipient can read the content; relays and the host see ciphertext and protocol-observable metadata.
+4. **Connect directly to relays.** JavaScript in the browser opens secure connections directly to user-selected relays. GitHub Pages serves static app files; it does not receive or forward message content.
+5. **Relay forwarding is voluntary.** When enabled, the PWA can forward signed public events between selected relays. NIP-17 gift wraps are forwarded only when addressed to the local identity, and only to that identity's inbox relays; the app does not decrypt them. The bridge does not read or alter other people's envelopes. It is limited to 60 events and 2 MB of outgoing traffic per minute, counting each destination, and only runs while the PWA is active.
+6. **Keep the layers clear.** The interface is a client; relays transport and store events under their own policies; people can run nodes that provide services and remain online on PCs. Mobile browser forwarding is best effort, may use mobile data, and is neither a public inbound relay nor an always-on service. Do not add a custom P2P protocol before proving it is needed.
+7. **Do not promise background execution.** On a phone, the person can enable node collaboration while the browser/app is active. The operating system may suspend the PWA; the project does not promise an always-on mobile relay, screen-on operation, root access, or hidden execution. PCs can run nodes continuously.
+8. **Keep code auditable and the package self-contained.** Source code, dependency versions, and runtime artifacts belong in the repository/package. The client does not load executable scripts, modules, fonts, or trackers from CDNs at runtime. Builds and source versions must be identifiable and verifiable.
+9. **Make decentralization practical.** A person can choose multiple relays and run a node. A relay failure or refusal must not turn the app host into a central communication point.
+10. **Fund nodes voluntarily and transparently.** A node may accept or reject paid marketing campaigns in BTC, XMR, or XNO. Acceptance comes before payment. Paid campaigns are labeled as sponsored, kept separate from messages, and use no centralized click or view tracking.
 
-## Nome e origem do código
+## Product and experience
 
-O projeto se chama **Property**; o produto web, o manifesto instalável, o ícone e os fluxos visíveis devem usar esse nome. O código-fonte upstream do Amethyst permanece reconhecível no fork, com licença, histórico e autoria preservados. O código Amethyst necessário ao produto é adaptado dentro da árvore do repositório e distribuído com ele; nenhuma dependência de execução é consultada em um host upstream. `modelo-mvp` é a branch de trabalho e registra o snapshot upstream fixado e os commits da adaptação Property.
+- **First use:** create or recover an identity, explain recovery clearly, choose relays, and start a conversation without a terminal. The browser can retain a session; plaintext passwords are never stored.
+- **Communication:** private messages, conversations, and public/group spaces use supported and validated Nostr protocols.
+- **Agents:** an independent Nostr identity can message any valid public key directly over NIP-17, without a Property invitation, pairing, or approval. Agent conversations are identified and kept separate; a person can block locally, and incoming messages are never executed. Human review, independent security review, external interoperability, and platform coverage still require their own evidence.
+- **Hangout:** the first version is a public Nostr kind 1 feed, fetched and published directly to selected relays. Closed communities/groups are not part of the initial implementation.
+- **Node campaigns:** the PWA can optionally read signed events and display them separately from Hangout; this is off by default and local to the device. It sends no click/view telemetry and contains no wallet. The relay library's campaign engine and BTC/XMR/XNO adapters were exercised in G07–G08 with private local networks/wallets. This does not activate a production node-operator flow; security review and production policy are still required before real funds are used.
+- **Marketplace:** the first version publishes and discovers offers in NIP-15 format. The current specification is a draft marked not recommended; this release is a compatibility experiment. Purchases, checkout, custody, and escrow are not implemented. Product listings and node advertising are separate capabilities.
+- **Nodes:** prefer PC nodes for continuous availability; mobile browser collaboration is voluntary and limited to the time the app remains active.
+- **Distribution:** the PWA works in a browser and can be added to the home screen where supported. The main path requires neither an app store nor root access.
 
-## Reuso do Amethyst
+## Name and code origin
 
-O Amethyst é a base técnica prioritária. O repositório público atual identifica licença MIT, separa app Android, biblioteca Nostr Quartz, componentes compartilhados Commons e app desktop, e lista suporte a NIP-15 (marketplace) e NIP-17 (mensagens privadas). Isso oferece uma base significativa de protocolos, modelos, criptografia, conexão a relays, fluxos de produto e testes.
+The project is called **Property**; the web product, install manifest, icon, and visible flows use that name. Upstream Amethyst source remains identifiable in the fork, with its license, history, and authorship preserved. Code Amethyst requires is adapted in this repository and distributed with it; runtime dependencies are not fetched from upstream hosts. `modelo-mvp` is the working branch and records the pinned upstream snapshot and Property adaptation commits.
 
-A origem fixada é o commit `948135f7dbbae81d79a0b985282ce673397a7618`. O repositório `coercaodobem/property` publica o snapshot adaptado; o histórico upstream completo permanece no Amethyst. O relay Geode é reutilizado e inclui seu runtime. A interface PWA usa `nostr-tools` local, não uma compilação web do Compose/Quartz selecionado. Melhorias compatíveis devem continuar avaliando e reaproveitando upstream, com origem e licença registradas.
+## Reusing Amethyst
 
-O repositório do Amethyst é descrito como Android/desktop, não como uma PWA pronta. Portanto, a interface Compose e APIs específicas do Android não serão consideradas compatíveis com navegador sem uma prova técnica. Se não houver alvo web suportado, manter o núcleo de protocolo reutilizado e criar uma camada web fina dentro do próprio repositório Property. Não reescrever lógica de protocolo já validada apenas para uniformizar tecnologia.
+Amethyst is the primary technical base. Its public repository identifies an MIT license, separates the Android app, Nostr Quartz library, shared Commons modules, and desktop app, and lists NIP-15 and NIP-17 support. This provides substantial reusable protocol, model, cryptography, relay, product-flow, and test foundations.
 
-Antes de incorporar cada módulo, revisar licença e dependências transitivas, preservar avisos de copyright/licença MIT, registrar commit e origem, remover referências de build a versões dinâmicas como snapshots e trazer o código/dependências de runtime para o repositório ou bundle. Nenhum componente necessário à execução pode ser carregado de um servidor Amethyst, Maven, JitPack ou CDN quando o usuário abre o app. A versão web atual inclui localmente `nostr-tools@2.25.2` porque o Quartz KMP não publica target JS/WASM; sua cadeia de dependências precisa de auditoria antes de beta público.
+The pinned source is commit `948135f7dbbae81d79a0b985282ce673397a7618`. `coercaodobem/property` publishes the adapted snapshot; full upstream history remains in Amethyst. The Geode relay is reused with its runtime. The PWA uses local `nostr-tools`, not a web build of the selected Compose/Quartz stack. Compatible improvements should keep evaluating upstream reuse and record source and license.
 
-Referências para a auditoria inicial: [repositório Amethyst](https://github.com/vitorpamplona/amethyst), [README e arquitetura](https://github.com/vitorpamplona/amethyst/blob/main/README.md), [licença MIT](https://github.com/vitorpamplona/amethyst/blob/main/LICENSE). Esses links servem para pesquisa e não são dependências de runtime.
+The Amethyst repository describes Android/desktop, not a ready-made PWA. Compose UI and Android-specific APIs are not assumed to work in a browser without technical proof. If no supported web target exists, keep the reused protocol core and build a thin web layer inside the Property repository. Do not rewrite validated protocol logic just to standardize technology.
 
-## Hospedagem e confiança
+Before incorporating a module, review its license and transitive dependencies, preserve MIT/copyright notices, record commit and source, remove dynamic build references such as snapshots, and bring runtime code/dependencies into the repository or bundle. Nothing needed at runtime may be loaded from Amethyst, Maven, JitPack, or a CDN when the user opens the app. The current web version bundles `nostr-tools@2.25.2` because Quartz KMP does not publish a JS/WASM target; its dependency chain needs auditing before a public beta.
 
-Durante desenvolvimento, usar ambiente local e staging controlado; não é necessário lançar o site institucional antes de o app estar pronto. Na fase de lançamento, o GitHub Pages pode publicar o app estático diretamente de uma branch/pasta do repositório público Property. O site institucional do projeto será preparado para essa fase final; app e apresentação podem compartilhar domínio ou ser separados.
+Initial audit references: [Amethyst repository](https://github.com/vitorpamplona/amethyst), [README and architecture](https://github.com/vitorpamplona/amethyst/blob/main/README.md), [MIT license](https://github.com/vitorpamplona/amethyst/blob/main/LICENSE). These links are research references, not runtime dependencies.
 
-O Pages é distribuição de arquivos, não backend. Mensagens e eventos vão diretamente do navegador aos relays. O host HTTPS continua sendo uma raiz de confiança para a primeira abertura e as atualizações de uma PWA; releases revisadas, tags assinadas, artefatos reproduzíveis e espelhos ajudam a verificar a distribuição, mas não tornam o domínio irrelevante.
+## Hosting and trust
 
-## Fora do escopo inicial
+During development, use local or controlled staging environments; an institutional website is not required before the app is ready. For launch, GitHub Pages can publish the static app from the public Property repository. The project website may share the app's domain or use a separate domain.
 
-- Garantir execução permanente de nodes em navegador móvel suspenso.
-- Criar relays, protocolos de criptografia ou um sistema P2P próprio antes de avaliar os existentes.
-- Conta centralizada, autenticação ou recuperação de senha por servidor, e armazenamento remoto de chave.
-- Publicidade baseada em impressão, clique, leitura ou perfil central.
-- Lançar site institucional/marketing antes de o app estar funcional e revisado.
+Pages distributes files; it is not a backend. Messages and events go directly from the browser to relays. The HTTPS host remains a trust root for a PWA's first visit and updates; reviewed releases, signed tags, reproducible artifacts, and mirrors help verify distribution but do not make the domain irrelevant.
 
-## Plataformas e moedas
+## Out of initial scope
 
-O objetivo inclui Windows, macOS, Linux/Ubuntu, Android e iOS. Os pacotes de relay incluem Linux x86_64, Windows x64 e macOS Apple Silicon; a PWA é a interface comum. Instalação e operação exigem evidência separada por sistema; Mac Intel e outras arquiteturas continuam pendentes. Android/iOS ainda não têm relay Property continuamente ativo validado.
+- Guaranteeing that a mobile browser node runs continuously while suspended.
+- Creating relays, encryption protocols, or a custom P2P system before evaluating existing options.
+- Centralized accounts, server-side authentication/password recovery, or remote key storage.
+- Advertising based on centralized impressions, clicks, reading, or profiles.
+- Launching an institutional/marketing site before the app is functional and reviewed.
 
-Ofertas declaram BTC, XMR ou XNO. Valores atômicos usam strings inteiras, sem conversão entre moedas ou cotação automática. Campanhas novas usam `property-sponsored-v2`; eventos legados XNO continuam legíveis. A especificação e os gates de pagamento estão em [pagamentos.md](pagamentos.md). Nenhum leitor ou hash declarado comprova liquidação.
+## Platforms and currencies
+
+The target includes Windows, macOS, Linux/Ubuntu, Android, and iOS. Relay packages include Linux x86_64, Windows x64, and macOS Apple Silicon; the PWA is the common interface. Installation and operation require evidence per system; Intel Mac and other architectures remain pending. Android/iOS do not yet have a validated, continuously active Property relay.
+
+Offers declare BTC, XMR, or XNO. Atomic values are integer strings, with no cross-currency conversion or automatic exchange rates. New campaigns use `property-sponsored-v2`; legacy XNO events remain readable. See [payment details](pagamentos.md). No client reader or declared transaction hash proves settlement.

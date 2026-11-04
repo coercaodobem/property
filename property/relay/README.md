@@ -1,37 +1,39 @@
-# Relay Property no computador
+# Property relay on your computer
 
-O relay é o Geode do Amethyst reutilizado sob licença MIT. O comando é executado sem root e, por padrão, escuta apenas no loopback para evitar expor um serviço sem TLS à internet.
+**English** · [Português (Brasil)](README.pt-BR.md)
+
+The relay is Geode from Amethyst, reused under the MIT license. It runs without root and listens on loopback only by default, so an unencrypted service is not exposed to the internet.
 
 ```bash
 ./property/relay/start.sh
 ```
 
-- Endereço padrão: `127.0.0.1:7447`.
-- Banco persistente: `~/.local/share/property-relay/events.db`.
-- Configuração: `~/.config/property-relay/geode.toml`.
-- Encerrar: `Ctrl+C`.
+- Default address: `127.0.0.1:7447`.
+- Persistent database: `~/.local/share/property-relay/events.db`.
+- Configuration: `~/.config/property-relay/geode.toml`.
+- Stop with `Ctrl+C`.
 
-Variáveis opcionais:
+Optional environment variables:
 
 ```bash
 PROPERTY_RELAY_HOST=127.0.0.1 PROPERTY_RELAY_PORT=7447 ./property/relay/start.sh
 ```
 
-Para bind público, não basta trocar o endereço: coloque TLS e proteção de rede à frente, defina URL canônica no config, limites de tráfego e política de armazenamento. O comando padrão não exige senha, não usa root e não abre firewall.
+For a public bind, changing the address is not enough. Put TLS and network protections in front of it, set a canonical URL in the configuration, and define traffic limits and a storage policy. The default command needs no password, root access, or firewall changes.
 
-O runtime Java 21.0.12.1 e o Geode 1.20.0 para Linux x86_64 são incluídos em `dist-parts/` como 130 segmentos binários. `SHA256SUMS` fixa o hash de cada segmento e `manifest.txt` fixa o tamanho e o hash do tarball remontado (`9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7`). O tarball auditado contém somente a árvore `geode/` gerada pelo build `:geode:geodeImage`; seu conteúdo foi comparado arquivo a arquivo com `geode/build/geode-image/geode`, sem diferenças. As verificações e os limites da proveniência estão em [`dist-parts/PROVENANCE.md`](dist-parts/PROVENANCE.md). O launcher remonta o tarball no diretório privado do usuário, verifica o SHA-256 completo e só então extrai/executa. Não baixa código na execução. Em x86_64 o launcher não exige Java instalado nem root; se os segmentos estiverem ausentes, o build de contingência exige JDK 21 e Gradle.
+The Java 21.0.12.1 runtime and Geode 1.20.0 for Linux x86_64 are included under `dist-parts/` as 130 binary segments. `SHA256SUMS` pins every segment's hash; `manifest.txt` pins the reconstructed archive size and SHA-256 (`9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7`). The audited archive contains only the generated `geode/` tree from `:geode:geodeImage`; it was compared file by file with `geode/build/geode-image/geode` and no differences were found. Verification steps and provenance limits are in [`dist-parts/PROVENANCE.md`](dist-parts/PROVENANCE.md). The launcher reconstructs the archive in a private user directory, verifies its full SHA-256, and only then extracts and runs it. It downloads no code at runtime. On x86_64, it needs neither a preinstalled Java runtime nor root; if segments are missing, the fallback build requires JDK 21 and Gradle.
 
-Instalações existentes e variáveis antigas são preservadas por compatibilidade; veja [migração para Property](../docs/migracao-property.md). Incluímos também pacotes Windows x64 e macOS Apple Silicon, com matriz de testes própria. Mac Intel, outras arquiteturas Linux, relay Android e relay iOS continuam pendentes; nesses sistemas a interface é a PWA.
+Windows x64 and macOS Apple Silicon packages are included too, with their own test matrix. Intel Mac, other Linux architectures, Android relay, and iOS relay remain pending; on those systems, the PWA is the interface.
 
 ## Windows x64
 
-Na raiz do checkout, abra PowerShell e execute:
+From the checkout root, open PowerShell and run:
 
 ```powershell
 powershell -NoProfile -File .\property\relay\start.ps1
 ```
 
-Dados em `%LOCALAPPDATA%\Property\relay`; configuração em `%LOCALAPPDATA%\Property\config`. Use `PROPERTY_RELAY_DATA_DIR`, `PROPERTY_RELAY_CONFIG_DIR`, `PROPERTY_RELAY_HOST`, `PROPERTY_RELAY_PORT` ou `PROPERTY_RELAY_CONFIG` para configurar. O runtime é incluído; não precisa Java, Python, compilação, root ou loja. Respeite a política de execução de scripts do seu computador; o launcher não altera essa política. `Ctrl+C` encerra o relay.
+Data lives in `%LOCALAPPDATA%\Property\relay`; configuration is in `%LOCALAPPDATA%\Property\config`. Set `PROPERTY_RELAY_DATA_DIR`, `PROPERTY_RELAY_CONFIG_DIR`, `PROPERTY_RELAY_HOST`, `PROPERTY_RELAY_PORT`, or `PROPERTY_RELAY_CONFIG` to customize it. The runtime is bundled; Java, Python, compilation, root, and an app store are not required. Follow your computer's script execution policy; the launcher does not change it. Press `Ctrl+C` to stop the relay.
 
 ## macOS Apple Silicon (arm64)
 
@@ -39,10 +41,10 @@ Dados em `%LOCALAPPDATA%\Property\relay`; configuração em `%LOCALAPPDATA%\Prop
 ./property/relay/start.sh
 ```
 
-O launcher seleciona `start-macos.sh` e usa o pacote arm64 com Java incluído. Dados em `~/.local/share/property-relay`, configuração em `~/.config/property-relay`; variáveis `PROPERTY_RELAY_*` equivalentes. Não modifica Gatekeeper nem remove quarentena automaticamente. Mac Intel ainda precisa de pacote e driver SQLite compatíveis; não execute o pacote arm64 como se fosse x64.
+The launcher selects `start-macos.sh` and uses the arm64 package with its Java runtime included. Data is stored in `~/.local/share/property-relay`, and configuration in `~/.config/property-relay`; equivalent `PROPERTY_RELAY_*` variables are supported. The launcher does not modify Gatekeeper or remove quarantine automatically. Intel Mac still needs a compatible package and SQLite driver; do not run the arm64 package as x64.
 
-## Proveniência dos novos pacotes
+## Package provenance
 
-Cada diretório em `portable/` contém segmentos e `manifest.json` com hashes, tamanhos, origem Temurin 21.0.13+9 e hashes individuais de todos os JARs Geode. Os JARs são os mesmos do pacote Linux original; os runtimes nativos vieram das releases oficiais Adoptium verificadas por SHA-256. O pacote preserva os arquivos de licença do runtime. Veja [proveniência](portable/PROVENANCE.md). Não há download ou atualização automática no launcher. A PWA continua leve: esses runtimes não fazem parte do artefato de Pages nem do cache do navegador.
+Each directory under `portable/` contains segments and a `manifest.json` with hashes, Temurin 21.0.13+9 source information, and individual hashes for every Geode JAR. The JARs match the original Linux package; native runtimes came from official Adoptium releases and were verified with SHA-256. Runtime license files are preserved. See [provenance details](portable/PROVENANCE.md). The launcher does not download or auto-update. These runtimes are not part of the lightweight Pages artifact or browser cache.
 
-`node property/tests/native-relay-integration.mjs` inicia um relay isolado, testa mensagens e ofertas BTC/XMR/XNO e verifica persistência após reinício. O CI executa esse fluxo em Linux, Windows e macOS arm64. O gate G11-03 exercita três relays e duas pontes com 300 probes, três reinícios, nove eventos de partição e checkpoints de recursos por quantidade, conforme o plano central de testes.
+`node property/tests/native-relay-integration.mjs` starts an isolated relay, checks messages and BTC/XMR/XNO offers, and verifies persistence after restart. CI runs this flow on Linux, Windows, and macOS arm64. The G11-03 gate exercises three relays and two bridges with 300 probes, three restarts, nine partition events, and fixed resource checkpoints, as specified in the central test plan.

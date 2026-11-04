@@ -21,3 +21,4 @@
 .agent-manager-dialog .dialog-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }
 .agent-chat-badge,.agent-message-author { color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: .09em; }
 .agent-message-author { margin: 0 5px 2px; }
+.language-picker{min-width:92px;max-width:144px;height:34px;padding:0 8px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);font-size:12px}.language-picker:focus{outline:2px solid #829b45;outline-offset:2px}@media(max-width:430px){.language-picker{min-width:78px;width:88px;padding:0 4px;font-size:11px}}

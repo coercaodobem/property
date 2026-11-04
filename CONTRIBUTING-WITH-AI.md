@@ -1,24 +1,27 @@
-# Contribuições ao Property com assistência de IA
+# AI-Assisted Contributions to Property
 
-Este documento complementa [CONTRIBUTING.md](CONTRIBUTING.md). Assistentes são ferramentas; a pessoa que envia uma contribuição é responsável por entender, revisar e validar o resultado.
+**English** · [Português (Brasil)](CONTRIBUTING-WITH-AI.pt-BR.md)
 
-## Antes de abrir um PR
+AI assistants are tools. The person submitting a contribution remains responsible for understanding, reviewing, and validating the result.
 
-- Uma pessoa deve revisar o diff completo e conseguir explicar o comportamento alterado.
-- A validação deve corresponder à área modificada: links e comandos para documentação; testes e inspeção no navegador para PWA; dispositivo ou emulador para alterações específicas de Android.
-- Informe comandos executados, resultados e limitações reais. Não confunda teste local, CI ou publicação com funcionamento integral em produção.
-- Quando a IA tiver produzido parte substancial da alteração, inclua uma nota curta no PR.
+## Before opening a pull request
 
-Agentes não devem abrir, publicar ou enviar PRs automaticamente. Entregue a branch, o resumo e a validação à pessoa responsável; abra um PR apenas quando ela tiver concluído a revisão e solicitado explicitamente essa ação. Nunca afirme que uma pessoa revisou ou testou sem evidência.
+- A person must review the complete diff and be able to explain the changed behavior.
+- Validation must match the changed area: links and commands for documentation; relevant checks and browser inspection for the PWA; a device or emulator for Android-specific work.
+- Report commands actually run, their results, and real limitations. Do not confuse a local check, CI run, or deployment with complete production behavior.
+- If AI produced a substantial part of the change, include a brief note in the pull request.
 
-## Durante o trabalho
+Agents must not open, publish, or send pull requests automatically. Provide the branch, summary, and validation to the responsible person. Open a pull request only after that person has reviewed the change and explicitly requested it. Never claim a person reviewed or tested something without evidence.
 
-- Leia o [README principal em português](README.md) ou a [versão opcional em inglês](README.en.md), o [roadmap](ROADMAP.md), [AGENTS.md](AGENTS.md) e as instruções próximas dos arquivos. Para qualquer caminho em `property/`, leia também [`property/AGENTS.md`](property/AGENTS.md).
-- Ao alterar informações compartilhadas nos READMEs, atualize as duas versões na mesma contribuição e preserve links, comandos e estados equivalentes.
-- Reaproveite implementações existentes; não invente APIs, resultados, testes ou suporte de plataforma.
-- Mantenha correções pequenas e preserve autoria e licenças do código Amethyst reutilizado.
-- Discuta mudanças extensas em chaves, criptografia, NIPs, pagamentos ou distribuição com o mantenedor.
-- Não envie senhas, chaves privadas, tokens ou mensagens pessoais para ferramentas, issues ou logs.
-- Envie propostas do Property para `coercaodobem/property`, na branch `modelo-mvp`.
+## During the work
 
-Uma contribuição somente web ou documental deve ser validada pelo fluxo correspondente do Property; não exige afirmar que o app Android foi instalado. As [regras upstream de IA](https://github.com/vitorpamplona/amethyst/blob/948135f7dbbae81d79a0b985282ce673397a7618/CONTRIBUTING-WITH-AI.md) são referência histórica para a base reaproveitada.
+- Read the English [README](README.md), [roadmap](ROADMAP.md), [`AGENTS.md`](AGENTS.md), and instructions near the files you change. For any path under `property/`, also read [`property/AGENTS.md`](property/AGENTS.md).
+- Keep the English and Brazilian Portuguese README versions aligned when shared project facts, commands, or status change.
+- Reuse existing implementations. Do not invent APIs, results, tests, or platform support.
+- Keep changes focused and preserve Amethyst authorship notices and licenses.
+- Discuss extensive changes to keys, cryptography, NIPs, payments, or distribution with the maintainer.
+- Never send passwords, private keys, tokens, or personal messages to tools, issues, or logs.
+- Send Property proposals to `coercaodobem/property`, targeting branch `modelo-mvp`.
+- English is the default for documentation and app chrome. Use the app's Português (Brasil) selector when requested. Never translate user-generated content or agent-to-agent message bodies; language choice belongs to the participants.
+
+A web-only or documentation-only contribution should use the relevant Property validation flow; do not claim the Android app was installed. The [upstream Amethyst AI guide](https://github.com/vitorpamplona/amethyst/blob/948135f7dbbae81d79a0b985282ce673397a7618/CONTRIBUTING-WITH-AI.md) is historical guidance for reused code.

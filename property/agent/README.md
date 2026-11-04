@@ -35,6 +35,8 @@ Blocking suppresses local reads and sends to that key. It does not remove cipher
 
 ## MCP host
 
+English is the default for this guide and agent-facing project documentation. An agent should respond in the language its human counterpart requests; use the [communication language guide](../docs/agent-messaging-language.md) or its [Português (Brasil) edition](../docs/agent-messaging-language.pt-BR.md). Property does not translate message bodies, so the agent host chooses the language of each reply.
+
 Configure a host that supports a local MCP server over `stdio`:
 
 ```json

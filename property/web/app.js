@@ -471,8 +471,8 @@
       const button = document.createElement('button'); button.className = `conversation-item${conversation.pubkey === state.activePeer ? ' active' : ''}`; button.type = 'button';
       const avatar = document.createElement('span'); avatar.className = 'avatar'; avatar.textContent = displayName(conversation.pubkey, conversation.title).slice(0, 1).toUpperCase();
       const info = document.createElement('span'); info.className = 'conversation-preview';
-      const title = document.createElement('strong'); title.textContent = displayName(conversation.pubkey, conversation.title);
-      const preview = document.createElement('small'); preview.textContent = conversation.lastMessage || conversation.pubkey.slice(0, 16);
+      const title = document.createElement('strong'); title.dataset.userContent = ''; title.textContent = displayName(conversation.pubkey, conversation.title);
+      const preview = document.createElement('small'); preview.dataset.userContent = ''; preview.textContent = conversation.lastMessage || conversation.pubkey.slice(0, 16);
       info.append(title);
       const agentAccess = await get('agentAccess', conversation.pubkey);
       if (conversation.agent || agentAccess?.status === 'approved') { const agentBadge = document.createElement('small'); agentBadge.className = 'agent-chat-badge'; agentBadge.textContent = 'PROTOCOLO DE AGENTE'; info.append(agentBadge); }
@@ -483,6 +483,7 @@
     state.activePeer = pubkey;
     $('empty-conversation').classList.add('hidden');
     $('conversation-pane').classList.remove('hidden');
+    $('chat-title').dataset.userContent = '';
     $('chat-title').textContent = displayName(pubkey, (await get('conversations', pubkey))?.title || '');
     const agentAccess = await get('agentAccess', pubkey);
     $('chat-subtitle').textContent = (await get('conversations', pubkey))?.agent === true || agentAccess?.status === 'approved' ? `PROTOCOLO DE AGENTE · ${N.nip19.npubEncode(pubkey)}` : N.nip19.npubEncode(pubkey);
@@ -530,7 +531,7 @@
       if (message.fromAgent) { const author = document.createElement('span'); author.className = 'agent-message-author'; author.textContent = message.agentMessageError ? 'Protocolo de agente · mensagem não reconhecida' : 'Protocolo de agente · identidade Nostr'; row.append(author); }
       const bubble = document.createElement('div'); bubble.className = 'message-bubble'; bubble.textContent = message.text;
       const delivery = message.status === 'pending' ? ' · aguardando relay' : message.status === 'partial' ? ' · entrega parcial' : '';
-      const meta = document.createElement('span'); meta.className = 'message-meta'; meta.textContent = `${new Date(message.createdAt).toLocaleString()}${delivery}`;
+      const meta = document.createElement('span'); meta.className = 'message-meta'; meta.textContent = `${new Date(message.createdAt).toLocaleString(window.PropertyI18n?.locale() || undefined)}${delivery}`;
       row.append(bubble, meta); container.append(row);
     }
     container.scrollTop = container.scrollHeight;
@@ -628,11 +629,11 @@
     await saveCampaignSettings(settings);
     const card = document.createElement('article'); card.className = 'campaign-card';
     const label = document.createElement('p'); label.className = 'eyebrow'; label.textContent = 'PATROCINADO · PAGAMENTO NÃO VERIFICADO PELO CLIENTE';
-    const heading = document.createElement('h3'); heading.textContent = campaign.title;
-    const body = document.createElement('p'); body.textContent = campaign.body;
+    const heading = document.createElement('h3'); heading.dataset.userContent = ''; heading.textContent = campaign.title;
+    const body = document.createElement('p'); body.dataset.userContent = ''; body.textContent = campaign.body;
     const amount = document.createElement('p'); amount.className = 'hangout-meta'; amount.textContent = `Oferta do node: ${Money.fromAtomic(campaign.amountAtomic, campaign.currency)} ${campaign.currency} · identidade ${N.nip19.npubEncode(campaign.nodePubkey).slice(0, 18)}…`;
     card.append(label);
-    if (campaign.imageData) { const image = document.createElement('img'); image.className = 'campaign-image'; image.src = campaign.imageData; image.alt = campaign.title; image.loading = 'lazy'; card.append(image); }
+    if (campaign.imageData) { const image = document.createElement('img'); image.className = 'campaign-image'; image.dataset.userContent = ''; image.src = campaign.imageData; image.alt = campaign.title; image.loading = 'lazy'; card.append(image); }
     card.append(heading, body, amount);
     const link = document.createElement('a'); link.className = 'button secondary'; link.href = campaign.link; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = 'Abrir destino HTTPS';
     card.append(link);
@@ -661,10 +662,10 @@
       const card = document.createElement('article'); card.className = 'hangout-card';
       card.dataset.eventId = event.id;
       const title = document.createElement('h3'); title.textContent = `npub…${N.nip19.npubEncode(event.pubkey).slice(-8)}`;
-      const body = document.createElement('p'); body.textContent = event.content;
+      const body = document.createElement('p'); body.dataset.userContent = ''; body.textContent = event.content;
       const meta = document.createElement('p'); meta.className = 'hangout-meta';
       const sources = eventSourceHints.get(event) || [];
-      meta.textContent = `${new Date(event.created_at * 1000).toLocaleString()} · ${sources.length ? `relays: ${sources.join(', ')}` : 'relay de origem indisponível'}`;
+      meta.textContent = `${new Date(event.created_at * 1000).toLocaleString(window.PropertyI18n?.locale() || undefined)} · ${sources.length ? `relays: ${sources.join(', ')}` : 'relay de origem indisponível'}`;
       const contact = document.createElement('button'); contact.className = 'button text'; contact.textContent = 'Conversar em privado'; contact.addEventListener('click', () => addConversation(event.pubkey, '').catch(error => showToast(error.message)));
       card.append(title, body, meta, contact); $('hangout-list').append(card);
     }
@@ -759,10 +760,10 @@
       const { data } = product;
       const imageUrl = Array.isArray(data.images) ? Marketplace.safeExternalImageUrl(data.images[0]) : '';
       if (imageUrl) { const link = document.createElement('a'); link.href = imageUrl; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = 'Abrir imagem externa'; link.className = 'button text'; card.append(link); }
-      const title = document.createElement('h3'); title.textContent = data.name;
+      const title = document.createElement('h3'); title.dataset.userContent = ''; title.textContent = data.name;
       const price = document.createElement('p'); price.className = 'product-price';
       price.textContent = Marketplace.displayPrice(data, Nano);
-      const body = document.createElement('p'); body.textContent = data.description || '';
+      const body = document.createElement('p'); body.dataset.userContent = ''; body.textContent = data.description || '';
       const seller = document.createElement('p'); seller.className = 'hangout-meta'; seller.textContent = `Vendedor: npub…${N.nip19.npubEncode(product.pubkey).slice(-8)}`;
       const button = document.createElement('button'); button.className = 'button secondary'; button.textContent = 'Falar com vendedor'; button.addEventListener('click', () => addConversation(product.pubkey, '').catch(error => showToast(error.message)));
       card.append(title, price, body, seller, button); $('marketplace-list').append(card);
@@ -889,7 +890,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v22', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v23', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }

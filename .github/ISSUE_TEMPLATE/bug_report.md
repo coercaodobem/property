@@ -1,30 +1,30 @@
 ---
-name: Relatar um problema
-about: Registre um bug do Property com passos reproduzíveis.
+name: Report a bug
+about: Report a Property bug with reproducible steps.
 title: "[BUG] "
 labels: bug
 assignees: ''
 ---
 
-## O que aconteceu
+## What happened?
 
-## Passos para reproduzir
+## Steps to reproduce
 
 1.
 2.
 3.
 
-## Resultado esperado
+## Expected result
 
-## Ambiente
+## Environment
 
-- URL ou commit/branch:
-- Navegador e versão:
-- Sistema operacional e aparelho:
-- Para relay: arquitetura, comando e configuração relevante sem segredos:
+- URL or commit/branch:
+- Browser and version:
+- Operating system and device:
+- Relay, if relevant: architecture, command, and relevant configuration without secrets:
 
-## Evidências e limites
+## Evidence and limits
 
-Inclua logs curtos ou capturas com dados sintéticos. Não envie senhas, chaves privadas, tokens, backups pessoais ou conversas reais. Vulnerabilidades devem usar o canal privado descrito em SECURITY.md.
+Include short logs or screenshots with synthetic data. Do not include passwords, private keys, tokens, personal backups, or real conversations. Report vulnerabilities through the private channel in `SECURITY.md`.
 
-Relatos não exigem bounty ou pagamento.
+Bug reports do not require a bounty or payment.

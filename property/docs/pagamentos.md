@@ -1,48 +1,50 @@
-# BTC, XMR e XNO no Property
+# BTC, XMR, and XNO in Property
 
-Atualizado em 2026-11-03. A mudança incorpora o requisito do commit `55e379c9dbdf8637b32422d32e982460aa5862e5` e o estado atual da engine local de campanhas.
+**English** · [Português (Brasil)](pagamentos.pt-BR.md)
 
-## Implementado e planejado
+Updated 2026-11-03. This document incorporates the requirement from commit `55e379c9dbdf8637b32422d32e982460aa5862e5` and the current local campaign-engine state.
 
-O cliente PWA publica preços de ofertas em BTC, XMR ou XNO e lê campanhas assinadas; verifica formato e assinatura, mas não contém carteira nem checkout. Separadamente, a biblioteca local do relay inclui uma engine de campanhas e adaptadores para Bitcoin Core, Monero Wallet RPC e Nano RPC. Os gates G07–G08 exercitam a engine e esses adaptadores com nós/carteiras reais em redes privadas locais, sem fundos reais. Isso não equivale a uma operação de campanhas pronta para produção: ainda faltam uma experiência de operação para os mantenedores de nodes, políticas finais e revisão independente. A PWA nunca deve tratar uma declaração de pagamento do evento como confirmação própria.
+## Implemented and planned
 
-| Moeda | Unidade mínima | Unidades por moeda | Limite do campo inteiro |
-|---|---|---|---|
-| BTC (Bitcoin) | satoshi | 10⁸ | 21 milhões de BTC em satoshis |
+The PWA publishes offer prices in BTC, XMR, or XNO and reads signed campaigns. It verifies format and signature but contains no wallet or checkout. Separately, the local relay library has a campaign engine and adapters for Bitcoin Core, Monero Wallet RPC, and Nano RPC. Gates G07–G08 exercise the engine and those adapters with real nodes/wallets on private local networks, without real funds. This is not a production-ready campaign operation: a node-operator experience, final policies, and independent review are still needed. The PWA must never treat a declared payment in an event as its own confirmation.
+
+| Currency | Smallest unit | Units per coin | Integer field limit |
+|---|---|---:|---|
+| BTC (Bitcoin) | satoshi | 10⁸ | 21 million BTC in satoshis |
 | XNO (Nano) | raw | 10³⁰ | uint128 |
 | XMR (Monero) | piconero | 10¹² | uint64 |
 
-Conversões usam BigInt e strings decimais. Não há câmbio entre moedas. Os limites são de representação, não saldo ou oferta monetária disponível. Referências: [unidades Nano](https://docs.nano.org/protocol-design/distribution-and-units/), [unidades Monero](https://www.getmonero.org/resources/moneropedia/atomic-units.html) e [Wallet RPC Monero](https://www.getmonero.org/resources/developer-guides/wallet-rpc.html).
+Conversions use BigInt and decimal strings. There is no exchange between currencies. Limits describe representation, not a balance or available monetary supply. References: [Nano units](https://docs.nano.org/protocol-design/distribution-and-units/), [Monero units](https://www.getmonero.org/resources/moneropedia/atomic-units.html), and [Monero Wallet RPC](https://www.getmonero.org/resources/developer-guides/wallet-rpc.html).
 
-## Ofertas NIP-15
+## NIP-15 offers
 
-O draft exige `price` numérico; esse campo é somente compatibilidade e pode perder precisão. O preço exato do Property é `price_atomic` como string inteira junto de `currency: "BTC"`, `"XNO"` ou `"XMR"`. Para XNO, publicar também `price_raw` para clientes antigos. Nunca interpretar `price_raw` como piconero. Cada moeda tem sua vitrine; mudar a moeda de uma oferta seleciona a vitrine correspondente. Checkout futuro deve usar exclusivamente o inteiro validado, sem calcular dinheiro com `Number`.
+The draft requires a numeric `price` field; it is only for compatibility and may lose precision. Property's exact price is `price_atomic`, an integer string, together with `currency: "BTC"`, `"XNO"`, or `"XMR"`. For XNO, also publish `price_raw` for older clients. Never interpret `price_raw` as piconero. Each currency has its own storefront; changing an offer's currency selects the corresponding storefront. Future checkout must use only the validated integer, never calculate money with `Number`.
 
-## Campanhas
+## Campaigns
 
-Eventos são kind 30078, com um único `t` e um único `d`:
+Campaign events use kind 30078 and exactly one `t` tag and one `d` tag:
 
 ```json
 {
   "tags": [["t", "property-sponsored-v2"], ["d", "property-sponsored-v2:123e4567-e89b-42d3-a456-426614174000"]],
-  "content": "JSON do payload assinado abaixo"
+  "content": "Signed JSON payload described below"
 }
 ```
 
-O payload mantém `title`, `body`, `link`, `expires_at`, `offer_event_id`, `acceptance_event_id` e imagem PNG/JPEG inline limitada. Acrescenta `currency`, `amount_atomic` e `payment_tx_id` (identificador hexadecimal de 64 caracteres). Não aceita `amount_raw` ou `payment_block_hash` em v2. O parser exige montante positivo, prazo limitado e moeda conhecida. `node_pubkey`, quando presente, precisa coincidir com o signatário.
+The payload keeps `title`, `body`, `link`, `expires_at`, `offer_event_id`, `acceptance_event_id`, and an inline PNG/JPEG image with a size limit. It adds `currency`, `amount_atomic`, and `payment_tx_id` (a 64-character hexadecimal identifier). V2 rejects `amount_raw` and `payment_block_hash`. The parser requires a positive amount, bounded expiry, and a known currency. If present, `node_pubkey` must match the signer.
 
-O leitor aceita também `liberdade-sponsored-v1`, estritamente como XNO, com `amount_raw` e `payment_block_hash`. Nunca reinterpreta uma campanha antiga como Monero nem altera eventos já assinados. O opt-in, bloqueio local e limite local de repetição continuam aplicáveis. O app não envia eventos de clique/visualização.
+The reader also accepts `liberdade-sponsored-v1`, strictly as XNO, with `amount_raw` and `payment_block_hash`. It never reinterprets an older campaign as Monero or alters signed events. Local opt-in, blocking, and repeat limits still apply. The app sends no click/view events.
 
-## Operação e ativação em produção: pendências
+## Production operation and activation: pending
 
-1. Integrar a engine a uma ferramenta de operação do node, documentando criação, revisão/aceite, recusa, monitoramento, parada e recuperação sem exigir segredo da identidade Nostr.
-2. Revisar de forma independente a autenticação RPC local, o isolamento de carteiras, limites, logs sanitizados, geração de endereço e manuseio de credenciais.
-3. Fixar e publicar políticas de confirmações, desbloqueio, valor mínimo, taxas e tratamento de reorganização por moeda; os parâmetros usados no laboratório não são automaticamente parâmetros de produção.
-4. Revisar as regras de devolução e idempotência em cada moeda; Bitcoin e Monero exigem endereço de reembolso autenticado no acordo, sem presumir origem utilizável.
-5. Não prometer custo zero nem viabilidade de micropagamento em XMR. Não ativar uso com fundos reais antes de revisão de segurança, política e operação.
+1. Integrate the engine with a node-operator tool; document create, review/accept, reject, monitor, stop, and recovery without requiring the Nostr identity secret.
+2. Independently review local RPC authentication, wallet isolation, limits, sanitized logs, address generation, and credential handling.
+3. Fix and publish per-currency policies for confirmations, unlocks, minimum values, fees, and reorg handling. Lab parameters do not automatically become production settings.
+4. Review refund rules and idempotency per currency. Bitcoin and Monero require an authenticated refund address agreed in the deal; never assume the source is usable.
+5. Do not promise zero cost or viable Monero micropayments. Do not enable real funds before security, policy, and operations review.
 
 ## Bitcoin
 
-BTC foi incluído por solicitação posterior do mantenedor. Valores usam satoshis inteiros (8 casas), até 21 milhões de BTC. Ofertas e campanhas v2 aceitam a moeda; isso não ativa transferências. Referência: [unidades Bitcoin](https://bitcoin.org/en/vocabulary).
+BTC was added at the maintainer's later request. Values use integer satoshis (8 decimal places), up to 21 million BTC. Offers and v2 campaigns accept the currency; this does not enable transfers. Reference: [Bitcoin vocabulary](https://bitcoin.org/en/vocabulary).
 
-O adaptador futuro Bitcoin deve usar endereço exclusivo por oferta, confirmar via node/carteira local, verificar valor e output, tratar mempool, confirmações, substituição/conflitos e reorganizações. O txid declarado não comprova o recebimento. Reembolsos exigem endereço autenticado acordado com o pagador e política explícita de taxas/valor líquido, sem presumir endereço de origem. Testar em regtest/signet sem fundos reais. Lightning é um fluxo separado e ainda não está implementado; não confundir satoshi on-chain com millisatoshi.
+A future Bitcoin adapter must use a unique address per offer, confirm through a local node/wallet, verify amount and output, and handle mempool, confirmations, replacement/conflicts, and reorgs. A declared txid does not prove receipt. Refunds require an authenticated address agreed with the payer and an explicit fee/net-amount policy; do not assume a source address is a refund address. Test on regtest/signet without real funds. Lightning is a separate, unimplemented flow; do not confuse on-chain satoshis with millisatoshis.

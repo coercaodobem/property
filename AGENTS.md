@@ -1,15 +1,14 @@
-# Contexto do Property
+# Property context
 
-Este repositório é `coercaodobem/property`, uma adaptação independente do Amethyst. A branch padrão é `modelo-mvp`. Leia [CONTRIBUTING.md](CONTRIBUTING.md), [CONTRIBUTING-WITH-AI.md](CONTRIBUTING-WITH-AI.md) e [ROADMAP.md](ROADMAP.md) para o fluxo atual de contribuição.
+This repository is `coercaodobem/property`, an independent adaptation of Amethyst. The default branch is `modelo-mvp`. Read [`CONTRIBUTING.md`](CONTRIBUTING.md), [`CONTRIBUTING-WITH-AI.md`](CONTRIBUTING-WITH-AI.md), and [`ROADMAP.md`](ROADMAP.md) for the current contribution workflow.
 
-O `README.md` é a entrada principal em português do Brasil; `README.en.md` oferece a versão opcional em inglês. Mantenha ambas alinhadas quando alterar informações do projeto. `README.pt-BR.md` é mantido como ponte para links antigos. Para arquivos em `property/`, leia também [`property/AGENTS.md`](property/AGENTS.md). Instruções do caminho específico complementam este arquivo; as regras Amethyst abaixo são relevantes quando módulos herdados forem alterados.
+The root [`README.md`](README.md) is the English project entry point; [`README.pt-BR.md`](README.pt-BR.md) is the Brazilian Portuguese version. Keep shared facts aligned when they change. `README.md` is a compatibility link to the canonical English README. For files under `property/`, also read [`property/AGENTS.md`](property/AGENTS.md). More specific instructions supplement this file; the Amethyst guidance below applies when inherited modules are changed.
 
-O produto Property fica em `property/web`, `property/relay`, `property/tests` e `property/docs`. Para mudanças somente web ou documentais, use a validação correspondente desse produto; compilar todos os alvos Kotlin não é requisito para essas mudanças. A suíte local é `bash property/tests/run-smoke.sh` com Node.js 22 ou superior. UI alterada exige inspeção no navegador; não declare teste de dispositivo sem evidência.
+The Property product lives in `property/web`, `property/relay`, `property/tests`, and `property/docs`. For web-only or documentation-only changes, use the matching Property workflow; compiling every Kotlin target is not required. The local smoke suite is `bash property/tests/run-smoke.sh` with Node.js 22 or newer. Inspect visible UI changes in a browser; do not claim device testing without evidence.
 
-As orientações Amethyst abaixo descrevem os módulos upstream preservados e continuam aplicáveis quando esses módulos forem modificados. Instruções sobre propor trabalho no repositório original são referência upstream; contribuições do Property vão para `coercaodobem/property:modelo-mvp`. Identifique remotos pela URL antes de qualquer envio. O mantenedor usa o remoto `property`; em forks, `origin` normalmente é o fork do contribuidor. Não envie alterações para Amethyst ou Gymoo como parte desta tarefa.
+The Amethyst instructions below describe preserved upstream modules and remain applicable when those modules are changed. Upstream contribution references are historical; Property contributions go to `coercaodobem/property:modelo-mvp`. Identify remotes by URL before publishing. The maintainer's remote is `property`; in forks, `origin` is usually the contributor's fork. Do not send changes to Amethyst or Gymoo as part of Property work.
 
-Agentes não abrem PRs automaticamente: a pessoa responsável revisa e valida o diff antes de solicitar sua abertura. Não altere segredos, autoria ou licenças. Relatos de segurança seguem [SECURITY.md](SECURITY.md).
-
+Agents must not open pull requests automatically: the responsible person reviews and validates the complete diff before explicitly asking. Do not alter secrets, authorship, or licenses. Report security issues through [`SECURITY.md`](SECURITY.md).
 ---
 
 # Amethyst

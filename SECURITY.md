@@ -1,26 +1,28 @@
-# Segurança do Property
+# Property Security
 
-O Property lida com chaves Nostr locais, eventos assinados, mensagens privadas e um relay de PC. A branch em desenvolvimento é `modelo-mvp`; ainda não há uma versão estável auditada nem garantia de resposta em um prazo fixo.
+**English** · [Português (Brasil)](SECURITY.pt-BR.md)
 
-## Relatar uma vulnerabilidade em privado
+Property handles local Nostr keys, signed events, private messages, and a PC relay. The development branch is `modelo-mvp`. There is no stable, independently audited release or guaranteed response time.
 
-Use **[Report a vulnerability no Property](https://github.com/coercaodobem/property/security/advisories/new)**. O relato é privado e chega aos mantenedores deste repositório. Esse canal não é o repositório Amethyst.
+## Report a vulnerability privately
 
-Não publique detalhes exploráveis em issues ou pull requests. Se o canal privado estiver temporariamente indisponível, abra apenas uma issue pedindo um canal de contato seguro, sem provas de exploração, segredos ou dados de usuários.
+Use **[Report a vulnerability in Property](https://github.com/coercaodobem/property/security/advisories/new)**. Reports are private and reach this repository's maintainers; this is not the Amethyst repository.
 
-## O que informar
+Do not post exploitable details in issues or pull requests. If the private channel is temporarily unavailable, open an issue only to request a safe contact channel—do not include exploit proof, secrets, or user data.
 
-- Commit, versão, navegador/sistema operacional e componente afetado.
-- Impacto provável: exposição de chaves, confidencialidade, integridade ou disponibilidade.
-- Passos de reprodução com dados sintéticos e, se possível, um teste mínimo.
-- Condições necessárias para a exploração e possíveis medidas de correção.
+## Include
 
-Nunca inclua senha, chave privada Nostr/Nano, token, backup pessoal ou conversa real. Identidades descartáveis e dados de teste são suficientes para reproduzir o problema.
+- Commit, version, browser/operating system, and affected component.
+- Likely impact: exposure of keys, confidentiality, integrity, or availability.
+- Reproduction steps using synthetic data and, if possible, a minimal test case.
+- Conditions required for exploitation and possible mitigations.
 
-## Escopo e estado de validação
+Never include passwords, private Nostr/Nano keys, tokens, personal backups, or real conversations. Disposable identities and test data are enough to reproduce an issue.
 
-Estão no escopo a PWA, seu cofre local, assinatura e roteamento de eventos, ponte entre relays, dependências empacotadas e o launcher/pacote do relay distribuído neste repositório. Problemas encontrados nos módulos herdados presentes aqui também podem ser relatados; a relação com upstream será avaliada sem divulgar detalhes prematuramente.
+## Scope and validation status
 
-Correções serão preparadas na branch de desenvolvimento. Não prometemos suporte a versões antigas, backports ou SLAs de triagem. O [plano de testes](property/docs/plano-de-testes-central.md) registra os gates ainda pendentes, incluindo revisão independente de segurança. Pagamentos automáticos XNO e seus fluxos de aceite/reembolso não estão implementados.
+The scope includes the PWA, local vault, event signing and routing, relay bridge, bundled dependencies, and the relay launcher/package distributed by this repository. Issues in preserved inherited modules may also be reported; the upstream relationship will be assessed without premature disclosure.
 
-Pesquise somente em contas, relays e dados próprios ou com autorização explícita. Coordene a divulgação com os mantenedores e evite acessar dados de terceiros. Vulnerabilidades em outros projetos ou relays devem ser comunicadas aos responsáveis correspondentes.
+Fixes are prepared on the development branch. We do not promise support for old versions, backports, or a triage SLA. The [test plan](property/docs/plano-de-testes-central.md) records pending gates, including independent security review. Automatic XNO payments and campaign acceptance/refund flows are not implemented.
+
+Research only accounts, relays, and data you own or are explicitly authorized to test. Coordinate disclosure with maintainers and avoid accessing other people's data. Vulnerabilities in other projects or relays should be reported to their respective maintainers.

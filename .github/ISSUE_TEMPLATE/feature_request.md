@@ -1,21 +1,21 @@
 ---
-name: Propor uma melhoria
-about: Sugira uma contribuição alinhada aos objetivos do Property.
-title: "[IDEIA] "
+name: Suggest an improvement
+about: Propose a contribution aligned with Property's goals.
+title: "[IDEA] "
 labels: enhancement
 assignees: ''
 ---
 
-## Problema ou necessidade
+## Problem or need
 
-## Comportamento proposto
+## Proposed behavior
 
-## Relação com o roadmap
+## Roadmap fit
 
-Consulte ROADMAP.md e explique se a proposta trata de uma frente existente ou de uma necessidade nova.
+See `ROADMAP.md` and explain whether this proposal advances an existing area or addresses a new need.
 
-## Como verificar que ficou pronto
+## How to verify completion
 
-## Alternativas e disposição para contribuir
+## Alternatives and willingness to contribute
 
-Descreva se pode ajudar com documentação, testes, design ou código. Propostas não dependem de bounty ou pagamento. Não inclua segredos nem dados pessoais.
+Say whether you can help with documentation, tests, design, or code. Proposals do not depend on a bounty or payment. Do not include secrets or personal data.

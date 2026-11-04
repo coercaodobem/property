@@ -1,0 +1,294 @@
+'use strict';
+(() => {
+  const EN_TO_PT = new Map();
+  const PT_TO_EN = new Map();
+  const pairs = [
+    ['Application language', 'Idioma do aplicativo'],
+    ['English', 'English'],
+    ['Português (Brasil)', 'Português (Brasil)'],
+    ['Property home', 'Início do Property'],
+    ['Configure relays', 'Configurar relays'], ['New conversation', 'Nova conversa'], ['Profile and settings', 'Perfil e configurações'],
+    ['NOSTR · LOCAL CONTROL', 'NOSTR · CONTROLE LOCAL'], ['Chat without asking permission.', 'Converse sem pedir licença.'],
+    ['Your private messages are end-to-end encrypted. Choose your relays; the app connects you to them directly.', 'Suas mensagens privadas são criptografadas de ponta a ponta. Escolha os relays; a interface só conecta você a eles.'],
+    ['No central account', 'Sem conta central'], ['Code served from this package', 'Código servido deste pacote'], ['Relays you choose', 'Relays sob sua escolha'],
+    ['PUBLIC BRIDGE', 'PONTE PÚBLICA'], ['Identity locked; bridge active.', 'Identidade bloqueada; ponte ativa.'],
+    ['Public forwarding continues while this page is open. The private key was cleared from the session. Browsers may suspend background pages.', 'O encaminhamento público continua enquanto esta página estiver aberta. A chave privada foi apagada da sessão. Navegadores podem suspender páginas em segundo plano.'],
+    ['Stop the bridge', 'Parar a ponte'], ['GET STARTED', 'COMECE AQUI'], ['Your identity stays on this device', 'Sua identidade fica neste aparelho'],
+    ['A random key is created in your browser and protected by your password. Your password is never sent to relays.', 'Uma chave aleatória é criada no navegador e protegida pela sua senha. A senha não é enviada ao relay.'],
+    ['Password', 'Senha'], ['Use 12 characters or more', 'Use 12 caracteres ou mais'], ['Keep me signed in on this device', 'Manter sessão iniciada neste aparelho'],
+    ['Unlock', 'Desbloquear'], ['Create identity', 'Criar identidade'], ['Import Nostr key', 'Importar chave Nostr'], ['Preparing local storage on this device…', 'Preparando armazenamento local neste aparelho…'],
+    ['There is no recovery server. Export an encrypted backup to move to another device.', 'Sem servidor de recuperação. Exporte um backup criptografado para poder migrar de aparelho.'],
+    ['NEW IDENTITY', 'NOVA IDENTIDADE'], ['Protect your account', 'Proteja sua conta'], ['Password (12 characters or more)', 'Senha (12 caracteres ou mais)'],
+    ['Confirm password', 'Confirme a senha'], ['A persistent session is convenient, but anyone with access to an unlocked browser can act as you. Use your device screen lock.', 'A sessão persistente é conveniente, mas alguém com acesso ao navegador já desbloqueado pode agir como você. Use bloqueio de tela no aparelho.'],
+    ['Create and continue', 'Criar e continuar'], ['Back', 'Voltar'], ['IMPORT IDENTITY', 'IMPORTAR IDENTIDADE'], ['Use an existing key', 'Use uma chave existente'],
+    ['Secret nsec or hex key', 'Chave secreta nsec ou hex'], ['Create a local password', 'Crie uma senha local'], ['Import securely', 'Importar com segurança'],
+    ['YOUR SPACE', 'SEU ESPAÇO'], ['Conversations', 'Conversas'], ['Search conversations', 'Buscar conversa'], ['Property areas', 'Áreas do Property'],
+    ['Messages', 'Mensagens'], ['Hangout', 'Hangout'], ['Marketplace', 'Marketplace'], ['My node', 'Meu node'], ['Set up your connection', 'Configure sua conexão'],
+    ['Your conversations, without a middleman', 'Suas conversas, sem intermediário'], ['Start a private conversation using the other person’s npub.', 'Inicie uma conversa privada usando o npub da outra pessoa.'],
+    ['No conversations found.', 'Nenhuma conversa encontrada.'], ['Your conversations will appear here.', 'Suas conversas aparecerão aqui.'],
+    ['Write a private message…', 'Escreva uma mensagem privada…'], ['Message', 'Mensagem'], ['Send message', 'Enviar mensagem'],
+    ['NIP-17 · requires an inbox relay list (kind 10050) published by you and the other person', 'NIP-17 · requer relay inbox kind 10050 publicado por você e pela outra pessoa'],
+    ['PUBLIC SPACES', 'ESPAÇOS PÚBLICOS'], ['Discover public conversations on the relays you chose.', 'Descubra conversas públicas nos relays que você escolheu.'],
+    ['Refresh spaces', 'Atualizar espaços'], ['Share something publicly', 'Compartilhe algo publicamente'], ['This content will be public on connected relays.', 'Este conteúdo será público nos relays conectados.'],
+    ['Post to Hangout', 'Publicar no Hangout'], ['Show campaigns signed by nodes', 'Mostrar campanhas assinadas por nodes'],
+    ['Optional and off by default. At most one campaign per 24 hours; the preference and history stay on this device. The app does not send click or view events to the node, but queried relays can still see requests and connection metadata. The client checks the node signature but does not verify BTC, XMR, or XNO payments on their networks.', 'Opcional e desligado por padrão. No máximo uma campanha por 24 horas; preferência e histórico ficam neste aparelho. O app não envia evento de clique ou visualização ao node, mas os relays consultados ainda veem consultas e metadados de conexão. O cliente verifica a assinatura do node, mas não confirma pagamentos BTC, XMR ou XNO nas respectivas redes.'],
+    ['Node campaign', 'Campanha de node'], ['Load posts', 'Carregue conversas'], ['The public feed is fetched directly from relays.', 'O feed público é consultado diretamente nos relays.'],
+    ['PUBLIC NOSTR LISTINGS · NIP-15', 'LISTAS PÚBLICAS NOSTR · NIP-15'], ['Discover and publish offers. Negotiation and payment happen directly between people.', 'Descubra e publique ofertas. Negociação e pagamento acontecem diretamente entre as pessoas.'],
+    ['Publish offer', 'Publicar oferta'], ['Refresh offers', 'Atualizar ofertas'], ['No offers loaded', 'Nenhuma oferta carregada'], ['Search configured relays for offers.', 'Busque ofertas nos relays configurados.'],
+    ['INFRASTRUCTURE YOU CONTROL', 'INFRAESTRUTURA SOB SEU CONTROLE'], ['A computer can keep a relay online. A mobile browser can help while it is open, but the operating system may suspend it.', 'Um computador pode manter um relay online. Um navegador móvel pode ajudar enquanto estiver aberto, mas o sistema pode suspendê-lo.'],
+    ['Local relay', 'Relay local'], ['Connect to this PC (ws://127.0.0.1:7447)', 'Conectar a este PC (ws://127.0.0.1:7447)'], ['Copy instructions', 'Copiar instrução'],
+    ['Relay bridge', 'Ponte entre relays'], ['When enabled, this PWA forwards signed public events between the relays you chose. Private gift wraps are replicated only when addressed to you, and only to your NIP-17 inbox relays; the bridge never reads their text. Relays can still see your IP address, timing, and protocol metadata; this feature may use mobile data. Forwarding is limited to 60 events and 2 MB of outgoing data per minute, counting each destination. It works only while the app is open, and the operating system may suspend it. For continuous operation, run the PC relay.', 'Quando ativa, esta PWA encaminha eventos públicos assinados entre os relays que você selecionou. Gift wraps privados só são replicados quando foram endereçados a você, e apenas para seus relays de recebimento NIP-17; a ponte nunca lê o texto. Relays ainda veem seu endereço IP, horários e metadados do protocolo; o recurso pode consumir dados móveis. A ponte limita a 60 eventos e 2 MB de tráfego de saída por minuto, somando o envio a cada relay. Só funciona enquanto o app estiver aberto — o sistema pode suspendê-lo. Para operação contínua, use o relay do PC.'],
+    ['Forward events between my relays while I use the app', 'Encaminhar eventos entre meus relays enquanto uso o app'],
+    ['DIRECT CONNECTION', 'CONEXÃO DIRETA'], ['Your relays', 'Seus relays'], ['No relay is configured automatically. Choose addresses and select “Save and connect”. Use wss:// in production; ws:// works only for local testing. Your NIP-17 list is public.', 'Nenhum relay é configurado automaticamente. Escolha endereços e toque em “Salvar e conectar”. Use wss:// em produção; ws:// só funciona para testes locais. A lista NIP-17 é pública.'],
+    ['General relays (one per line)', 'Relays gerais (um por linha)'], ['NIP-17 inbox relays (1 to 3 URLs)', 'Relays de recebimento NIP-17 (1 a 3 URLs)'],
+    ['Save and connect', 'Salvar e conectar'], ['Publish my NIP-17 inbox relay list', 'Publicar meus relays de mensagens (NIP-17)'], ['Load public examples', 'Carregar exemplos públicos'],
+    ['The examples are two public relays; filling them in does not connect. Connection starts only after saving. Your NIP-17 list is public; messages are sent to the inbox relays selected by you and the other person.', 'Os exemplos são dois relays públicos; preenchê-los não conecta. A conexão começa somente após salvar. A lista NIP-17 é pública; mensagens são enviadas aos relays de recebimento definidos por você e pela outra pessoa.'],
+    ['PRIVATE MESSAGE', 'MENSAGEM PRIVADA'], ['Public npub or hex key', 'npub ou chave pública hex'], ['Local name (optional)', 'Nome local (opcional)'], ['How do you know this person?', 'Como você conhece essa pessoa?'],
+    ['Profile relays (one per line, optional)', 'Relays de perfil (um por linha, opcional)'], ['Use the agent messaging protocol. This opens only this conversation; it does not grant access to your other messages or your key.', 'Usar o protocolo de mensagens entre agentes. Isso abre só esta conversa; não dá acesso às suas outras mensagens ou à sua chave.'],
+    ['Open conversation', 'Abrir conversa'], ['Product or service name', 'Nome do produto ou serviço'], ['Description', 'Descrição'], ['Currency', 'Moeda'], ['Price', 'Preço'], ['e.g. 0.25', 'Ex.: 0,25'], ['HTTPS image (optional)', 'Imagem HTTPS (opcional)'],
+    ['Sign and publish', 'Assinar e publicar'], ['NIP-15 is a draft protocol marked as not recommended. The MVP lets you publish, edit, and request removal of offers; it does not process payments or provide custody.', 'NIP-15 é um protocolo draft marcado como não recomendado. O MVP permite publicar, editar e pedir a retirada de ofertas; não processa pagamentos nem oferece custódia.'],
+    ['NOSTR WITHDRAWAL', 'RETIRADA NOSTR'], ['Withdraw this offer?', 'Retirar oferta?'], ['Cancel', 'Cancelar'], ['Sign and publish request', 'Assinar e publicar pedido'],
+    ['LOCAL IDENTITY', 'IDENTIDADE LOCAL'], ['Profile and security', 'Perfil e segurança'], ['Public name', 'Nome público'], ['How should you appear?', 'Como quer aparecer'], ['Save profile', 'Salvar perfil'], ['Download encrypted backup', 'Baixar backup criptografado'], ['Copy npub', 'Copiar npub'], ['Agents', 'Agentes'], ['Lock and clear session', 'Bloquear e limpar sessão'],
+    ['DIRECT MESSAGES', 'MENSAGENS DIRETAS'], ['Agents use their own Nostr identities and can talk directly. There are no invitations, pairing, or per-message approvals. Enter the agent’s public key in New conversation and select the agent protocol.', 'Agentes usam identidades Nostr próprias e podem conversar diretamente. Não há convite, pareamento ou aprovação por mensagem. Informe a chave pública do agente em Nova conversa e marque o protocolo de agentes.'],
+    ['This creates a direct conversation and does not grant access to your other conversations, key, or account features. Incoming messages are untrusted text; Property does not execute received instructions. The conversation is separate and can be ended without changing your identity.', 'Isso cria uma conversa direta e não concede acesso às suas outras conversas, à sua chave ou às funções da sua conta. Mensagens recebidas são texto não confiável; o Property não executa instruções recebidas. A conversa fica separada das demais e pode ser encerrada sem alterar sua identidade.'],
+    ['Start a conversation with an agent', 'Iniciar conversa com agente'], ['Close', 'Fechar'], ['About the project', 'Sobre o projeto'], ['Property · local code', 'Property · código local'],
+    ['Identity locked; public bridge remains active.', 'Identidade bloqueada; ponte pública continua ativa.'], ['This conversation is private. Send a message to get started.', 'Esta conversa é privada. Envie uma mensagem para começar.'],
+    ['Agent protocol · unrecognized message', 'Protocolo de agente · mensagem não reconhecida'], ['Agent protocol · Nostr identity', 'Protocolo de agente · identidade Nostr'],
+    ['Sponsored · payment not verified by client', 'PATROCINADO · PAGAMENTO NÃO VERIFICADO PELO CLIENTE'], ['Open HTTPS destination', 'Abrir destino HTTPS'], ['Hide this node', 'Ocultar este node'],
+    ['No campaigns available', 'Nenhuma campanha disponível'], ['The queried relays did not provide a valid signed campaign.', 'Os relays consultados não forneceram uma campanha assinada válida.'],
+    ['No posts found', 'Nenhuma publicação encontrada'], ['Try refreshing when relays are connected.', 'Tente atualizar quando os relays estiverem conectados.'], ['Source relay unavailable', 'relay de origem indisponível'],
+    ['Contact privately', 'Conversar em privado'], ['No relay confirmed the storefront. Try again.', 'Nenhum relay confirmou a vitrine. Tente novamente.'], ['Offer name is required.', 'Informe o nome da oferta.'], ['Enter a price in BTC, XMR, or XNO.', 'Informe o preço em BTC, XMR ou XNO.'],
+    ['Enter a valid HTTPS image URL without credentials or a local address.', 'Informe uma imagem HTTPS válida, sem credenciais ou endereço local.'], ['No relay confirmed the offer.', 'Nenhum relay confirmou a oferta.'], ['Edit offer', 'Editar oferta'], ['Sign and update', 'Assinar e atualizar'], ['Sign and publish', 'Assinar e publicar'], ['Only the author identity can withdraw this offer.', 'Só a identidade autora pode retirar esta oferta.'],
+    ['The offer has no valid NIP-15 address for withdrawal.', 'A oferta não tem um endereço NIP-15 válido para retirada.'], ['No relay confirmed the withdrawal request.', 'Nenhum relay confirmou o pedido de retirada.'], ['The signed withdrawal request was sent; relays may keep old copies.', 'Pedido de retirada assinado; relays podem manter cópias antigas.'], ['Open external image', 'Abrir imagem externa'], ['Seller: npub…', 'Vendedor: npub…'], ['Contact seller', 'Falar com vendedor'], ['Edit', 'Editar'], ['Withdraw offer', 'Retirar oferta'],
+    ['Encrypted backup downloaded. Keep it with your password.', 'Backup criptografado baixado. Guarde-o junto com a senha.'], ['The name was saved on this device; the relay has not confirmed the profile.', 'Nome salvo neste aparelho; relay ainda não confirmou o perfil.'], ['Profile saved locally and published to relays.', 'Perfil salvo localmente e publicado nos relays.'], ['Session locked on this device.', 'Sessão bloqueada neste aparelho.'], ['Passwords do not match.', 'As senhas não coincidem.'], ['Could not create the identity.', 'Não foi possível criar a identidade.'], ['Incorrect password. Backup was not exported.', 'Senha incorreta. Backup não exportado.'], ['A new version is available. Reopen the app when you are done.', 'Nova versão disponível. Reabra o app quando terminar.'], ['Could not update the block.', 'Não foi possível atualizar o bloqueio.'], ['The nprofile contains an invalid relay address. Use an npub or ask the person to share the contact again.', 'O nprofile contém um endereço de relay inválido. Use o npub ou peça à pessoa que compartilhe o contato novamente.'], ['Check the relay address. Use a valid wss:// URL; ws:// works only for local testing.', 'Confira o endereço de relay informado. Use uma URL wss:// válida; ws:// só funciona em testes locais.'], ['Could not encrypt the message.', 'Falha ao cifrar a mensagem.'], ['Could not load Hangout.', 'Falha ao carregar o Hangout.'], ['Could not publish.', 'Falha ao publicar.'], ['Could not refresh offers.', 'Falha ao atualizar ofertas.'], ['npub copied.', 'npub copiado.'], ['Public bridge stopped.', 'Ponte pública parada.'], ['Could not stop the bridge.', 'Não foi possível parar a ponte.'], ['Local relay added. This connection works only on this computer.', 'Relay local adicionado. A conexão só funciona neste computador.'], ['Could not connect to the local relay.', 'Não foi possível conectar ao relay local.'], ['Instructions copied.', 'Instrução copiada.'], ['Public bridge active between selected relays while the app is open.', 'Ponte ativa entre os relays selecionados enquanto o app estiver aberto.'], ['Relay bridge disabled.', 'Ponte entre relays desativada.'], ['Could not update the bridge.', 'Não foi possível atualizar a ponte.'], ['Local protocol or contact files did not load. Reload the Property package.', 'Os arquivos locais do protocolo ou de contatos não carregaram. Recarregue o pacote do Property.'],
+    ['Choose a password with at least 12 characters.', 'Escolha uma senha com pelo menos 12 caracteres.'], ['Property backup is invalid or incompatible.', 'Backup Property inválido ou incompatível.'], ['Incorrect password or invalid backup.', 'Senha incorreta ou backup inválido.'], ['Enter XNO as a decimal string.', 'Informe XNO como texto decimal.'], ['Invalid XNO amount: use up to 30 decimal places, without a sign or exponent.', 'Valor XNO inválido: use até 30 casas decimais, sem sinal ou expoente.'], ['Raw must be a non-negative decimal integer.', 'Raw deve ser um inteiro decimal não negativo.'], ['Choose BTC, XMR, or XNO.', 'Escolha BTC, XMR ou XNO.'], ['Invalid atomic amount or amount is outside the currency limit.', 'Valor atômico inválido ou fora do limite da moeda.'], ['Enter the amount as a decimal string.', 'Informe o valor como texto decimal.'], ['Price must be a BTC, XMR, or XNO decimal.', 'Preço deve ser um decimal em BTC, XMR ou XNO.'], ['Price is outside the range supported by the NIP-15 storefront.', 'Preço fora do intervalo compatível com a vitrine NIP-15.'], ['Invalid price', 'Preço inválido'], ['Invalid local campaign record.', 'Registro local de campanha inválido.'],
+    ['This field does not look up usernames. Paste a complete npub or nprofile, or enter a 64-character hex public key.', 'Este campo não busca nomes de usuário. Cole um npub ou nprofile completo, ou informe uma chave pública hex de 64 caracteres.'], ['Enter a public contact before opening a conversation.', 'Informe o contato público antes de abrir a conversa.'], ['This looks like a private nsec key. Do not share it; ask the person for their public npub or nprofile.', 'Essa entrada parece ser uma chave privada nsec. Não a compartilhe; peça à pessoa o npub ou nprofile público.'], ['The local contact decoder is unavailable. Reload the app.', 'O decodificador local de contatos não está disponível. Recarregue o app.'], ['Could not validate this contact. Check that it is complete or ask the person to share it again.', 'Não foi possível validar este contato. Confira se o contato está completo ou peça à pessoa que o compartilhe novamente.'], ['This nprofile contains an invalid relay list. Ask the person to share the contact again.', 'Este nprofile contém uma lista de relays inválida. Peça à pessoa que compartilhe o contato novamente.'],
+    ['The agent envelope contains invalid JSON.', 'O envelope tem uma string JSON inválida.'], ['The envelope contains an invalid JSON key.', 'O envelope contém uma chave JSON inválida.'], ['The envelope contains an invalid separator.', 'O envelope contém um separador inválido.'], ['The envelope contains an invalid field list.', 'O envelope contém uma lista de campos inválida.'], ['The envelope contains an incomplete object.', 'O envelope contém um objeto incompleto.'], ['The envelope contains an invalid list.', 'O envelope contém uma lista inválida.'], ['The envelope contains an incomplete list.', 'O envelope contém uma lista incompleta.'], ['The envelope contains an invalid JSON value.', 'O envelope contém um valor JSON inválido.'], ['There is extra content after the JSON envelope.', 'Há conteúdo extra depois do envelope JSON.'], ['This agent message version is not supported.', 'Esta versão da mensagem do agente não é compatível.'], ['The agent message contains an invalid identifier.', 'A mensagem do agente contém um identificador inválido.'], ['The reply reference is invalid.', 'A referência de resposta da mensagem é inválida.'], ['The envelope is empty or exceeds 16 KiB.', 'O envelope está vazio ou excede 16 KiB.'], ['The agent message envelope is malformed.', 'O envelope da mensagem do agente está malformado.'], ['A secure message ID could not be generated.', 'Não foi possível gerar um ID seguro para a mensagem.'], ['The conversation identities are invalid.', 'As identidades da conversa são inválidas.'], ['The local quota is invalid.', 'A cota local é inválida.'], ['The agent identity is invalid.', 'A identidade do agente é inválida.'], ['The quota logical clock is invalid.', 'O relógio lógico da cota é inválido.'], ['The logical clock moved backwards; sending was safely blocked.', 'O relógio lógico recuou; o envio foi bloqueado com segurança.'],
+    ['online', 'online'], ['0 relays', '0 relays'], ['Configure relays', 'Configurar relays'], ['New conversation', 'Nova conversa'], ['Profile and settings', 'Perfil e configurações'],
+    ['Block agent', 'Bloquear agente'], ['Unblock agent', 'Desbloquear agente'], ['Conversation details', 'Detalhes da conversa'], ['Close', 'Fechar'], ['Cancel', 'Cancelar'], ['Campaigns from nodes', 'Campanhas de nodes'], ['Send message', 'Enviar mensagem'], ['Message', 'Mensagem'],
+    ['Linux/macOS:', 'Linux/macOS:'], ['Windows PowerShell:', 'Windows PowerShell:'], ['ws://relay.example', 'ws://relay.example'], ['wss://relay.example', 'wss://relay.example'],
+    ['Use wss://; ws:// is allowed only for localhost.', 'Use wss://; ws:// só é permitido para localhost.'], ['A relay URL cannot contain a username, password, or fragment.', 'O endereço do relay não pode conter usuário, senha ou fragmento.'],
+    ['Add at least one relay.', 'Adicione pelo menos um relay.'], ['Use at most 12 relays per device.', 'Use no máximo 12 relays por aparelho.'], ['Add at least one inbox relay.', 'Adicione ao menos um relay para receber mensagens.'], ['NIP-17 allows up to three inbox relays.', 'O NIP-17 limita esta lista a três relays de recebimento.'],
+    ['No general relay confirmed publication of your kind 10050 list.', 'Nenhum relay geral confirmou a publicação da sua lista kind 10050.'], ['Your public NIP-17 inbox relay list was published.', 'Sua lista pública de recebimento NIP-17 foi publicada.'],
+    ['Conversation identifier is invalid.', 'Identificador de conversa inválido.'], ['This agent message uses a format this version does not recognize. Its content was not executed.', 'Esta mensagem do agente usa um formato que esta versão não reconhece. O conteúdo não foi executado.'],
+    ['This contact is blocked on this device.', 'Este contato está bloqueado neste aparelho.'], ['Configure and publish your NIP-17 inbox relays in settings.', 'Configure e publique seus relays de recebimento NIP-17 nas configurações.'],
+    ['I could not find this person’s public kind 10050 list. Check the npub and profile relays.', 'Não encontrei a lista pública kind 10050 desta pessoa. Confirme o npub e os relays de perfil.'],
+    ['The NIP-17 message is missing two valid envelopes or the required inbox relay lists.', 'A mensagem NIP-17 não tem os dois envelopes válidos ou as listas de recebimento necessárias.'], ['The library did not create valid NIP-17 envelopes.', 'A biblioteca não gerou envelopes NIP-17 válidos.'],
+    ['You cannot start a conversation with yourself.', 'Não é possível iniciar uma conversa consigo mesmo.'], ['Agent unblocked on this device.', 'Agente desbloqueado neste aparelho.'], ['Agent blocked on this device. Conversation history was kept.', 'Agente bloqueado neste aparelho. O histórico foi mantido.'],
+    ['No relay confirmed publication. Check the connection.', 'Nenhum relay confirmou a publicação. Verifique a conexão.'], ['The post was sent to connected relays.', 'Publicação enviada aos relays conectados.'], ['Write something before publishing.', 'Escreva algo antes de publicar.'],
+    ['Enter the offer name.', 'Informe o nome da oferta.'], ['A valid HTTPS image URL is required, with no credentials or local address.', 'Informe uma imagem HTTPS válida, sem credenciais ou endereço local.'],
+    ['Offer updated on relays.', 'Oferta atualizada nos relays.'], ['NIP-15 offer published.', 'Oferta NIP-15 publicada.'],
+    ['You are about to sign a NIP-09 request to withdraw “{name}”. Relays and third parties may keep copies.', 'Você vai assinar um pedido NIP-09 para retirar “{name}”. Relays e terceiros podem continuar com cópias.'],
+    ['Node offer: ', 'Oferta do node: '], ['Node identity ', 'identidade '], ['relays: ', 'relays: '], ['Private messages', 'Mensagens privadas'], ['Agent protocol · ', 'Protocolo de agente · '],
+    ['Local storage is blocked by another tab.', 'O armazenamento local está bloqueado por outra aba.'], ['Local storage failed.', 'Falha no armazenamento local.'], ['Enter an nsec key or 64-character hex key.', 'Informe uma chave nsec ou hex de 64 caracteres.'],
+    ['Enter the public contact before opening a conversation.', 'Informe o contato público antes de abrir a conversa.'], ['The local bridge configuration is invalid.', 'Configuração da ponte inválida'], ['The bridge clock is invalid.', 'Relógio da ponte inválido'], ['since is invalid.', 'since inválido'],
+    ['The local campaign record is invalid.', 'Registro local de campanha inválido.'], ['browser error', 'erro do navegador'], ['Command: ', 'Comando: '], ['Copied instructions.', 'Instrução copiada.'],
+    ['◈ No central account', '◈ Sem conta central'], ['◈ Code served from this package', '◈ Código servido deste pacote'], ['◈ Relays you choose', '◈ Relays sob sua escolha'],
+    ['Use 12 characters or more', 'Use 12 caracteres ou mais'], ['There is no recovery server. Export an encrypted backup to move to another device.', 'Sem servidor de recuperação. Exporte um backup criptografado para poder migrar de aparelho.'],
+    ['Your conversations, without a middleman', 'Suas conversas, sem intermediário'], ['Start a private conversation using the other person’s npub.', 'Inicie uma conversa privada usando o npub da outra pessoa.'],
+    ['Your conversations will appear here.', 'Suas conversas aparecerão aqui.'], ['NIP-17 · requires an inbox relay kind 10050 list published by both you and the other person', 'NIP-17 · requer relay inbox kind 10050 publicado por você e pela outra pessoa'],
+    ['Share something publicly', 'Compartilhe algo publicamente'], ['This content will be public on connected relays.', 'Este conteúdo será público nos relays conectados.'], ['Post to Hangout', 'Publicar no Hangout'],
+    ['Optional and off by default. At most one campaign per 24 hours; the preference and history stay on this device. The app does not send click or view events to the node, but queried relays can still see requests and connection metadata. The client checks the node signature but does not verify BTC, XMR, or XNO payments on their networks.', 'Opcional e desligado por padrão. No máximo uma campanha por 24 horas; preferência e histórico ficam neste aparelho. O app não envia evento de clique ou visualização ao node, mas os relays consultados ainda veem consultas e metadados de conexão. O cliente verifica a assinatura do node, mas não confirma pagamentos BTC, XMR ou XNO nas respectivas redes.'],
+    ['Load posts', 'Carregue conversas'], ['The public feed is fetched directly from relays.', 'O feed público é consultado diretamente nos relays.'],
+    ['Discover and publish offers. Negotiation and payment happen directly between people.', 'Descubra e publique ofertas. Negociação e pagamento acontecem diretamente entre as pessoas.'], ['Search configured relays for offers.', 'Busque ofertas nos relays configurados.'],
+    ['A computer can keep a relay online. A mobile browser can help while it is open, but the operating system may suspend it.', 'Um computador pode manter um relay online. Um navegador móvel pode ajudar enquanto estiver aberto, mas o sistema pode suspendê-lo.'],
+    ['Copy instructions', 'Copiar instrução'], ['Forward events between my relays while I use the app', 'Encaminhar eventos entre meus relays enquanto uso o app'],
+    ['No relay is configured automatically. Choose addresses and select “Save and connect”. Use wss:// in production; ws:// works only for local tests. The NIP-17 list is public.', 'Nenhum relay é configurado automaticamente. Escolha endereços e toque em “Salvar e conectar”. Use wss:// em produção; ws:// só funciona para testes locais. A lista NIP-17 é pública.'],
+    ['General relays (one per line)', 'Relays gerais (um por linha)'], ['NIP-17 inbox relays (1–3 URLs)', 'Relays de recebimento NIP-17 (1 a 3 URLs)'],
+    ['Publish my NIP-17 inbox relays', 'Publicar meus relays de mensagens (NIP-17)'], ['Load public examples', 'Carregar exemplos públicos'],
+    ['The examples are two public relays; filling them in does not connect. Connection starts only after saving. The NIP-17 list is public; messages go to the inbox relays you and the other person selected.', 'Os exemplos são dois relays públicos; preenchê-los não conecta. A conexão começa somente após salvar. A lista NIP-17 é pública; mensagens são enviadas aos relays de recebimento definidos por você e pela outra pessoa.'],
+    ['Public npub or hex public key', 'npub ou chave pública hex'], ['Local name (optional)', 'Nome local (opcional)'], ['How do you know this person?', 'Como você conhece essa pessoa?'], ['Profile relays (one per line, optional)', 'Relays de perfil (um por linha, opcional)'],
+    ['Use the agent messaging protocol. This opens only this conversation; it does not grant access to your other messages or your key.', 'Usar o protocolo de mensagens entre agentes. Isso abre só esta conversa; não dá acesso às suas outras mensagens ou à sua chave.'],
+    ['Open conversation', 'Abrir conversa'], ['Product or service name', 'Nome do produto ou serviço'], ['Currency', 'Moeda'], ['e.g. 0.25', 'Ex.: 0,25'], ['HTTPS image (optional)', 'Imagem HTTPS (opcional)'],
+    ['NIP-15 is a draft protocol marked as not recommended. The MVP lets you publish, edit, and request removal of offers; it does not process payments or provide custody.', 'NIP-15 é um protocolo draft marcado como não recomendado. O MVP permite publicar, editar e pedir a retirada de ofertas; não processa pagamentos nem oferece custódia.'],
+    ['Withdraw this offer?', 'Retirar oferta?'], ['Sign and publish request', 'Assinar e publicar pedido'], ['Public name', 'Nome público'], ['How should you appear?', 'Como quer aparecer'], ['Save profile', 'Salvar perfil'], ['Download encrypted backup', 'Baixar backup criptografado'], ['Copy npub', 'Copiar npub'], ['Lock and clear session', 'Bloquear e limpar sessão'],
+    ['Agents use their own Nostr identities and can talk directly. There are no invitations, pairing, or per-message approvals. Enter the agent’s public key in New conversation and select the agent protocol.', 'Agentes usam identidades Nostr próprias e podem conversar diretamente. Não há convite, pareamento ou aprovação por mensagem. Informe a chave pública do agente em Nova conversa e marque o protocolo de agentes.'],
+    ['This creates a direct conversation and does not grant access to your other conversations, key, or account features. Incoming messages are untrusted text; Property does not execute received instructions. The conversation is separate and can be ended without changing your identity.', 'Isso cria uma conversa direta e não concede acesso às suas outras conversas, à sua chave ou às funções da sua conta. Mensagens recebidas são texto não confiável; o Property não executa instruções recebidas. A conversa fica separada das demais e pode ser encerrada sem alterar sua identidade.'],
+    ['Start a conversation with an agent', 'Iniciar conversa com agente'], ['About the project', 'Sobre o projeto'], ['Property · local code', 'Property · código local'],
+    ['Campaigns from nodes', 'Campanhas de nodes'], ['No conversations found.', 'Nenhuma conversa encontrada.'], ['Your conversations will appear here.', 'Suas conversas aparecerão aqui.'], ['Conversation', 'Conversa'], ['Write a private message…', 'Escreva uma mensagem privada…'],
+    ['Node campaign', 'Campanha de node'], ['Load conversations', 'Carregue conversas'], ['No offers loaded', 'Nenhuma oferta carregada'], ['No offers found', 'Nenhuma oferta encontrada.'], ['No posts found', 'Nenhuma publicação encontrada.'],
+    ['No campaigns available', 'Nenhuma campanha disponível'], ['This node was blocked on this device only.', 'Este node foi bloqueado apenas neste aparelho.'], ['Campaign hidden', 'Campanha ocultada'],
+    ['Show campaigns signed by nodes', 'Mostrar campanhas assinadas por nodes'], ['Sign and update', 'Assinar e atualizar'], ['Seller: ', 'Vendedor: '], ['Contact seller', 'Falar com vendedor'], ['Withdraw offer', 'Retirar oferta'], ['Edit', 'Editar'],
+    ['Encrypted backup downloaded. Keep it with your password.', 'Backup criptografado baixado. Guarde-o junto com a senha.'], ['The profile was saved on this device; the relay has not confirmed it yet.', 'Nome salvo neste aparelho; relay ainda não confirmou o perfil.'], ['Profile saved locally and published to relays.', 'Perfil salvo localmente e publicado nos relays.']
+    ,['Identity created. Download a backup from Profile and security.', 'Identidade criada. Baixe um backup em Perfil e segurança.'], ['Add a relay to sync', 'Adicione um relay para sincronizar'], ['Tap to configure', 'Toque para configurar'],
+    ['Only one of the two NIP-17 envelopes was confirmed by relays.', 'Apenas um dos dois envelopes NIP-17 foi confirmado pelos relays.'], ['The encrypted message was saved on this device; no relay confirmed sending.', 'Mensagem cifrada salva no aparelho; nenhum relay confirmou o envio.'],
+    ['SPONSORED · PAYMENT NOT VERIFIED BY THE CLIENT', 'PATROCINADO · PAGAMENTO NÃO VERIFICADO PELO CLIENTE'], ['Open HTTPS destination', 'Abrir destino HTTPS'], ['Hide this node', 'Ocultar este node'],
+    ['No relay confirmed the storefront. Try again.', 'Nenhum relay confirmou a vitrine. Tente novamente.'], ['Only the author identity can withdraw this offer.', 'Só a identidade autora pode retirar esta oferta.'],
+    ['The offer has no valid NIP-15 address for withdrawal.', 'A oferta não tem um endereço NIP-15 válido para retirada.'], ['No relay confirmed the withdrawal request.', 'Nenhum relay confirmou o pedido de retirada.'], ['The signed withdrawal request was sent; relays may retain old copies.', 'Pedido de retirada assinado; relays podem manter cópias antigas.'],
+    ['No identity has been created on this device. Choose “Create identity” or “Import Nostr key”.', 'Nenhuma identidade foi criada neste aparelho. Escolha “Criar identidade” ou “Importar chave Nostr”.'], ['Choose a local password with at least 12 characters.', 'Escolha uma senha local com pelo menos 12 caracteres.'],
+    ['The nprofile contains an invalid relay URL. Use an npub or ask the person to share the contact again.', 'O nprofile contém um endereço de relay inválido. Use o npub ou peça à pessoa que compartilhe o contato novamente.'],
+    ['Check the relay address. Use a valid wss:// URL; ws:// works only for local tests.', 'Confira o endereço de relay informado. Use uma URL wss:// válida; ws:// só funciona em testes locais.'],
+    ['Node campaigns were enabled on this device only.', 'Campanhas de nodes ativadas somente neste aparelho.'], ['Node campaigns were disabled.', 'Campanhas de nodes desativadas.'], ['Could not save the local preference.', 'Não foi possível salvar a preferência local.'],
+    ['Public bridge stopped.', 'Ponte pública parada.'], ['Could not update the block.', 'Não foi possível atualizar o bloqueio.'], ['Could not encrypt the message.', 'Falha ao cifrar a mensagem.'], ['Could not load Hangout.', 'Falha ao carregar o Hangout.'],
+    ['Could not publish.', 'Falha ao publicar.'], ['Could not refresh offers.', 'Falha ao atualizar ofertas.'], ['Could not stop the bridge.', 'Não foi possível parar a ponte.'],
+    ['Local relay added. This connection works only on this computer.', 'Relay local adicionado. A conexão só funciona neste computador.'], ['Could not connect to the local relay.', 'Não foi possível conectar ao relay local.'],
+    ['The bridge is active between selected relays while the app is open.', 'Ponte ativa entre os relays selecionados enquanto o app estiver aberto.'], ['Relay bridge disabled.', 'Ponte entre relays desativada.'], ['Could not update the bridge.', 'Não foi possível atualizar a ponte.'],
+    ['The local protocol or contact files did not load. Reload the Property package.', 'Os arquivos locais do protocolo ou de contatos não carregaram. Recarregue o pacote do Property.'],
+    ['Agent unblocked on this device.', 'Agente desbloqueado neste aparelho.'], ['Agent blocked on this device. Conversation history was kept.', 'Agente bloqueado neste aparelho. O histórico foi mantido.'],
+    ['Agent protocol', 'Protocolo de agente'], ['AGENT PROTOCOL', 'PROTOCOLO DE AGENTE'], ['Agent protocol · unrecognized message', 'Protocolo de agente · mensagem não reconhecida'], ['Agent protocol · Nostr identity', 'Protocolo de agente · identidade Nostr'],
+    ['Open image externally', 'Abrir imagem externa'], ['Contact privately', 'Conversar em privado'], ['Contact the seller', 'Falar com vendedor'],
+    ['Invalid atomic amount or outside the currency limit.', 'Valor atômico inválido ou fora do limite da moeda.'], ['Price must be a decimal amount in BTC, XMR, or XNO.', 'Preço deve ser um decimal em BTC, XMR ou XNO.'], ['Price exceeds the NIP-15 storefront range.', 'Preço fora do intervalo compatível com a vitrine NIP-15.'],
+    ['Enter at least one relay.', 'Adicione pelo menos um relay.'], ['Use no more than 12 relays per device.', 'Use no máximo 12 relays por aparelho.'], ['Add at least one relay for receiving messages.', 'Adicione ao menos um relay para receber mensagens.'], ['NIP-17 limits this list to three inbox relays.', 'O NIP-17 limita esta lista a três relays de recebimento.'],
+    ['Identity locked; the public bridge is still active.', 'Identidade bloqueada; ponte pública continua ativa.'], ['The session was locked on this device.', 'Sessão bloqueada neste aparelho.'], ['Passwords do not match.', 'As senhas não coincidem.'], ['The identity could not be created.', 'Não foi possível criar a identidade.'],
+    ['The public NIP-17 inbox list was published.', 'Sua lista pública de recebimento NIP-17 foi publicada.'], ['No relay confirmed the inbox list publication.', 'Nenhum relay geral confirmou a publicação da sua lista kind 10050.'],
+    ['The profile name was saved on this device; a relay has not confirmed it yet.', 'Nome salvo neste aparelho; relay ainda não confirmou o perfil.'], ['The profile was saved locally and published to relays.', 'Perfil salvo localmente e publicado nos relays.'],
+    ['The node campaign reader was enabled on this device only.', 'Campanhas de nodes ativadas somente neste aparelho.'], ['The node campaign reader was disabled.', 'Campanhas de nodes desativadas.'], ['The local preference could not be saved.', 'Não foi possível salvar a preferência local.'],
+    ['No relay confirmed the post. Check your connection.', 'Nenhum relay confirmou a publicação. Verifique a conexão.'], ['The post was published to connected relays.', 'Publicação enviada aos relays conectados.'],
+    ['Enter a BTC, XMR, or XNO price.', 'Informe o preço em BTC, XMR ou XNO.'], ['No relay confirmed the listing.', 'Nenhum relay confirmou a oferta.'],
+    ['The relay refused to confirm your list.', 'Nenhum relay geral confirmou a publicação da sua lista kind 10050.'], ['Relay URL must not include a username, password, or fragment.', 'O endereço do relay não pode conter usuário, senha ou fragmento.'],
+    ['The encrypted backup was downloaded. Keep it with your password.', 'Backup criptografado baixado. Guarde-o junto com a senha.'], ['A new version is ready. Reopen the app when you are finished.', 'Nova versão disponível. Reabra o app quando terminar.'],
+    ['The public relay bridge was stopped.', 'Ponte pública parada.'], ['The local relay was added. This connection works only on this computer.', 'Relay local adicionado. A conexão só funciona neste computador.'], ['The relay bridge is active while the app is open.', 'Ponte ativa entre os relays selecionados enquanto o app estiver aberto.'],
+    ['Could not load the local protocol/contact bundle. Reload Property.', 'Os arquivos locais do protocolo ou de contatos não carregaram. Recarregue o pacote do Property.'], ['A message has an invalid conversation identifier.', 'Identificador de conversa inválido.'],
+    ['Input is not a valid nsec or 64-character hex private key.', 'Informe uma chave nsec ou hex de 64 caracteres.'], ['The relay address is invalid.', 'Confira o endereço de relay informado. Use uma URL wss:// válida; ws:// só funciona em testes locais.'],
+    ['Public Nostr storefront', 'Vitrine pública no Nostr'], ['Property: offline cache is unavailable.', 'Property: cache offline indisponível.']
+  ];
+  for (const [english, portuguese] of pairs) {
+    EN_TO_PT.set(english, portuguese);
+    PT_TO_EN.set(portuguese, english);
+  }
+
+  const initialLanguage = (() => {
+    try { return localStorage.getItem('property-language') === 'pt-BR' ? 'pt-BR' : 'en'; } catch { return 'en'; }
+  })();
+  let language = initialLanguage;
+  const textSources = new WeakMap();
+  const textRendered = new WeakMap();
+  const textWhitespace = new WeakMap();
+  const attributeSources = new WeakMap();
+  const attributeRendered = new WeakMap();
+  const translatedAttributes = ['aria-label', 'aria-description', 'title', 'placeholder'];
+  const userContentSelector = '[data-user-content], .message-bubble, .hangout-user-content, .product-user-content, .campaign-user-content';
+
+  function lookup(source, targetLanguage) {
+    if (targetLanguage === 'pt-BR') {
+      const exact = EN_TO_PT.get(source);
+      if (exact) return exact;
+      const withdrawal = /^You are about to sign a NIP-09 request to withdraw “([\s\S]*)”\. Relays and third parties may keep copies\.$/.exec(source);
+      if (withdrawal) return `Você vai assinar um pedido NIP-09 para retirar “${withdrawal[1]}”. Relays e terceiros podem continuar com cópias.`;
+      const offer = /^Node offer: ([\s\S]*) · identity ([\s\S]*)$/.exec(source);
+      if (offer) return `Oferta do node: ${offer[1]} · identidade ${offer[2]}`;
+      const seller = /^Seller: ([\s\S]*)$/.exec(source);
+      if (seller) return `Vendedor: ${seller[1]}`;
+      const protocol = /^AGENT PROTOCOL · ([\s\S]*)$/.exec(source);
+      if (protocol) return `PROTOCOLO DE AGENTE · ${protocol[1]}`;
+      const relays = /^(\d+)\/(\d+) public relays connected\.$/.exec(source);
+      if (relays) return `${relays[1]}/${relays[2]} relays públicos conectados.`;
+      const connected = /^(\d+) connected$/.exec(source);
+      if (connected) return `${connected[1]} conectado${connected[1] === '1' ? '' : 's'}`;
+      const sourceRelay = /^(.+) · source relay unavailable$/.exec(source);
+      if (sourceRelay) return `${sourceRelay[1]} · relay de origem indisponível`;
+      const relayList = /^(.+) · relays: ([\s\S]*)$/.exec(source);
+      if (relayList) return `${relayList[1]} · relays: ${relayList[2]}`;
+      const delivery = /^(.*) · awaiting relay$/.exec(source);
+      if (delivery) return `${delivery[1]} · aguardando relay`;
+      const partial = /^(.*) · partial delivery$/.exec(source);
+      if (partial) return `${partial[1]} · entrega parcial`;
+      const amount = /^Invalid (BTC|XMR|XNO) amount: use up to (\d+) decimal places\.$/.exec(source);
+      if (amount) return `Valor ${amount[1]} inválido: use até ${amount[2]} casas decimais.`;
+      const storage = /^Local storage unavailable: ([\s\S]*)$/.exec(source);
+      if (storage) return `Armazenamento local indisponível: ${storage[1]}`;
+      if (source.startsWith('Command: ')) return `Comando: ${source.slice('Command: '.length)}`;
+      return source;
+    }
+    const exact = PT_TO_EN.get(source);
+    if (exact) return exact;
+    const withdrawal = /^Você vai assinar um pedido NIP-09 para retirar “([\s\S]*)”\. Relays e terceiros podem continuar com cópias\.$/.exec(source);
+    if (withdrawal) return `You are about to sign a NIP-09 request to withdraw “${withdrawal[1]}”. Relays and third parties may keep copies.`;
+    const offer = /^Oferta do node: ([\s\S]*) · identidade ([\s\S]*)$/.exec(source);
+    if (offer) return `Node offer: ${offer[1]} · identity ${offer[2]}`;
+    const seller = /^Vendedor: ([\s\S]*)$/.exec(source);
+    if (seller) return `Seller: ${seller[1]}`;
+    const protocol = /^PROTOCOLO DE AGENTE · ([\s\S]*)$/.exec(source);
+    if (protocol) return `AGENT PROTOCOL · ${protocol[1]}`;
+    const relays = /^(\d+)\/(\d+) relays públicos conectados\.$/.exec(source);
+    if (relays) return `${relays[1]}/${relays[2]} public relays connected.`;
+    const connected = /^(\d+) conectado(s)?$/.exec(source);
+    if (connected) return `${connected[1]} connected`;
+    const sourceRelay = /^(.+) · relay de origem indisponível$/.exec(source);
+    if (sourceRelay) return `${sourceRelay[1]} · source relay unavailable`;
+    const relayList = /^(.+) · relays: ([\s\S]*)$/.exec(source);
+    if (relayList) return `${relayList[1]} · relays: ${relayList[2]}`;
+    const delivery = /^(.*) · aguardando relay$/.exec(source);
+    if (delivery) return `${delivery[1]} · awaiting relay`;
+    const partial = /^(.*) · entrega parcial$/.exec(source);
+    if (partial) return `${partial[1]} · partial delivery`;
+    const amount = /^Valor (BTC|XMR|XNO) inválido: use até (\d+) casas decimais\.$/.exec(source);
+    if (amount) return `Invalid ${amount[1]} amount: use up to ${amount[2]} decimal places.`;
+    const storage = /^Armazenamento local indisponível: ([\s\S]*)$/.exec(source);
+    if (storage) return `Local storage unavailable: ${storage[1]}`;
+    if (source.startsWith('Comando: ')) return `Command: ${source.slice('Comando: '.length)}`;
+    return source;
+  }
+  function blocked(element) {
+    return !element || !!element.closest(`script,style,textarea,pre,code,${userContentSelector}`);
+  }
+  function translateTextNode(node) {
+    if (blocked(node.parentElement)) return;
+    const current = node.nodeValue;
+    let source = textSources.get(node);
+    if (source === undefined || textRendered.get(node) !== current) {
+      const parts = /^(\s*)([\s\S]*?)(\s*)$/.exec(current);
+      source = parts ? parts[2] : current;
+      textSources.set(node, source);
+      textWhitespace.set(node, parts ? [parts[1], parts[3]] : ['', '']);
+    }
+    const [leading, trailing] = textWhitespace.get(node) || ['', ''];
+    const translated = `${leading}${lookup(source, language)}${trailing}`;
+    textRendered.set(node, translated);
+    if (translated !== current) node.nodeValue = translated;
+  }
+  function translateAttribute(element, name) {
+    if (blocked(element)) return;
+    const current = element.getAttribute(name);
+    if (current === null) return;
+    let records = attributeSources.get(element);
+    if (!records) { records = new Map(); attributeSources.set(element, records); }
+    const rendered = attributeRendered.get(element) || new Map();
+    attributeRendered.set(element, rendered);
+    let source = records.get(name);
+    if (source === undefined || rendered.get(name) !== current) {
+      source = current;
+      records.set(name, source);
+    }
+    const translated = lookup(source, language);
+    rendered.set(name, translated);
+    if (translated !== current) element.setAttribute(name, translated);
+  }
+  function translateTree(root) {
+    if (root.nodeType === Node.TEXT_NODE) { translateTextNode(root); return; }
+    if (root.nodeType !== Node.ELEMENT_NODE && root !== document) return;
+    if (root.nodeType === Node.ELEMENT_NODE) {
+      for (const name of translatedAttributes) translateAttribute(root, name);
+      if (root.matches('option')) translateTextNode(root.firstChild);
+    }
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) translateTextNode(walker.currentNode);
+  }
+  function applyLanguage(nextLanguage) {
+    language = nextLanguage === 'pt-BR' ? 'pt-BR' : 'en';
+    document.documentElement.lang = language;
+    try { localStorage.setItem('property-language', language); } catch { /* The choice remains active for this page. */ }
+    const picker = document.getElementById('language-picker');
+    if (picker) picker.value = language;
+    const aboutLink = document.getElementById('about-link');
+    if (aboutLink) aboutLink.href = language === 'pt-BR' ? './about.pt-BR.html' : './about.html';
+    translateTree(document.body);
+  }
+  function locale() { return language === 'pt-BR' ? 'pt-BR' : 'en-US'; }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const picker = document.getElementById('language-picker');
+    if (picker) picker.addEventListener('change', () => applyLanguage(picker.value));
+    applyLanguage(initialLanguage);
+    const observer = new MutationObserver(records => {
+      for (const record of records) {
+        if (record.type === 'characterData') translateTextNode(record.target);
+        else if (record.type === 'attributes') translateAttribute(record.target, record.attributeName);
+        else for (const node of record.addedNodes) translateTree(node);
+      }
+    });
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: translatedAttributes });
+  }, { once: true });
+
+  window.PropertyI18n = Object.freeze({ applyLanguage, locale, get language() { return language; } });
+})();

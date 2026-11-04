@@ -1,8 +1,11 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Relatar uma vulnerabilidade em privado
+  - name: Report a vulnerability privately
     url: https://github.com/coercaodobem/property/security/advisories/new
-    about: Use este canal para falhas de segurança; não exponha detalhes em uma issue pública.
-  - name: Guia de contribuição do Property
+    about: Use this channel for security issues; do not disclose details in a public issue.
+  - name: Property contribution guide
     url: https://github.com/coercaodobem/property/blob/modelo-mvp/CONTRIBUTING.md
-    about: Como executar, validar e propor alterações neste repositório.
+    about: How to run, validate, and propose changes to this repository.
+  - name: Guia de contribuição (Português)
+    url: https://github.com/coercaodobem/property/blob/modelo-mvp/CONTRIBUTING.pt-BR.md
+    about: Como executar, validar e propor mudanças neste repositório.

@@ -1,114 +1,119 @@
-# Plano vigente — mensagens entre agentes com UX humana
+# Current Plan — Agent Messaging with Human-First UX
 
-**Atualizado:** 2026-11-03.
-**Branch-alvo:** `modelo-mvp`.
-**Escopo:** comunicação direta entre agentes via Nostr/MCP, com a PWA humana simples, legível e segura.
+**English** · [Português (Brasil)](plano-agentes-human-first.pt-BR.md)
 
-Este plano descreve o fluxo vigente: agente conversa com qualquer identidade pública Nostr válida sem convite, pareamento, autorização de contato ou aprovação por mensagem. Evidências antigas de convite e concessão de escopo pertencem ao desenho anterior e não valem para os critérios abaixo. Resultados e pendências de cada execução ficam nos relatórios datados em [`evidence/agent-messaging/`](evidence/agent-messaging/).
+**Updated:** 2026-11-03.
 
-## 1. Objetivo e experiência
+**Target branch:** `modelo-mvp`.
 
-O Property deve permitir que agentes locais conversem entre si por mensagens privadas NIP-17 e que uma pessoa converse diretamente com um agente usando a PWA. A pessoa não precisa instalar uma loja, aprender MCP ou conceder acesso amplo à conta para abrir uma conversa.
+**Scope:** direct agent communication via Nostr/MCP, with a human PWA that remains simple, readable, and safe.
 
-### Fluxo humano
+The current flow lets an agent message any valid public Nostr identity without invitation, pairing, contact authorization, or per-message approval. Older invitation and scope-grant evidence belongs to the previous design and does not count toward these criteria. Execution results and pending items are recorded in dated reports under [`evidence/agent-messaging/`](evidence/agent-messaging/).
 
-1. A pessoa escolhe “Nova conversa” e informa `npub` ou chave pública hex.
-2. Se for conversa com agente, marca “Usar o protocolo de mensagens entre agentes”. A seleção vale somente para aquela conversa e apenas define o envelope usado.
-3. O Property cria a conversa sem convite, aprovação ou permissão adicional. Agentes também podem iniciar a conversa com uma mensagem válida; a PWA a identifica e a lista separadamente.
-4. A pessoa pode bloquear o agente localmente. Isso impede novos envios e recebimentos naquele aparelho e mantém o histórico. Desbloquear restaura o uso direto.
+## 1. Goal and experience
 
-A escolha do protocolo não entrega ao agente a chave humana, as outras conversas, ferramentas, arquivos, configurações ou fundos. Texto recebido nunca é executado. O Property não exige confirmação por conversa ou por mensagem; aplicativos host MCP podem aplicar suas próprias políticas fora do controle do Property.
+Property should let local agents talk to each other through NIP-17 private messages and let a person talk directly to an agent through the PWA. The person does not need an app store, MCP knowledge, or broad account access to start a conversation.
 
-### Fluxo agente
+### Human flow
 
-O host MCP usa uma identidade Nostr independente, configura seus inbox relays e chama quatro tools locais. `property_send_message` endereça qualquer chave pública válida sem cadastro prévio. `property_read_messages` consulta somente o inbox da identidade do agente. O daemon usa socket Unix local; MCP usa stdio.
+1. The person selects “New conversation” and enters an `npub` or hex public key.
+2. For an agent conversation, the person selects “Use the agent messaging protocol.” This applies only to that conversation and only chooses the envelope format.
+3. Property creates the conversation without invitation, approval, or extra permission. Agents can also start with a valid message; the PWA labels and lists it separately.
+4. The person can block the agent locally. This prevents new sending/receiving on that device and preserves history. Unblocking restores direct use.
 
-## 2. Arquitetura e limites
+Selecting the protocol does not give the agent the human key, other conversations, tools, files, settings, or funds. Received text is never executed. Property does not require conversation- or message-level confirmation; an MCP host may apply its own policies outside Property's control.
 
-- **Transporte:** NIP-17 com NIP-44 v2 e NIP-59, usando eventos kind 14 e gift wraps kind 1059.
-- **Descoberta de inbox:** lista assinada kind 10050; até três relays por identidade. Se não houver lista do destino, o envio usa os relays inbox locais como rota disponível e informa apenas o ACK observado.
-- **Envelope:** `property-agent-message/v1` com campos estritos para versão, conversa, mensagem, correlação e corpo de texto. Corpo até 8 KiB; envelope até 16 KiB.
-- **Cota:** até 30 envios por agente por janela lógica fixa de 60 segundos. Ensaios avançam relógio lógico e contagem; não esperam a passagem de tempo real.
-- **Bloqueio:** local ao aparelho/daemon. Não é aprovação nem cadastro obrigatório; bloqueia leitura/envio futuros e pode ser revertido. Não remove cópias anteriores de relays ou hosts.
-- **MCP:** quatro tools fixas: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`. Nenhuma tool de aprovação, expansão de permissão, shell, filesystem, browser ou assinatura arbitrária.
-- **Privacidade:** chave humana nunca vai à bridge. Relays podem observar metadados do protocolo. O texto que um host de IA leu pode ser mantido pelo próprio host.
-- **Plataformas:** neste plano, resultados Linux/Ubuntu não provam Windows, macOS, Android ou iOS. Sistemas não executados ficam `PENDING`.
+### Agent flow
 
-## 3. Regras dos gates
+The MCP host uses an independent Nostr identity, configures inbox relays, and calls four local tools. `property_send_message` can address any valid public key without prior registration. `property_read_messages` reads only that agent identity's inbox. The daemon uses a local Unix socket; MCP uses stdio.
 
-Gates devem ser executados em ordem, com evidência completa, contagens fixas e casos negativos. Um gate dependente não começa enquanto seu predecessor não tiver passado, exceto pela autorização expressa do responsável em 2026-11-03 para continuar a execução técnica enquanto pendências de avaliação humana ficam `PENDING`. Essa exceção não inventa participantes, não muda pendências para `PASS` e não certifica lançamento.
+## 2. Architecture and limits
 
-- Critérios de sucesso são quantidades e variáveis definidas antes do teste; não usar soak, duração de sessão ou limite de latência como prova de aprovação.
-- Watchdogs apenas encerram casos travados; nunca contam como sucesso.
-- Ensaios de relay usam processos/identidades sintéticos, Geode local e loopback. Sem modelos externos, relays públicos, mensagens públicas ou dados pessoais.
-- Não exportar chaves ou senhas. Não usar fundos reais. Evidência guarda hashes, contagens e estados necessários, sem segredo ou corpo privado real.
-- Falha de código deve ser corrigida e o caso completo repetido; não marcar gate com execução parcial.
-- Revisão humana e testes em pessoas só contam quando realizados de verdade. Sistemas sem máquina/dispositivo disponível permanecem `PENDING`.
+- **Transport:** NIP-17 with NIP-44 v2 and NIP-59, using kind 14 events and kind 1059 gift wraps.
+- **Inbox discovery:** signed kind 10050 list; at most three relays per identity. If the recipient's list is missing, sending uses the local inbox relays as an available route and reports only the observed ACK.
+- **Envelope:** `property-agent-message/v1` with strict fields for version, conversation, message, correlation, and text body. Body up to 8 KiB; envelope up to 16 KiB.
+- **Quota:** at most 30 sends per agent per fixed logical 60-second window. Trials advance logical time and counts; they do not wait in real time.
+- **Blocking:** local to the device/daemon. It is not approval or required registration; it blocks future local reads/sends and is reversible. It cannot remove prior copies from relays or hosts.
+- **MCP:** four fixed tools: `property_status`, `property_list_conversations`, `property_read_messages`, and `property_send_message`. No approval, permission expansion, shell, filesystem, browser, or arbitrary-signing tool.
+- **Privacy:** the human key never reaches the bridge. Relays can observe protocol metadata. An AI host may retain text it has read.
+- **Platforms:** Ubuntu/Linux results do not prove Windows, macOS, Android, or iOS. Untested systems remain `PENDING`.
 
-## 4. Gates e critérios de aceite
+## 3. Gate rules
 
-### G0 — Decisão e ameaças
+Run gates in order with complete evidence, fixed counts, and negative cases. Do not begin a dependent gate before its predecessor passes, except that the maintainer explicitly authorized technical execution on 2026-11-03 while human-evaluation items remain `PENDING`. This exception does not invent participants, change pending items to `PASS`, or certify a release.
 
-**Aceite:** ADR define identidade própria do agente, comunicação direta sem permissão por contato, transporte, cota, bloqueio local, fronteiras de dados e limites honestos. Hashes das especificações ficam versionados.
-**Evidência:** [ADR vigente](agent-messaging-g0.md) e [snapshots fixados](protocol-snapshots/README.md).
+- Success criteria are counts and variables defined before a run. Do not use a soak, session duration, or latency threshold as proof of approval.
+- Watchdogs only stop hung cases; they never count as success.
+- Relay trials use synthetic processes/identities, local Geode, and loopback. No external models, public relays, public test messages, or personal data.
+- Do not export keys or passwords. Use no real funds. Evidence stores required hashes, counts, and states, but no secrets or real private-message bodies.
+- Fix code failures and repeat the entire affected case; do not mark a gate passed from a partial run.
+- Human review and user studies count only when actually conducted. Systems without an available device remain `PENDING`.
 
-### G1 — UX humana antes de piloto
+## 4. Gates and acceptance criteria
 
-**Participantes:** cinco pessoas, ao menos três sem experiência de desenvolvimento; não usar agentes sintéticos como substitutos. Cada pessoa realiza as mesmas tarefas: abrir conversa humana, reconhecer conversa de agente e seu `npub`, responder a uma primeira mensagem de agente, bloquear e desbloquear, localizar o limite de privacidade e continuar usando conversas humanas.
+### G0 — Decision and threats
 
-**Aceite:** pelo menos quatro de cinco concluem o fluxo direto e o bloqueio sem ajuda; ninguém interpreta a seleção do protocolo como acesso à conta; alertas críticos de identidade/privacidade são compreendidos. Registrar falhas e corrigir/repetir as tarefas afetadas. Leitor de tela real e revisão independente são registrados separadamente.
+**Acceptance:** ADR defines an independent agent identity, direct messaging without per-contact permission, transport, quota, local blocking, data boundaries, and honest limits. Protocol specification hashes are pinned.
 
-**Estado:** sessões com pessoas reais permanecem `PENDING` até acontecerem. Não simular respostas nem declarar UX aprovada com base em automação.
+**Evidence:** [current ADR](agent-messaging-g0.md) and [pinned snapshots](protocol-snapshots/README.md).
 
-### G2 — Identidade, inbox e bloqueio
+### G1 — Human UX before pilot
 
-**Casos:** identidade do agente diferente da humana; cofre local e permissões de arquivo; migração dos esquemas anteriores para configuração sem allowlist; 10 ciclos de bloqueio/desbloqueio com o mesmo par de chaves; 10 tentativas de leitura/envio durante bloqueio; validação de chave inválida, chave própria e relay inválido.
+**Participants:** five people, including at least three without development experience. Do not use synthetic agents as substitutes. Each person performs the same tasks: open a human conversation, recognize an agent conversation and its `npub`, respond to an agent's first message, block/unblock, find the privacy boundary, and continue using human conversations.
 
-**Aceite:** nenhuma etapa de convite/pareamento; uma chave pública válida pode ser endereçada sem contato cadastrado; o bloqueio é local e reversível; migração preserva bloqueios, relays e cota aplicáveis sem restaurar permissões antigas. Segredos não aparecem em saída ou relatório.
+**Acceptance:** at least four of five complete the direct-messaging and blocking flow without help; nobody interprets protocol selection as account access; critical identity/privacy warnings are understood. Record failures and fix/repeat affected tasks. Real screen-reader testing and independent review are recorded separately.
 
-### G3 — Mensagem direta NIP-17
+**Status:** sessions with real people remain `PENDING` until they happen. Never simulate answers or claim UX approval from automation.
 
-**Ensaio offline:** dois processos agentes, três relays Geode isolados e uma PWA no Firefox/Ubuntu. Usar duas identidades sintéticas e um seed fixo.
+### G2 — Identity, inbox, and blocking
 
-**Contagens:** 50 mensagens por direção; 20 respostas correlacionadas; três reinícios por agente; nove eventos de partição/reconexão; dez casos de duplicata, adulteração, reordenação e versão desconhecida; 20 tentativas de descriptografia por terceiro.
+**Cases:** agent identity differs from the human identity; local vault and file permissions; migration from older schemas to a configuration without an allowlist; 10 lock/unlock cycles with the same key pair; 10 read/send attempts while blocked; invalid key, self-key, and invalid-relay checks.
 
-**Caminho humano:** agente envia a primeira mensagem sem conversa prévia nem pedido humano; PWA cria e rotula a conversa; pessoa responde; agente lê a resposta e envia resposta correlacionada. Conversa humana já existente permanece intacta.
+**Acceptance:** no invitation/pairing step; a valid public key can be addressed without a saved contact; blocking is local and reversible; migration preserves applicable blocks, relays, and quota without restoring old permissions. No secrets appear in output or reports.
 
-**Aceite:** destinatários leem, terceiros não; relay armazena somente gift wraps cifrados; duplicatas não reaparecem; nenhum evento sem envelope válido é tratado como comando. Relatório mais recente deve registrar exatamente os casos executados.
+### G3 — Direct NIP-17 messages
 
-### G4 — MCP local
+**Offline setup:** two agent processes, three isolated Geode relays, and one Firefox/Ubuntu PWA. Use two synthetic identities and a fixed seed.
 
-**Ensaio offline:** dois processos agentes, dois clientes MCP fixture, um Geode loopback. Inventário fechado com quatro tools.
+**Counts:** 50 messages in each direction; 20 correlated replies; three restarts per agent; nine partition/reconnection events; ten cases for duplicates, tampering, reordering, and unknown version; 20 third-party decryption attempts.
 
-**Contagens:** por agente, 25 leituras e 25 envios; 10 leituras diretas sem cadastro; ao menos um envio a uma identidade válida ainda não cadastrada; duas chamadas simultâneas; 10 chamadas de tools inexistentes; 10 ciclos de reinício stdio; 10 erros de relay indisponível; bloquear/desbloquear e verificar leitura/envio.
+**Human path:** an agent sends the first message with no earlier conversation or human request; PWA creates and labels the conversation; the person replies; agent reads and sends a correlated reply. Existing human conversations remain intact.
 
-**Aceite:** identidade pública independente, sem segredos; inbox consulta somente mensagens recebidas por aquela identidade; envio não requer aprovação Property; nenhuma fila/tool de aprovação ou allowlist; sem listener TCP. ACK só é relatado como aceitação do relay. Hosts comerciais não são simulados.
+**Acceptance:** recipients can read, third parties cannot; relays store only encrypted gift wraps; duplicates do not reappear; no event without a valid envelope is treated as a command. The newest report must list the cases actually run.
 
-### G5 — Segurança adversarial
+### G4 — Local MCP
 
-**Contagens:** 100 textos hostis em categorias fixadas (prompt injection, links, redirecionamento, perfil personificado, JSON profundo/duplicado, excesso de payload, comandos embutidos e pedido de segredo); 100 cópias replay; 50 tentativas acima da cota; 20 ciclos locais de bloqueio/desbloqueio; 30 envios válidos antes do limite.
+**Offline setup:** two agent processes, two MCP fixture clients, and one loopback Geode relay. The tool inventory is fixed at four.
 
-**Aceite:** nenhum texto recebido inicia ferramenta, shell, rede, alteração de política ou leitura de segredo; parsing e assinatura inválidos falham fechados; limite de bytes e quota são aplicados; bloqueio afeta somente o par local. Revisão de segurança independente continua exigida e não pode ser substituída por este ensaio.
+**Counts:** per agent, 25 reads and 25 sends; 10 reads without prior registration; at least one send to a valid, unsaved identity; two simultaneous calls; 10 calls to nonexistent tools; 10 stdio restart cycles; 10 relay-unavailable errors; block/unblock followed by read/send checks.
 
-### G6 — UX automatizada em navegador
+**Acceptance:** independent public identity, no secrets; inbox reads only messages received by that identity; sending requires no Property approval; no approval queue/tool or allowlist; no TCP listener. An ACK is reported only as relay acceptance. Do not simulate commercial hosts.
 
-**Matriz Ubuntu:** Firefox fixado, cinco ciclos `1280×900` e cinco ciclos com viewport móvel `390×844`. Cada ciclo começa com perfil descartável. Bloquear todas as requisições externas.
+### G5 — Adversarial security
 
-**Verificar:** criação de conversa por `npub`, seleção do protocolo sem concessão de acesso, ausência de telas/ferramentas de aprovação, rótulos e nome acessível, operação por teclado, preservação de conversa humana, bloqueio/desbloqueio, composer desabilitado enquanto bloqueado e restauração depois do desbloqueio.
+**Counts:** 100 hostile texts across fixed categories (prompt injection, links, redirects, impersonated profile, deep/duplicate JSON, oversized payload, embedded commands, and secret requests); 100 replay copies; 50 above-quota attempts; 20 local block/unblock cycles; 30 valid sends up to the limit.
 
-**Aceite:** dez ciclos completos, sem erros de página nem requisições externas. Isso é validação automatizada de tela, não validação com pessoa, leitor de tela ou dispositivo físico.
+**Acceptance:** received text triggers no tool, shell, network, policy change, or secret read; invalid parsing/signatures fail closed; byte and quota limits are enforced; blocking affects only the local pair. Independent security review is still required and cannot be replaced by this trial.
 
-### G7 — Interoperabilidade e outras plataformas
+### G6 — Automated browser UX
 
-Validar integrações com ao menos duas implementações independentes de agente/cliente antes de alegar interoperabilidade. Executar matriz nativa Windows, macOS, Android e iOS somente quando esses ambientes estiverem disponíveis; registrar navegador, versão, aparelho, instalação PWA, relays e casos repetidos.
+**Ubuntu matrix:** pinned Firefox, five cycles at `1280×900`, and five at mobile viewport `390×844`. Each cycle starts from a disposable profile. Block all external requests.
 
-**Estado:** resultados ausentes permanecem `PENDING`; não impedem que os gates Ubuntu aplicáveis avancem, mas impedem qualquer afirmação de suporte multiplataforma ou interoperabilidade não medida.
+**Verify:** create conversation by `npub`, select protocol without granting access, no approval screens/tools, clear labels and accessible names, keyboard operation, human conversation preservation, block/unblock, composer disabled while blocked, and restore after unblocking.
 
-## 5. Entregáveis e registros
+**Acceptance:** ten complete cycles, no page errors, and no external requests. This is automated screen validation, not a study with people, screen-reader validation, or physical-device testing.
 
-Cada execução concluída deve adicionar um relatório datado com commit de origem, comando, seed, versões/hashes do runtime, variáveis e contagens, PASS/FAIL por caso, tráfego externo observado, limites e pendências. Imagens de tela devem usar apenas identidades descartáveis. Relatórios antigos do fluxo com convite ficam preservados como história, claramente separados da evidência direta atual.
+### G7 — Interoperability and other platforms
 
-- Implementação MCP e instalação: [`../agent/README.md`](../agent/README.md).
-- Testes determinísticos e harnesses: [`../tests/`](../tests/).
-- Relatórios correntes G3/G4/G5/G6: [`evidence/agent-messaging/`](evidence/agent-messaging/).
-- Testes com Windows/macOS/Android/iOS, pessoas reais, leitor de tela, hosts MCP comerciais e revisão independente: manter `PENDING` até executar.
+Validate with at least two independent agent/client implementations before claiming interoperability. Run native Windows, macOS, Android, and iOS matrices only when those environments are available; record browser, version, device, PWA installation, relays, and repeated cases.
+
+**Status:** missing results remain `PENDING`; they do not stop applicable Ubuntu gates, but they prevent claims of measured cross-platform support or interoperability.
+
+## 5. Deliverables and records
+
+Each completed run adds a dated report with source commit, command, seed, runtime versions/hashes, variables and counts, PASS/FAIL by case, observed external traffic, limits, and pending items. Screenshots use disposable identities only. Older invitation-flow reports remain as historical records, clearly separate from current direct-message evidence.
+
+- MCP implementation and installation: [`../agent/README.md`](../agent/README.md).
+- Deterministic tests and harnesses: [`../tests/`](../tests/).
+- Current G3/G4/G5/G6 reports: [`evidence/agent-messaging/`](evidence/agent-messaging/).
+- Windows/macOS/Android/iOS, real-person studies, screen reader, commercial MCP hosts, and independent review remain `PENDING` until actually completed.

@@ -1,27 +1,29 @@
-# Protótipo de pareamento de agente
+# Archived agent-pairing prototype
 
-Este protótipo estático apresenta, em português, um fluxo de convite, inspeção de identidade, escolha de permissões, cancelamento, aprovação e revogação local. Ele usa somente HTML, CSS e JavaScript inline; não carrega scripts, fontes, imagens ou código executável de terceiros.
+**English** · [Português (Brasil)](README.pt-BR.md)
 
-## Abrir localmente
+This static prototype shows the former invitation, identity inspection, permission choice, cancellation, approval, and local revocation flow. It is archived and does not describe the current Property agent-messaging design; see the [current G0 decision](../../agent-messaging-g0.md). The prototype uses inline HTML, CSS, and JavaScript and loads no third-party scripts, fonts, images, or executable code.
 
-Na raiz do repositório:
+## Open locally
+
+From the repository root:
 
 ```sh
 python3 -m http.server 8765 --bind 127.0.0.1 --directory property/docs/prototypes/agent-pairing
 ```
 
-Abra `http://127.0.0.1:8765/` no navegador. Alternativamente, abra `index.html` diretamente. O servidor deve escutar apenas no loopback durante a pesquisa local.
+Open `http://127.0.0.1:8765/` in a browser. Alternatively, open `index.html` directly. Keep the server bound to loopback during local research.
 
-Verifique os fluxos determinísticos do protótipo com `node property/tests/agent-pairing-prototype-smoke.mjs` a partir da raiz. O teste usa um DOM simulado e não substitui browser, pesquisa humana ou acessibilidade em dispositivo.
+The deterministic prototype checks can be run with `node property/tests/agent-pairing-prototype-smoke.mjs` from the repository root. They use a simulated DOM and do not replace browser inspection, human research, or device accessibility review.
 
-## Limites desta demonstração
+## Demonstration limits
 
-- O convite, a identidade, a pessoa e as mensagens são fixtures fictícios.
-- O identificador exibido não é uma chave pública Nostr válida; nenhuma assinatura é verificada.
-- Nenhuma chave, permissão ou mensagem é persistida; nada é enviado a um relay ou host de IA.
-- O estado de revogação é apenas local e volátil. Não representa entrega nem confirmação de rede.
-- A tela preserva a conversa humana sem exigir pareamento de agente.
+- The invitation, identities, people, and messages are fictional fixtures.
+- The displayed identifier is not a valid Nostr public key; no signatures are checked.
+- No key, permission, or message is persisted; nothing is sent to a relay or AI host.
+- Revocation state is local and volatile. It does not represent network delivery or confirmation.
+- This screen preserves human conversations without requiring agent pairing.
 
-## Revisão humana exigida
+## Human review required
 
-Inspeção de código ou automação não substitui as cinco sessões humanas definidas no [plano](../../plano-agentes-human-first.md). O gate G1 permanece `PENDING` até cinco participantes reais completarem as tarefas fixas, pelo menos três deles sem experiência de desenvolvimento, e quaisquer falhas críticas serem corrigidas e repetidas. Use o roteiro e a planilha vazia no [relatório G1](../../evidence/agent-messaging/G1-20261103.md); não registre nomes, chaves, conversas pessoais ou outros identificadores.
+Code inspection or automation does not replace the five human sessions defined in the [plan](../../plano-agentes-human-first.md). Gate G1 remains `PENDING` until five real participants complete the fixed tasks, at least three of them without software-development experience, and any critical failures are fixed and repeated. Use the script and blank worksheet in the [G1 report](../../evidence/agent-messaging/G1-20261103.md); do not record names, keys, personal conversations, or other identifiers.
