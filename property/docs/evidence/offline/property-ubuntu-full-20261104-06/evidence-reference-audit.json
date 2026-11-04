@@ -12,6 +12,14 @@
   "unique_evidence_reference_count": 67,
   "duplicate_reference_count": 121,
   "missing_references": [],
+  "supplemental_evidence": [
+    {
+      "case": "G10-05",
+      "path": "later-gates/g10-05/cta-reachability-180x400.json",
+      "size_bytes": 846,
+      "sha256": "3d1b142fa0f4a448e1387baa63b0c11ff1b08c58efb59e050d68957bf2fe2cdb"
+    }
+  ],
   "external_references": [
     {
       "path": "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-1.json",
@@ -191,6 +199,11 @@
       "sha256": "3c6891877a87ebce698db92aa3b3c7e5d52b3d5f9bb04667756f00af7f63ac02"
     },
     {
+      "path": "later-gates/g10-05/cta-reachability-180x400.json",
+      "size_bytes": 846,
+      "sha256": "3d1b142fa0f4a448e1387baa63b0c11ff1b08c58efb59e050d68957bf2fe2cdb"
+    },
+    {
       "path": "later-gates/g10-05/g10-viewport-report.json",
       "size_bytes": 5076,
       "sha256": "6b0c11535de45b3512127f2d1e8c45c8b87e063d562d8dcbc447df31a5a9135d"
@@ -237,8 +250,8 @@
     },
     {
       "path": "later-gates/g10-05/visual-review.md",
-      "size_bytes": 1277,
-      "sha256": "a696716e1fa3e7b4c78bfed18b85912f228f1683129a95f659dcab756017b832"
+      "size_bytes": 1711,
+      "sha256": "84828d04225a5f1df897d6428583d9534d46ef7ba51fb665f9d842f4fa48c31c"
     },
     {
       "path": "later-gates/g10-05.log",
@@ -592,8 +605,8 @@
     },
     {
       "path": "sanitization.json",
-      "size_bytes": 22287,
-      "sha256": "0383fadd18c71a9ea5892bb42799a8094d08d7840cf2f676484c0d9f8c2a97d6"
+      "size_bytes": 22384,
+      "sha256": "9766b883add4922aa11522f1e09074f5be71e4ec0e6ec7c6dc6afae556272fac"
     },
     {
       "path": "summary.json",

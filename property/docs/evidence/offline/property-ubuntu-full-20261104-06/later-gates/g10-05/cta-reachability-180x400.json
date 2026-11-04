@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "run_id": "property-full-20261104-06",
+  "candidate_commit": "2db0ccd8c36f780776cb30872becd8efd98042c7",
+  "case": "G10-05",
+  "kind": "supplemental-offline-browser-diagnostic",
+  "result": "PASS",
+  "viewport_css_px": {
+    "width": 180,
+    "height": 400
+  },
+  "initial_state": {
+    "header_new_conversation_visible": true,
+    "header_accessible_name": "Nova conversa",
+    "central_action_within_initial_viewport": false,
+    "central_action_dom_visible": true,
+    "document_scroll_height_css_px": 605
+  },
+  "after_scroll": {
+    "central_action_within_viewport": true,
+    "central_action_opens_new_conversation_dialog": true
+  },
+  "header_action_opens_new_conversation_dialog": true,
+  "external_requests": [],
+  "limitation": "Offline Chromium diagnostic; not native-device testing or human UX approval."
+}

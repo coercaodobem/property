@@ -8,7 +8,7 @@ cf81aed615aa0a218bf53055794a92a331b69b85c406d91ec3d4b9692448a046  ./browser/brow
 42c47e75c7ed06a3e9e12b20ee627cba26a6506d1c6f56b32b21ce4460d4d6b4  ./case-events.jsonl
 ec43758b6560bbb76a37ab00f55074e05a57c49e38b5dd8a991ea605162ab803  ./cases.jsonl
 ec43758b6560bbb76a37ab00f55074e05a57c49e38b5dd8a991ea605162ab803  ./cases.latest.jsonl
-d25eec15ad57ec896998e15953b8dc676836b200c7f91eebbf14dfec6a11e117  ./evidence-reference-audit.json
+a3fa43cfa41b4b04b33a792a3b35e95696ef3d7208cfe38b31ec72e7cf11a967  ./evidence-reference-audit.json
 9aac8d681bc6338e33fb65d11e711f95fa77a36c73d94da7515c6ee13fcb9bc7  ./g00-04/harness-verification.json
 06631741755651e6f8e896ecaad253fd44b12e3cb5097e4d8381fe0bb8a57575  ./g00-04/interrupted-cases.jsonl
 4247a535278b0402bb3fc187db7dbe113186dbd0da37be3766e9fddfa8851e54  ./g00-04/interrupted-summary.json
@@ -29,6 +29,7 @@ a2d91a28bad7151898b8e0249215efb8af74d0e0ff9be02c7cec2b481a4ab75a  ./later-gates/
 3c6891877a87ebce698db92aa3b3c7e5d52b3d5f9bb04667756f00af7f63ac02  ./later-gates/g09-05.log
 a302e85cbf3395dbe5f3f029f8414ac61d1529ea1bd434366c8d50f892296d67  ./later-gates/g09-05/g09-package-report.json
 3d1178b728fa63f95239dd18a17ca451676b278514eaf81b93251328aad6fe37  ./later-gates/g10-05.log
+3d1b142fa0f4a448e1387baa63b0c11ff1b08c58efb59e050d68957bf2fe2cdb  ./later-gates/g10-05/cta-reachability-180x400.json
 6b0c11535de45b3512127f2d1e8c45c8b87e063d562d8dcbc447df31a5a9135d  ./later-gates/g10-05/g10-viewport-report.json
 1b31fe5f6d46a4a16ec3766b665cf65f9e41772dca910210c8437259d29fd114  ./later-gates/g10-05/screenshots/viewport-1440x900.png
 89e0bd8cefa61dbe771a7f14fba8dce838fcf9aa0eb91bcfc287a6cb21fe35ca  ./later-gates/g10-05/screenshots/viewport-200pct-from-1440x900.png
@@ -38,7 +39,7 @@ c411ce09a507259510b0e74f4b465c28e85363b1a167461446daff9d818ecd31  ./later-gates/
 cbeea6133ca0974b6ac9a3e54731b3e0895962132d6d82074effa525edcab32a  ./later-gates/g10-05/screenshots/viewport-360x800.png
 bc1e938473ea62c1061abe3ccb15ab0d02e73cf6395d5a9b6b3fb0796040fa87  ./later-gates/g10-05/screenshots/viewport-390x844.png
 e830a985db63e981b37ed58b130179a9d42c55ee4fbeb033a08feda060de3700  ./later-gates/g10-05/screenshots/viewport-768x1024.png
-a696716e1fa3e7b4c78bfed18b85912f228f1683129a95f659dcab756017b832  ./later-gates/g10-05/visual-review.md
+84828d04225a5f1df897d6428583d9534d46ef7ba51fb665f9d842f4fa48c31c  ./later-gates/g10-05/visual-review.md
 62ee17e997eea66ead2915a3158160eb392b830a0c2de24ce145624889cbffe7  ./later-gates/g10-06.log
 36e60238bf54c1ab8c44329f1619fb0e7e17923c97555c745bb5c90bd8e89c45  ./later-gates/g10-06/g10-volume-report.json
 a9fba3b2ddb2b51d0581a8fb2a64352cd496d90fc6faa9e154efa51732ce82bc  ./later-gates/g11-01-repeat-2.log
@@ -108,6 +109,6 @@ a20c7acc144f8e801822dec5c9782e989b27cc691193b1aa790aebf14a0eabd9  ./logs/G07-01-
 ea4303a582f6af65718c7b7a4d5fe41092f4c6986d4ddebcb976219078f70cbb  ./manifest.json
 2b04df5b3309a9359f98a3d44b4053a9d882d052423c7bde63dc65398dfe60de  ./report.md
 760eb53a29a66fbb421d1bb5eda52aae97e3d711bdc5f0421227682b7fdfd71a  ./resume-state.json
-0383fadd18c71a9ea5892bb42799a8094d08d7840cf2f676484c0d9f8c2a97d6  ./sanitization.json
+9766b883add4922aa11522f1e09074f5be71e4ec0e6ec7c6dc6afae556272fac  ./sanitization.json
 18764952c1318098135d987a2663115363d760567eb9eb369e37b39af8cdb30d  ./summary.json
 83701fe770f308ce91482c8180794d2a8ffaae32c688c1dc69627e5cb158e129  ./topology.json

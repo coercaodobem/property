@@ -2,6 +2,8 @@
 
 O teste automatizado capturou as oito imagens abaixo. `G10-05` passou nas asserções de viewport; a revisão visual por uma pessoa continua **PENDING**. As capturas não representam aprovação humana nem avaliação de participantes.
 
+No viewport estreito de 180 × 400 CSS px, o botão central “Nova conversa” fica abaixo da primeira dobra. O atalho com o mesmo nome no cabeçalho permanece visível e abre o diálogo; após rolagem, o botão central também fica visível e abre o diálogo. Esse resultado vem de um diagnóstico automatizado offline e não substitui a revisão humana. Detalhes: [`cta-reachability-180x400.json`](cta-reachability-180x400.json).
+
 ## Viewports fixos
 
 ### 360 × 800

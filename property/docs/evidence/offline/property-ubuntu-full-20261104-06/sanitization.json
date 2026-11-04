@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "sanitized_utc": "2026-11-04T05:32:14.521Z",
+  "sanitized_utc": "2026-11-04T05:41:54.717Z",
   "reason": "Absolute local home and temporary paths were replaced with placeholders; captured logs and wallet outputs had trailing whitespace and redundant final blank lines normalized. Binary screenshots are preserved byte-for-byte.",
   "source_sha256sums_sha256": "29dfec3a607c43fb0d086a6a3651898ddcf4aec892d2c8176abbbe1e14523d7d",
   "source_file_count": 110,
@@ -450,5 +450,8 @@
     }
   },
   "human_review_status": "PENDING_HUMAN_REVIEW; no human approval or participant result was simulated.",
-  "supplemental_review_index": "later-gates/g10-05/visual-review.md"
+  "supplemental_review_index": "later-gates/g10-05/visual-review.md",
+  "supplemental_postrun_evidence": [
+    "later-gates/g10-05/cta-reachability-180x400.json"
+  ]
 }
