@@ -1,0 +1,255 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G06-01",
+      "status": "PASS",
+      "reason": "A signed public kind-1 post traversed the actual PWA bridge from R1 to R2. Buyer B saw the author, and the contact action selected that author in private-message navigation while the post remained public."
+    },
+    {
+      "case": "G06-02",
+      "status": "PASS",
+      "reason": "The browser published, discovered, and edited one satoshi, one piconero, and one raw through two actual Geode relays and a real PWA bridge. Exact atomic strings, event authorship, stable d tags, signatures, and rendered prices survived each round-trip; currency maxima and overflow were checked."
+    },
+    {
+      "case": "G06-03",
+      "status": "PASS",
+      "reason": "Seller withdrawal hid the offer even after the older signed event was replayed to R2. Geode rejected reinsertion under its deletion tombstone. Another author could not remove an offer; the client reducer ignored an older deletion timestamp without sending that fixture to the relay."
+    },
+    {
+      "case": "G06-04",
+      "status": "PASS",
+      "reason": "Expired and future-timestamp, unknown-currency, malformed, and ambiguous-address listings were filtered. The browser blocked excess precision, overflow, and unsupported-currency submissions; unsafe image URLs were not linked or fetched, and injected markup remained literal text."
+    },
+    {
+      "case": "G06-05",
+      "status": "PASS",
+      "reason": "Contact from the marketplace opened the correct seller conversation target without changing the displayed offer, publishing any payment/checkout/private-message event, or exposing a checkout control. The UI identifies NIP-15 as draft and states that payments/custody are not handled."
+    }
+  ],
+  "nodes": [
+    {
+      "label": "G06 seller A",
+      "pubkey": "8fe8decfaa47b4d7290a672be5735d6ebcc8b1d7aa3684dbb4b30bab86f1f8a8",
+      "general_relays": [
+        "ws://127.0.0.1:28480"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": false
+    },
+    {
+      "label": "G06 buyer B",
+      "pubkey": "695a1b4ae09ca9f790cea4846179a41a07865aa29dc3db8529737d7eef14acee",
+      "general_relays": [
+        "ws://127.0.0.1:28481"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": false
+    },
+    {
+      "label": "G06 public relay bridge",
+      "pubkey": "f809e243337b46dfe3db29355322116c1b7eb90ebd917a93c7692e5565a4d6fa",
+      "general_relays": [
+        "ws://127.0.0.1:28480",
+        "ws://127.0.0.1:28481"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28480",
+      "process_id": 406060,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28481",
+      "process_id": 406609,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/"
+  ],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "hangout": {
+    "event_id": "9eb3eea23a0f8f74e0611cf07697190e0973b52c9b5a3194244ddc10886ba437",
+    "author": "8fe8decfaa47b4d7290a672be5735d6ebcc8b1d7aa3684dbb4b30bab86f1f8a8",
+    "R1_signature_valid": true,
+    "R2_copy_same_id": true,
+    "public_feed_label_visible": true,
+    "contact_target_npub": "npub13l5dana2g76dw2g2vu472u6ad67v3vwh4gmgfka5kv96hph3lz5q7988ne",
+    "private_room_created": false
+  },
+  "marketplace": {
+    "offers": [
+      {
+        "currency": "BTC",
+        "unit": "satoshi",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "9836a308-710c-46a0-876c-000e51b6c28b",
+        "initial_event_id": "84fe2802e7ed31a2ff0523e183946012acca5aecd17f4b0af80d6fa26b837a7e",
+        "updated_event_id": "4f67a53a18c6b99704ea6d38e8d2c3d647f28b4d3d7216259fc400cb7bb48067",
+        "seller_signature_valid": true,
+        "R2_copy": true,
+        "initial_ui_price": "0.00000001 BTC",
+        "updated_ui_price": "0.00000002 BTC"
+      },
+      {
+        "currency": "XMR",
+        "unit": "piconero",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "a85bd390-8158-4d10-b1e8-783dabae4627",
+        "initial_event_id": "245a3776ecb5beaf62fe2f396d0fe0df6bfa6a891687d7c5ff2f369a853487ad",
+        "updated_event_id": "2a27de800863298602711f7194ed1d47221c86f3132c9c4f1aba5ad6d6653027",
+        "seller_signature_valid": true,
+        "R2_copy": true,
+        "initial_ui_price": "0.000000000001 XMR",
+        "updated_ui_price": "0.000000000002 XMR"
+      },
+      {
+        "currency": "XNO",
+        "unit": "raw",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "69a4a422-fc97-4908-a51d-6f2b4565c76e",
+        "initial_event_id": "72f7e19b28341de873cc79d1cf078fdaaceb09598dabad07ec8e9ed935cfcedd",
+        "updated_event_id": "9b6eb68736c726f0363b99b26481fa6db4e1cb14cc9f85d3e8e4b51161c38d05",
+        "seller_signature_valid": true,
+        "R2_copy": true,
+        "initial_ui_price": "0.000000000000000000000000000001 XNO",
+        "updated_ui_price": "0.000000000000000000000000000002 XNO"
+      }
+    ],
+    "currency_atomic_bounds": {
+      "BTC": {
+        "max_accepted": "2100000000000000",
+        "over_max_rejected": true
+      },
+      "XNO": {
+        "max_accepted": "340282366920938463463374607431768211455",
+        "over_max_rejected": true
+      },
+      "XMR": {
+        "max_accepted": "18446744073709551615",
+        "over_max_rejected": true
+      }
+    },
+    "amount_representation": "decimal integer strings; no float used for atomic values"
+  },
+  "deletion": {
+    "seller_signed_withdrawal_id": "68f7e3854eb23214eda19fd5ccc05931f082b502c42a5c4a02e529263ebc8f52",
+    "seller_withdrawal_signature_valid": true,
+    "old_copy_replayed_to_R2_after_tombstone": true,
+    "tombstone_removed_prior_copy": true,
+    "replay_ack": {
+      "accepted": false,
+      "message": "Error code: 1811, message: blocked: a deletion event exists"
+    },
+    "relay_product_copies_after_withdrawal": [
+      {
+        "id": "9b6eb68736c726f0363b99b26481fa6db4e1cb14cc9f85d3e8e4b51161c38d05",
+        "d": "69a4a422-fc97-4908-a51d-6f2b4565c76e",
+        "name": "G06 one raw c5287fdc-6f1e-4d68-9535-89819e2c418e"
+      },
+      {
+        "id": "2a27de800863298602711f7194ed1d47221c86f3132c9c4f1aba5ad6d6653027",
+        "d": "a85bd390-8158-4d10-b1e8-783dabae4627",
+        "name": "G06 one piconero 706bfca8-1554-4745-9e92-e38a0a08facb"
+      }
+    ],
+    "active_names_after_withdrawal": [
+      "G06 one raw c5287fdc-6f1e-4d68-9535-89819e2c418e",
+      "G06 one piconero 706bfca8-1554-4745-9e92-e38a0a08facb"
+    ],
+    "old_copy_did_not_resurrect": true,
+    "unauthorized_deletion_id": "d1f8f070c751be58d8c18b6c6a51c0a66f64a149b79513a16bfbc0e1f7ec1189",
+    "unauthorized_author_could_not_withdraw": true,
+    "earlier_timestamp_deletion_fixture_id": "437ba721ae65616e9150e4b02225fc1918d1ab8f67e2c7c4b1429fb5932d5b2f",
+    "client_ignored_older_deletion_timestamp": true,
+    "relay_unmodified_by_older_deletion_fixture": true
+  },
+  "security": {
+    "time_fixture_relay_acks": [
+      {
+        "id": "e3e8cee933bc870a09925072eafebdc7052e34685a4f52c6bead2197b41a19a9",
+        "accepted": true,
+        "message": ""
+      },
+      {
+        "id": "65509a73d9498518c4c62b2098f77a9ac276a8de8590162673746b95bae60176",
+        "accepted": true,
+        "message": ""
+      }
+    ],
+    "fixture_relay_acks": [
+      {
+        "id": "15d8c666f68f6b1b0f924c5df093defd52b05bfb298aa824d90442671252fa5e",
+        "accepted": true,
+        "message": ""
+      },
+      {
+        "id": "a16952238b3ca9c3f6871554c7565b7f189e23e84bd4a2123a4bc6a5b685266d",
+        "accepted": true,
+        "message": ""
+      },
+      {
+        "id": "aa999dbc7af0f600e84be24a3e6062799d106c2290415c21a72b133b4dc5ee00",
+        "accepted": true,
+        "message": ""
+      },
+      {
+        "id": "0fc8efa1355d8e41b30d28022c19513eec786f8bb3cdb0e761c36b9c3ab420ce",
+        "accepted": true,
+        "message": ""
+      }
+    ],
+    "expired_event_rejected_by_expiration_tag": true,
+    "future_timestamp_hidden": true,
+    "unknown_currency_hidden": true,
+    "malformed_content_hidden": true,
+    "duplicate_address_tag_hidden": true,
+    "unsafe_http_image_not_linked_or_loaded": true,
+    "injected_html_rendered_as_text": true,
+    "script_execution": false,
+    "unsupported_currency_submission_blocked": true,
+    "excess_precision_submission_blocked": true,
+    "overflow_submission_blocked": true,
+    "invalid_submissions_published": false
+  },
+  "contact": {
+    "target_pubkey": "8fe8decfaa47b4d7290a672be5735d6ebcc8b1d7aa3684dbb4b30bab86f1f8a8",
+    "target_npub": "npub13l5dana2g76dw2g2vu472u6ad67v3vwh4gmgfka5kv96hph3lz5q7988ne",
+    "offer_price_preserved": true,
+    "event_ids_before_and_after_equal": true,
+    "checkout_or_payment_event_created": false,
+    "private_message_sent": false,
+    "nip15_draft_notice": "NIP-15 é um protocolo draft marcado como não recomendado. O MVP permite publicar, editar e pedir a retirada de ofertas; não processa pagamentos nem oferece custódia."
+  },
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "local_origin": "http://127.0.0.1:40523",
+  "identities": {
+    "seller_pubkey": "8fe8decfaa47b4d7290a672be5735d6ebcc8b1d7aa3684dbb4b30bab86f1f8a8",
+    "buyer_pubkey": "695a1b4ae09ca9f790cea4846179a41a07865aa29dc3db8529737d7eef14acee",
+    "bridge_pubkey": "f809e243337b46dfe3db29355322116c1b7eb90ebd917a93c7692e5565a4d6fa"
+  },
+  "result": "PASS"
+}
