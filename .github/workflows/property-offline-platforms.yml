@@ -31,8 +31,8 @@ jobs:
     timeout-minutes: 45
     env:
       PROPERTY_PLATFORM_CASE: ${{ matrix.case }}
-      PROPERTY_PLATFORM_OUTPUT: ${{ runner.temp }}/property-platform-artifacts/${{ matrix.case }}
-      APPIUM_HOME: ${{ runner.temp }}/property-appium-home
+      PROPERTY_PLATFORM_OUTPUT: ${{ github.workspace }}/.property-platform-artifacts/${{ matrix.case }}
+      APPIUM_HOME: ${{ github.workspace }}/.property-appium-home
     steps:
       - name: Checkout candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -91,6 +91,6 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: property-${{ matrix.case }}-${{ github.sha }}
-          path: ${{ runner.temp }}/property-platform-artifacts/${{ matrix.case }}
+          path: ${{ github.workspace }}/.property-platform-artifacts/${{ matrix.case }}
           if-no-files-found: error
           retention-days: 30
