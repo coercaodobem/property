@@ -1,0 +1,118 @@
+{
+  "verdict": "PASS",
+  "inspected_utc": "2026-11-04T10:44:35.491Z",
+  "process_policy": {
+    "seccomp_mode": 0,
+    "no_new_privs": false
+  },
+  "routes": {
+    "ipv4_loopback_only": true,
+    "ipv6_loopback_only": true,
+    "ipv4_inspection": {
+      "status": 0,
+      "error": null
+    },
+    "ipv6_inspection": {
+      "status": 0,
+      "error": null
+    },
+    "ipv4_policy_rules_inspected": true,
+    "ipv6_policy_rules_inspected": true,
+    "policy_rules_errors": [],
+    "raw_routes_saved": false
+  },
+  "network_namespace": {
+    "requested": true,
+    "parent_namespace_id": "net:[4026531833]",
+    "namespace_id": "net:[4026532707]",
+    "distinct_from_parent": true,
+    "interfaces": [
+      {
+        "name": "lo",
+        "loopback": true,
+        "up": true
+      }
+    ],
+    "only_loopback_interface": true,
+    "ipv4_loopback_routes_only": true,
+    "ipv4_route_reason": null,
+    "ipv6_loopback_routes_only": true,
+    "ipv6_route_reason": null,
+    "policy_rules_inspected": true,
+    "verified": true
+  },
+  "egress_boundary": "isolated-network-namespace",
+  "dns": {
+    "inspected": true,
+    "nameservers": [
+      "127.0.0.53"
+    ],
+    "loopback_only": true
+  },
+  "firewall": {
+    "inspected": true,
+    "backend": "nft",
+    "output_policy_drop": false,
+    "inspection": {
+      "nft_status": 0,
+      "nft_error": null
+    },
+    "rules_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "counters_available": false,
+    "output_rule_counters": []
+  },
+  "proxies": {
+    "configured": false,
+    "variable_names": [],
+    "parent_variables_stripped": []
+  },
+  "loopback": {
+    "ipv4": {
+      "ok": true,
+      "reason": null
+    },
+    "ipv6": {
+      "ok": true,
+      "reason": null
+    }
+  },
+  "public_tcp_probe_sent": false,
+  "public_dns_query_sent": false,
+  "reasons": [],
+  "network_namespace_after": {
+    "requested": true,
+    "parent_namespace_id": "net:[4026531833]",
+    "namespace_id": "net:[4026532707]",
+    "distinct_from_parent": true,
+    "interfaces": [
+      {
+        "name": "lo",
+        "loopback": true,
+        "up": true
+      }
+    ],
+    "only_loopback_interface": true,
+    "ipv4_loopback_routes_only": true,
+    "ipv4_route_reason": null,
+    "ipv6_loopback_routes_only": true,
+    "ipv6_route_reason": null,
+    "policy_rules_inspected": true,
+    "verified": true
+  },
+  "firewall_after": {
+    "inspected": true,
+    "backend": "nft",
+    "output_policy_drop": false,
+    "inspection": {
+      "nft_status": 0,
+      "nft_error": null
+    },
+    "rules_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "counters_available": false,
+    "output_rule_counters": []
+  },
+  "firewall_policy_unchanged": false,
+  "network_namespace_unchanged": true,
+  "egress_boundary_unchanged": true,
+  "firewall_counter_delta": null
+}

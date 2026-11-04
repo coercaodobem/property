@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/later-gates.mjs --manifest /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261104-13/manifest.json --output /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261104-13
+started: 2026-11-04T10:48:11.780Z
+ended: 2026-11-04T10:53:33.682Z
+exit_code: 0
+signal:
+timeout: false
+error:
+--- stdout ---
+{"result":"RECORDED","cases":24,"report":"/home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261104-13/later-gates/later-gates-report.json"}
+
+--- stderr ---

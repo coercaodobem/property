@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "case": "G09-03",
+  "result": "PASS",
+  "database_lock": {
+    "acquired": true,
+    "process_isolated_to_temp_database": true,
+    "held_event_ack_kind": "timeout",
+    "held_event_acknowledged": false,
+    "held_event_independently_queryable": false,
+    "recovered_after_release": true,
+    "recovery_event_id": "f304eeaed1839b864a2172dbf2496b79355376a5db382158b1ec752f0058c7f3"
+  },
+  "invalid_config": {
+    "exit_code": 1,
+    "rejected_before_relay_listen": true,
+    "error_excerpt": "Picked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx384m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m -Djava.io.tmpdir=/home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Zk66At\nException in thread \"main\" ParseError(errorDescription=Expected EOF, but got '['., line=1, cause=null)\n\tat cc.ekblad.toml.parser.DocumentKt.parseTomlDocument(Document.kt:47)\n\tat cc.ekblad.toml.serialization.TomlDeserializerKt"
+  },
+  "bounded_volume": {
+    "status": "PASS",
+    "rlimit_fsize_bytes": 524288,
+    "largest_database_file_bytes": 524288,
+    "write_failure": {
+      "index": 4,
+      "ack_kind": "ack",
+      "accepted": false
+    },
+    "acknowledged_event_count": 4,
+    "recovered_event_count": 4,
+    "relay_exit_after_limit": 143,
+    "reason": "The enforced file-size cap rejected a write; all previously acknowledged events survived restart."
+  },
+  "secret_free": true
+}

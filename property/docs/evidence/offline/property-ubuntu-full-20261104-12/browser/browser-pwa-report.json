@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G02-02",
+      "status": "BLOCKED",
+      "reason": "Playwright package tree hash does not match the lab manifest."
+    },
+    {
+      "case": "G02-03",
+      "status": "BLOCKED",
+      "reason": "A prerequisite browser case did not pass."
+    }
+  ],
+  "external_http_attempts": [],
+  "external_websocket_attempts": [],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "local_request_failures": [],
+  "result": "BLOCKED",
+  "error": "Playwright package tree hash does not match the lab manifest."
+}

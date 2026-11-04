@@ -1,0 +1,51 @@
+command: bash ./gradlew --offline --no-daemon --rerun-tasks :geode:installDist --console=plain
+started: 2026-11-04T10:49:43.563Z
+ended: 2026-11-04T10:49:57.069Z
+exit_code: 1
+signal:
+timeout: false
+--- stdout ---
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build
+
+> Configure project :amethyst
+Unable to initialize metrics, ensure /root/.android is writable, details: /root/.android/analytics.settings (Permission denied)
+
+> Configure project :cli
+w: ⚠️ Usage of Internal Kotlin Gradle Plugin Properties Detected
+ATTENTION! This build uses the following Kotlin Gradle Plugin properties:
+
+kotlin.internal.incremental.enableUnsafeOptimizationsForMultiplatform
+
+Internal properties are not recommended for production use.
+Stability and future compatibility of the build is not guaranteed.
+Solution: Please consider using the public API instead of internal properties.
+
+[Incubating] Problems report is available at: file:///home/<USER>/Liberdade/amethyst-upstream/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.8.2/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+--- stderr ---
+Picked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx384m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m -Djava.io.tmpdir=/home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Zk66At
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Could not determine the dependencies of task ':geode:installDist'.
+> Could not resolve all dependencies for configuration ':geode:runtimeClasspath'.
+   > Failed to calculate the value of task ':geode:compileJava' property 'javaCompiler'.
+      > Cannot find a Java installation on your machine (Linux 7.0.0-38-generic amd64) matching: {languageVersion=21, vendor=any vendor, implementation=vendor-specific, nativeImageCapable=false}. Toolchain download repositories have not been configured.
+
+* Try:
+> Learn more about toolchain auto-detection and auto-provisioning at https://docs.gradle.org/9.8.2/userguide/toolchains.html#sec:auto_detection.
+> Learn more about toolchain repositories at https://docs.gradle.org/9.8.2/userguide/toolchains.html#sub:download_repositories.
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 13s

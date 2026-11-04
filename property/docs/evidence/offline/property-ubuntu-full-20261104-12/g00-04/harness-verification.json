@@ -1,0 +1,17 @@
+{
+  "status": "PASS",
+  "child_exit_code": 130,
+  "observed_ready": true,
+  "captured_output": "READY WORKER_PID=2516923\n",
+  "interrupted_run_status": "BLOCKED",
+  "interrupted_run_exit_code": 130,
+  "child_cleanup_verified": true,
+  "evidence_preserved": true,
+  "checksums_verified": true,
+  "child_pid": 2516923,
+  "detached_relay_group_cleanup_verified": true,
+  "detached_relay_group_report": "g00-04/process-group-interruption.json",
+  "detached_relay_group_exit_code": 0,
+  "detached_relay_group_diagnostic": "{\"schema_version\":1,\"case\":\"G00-04-process-group-cleanup\",\"result\":\"PASS\",\"fixture_ready\":true,\"parent_exit_code\":143,\"parent_signal\":null,\"detached_worker_group_stopped\":true,\"worker_pid\":2517085,\"no_external_network\":true,\"diagnostic\":null}\n",
+  "error": null
+}

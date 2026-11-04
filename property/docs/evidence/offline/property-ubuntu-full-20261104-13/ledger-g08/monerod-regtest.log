@@ -1,0 +1,41 @@
+2026-11-04 10:47:32.853	I Monero 'Fluorine Fermi' (v0.18.5.4-release)
+2026-11-04 10:47:32.853	I Initializing cryptonote protocol...
+2026-11-04 10:47:32.853	I Cryptonote protocol initialized OK
+2026-11-04 10:47:32.854	I Initializing core...
+2026-11-04 10:47:32.854	I Loading blockchain from folder /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Zk66At/property-g08-Ot7koS/monero/daemon/fake/lmdb ...
+2026-11-04 10:47:32.885	I Loading checkpoints
+2026-11-04 10:47:32.885	I Core initialized OK
+2026-11-04 10:47:32.885	I Initializing p2p server...
+2026-11-04 10:47:32.887	I p2p server initialized OK
+2026-11-04 10:47:32.887	I Initializing core RPC server...
+2026-11-04 10:47:32.887	I Binding on 127.0.0.1 (IPv4):45455
+2026-11-04 10:47:35.718	I core RPC server initialized OK on port: 45455
+2026-11-04 10:47:35.718	I Starting core RPC server...
+2026-11-04 10:47:35.718	I core RPC server started ok
+2026-11-04 10:47:35.718	I Starting p2p net loop...
+2026-11-04 10:47:36.719	I
+2026-11-04 10:47:36.719	I **********************************************************************
+2026-11-04 10:47:36.719	I The daemon is running offline and will not attempt to sync to the Monero network.
+2026-11-04 10:47:36.719	I
+2026-11-04 10:47:36.719	I You can set the level of process detailization through "set_log <level|categories>" command,
+2026-11-04 10:47:36.719	I where <level> is between 0 (no details) and 4 (very verbose), or custom category based levels (eg, *:WARNING).
+2026-11-04 10:47:36.719	I
+2026-11-04 10:47:36.719	I Use the "help" command to see the list of available commands.
+2026-11-04 10:47:36.719	I Use "help <command>" to see a command's documentation.
+2026-11-04 10:47:36.719	I **********************************************************************
+2026-11-04 10:48:00.646	E Unable to send transaction(s) via Dandelion++ stem
+2026-11-04 10:48:00.647	W Unable to send transaction(s), no available connections
+2026-11-04 10:48:02.065	E Unable to send transaction(s) via Dandelion++ stem
+2026-11-04 10:48:02.065	W Unable to send transaction(s), no available connections
+2026-11-04 10:48:03.404	E Unable to send transaction(s) via Dandelion++ stem
+2026-11-04 10:48:03.404	W Unable to send transaction(s), no available connections
+2026-11-04 10:48:04.032	E Unable to send transaction(s) via Dandelion++ stem
+2026-11-04 10:48:04.032	W Unable to send transaction(s), no available connections
+2026-11-04 10:48:06.049	I p2p net loop stopped
+2026-11-04 10:48:06.049	I Stopping core RPC server...
+2026-11-04 10:48:06.049	I Node stopped.
+2026-11-04 10:48:06.049	I Deinitializing core RPC server...
+2026-11-04 10:48:06.050	I Deinitializing p2p...
+2026-11-04 10:48:06.723	I Deinitializing core...
+2026-11-04 10:48:06.724	I Stopping cryptonote protocol...
+2026-11-04 10:48:06.724	I Cryptonote protocol stopped successfully

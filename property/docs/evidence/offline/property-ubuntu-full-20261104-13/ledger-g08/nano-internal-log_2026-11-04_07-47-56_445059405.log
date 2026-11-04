@@ -1,0 +1,59 @@
+[2026-11-04 07:47:56.445] [daemon] [info] Daemon started
+[2026-11-04 07:47:56.445] [daemon] [info] Version: V28.2
+[2026-11-04 07:47:56.445] [daemon] [info] Build info: 0d8eea4 "GNU C++ version " "15.2.0" "BOOST 108600" BUILT "Oct 31 2026"
+[2026-11-04 07:47:56.445] [daemon] [info] Data path: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Zk66At/property-g08-Ot7koS/nano/data
+[2026-11-04 07:47:56.445] [daemon] [info] Start time: Wed Nov  4 10:47:56 2026 UTC
+[2026-11-04 07:47:56.445] [daemon] [info] Starting up Nano node...
+[2026-11-04 07:47:56.445] [daemon] [info] Hardware concurrency: 16 (configured: 16)
+[2026-11-04 07:47:56.445] [daemon] [info] File descriptors limit: 524288
+[2026-11-04 07:47:56.445] [init] [info] Using data directory: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Zk66At/property-g08-Ot7koS/nano/data
+[2026-11-04 07:47:56.445] [init] [info] Generated new local node ID: node_1tyim6r1h4ekasunz97jkw6jpzzwptem4cdgweear4ugfo4io8ic986b17b5
+[2026-11-04 07:47:56.445] [lmdb] [info] Initializing ledger store: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Zk66At/property-g08-Ot7koS/nano/data/data.ldb
+[2026-11-04 07:47:56.445] [lmdb] [info] Upgrading database from v21 to v22...
+[2026-11-04 07:47:56.445] [lmdb] [info] Upgrading database from v21 to v22 completed
+[2026-11-04 07:47:56.445] [lmdb] [info] Upgrading database from v22 to v23...
+[2026-11-04 07:47:56.449] [lmdb] [info] Done processing 0 accounts
+[2026-11-04 07:47:56.449] [lmdb] [info] Upgrading database from v22 to v23 completed
+[2026-11-04 07:47:56.449] [lmdb] [info] Upgrading database from v23 to v24...
+[2026-11-04 07:47:56.449] [lmdb] [info] Upgrading database from v23 to v24 completed
+[2026-11-04 07:47:56.449] [lmdb] [info] Database upgraded successfully to version 24
+[2026-11-04 07:47:56.452] [wallet] [info] Loading wallets from: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Zk66At/property-g08-Ot7koS/nano/data/wallets.ldb
+[2026-11-04 07:47:56.455] [wallet] [info] Found 0 wallet(s)
+[2026-11-04 07:47:56.455] [ledger] [info] Loading ledger, this may take a while...
+[2026-11-04 07:47:56.455] [ledger] [info] Initializing ledger with genesis block
+[2026-11-04 07:47:56.466] [ledger] [info] Block count:              1
+[2026-11-04 07:47:56.466] [ledger] [info] Cemented count:           1
+[2026-11-04 07:47:56.466] [ledger] [info] Account count:            1
+[2026-11-04 07:47:56.466] [ledger] [info] Pruned count:             0
+[2026-11-04 07:47:56.466] [ledger] [info] Representative count:     1
+[2026-11-04 07:47:56.466] [ledger] [info] Active balance: 340,282,366 | pending: 0 | burned: 0
+[2026-11-04 07:47:56.466] [ledger] [info] Weight committed: 340,282,366 | unused: 0
+[2026-11-04 07:47:56.481] [node] [info] Version: V28.2
+[2026-11-04 07:47:56.481] [node] [info] Build information: 0d8eea4 "GNU C++ version " "15.2.0" "BOOST 108600" BUILT "Oct 31 2026"
+[2026-11-04 07:47:56.481] [node] [info] Active network: dev
+[2026-11-04 07:47:56.481] [node] [info] Database backend: LMDB 0.9.70
+[2026-11-04 07:47:56.481] [node] [info] Data path: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Zk66At/property-g08-Ot7koS/nano/data
+[2026-11-04 07:47:56.481] [node] [info] Ledger path: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.Zk66At/property-g08-Ot7koS/nano/data/data.ldb
+[2026-11-04 07:47:56.481] [node] [info] Work pool threads: 1 (CPU)
+[2026-11-04 07:47:56.481] [node] [info] Work peers: 0
+[2026-11-04 07:47:56.481] [node] [info] Node ID: node_1tyim6r1h4ekasunz97jkw6jpzzwptem4cdgweear4ugfo4io8ic986b17b5
+[2026-11-04 07:47:56.481] [node] [info] Number of buckets: 63
+[2026-11-04 07:47:56.481] [node] [info] Genesis block: 04270D7F11C4B2B472F2854C5A59F2A7E84226CE9ED799DE75744BD7D85FC9D9
+[2026-11-04 07:47:56.481] [node] [info] Genesis account: nano_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo
+[2026-11-04 07:47:56.481] [node] [info] Outbound bandwidth limit: 10485760 bytes/s, burst ratio: 3
+[2026-11-04 07:47:56.481] [node] [info] Voting is enabled, more system resources will be used, local representatives: 0
+[2026-11-04 07:47:56.482] [network] [warning] Realtime TCP is disabled
+[2026-11-04 07:47:56.482] [node] [warning] Peering is disabled
+[2026-11-04 07:47:56.483] [online_reps] [info] Initial trended weight: 0 (samples: 0)
+[2026-11-04 07:47:56.483] [monitor] [info] Blocks confirmed: 1 | total: 1 (backlog: 0)
+[2026-11-04 07:47:56.483] [monitor] [info] Peers: 0 (realtime: 0 | bootstrap: 0) (inbound: 0 | outbound: 0)
+[2026-11-04 07:47:56.483] [monitor] [info] Quorum: 40,200,000 (stake peered: 0 | stake online: 0)
+[2026-11-04 07:47:56.483] [monitor] [info] Elections active: 0 (priority: 0 | hinted: 0 | optimistic: 0)
+[2026-11-04 07:47:56.483] [node] [info] Adding cached initial peers: 0
+[2026-11-04 07:47:56.483] [rpc] [info] RPC listening address: [::1]:37533
+[2026-11-04 07:47:56.856] [wallet] [info] Deterministically inserted new account: nano_1bb55acxo1a714i56rs95ch1tto8uy9ik51hy588r8e6sby5f1iyiqrwcdsh
+[2026-11-04 07:47:56.862] [daemon] [warning] Interrupt signal received (SIGTERM), stopping...
+[2026-11-04 07:47:56.862] [daemon] [info] Stopping...
+[2026-11-04 07:47:56.862] [rpc] [error] Error accepting RPC connection: Operation canceled
+[2026-11-04 07:47:56.862] [node] [info] Stopping...
+[2026-11-04 07:47:56.869] [daemon] [info] Stopped

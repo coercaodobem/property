@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "run_id": "property-ubuntu-full-20261104-12",
+  "profile": "full",
+  "candidate_commit": "f13bf27ed9cf21de4a74ba514154d1611548107f",
+  "observed_head": "f13bf27ed9cf21de4a74ba514154d1611548107f",
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active Codex task runtime; identity is provenance, not a gate.",
+  "executor_matches_request": false,
+  "executor_identity_is_gating": false,
+  "started_utc": "2026-11-04T10:42:44.033Z",
+  "ended_utc": "2026-11-04T10:43:24.853Z",
+  "gate_status": {
+    "G00": "PASS",
+    "G01": "PASS",
+    "G02": "BLOCKED",
+    "G03": "NOT_RUN",
+    "G04": "NOT_RUN",
+    "G05": "NOT_RUN",
+    "G06": "NOT_RUN",
+    "G07": "NOT_RUN",
+    "G08": "NOT_RUN",
+    "G09": "NOT_RUN",
+    "G10": "NOT_RUN",
+    "G11": "NOT_RUN",
+    "G12": "NOT_RUN"
+  },
+  "case_totals": {
+    "PASS": 8,
+    "BLOCKED": 5,
+    "NOT_RUN": 62
+  },
+  "isolation": "PASS",
+  "ubuntu_scope_pass": false,
+  "deferred_platform_cases": [
+    "G12-02",
+    "G12-03",
+    "G12-04",
+    "G12-05"
+  ],
+  "scope_result": "BLOCKED",
+  "exit_code": 2
+}

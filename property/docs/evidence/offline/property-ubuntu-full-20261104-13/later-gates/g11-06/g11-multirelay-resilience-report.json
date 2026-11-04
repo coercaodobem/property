@@ -1,0 +1,1421 @@
+{
+  "schema_version": 1,
+  "case": "G11-06",
+  "status": "PASS",
+  "gate_eligible": true,
+  "candidate_commit": "f13bf27ed9cf21de4a74ba514154d1611548107f",
+  "method": "fixed_count_multirelay_resilience",
+  "predefined_variables": {
+    "probe_count": 96,
+    "restart_after_probe_counts": [
+      24,
+      48,
+      72,
+      96
+    ],
+    "restart_relay_index": 3,
+    "partition_events_per_restart": 3,
+    "relay_count": 7,
+    "bridge_count": 6,
+    "resource_sample_every_probes": 6,
+    "resource_max_scratch_bytes": 2147483648,
+    "ui_deduplication_probe_counts": [
+      1,
+      24,
+      48,
+      96
+    ],
+    "fixed_event_epoch_seconds": 1800000000,
+    "logical_clock_step_ms_per_event": 1000,
+    "resource_max_memory_fraction": 0.7
+  },
+  "completed_probe_count": 96,
+  "expected_probe_count": 96,
+  "relay_count": 7,
+  "bridge_count": 6,
+  "relays": [
+    {
+      "index": 0,
+      "url": "ws://127.0.0.1:29460",
+      "process_id": 2590856,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "index": 1,
+      "url": "ws://127.0.0.1:29461",
+      "process_id": 2591382,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "index": 2,
+      "url": "ws://127.0.0.1:29462",
+      "process_id": 2591892,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "index": 3,
+      "url": "ws://127.0.0.1:29463",
+      "process_id": 2600410,
+      "data_dir_mode": "temporary private directory",
+      "restart_count": 4
+    },
+    {
+      "index": 4,
+      "url": "ws://127.0.0.1:29464",
+      "process_id": 2592852,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "index": 5,
+      "url": "ws://127.0.0.1:29465",
+      "process_id": 2593327,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "index": 6,
+      "url": "ws://127.0.0.1:29466",
+      "process_id": 2593841,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "bridges": [
+    {
+      "index": 0,
+      "label": "resilience bridge 1",
+      "connected_relays": [
+        "ws://127.0.0.1:29460",
+        "ws://127.0.0.1:29461"
+      ],
+      "unique_node_identity": true
+    },
+    {
+      "index": 1,
+      "label": "resilience bridge 2",
+      "connected_relays": [
+        "ws://127.0.0.1:29461",
+        "ws://127.0.0.1:29462"
+      ],
+      "unique_node_identity": true
+    },
+    {
+      "index": 2,
+      "label": "resilience bridge 3",
+      "connected_relays": [
+        "ws://127.0.0.1:29462",
+        "ws://127.0.0.1:29463"
+      ],
+      "unique_node_identity": true
+    },
+    {
+      "index": 3,
+      "label": "resilience bridge 4",
+      "connected_relays": [
+        "ws://127.0.0.1:29463",
+        "ws://127.0.0.1:29464"
+      ],
+      "unique_node_identity": true
+    },
+    {
+      "index": 4,
+      "label": "resilience bridge 5",
+      "connected_relays": [
+        "ws://127.0.0.1:29464",
+        "ws://127.0.0.1:29465"
+      ],
+      "unique_node_identity": true
+    },
+    {
+      "index": 5,
+      "label": "resilience bridge 6",
+      "connected_relays": [
+        "ws://127.0.0.1:29465",
+        "ws://127.0.0.1:29466"
+      ],
+      "unique_node_identity": true
+    }
+  ],
+  "failure_cycles": [
+    {
+      "cycle": 1,
+      "after_probe_count": 24,
+      "relay_index": 3,
+      "relay_label": "resilience relay 4",
+      "partition_events": [
+        {
+          "id": "b0f7662deade254a449c3117d5060d6115608470fc764738cb895500df74f4f6",
+          "source_ack": true,
+          "absent_at_destination_during_outage": true,
+          "reconciled_at_all_seven_relays": true
+        },
+        {
+          "id": "105944ec095f6e7d994be4fb3c8230166f47943a11500ef1c77916cbe1913fba",
+          "source_ack": true,
+          "absent_at_destination_during_outage": true,
+          "reconciled_at_all_seven_relays": true
+        },
+        {
+          "id": "b153d912f6e6d64d0fb982e6f1447ea2b427818ff5ca341b1b8fbab0853c3a72",
+          "source_ack": true,
+          "absent_at_destination_during_outage": true,
+          "reconciled_at_all_seven_relays": true
+        }
+      ],
+      "same_database_on_restart": true,
+      "reconciled_event_count": 3
+    },
+    {
+      "cycle": 2,
+      "after_probe_count": 48,
+      "relay_index": 3,
+      "partition_events": [
+        {
+          "id": "1cb511007bd43998e064dcb792523b8e43d1068d1119f5a33fe97177b977c8c5",
+          "source_ack": true,
+          "absent_at_destination_during_outage": true,
+          "reconciled_at_all_seven_relays": true
+        },
+        {
+          "id": "c05dfe2db67f6e4327a40b566301c5502a5ffd24e81162c950c78b761ae266f9",
+          "source_ack": true,
+          "absent_at_destination_during_outage": true,
+          "reconciled_at_all_seven_relays": true
+        },
+        {
+          "id": "6fd1a70772c06ef66a10dcfe8ef85538af7e9f4d68c40bfb1cacd9237ccfb824",
+          "source_ack": true,
+          "absent_at_destination_during_outage": true,
+          "reconciled_at_all_seven_relays": true
+        }
+      ],
+      "same_database_on_restart": true,
+      "reconciled_event_count": 3
+    },
+    {
+      "cycle": 3,
+      "after_probe_count": 72,
+      "relay_index": 3,
+      "partition_events": [
+        {
+          "id": "88f5050a5f41852eef280b0d9306e886fd0ed30e137f896225086c0aac90f01f",
+          "source_ack": true,
+          "absent_at_destination_during_outage": true,
+          "reconciled_at_all_seven_relays": true
+        },
+        {
+          "id": "ba1e44e9f58bc4c51b702e282afc970d7945d484cc6a128027d98a798b1cd7ca",
+          "source_ack": true,
+          "absent_at_destination_during_outage": true,
+          "reconciled_at_all_seven_relays": true
+        },
+        {
+          "id": "34cac84b65e2fd113725484e66c9856fd37da4a60385429fb4324fb2e3a1cb9f",
+          "source_ack": true,
+          "absent_at_destination_during_outage": true,
+          "reconciled_at_all_seven_relays": true
+        }
+      ],
+      "same_database_on_restart": true,
+      "reconciled_event_count": 3
+    },
+    {
+      "cycle": 4,
+      "after_probe_count": 96,
+      "relay_index": 3,
+      "partition_events": [
+        {
+          "id": "798ba54a256da523787f44d2efbe7b3a26e95e67d9a5ea87ed97037c021a81fe",
+          "source_ack": true,
+          "absent_at_destination_during_outage": true,
+          "reconciled_at_all_seven_relays": true
+        },
+        {
+          "id": "93560bafa15e64fe0b748b694c109cc3d963845a3c323360814c5c1abba7083a",
+          "source_ack": true,
+          "absent_at_destination_during_outage": true,
+          "reconciled_at_all_seven_relays": true
+        },
+        {
+          "id": "9bc943684d44e6ef276882db69ce2808318e25ada3c0ed0ec293414f71660216",
+          "source_ack": true,
+          "absent_at_destination_during_outage": true,
+          "reconciled_at_all_seven_relays": true
+        }
+      ],
+      "same_database_on_restart": true,
+      "reconciled_event_count": 3
+    }
+  ],
+  "probe_ids": [
+    "098af546d7d59ae908e7d803ead07032484633fab5565ea75c1f192d21e1cfca",
+    "ac48263606dd28a6b84fd8983e2fdf6594f3ad29574036a920bb1ff447511b2c",
+    "95be3e3ae8901fea586a439ae51833350eb4385b9b64426f08e5394363f36493",
+    "ac37d79662ab57393c0969301364f77b0e722385bd3ded4cd272d5d8ab0aa4cb",
+    "2279ab1e178b8ba36ea90c5480509da19801f6dfca4bf0694e44d3447a267e9e",
+    "e5771b1bb3da9186cadd0f9ec5f8612b2fac3923ea8c9f8de281c83e03368ff0",
+    "a433b330e07162b1f46e37be0c1f6596c01339c823fff68c3f84517eb06f633f",
+    "78ab583d30d8bd9ee21423ead207debb3507d8dff57c8aca66127170f37e675d",
+    "c22a8a1f322a64eae5a4974afc766d24194c2a2ca59f71100caf1ae245ca2391",
+    "08def2a9c24e7c949b0e078258ba846a3d764e2d38b2cff4e506fb214eaa3554",
+    "731e2c6f7dc2e71c275afdba629e538f9b51abd38255b924ce009514a649a2d9",
+    "030f95a73ab05121eda93d35ced53fe7ea7e75ff6e6410dfb1db292cdfcc2c2a",
+    "056bc493a12e38f07ced23ae447298c5857f2e78687349f4144b4d1323c73950",
+    "393414f151fffc37c99f4b7f3b81abbcdb460ee5dac8d3940ecdeb60eb1df807",
+    "43635c9a2b160b6359d069b0fb97e19b9e35b4ec4e8ebb11041c9dd8e2cc7e1c",
+    "ed84fdb66a7a3b5b3a5ffaee3c36626e4c82affa6d6d4d5d20990ffa4ddb5891",
+    "f72fc91825970a9edb8a3adc26d8e9429b31d8ddfb8e02186039c9039207fe5a",
+    "fc25c6378980817a40aaeba728c468b34bda6ae39c84d283eccdeb6393361510",
+    "a755cfdd09ca0c379e052eb1bfb5c8538770b7ef116eb1cf9c7e9a6bdf2afbfe",
+    "388577f4ef58315873655f25cc65b2bc3513d76a0bfb32336d65c76f9ade3c2b",
+    "7f67076eb5689bef61c4cb651f17466c8eec4f569e7973bfe90a64122a225837",
+    "9cdb966f34dfd6935b5457e0f841159b1d7782eaec84581ba8d47ee00ed6e065",
+    "f9e8559b7c10b77e4278b4b6a831856354e9f922b0fdafc7c503ab5afba614d6",
+    "e94aa61800fc42fc2c87c530e4f1934f0aacb4c54f196141952d3988852bc377",
+    "c8df5c7ba796bf7a3b9df80154fec7bec0afa6b6d1291a04f1f3d722bd47f722",
+    "aa6ce3630d01f39667b8d501dc81dc099c2cae0e8254809b4c9e6df837762e7e",
+    "a117061c092e477e6bbfff320f9f81410af2c22e46df7554d8db4050cb396afc",
+    "68ae5ba469ff7d12a9f6d03fe26678f19cb3f4e1c5cc5b84e82cd1537fe7f7e4",
+    "326ac0e9250ab78880c5a0c70598d8778ad0e9ed2901f9f287da5b7399396674",
+    "acd11d680c5ae30112e388740736b36a9347309b840ab3a92ba0fb7bc034feb4",
+    "c22ba74ac815c27ded52320899d3299495fef09d4e29880ccc221ecba1050e34",
+    "97ddfd3384bc649d6fbdd9af85780aa44b0c68cc72ec2dba5aac9fb1784b15b9",
+    "870809b3aafa5dd3e11e46a2c07d7d650d45b7316ef5847edde6448524783fa4",
+    "1ef0a74449963dc4694c9b611b50db2d2c4a6e0dd708fac9c59e9c0597892c0c",
+    "f7e18a810660c915c426c7da18df9ef9a7994e396b4c1f8a9b2f9e0ee46daa01",
+    "e4460ee5bc6b9db83ebc7f62b9f72d602424d83fd42df506c19f55148805e7a4",
+    "70e4a7972d76c2275c709b7c7756ab0487e494d81121457c7e78b002bc900f26",
+    "94a2b70b4e725ce0a324af4f2de7b1a0f68fa29157c35b045aa7e56c0b8bb107",
+    "6919cc607bb95f5f5e63e1e6066661cef2ff0007a72f8507a2f854184ff98788",
+    "6e23256dd0e645c2fe57f75880d06ad5c7e8e371795967237d61badce1abc4f0",
+    "5527060e6d6a01b7a1212e04aaa1c8bff890450e934a82dea5361c6d04343f95",
+    "f29f8edd74ab3f17770703041643c9ccd410e8fd2eec0e74b261b8fc38455ecd",
+    "f2d6d95bea61d9df7030765fa5acb12d2e5fb7853102bbabe313bf67437502e4",
+    "c65598b71033cf9113c0e870109134c3ea973636d2309090574c322e2278cca6",
+    "22b23f7f12d017f5950f2c54dfaaa1a9c835178dfef2da91aa1d31d43a6b2cf4",
+    "919e0523cd9f49d355c1822317310b90f496dbf66216aff74eed624dc8a9e374",
+    "d867b7075a6cb1633dcb3043593c5746dab3e852365f18c54d71244298e3e532",
+    "c8329424f9686e4ee994c959d04358deb48da54f358ed29293e8361293c3888d",
+    "599bfb0794f6cfc1e08a60f17fbeef8826577883fdcb530549cd705c3b5f0b5a",
+    "4f847b2ae3cd3456a18444d49fc98905a74199ba9e0371a4bb038a7597113148",
+    "c64c609199b16b65554c2c05f727beeb3b2be00e7fa3a89de63c5480d7059f4a",
+    "e72cbfe1672a1ca42ffeb31541150a459e64aee93dcbf8d3f6b8c34ca2b1b1e9",
+    "95601e7dccebfd5ae871744e8b55bd56b07089cb9759cf23d0f5d97725aba7d5",
+    "1645c33970d2d7050dbb21432c56f6daf4aa39f7bb3e3daaec298ed8aaac2dff",
+    "bbfc42c21774114653548791fdbe27a2cf57e9b99f07cf131ce655baa66dca8b",
+    "f8f43c7dc528e1122c94484bae40acdb20c899a0cfae6afc12e011af4e76636d",
+    "98271fa7240b2baecee05594898be37600c49810332e13a2084da26a9555fbe6",
+    "6ec022793268bf0e3c7bbef8bc3ead04d6d43f80cf164b4e0f8848e75d6b354c",
+    "5dff36595ac7654a98efc4c96adc9d0a38c9551a8a4ca777e4aeaba4b44bbc5f",
+    "91af850b46b555b0ed9e9af4cb595320777a85dffaa38b8897cb55d9c9bb2865",
+    "60d24ca2d1c7f5b9f570b39c5789f3b78b9f970883883611743bf8e751728fe1",
+    "740df11b66c1263cdf4b7c296fc1fc15c98898830e2c19f718cf128ddec017c7",
+    "1ded6f9b4fbc69a33562a72275eedd014d86da2617f9f6fef8ddf59bbea33741",
+    "c25553842b88bb24e723b87e89943ce5a92e14cfb83515090d22a659dd9156fc",
+    "6d9a31fb364f2db56533c61d76758f35eb97f8c08f90fb8e0e09e0b95d7b6f7e",
+    "06b8acd54d169297b289a04b1b18b0c8b0bf2d7d89c5246365eb11cf64147ccc",
+    "b1f144514ce7a6cbcaa0d01f7e8b97a5d83f74ea96374d367a25053c227a8d38",
+    "093774aaf9e40f9360fc071d7fc1f99a6c5813cdc0885efa9b42dac16dc4e363",
+    "37b7372c616bceb4412cfbee0a09f8c8dba2aae0623c7d5eab6bb3466f408cf7",
+    "23126c08c63c96d299232a4b88b67928507324b2e416fba8ed967bea66d4475d",
+    "75d69e0fd0d9953dad3adba5da0209974964a611ec89356fab149e63260c2653",
+    "50555243c4ca2b396cfbde5c001b26393b19ff7dc959357359ac383a98b95808",
+    "7f84d33c4ec1c0b22e8e8283c6bee8e2f99e2457a6807a0d3e063019a52d99f3",
+    "15bff59a5a175f7c2c883be62dd692003fd9e797ab22a4b90718ce6decf013bc",
+    "1ef9ebd85a7febd8fe227acf9076b178361e439a1d03e0b9a7bd96ad56c7ce64",
+    "98ee83cdf9d6122d10384441926366a0489c4daeb986623a547ddbf44b4221d9",
+    "b7a71efe384372f9d7e5429bec879b28a1ca6682b93cf9484ed4e2114cddf48a",
+    "842d0e2c7e958569c122d49a802eabdefb5a6dadcc8d1bd2c296859be1096bc3",
+    "0c3b44be7f6686006d6bdfd84188b43853f7111ec694f0a2a32ec5d9ba448fd9",
+    "b924cdc4bfed390551a03213420ca05e467e16ec1e68130ee9bf55760686492a",
+    "77f1dc6912ff0c313ecd4fc28de96c80391c1b20b6063dea04a14c9db150fd00",
+    "5952dff1d7be85a4fd11f1469eb31eb6f6c62ebc542279693700796fc765224c",
+    "b6ad99b053f9ee676ba9afe160eec452d760bd6cb93ac0afefef2583b98accf2",
+    "8ffd9605529faf14f3c89cbaa38d11962b73728a3dbcd447f57bd0d317640585",
+    "bdeb5be2c68119f6fbdc3996345d05aec830c1761144b59ebf76992a40c34bb3",
+    "477169b37378bf5c1878eec47679f4580cd57f13360b542fad02dec33d17c813",
+    "e369038fa297af342ad6a40e8085556860de200af1a96262b7e624a7c78e7df3",
+    "d04a46ec922395156ee4b349f2c3edd38522b4342ec65e84e3290c94541083cf",
+    "1cf32492c9e73891f223f4d7384b98a430d51f470c8849f430f9a55af7deb2ac",
+    "00a5ab1301fdd54541393e3ab061f8423c905445ff93d3a773b74d65d7ae2049",
+    "65d6ac52c83c2143a002de9220e5188a80365adaa6dfa86eced07b6038c23a3e",
+    "44ebc2c73c495140d4b8da830eea74d58b3e36244bb1740d3b19c62e070c398e",
+    "22f23ff2956a561ac39deb97e82fe48fb1adedde9d9058cfe912ec139331d0e9",
+    "98b9c2c1c2625d342307b98aeb01b0326c1b0e9f4249415da12d0a5e2500885f",
+    "d8b34a159b4a2ada1332d4a23c23b99462b70671c63e930ee26a23a47d54c7e2",
+    "a728a95ecca03d95487a9eb80476ae1a197a9f9174460d14d56bbf70b2d1b9d7"
+  ],
+  "ui_deduplication_samples": [
+    {
+      "probe_count": 1,
+      "event_id": "098af546d7d59ae908e7d803ead07032484633fab5565ea75c1f192d21e1cfca",
+      "bridges": [
+        {
+          "bridge": "resilience bridge 1",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 2",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 3",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 4",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 5",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 6",
+          "card_count": 1
+        }
+      ]
+    },
+    {
+      "probe_count": 24,
+      "event_id": "e94aa61800fc42fc2c87c530e4f1934f0aacb4c54f196141952d3988852bc377",
+      "bridges": [
+        {
+          "bridge": "resilience bridge 1",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 2",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 3",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 4",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 5",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 6",
+          "card_count": 1
+        }
+      ]
+    },
+    {
+      "probe_count": 48,
+      "event_id": "c8329424f9686e4ee994c959d04358deb48da54f358ed29293e8361293c3888d",
+      "bridges": [
+        {
+          "bridge": "resilience bridge 1",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 2",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 3",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 4",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 5",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 6",
+          "card_count": 1
+        }
+      ]
+    },
+    {
+      "probe_count": 96,
+      "event_id": "a728a95ecca03d95487a9eb80476ae1a197a9f9174460d14d56bbf70b2d1b9d7",
+      "bridges": [
+        {
+          "bridge": "resilience bridge 1",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 2",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 3",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 4",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 5",
+          "card_count": 1
+        },
+        {
+          "bridge": "resilience bridge 6",
+          "card_count": 1
+        }
+      ]
+    }
+  ],
+  "resource_samples": [
+    {
+      "checkpoint": "initial",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 113266688
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 122023936
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 121348096
+        },
+        {
+          "label": "resilience relay 4",
+          "pid": 2592388,
+          "rss_bytes": 129400832
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 130015232
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 131039232
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 129150976
+        }
+      ],
+      "aggregate_relay_rss_bytes": 876244992,
+      "available_memory_bytes": 9314373632,
+      "scratch_bytes": 1109250520
+    },
+    {
+      "checkpoint": "probe-6",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 119267328
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 127193088
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 126132224
+        },
+        {
+          "label": "resilience relay 4",
+          "pid": 2592388,
+          "rss_bytes": 135098368
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 134008832
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 129089536
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 134909952
+        }
+      ],
+      "aggregate_relay_rss_bytes": 905699328,
+      "available_memory_bytes": 9295208448,
+      "scratch_bytes": 1111153960
+    },
+    {
+      "checkpoint": "probe-12",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 121073664
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 128303104
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 127262720
+        },
+        {
+          "label": "resilience relay 4",
+          "pid": 2592388,
+          "rss_bytes": 136302592
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 135139328
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 130650112
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 136278016
+        }
+      ],
+      "aggregate_relay_rss_bytes": 915009536,
+      "available_memory_bytes": 9527541760,
+      "scratch_bytes": 1113057400
+    },
+    {
+      "checkpoint": "probe-18",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 121995264
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 129032192
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 128114688
+        },
+        {
+          "label": "resilience relay 4",
+          "pid": 2592388,
+          "rss_bytes": 136998912
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 136728576
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 131629056
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 137216000
+        }
+      ],
+      "aggregate_relay_rss_bytes": 921714688,
+      "available_memory_bytes": 9384415232,
+      "scratch_bytes": 1115076200
+    },
+    {
+      "checkpoint": "probe-24",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 122654720
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 129667072
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 128700416
+        },
+        {
+          "label": "resilience relay 4",
+          "pid": 2592388,
+          "rss_bytes": 137584640
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 137347072
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 132067328
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 137777152
+        }
+      ],
+      "aggregate_relay_rss_bytes": 925798400,
+      "available_memory_bytes": 9376788480,
+      "scratch_bytes": 1116979640
+    },
+    {
+      "checkpoint": "restart-1-after-probe-24",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 121704448
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 129376256
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 129130496
+        },
+        {
+          "pid": 2595824,
+          "rss_bytes": 131964928
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 137830400
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 132444160
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 138256384
+        }
+      ],
+      "aggregate_relay_rss_bytes": 920707072,
+      "available_memory_bytes": 9162084352,
+      "scratch_bytes": 1116805928
+    },
+    {
+      "checkpoint": "probe-30",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 122462208
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 130170880
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 130461696
+        },
+        {
+          "pid": 2595824,
+          "rss_bytes": 134213632
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 140963840
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 134139904
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 138571776
+        }
+      ],
+      "aggregate_relay_rss_bytes": 930983936,
+      "available_memory_bytes": 9088606208,
+      "scratch_bytes": 1118709368
+    },
+    {
+      "checkpoint": "probe-36",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 122929152
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 131284992
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 131584000
+        },
+        {
+          "pid": 2595824,
+          "rss_bytes": 135315456
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 142073856
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 135385088
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 142082048
+        }
+      ],
+      "aggregate_relay_rss_bytes": 940654592,
+      "available_memory_bytes": 9253548032,
+      "scratch_bytes": 1120699328
+    },
+    {
+      "checkpoint": "probe-42",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 123711488
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 128126976
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 132382720
+        },
+        {
+          "pid": 2595824,
+          "rss_bytes": 136036352
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 142807040
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 136962048
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 143335424
+        }
+      ],
+      "aggregate_relay_rss_bytes": 943362048,
+      "available_memory_bytes": 9276469248,
+      "scratch_bytes": 1122602768
+    },
+    {
+      "checkpoint": "probe-48",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 124239872
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 128815104
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 132788224
+        },
+        {
+          "pid": 2595824,
+          "rss_bytes": 136642560
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 143208448
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 137289728
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 143667200
+        }
+      ],
+      "aggregate_relay_rss_bytes": 946651136,
+      "available_memory_bytes": 9248976896,
+      "scratch_bytes": 1124592728
+    },
+    {
+      "checkpoint": "restart-2-after-probe-48",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 124829696
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 129069056
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 129916928
+        },
+        {
+          "pid": 2597423,
+          "rss_bytes": 132186112
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 143478784
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 137531392
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 143998976
+        }
+      ],
+      "aggregate_relay_rss_bytes": 941010944,
+      "available_memory_bytes": 9401913344,
+      "scratch_bytes": 1282908847
+    },
+    {
+      "checkpoint": "probe-54",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 125341696
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 129576960
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 130576384
+        },
+        {
+          "pid": 2597423,
+          "rss_bytes": 133718016
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 143863808
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 137895936
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 144666624
+        }
+      ],
+      "aggregate_relay_rss_bytes": 945639424,
+      "available_memory_bytes": 9355677696,
+      "scratch_bytes": 1284911167
+    },
+    {
+      "checkpoint": "probe-60",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 132534272
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 130142208
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 131297280
+        },
+        {
+          "pid": 2597423,
+          "rss_bytes": 134701056
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 144535552
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 138432512
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 145174528
+        }
+      ],
+      "aggregate_relay_rss_bytes": 956817408,
+      "available_memory_bytes": 9292660736,
+      "scratch_bytes": 1286905247
+    },
+    {
+      "checkpoint": "probe-66",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 132964352
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 130363392
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 131481600
+        },
+        {
+          "pid": 2597423,
+          "rss_bytes": 135368704
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 144764928
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 138747904
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 145457152
+        }
+      ],
+      "aggregate_relay_rss_bytes": 959148032,
+      "available_memory_bytes": 9276256256,
+      "scratch_bytes": 1288808687
+    },
+    {
+      "checkpoint": "probe-72",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 133365760
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 130650112
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 131870720
+        },
+        {
+          "pid": 2597423,
+          "rss_bytes": 136003584
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 145051648
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 138944512
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 145698816
+        }
+      ],
+      "aggregate_relay_rss_bytes": 961585152,
+      "available_memory_bytes": 9273401344,
+      "scratch_bytes": 1290798647
+    },
+    {
+      "checkpoint": "restart-3-after-probe-72",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 130510848
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 130686976
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 132435968
+        },
+        {
+          "pid": 2598872,
+          "rss_bytes": 128249856
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 145272832
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 139005952
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 145874944
+        }
+      ],
+      "aggregate_relay_rss_bytes": 952037376,
+      "available_memory_bytes": 9281208320,
+      "scratch_bytes": 1290629031
+    },
+    {
+      "checkpoint": "probe-78",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 130666496
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 132874240
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 132829184
+        },
+        {
+          "pid": 2598872,
+          "rss_bytes": 129671168
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 145653760
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 140079104
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 146259968
+        }
+      ],
+      "aggregate_relay_rss_bytes": 958033920,
+      "available_memory_bytes": 9095372800,
+      "scratch_bytes": 1293128231
+    },
+    {
+      "checkpoint": "probe-84",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 130842624
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 135524352
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 132943872
+        },
+        {
+          "pid": 2598872,
+          "rss_bytes": 130793472
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 145793024
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 140189696
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 147046400
+        }
+      ],
+      "aggregate_relay_rss_bytes": 963133440,
+      "available_memory_bytes": 9211404288,
+      "scratch_bytes": 1293412511
+    },
+    {
+      "checkpoint": "probe-90",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 131018752
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 136744960
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 133406720
+        },
+        {
+          "pid": 2598872,
+          "rss_bytes": 132022272
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 146202624
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 140943360
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 147419136
+        }
+      ],
+      "aggregate_relay_rss_bytes": 967757824,
+      "available_memory_bytes": 9197993984,
+      "scratch_bytes": 1293684431
+    },
+    {
+      "checkpoint": "probe-96",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 131395584
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 133029888
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 133963776
+        },
+        {
+          "pid": 2598872,
+          "rss_bytes": 132636672
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 146632704
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 141406208
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 147513344
+        }
+      ],
+      "aggregate_relay_rss_bytes": 966578176,
+      "available_memory_bytes": 9204211712,
+      "scratch_bytes": 1294001671
+    },
+    {
+      "checkpoint": "restart-4-after-probe-96",
+      "relay_processes": [
+        {
+          "label": "resilience relay 1",
+          "pid": 2590856,
+          "rss_bytes": 131612672
+        },
+        {
+          "label": "resilience relay 2",
+          "pid": 2591382,
+          "rss_bytes": 133120000
+        },
+        {
+          "label": "resilience relay 3",
+          "pid": 2591892,
+          "rss_bytes": 134041600
+        },
+        {
+          "pid": 2600410,
+          "rss_bytes": 132182016
+        },
+        {
+          "label": "resilience relay 5",
+          "pid": 2592852,
+          "rss_bytes": 146665472
+        },
+        {
+          "label": "resilience relay 6",
+          "pid": 2593327,
+          "rss_bytes": 141426688
+        },
+        {
+          "label": "resilience relay 7",
+          "pid": 2593841,
+          "rss_bytes": 147767296
+        }
+      ],
+      "aggregate_relay_rss_bytes": 966815744,
+      "available_memory_bytes": 9172029440,
+      "scratch_bytes": 1292897367
+    }
+  ],
+  "external_requests": [],
+  "denied_proxy_attempts": [],
+  "websockets": [
+    "ws://127.0.0.1:29460/",
+    "ws://127.0.0.1:29461/",
+    "ws://127.0.0.1:29460/",
+    "ws://127.0.0.1:29461/",
+    "ws://127.0.0.1:29461/",
+    "ws://127.0.0.1:29462/",
+    "ws://127.0.0.1:29461/",
+    "ws://127.0.0.1:29462/",
+    "ws://127.0.0.1:29462/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29462/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29464/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29464/",
+    "ws://127.0.0.1:29464/",
+    "ws://127.0.0.1:29465/",
+    "ws://127.0.0.1:29464/",
+    "ws://127.0.0.1:29465/",
+    "ws://127.0.0.1:29465/",
+    "ws://127.0.0.1:29466/",
+    "ws://127.0.0.1:29465/",
+    "ws://127.0.0.1:29466/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/",
+    "ws://127.0.0.1:29463/"
+  ],
+  "page_errors": [],
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "resource_budget": {
+    "available_memory_at_start_bytes": 9313243136,
+    "maximum_aggregate_relay_rss_fraction": 0.7,
+    "maximum_scratch_bytes": 2147483648
+  }
+}

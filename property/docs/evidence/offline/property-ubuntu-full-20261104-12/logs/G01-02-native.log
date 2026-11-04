@@ -1,0 +1,12 @@
+command: /usr/bin/node property/tests/native-relay-integration.mjs
+started: 2026-11-04T10:43:13.513Z
+ended: 2026-11-04T10:43:23.635Z
+exit_code: 0
+signal:
+timeout: false
+error:
+--- stdout ---
+PASS: relay ws://127.0.0.1:17457 handled encrypted NIP-17, kind-10050 routing, exact-raw NIP-15 create/update, and signed withdrawal
+PASS: native linux/x64, 7 retained events round-trip across restart; private paths/config; no Java in relay PATH; replaceable/deleted events follow Nostr semantics; NIP-17/NIP-15 BTC/XMR/XNO
+
+--- stderr ---
