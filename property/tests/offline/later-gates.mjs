@@ -388,17 +388,25 @@ async function main(){
     repetitionReport?.reason|| (repetition.status==='PASS'?'300 provas, três reinícios, nove eventos de partição, cinco amostras de deduplicação e bloqueio por relógio lógico passaram.':'As repetições multi-relay não concluíram todos os valores predefinidos.'),
     repetitionReport||{exit_code:repetition.exit_code},[repetition.log,'later-gates/g11-03/g11-multirelay-repetition-report.json','later-gates/g11-03/g11-repetition-probes.jsonl']);
 
-  const soakDir=path.join(out,'g11-06');
-  const soak=await run('G11-06',process.execPath,['property/tests/offline/g11-24h-soak.mjs',manifestPath,soakDir],
-    {timeoutMs:90_000_000,logName:'g11-06-24h-soak.log'});
-  const soakReport=await json(path.join(path.relative(runDir,out),'g11-06/g11-24h-soak-report.json'));
-  const soakEligible=soak.status==='PASS'&&soakReport?.status==='PASS'&&soakReport?.gate_eligible===true&&
-    soakReport?.candidate_commit===manifest.candidate_commit&&soakReport?.monotonic_duration_ms>=86_400_000&&
-    soakReport?.completed_probe_count===96&&soakReport?.failure_cycles?.length===4&&soakReport?.relay_count===7&&soakReport?.bridge_count===6;
-  await record('G11-06',soakEligible?'PASS':soak.status==='FAIL'?'FAIL':'BLOCKED',
-    soakEligible?'Ensaio monotônico de 24 horas reais passou com 96 probes, sete Geode, seis pontes PWA e quatro ciclos de falha/reconciliação.':'O ensaio de 24 horas reais não completou todos os probes, relays, pontes, ciclos ou provas do candidato.',
-    soakReport||{exit_code:soak.exit_code,signal:soak.signal},[soak.log,'later-gates/g11-06/g11-24h-soak-report.json',
-      'later-gates/g11-06/g11-24h-probes.jsonl','later-gates/g11-06/g11-24h-heartbeats.jsonl']);
+  const resilienceDir=path.join(out,'g11-06');
+  const resilience=await run('G11-06',process.execPath,['property/tests/offline/g11-multirelay-resilience.mjs',manifestPath,resilienceDir],
+    {timeoutMs:600000,logName:'g11-06-counted-resilience.log'});
+  const resilienceReport=await json(path.join(path.relative(runDir,out),'g11-06/g11-multirelay-resilience-report.json'));
+  const expectedRestarts=[24,48,72,96];
+  const resilienceEligible=resilience.status==='PASS'&&resilienceReport?.status==='PASS'&&resilienceReport?.gate_eligible===true&&
+    resilienceReport?.candidate_commit===manifest.candidate_commit&&resilienceReport?.completed_probe_count===96&&
+    resilienceReport?.probe_ids?.length===96&&new Set(resilienceReport.probe_ids).size===96&&
+    resilienceReport?.failure_cycles?.length===4&&resilienceReport.failure_cycles.every((cycle,index)=>
+      cycle.after_probe_count===expectedRestarts[index]&&cycle.partition_events?.length===3&&cycle.reconciled_event_count===3&&
+      cycle.partition_events.every(event=>event.absent_at_destination_during_outage&&event.reconciled_at_all_seven_relays))&&
+    resilienceReport?.relay_count===7&&resilienceReport?.bridge_count===6&&
+    resilienceReport?.ui_deduplication_samples?.length===4&&resilienceReport?.ui_deduplication_samples.every(sample=>
+      sample.bridges?.length===6&&sample.bridges.every(bridge=>bridge.card_count===1))&&
+    resilienceReport?.resource_samples?.length===21&&resilienceReport?.external_requests?.length===0;
+  await record('G11-06',resilienceEligible?'PASS':resilience.status==='FAIL'?'FAIL':'BLOCKED',
+    resilienceEligible?'96 probes, quatro reinícios, 12 eventos reconciliados, quatro amostras de deduplicação UI e 21 checkpoints de recurso passaram por contagem fixa.':'O ensaio de resiliência não completou todas as contagens e invariantes predeterminados.',
+    resilienceReport||{exit_code:resilience.exit_code,signal:resilience.signal},[resilience.log,
+      'later-gates/g11-06/g11-multirelay-resilience-report.json','later-gates/g11-06/g11-multirelay-resilience-probes.jsonl']);
 
   const rows=await readCoreRows();
   const missingEvidence=[];

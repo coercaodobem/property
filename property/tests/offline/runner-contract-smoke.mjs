@@ -32,6 +32,7 @@ const plan = await readFile(path.join(root, 'property/docs/plano-de-testes-centr
 const runnerSource = await readFile(path.join(root, 'property/tests/offline/run-offline.mjs'), 'utf8');
 const viewportSource = await readFile(path.join(root, 'property/tests/offline/g10-viewport-smoke.mjs'), 'utf8');
 const laterGatesSource = await readFile(path.join(root, 'property/tests/offline/later-gates.mjs'), 'utf8');
+const resilienceSource = await readFile(path.join(root, 'property/tests/offline/g11-multirelay-resilience.mjs'), 'utf8');
 assert.match(runnerSource, /-Djava\.io\.tmpdir=\$\{os\.tmpdir\(\)\}/,
   'Java children use the isolated run scratch directory for temporary native libraries');
 assert.match(runnerSource, /browser-g05-smoke\.mjs/, 'full profile executes the G05 multi-relay harness');
@@ -41,6 +42,16 @@ assert.match(viewportSource, /page\.screenshot\(/, 'G10-05 captures viewport scr
 assert.match(viewportSource, /required_screenshots: 8/, 'G10-05 requires captures for all fixed viewport/zoom cases');
 assert.match(laterGatesSource, /viewportScreenshots/, 'the G10-05 gate records its screenshot evidence paths');
 assert.match(laterGatesSource, /if\(!gatePassed\('G11'\)\)/, 'G12 does not start before the complete G11 gate passes');
+assert.match(laterGatesSource, /g11-multirelay-resilience\.mjs/, 'G11-06 uses the fixed-count multi-relay resilience harness');
+assert.doesNotMatch(laterGatesSource, /g11-24h-soak|monotonic_duration_ms|required_duration_ms|24-hour-soak/i,
+  'G11-06 has no duration-based harness or eligibility check');
+assert.match(resilienceSource, /probe_count:\s*96/, 'G11-06 declares exactly 96 fixed-count probes');
+assert.match(resilienceSource, /restart_after_probe_counts:\s*Object\.freeze\(\[24, 48, 72, 96\]\)/,
+  'G11-06 declares four restart checkpoints by completed probe count');
+assert.match(resilienceSource, /partition_events_per_restart:\s*3/, 'G11-06 declares exactly three partition events per restart');
+assert.match(resilienceSource, /fixed_event_epoch_seconds:\s*1_800_000_000/, 'G11-06 uses a predefined logical event epoch');
+assert.doesNotMatch(resilienceSource, /monotonic|probe_interval|failure_offsets|scheduled_offset|elapsed_ms|required_duration_ms|24.hour/i,
+  'G11-06 has no elapsed-time, interval, or 24-hour acceptance logic');
 assert.ok(laterGatesSource.indexOf("if(!gatePassed('G11'))") < laterGatesSource.lastIndexOf('await runG1201(prior)'),
   'G11 reconciliation barrier precedes every G12 case');
 assert.ok(laterGatesSource.indexOf("if(!gatePassed('G10'))") < laterGatesSource.indexOf("const g04Args="),
