@@ -1768,7 +1768,7 @@ async function runLaterGates(manifest, outputDir, cases) {
 
 async function copyVerifiedNativeEvidence(caseId, reportPath, platformReport, outputDir) {
   const sourceRoot = path.dirname(path.resolve(reportPath));
-  const expectedEvidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-preflight.json',
+  const expectedEvidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-network-isolation.json', 'g12-platform-preflight.json',
     'g12-platform-relay.log', 'appium-server.log', 'g12-platform-evidence.json'];
   const listed = platformReport.evidence;
   if (!Array.isArray(listed) || expectedEvidence.some(filename => !listed.includes(filename)) ||
@@ -1780,6 +1780,7 @@ async function copyVerifiedNativeEvidence(caseId, reportPath, platformReport, ou
     throw new Error(`${caseId} evidence hash manifest does not match its report.`);
   }
   const preflight = JSON.parse(await readFile(path.join(sourceRoot, 'g12-platform-preflight.json'), 'utf8'));
+  const hostIsolation = JSON.parse(await readFile(path.join(sourceRoot, 'g12-platform-network-isolation.json'), 'utf8'));
   const toolchain = JSON.parse(await readFile(path.join(sourceRoot, 'g12-platform-toolchain-preparation.json'), 'utf8'));
   const expectedBrowserNames = [...(platformReport.browsers || []).map(browser => browser.browser)].sort();
   if (toolchain.schema_version !== 1 || toolchain.kind !== 'appium-toolchain-preparation' || toolchain.result !== 'PASS' ||
@@ -1791,9 +1792,18 @@ async function copyVerifiedNativeEvidence(caseId, reportPath, platformReport, ou
   }
   if (preflight.schema_version !== 1 || preflight.kind !== 'toolchain-preflight' || preflight.result !== 'PASS' ||
       preflight.platform !== `${platformReport.platform?.os}/${platformReport.platform?.arch}` ||
+      preflight.host_network_isolation?.result !== 'PASS' ||
+      JSON.stringify(preflight.host_network_isolation) !== JSON.stringify(platformReport.network_isolation?.host_egress?.start) ||
       JSON.stringify([...(preflight.browsers || []).map(browser => browser.name)].sort()) !== JSON.stringify(expectedBrowserNames) ||
       preflight.browsers.some(browser => browser.status !== 'PASS')) {
     throw new Error(`${caseId} preflight evidence does not match the candidate report and browser matrix.`);
+  }
+  if (hostIsolation.schema_version !== 1 || hostIsolation.kind !== 'native-egress-isolation-checkpoints' || hostIsolation.result !== 'PASS' ||
+      hostIsolation.platform !== `${platformReport.platform?.os}/${platformReport.platform?.arch}` ||
+      hostIsolation.start?.result !== 'PASS' || hostIsolation.end?.result !== 'PASS' ||
+      JSON.stringify(hostIsolation.start) !== JSON.stringify(preflight.host_network_isolation) ||
+      JSON.stringify(hostIsolation) !== JSON.stringify(platformReport.network_isolation?.host_egress)) {
+    throw new Error(`${caseId} native host egress-isolation evidence does not match the candidate report.`);
   }
   const expectedFiles = new Set(['g12-platform-report.json', ...listed.filter(filename => filename !== 'g12-platform-evidence.json')]);
   const manifestFiles = new Map(evidenceManifest.files.map(row => [row.path, row]));

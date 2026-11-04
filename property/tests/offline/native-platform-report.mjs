@@ -52,6 +52,19 @@ export function validateNativePlatformReport(report, { caseId, candidateCommit }
     failures.push('browser egress isolation or local loopback proof is incomplete');
   }
   if (!/deny-all/i.test(String(isolation?.policy || ''))) failures.push('the native browser session did not declare a deny-all external proxy');
+  const hostEgress = isolation?.host_egress;
+  const validHostCheck = check => check?.result === 'PASS' && check?.platform === spec.host &&
+    check?.policy === 'loopback-routes-only-no-external-proxies' &&
+    check?.ipv4?.usable_non_loopback_route_count === 0 && check?.ipv6?.usable_non_loopback_route_count === 0 &&
+    /^[a-f0-9]{64}$/i.test(String(check?.ipv4?.route_table_sha256 || '')) &&
+    /^[a-f0-9]{64}$/i.test(String(check?.ipv6?.route_table_sha256 || '')) &&
+    Array.isArray(check?.proxy_variable_names) && check.proxy_variable_names.length === 0 && check?.loopback_probe === 'PASS';
+  if (isolation?.host_egress_blocked !== true || hostEgress?.kind !== 'native-egress-isolation-checkpoints' ||
+      hostEgress?.result !== 'PASS' || hostEgress?.policy !== 'loopback-routes-only-no-external-proxies' ||
+      hostEgress?.platform !== spec.host || !validHostCheck(hostEgress.start) || !validHostCheck(hostEgress.end) ||
+      isolation?.runner_processes_remain_online_for_ci !== false) {
+    failures.push('native host egress isolation was not proven independently of the browser proxy');
+  }
   if (!Array.isArray(isolation?.deny_proxy_requests) ||
       !isolation.deny_proxy_requests.some(request => /example\.com/i.test(String(request.host || '')))) {
     failures.push('the denied external probe is absent from proxy evidence');
@@ -62,7 +75,7 @@ export function validateNativePlatformReport(report, { caseId, candidateCommit }
   if (JSON.stringify(observedNames) !== JSON.stringify([...spec.browserNames].sort())) {
     failures.push(`expected browsers ${spec.browserNames.join(', ')}`);
   }
-  const requiredEvidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-preflight.json',
+  const requiredEvidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-network-isolation.json', 'g12-platform-preflight.json',
     'g12-platform-relay.log', 'appium-server.log', 'g12-platform-evidence.json'];
   if (!Array.isArray(report.evidence) || requiredEvidence.some(name => !report.evidence.includes(name)) ||
       new Set(report.evidence).size !== report.evidence.length) failures.push('the platform report does not declare its evidence files');

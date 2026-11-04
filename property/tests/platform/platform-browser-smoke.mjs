@@ -9,6 +9,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inspectNativeNetworkIsolation } from './native-network-isolation.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../../..');
@@ -488,9 +489,15 @@ async function runBrowser(spec, originA, originB, relayUrl, port, tempDir, isMob
   }
 }
 
-async function runPreflight(specs, outputDir) {
+async function runPreflight(specs, outputDir, hostNetworkIsolation) {
+  const report = { schema_version: 1, kind: 'toolchain-preflight', platform: `${process.platform}/${process.arch}`,
+    host_network_isolation: hostNetworkIsolation, browsers: [] };
+  if (hostNetworkIsolation.result !== 'PASS') {
+    report.result = 'BLOCKED';
+    await writeFile(path.join(outputDir, 'g12-platform-preflight.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
+    throw new Error('Native platform preflight requires loopback-only IPv4/IPv6 routes and no external proxy.');
+  }
   const appium = await startAppium(outputDir);
-  const report = { schema_version: 1, kind: 'toolchain-preflight', platform: `${process.platform}/${process.arch}`, browsers: [] };
   try {
     for (const spec of specs) {
       const driver = await new WebDriver(spec).create();
@@ -513,18 +520,27 @@ async function main() {
   const outputDir = path.resolve(options.output);
   await mkdir(outputDir, { recursive: true, mode: 0o700 });
   const specs = browserSpecs(options.caseId);
-  if (options.preflight) { await runPreflight(specs, outputDir); return; }
+  const hostNetworkIsolation = await inspectNativeNetworkIsolation();
+  await writeFile(path.join(outputDir, 'g12-platform-network-isolation.json'), JSON.stringify(hostNetworkIsolation, null, 2) + '\n', { mode: 0o600 });
+  if (options.preflight) { await runPreflight(specs, outputDir, hostNetworkIsolation); return; }
   const report = { schema_version: 1, case: options.caseId, candidate_commit: '', platform: {
-      os: process.platform, release: os.release(), arch: process.arch }, network_isolation: { verdict: 'NOT_PROVEN' },
+      os: process.platform, release: os.release(), arch: process.arch },
+    network_isolation: { verdict: 'NOT_PROVEN', host_egress: hostNetworkIsolation },
     result: 'NOT_RUN', browsers: [], evidence: [], physical_installation_proven: false,
     started_utc: new Date().toISOString() };
   const tempDir = await import('node:fs/promises').then(fs => fs.mkdtemp(path.join(os.tmpdir(), 'Property platform data with spaces - ')));
-  const app = startAppServer();
-  const denyProxy = startDenyProxy();
+  let app = null, denyProxy = null;
   let appium = null, relay = null, failure = null;
   const previousProxy = process.env.PROPERTY_BLOCK_EGRESS_PROXY;
   const relayLog = path.join(outputDir, 'g12-platform-relay.log');
   try {
+    if (hostNetworkIsolation.result !== 'PASS') {
+      const error = new Error('Native platform case cannot pass unless the host has loopback-only IPv4/IPv6 routes and no external proxy.');
+      error.code = 'PROPERTY_PLATFORM_ISOLATION_BLOCKED';
+      throw error;
+    }
+    app = startAppServer();
+    denyProxy = startDenyProxy();
     const head = await runChild(process.platform === 'win32' ? 'git.exe' : 'git', ['rev-parse', 'HEAD']);
     assert.equal(head.code, 0, 'cannot read candidate Git commit');
     report.candidate_commit = head.stdout.trim();
@@ -537,6 +553,8 @@ async function main() {
     const preflight = JSON.parse(await readFile(path.join(outputDir, 'g12-platform-preflight.json'), 'utf8'));
     assert.equal(preflight.result, 'PASS', 'native Appium/browser preflight did not pass before offline test execution');
     assert.equal(preflight.platform, `${process.platform}/${process.arch}`, 'preflight ran on a different native host');
+    assert.equal(preflight.host_network_isolation?.result, 'PASS', 'native host egress isolation was not proven before browser preflight');
+    assert.equal(preflight.host_network_isolation?.platform, hostNetworkIsolation.platform, 'preflight egress isolation was captured on a different host');
     assert.equal(preflight.browsers.length, specs.length, 'preflight did not create a session for every required browser');
     assert.deepEqual(preflight.browsers.map(browser => browser.name).sort(), specs.map(spec => spec.name).sort(), 'preflight browser set differs from the required matrix');
     assert.ok(preflight.browsers.every(browser => browser.status === 'PASS'), 'every required browser must pass preflight');
@@ -556,7 +574,8 @@ async function main() {
     const proxyPort = denyProxy.server.address().port;
     process.env.PROPERTY_BLOCK_EGRESS_PROXY = `http://127.0.0.1:${proxyPort}`;
     appium = await startAppium(outputDir);
-    report.network_isolation = { verdict: 'IN_PROGRESS', policy: 'Each WebDriver browser session uses a deny-all loopback HTTP proxy, bypassing only localhost and loopback for the local Property assets and relay.',
+    report.network_isolation = { verdict: 'IN_PROGRESS', host_egress: hostNetworkIsolation,
+      policy: 'The native host has only loopback IPv4/IPv6 routes and no external proxy; each WebDriver browser also uses a deny-all loopback HTTP proxy, bypassing only localhost and loopback for local Property assets and relay.',
       android_adb_reverse: androidForwards, blocked_external_probe: false };
     const mobile = specs[0].mobile;
     const cycleCount = mobile ? 3 : 1;
@@ -567,9 +586,22 @@ async function main() {
     }
     assert.ok(report.browsers.every(browser => browser.offline_probe?.blocked === true), 'every browser must prove its external fetch was blocked');
     assert.ok(denyProxy.requests.some(request => /example\.com/i.test(request.host)), 'deny proxy did not observe the external offline probe');
-    report.network_isolation = { ...report.network_isolation, verdict: 'PASS', blocked_external_probe: true,
+    const hostIsolationEnd = await inspectNativeNetworkIsolation();
+    const hostIsolationProof = { schema_version: 1, kind: 'native-egress-isolation-checkpoints',
+      result: hostNetworkIsolation.result === 'PASS' && hostIsolationEnd.result === 'PASS' &&
+        hostNetworkIsolation.platform === hostIsolationEnd.platform ? 'PASS' : 'BLOCKED',
+      platform: hostNetworkIsolation.platform, policy: hostNetworkIsolation.policy,
+      start: hostNetworkIsolation, end: hostIsolationEnd };
+    await writeFile(path.join(outputDir, 'g12-platform-network-isolation.json'), JSON.stringify(hostIsolationProof, null, 2) + '\n', { mode: 0o600 });
+    if (hostIsolationProof.result !== 'PASS') {
+      const error = new Error('Native host egress isolation did not remain proven through the complete platform journey.');
+      error.code = 'PROPERTY_PLATFORM_ISOLATION_BLOCKED';
+      throw error;
+    }
+    report.network_isolation = { ...report.network_isolation, verdict: 'PASS', host_egress_blocked: true, blocked_external_probe: true,
+      host_egress: hostIsolationProof,
       deny_proxy_requests: denyProxy.requests, local_loopback_preserved: true,
-      runner_processes_remain_online_for_ci: true };
+      runner_processes_remain_online_for_ci: false };
     assert.ok(app.requested.length > 0, 'browser never requested any packaged PWA asset');
     report.local_asset_requests = app.requested.length;
     report.external_asset_requests = { denied_by_proxy: denyProxy.requests.length, attempted_hosts: [...new Set(denyProxy.requests.map(request => request.host))] };
@@ -579,18 +611,19 @@ async function main() {
       physical_add_to_home_screen_proven: false }));
     report.result = 'PASS';
     report.ended_utc = new Date().toISOString();
-    report.evidence = ['g12-platform-preflight.json', 'g12-platform-relay.log', 'appium-server.log'];
+    report.evidence = ['g12-platform-network-isolation.json', 'g12-platform-preflight.json', 'g12-platform-relay.log', 'appium-server.log'];
     await writeFile(path.join(outputDir, 'g12-platform-report.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
     process.stdout.write(JSON.stringify({ case: options.caseId, result: report.result, candidate_commit: report.candidate_commit,
       browsers: report.browsers.map(row => ({ browser: row.browser, status: row.status, cycles: row.cycles.length })) }) + '\n');
   } catch (error) {
     failure = error;
-    report.result = 'FAIL'; report.failure = redact(error?.stack || error?.message || error);
+    report.result = error?.code === 'PROPERTY_PLATFORM_ISOLATION_BLOCKED' ? 'BLOCKED' : 'FAIL';
+    report.failure = redact(error?.stack || error?.message || error);
   } finally {
     await stopChild(relay);
     if (appium) await stopChild(appium.proc);
-    if (app.server.listening) await new Promise(resolve => app.server.close(() => resolve()));
-    if (denyProxy.server.listening) await new Promise(resolve => denyProxy.server.close(() => resolve()));
+    if (app?.server.listening) await new Promise(resolve => app.server.close(() => resolve()));
+    if (denyProxy?.server.listening) await new Promise(resolve => denyProxy.server.close(() => resolve()));
     await sleep(500);
     await import('node:fs/promises').then(fs => fs.rm(tempDir, { recursive: true, force: true }));
     if (previousProxy === undefined) delete process.env.PROPERTY_BLOCK_EGRESS_PROXY;
@@ -601,7 +634,7 @@ async function main() {
     try { await writeFile(file, redact(await readFile(file, 'utf8')), { mode: 0o600 }); } catch {}
   }
   report.ended_utc = new Date().toISOString();
-  report.evidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-preflight.json',
+  report.evidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-network-isolation.json', 'g12-platform-preflight.json',
     'g12-platform-relay.log', 'appium-server.log', 'g12-platform-evidence.json'];
   const reportFile = path.join(outputDir, 'g12-platform-report.json');
   await writeFile(reportFile, JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });

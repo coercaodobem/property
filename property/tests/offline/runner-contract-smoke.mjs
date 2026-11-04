@@ -24,6 +24,7 @@ import {
   verifyInterruptionHarness
 } from './run-offline.mjs';
 import { validateNativePlatformReport } from './native-platform-report.mjs';
+import { summarizeRoutes } from '../platform/native-network-isolation.mjs';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
 const plan = await readFile(path.join(root, 'property/docs/plano-de-testes-central.md'), 'utf8');
@@ -298,20 +299,30 @@ assert.equal(sanitized.includes('ghp_abcdefghijklmnopqrstuvwxyz0123456789'), fal
 assert.equal(sanitized.includes('/home/alice'), false);
 
 // Parser-only fixtures prove rejection/acceptance branches. They are never written as gate evidence.
+const nativeHostIsolation = { schema_version: 1, kind: 'native-egress-isolation', result: 'PASS',
+  platform: 'win32/x64', policy: 'loopback-routes-only-no-external-proxies',
+  ipv4: { usable_non_loopback_route_count: 0, rejected_non_loopback_route_count: 0, route_table_sha256: '1'.repeat(64) },
+  ipv6: { usable_non_loopback_route_count: 0, rejected_non_loopback_route_count: 0, route_table_sha256: '2'.repeat(64) },
+  proxy_variable_names: [], loopback_probe: 'PASS', reasons: [] };
+const nativeHostIsolationProof = { schema_version: 1, kind: 'native-egress-isolation-checkpoints', result: 'PASS',
+  platform: 'win32/x64', policy: 'loopback-routes-only-no-external-proxies',
+  start: nativeHostIsolation, end: nativeHostIsolation };
 const nativePlatformSchemaFixture = {
   schema_version: 1, case: 'G12-02', candidate_commit: 'd'.repeat(40), result: 'PASS',
   platform: { os: 'win32', arch: 'x64' }, native_relay: { status: 'PASS', platform: 'win32/x64' },
   toolchain: { node: '22.22.1', appium: '3.9.0', package_lock_sha256: 'f'.repeat(64),
     drivers: [{ package: 'appium-chromium-driver', version: '3.2.0', registered: true }] },
-  network_isolation: { verdict: 'PASS', policy: 'deny-all loopback HTTP proxy', blocked_external_probe: true,
-    local_loopback_preserved: true, deny_proxy_requests: [{ method: 'CONNECT', host: 'example.com:443' }] },
+  network_isolation: { verdict: 'PASS', policy: 'deny-all loopback HTTP proxy and no usable IPv4/IPv6 default route',
+    host_egress_blocked: true, host_egress: nativeHostIsolationProof,
+    blocked_external_probe: true, local_loopback_preserved: true,
+    deny_proxy_requests: [{ method: 'CONNECT', host: 'example.com:443' }], runner_processes_remain_online_for_ci: false },
   browsers: ['Edge', 'Chrome'].map(browser => ({ browser, status: 'PASS', identity: 'PASS', messaging: 'PASS',
     capabilities: { platformName: 'windows', browserName: browser === 'Edge' ? 'microsoftedge' : 'chrome' }, offline_probe: { blocked: true }, pwa: {
       secureContext: true, serviceWorkerSupported: true, manifest: './manifest.webmanifest'
     }, cycles: [{ cycle: 1, delivered_once: true }] })),
   local_asset_requests: 6, physical_installation_proven: false,
   installability: [{ physical_add_to_home_screen_proven: false }, { physical_add_to_home_screen_proven: false }],
-  evidence: ['g12-platform-toolchain-preparation.json', 'g12-platform-preflight.json', 'g12-platform-relay.log',
+  evidence: ['g12-platform-toolchain-preparation.json', 'g12-platform-network-isolation.json', 'g12-platform-preflight.json', 'g12-platform-relay.log',
     'appium-server.log', 'g12-platform-evidence.json']
 };
 assert.equal(validateNativePlatformReport(nativePlatformSchemaFixture, {
@@ -326,6 +337,24 @@ assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture, plat
 assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture,
   network_isolation: { ...nativePlatformSchemaFixture.network_isolation, deny_proxy_requests: [] }
 }, { caseId: 'G12-02', candidateCommit: 'd'.repeat(40) }).status, 'FAIL');
+assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture,
+  network_isolation: { ...nativePlatformSchemaFixture.network_isolation,
+    host_egress: { ...nativePlatformSchemaFixture.network_isolation.host_egress,
+      start: { ...nativePlatformSchemaFixture.network_isolation.host_egress.start,
+        ipv4: { ...nativePlatformSchemaFixture.network_isolation.host_egress.start.ipv4, usable_non_loopback_route_count: 1 } } } }
+}, { caseId: 'G12-02', candidateCommit: 'd'.repeat(40) }).status, 'FAIL');
+assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '10.0.0.0/8', type: 'unreachable', dev: 'eth0' }] ), '4'), { usable: 0, rejected: 1 });
+assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '10.0.0.0/8', type: 'unicast', dev: 'eth0' }] ), '4'), { usable: 1, rejected: 0 });
+assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '127.0.0.0/8', type: 'local', dev: 'lo' }] ), '4'), { usable: 0, rejected: 0 });
+assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '127.255.255.255/32', type: 'broadcast', dev: 'lo' }] ), '4'), { usable: 0, rejected: 0 });
+assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '127.0.0.0/7', type: 'unicast', dev: 'lo' }] ), '4'), { usable: 1, rejected: 0 });
+assert.deepEqual(summarizeRoutes('win32', '[]', '4'), { usable: 0, rejected: 0 });
+assert.deepEqual(summarizeRoutes('win32', '[{"DestinationPrefix":"0.0.0.0/0","InterfaceAlias":"Ethernet"}]', '4'), { usable: 1, rejected: 0 });
+assert.deepEqual(summarizeRoutes('win32', '[{"DestinationPrefix":"127.0.0.0/8","InterfaceAlias":"Loopback Pseudo-Interface 1"}]', '4'), { usable: 0, rejected: 0 });
+assert.deepEqual(summarizeRoutes('darwin', 'Destination Gateway Flags Netif\n127 127.0.0.1 UCS lo0', '4'), { usable: 0, rejected: 0 });
+assert.deepEqual(summarizeRoutes('darwin', 'Destination Gateway Flags Netif\n192.168.1/24 link#4 UCS en0', '4'), { usable: 1, rejected: 0 });
+assert.deepEqual(summarizeRoutes('darwin', 'Destination Gateway Flags Netif\ndefault 192.0.2.1 UGSc en0', '4'), { usable: 1, rejected: 0 });
+assert.deepEqual(summarizeRoutes('darwin', 'Destination Gateway Flags Netif\ndefault link#1 R en0', '4'), { usable: 0, rejected: 1 });
 
 const temp = await mkdtemp(path.join(os.tmpdir(), 'property-runner-contract-'));
 try {
