@@ -5,7 +5,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
-function run(args, timeout = 30_000) {
+function run(args, timeout = 180_000) {
   const result = spawnSync('xcrun', args, { encoding: 'utf8', timeout, maxBuffer: 4 * 1024 * 1024 });
   if (result.error || result.status !== 0) throw new Error(`xcrun ${args.join(' ')} failed: ${(result.stderr || result.stdout || result.error?.message || '').slice(-1600)}`);
   return result.stdout || '';

@@ -481,7 +481,7 @@ async function runPreflight(specs, outputDir, hostNetworkIsolation, caseId) {
   if (hostNetworkIsolation.result !== 'PASS') {
     report.result = 'BLOCKED';
     await writeFile(path.join(outputDir, 'g12-platform-preflight.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
-    throw new Error('Native platform preflight requires no usable public/default IPv4/IPv6 route and no external proxy.');
+    throw new Error(`Native platform preflight requires no usable public/default IPv4/IPv6 route and no external proxy: ${JSON.stringify({ ipv4: hostNetworkIsolation.ipv4, ipv6: hostNetworkIsolation.ipv6, proxy_variable_names: hostNetworkIsolation.proxy_variable_names, reasons: hostNetworkIsolation.reasons })}`);
   }
   if (caseId === 'G12-04') report.android_guest_isolation = await isolateAndroidGuest(hostNetworkIsolation);
   const appium = await startAppium(outputDir);

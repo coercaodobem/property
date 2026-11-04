@@ -197,6 +197,7 @@ export async function inspectNativeNetworkIsolation({ platform = process.platfor
     ipv6: { usable_non_loopback_route_count: ipv6.usable, rejected_non_loopback_route_count: ipv6.rejected,
       route_table_sha256: createHash('sha256').update(ipv6Output).digest('hex') },
     proxy_variable_names: proxyVariableNames,
+    stripped_proxy_variable_names: String(env.PROPERTY_LAB_STRIPPED_PROXY_VARIABLES || '').split(/\s+/).filter(Boolean).sort(),
     loopback_probe: loopbackProbe ? 'PASS' : 'FAIL',
     reasons
   };

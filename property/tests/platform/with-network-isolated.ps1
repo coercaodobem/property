@@ -8,6 +8,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$proxyNames = @('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'WSS_PROXY',
+  'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy', 'wss_proxy')
+$strippedProxyNames = @()
+foreach ($name in $proxyNames) {
+  if (Test-Path "Env:$name") {
+    $strippedProxyNames += $name
+    Remove-Item "Env:$name" -ErrorAction SilentlyContinue
+  }
+}
+$env:PROPERTY_LAB_STRIPPED_PROXY_VARIABLES = $strippedProxyNames -join ' '
 $routes4 = @(Get-NetRoute -PolicyStore ActiveStore -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue)
 $routes6 = @(Get-NetRoute -PolicyStore ActiveStore -AddressFamily IPv6 -DestinationPrefix '::/0' -ErrorAction SilentlyContinue)
 $exitCode = 1

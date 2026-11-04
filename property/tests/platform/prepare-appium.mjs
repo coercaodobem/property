@@ -30,9 +30,11 @@ function parseArgs(argv) {
 }
 
 function command(commandName, args, env) {
-  const result = spawnSync(commandName, args, { encoding: 'utf8', env, windowsHide: true, timeout: 600_000, maxBuffer: 8 * 1024 * 1024 });
+  const isWindowsCommandScript = process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(commandName);
+  const result = spawnSync(commandName, args, { encoding: 'utf8', env, windowsHide: true, timeout: 600_000,
+    maxBuffer: 8 * 1024 * 1024, shell: isWindowsCommandScript });
   if (result.error || result.status !== 0) {
-    const details = `${result.stderr || ''}\n${result.stdout || ''}`.replace(/\/(?:Users|home)\/[^/\s]+/g, '/<USER>')
+    const details = `${result.stderr || ''}\n${result.stdout || ''}\n${result.error?.message || ''}`.replace(/\/(?:Users|home)\/[^/\s]+/g, '/<USER>')
       .replace(/[A-Za-z]:\\Users\\[^\\\s]+/g, '<USER>').slice(-1800);
     throw new Error(`${path.basename(commandName)} ${args.slice(0, 3).join(' ')} failed: ${details}`);
   }
@@ -45,7 +47,10 @@ async function main() {
   await mkdir(path.dirname(outputFile), { recursive: true, mode: 0o700 });
   const packageManifest = JSON.parse(await readFile(path.join(HERE, 'package.json'), 'utf8'));
   const lockBytes = await readFile(path.join(HERE, 'package-lock.json'));
-  const npmVersion = command(process.env.NPM || 'npm', ['--version'], process.env).trim();
+  const configuredNpm = process.env.NPM || 'npm';
+  const npmCommand = process.platform === 'win32' && !/\.(?:cmd|bat|exe|com)$/i.test(configuredNpm)
+    ? `${configuredNpm}.cmd` : configuredNpm;
+  const npmVersion = command(npmCommand, ['--version'], process.env).trim();
   assert.ok(Number.parseInt(npmVersion.split('.')[0], 10) >= 10, `npm 10 or newer is required; found ${npmVersion}`);
   const nodeVersion = process.versions.node;
   assert.ok(Number.parseInt(nodeVersion.split('.')[0], 10) === 22, `Node 22 is required; found ${nodeVersion}`);
