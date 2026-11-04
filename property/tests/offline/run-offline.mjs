@@ -1022,7 +1022,7 @@ function commandOutcome(result) {
 }
 
 export function parsePlanCaseDetails(planText) {
-  const section = planText.match(/^## 6\. Casos obrigat[oó]rios por gate[ \t]*\n([\s\S]*?)(?=^## 7\.)/m);
+  const section = planText.match(/^## 6\. (?:Mandatory cases by gate|Casos obrigat[oó]rios por gate)[ \t]*\n([\s\S]*?)(?=^## 7\.)/m);
   if (!section) throw new Error('Could not locate the plan case registry in section 6.');
   const rows = [...section[1].matchAll(/^\|\s*(G[0-9]{2}-[0-9]{2})\s*\|\s*(.*?)\s*\|/gm)];
   const ids = rows.map(match => match[1]);

@@ -109,7 +109,7 @@ assert.ok([...details.values()].every(value => value.trim().length > 0));
 assert.equal(new Set(cases).size, 75);
 assert.equal(cases[0], 'G00-01');
 assert.equal(cases.at(-1), 'G12-06');
-const registryStart = plan.indexOf('## 6. Casos obrigatórios por gate');
+const registryStart = plan.indexOf('## 6. Mandatory cases by gate');
 const registryEnd = plan.indexOf('\n## 7.', registryStart);
 const registry = plan.slice(registryStart, registryEnd);
 const prefix = plan.slice(0, registryStart);

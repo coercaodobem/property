@@ -94,8 +94,8 @@ for (const file of ['property/README.md', 'property/docs/identidade-do-projeto.m
 const webLicense = text('property/web/vendor/nostr-tools-LICENSE');
 assert.match(webLicense, /free and unencumbered software released into the public domain/i);
 assert.match(text('property/README.md'), /nostr-tools[^\n]*2\.25\.2[^\n]*Unlicense/i);
-assert.match(text('property/relay/portable/PROVENANCE.md'), /GPLv2 com Classpath Exception/);
-assert.match(text('property/relay/portable/PROVENANCE.md'), /arquivos de licença e diretórios `legal`/i);
+assert.match(text('property/relay/portable/PROVENANCE.md'), /GPLv2 with the Classpath Exception/);
+assert.match(text('property/relay/portable/PROVENANCE.md'), /runtime license files and `legal` directories/i);
 
 const linuxManifest = Object.fromEntries(text('property/relay/dist-parts/manifest.txt').split(/\r?\n/).filter(Boolean).map(line => {
   const separator = line.indexOf('=');
