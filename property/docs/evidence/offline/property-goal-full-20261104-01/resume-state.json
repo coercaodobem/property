@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "run_id": "property-goal-full-20261104-01",
+  "profile": "full",
+  "candidate_commit": "b1f4349aa4bdd63dae0ea2dbe8764fa6f0afe197",
+  "manifest_config_sha256": "c825a69257e3627123692f06b2b5516f8c0bb798490d8fe55cb8941b94e65f03",
+  "candidate_state_sha256": "96daf236ebae251edbbe606c5c4c478f4a662ce39eab2b0d1a031a9c4968ada9",
+  "plan_sha256": "5f4ca0afeee1475fbcf43e16ad52fffbc15ce200830e42d4b3323b5b7387cfa3",
+  "external_inputs": {
+    "core_report_sha256": null
+  },
+  "attempt_number": 1,
+  "resumed_from_attempt": null
+}

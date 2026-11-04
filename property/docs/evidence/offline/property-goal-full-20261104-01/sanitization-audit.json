@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "run_id": "property-goal-full-20261104-01",
+  "candidate_commit": "b1f4349aa4bdd63dae0ea2dbe8764fa6f0afe197",
+  "source_manifest_compact_sha256": "c0a6aabca8f80560f87f8a739ea25c79d3860fff17ee5aff38b7fc1bb48a16f5",
+  "public_manifest_compact_sha256": "c0a6aabca8f80560f87f8a739ea25c79d3860fff17ee5aff38b7fc1bb48a16f5",
+  "redaction_rule": "Personal home-directory paths and recognized credential formats were replaced with neutral placeholders; public vendor source bundles remain byte-identical to the project-pinned source.",
+  "redacted_text_file_count": 0,
+  "redacted_path_occurrence_count": 0,
+  "credential_redaction_count": 0,
+  "redacted_files": [],
+  "json_jsonl_validation": "PASS: 31 JSON and 7 JSONL files parsed.",
+  "credential_pattern_scan": "PASS: zero recognized private keys, GitHub tokens, or RPC credentials; the deterministic test seed is retained as non-secret run provenance.",
+  "personal_path_scan": "PASS: zero non-placeholder personal home paths.",
+  "checksums_validation": "PASS: SHA256SUMS generated and verified after audit creation."
+}

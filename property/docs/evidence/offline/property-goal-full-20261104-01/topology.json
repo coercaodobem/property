@@ -1,0 +1,23 @@
+{
+  "test_host": "loopback only",
+  "ports": {
+    "bridge_source": 29250,
+    "bridge_target": 29251,
+    "seven_relay_base": 29260,
+    "native_relay": 29270
+  },
+  "allowed_addresses": [
+    "127.0.0.1",
+    "::1"
+  ],
+  "public_endpoints_configured": false,
+  "seed": "[REDACTED]",
+  "resource_budget": {
+    "min_cpus": 4,
+    "min_ram_bytes": 8589934592,
+    "min_tmp_bytes": 6442450944,
+    "max_child_ram_fraction": 0.7
+  },
+  "profile": "full",
+  "attempt_number": 1
+}
