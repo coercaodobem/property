@@ -8,8 +8,8 @@
   "started_utc": "2026-11-04T02:14:46.939Z",
   "required_seconds": 86400,
   "probe_interval_seconds": 60,
-  "probe_passes_observed": 32,
-  "last_event_utc": "2026-11-04T02:46:47.540Z",
+  "probe_passes_observed": 60,
+  "last_event_utc": "2026-11-04T03:14:47.908Z",
   "planned_faults": [
     "SIGTERM at one-third of the window",
     "SIGKILL at two-thirds of the window"
@@ -21,7 +21,7 @@
   "partial_run_counts_as_pass": false,
   "public_log": "Final sanitized log will be added only after the run completes.",
   "test_source_commit": "136a7f4b5b6aeedc1ed5dc35049e989d58fe44fc",
-  "delivery_head_at_checkpoint": "be849a9471566c5b31a074bf4014b50f25595847",
+  "delivery_head_at_checkpoint": "8917c0e5e2d11546d1914b054890e9aeac62bce2",
   "delivery_equivalence": {
     "checked_paths": [
       "property/web",
@@ -30,9 +30,10 @@
       "property/docs/plano-de-testes-central.md",
       "property/AGENTS.md"
     ],
-    "diff": "empty between tested source commit and delivery head; intervening commits contain evidence files only"
+    "diff": "empty between tested source commit and delivery head; intervening commits contain evidence files only",
+    "checked_at_utc": "2026-11-04T03:14:45.798Z"
   },
-  "checkpoint_updated_utc": "2026-11-04T02:46:50.051Z",
+  "checkpoint_updated_utc": "2026-11-04T03:15:41.248Z",
   "network_observation": {
     "captured_utc": "2026-11-04T02:38:10Z",
     "host_namespace": "net:[4026531833]",
@@ -59,5 +60,37 @@
     "tcp_listener": "[::ffff:127.0.0.1]:17447",
     "proxy_variable_names": []
   },
-  "delivery_head_at_last_equivalence_check": "79da7fa1e9c14c3d7e6dc33817a3ee0c1da65432"
+  "delivery_head_at_last_equivalence_check": "8917c0e5e2d11546d1914b054890e9aeac62bce2",
+  "observed_elapsed_seconds": 3600,
+  "observed_event_counts": {
+    "probe-pass": 60,
+    "relay-ready": 1,
+    "soak-preflight": 1,
+    "soak-window-start": 1
+  },
+  "observed_failures": {
+    "probe_fail": 0,
+    "relay_outage": 0,
+    "restart_after_fault": 0
+  },
+  "planned_faults_not_yet_due": [
+    "SIGTERM at one-third of the window",
+    "SIGKILL at two-thirds of the window"
+  ],
+  "latest_observation": {
+    "observed_utc": "2026-11-04T03:14:47.908Z",
+    "elapsed_seconds": 3600,
+    "probe_passes": 60,
+    "harness_check_counter": 61,
+    "event_counts": {
+      "probe-pass": 60,
+      "relay-ready": 1,
+      "soak-preflight": 1,
+      "soak-window-start": 1
+    },
+    "remaining_required_seconds": 82800,
+    "faults_injected": [],
+    "public_relays_used": false,
+    "real_funds_used": false
+  }
 }
