@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "parent_namespace_id": "net:[4026531833]",
+  "namespace_id": "net:[4026532805]",
+  "interface_names": [
+    "lo"
+  ],
+  "routes": {
+    "-4": [
+      {
+        "dst": "127.0.0.0/8",
+        "dev": "lo",
+        "table": "local"
+      },
+      {
+        "dst": "127.0.0.1",
+        "dev": "lo",
+        "table": "local"
+      },
+      {
+        "dst": "127.255.255.255",
+        "dev": "lo",
+        "table": "local"
+      }
+    ],
+    "-6": [
+      {
+        "dst": "::1",
+        "dev": "lo",
+        "table": "local"
+      }
+    ]
+  },
+  "nameservers": [
+    "127.0.0.53"
+  ],
+  "configured_proxy_keys": [],
+  "public_endpoints_configured": false,
+  "probe_to_public_network_sent": false
+}

@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "case": "G11-03-24H",
+  "run_id": "property-goal-24h-20261104-preflight-g11-03-24h",
+  "status": "NOT_RUN",
+  "method": "real_wall_clock_multirelay_window",
+  "candidate_commit": "1b0592d5181d14bd3d1c4670dbb1605a69eab8a9",
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active Codex task runtime; identity is provenance, not a gate.",
+  "predefined_variables": {
+    "requiredDurationSeconds": 86400,
+    "probeIntervalSeconds": 60,
+    "expectedProbeCount": 1441,
+    "maximumProbeGapSeconds": 120,
+    "relayCount": 3,
+    "bridgeCount": 2,
+    "middleRelayIndex": 1,
+    "partitionEventsPerRestart": 3,
+    "restartElapsedSeconds": [
+      28800,
+      57600
+    ],
+    "resourceSampleEveryProbes": 60,
+    "uiSampleProbeCounts": [
+      1,
+      60,
+      120,
+      180,
+      240,
+      300,
+      360,
+      420,
+      480,
+      540,
+      600,
+      660,
+      720,
+      780,
+      840,
+      900,
+      960,
+      1020,
+      1080,
+      1140,
+      1200,
+      1260,
+      1320,
+      1380,
+      1440,
+      1441
+    ],
+    "maximumRelayRssFraction": 0.7,
+    "maximumScratchBytes": 2147483648,
+    "reconciliationBatchSize": 50,
+    "fixedPortOffset": 300
+  },
+  "relay_count": 3,
+  "bridge_count": 2,
+  "allowed_relay_urls": [
+    "ws://127.0.0.1:29560",
+    "ws://127.0.0.1:29561",
+    "ws://127.0.0.1:29562"
+  ],
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "isolation": {
+    "status": "PASS",
+    "parent_namespace_id": "net:[4026531833]",
+    "namespace_id": "net:[4026532805]",
+    "interface_names": [
+      "lo"
+    ],
+    "routes": {
+      "-4": [
+        {
+          "dst": "127.0.0.0/8",
+          "dev": "lo",
+          "table": "local"
+        },
+        {
+          "dst": "127.0.0.1",
+          "dev": "lo",
+          "table": "local"
+        },
+        {
+          "dst": "127.255.255.255",
+          "dev": "lo",
+          "table": "local"
+        }
+      ],
+      "-6": [
+        {
+          "dst": "::1",
+          "dev": "lo",
+          "table": "local"
+        }
+      ]
+    },
+    "nameservers": [
+      "127.0.0.53"
+    ],
+    "configured_proxy_keys": [],
+    "public_endpoints_configured": false,
+    "probe_to_public_network_sent": false
+  },
+  "topology": [
+    {
+      "relay_index": 0,
+      "url": "ws://127.0.0.1:29560",
+      "data_dir_mode": "private temporary directory",
+      "process_id": 633663
+    },
+    {
+      "relay_index": 1,
+      "url": "ws://127.0.0.1:29561",
+      "data_dir_mode": "private temporary directory",
+      "process_id": 634151
+    },
+    {
+      "relay_index": 2,
+      "url": "ws://127.0.0.1:29562",
+      "data_dir_mode": "private temporary directory",
+      "process_id": 634630
+    }
+  ],
+  "start_utc": null,
+  "end_utc": "2026-11-04T16:20:53.659Z",
+  "duration_required_seconds": 86400,
+  "duration_wall_seconds": null,
+  "duration_boot_seconds": null,
+  "duration_monotonic_seconds": null,
+  "probe_count": 0,
+  "missed_probe_intervals": 0,
+  "maximum_observed_probe_gap_seconds": 0,
+  "loss_count": 0,
+  "duplicate_storage_count": 0,
+  "probes": [],
+  "restart_cycles": [],
+  "partition_events": [],
+  "ui_deduplication_samples": [],
+  "resource_samples": [
+    {
+      "label": "pre-window",
+      "probe_index": 0,
+      "sampled_utc": "2026-11-04T16:20:53.305Z",
+      "relay_processes": [
+        {
+          "label": "goal 24h relay 1",
+          "process_id": 633663,
+          "rss_bytes": 153427968
+        },
+        {
+          "label": "goal 24h relay 2",
+          "process_id": 634151,
+          "rss_bytes": 148324352
+        },
+        {
+          "label": "goal 24h relay 3",
+          "process_id": 634630,
+          "rss_bytes": 157999104
+        }
+      ],
+      "total_relay_rss_bytes": 459751424,
+      "scratch_bytes": 475393041,
+      "harness_rss_bytes": 182280192
+    }
+  ],
+  "final_reconciliation": [],
+  "external_requests": [],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "websockets": [
+    "ws://127.0.0.1:29560/",
+    "ws://127.0.0.1:29561/",
+    "ws://127.0.0.1:29560/",
+    "ws://127.0.0.1:29561/",
+    "ws://127.0.0.1:29561/",
+    "ws://127.0.0.1:29562/",
+    "ws://127.0.0.1:29561/",
+    "ws://127.0.0.1:29562/"
+  ],
+  "reason": "Diagnostic-only preflight used one synthetic event and did not execute the required 24-hour window.",
+  "resource_budget": {
+    "available_memory_at_start_bytes": 6743732224,
+    "maximum_aggregate_relay_rss_bytes": 4720612556,
+    "maximum_relay_rss_fraction": 0.7,
+    "maximum_scratch_bytes": 2147483648
+  },
+  "bridges": [
+    {
+      "bridge_index": 0,
+      "relay_urls": [
+        "ws://127.0.0.1:29560",
+        "ws://127.0.0.1:29561"
+      ],
+      "identity_fingerprint": "f193235ceb3cf69c"
+    },
+    {
+      "bridge_index": 1,
+      "relay_urls": [
+        "ws://127.0.0.1:29561",
+        "ws://127.0.0.1:29562"
+      ],
+      "identity_fingerprint": "edecb8b4cc4cff67"
+    }
+  ],
+  "gate_eligible": false
+}
