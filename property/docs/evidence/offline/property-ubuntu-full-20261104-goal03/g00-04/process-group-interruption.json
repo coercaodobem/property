@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "case": "G00-04-process-group-cleanup",
+  "result": "PASS",
+  "fixture_ready": true,
+  "parent_exit_code": 143,
+  "parent_signal": null,
+  "detached_worker_group_stopped": true,
+  "worker_pid": 436366,
+  "no_external_network": true,
+  "diagnostic": null
+}
