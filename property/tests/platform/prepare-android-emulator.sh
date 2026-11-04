@@ -38,7 +38,11 @@ ADB="${ADB:-$(command -v adb || true)}"
 for name in EMULATOR ADB; do
   if [[ ! -x "${!name}" ]]; then printf 'Android SDK component %s is missing after installation: %s\n' "$name" "${!name}" >&2; exit 2; fi
 done
-printf 'no\n' | "$AVDMANAGER" create avd --force --name "$AVD" --package "$IMAGE" --device "$DEVICE"
+AVD_HOME="${RUNNER_TEMP:-/tmp}/property-android-avd"
+mkdir -p "$AVD_HOME"
+chmod 700 "$AVD_HOME"
+export ANDROID_AVD_HOME="$AVD_HOME"
+printf 'no\n' | "$AVDMANAGER" create avd --force --path "$AVD_HOME/$AVD.avd" --name "$AVD" --package "$IMAGE" --device "$DEVICE"
 "$EMULATOR" -avd "$AVD" -port 5554 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data -no-metrics >"${RUNNER_TEMP:-/tmp}/property-android-emulator.log" 2>&1 &
 EMULATOR_PID=$!
 UDID='emulator-5554'
