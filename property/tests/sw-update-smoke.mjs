@@ -9,6 +9,9 @@ const deleted = [];
 let requests = [];
 let currentCache;
 let claimed = false;
+const serviceWorkerSource = await readFile(new URL('../web/sw.js', import.meta.url), 'utf8');
+const shellCache = /const CACHE = '([^']+)'/.exec(serviceWorkerSource)?.[1];
+assert.match(shellCache || '', /^property-shell-v\d+$/);
 const context = {
   URL,
   Request: class extends Request { constructor(path, options) { super(new URL(path, scope), options); } },
@@ -21,7 +24,7 @@ const context = {
     async skipWaiting() {}, clients: { async claim() { claimed = true; } } }
 };
 vm.createContext(context);
-vm.runInContext(await readFile(new URL('../web/sw.js', import.meta.url), 'utf8'), context);
+vm.runInContext(serviceWorkerSource, context);
 let pending;
 listeners.install({ waitUntil(promise) { pending = promise; } });
 await pending;
@@ -58,7 +61,7 @@ vm.runInContext(await readFile(new URL('../web/sw.js', import.meta.url), 'utf8')
 let failedInstall;
 failedListeners.install({ waitUntil(promise) { failedInstall = promise; } });
 await assert.rejects(failedInstall, /interrupted while installing/);
-assert.deepEqual(failedDeletes, ['property-shell-v19'], 'partial update cache is deleted after precache failure');
+assert.deepEqual(failedDeletes, [shellCache], 'partial update cache is deleted after precache failure');
 assert.equal(failureSkippedWaiting, false, 'incomplete service worker never calls skipWaiting');
 
 const duplicateListeners = {};
@@ -68,7 +71,7 @@ const duplicateContext = {
   URL,
   Request: class extends Request { constructor(path, options) { super(new URL(path, scope), options); } },
   caches: {
-    async keys() { return ['property-shell-v19', 'another-app-data']; },
+    async keys() { return [shellCache, 'another-app-data']; },
     async open() { duplicateOpenCalled = true; throw new Error('must not mutate the active shell cache'); },
     async delete(name) { duplicateDeletes.push(name); return true; }
   },
@@ -76,7 +79,7 @@ const duplicateContext = {
     async skipWaiting() {}, clients: { async claim() {} } }
 };
 vm.createContext(duplicateContext);
-vm.runInContext(await readFile(new URL('../web/sw.js', import.meta.url), 'utf8'), duplicateContext);
+vm.runInContext(serviceWorkerSource, duplicateContext);
 let duplicateInstall;
 duplicateListeners.install({ waitUntil(promise) { duplicateInstall = promise; } });
 await assert.rejects(duplicateInstall, /version already exists/);

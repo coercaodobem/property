@@ -1,6 +1,6 @@
 # Plano de Testes Central — Property
 
-**Atualizado:** 2026-11-03. **Executor:** o modelo ativo é escolhido pelo mantenedor; registrar a identidade real no relatório. Diferenças entre rótulos de modelo em prompts antigos e o executor ativo são apenas proveniência e nunca bloqueiam um gate. Os gates deste plano, inclusive G11-03, usam repetições e entradas predeterminadas, sem critério temporal. A meta ativa acrescenta um ensaio suplementar de relay com 24 horas reais, obrigatório para encerrar a meta e sem substituir as contagens fixas. A meta também exige a matriz nativa G12 completa: viewport móvel ou execução Linux não substituem Windows, macOS, Android ou iOS/iPadOS. Evidências antigas por duração ficam apenas como histórico.
+**Atualizado:** 2026-11-03. **Executor:** o modelo ativo é escolhido pelo mantenedor; registrar a identidade real no relatório. Diferenças entre rótulos de modelo em prompts antigos e o executor ativo são apenas proveniência e nunca bloqueiam um gate. Os gates deste plano, inclusive G11-03, usam repetições e entradas predeterminadas, sem critério temporal. O ensaio suplementar de 24 horas foi removido do escopo ativo; o teste de até 5 horas já aceito pelo mantenedor e os ensaios anteriores por duração ficam apenas como histórico, não como gate. A execução Ubuntu pode manter G12-02–G12-05 PENDING conforme autorização do mantenedor; esses casos não contam como PASS nem como aprovação de Windows, macOS, Android ou iOS/iPadOS. `PROPERTY_SCOPE_OFFLINE_PASS` continua exigindo a matriz G12 completa.
 
 ## 1. Objetivo e autoridade
 

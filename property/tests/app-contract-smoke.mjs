@@ -43,7 +43,7 @@ assert.match(html, /\.\/marketplace\.js/);
 assert.match(sw, /marketplace\.js/);
 assert.match(html, /\.\/campaigns\.js/);
 assert.match(sw, /campaigns\.js/);
-assert.match(sw, /property-shell-v19/);
+assert.match(sw, /const CACHE = 'property-shell-v\d+'/);
 assert.match(html, /id="locked-node-status"/, 'locked identity shows an explicit active public-node status');
 assert.match(html, /id="stop-locked-node"/, 'locked user can stop the opt-in public bridge');
 assert.match(app, /lockIdentity\(\{ preservePublicBridge = false \} = \{\}\)/, 'manual lock and idle lock have separate bridge behavior');

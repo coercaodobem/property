@@ -8,6 +8,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateNativePlatformReport } from './native-platform-report.mjs';
 
 const SCRIPT = fileURLToPath(import.meta.url);
 const ROOT = path.resolve(path.dirname(SCRIPT), '../../..');
@@ -94,12 +95,18 @@ export function validateManifest(value) {
 }
 
 function parseArgs(argv) {
-  const options = { profile: null, manifest: null, output: null, coreReport: null, resume: false, interruptionSelfTest: false, interruptionFixture: false };
+  const options = { profile: null, manifest: null, output: null, coreReport: null, platformReports: [], resume: false, interruptionSelfTest: false, interruptionFixture: false };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (arg === '--self-test-interruption') options.interruptionSelfTest = true;
     else if (arg === '--interruptible-fixture') options.interruptionFixture = true;
     else if (arg === '--resume') options.resume = true;
+    else if (arg === '--platform-report') {
+      const next = argv[++index];
+      const match = next?.match(/^(G12-0[2-5])=(.+)$/);
+      if (!match) throw new Error('--platform-report must be CASE=PATH, for example G12-02=artifacts/G12-02/g12-platform-report.json');
+      options.platformReports.push({ caseId: match[1], path: match[2] });
+    }
     else if (['--profile', '--manifest', '--output', '--core-report'].includes(arg)) {
       const next = argv[++index];
       if (!next) throw new Error('Missing value for ' + arg);
@@ -121,6 +128,7 @@ function parseArgs(argv) {
   if (!options.manifest) throw new Error('--manifest is required');
   if (options.resume && !options.output) throw new Error('--resume requires the existing --output directory');
   if (options.profile === 'platforms' && !options.coreReport) throw new Error('platforms profile requires --core-report');
+  if (options.platformReports.length && options.profile !== 'platforms') throw new Error('--platform-report is valid only for --profile platforms');
   return options;
 }
 
@@ -1758,6 +1766,63 @@ async function runLaterGates(manifest, outputDir, cases) {
   }
 }
 
+async function copyVerifiedNativeEvidence(caseId, reportPath, platformReport, outputDir) {
+  const sourceRoot = path.dirname(path.resolve(reportPath));
+  const expectedEvidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-preflight.json',
+    'g12-platform-relay.log', 'appium-server.log', 'g12-platform-evidence.json'];
+  const listed = platformReport.evidence;
+  if (!Array.isArray(listed) || expectedEvidence.some(filename => !listed.includes(filename)) ||
+      new Set(listed).size !== listed.length) throw new Error(`${caseId} report does not list its required evidence files exactly once.`);
+  const manifestPath = path.join(sourceRoot, 'g12-platform-evidence.json');
+  const evidenceManifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  if (evidenceManifest.schema_version !== 1 || evidenceManifest.case !== caseId ||
+      evidenceManifest.candidate_commit !== platformReport.candidate_commit || !Array.isArray(evidenceManifest.files)) {
+    throw new Error(`${caseId} evidence hash manifest does not match its report.`);
+  }
+  const preflight = JSON.parse(await readFile(path.join(sourceRoot, 'g12-platform-preflight.json'), 'utf8'));
+  const toolchain = JSON.parse(await readFile(path.join(sourceRoot, 'g12-platform-toolchain-preparation.json'), 'utf8'));
+  const expectedBrowserNames = [...(platformReport.browsers || []).map(browser => browser.browser)].sort();
+  if (toolchain.schema_version !== 1 || toolchain.kind !== 'appium-toolchain-preparation' || toolchain.result !== 'PASS' ||
+      toolchain.case !== caseId || toolchain.platform !== `${platformReport.platform?.os}/${platformReport.platform?.arch}` ||
+      toolchain.appium !== platformReport.toolchain?.appium ||
+      toolchain.package_lock_sha256 !== platformReport.toolchain?.package_lock_sha256 ||
+      JSON.stringify(toolchain.drivers) !== JSON.stringify(platformReport.toolchain?.drivers)) {
+    throw new Error(`${caseId} pinned Appium toolchain evidence does not match the native report.`);
+  }
+  if (preflight.schema_version !== 1 || preflight.kind !== 'toolchain-preflight' || preflight.result !== 'PASS' ||
+      preflight.platform !== `${platformReport.platform?.os}/${platformReport.platform?.arch}` ||
+      JSON.stringify([...(preflight.browsers || []).map(browser => browser.name)].sort()) !== JSON.stringify(expectedBrowserNames) ||
+      preflight.browsers.some(browser => browser.status !== 'PASS')) {
+    throw new Error(`${caseId} preflight evidence does not match the candidate report and browser matrix.`);
+  }
+  const expectedFiles = new Set(['g12-platform-report.json', ...listed.filter(filename => filename !== 'g12-platform-evidence.json')]);
+  const manifestFiles = new Map(evidenceManifest.files.map(row => [row.path, row]));
+  if (manifestFiles.size !== evidenceManifest.files.length || expectedFiles.size !== manifestFiles.size ||
+      [...expectedFiles].some(filename => !manifestFiles.has(filename))) {
+    throw new Error(`${caseId} evidence hash manifest has missing or unexpected files.`);
+  }
+  const destination = path.join(outputDir, 'external-platforms', caseId);
+  await mkdir(destination, { recursive: true, mode: 0o700 });
+  const copied = [];
+  for (const [filename, expected] of manifestFiles) {
+    if (!/^[A-Za-z0-9._-]+$/.test(filename)) throw new Error(`${caseId} evidence path is not a flat safe filename.`);
+    const source = path.join(sourceRoot, filename);
+    const sourceStat = await lstat(source);
+    if (!sourceStat.isFile() || sourceStat.isSymbolicLink()) throw new Error(`${caseId} evidence is not a regular file: ${filename}`);
+    const bytes = await readFile(source);
+    const sha256 = createHash('sha256').update(bytes).digest('hex');
+    if (bytes.length !== expected.bytes || sha256 !== expected.sha256) throw new Error(`${caseId} evidence hash mismatch: ${filename}`);
+    await copyFile(source, path.join(destination, filename));
+    copied.push(path.relative(outputDir, path.join(destination, filename)));
+  }
+  const manifestName = 'g12-platform-evidence.json';
+  const sourceManifestStat = await lstat(manifestPath);
+  if (!sourceManifestStat.isFile() || sourceManifestStat.isSymbolicLink()) throw new Error(`${caseId} evidence hash manifest is not a regular file.`);
+  await copyFile(manifestPath, path.join(destination, manifestName));
+  copied.push(path.relative(outputDir, path.join(destination, manifestName)));
+  return copied;
+}
+
 async function runPlatformsProfile(options, manifest, cases, inventory, isolation, outputDir) {
   let core = null;
   try { core = JSON.parse(await readFile(options.coreReport, 'utf8')); } catch {}
@@ -1768,6 +1833,26 @@ async function runPlatformsProfile(options, manifest, cases, inventory, isolatio
   const priorGatesPass = priorGates.every(gate => core?.gate_status?.[gate] === 'PASS');
   const eligible = Boolean(sameCandidate && priorGatesPass && isolation.verdict === 'PASS');
   const sourceCases = core?.case_statuses || {};
+  const nativeReports = new Map();
+  for (const input of options.platformReports || []) {
+    if (nativeReports.has(input.caseId)) {
+      nativeReports.set(input.caseId, { verdict: { status: 'FAIL', reason: 'Duplicate native platform reports were supplied.' } });
+      continue;
+    }
+    let platformReport = null;
+    let readError = null;
+    try { platformReport = JSON.parse(await readFile(input.path, 'utf8')); }
+    catch (error) { readError = error?.message || String(error); }
+    const verdict = platformReport ? validateNativePlatformReport(platformReport, {
+      caseId: input.caseId, candidateCommit: manifest.candidate_commit
+    }) : { status: 'FAIL', reason: `Could not read native platform report: ${readError}` };
+    let evidence = [];
+    if (verdict.status === 'PASS') {
+      try { evidence = await copyVerifiedNativeEvidence(input.caseId, input.path, platformReport, outputDir); }
+      catch (error) { verdict.status = 'FAIL'; verdict.reason = error?.message || String(error); }
+    }
+    nativeReports.set(input.caseId, { platformReport, verdict, evidence, path: input.path });
+  }
   const prerequisiteDir = path.join(outputDir, 'prerequisites');
   await mkdir(prerequisiteDir, { recursive: true, mode: 0o700 });
   const sourceCopy = path.join(prerequisiteDir, 'consolidated-core-summary.json');
@@ -1792,6 +1877,27 @@ async function runPlatformsProfile(options, manifest, cases, inventory, isolatio
       row.reason = 'Same-candidate platform case passed in the consolidated retake evidence.';
       row.observed = JSON.stringify({ source_case_status: source.status, core_report: sourcePath });
       row.evidence = [sourcePath];
+      continue;
+    }
+    const native = nativeReports.get(row.case);
+    if (native && native.verdict.status === 'PASS' && eligible) {
+      row.status = 'PASS';
+      row.gate_eligible = true;
+      row.reason = native.verdict.reason;
+      row.observed = JSON.stringify({ native_platform: native.platformReport.platform,
+        browser_results: native.platformReport.browsers.map(browser => ({ browser: browser.browser,
+          capabilities: browser.capabilities, cycles: browser.cycles.length })), external_report: native.path });
+      row.evidence = native.evidence;
+      continue;
+    }
+    if (native && native.verdict.status !== 'PASS') {
+      row.status = native.verdict.status;
+      row.gate_eligible = false;
+      row.reason = native.verdict.reason;
+      row.observed = JSON.stringify({ external_report: native.path,
+        report_candidate: native.platformReport?.candidate_commit || null,
+        expected_candidate: manifest.candidate_commit });
+      row.evidence = [];
       continue;
     }
     row.status = source?.status === 'PENDING' ? 'PENDING' : 'BLOCKED';

@@ -23,6 +23,7 @@ import {
   validateManifest,
   verifyInterruptionHarness
 } from './run-offline.mjs';
+import { validateNativePlatformReport } from './native-platform-report.mjs';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
 const plan = await readFile(path.join(root, 'property/docs/plano-de-testes-central.md'), 'utf8');
@@ -295,6 +296,36 @@ const sanitized = sanitizeText('token=secret-value\ncredential ghp_abcdefghijklm
 assert.equal(sanitized.includes('secret-value'), false);
 assert.equal(sanitized.includes('ghp_abcdefghijklmnopqrstuvwxyz0123456789'), false);
 assert.equal(sanitized.includes('/home/alice'), false);
+
+// Parser-only fixtures prove rejection/acceptance branches. They are never written as gate evidence.
+const nativePlatformSchemaFixture = {
+  schema_version: 1, case: 'G12-02', candidate_commit: 'd'.repeat(40), result: 'PASS',
+  platform: { os: 'win32', arch: 'x64' }, native_relay: { status: 'PASS', platform: 'win32/x64' },
+  toolchain: { node: '22.22.1', appium: '3.9.0', package_lock_sha256: 'f'.repeat(64),
+    drivers: [{ package: 'appium-chromium-driver', version: '3.2.0', registered: true }] },
+  network_isolation: { verdict: 'PASS', policy: 'deny-all loopback HTTP proxy', blocked_external_probe: true,
+    local_loopback_preserved: true, deny_proxy_requests: [{ method: 'CONNECT', host: 'example.com:443' }] },
+  browsers: ['Edge', 'Chrome'].map(browser => ({ browser, status: 'PASS', identity: 'PASS', messaging: 'PASS',
+    capabilities: { platformName: 'windows', browserName: browser === 'Edge' ? 'microsoftedge' : 'chrome' }, offline_probe: { blocked: true }, pwa: {
+      secureContext: true, serviceWorkerSupported: true, manifest: './manifest.webmanifest'
+    }, cycles: [{ cycle: 1, delivered_once: true }] })),
+  local_asset_requests: 6, physical_installation_proven: false,
+  installability: [{ physical_add_to_home_screen_proven: false }, { physical_add_to_home_screen_proven: false }],
+  evidence: ['g12-platform-toolchain-preparation.json', 'g12-platform-preflight.json', 'g12-platform-relay.log',
+    'appium-server.log', 'g12-platform-evidence.json']
+};
+assert.equal(validateNativePlatformReport(nativePlatformSchemaFixture, {
+  caseId: 'G12-02', candidateCommit: 'd'.repeat(40)
+}).status, 'PASS');
+assert.equal(validateNativePlatformReport(nativePlatformSchemaFixture, {
+  caseId: 'G12-02', candidateCommit: 'e'.repeat(40)
+}).status, 'BLOCKED');
+assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture, platform: { os: 'linux', arch: 'x64' } }, {
+  caseId: 'G12-02', candidateCommit: 'd'.repeat(40)
+}).status, 'FAIL');
+assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture,
+  network_isolation: { ...nativePlatformSchemaFixture.network_isolation, deny_proxy_requests: [] }
+}, { caseId: 'G12-02', candidateCommit: 'd'.repeat(40) }).status, 'FAIL');
 
 const temp = await mkdtemp(path.join(os.tmpdir(), 'property-runner-contract-'));
 try {
