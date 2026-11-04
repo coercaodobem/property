@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "scope": "supplemental requirement from the active task; not a timed criterion in the current Central Test Plan",
+  "run_id": "886a62f0-5ed4-4155-b6ca-66ac7fc9c814",
+  "candidate_commit": "136a7f4b5b6aeedc1ed5dc35049e989d58fe44fc",
+  "status": "RUNNING",
+  "final_result": "PENDING",
+  "started_utc": "2026-11-04T02:14:46.939Z",
+  "required_seconds": 86400,
+  "probe_interval_seconds": 60,
+  "probe_passes_observed": 10,
+  "last_event_utc": "2026-11-04T02:24:47.120Z",
+  "planned_faults": [
+    "SIGTERM at one-third of the window",
+    "SIGKILL at two-thirds of the window"
+  ],
+  "reconciliation": "exactly-once final reconciliation is required before PASS",
+  "network_boundary": "Linux network namespace with loopback enabled; relay endpoint 127.0.0.1:17447; proxy variables unset",
+  "public_relays_used": false,
+  "real_funds_used": false,
+  "partial_run_counts_as_pass": false,
+  "public_log": "Final sanitized log will be added only after the run completes."
+}

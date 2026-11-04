@@ -1,0 +1,315 @@
+{
+  "schema_version": 1,
+  "sanitized_utc": "2026-11-04T02:22:59.703Z",
+  "reason": "Redacted local account paths and credential-like fields; excluded packaged PWA duplicate and raw private local-ledger process logs; regenerated checksums over public evidence. The supplemental 24-hour record is explicitly marked RUNNING/PENDING until full duration, failures, recovery, and reconciliation finish.",
+  "source_sha256sums_sha256": "0b596fd484e743e1f43bc7f33450675d64531a9fa63cff5a72e8547283c6f767",
+  "modified_files": {
+    "case-events.jsonl": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 6
+      },
+      "original_sha256": "1947fd7dc89e247565a3b4841cb477764f38ce18e1d728171603008dbece5272",
+      "sanitized_sha256": "1947fd7dc89e247565a3b4841cb477764f38ce18e1d728171603008dbece5272"
+    },
+    "cases.jsonl": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 6
+      },
+      "original_sha256": "2e83d7faf917b1a49483f16e9d79c5de28aacefdbb1b4508d06d0ea42326f438",
+      "sanitized_sha256": "2e83d7faf917b1a49483f16e9d79c5de28aacefdbb1b4508d06d0ea42326f438"
+    },
+    "cases.latest.jsonl": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 6
+      },
+      "original_sha256": "2e83d7faf917b1a49483f16e9d79c5de28aacefdbb1b4508d06d0ea42326f438",
+      "sanitized_sha256": "2e83d7faf917b1a49483f16e9d79c5de28aacefdbb1b4508d06d0ea42326f438"
+    },
+    "inventory.json": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "5eb2a477edf6d1ecc71d3f96e2b0af038ff9526a26e26727d9f7aef2d2f75046",
+      "sanitized_sha256": "9d8a5dc8aafa8033679bcaba44eed78b53e260e9a1ef7b1122526bebd91de08f"
+    },
+    "later-gates/g09-01.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "17bd765ea0bfaeeb49ed6f35da71055b5385d353da0e0925d911c73e58f9ce69",
+      "sanitized_sha256": "356361f2d92afa6895483604d7cfa5a44083e32e85c9617c79b582910e533073"
+    },
+    "later-gates/g09-03/g09-storage-report.json": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "c81c16727afcdcbd05e59c79ce4c71edda47e1e07b710b9a1aeeb422be338165",
+      "sanitized_sha256": "c81c16727afcdcbd05e59c79ce4c71edda47e1e07b710b9a1aeeb422be338165"
+    },
+    "later-gates/g09-03.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 2
+      },
+      "original_sha256": "f871b92d5e3a60ff6056fcadc440580e1fe9f1ac017c47281adccd47fa43eb3a",
+      "sanitized_sha256": "cf0ed04067d918c6ddaa4872d00fe8edcf39f3765f0fe638cd75a98fc7380e08"
+    },
+    "later-gates/g09-04-forwarding.log": {
+      "redactions": {},
+      "original_sha256": "44de621e539a0dd70ee06203a87f760ce434190b477285311ec852d992e4fe01",
+      "sanitized_sha256": "4c69c54a84023664cd9124847307cc9abee7274d356b501c2e791e5e993bfb27"
+    },
+    "later-gates/g09-04.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "c95f77db727834522305ca3b85b1b44f686a539795093f6e6a1f0126da9aac32",
+      "sanitized_sha256": "73f95dcf05ee3a0bf8b02b997b2ffbee01cb3dc07e2ea6ca4f25ad2124c69afa"
+    },
+    "later-gates/g09-05-migration.log": {
+      "redactions": {},
+      "original_sha256": "5de9ce440772d0b6523b8faabedb37b78292b74eaf9c77e264bb8d924bbff264",
+      "sanitized_sha256": "cdb40d2bc50d06a5ac16786bef776832dd6a6851053e85b8d0f851e154055cf7"
+    },
+    "later-gates/g09-05-package-hash.log": {
+      "redactions": {},
+      "original_sha256": "34422ff7d3bad57038ad2e086ef5204450ff4434390e6ae3d090b4d1be1183cd",
+      "sanitized_sha256": "59ea55ff539fcba49a6bf52692bb7c496505fb25a49e33c079b0bbf9200eaef9"
+    },
+    "later-gates/g09-05.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "b997433c076558060898053b8c54f2b9ed1c40cc097e88eb008b6128d84bc959",
+      "sanitized_sha256": "06f4d9b6cdadca22e8677ff32e42394bccc897e6c18fab56d3f04a9aa16fc041"
+    },
+    "later-gates/g10-05.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 2
+      },
+      "original_sha256": "a658e345b7773a18a6605c7b69428f4c64bd8cc2e144c0ba828ec2db41976082",
+      "sanitized_sha256": "e5686a1ede782fc6b9c228e5a29d0b3bd338f7b42aa33c8f2a1c302ec4aee830"
+    },
+    "later-gates/g10-06.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 2
+      },
+      "original_sha256": "7bce96eb7077c7f8cfe125a28fe351934fe11d1c3e0d216387d9dc917612c8f2",
+      "sanitized_sha256": "9d62b959fe5bfc9bf9ced98d5e5f862ab91aa59b4062d773c4ea81d795baad7f"
+    },
+    "later-gates/g11-01-repeat-2.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "b7fc4af051d7df7f523e04dbf69b92742c055019e2709ee97681fc3f1c3f1115",
+      "sanitized_sha256": "21b64a7538b405ee1f01b899a3ae3a70869cb198a6d7ed005f037e1505bcfc07"
+    },
+    "later-gates/g11-01-repeat-3.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "6b50c31320faa86485e69ad45a26e95af112a9b200c44ffe2b8da32f9589ca7d",
+      "sanitized_sha256": "43072a9bbe0c854f947d47f5dc2710938d222c07cda8c84c1279d64f20927d09"
+    },
+    "later-gates/g11-02-gradle-version.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 2
+      },
+      "original_sha256": "ce8d96467a38b0b74ca38c85f496bc3aa0bbab5d91f90ff906924a84ca0aedff",
+      "sanitized_sha256": "80ef9d0c0aa129f51c09158031f54f7bb6fa046c6008d6a5cc75f9bb3d74b5d4"
+    },
+    "later-gates/g11-02-offline-build.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 2
+      },
+      "original_sha256": "3efb54a4ed7381f080df693b7a99d269dda4e56f6731e5bc3315f87c371269dd",
+      "sanitized_sha256": "623dd8d76d61261877c6d1f85eb20267594c8c6b96a83b2048dbe2b64a3fcfee"
+    },
+    "later-gates/g11-02-package-hash.log": {
+      "redactions": {},
+      "original_sha256": "3dd4f1ec8280320bdf73427be7db92b10ff28a6fc77905ccf7f6ebabc0034244",
+      "sanitized_sha256": "50c491b8677b09310812f6f39a206b3b5da86130f4a5f3dc5f61dd22d6227c6f"
+    },
+    "later-gates/g11-02-pwa-package.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "25c3c49122bd8dbf25590fff8ad187278423bd8737302263797beb3a35ed9fbc",
+      "sanitized_sha256": "cfe0ad3bff92f8d69bcfd133d754e01ffdf5128934e469848d78dfb48cf30ae2"
+    },
+    "later-gates/g11-03-repetitions.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 2
+      },
+      "original_sha256": "31b9da502dab54f4d679d041c7829b49a5680c2e63e53c5de6560ed21ba649f5",
+      "sanitized_sha256": "28dacf91fd0b0b6f4280c6bd710484f6129a0152614e3335db8307df22270184"
+    },
+    "later-gates/g12-01-firefox.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "8554af053503fdc870f8c7986b41e5041e2d346a3bf9997d3fca2aa056f7de38",
+      "sanitized_sha256": "b2fc4f0f388cf821d1bbcf65e8730e7067bcf0d358223b729d85a803177b6874"
+    },
+    "later-gates/g12-01-native.log": {
+      "redactions": {},
+      "original_sha256": "890e5a2f0e036ab3ac6853f4b5b0958bc5043c695ad5b27c05fd754b0bd2e4bd",
+      "sanitized_sha256": "518f44d36f0a5bf8ca5f6d76e6cf9bbe116716266c6e700bf328777cfc6eb1af"
+    },
+    "later-gates/later-gates-report.json": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "95e704d39b1b11c431367aa7456c8240235c320629622a5f1c202f8774111b5d",
+      "sanitized_sha256": "95e704d39b1b11c431367aa7456c8240235c320629622a5f1c202f8774111b5d"
+    },
+    "logs/G00-03-seven-relays.log": {
+      "redactions": {},
+      "original_sha256": "81bf873fd42b0c3e882a891a84227adc0b9461fda8098717d50b10a6f385f253",
+      "sanitized_sha256": "9ccdf752c7ee2097f0bc2861909c3fe257894843a546332cee9c546da320b284"
+    },
+    "logs/G00-03-two-relays.log": {
+      "redactions": {},
+      "original_sha256": "fa1211a0209453007cad1d8836215b346a94b9a8572f8c480730d5cab5a74fa2",
+      "sanitized_sha256": "91b90d2a6a4a0c56a102ae9207f2b5e8a579da2390326156426345fa243e246a"
+    },
+    "logs/G01-01-smoke.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 5
+      },
+      "original_sha256": "9715d61b7b88d0290dfa09d28218571f88e9e5330449ed898e129ba1441a59de",
+      "sanitized_sha256": "6de470bcc0312332454ac3447ffd448291a63e5840149da7f07e2d59b0e70fce"
+    },
+    "logs/G01-02-bridge.log": {
+      "redactions": {},
+      "original_sha256": "c5529fd48793c2938204ba8cbe461c2150b4229921f97d398d63b5f648db4b78",
+      "sanitized_sha256": "73a0baf2a66459dd2345166b0bf7bb58707177475d32f6e3c26791881d7cfb5d"
+    },
+    "logs/G01-02-native.log": {
+      "redactions": {},
+      "original_sha256": "71ec69db43427c151104ec94183dacf102710c6be2a93bc66c718dffeea6215a",
+      "sanitized_sha256": "32e1515ea3c5ebecdad3313e3c3707775f6b291ec4e3751db5d32ee82adcb8ff"
+    },
+    "logs/G01-03-mutation-sensitivity.log": {
+      "redactions": {},
+      "original_sha256": "811a3992bfba43d9eb3e7b5d0747a243c1c599865946bade00351ba18d5e2352",
+      "sanitized_sha256": "7635107e5007e53b9639bbb4eb790c22f49d01e1f1095f0d3258026d27aa07a4"
+    },
+    "logs/G02-01-origin.log": {
+      "redactions": {},
+      "original_sha256": "9182805ffad0551a94cc6ca7d96161bec9cf57211cbe700bf10d551b2353e180",
+      "sanitized_sha256": "9b96f2d8f2fe1e125bf15500798560c90bbe1db382cd7e66d55f8ac1641aa667"
+    },
+    "logs/G02-02-03-browser.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "dc10cc96e47c73ed7602167664dd6c5d4522b1569f53a81ef041a6a13eb38aca",
+      "sanitized_sha256": "c5d65ad83d70e0e98f4a1c2a92937b32bbad34436a67c77124c040534ef24a44"
+    },
+    "logs/G02-04-06-browser.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "be19a5c8987e90a1fa9dc61c4ccaa76c3fc0f2b59733446edea22288132bcfd6",
+      "sanitized_sha256": "13dfb532011b06fea3a3c8e25553659f67e2c11410effe076e490ef2e0ee4ecc"
+    },
+    "logs/G03-01-06-browser.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "8013c1a92956852b3456275700634e73f67d729c2fb798a642fa1dab04fa3fa1",
+      "sanitized_sha256": "3e74bcdda197e33e2717fa4b9a3326b96758030e895246ddcd1e05c7aa436104"
+    },
+    "logs/G04-01-06-browser.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "714622168aece9a8d1af04187c7288157b15f84908b7a6daa78fc00c3d128157",
+      "sanitized_sha256": "53c90a97a53a304cf598f0032a8aed8294d36fcfd31c662da8a94f1b359c1ec5"
+    },
+    "logs/G05-01-07-browser.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "5e81d5615c3bd7ea8f9cf86c496a4abe16e14135f7b5cbe720f6aa9a35ff156d",
+      "sanitized_sha256": "c0026c4f355462292e37f779de7f9b795b1b6c2dde76f06ea3ccb9a3ac24a705"
+    },
+    "logs/G06-01-05-browser.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "1da326108df68543a55279be1b293d467cd8639c1083ca342129cb4c1beaf68a",
+      "sanitized_sha256": "506828e57b71934ac00f5f77e7979720340f1dba71472206008539e990c791f1"
+    },
+    "logs/G07-01-07-browser.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "2b96f0bdde6737938dc87b4b3c5d809516d817790bf87d6fa12642efd8f7947f",
+      "sanitized_sha256": "f028836a00c7d2ba618f7cf45c4300f47f88f19b10a1069e24929e3b0cb3d520"
+    },
+    "logs/G08-01-07-ledger.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 2
+      },
+      "original_sha256": "f89bb2f8aedcb383c8734c988ab03ab8fa0b10998d71e6cc57fb307417e54d15",
+      "sanitized_sha256": "3a90eed894d2b23b0a134d634d98f12adc9cc139ce6010f12724504909800473"
+    },
+    "logs/G09-12-later-gates.log": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 3
+      },
+      "original_sha256": "a91c2c7599c38ae0037f0990b18b4e32473471a2b40752989da9c05bfb71484d",
+      "sanitized_sha256": "bff94b24dfa375cf8713aab205f574ec53e9f18cdbe874574adfa7f43ab31a57"
+    },
+    "manifest.json": {
+      "redactions": {
+        "LOCAL_HOME_PATH": 5
+      },
+      "original_sha256": "2814164992348fa4297e96b60314fab32410884755214bb36b558d30dbd0536f",
+      "sanitized_sha256": "2a4e6af58fde8878ab95a48c6afe08351c93e00cf5b5ae23f3c40e088dfe05b5"
+    }
+  },
+  "excluded_files": [
+    {
+      "path": "SHA256SUMS",
+      "reason": "regenerated over sanitized public evidence"
+    },
+    {
+      "path": "later-gates/g11-02-pwa/pwa-package",
+      "reason": "packaged PWA source duplicated tracked product files"
+    },
+    {
+      "path": "ledger-g08/bitcoin-regtest.log",
+      "reason": "raw local ledger process log not needed for public proof"
+    },
+    {
+      "path": "ledger-g08/monero-wallet-advertiser.out",
+      "reason": "raw local ledger process log not needed for public proof"
+    },
+    {
+      "path": "ledger-g08/monero-wallet-nodewallet.out",
+      "reason": "raw local ledger process log not needed for public proof"
+    },
+    {
+      "path": "ledger-g08/monerod-regtest.log",
+      "reason": "raw local ledger process log not needed for public proof"
+    },
+    {
+      "path": "ledger-g08/nano-dev-node-initial.log",
+      "reason": "raw local ledger process log not needed for public proof"
+    },
+    {
+      "path": "ledger-g08/nano-dev-node-representative.log",
+      "reason": "raw local ledger process log not needed for public proof"
+    },
+    {
+      "path": "ledger-g08/nano-internal-log_2026-11-03_23-02-54_170574013.log",
+      "reason": "raw local ledger process log not needed for public proof"
+    },
+    {
+      "path": "ledger-g08/nano-internal-log_2026-11-03_23-02-54_606609920.log",
+      "reason": "raw local ledger process log not needed for public proof"
+    }
+  ]
+}

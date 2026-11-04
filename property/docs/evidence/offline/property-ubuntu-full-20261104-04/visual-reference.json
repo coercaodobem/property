@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "candidate_commit": "136a7f4b5b6aeedc1ed5dc35049e989d58fe44fc",
+  "reference_commit": "0577a23c7ee6de0faf95ee8ca1b30649feb08ea9",
+  "reference_file": "property/docs/evidence/offline/property-ubuntu-full-20261103-20/later-gates/g10-05/g10-viewport-180x400-visual-review.png",
+  "reference_sha256": "02c85c0d2da1dc844d41fdac37e3a9b9bd940fd17617661f47e8ceaaa83e1fbc",
+  "basis": "The current G10-05 run provides machine-measured viewport/focus/accessibility results. This prior visual capture is referenced only because git diff confirms property/web and property/relay are unchanged between reference and candidate; it is not a human-participant review."
+}

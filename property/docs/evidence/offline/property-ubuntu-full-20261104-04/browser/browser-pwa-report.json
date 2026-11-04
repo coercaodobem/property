@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G02-02",
+      "status": "PASS",
+      "reason": "Fresh root and /property/ pages loaded from the local bundle with no external HTTP, WebSocket or deny-proxy attempts."
+    },
+    {
+      "case": "G02-03",
+      "status": "PASS",
+      "reason": "Remembered identity and the cached PWA shell reopened after the local server stopped; relay status remained offline."
+    }
+  ],
+  "external_http_attempts": [],
+  "external_websocket_attempts": [],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "local_request_failures": [],
+  "browser": {
+    "engine": "chromium",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e",
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30"
+  },
+  "local_origin": "http://127.0.0.1:45353",
+  "service_worker_policy": "allowed; local static server only; external HTTP requests are intercepted; browser proxy is a loopback deny proxy",
+  "result": "PASS"
+}
