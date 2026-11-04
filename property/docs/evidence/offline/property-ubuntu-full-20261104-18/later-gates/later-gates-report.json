@@ -634,7 +634,7 @@
       "status": "PASS",
       "gate_eligible": true,
       "command": null,
-      "reason": "The current offline build was blocked by uncached plugins, but the unchanged Geode/build inputs and current installed tree exactly match both successful reproducible offline builds from the recorded prior candidate.",
+      "reason": "The offline source build was blocked because Gradle could not find the required Java 21 toolchain; only Java 25 was installed and no offline toolchain provisioning was configured. The exact-input prior-build reuse exception passed.",
       "observed": {
         "package_hash": "PASS",
         "pwa_package": "PASS",

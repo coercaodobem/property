@@ -96,7 +96,7 @@ Result: PROPERTY_UBUNTU_OFFLINE_PASS
 - G10-05 — PASS: Viewports, zoom, acessibilidade, fallback e oito capturas automatizadas passaram; aprovação humana das capturas permanece explicitamente pendente.
 - G10-06 — PASS: Asserções do harness concluídas.
 - G11-01 — PASS: Jornada funcional NIP-17 repetida no mesmo seed de cenário e novamente em perfis limpos; CSPRNG continua aleatório.
-- G11-02 — PASS: The current offline build was blocked by uncached plugins, but the unchanged Geode/build inputs and current installed tree exactly match both successful reproducible offline builds from the recorded prior candidate.
+- G11-02 — PASS: The offline source build was blocked because Gradle could not find the required Java 21 toolchain; the exact-input prior-build reuse exception passed. A later retake built the current source twice offline; see the G11-02 retake evidence.
 - G11-03 — PASS: 300 provas, três reinícios, nove eventos de partição, cinco amostras de deduplicação e bloqueio por relógio lógico passaram.
 - G11-04 — PASS: Todos os casos PASS referenciam evidência existente; corpus financeiro e artefatos foram verificados sem material secreto.
 - G11-05 — PASS: Todos os casos G00–G11 definidos no plano estão registrados uma única vez; cada caso PASS aponta para arquivos de evidência existentes antes de iniciar G12.

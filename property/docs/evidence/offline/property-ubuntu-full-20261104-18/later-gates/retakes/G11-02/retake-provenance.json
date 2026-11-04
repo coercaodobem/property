@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "retake_id": "property-ubuntu-g11-02-retake-20261104-19",
+  "case": "G11-02",
+  "candidate_commit": "f2e922bf867c338ff41c7a45e0a20d6d4361ba9a",
+  "base_full_profile_candidate": "f7ef06e7408ae0406edb14539dde43a9bd300cf0",
+  "product_build_inputs_changed_since_base": false,
+  "result": "PASS",
+  "correction": "The run-18 summary attributed its blocked build to uncached plugins/dependencies. Its captured Gradle error actually says the Java 21 toolchain was unavailable; only Java 25 was installed and no offline toolchain provisioning repository was configured.",
+  "toolchain": {
+    "jdk": "OpenJDK 21.0.12.1 (Ubuntu 21.0.12.1+1-1-26.04.4)",
+    "packages": [
+      {
+        "name": "openjdk-21-jdk-headless",
+        "version": "21.0.12.1+1-1~26.04.4",
+        "sha256": "a8c8d09f0c4d5e48a5d97a275f658dcfc72061d9d5b33d93db9c2ee45f74d0e7"
+      },
+      {
+        "name": "openjdk-21-jre-headless",
+        "version": "21.0.12.1+1-1~26.04.4",
+        "sha256": "174105c57728ea7652d2a49b5af2f529277dbef51c02417b931e792e54fb2b29"
+      }
+    ],
+    "source": "Ubuntu apt archive configured on the test host",
+    "installation": "Packages downloaded before the isolated run and extracted under /tmp only; not installed system-wide and not added to the repository."
+  },
+  "isolation": {
+    "runner": "bash property/tests/offline/run-isolated.sh",
+    "network_namespace": "User/network namespace created successfully; runner checked namespace identity and enabled loopback only.",
+    "gradle": "--offline"
+  },
+  "build": {
+    "command": "./gradlew --offline --no-daemon --rerun-tasks :geode:installDist --console=plain",
+    "repetitions": 2,
+    "both_exit_codes": 0,
+    "output_sha256_each": "e72ec71548b600a37930307160cc52fbf93319cf7dec1998a967ea7eb6807f61",
+    "files_each": 50,
+    "bytes_each": 42811209,
+    "changed_files_between_builds": []
+  },
+  "pwa": {
+    "asset_count": 23,
+    "sha256": "09568357b884249ef664115e6b5dbf13534a77c51bb0f18928b25da4c673c9cb"
+  },
+  "evidence_report": "later-gates/retakes/G11-02/later-gates-report.json",
+  "post_run_evidence_audit": {
+    "payload_files_before_checksum_manifest": 33,
+    "valid_json_files": 5,
+    "valid_jsonl_files": 0,
+    "valid_pwa_webmanifest_files": 1,
+    "personal_home_path_matches": 0,
+    "temporary_jdk_path_matches": 0,
+    "known_github_token_nostr_secret_pem_patterns": 0
+  }
+}

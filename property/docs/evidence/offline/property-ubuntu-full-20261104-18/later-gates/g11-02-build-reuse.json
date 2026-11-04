@@ -3,7 +3,7 @@
   "current_attempt": {
     "source_build": "BLOCKED",
     "repeat": "BLOCKED",
-    "reason": "Offline build could not resolve uncached Gradle plugins/dependencies."
+    "reason": "O build de origem offline ficou impedido porque Gradle não encontrou o JDK 21 exigido; o host disponibilizava Java 25 e não havia provisionamento offline de toolchain. A exceção de reutilização exata de builds anteriores passou."
   },
   "exact_input_reuse": {
     "eligible": true,
