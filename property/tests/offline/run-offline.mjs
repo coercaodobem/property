@@ -34,8 +34,8 @@ export function validateManifest(value) {
     assert.ok(value[field].trim(), field + ' must not be empty');
   }
   assert.match(value.candidate_commit, /^[0-9a-f]{40}$/i, 'candidate_commit must be a full commit SHA');
-  assert.ok(Number.isSafeInteger(value.case_timeout_ms) && value.case_timeout_ms >= 1000 && value.case_timeout_ms <= 86400000,
-    'case_timeout_ms must be between 1000 and 86400000');
+  assert.ok(Number.isSafeInteger(value.case_timeout_ms) && value.case_timeout_ms >= 1000 && value.case_timeout_ms <= 1800000,
+    'case_timeout_ms is an infrastructure watchdog and must be between 1000 and 1800000');
   assert.ok(value.resource_budget && typeof value.resource_budget === 'object', 'resource_budget is required');
   for (const field of ['min_cpus', 'min_ram_bytes', 'min_tmp_bytes']) {
     assert.ok(Number.isFinite(value.resource_budget[field]) && value.resource_budget[field] > 0,
@@ -1753,7 +1753,7 @@ async function runLaterGates(manifest, outputDir, cases) {
   const reportRelative='later-gates/later-gates-report.json';
   const helper=await runCommand(process.execPath,['property/tests/offline/later-gates.mjs',
     '--manifest',path.join(outputDir,'manifest.json'),'--output',outputDir],
-    Math.max(manifest.case_timeout_ms,90_000_000),path.join(outputDir,'logs/G09-12-later-gates.log'));
+    manifest.case_timeout_ms,path.join(outputDir,'logs/G09-12-later-gates.log'));
   let later=null;
   try{later=JSON.parse(await readFile(path.join(outputDir,reportRelative),'utf8'));}catch{}
   const reported=new Map((later?.cases||[]).map(row=>[row.case,row]));
@@ -1780,7 +1780,7 @@ async function runLaterGates(manifest, outputDir, cases) {
 
 async function copyVerifiedNativeEvidence(caseId, reportPath, platformReport, outputDir) {
   const sourceRoot = path.dirname(path.resolve(reportPath));
-  const expectedEvidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-network-isolation.json', 'g12-platform-preflight.json',
+  const expectedEvidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-driver-warmup.json', 'g12-platform-network-isolation.json', 'g12-platform-preflight.json',
     'g12-platform-relay.log', 'appium-server.log', 'g12-platform-evidence.json'];
   const listed = platformReport.evidence;
   if (!Array.isArray(listed) || expectedEvidence.some(filename => !listed.includes(filename)) ||
@@ -1794,7 +1794,9 @@ async function copyVerifiedNativeEvidence(caseId, reportPath, platformReport, ou
   const preflight = JSON.parse(await readFile(path.join(sourceRoot, 'g12-platform-preflight.json'), 'utf8'));
   const hostIsolation = JSON.parse(await readFile(path.join(sourceRoot, 'g12-platform-network-isolation.json'), 'utf8'));
   const toolchain = JSON.parse(await readFile(path.join(sourceRoot, 'g12-platform-toolchain-preparation.json'), 'utf8'));
+  const warmup = JSON.parse(await readFile(path.join(sourceRoot, 'g12-platform-driver-warmup.json'), 'utf8'));
   const expectedBrowserNames = [...(platformReport.browsers || []).map(browser => browser.browser)].sort();
+  const warmupBrowserNames = Array.isArray(warmup.browsers) ? warmup.browsers.map(browser => browser.name).sort() : [];
   if (toolchain.schema_version !== 1 || toolchain.kind !== 'appium-toolchain-preparation' || toolchain.result !== 'PASS' ||
       toolchain.case !== caseId || toolchain.platform !== `${platformReport.platform?.os}/${platformReport.platform?.arch}` ||
       toolchain.appium !== platformReport.toolchain?.appium ||
@@ -1802,13 +1804,25 @@ async function copyVerifiedNativeEvidence(caseId, reportPath, platformReport, ou
       JSON.stringify(toolchain.drivers) !== JSON.stringify(platformReport.toolchain?.drivers)) {
     throw new Error(`${caseId} pinned Appium toolchain evidence does not match the native report.`);
   }
+  if (warmup.schema_version !== 1 || warmup.kind !== 'native-browser-driver-warmup' || warmup.result !== 'PASS' ||
+      warmup.case !== caseId || warmup.platform !== `${platformReport.platform?.os}/${platformReport.platform?.arch}` ||
+      warmup.candidate_commit !== platformReport.candidate_commit || warmup.allow_driver_downloads !== true ||
+      JSON.stringify(warmupBrowserNames) !== JSON.stringify(expectedBrowserNames) ||
+      !Array.isArray(warmup.browsers) || warmup.browsers.some(browser => browser.status !== 'PASS')) {
+    throw new Error(`${caseId} browser-driver warmup evidence does not match the native report and candidate.`);
+  }
   if (preflight.schema_version !== 1 || preflight.kind !== 'toolchain-preflight' || preflight.result !== 'PASS' ||
       preflight.platform !== `${platformReport.platform?.os}/${platformReport.platform?.arch}` ||
+      preflight.driver_downloads_allowed !== false ||
       preflight.host_network_isolation?.result !== 'PASS' ||
       JSON.stringify(preflight.host_network_isolation) !== JSON.stringify(platformReport.network_isolation?.host_egress?.start) ||
       JSON.stringify([...(preflight.browsers || []).map(browser => browser.name)].sort()) !== JSON.stringify(expectedBrowserNames) ||
       preflight.browsers.some(browser => browser.status !== 'PASS')) {
     throw new Error(`${caseId} preflight evidence does not match the candidate report and browser matrix.`);
+  }
+  if (caseId === 'G12-04' && JSON.stringify(preflight.android_guest_isolation) !==
+      JSON.stringify(platformReport.android_guest_isolation)) {
+    throw new Error('G12-04 Android guest isolation evidence does not match the preflight report.');
   }
   if (hostIsolation.schema_version !== 1 || hostIsolation.kind !== 'native-egress-isolation-checkpoints' || hostIsolation.result !== 'PASS' ||
       hostIsolation.platform !== `${platformReport.platform?.os}/${platformReport.platform?.arch}` ||

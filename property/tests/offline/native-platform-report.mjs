@@ -35,7 +35,7 @@ export function validateNativePlatformReport(report, { caseId, candidateCommit }
   if (report.result !== 'PASS') return { status: 'BLOCKED', reason: `Native platform runner reported ${report.result || 'no result'}.` };
 
   const failures = [];
-  if (report.schema_version !== 2) failures.push('unsupported report schema');
+  if (report.schema_version !== 3) failures.push('unsupported report schema');
   if (`${report.platform?.os}/${report.platform?.arch}` !== spec.host) failures.push(`host must be ${spec.host}`);
   const toolchainDrivers = Array.isArray(report.toolchain?.drivers) ? report.toolchain.drivers : [];
   if (report.toolchain?.appium !== '3.9.0' || !/^22\./.test(String(report.toolchain?.node || '')) ||
@@ -75,7 +75,13 @@ export function validateNativePlatformReport(report, { caseId, candidateCommit }
   if (JSON.stringify(observedNames) !== JSON.stringify([...spec.browserNames].sort())) {
     failures.push(`expected browsers ${spec.browserNames.join(', ')}`);
   }
-  const requiredEvidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-network-isolation.json', 'g12-platform-preflight.json',
+  const driverWarmup = report.browser_driver_warmup;
+  const warmedNames = Array.isArray(driverWarmup?.browsers) ? driverWarmup.browsers.map(browser => browser.name).sort() : [];
+  if (driverWarmup?.status !== 'PASS' || driverWarmup.browser_count !== spec.browserNames.length ||
+      JSON.stringify(warmedNames) !== JSON.stringify([...spec.browserNames].sort())) {
+    failures.push('native browser drivers were not warmed before network isolation');
+  }
+  const requiredEvidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-driver-warmup.json', 'g12-platform-network-isolation.json', 'g12-platform-preflight.json',
     'g12-platform-relay.log', 'appium-server.log', 'g12-platform-evidence.json'];
   if (!Array.isArray(report.evidence) || requiredEvidence.some(name => !report.evidence.includes(name)) ||
       new Set(report.evidence).size !== report.evidence.length) failures.push('the platform report does not declare its evidence files');
@@ -110,8 +116,10 @@ export function validateNativePlatformReport(report, { caseId, candidateCommit }
   }
   if (caseId === 'G12-04' && (report.android_guest_isolation?.verdict !== 'PASS' ||
       report.android_guest_isolation?.wifi_disabled !== true || report.android_guest_isolation?.mobile_data_disabled !== true ||
-      !Array.isArray(report.android_guest_isolation?.default_routes_after) || report.android_guest_isolation.default_routes_after.length !== 0)) {
-    failures.push('Android guest still has network radios enabled or an external default route');
+      report.android_guest_isolation?.emulator_verified !== true ||
+      report.android_guest_isolation?.host_public_egress_blocked !== true ||
+      !Array.isArray(report.android_guest_isolation?.guest_default_routes_observed))) {
+    failures.push('Android guest radio shutdown or host-enforced egress isolation is incomplete');
   }
   if (failures.length) return { status: 'FAIL', reason: failures.join('; ') };
   return { status: 'PASS', reason: `Same-candidate ${caseId} native platform evidence passed on ${spec.host}.` };

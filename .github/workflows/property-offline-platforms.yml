@@ -1,0 +1,96 @@
+name: Property G12 native offline matrix
+
+on:
+  push:
+    branches: [modelo-mvp]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: property-g12-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-platform:
+    name: ${{ matrix.case }} (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - case: G12-02
+            os: windows-latest
+          - case: G12-03
+            os: macos-15
+          - case: G12-04
+            os: ubuntu-latest
+          - case: G12-05
+            os: macos-15
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PROPERTY_PLATFORM_CASE: ${{ matrix.case }}
+      PROPERTY_PLATFORM_OUTPUT: ${{ runner.temp }}/property-platform-artifacts/${{ matrix.case }}
+      APPIUM_HOME: ${{ runner.temp }}/property-appium-home
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            property
+            .github
+
+      - name: Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
+
+      - name: Create private evidence directory
+        shell: bash
+        run: mkdir -p "$PROPERTY_PLATFORM_OUTPUT"
+
+      - name: Enable Safari WebDriver
+        if: matrix.case == 'G12-03' || matrix.case == 'G12-05'
+        shell: bash
+        run: sudo -n safaridriver --enable
+
+      - name: Prepare iOS simulator
+        if: matrix.case == 'G12-05'
+        shell: bash
+        run: node property/tests/platform/prepare-ios-simulator.mjs "$PROPERTY_PLATFORM_OUTPUT/g12-platform-device-preparation.json"
+
+      - name: Install Android emulator image and boot the lab device
+        if: matrix.case == 'G12-04'
+        shell: bash
+        run: bash property/tests/platform/prepare-android-emulator.sh "$PROPERTY_PLATFORM_OUTPUT/g12-platform-device-preparation.json"
+
+      - name: Install pinned Appium toolchain
+        shell: bash
+        run: |
+          npm ci --prefix property/tests/platform
+          node property/tests/platform/prepare-appium.mjs --case "$PROPERTY_PLATFORM_CASE" --output "$PROPERTY_PLATFORM_OUTPUT/g12-platform-toolchain-preparation.json"
+
+      - name: Warm native browser drivers before isolation
+        shell: bash
+        run: node property/tests/platform/platform-browser-smoke.mjs --warmup --case "$PROPERTY_PLATFORM_CASE" --output "$PROPERTY_PLATFORM_OUTPUT"
+
+      - name: Run native journey with public routes removed
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash property/tests/platform/with-network-isolated.sh "$PROPERTY_PLATFORM_CASE" "$PROPERTY_PLATFORM_OUTPUT"
+
+      - name: Run native journey with public routes removed
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./property/tests/platform/with-network-isolated.ps1 -CaseId $env:PROPERTY_PLATFORM_CASE -OutputDir $env:PROPERTY_PLATFORM_OUTPUT
+
+      - name: Upload sanitized native evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: property-${{ matrix.case }}-${{ github.sha }}
+          path: ${{ runner.temp }}/property-platform-artifacts/${{ matrix.case }}
+          if-no-files-found: error
+          retention-days: 30

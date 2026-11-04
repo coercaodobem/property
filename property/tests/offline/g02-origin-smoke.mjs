@@ -17,8 +17,8 @@ for (let index = 0; index < args.length; index++) {
   if (args[index] === '--offline-build') runOfflineBuild = true;
   else if (args[index] === '--build-timeout-ms') {
     buildTimeoutMs = Number(args[++index]);
-    if (!Number.isSafeInteger(buildTimeoutMs) || buildTimeoutMs < 1000 || buildTimeoutMs > 86_400_000) {
-      throw new Error('--build-timeout-ms must be between 1000 and 86400000.');
+    if (!Number.isSafeInteger(buildTimeoutMs) || buildTimeoutMs < 1000 || buildTimeoutMs > 1_800_000) {
+      throw new Error('--build-timeout-ms is an infrastructure watchdog and must be between 1000 and 1800000.');
     }
   } else throw new Error('Unknown g02-origin-smoke option.');
 }

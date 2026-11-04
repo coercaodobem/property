@@ -24,15 +24,17 @@ const redact = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|gi
   .replaceAll(PASSWORD, '[REDACTED_TEST_PASSWORD]').slice(-2500);
 
 function parseArgs(argv) {
-  const options = { caseId: DEFAULT_CASE, output: '', preflight: false };
+  const options = { caseId: DEFAULT_CASE, output: '', preflight: false, warmup: false };
   for (let index = 0; index < argv.length; index++) {
     const item = argv[index];
     if (item === '--preflight') { options.preflight = true; continue; }
+    if (item === '--warmup') { options.warmup = true; continue; }
     if (!['--case', '--output'].includes(item) || !argv[index + 1]) throw new Error(`Unknown or incomplete option: ${item}`);
     const value = argv[++index];
     if (item === '--case') options.caseId = value;
     else options.output = value;
   }
+  assert.equal(options.preflight && options.warmup, false, '--preflight and --warmup are separate stages');
   assert.match(options.caseId, /^G12-0[2-5]$/, '--case must be G12-02 through G12-05');
   assert.ok(options.output, '--output is required');
   return options;
@@ -84,7 +86,9 @@ function startAppServer() {
 }
 
 class WebDriver {
-  constructor(spec) { this.spec = spec; this.sessionId = null; this.capabilities = null; }
+  constructor(spec, { allowDriverDownloads = false } = {}) {
+    this.spec = spec; this.allowDriverDownloads = allowDriverDownloads; this.sessionId = null; this.capabilities = null;
+  }
   async request(method, route, body) {
     const response = await fetch(`${APPIUM}${route}`, { method, headers: { 'content-type': 'application/json' },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -108,9 +112,11 @@ class WebDriver {
     if (this.spec.mobile && process.env.PROPERTY_DEVICE_UDID) alwaysMatch['appium:udid'] = process.env.PROPERTY_DEVICE_UDID;
     if (process.env.PROPERTY_DEVICE_NAME) alwaysMatch['appium:deviceName'] = process.env.PROPERTY_DEVICE_NAME;
     if (process.env.PROPERTY_PLATFORM_VERSION) alwaysMatch['appium:platformVersion'] = process.env.PROPERTY_PLATFORM_VERSION;
+    if (['Chromium', 'UiAutomator2'].includes(this.spec.automationName)) {
+      alwaysMatch['appium:chromedriverAutodownload'] = this.allowDriverDownloads;
+    }
     if (this.spec.automationName === 'UiAutomator2') {
       alwaysMatch['appium:avdLaunchTimeout'] = 180000;
-      alwaysMatch['appium:chromedriverAutodownload'] = false;
       alwaysMatch['appium:skipDeviceInitialization'] = false;
     }
     const value = await this.request('POST', '/session', { capabilities: { alwaysMatch, firstMatch: [{}] } });
@@ -240,35 +246,33 @@ async function forwardToAndroid(port) {
   return { port, status: 'PASS' };
 }
 
-async function isolateAndroidGuest() {
+async function isolateAndroidGuest(hostNetworkIsolation) {
   const udid = process.env.PROPERTY_DEVICE_UDID;
   assert.ok(udid, 'Android platform test requires the exact emulator/device UDID');
   const adb = process.env.ADB || 'adb';
-  const root = await runChild(adb, ['-s', udid, 'root']);
-  assert.equal(root.code, 0, `Android guest did not permit root isolation: ${root.stderr || root.stdout}`);
+  assert.equal(hostNetworkIsolation?.result, 'PASS', 'Android guest isolation requires proven host egress blocking');
   let available = false;
   for (let attempt = 0; attempt < 80; attempt++) {
     const state = await runChild(adb, ['-s', udid, 'get-state']);
     if (state.code === 0 && state.stdout.trim() === 'device') { available = true; break; }
     await sleep(250);
   }
-  assert.equal(available, true, 'Android emulator did not return after adb root');
+  assert.equal(available, true, 'Android emulator did not become available over ADB');
+  const qemu = await runChild(adb, ['-s', udid, 'shell', 'getprop', 'ro.kernel.qemu']);
+  assert.equal(qemu.code, 0, `Cannot verify Android emulator transport: ${qemu.stderr || qemu.stdout}`);
+  assert.equal(qemu.stdout.trim(), '1', 'G12-04 must use the isolated Android emulator, not a physical device');
   for (const service of ['wifi', 'data']) {
     const disabled = await runChild(adb, ['-s', udid, 'shell', 'svc', service, 'disable']);
     assert.equal(disabled.code, 0, `Android ${service} radio could not be disabled: ${disabled.stderr || disabled.stdout}`);
   }
-  const before = await runChild(adb, ['-s', udid, 'shell', 'ip', 'route', 'show', 'default']);
-  assert.equal(before.code, 0, `Cannot inspect Android default route: ${before.stderr}`);
-  const routesBefore = before.stdout.trim().split(/\r?\n/).filter(Boolean);
-  if (routesBefore.length) {
-    const deleted = await runChild(adb, ['-s', udid, 'shell', 'ip', 'route', 'del', 'default']);
-    assert.equal(deleted.code, 0, `Android default route could not be removed: ${deleted.stderr || deleted.stdout}`);
-  }
-  const after = await runChild(adb, ['-s', udid, 'shell', 'ip', 'route', 'show', 'default']);
-  assert.equal(after.code, 0, `Cannot recheck Android default route: ${after.stderr}`);
-  assert.equal(after.stdout.trim(), '', 'Android guest retained a default route to external networks');
-  return { verdict: 'PASS', transport: 'Android emulator ADB', adb_root: true, wifi_disabled: true,
-    mobile_data_disabled: true, default_routes_before: routesBefore, default_routes_after: [] };
+  const wifiStatus = await runChild(adb, ['-s', udid, 'shell', 'cmd', 'wifi', 'status']);
+  assert.equal(wifiStatus.code, 0, `Cannot verify Android Wi-Fi state: ${wifiStatus.stderr || wifiStatus.stdout}`);
+  assert.match(wifiStatus.stdout, /wifi is disabled/i, 'Android Wi-Fi remained enabled after the disable command');
+  const routes = await runChild(adb, ['-s', udid, 'shell', 'ip', 'route', 'show', 'default']);
+  assert.equal(routes.code, 0, `Cannot record Android emulator default routes: ${routes.stderr}`);
+  return { verdict: 'PASS', transport: 'Android emulator ADB', emulator_verified: true,
+    wifi_disabled: true, mobile_data_disabled: true, wifi_status: wifiStatus.stdout.trim().slice(0, 500),
+    host_public_egress_blocked: true, guest_default_routes_observed: routes.stdout.trim().split(/\r?\n/).filter(Boolean) };
 }
 
 function relayCommand() {
@@ -471,14 +475,15 @@ async function runBrowser(spec, originA, originB, relayUrl, port, tempDir, isMob
   }
 }
 
-async function runPreflight(specs, outputDir, hostNetworkIsolation) {
+async function runPreflight(specs, outputDir, hostNetworkIsolation, caseId) {
   const report = { schema_version: 1, kind: 'toolchain-preflight', platform: `${process.platform}/${process.arch}`,
-    host_network_isolation: hostNetworkIsolation, browsers: [] };
+    host_network_isolation: hostNetworkIsolation, driver_downloads_allowed: false, browsers: [] };
   if (hostNetworkIsolation.result !== 'PASS') {
     report.result = 'BLOCKED';
     await writeFile(path.join(outputDir, 'g12-platform-preflight.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
     throw new Error('Native platform preflight requires no usable public/default IPv4/IPv6 route and no external proxy.');
   }
+  if (caseId === 'G12-04') report.android_guest_isolation = await isolateAndroidGuest(hostNetworkIsolation);
   const appium = await startAppium(outputDir);
   try {
     for (const spec of specs) {
@@ -497,15 +502,48 @@ async function runPreflight(specs, outputDir, hostNetworkIsolation) {
   assert.equal(report.result, 'PASS');
 }
 
+async function runDriverWarmup(specs, outputDir, caseId) {
+  const report = { schema_version: 1, kind: 'native-browser-driver-warmup', case: caseId,
+    platform: `${process.platform}/${process.arch}`, candidate_commit: '', allow_driver_downloads: true,
+    browsers: [], result: 'NOT_RUN' };
+  let appium = null, failure = null;
+  try {
+    const head = await runChild(process.platform === 'win32' ? 'git.exe' : 'git', ['rev-parse', 'HEAD']);
+    assert.equal(head.code, 0, 'cannot read candidate Git commit during browser driver warmup');
+    report.candidate_commit = head.stdout.trim();
+    appium = await startAppium(outputDir);
+    for (const spec of specs) {
+      const driver = await new WebDriver(spec, { allowDriverDownloads: true }).create();
+      try {
+        await driver.go('about:blank');
+        report.browsers.push({ name: spec.name, status: 'PASS', platformName: String(driver.capabilities.platformName),
+          browserName: String(driver.capabilities.browserName), browserVersion: String(driver.capabilities.browserVersion || 'unknown') });
+      } finally { await driver.delete(); }
+    }
+    report.result = report.browsers.length === specs.length && report.browsers.every(browser => browser.status === 'PASS') ? 'PASS' : 'FAIL';
+    assert.equal(report.result, 'PASS', 'every native browser must open during the pre-isolation driver warmup');
+  } catch (error) {
+    failure = error;
+    report.result = 'FAIL';
+    report.failure = redact(error?.stack || error?.message || error);
+  } finally {
+    if (appium) await stopChild(appium.proc);
+    await sleep(300);
+  }
+  await writeFile(path.join(outputDir, 'g12-platform-driver-warmup.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
+  if (failure) throw failure;
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const outputDir = path.resolve(options.output);
   await mkdir(outputDir, { recursive: true, mode: 0o700 });
   const specs = browserSpecs(options.caseId);
+  if (options.warmup) { await runDriverWarmup(specs, outputDir, options.caseId); return; }
   const hostNetworkIsolation = await inspectNativeNetworkIsolation();
   await writeFile(path.join(outputDir, 'g12-platform-network-isolation.json'), JSON.stringify(hostNetworkIsolation, null, 2) + '\n', { mode: 0o600 });
-  if (options.preflight) { await runPreflight(specs, outputDir, hostNetworkIsolation); return; }
-  const report = { schema_version: 2, case: options.caseId, candidate_commit: '', platform: {
+  if (options.preflight) { await runPreflight(specs, outputDir, hostNetworkIsolation, options.caseId); return; }
+  const report = { schema_version: 3, case: options.caseId, candidate_commit: '', platform: {
       os: process.platform, release: os.release(), arch: process.arch },
     network_isolation: { verdict: 'NOT_PROVEN', host_egress: hostNetworkIsolation },
     result: 'NOT_RUN', browsers: [], evidence: [], physical_installation_proven: false,
@@ -532,16 +570,32 @@ async function main() {
     assert.equal(toolchain.platform, `${process.platform}/${process.arch}`, 'Appium toolchain was prepared on a different native host');
     report.toolchain = { node: toolchain.node, npm: toolchain.npm, appium: toolchain.appium,
       package_lock_sha256: toolchain.package_lock_sha256, drivers: toolchain.drivers };
+    const warmup = JSON.parse(await readFile(path.join(outputDir, 'g12-platform-driver-warmup.json'), 'utf8'));
+    assert.equal(warmup.result, 'PASS', 'native browser driver warmup did not pass before offline execution');
+    assert.equal(warmup.kind, 'native-browser-driver-warmup', 'browser driver warmup report kind is invalid');
+    assert.equal(warmup.case, options.caseId, 'browser driver warmup case does not match');
+    assert.equal(warmup.platform, `${process.platform}/${process.arch}`, 'browser driver warmup ran on a different native host');
+    assert.equal(warmup.candidate_commit, report.candidate_commit, 'browser driver warmup used a different candidate commit');
+    assert.equal(warmup.allow_driver_downloads, true, 'driver warmup must explicitly allow preparation downloads before isolation');
+    assert.deepEqual(warmup.browsers.map(browser => browser.name).sort(), specs.map(spec => spec.name).sort(),
+      'browser driver warmup set differs from the required native matrix');
+    assert.ok(warmup.browsers.every(browser => browser.status === 'PASS'), 'every browser must be ready before egress is blocked');
+    report.browser_driver_warmup = { status: warmup.result, browser_count: warmup.browsers.length,
+      browsers: warmup.browsers.map(browser => ({ name: browser.name, version: browser.browserVersion })) };
     const preflight = JSON.parse(await readFile(path.join(outputDir, 'g12-platform-preflight.json'), 'utf8'));
     assert.equal(preflight.result, 'PASS', 'native Appium/browser preflight did not pass before offline test execution');
     assert.equal(preflight.platform, `${process.platform}/${process.arch}`, 'preflight ran on a different native host');
     assert.equal(preflight.host_network_isolation?.result, 'PASS', 'native host egress isolation was not proven before browser preflight');
     assert.equal(preflight.host_network_isolation?.platform, hostNetworkIsolation.platform, 'preflight egress isolation was captured on a different host');
+    assert.equal(preflight.driver_downloads_allowed, false, 'browser drivers must not download during offline preflight');
+    if (options.caseId === 'G12-04') {
+      assert.equal(preflight.android_guest_isolation?.verdict, 'PASS', 'Android guest egress must be isolated before the browser preflight');
+      report.android_guest_isolation = preflight.android_guest_isolation;
+    }
     assert.equal(preflight.browsers.length, specs.length, 'preflight did not create a session for every required browser');
     assert.deepEqual(preflight.browsers.map(browser => browser.name).sort(), specs.map(spec => spec.name).sort(), 'preflight browser set differs from the required matrix');
     assert.ok(preflight.browsers.every(browser => browser.status === 'PASS'), 'every required browser must pass preflight');
     await nativeRelayCheck(report, tempDir);
-    if (options.caseId === 'G12-04') report.android_guest_isolation = await isolateAndroidGuest();
     await app.ready;
     await denyProxy.ready;
     const port = 28470 + (Number.parseInt(createHash('sha256').update(report.candidate_commit + options.caseId).digest('hex').slice(0, 4), 16) % 1000);
@@ -597,7 +651,8 @@ async function main() {
       physical_add_to_home_screen_proven: false }));
     report.result = 'PASS';
     report.ended_utc = new Date().toISOString();
-    report.evidence = ['g12-platform-network-isolation.json', 'g12-platform-preflight.json', 'g12-platform-relay.log', 'appium-server.log'];
+    report.evidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-driver-warmup.json',
+      'g12-platform-network-isolation.json', 'g12-platform-preflight.json', 'g12-platform-relay.log', 'appium-server.log'];
     await writeFile(path.join(outputDir, 'g12-platform-report.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
     process.stdout.write(JSON.stringify({ case: options.caseId, result: report.result, candidate_commit: report.candidate_commit,
       browsers: report.browsers.map(row => ({ browser: row.browser, status: row.status, cycles: row.cycles.length })) }) + '\n');
@@ -620,7 +675,7 @@ async function main() {
     try { await writeFile(file, redact(await readFile(file, 'utf8')), { mode: 0o600 }); } catch {}
   }
   report.ended_utc = new Date().toISOString();
-  report.evidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-network-isolation.json', 'g12-platform-preflight.json',
+  report.evidence = ['g12-platform-toolchain-preparation.json', 'g12-platform-driver-warmup.json', 'g12-platform-network-isolation.json', 'g12-platform-preflight.json',
     'g12-platform-relay.log', 'appium-server.log', 'g12-platform-evidence.json'];
   const reportFile = path.join(outputDir, 'g12-platform-report.json');
   await writeFile(reportFile, JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });

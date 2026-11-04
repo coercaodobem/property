@@ -350,10 +350,11 @@ const nativeHostIsolationProof = { schema_version: 1, kind: 'native-egress-isola
   platform: 'win32/x64', policy: 'no-public-default-routes-local-lab-allowed-no-external-proxies',
   start: nativeHostIsolation, end: nativeHostIsolation };
 const nativePlatformSchemaFixture = {
-  schema_version: 2, case: 'G12-02', candidate_commit: 'd'.repeat(40), result: 'PASS',
+  schema_version: 3, case: 'G12-02', candidate_commit: 'd'.repeat(40), result: 'PASS',
   platform: { os: 'win32', arch: 'x64' }, native_relay: { status: 'PASS', platform: 'win32/x64' },
   toolchain: { node: '22.22.1', appium: '3.9.0', package_lock_sha256: 'f'.repeat(64),
     drivers: [{ package: 'appium-chromium-driver', version: '3.2.0', registered: true }] },
+  browser_driver_warmup: { status: 'PASS', browser_count: 2, browsers: [{ name: 'Chrome' }, { name: 'Edge' }] },
   network_isolation: { verdict: 'PASS', policy: 'deny-all loopback HTTP proxy and no usable IPv4/IPv6 default route',
     host_egress_blocked: true, host_egress: nativeHostIsolationProof,
     intentional_external_probe_count: 0, external_proxy_request_count: 0, local_loopback_preserved: true,
@@ -364,7 +365,7 @@ const nativePlatformSchemaFixture = {
     }, cycles: [{ cycle: 1, delivered_once: true }] })),
   local_asset_requests: 6, physical_installation_proven: false,
   installability: [{ physical_add_to_home_screen_proven: false }, { physical_add_to_home_screen_proven: false }],
-  evidence: ['g12-platform-toolchain-preparation.json', 'g12-platform-network-isolation.json', 'g12-platform-preflight.json', 'g12-platform-relay.log',
+  evidence: ['g12-platform-toolchain-preparation.json', 'g12-platform-driver-warmup.json', 'g12-platform-network-isolation.json', 'g12-platform-preflight.json', 'g12-platform-relay.log',
     'appium-server.log', 'g12-platform-evidence.json']
 };
 assert.equal(validateNativePlatformReport(nativePlatformSchemaFixture, {
@@ -372,7 +373,13 @@ assert.equal(validateNativePlatformReport(nativePlatformSchemaFixture, {
 }).status, 'PASS');
 assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture, schema_version: 1 }, {
   caseId: 'G12-02', candidateCommit: 'd'.repeat(40)
-}).status, 'FAIL', 'legacy platform reports with intentional external probes are not accepted');
+}).status, 'FAIL', 'legacy native platform report schemas are not accepted');
+assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture, schema_version: 2 }, {
+  caseId: 'G12-02', candidateCommit: 'd'.repeat(40)
+}).status, 'FAIL', 'schema 2 reports without the browser driver warmup proof are not accepted');
+assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture, browser_driver_warmup: undefined }, {
+  caseId: 'G12-02', candidateCommit: 'd'.repeat(40)
+}).status, 'FAIL', 'native browser driver warmup proof is mandatory');
 assert.equal(validateNativePlatformReport(nativePlatformSchemaFixture, {
   caseId: 'G12-02', candidateCommit: 'e'.repeat(40)
 }).status, 'BLOCKED');
@@ -389,6 +396,33 @@ assert.equal(validateNativePlatformReport({ ...nativePlatformSchemaFixture,
       start: { ...nativePlatformSchemaFixture.network_isolation.host_egress.start,
         ipv4: { ...nativePlatformSchemaFixture.network_isolation.host_egress.start.ipv4, usable_non_loopback_route_count: 1 } } } }
 }, { caseId: 'G12-02', candidateCommit: 'd'.repeat(40) }).status, 'FAIL');
+const androidHostIsolation = { ...nativeHostIsolation, platform: 'linux/x64' };
+const androidHostIsolationProof = { ...nativeHostIsolationProof, platform: 'linux/x64',
+  start: androidHostIsolation, end: androidHostIsolation };
+const androidCycle = cycle => ({ cycle, backgrounded: true, resumed: true, identity_recovered: true,
+  relay_reconnected: true, message_delivered_once: true });
+const androidPlatformFixture = {
+  ...nativePlatformSchemaFixture, case: 'G12-04',
+  platform: { os: 'linux', arch: 'x64' }, native_relay: { status: 'PASS', platform: 'linux/x64' },
+  toolchain: { ...nativePlatformSchemaFixture.toolchain,
+    drivers: [{ package: 'appium-uiautomator2-driver', version: '8.7.3', registered: true }] },
+  browser_driver_warmup: { status: 'PASS', browser_count: 1, browsers: [{ name: 'Chrome Android' }] },
+  network_isolation: { ...nativePlatformSchemaFixture.network_isolation, host_egress: androidHostIsolationProof },
+  browsers: [{ browser: 'Chrome Android', status: 'PASS', identity: 'PASS', messaging: 'PASS', recovery: 'PASS', reconnect: 'PASS',
+    capabilities: { platformName: 'Android', browserName: 'chrome' }, external_probe_performed: false,
+    pwa: { secureContext: true, serviceWorkerSupported: true, manifest: './manifest.webmanifest' },
+    cycles: [androidCycle(1), androidCycle(2), androidCycle(3)] }],
+  installability: [{ physical_add_to_home_screen_proven: false }],
+  android_guest_isolation: { verdict: 'PASS', emulator_verified: true, wifi_disabled: true,
+    mobile_data_disabled: true, host_public_egress_blocked: true,
+    guest_default_routes_observed: ['default via 10.0.2.2 dev eth0'] }
+};
+assert.equal(validateNativePlatformReport(androidPlatformFixture, {
+  caseId: 'G12-04', candidateCommit: 'd'.repeat(40)
+}).status, 'PASS', 'Android can retain a local emulator route when guest radios and host public egress are blocked');
+assert.equal(validateNativePlatformReport({ ...androidPlatformFixture,
+  android_guest_isolation: { ...androidPlatformFixture.android_guest_isolation, wifi_disabled: false }
+}, { caseId: 'G12-04', candidateCommit: 'd'.repeat(40) }).status, 'FAIL');
 assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '10.0.0.0/8', type: 'unreachable', dev: 'eth0' }] ), '4'), { usable: 0, rejected: 0 });
 assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '10.0.0.0/8', type: 'unicast', dev: 'eth0' }] ), '4'), { usable: 0, rejected: 0 });
 assert.deepEqual(summarizeRoutes('linux', JSON.stringify([{ dst: '127.0.0.0/8', type: 'local', dev: 'lo' }] ), '4'), { usable: 0, rejected: 0 });
