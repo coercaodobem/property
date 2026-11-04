@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "run_id": "property-goal-24h-20261104-02-g11-03-24h",
+  "candidate_commit": "bd18258581722a3f1199baf4ca5dcabca41b2477",
+  "source_manifest_compact_sha256": "8a328a3d31acf4ce5d0fb01e8712bb28419957e0e8466d2b3c65117bfd75b3f4",
+  "public_manifest_compact_sha256": "8a328a3d31acf4ce5d0fb01e8712bb28419957e0e8466d2b3c65117bfd75b3f4",
+  "redaction_rule": "Personal home paths and recognized credentials were redacted; this incomplete cancellation record is not gate evidence.",
+  "redacted_text_file_count": 0,
+  "redacted_path_occurrence_count": 0,
+  "credential_redaction_count": 0,
+  "redacted_files": [],
+  "json_jsonl_validation": "PASS: 4 JSON and 1 JSONL files parsed.",
+  "credential_pattern_scan": "PASS: zero recognized private keys, GitHub tokens, or RPC credentials.",
+  "personal_path_scan": "PASS: zero non-placeholder personal home paths.",
+  "checksums_validation": "PASS: SHA256SUMS generated and verified after audit creation."
+}

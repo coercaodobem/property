@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "run_id": "property-goal-24h-20261104-02-g11-03-24h",
+  "candidate_commit": "bd18258581722a3f1199baf4ca5dcabca41b2477",
+  "status": "CANCELLED_BY_SCOPE",
+  "gate_eligible": false,
+  "observed_probe_count": 1,
+  "expected_probe_count": 1441,
+  "reason": "A tentativa foi interrompida ao reaplicar a instrução do usuário para excluir testes baseados em duração. Uma probe havia sido registrada; a execução é incompleta e não é elegível como gate.",
+  "ended_utc": "2026-11-04T17:17:20Z"
+}

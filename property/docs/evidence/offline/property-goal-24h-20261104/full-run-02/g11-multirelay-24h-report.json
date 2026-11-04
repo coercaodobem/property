@@ -1,0 +1,244 @@
+{
+  "schema_version": 1,
+  "case": "G11-03-24H",
+  "run_id": "property-goal-24h-20261104-02-g11-03-24h",
+  "status": "CANCELLED_BY_SCOPE",
+  "method": "real_wall_clock_multirelay_window",
+  "candidate_commit": "bd18258581722a3f1199baf4ca5dcabca41b2477",
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active Codex task runtime; identity is provenance, not a gate.",
+  "predefined_variables": {
+    "requiredDurationSeconds": 86400,
+    "probeIntervalSeconds": 60,
+    "expectedProbeCount": 1441,
+    "maximumProbeGapSeconds": 120,
+    "relayCount": 3,
+    "bridgeCount": 2,
+    "middleRelayIndex": 1,
+    "partitionEventsPerRestart": 3,
+    "restartElapsedSeconds": [
+      28800,
+      57600
+    ],
+    "resourceSampleEveryProbes": 60,
+    "uiSampleProbeCounts": [
+      1,
+      60,
+      120,
+      180,
+      240,
+      300,
+      360,
+      420,
+      480,
+      540,
+      600,
+      660,
+      720,
+      780,
+      840,
+      900,
+      960,
+      1020,
+      1080,
+      1140,
+      1200,
+      1260,
+      1320,
+      1380,
+      1440,
+      1441
+    ],
+    "maximumRelayRssFraction": 0.7,
+    "maximumScratchBytes": 2147483648,
+    "reconciliationBatchSize": 50,
+    "fixedPortOffset": 300
+  },
+  "relay_count": 3,
+  "bridge_count": 2,
+  "allowed_relay_urls": [
+    "ws://127.0.0.1:29560",
+    "ws://127.0.0.1:29561",
+    "ws://127.0.0.1:29562"
+  ],
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "isolation": {
+    "status": "PASS",
+    "parent_namespace_id": "net:[4026531833]",
+    "namespace_id": "net:[4026532727]",
+    "interface_names": [
+      "lo"
+    ],
+    "routes": {
+      "-4": [
+        {
+          "dst": "127.0.0.0/8",
+          "dev": "lo",
+          "table": "local"
+        },
+        {
+          "dst": "127.0.0.1",
+          "dev": "lo",
+          "table": "local"
+        },
+        {
+          "dst": "127.255.255.255",
+          "dev": "lo",
+          "table": "local"
+        }
+      ],
+      "-6": [
+        {
+          "dst": "::1",
+          "dev": "lo",
+          "table": "local"
+        }
+      ]
+    },
+    "nameservers": [
+      "127.0.0.53"
+    ],
+    "configured_proxy_keys": [],
+    "public_endpoints_configured": false,
+    "probe_to_public_network_sent": false
+  },
+  "topology": [
+    {
+      "relay_index": 0,
+      "url": "ws://127.0.0.1:29560",
+      "data_dir_mode": "private temporary directory",
+      "process_id": 975318
+    },
+    {
+      "relay_index": 1,
+      "url": "ws://127.0.0.1:29561",
+      "data_dir_mode": "private temporary directory",
+      "process_id": 975789
+    },
+    {
+      "relay_index": 2,
+      "url": "ws://127.0.0.1:29562",
+      "data_dir_mode": "private temporary directory",
+      "process_id": 976337
+    }
+  ],
+  "start_utc": "2026-11-04T17:14:04.148Z",
+  "end_utc": "2026-11-04T17:17:20Z",
+  "duration_required_seconds": 86400,
+  "duration_wall_seconds": null,
+  "duration_boot_seconds": null,
+  "duration_monotonic_seconds": null,
+  "probe_count": 1,
+  "missed_probe_intervals": 0,
+  "maximum_observed_probe_gap_seconds": 0,
+  "loss_count": 0,
+  "duplicate_storage_count": 0,
+  "probes": [
+    {
+      "probe_index": 1,
+      "scheduled_elapsed_seconds": 0,
+      "observed_elapsed_seconds": 0.01000000024214387,
+      "observed_utc": "2026-11-04T17:14:04.213Z",
+      "event_id": "f832511760997e5e732e9230f102d9bf634ac5b492204ba4aa31aa60eac413fc",
+      "source_ack": true,
+      "reconciled_relay_count": 3,
+      "stored_once_at_each_relay": true,
+      "gap_from_previous_probe_seconds": null
+    }
+  ],
+  "restart_cycles": [],
+  "partition_events": [],
+  "ui_deduplication_samples": [
+    {
+      "probe_index": 1,
+      "reason": "scheduled sample",
+      "event_id": "f832511760997e5e732e9230f102d9bf634ac5b492204ba4aa31aa60eac413fc",
+      "bridges": [
+        {
+          "bridge": "goal 24h bridge 1",
+          "card_count": 1
+        },
+        {
+          "bridge": "goal 24h bridge 2",
+          "card_count": 1
+        }
+      ]
+    }
+  ],
+  "resource_samples": [
+    {
+      "label": "pre-window",
+      "probe_index": 0,
+      "sampled_utc": "2026-11-04T17:14:03.660Z",
+      "relay_processes": [
+        {
+          "label": "goal 24h relay 1",
+          "process_id": 975318,
+          "rss_bytes": 154845184
+        },
+        {
+          "label": "goal 24h relay 2",
+          "process_id": 975789,
+          "rss_bytes": 150020096
+        },
+        {
+          "label": "goal 24h relay 3",
+          "process_id": 976337,
+          "rss_bytes": 151486464
+        }
+      ],
+      "total_relay_rss_bytes": 456351744,
+      "scratch_bytes": 475393041,
+      "harness_rss_bytes": 179380224
+    }
+  ],
+  "final_reconciliation": [],
+  "external_requests": [],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "websockets": [
+    "ws://127.0.0.1:29560/",
+    "ws://127.0.0.1:29561/",
+    "ws://127.0.0.1:29560/",
+    "ws://127.0.0.1:29561/",
+    "ws://127.0.0.1:29561/",
+    "ws://127.0.0.1:29562/",
+    "ws://127.0.0.1:29561/",
+    "ws://127.0.0.1:29562/"
+  ],
+  "reason": "A tentativa foi interrompida ao reaplicar a instrução do usuário para excluir testes baseados em duração. Uma probe havia sido registrada; a execução é incompleta e não é elegível como gate.",
+  "resource_budget": {
+    "available_memory_at_start_bytes": 7146045440,
+    "maximum_aggregate_relay_rss_bytes": 5002231808,
+    "maximum_relay_rss_fraction": 0.7,
+    "maximum_scratch_bytes": 2147483648
+  },
+  "bridges": [
+    {
+      "bridge_index": 0,
+      "relay_urls": [
+        "ws://127.0.0.1:29560",
+        "ws://127.0.0.1:29561"
+      ],
+      "identity_fingerprint": "576d07dfb194749c"
+    },
+    {
+      "bridge_index": 1,
+      "relay_urls": [
+        "ws://127.0.0.1:29561",
+        "ws://127.0.0.1:29562"
+      ],
+      "identity_fingerprint": "63cef1c534a0d13b"
+    }
+  ],
+  "boot_seconds_at_start": 2446406.44,
+  "monotonic_start_ms": 10009.86482,
+  "persistence_marker_id": "25067183421fafdd0655ec01b169a3164b7379f6371ef4a287fd9ff9d9754efa",
+  "gate_eligible": false
+}
