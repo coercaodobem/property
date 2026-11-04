@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: property-g12-${{ github.ref }}
+  group: property-g12-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
