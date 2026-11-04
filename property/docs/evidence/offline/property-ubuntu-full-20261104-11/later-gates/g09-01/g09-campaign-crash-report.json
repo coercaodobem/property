@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "result": "PASS",
+  "case": "G09-01",
+  "abrupt_campaign_crashes": 2,
+  "state_after_first_crash": "awaiting_payment",
+  "state_after_second_crash": "published",
+  "publication_calls_after_recovery": 0,
+  "relay_campaign_copies": 1,
+  "campaign_event_id": "eeb0f6910c77994577e535c31cd40adeb9124a11c871cc38c7233cdda058b067",
+  "relay_url": "ws://127.0.0.1:29200",
+  "temp_state_private": true
+}

@@ -1,0 +1,2864 @@
+{
+  "schema_version": 1,
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active task runtime; identity is provenance, not a gate.",
+  "cases": [
+    {
+      "case": "G09-01",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 1,
+          "result": "PASS",
+          "case": "G09-01",
+          "abrupt_campaign_crashes": 2,
+          "state_after_first_crash": "awaiting_payment",
+          "state_after_second_crash": "published",
+          "publication_calls_after_recovery": 0,
+          "relay_campaign_copies": 1,
+          "campaign_event_id": "eeb0f6910c77994577e535c31cd40adeb9124a11c871cc38c7233cdda058b067",
+          "relay_url": "ws://127.0.0.1:29200",
+          "temp_state_private": true
+        }
+      },
+      "evidence": [
+        "later-gates/g09-01.log",
+        "later-gates/g09-01/g09-campaign-crash-report.json"
+      ]
+    },
+    {
+      "case": "G09-02",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Falha e retorno de inbox/relays, ACK falso e partição/reordenação foram verificados pelos harnesses reais deste mesmo run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G04-04",
+            "status": "PASS"
+          },
+          {
+            "case": "G05-04",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json",
+        "logs/G05-01-07-browser.log",
+        "browser-g05/browser-g05-report.json"
+      ]
+    },
+    {
+      "case": "G09-03",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 1,
+          "case": "G09-03",
+          "result": "PASS",
+          "database_lock": {
+            "acquired": true,
+            "process_isolated_to_temp_database": true,
+            "held_event_ack_kind": "timeout",
+            "held_event_acknowledged": false,
+            "held_event_independently_queryable": false,
+            "recovered_after_release": true,
+            "recovery_event_id": "67e834cf1b005c14b7e544f91b536617dfdf66e3a587d9de12c474e721b20ed6"
+          },
+          "invalid_config": {
+            "exit_code": 1,
+            "rejected_before_relay_listen": true,
+            "error_excerpt": "Picked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -Xss512k -Xms32m -Xmx384m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m -Djava.io.tmpdir=/home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.OrTgZr\nException in thread \"main\" ParseError(errorDescription=Expected EOF, but got '['., line=1, cause=null)\n\tat cc.ekblad.toml.parser.DocumentKt.parseTomlDocument(Document.kt:47)\n\tat cc.ekblad.toml.serialization.TomlDeserializerKt"
+          },
+          "bounded_volume": {
+            "status": "PASS",
+            "rlimit_fsize_bytes": 524288,
+            "largest_database_file_bytes": 524288,
+            "write_failure": {
+              "index": 4,
+              "ack_kind": "ack",
+              "accepted": false
+            },
+            "acknowledged_event_count": 4,
+            "recovered_event_count": 4,
+            "relay_exit_after_limit": 143,
+            "reason": "The enforced file-size cap rejected a write; all previously acknowledged events survived restart."
+          },
+          "secret_free": true
+        }
+      },
+      "evidence": [
+        "later-gates/g09-03.log",
+        "later-gates/g09-03/g09-storage-report.json"
+      ]
+    },
+    {
+      "case": "G09-04",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 1,
+          "case": "G09-04",
+          "result": "PASS",
+          "relay_duplicate_copies": 1,
+          "invalid_signature_rejected": true,
+          "oversized_event_forwarded": false,
+          "bridge_events_accepted_before_quota": 60,
+          "corpus_recovered_after_hostile_input": true,
+          "persisted_event_ids": [
+            "b81cfe904a3007c61dbffb58df8bbae2cb0cd51ab39ee0adb526d0691db54134",
+            "9b64aa9f049e00eb0902b1063888ab84c7564f1257be95bdfdfbe039822faf15"
+          ]
+        }
+      },
+      "evidence": [
+        "later-gates/g09-04.log",
+        "later-gates/g09-04/g09-hostile-report.json"
+      ]
+    },
+    {
+      "case": "G09-05",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Precedência/migração, manifesto adulterado, segmento ausente e hash de pacote passaram.",
+      "observed": {
+        "tamper_package": "PASS",
+        "migration": "PASS",
+        "package_hash": "PASS"
+      },
+      "evidence": [
+        "later-gates/g09-05/g09-package-report.json",
+        "later-gates/g09-05-migration.log",
+        "later-gates/g09-05-package-hash.log"
+      ]
+    },
+    {
+      "case": "G09-06",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Perda isolada de relay/ponte, rotas alternativas e fronteira privada foram verificadas pelos casos reais do mesmo run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G05-02",
+            "status": "PASS"
+          },
+          {
+            "case": "G05-03",
+            "status": "PASS"
+          },
+          {
+            "case": "G05-05",
+            "status": "PASS"
+          },
+          {
+            "case": "G07-07",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G05-01-07-browser.log",
+        "browser-g05/browser-g05-report.json",
+        "logs/G07-01-07-browser.log",
+        "browser-g07/browser-g07-report.json"
+      ]
+    },
+    {
+      "case": "G10-01",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Criação de A/B, listas NIP-17, contato e conversa ponta a ponta foram percorridos pela UI neste run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G03-01",
+            "status": "PASS"
+          },
+          {
+            "case": "G03-04",
+            "status": "PASS"
+          },
+          {
+            "case": "G04-01",
+            "status": "PASS"
+          },
+          {
+            "case": "G04-02",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G03-01-06-browser.log",
+        "browser-g03/browser-g03-report.json",
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json"
+      ]
+    },
+    {
+      "case": "G10-02",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Destinatário offline, recuperação após reabrir, perda de inbox e restauração foram verificadas neste run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G04-03",
+            "status": "PASS"
+          },
+          {
+            "case": "G04-04",
+            "status": "PASS"
+          },
+          {
+            "case": "G05-02",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json",
+        "logs/G05-01-07-browser.log",
+        "browser-g05/browser-g05-report.json"
+      ]
+    },
+    {
+      "case": "G10-03",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Hangout, marketplace, campanha opt-in/bloqueio e contato foram exercitados pela UI e relay neste run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G06-01",
+            "status": "PASS"
+          },
+          {
+            "case": "G06-02",
+            "status": "PASS"
+          },
+          {
+            "case": "G06-03",
+            "status": "PASS"
+          },
+          {
+            "case": "G06-05",
+            "status": "PASS"
+          },
+          {
+            "case": "G07-05",
+            "status": "PASS"
+          },
+          {
+            "case": "G07-07",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G06-01-05-browser.log",
+        "browser-g06/browser-g06-report.json",
+        "logs/G07-01-07-browser.log",
+        "browser-g07/browser-g07-report.json"
+      ]
+    },
+    {
+      "case": "G10-04",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Sessão, bloqueio, backup/recuperação e privacidade em perfil limpo passaram nos casos herdados do mesmo run.",
+      "observed": {
+        "source_cases": [
+          {
+            "case": "G02-06",
+            "status": "PASS"
+          },
+          {
+            "case": "G03-02",
+            "status": "PASS"
+          },
+          {
+            "case": "G03-03",
+            "status": "PASS"
+          },
+          {
+            "case": "G03-06",
+            "status": "PASS"
+          }
+        ]
+      },
+      "evidence": [
+        "logs/G02-04-06-browser.log",
+        "browser-deep-g02/browser-deep-g02-report.json",
+        "logs/G03-01-06-browser.log",
+        "browser-g03/browser-g03-report.json"
+      ]
+    },
+    {
+      "case": "G10-05",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Viewports, zoom, acessibilidade, fallback e oito capturas automatizadas passaram; aprovação humana das capturas permanece explicitamente pendente.",
+      "observed": {
+        "viewport_case": "PASS",
+        "visual_review": {
+          "status": "PENDING_HUMAN_REVIEW",
+          "required_screenshots": 8,
+          "captured_screenshots": 8,
+          "note": "Captures document the automated journey; they do not simulate human review."
+        },
+        "screenshots": [
+          "later-gates/g10-05/screenshots/viewport-360x800.png",
+          "later-gates/g10-05/screenshots/viewport-390x844.png",
+          "later-gates/g10-05/screenshots/viewport-768x1024.png",
+          "later-gates/g10-05/screenshots/viewport-1440x900.png",
+          "later-gates/g10-05/screenshots/viewport-200pct-from-360x800.png",
+          "later-gates/g10-05/screenshots/viewport-200pct-from-390x844.png",
+          "later-gates/g10-05/screenshots/viewport-200pct-from-768x1024.png",
+          "later-gates/g10-05/screenshots/viewport-200pct-from-1440x900.png"
+        ]
+      },
+      "evidence": [
+        "later-gates/g10-05/g10-viewport-report.json",
+        "later-gates/g10-05/screenshots/viewport-360x800.png",
+        "later-gates/g10-05/screenshots/viewport-390x844.png",
+        "later-gates/g10-05/screenshots/viewport-768x1024.png",
+        "later-gates/g10-05/screenshots/viewport-1440x900.png",
+        "later-gates/g10-05/screenshots/viewport-200pct-from-360x800.png",
+        "later-gates/g10-05/screenshots/viewport-200pct-from-390x844.png",
+        "later-gates/g10-05/screenshots/viewport-200pct-from-768x1024.png",
+        "later-gates/g10-05/screenshots/viewport-200pct-from-1440x900.png"
+      ]
+    },
+    {
+      "case": "G10-06",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Asserções do harness concluídas.",
+      "observed": {
+        "harness_exit_code": 0,
+        "report": {
+          "schema_version": 2,
+          "case": "G10-06",
+          "result": "PASS",
+          "predefined_variables": {
+            "directMessageCount": 50,
+            "publicNoteCount": 100,
+            "bridgeCount": 3,
+            "notesPerLogicalRateWindow": 50,
+            "logicalClockStepMs": 60000,
+            "fixedEpochSeconds": 1800000000
+          },
+          "initial_bundle_bytes": 375333,
+          "dm_count": 50,
+          "public_note_count": 100,
+          "relay_count": 4,
+          "bridge_count": 3,
+          "dm_event_ids": [
+            "9ba8c8f316e8d154a2c7f41dd762f11308b8e386b4baf71097c7025475d7038a",
+            "2ad7c32171287ed1dca685ae5314dbbb87092d7b45f3d97a5aca49491809f94d",
+            "e334f67da23208618998ae43a3729776ee1aea95a73469020fca02f1b60b988b",
+            "c5d0fe9940ae209de05dd43078d0eebb3c92f78f1e37f8ddadad8d1cdbf065ee",
+            "d48d1b7676ce1f6a9d0cf61e18175ce25edb3f4fdacdb4bae83ef71503f0b8e5",
+            "db74cf6c2ce5f23312c36fe5bf8c2e5ed5eabb0cafb7b53c3c6d28cfe3534415",
+            "4f146492c2dcbc482e175672f5c64fea85be57e06e7a955cf96121f68c155efc",
+            "20c4cc1cc13ca2fb1975d82443519bf3d2ba78749f964a97f3c78eb575a5859f",
+            "172cf9e6c12d7dafc043e6934f144b11ff6543e12cafea4075e5c9f2811821c0",
+            "9ef02386c14e2e976841e9054a4200ec67d6e86003193d5390da03d3e329c079",
+            "78f04c3909490403cde55b8f6b4e63ac6839769944689f43ed4bf1a6ec940476",
+            "b4535fc4a6288fd3a114720db9df9b951143e23d42fab7d7d2edd78ebd208c7d",
+            "78e5f21b826c05c0bdbb82f2ce8ea59a34074b0f41ebfde11a0df3899621f243",
+            "4023e2a6478cf5c69008f9e5dc50c14e6f015a1bf6d21f0e094ff8a0316cfc80",
+            "92b7112a5e90b4c3b882118452e9f08fda2772f22266a1fa4fc03c92f535548a",
+            "e2fe32b2698b65a15f04fc9a5e6b7f2f905a9e84a8aa6ea6507b75c8a157111b",
+            "68537500795d3058b86aecf55d3d8038e7245594611c2577d6d07b70ab5eab83",
+            "459454d10b883102a17bcc827f0c481c8d3d8a327d564e4dc49c7d663334fbd6",
+            "2094e58451e4cedff6e8014cce94b13474949cf5bb62c3bf6caca628d2ee6fe4",
+            "697e8799307744c45a64262593083dcf4ee9404aa1205435b069d35342b927e8",
+            "4d3ac4fba6ab13875e8888dcdb881a7cd645717b8e7478316b40cb9a8f9ee0ef",
+            "558482e892f7501f7bed11ef1e9c76307da1c99d893692ded217a2531f4c4995",
+            "b73ef5722744cd90838d115dfcad12e5594ce8c19ec7b3f6d029a21e1f7411ee",
+            "09efb70504288dea530b9a6f6f9b62a57b9adc64b8990c3f22937051c2622472",
+            "ed8b5002ae9e6cf4cf99999760d5a1cfc84f8f1cf3aa18295aeb9da55073fc84",
+            "e274ad69e89be6b3677450f15e2f286b2b8492cdf97f5e163058f6bc3fd7c035",
+            "51a3f48d8c8ba5ea736c7dd969cf7d011a69643857d22059b10203fc7f235642",
+            "2e88ce9d24ec4d238109ad9eb4a80cb798e6443aad466d2098479db295e2954d",
+            "14cd789743f4c421ac7618439f5e7cbcc9262857e70f607f0448eb692d8133cb",
+            "eb2aca008d1fb7116f84f51ef7ed0fb053ff406d21ff924e4df7ea3fe130f4f1",
+            "b4c63622fa184bc4979e16b7f43b2e37e72c3f86b1b12aadfa95df2db0c153c9",
+            "9b963bf588a8ef8a9294c79220221cfad54599b812b89b5de61a53268926aba9",
+            "42b47ae60f2e74e4f5b2ba19638f2bec0cc1c3e6555a9332d8b819365f579dbc",
+            "c2ef5218a45acbb3cb4adcfc6b1d7c3e8b132b917ff2d5d545d26ec358bc99cf",
+            "33851198d6924b8664d4e5de9cfc32a1928cfa39d6c9ec031d3ffb2321f74bd0",
+            "83970930bf8655932b8415887edbe2b5066c4d057b6c1b5baeda7171a72bb1ac",
+            "b42a484d2bf5673436cb71a698a501c31c33754995992e54de5d3c1d288eb3af",
+            "0eb5da25fc336528a46c4708d6ac08ad99d282cf9c7d319fea53e8e3c2685f41",
+            "739f14d47dbc155b5b511f050aaabf54615dfe377e153c11adb3646338a70b8b",
+            "cff40d60e015f2046c8330e323be4aabd1e5fff09505082cf39a6be071e33d3f",
+            "91098aa31f90b64eaaf1613a355bee55ee43d89190949c892435d594fe62d7aa",
+            "9f6d548c13d2ee4fba8885bff2beaf50e38bb61c73bf7dd18ed1b94ca0813f0c",
+            "df66399d450e2a680d3e07839af540f869c4c9d6b59e4cea659d2927130cff86",
+            "3892d84758d5a4bf63373b2053e718f204cfe89536352f46b62a8d4e68b8b670",
+            "a387999af3ce2d759afc7581d0ac67b860c89e588cf78a650ab3c6b4bbb33a4f",
+            "1f086df430bc54af3ff5d3040f85b61f1133564ec6c372490f29297f741a7a4e",
+            "6baa96e08d35cbb7647c51a971b35138b46b668f394cc4b1170844abf6fa6886",
+            "dc489f4cdc0cf7482f53c2d79997edc9d3581bd612a02e2d07a0ebae3426e8f9",
+            "1e5f2c6b418f214608f7d69d45c1e1260dccc8ad758782f09f56e0eccc69012a",
+            "70b728b3532f69e703cc39157f287d7fd831d030cd18dba4f91e3fac5622ab85"
+          ],
+          "public_event_ids": [
+            "fcb5b20628f9d21b28ba701fce0aaf90f7757797cbdf2557da68d2633e5da114",
+            "96edd69cca39a8ebb12f7869fa87b3e3c3dab5e72812e56dc66bc1e6b56c5023",
+            "22a9a2daa9a519d6246322af0bc28a4722449e656aa2150ff8bfd606d5faf1a1",
+            "cdc481ac3c6dc0054f472c62d479e0f612b9930f42b0a424d02c4395f59db46c",
+            "8e7285359ae477ed35af0579e492279cf57fbdd57bd2d2ff980334e402fdaf26",
+            "7afba7e48b85ea2ae17eb17d9410cc2d56886fa2a20dcda93f5da8d29021d2d7",
+            "5c9d033a6f7f50ef74a086d36ff807a139309e2bd0bc0b3a8554fee41afededc",
+            "7db13bf77abe095df6cf593ed2871013fad9f5acd99796e102b06617983de616",
+            "8f4b7f82cd7c3e305d590268760d3591dfae5f8976487aa9c7945f37b5dff442",
+            "8f0d25dd8b34eb9b4e99acd19790e49b4ed9a8c91c398d7ad10464e1bb4e795d",
+            "879c221a2b94b5d5ee2e9f7667f982719b0a6084626608ba562acab73c7d692c",
+            "a13323c53810dbc0ed4c2b3e4b6f33502378357586d9fc6c82d080c2b96451ef",
+            "3f876f33c0beac58d11ee9faae79a508d9665aa3a0c90ad971d2037a03bc639b",
+            "1985808bbb17bbf78fdfd67645f2e9fce2c6d57fd3bd634951c0d84e2d532411",
+            "cc6ee006e1920046de54e82962f7c749e855bebb7f46c6fb27617be0453f7cc9",
+            "132036f857413575fd1545008315f4f8be537f2b909249fcdb59ca01eb72cb34",
+            "42e1f3a518a84a9bb383078041f4183051b75516bd018c16aabfbd58ca4d4dde",
+            "6bb5c322698172a0504eba472b88385b9d370fb84541a18a010e3373f24e487a",
+            "4b35dd0215a9a64ec674e68d9f8faa7bc679f4c023c480e6b8a9dc55d0d8ab21",
+            "dd2737800346ac1c45714de52576bed5c13f4221cf70bbac1db62a3de5c3acac",
+            "22a83ce85a56a595c20ad38df9ff51410f2e32dadc55ad116c4e77c2e5cf059c",
+            "c9d46e65158e56143abc0506040515c8e488a074a20d158c3d84537c6e61269c",
+            "5c392a3372169fb772d2505ca1fa8451df71fa2438ef82626d86278e3a6d90e2",
+            "d944af8e895cf3e76683f66f11eb680bb183cc7c26d24cfffbd6f891c1ea715b",
+            "78093b960709153346f9a05ea4aa7b37054d4b4618c03ca3699c3bd08d18aee6",
+            "53ebecf5dd1e403ffafed7fdea523dc54b5e45bc4e3122a4656cec3b827e2d72",
+            "e8276a539d124feec811f97cd27fae626aa4cd8e1f1aa2d1a57be7a7225887f3",
+            "76a0a99bd3713eb017b5da82c0c669c5c9b6446f8ffd5ef28d35bb61a53c9e3b",
+            "dd20b8a3caf39a7989259ba468b402f3a38fac8e91ced4fb812b7351a4d0f5de",
+            "f5f5ea8c5d7b98391729832b66bd3a7aa3701c880c02a468306a696c0bf76204",
+            "10a121587aa4bd01fe306f96d6e8e32b9d8a2a870a7b36a0bf7e33d8b13607c1",
+            "eb5208e9572636ef24f3b1bf06c3fa51b8dc5be871094c987d04586acd930824",
+            "4cfbebc2cdd110602562dfcfb50a6c7a0df99d46efbfbd2b7314505210db5f1d",
+            "a9739205d9c2feecfacf6f90d5312dc50467bb84547ea860b6db3c4e2c0f0d5e",
+            "728a835108869e66ad49819fc77b801eac5326e42bcc0ff12cb2105f55967a7a",
+            "0a3f103704225e9cfb810d1b3760fc5fcb7433ae332d5c7f080aa89ab821771a",
+            "53225d6ace2b9a235ca89e1631cbd03f68a635343b1477bacff0a8e0792443d5",
+            "75bc56f1e8bedf67e46c53d952ad5a3df8ab46669b4a936f034a5479c78abda1",
+            "b2023a7ab1d457d191604031add67c0d1563997a7b4d71e8c6f5561a23d3e2d7",
+            "5e3dd20f203f04003fde3e5d837247d5f31a0decb1fc6bad63396f1aba31c2c3",
+            "9ae6bc45de8b4a301d2478f543234027ed3c6d36e5dcc339993e8bca9cb62969",
+            "8414e9e7f3240ba18c302401aa75a2a31733dd53553136a88612b9f666343c8a",
+            "343afa9247e3c0347debd7a5a8fce9b40fcc294345b8f4eb440c5faca3f1fc3f",
+            "c51ab1e40f1882d70946efd3d0de6e5ced1a63f7fc9155e090222f4f3c4b4cb0",
+            "45a09ee0462cfbf1357fc376719cd391438e53c6069ab1fe7a123ba6f2ea7fee",
+            "8c695de0234cb33e8a51711dde506f7b0ed0c9e20f2eba6bdc24e299c34a765e",
+            "599f0b2cd42f85dab6a4bdfeff56b7e56d85bbe7888b454b6c2086a17fc32ecf",
+            "a0d6aa6abdc39236324f977e83e4387060f69e36b00d147f4e8cf85cf4357942",
+            "2ea5395e4ec87190f21c3342cfb5c5385974d2cd8632c71264de464e096cd280",
+            "4c31c67ad9f31975ff63a1aad2ccdf3742bf81e9da4a093a16e5e944e70d796f",
+            "cb113848d031a21d968acb876ff7f4af9b5b7825df9016ddd297b50739892bb1",
+            "64627094ecec00ed6107ddc4205adc22e10cf6dbac7f0fc85c0d22a131595166",
+            "b7b7ac6eb3c00af92e0591a5f6571bc8ccc7d97b4a5097f8e3520fe040a24ef2",
+            "53cfbf3c77640b24cf975cc030b657d4789a843c99896b7ff7b92252283d93cf",
+            "9a441751b3fba0aef980cc9e951b3ed09b58e6cdcf70dc1ceed0ca531d09ff71",
+            "fcc37814e45cc2bb572e92a14ca5e1f75a4b02da52c47873bc7a4ffa56c8cfaa",
+            "ea2da095a2e0ff2d76df23fa56e7509f445a15707fc2028943f499a1a1d6ffc2",
+            "041cee57a896c9f342110c07c80a6f82f6dbe6867d543a25450348bdaf7e13de",
+            "726186ceb0592ad9454de02c0c543171fb3c01b438ef1292ac2365999b3dafb6",
+            "cf4a046a45a7c8f65c6f1c4fa5a9f425214507490aea356c53b550d0d042d6ff",
+            "213369529960e2f5b3d946bf1bdba073373b3353f42bc37893a402888ac39ce3",
+            "6a03c7a74230363c1f75f9d024ceec992f0020b79373197f944c6f12ada6d15d",
+            "07013c6126a1a529d85c453dad3a7faeb0278da3fe4e2fd5a21e9869c965d65a",
+            "f44e4ba42eeb2f179e722d925f76837de6d6a6283deb3a3461e3d7f0e576c1b0",
+            "5a66ea6d1bfad9bf6dcd54bf0dd3eb994def895d314f0e9f29aab0bdb3d9bdfc",
+            "c1416dc6ccf5dce692aeccf66cf9da4d64c78b11d7f022e9ae9dbb693072f304",
+            "4a8db5059c6df31707461b8fb54d48e06be2db7231dcd39ecabe29b803ca4126",
+            "ec6ea09026423d68db1904206713557d6b2b8701d021a5426278efec27f67cc8",
+            "8f4ca35bb6a6a5933e5abd181efe955898baf2c23d10c3ab034c7a01fe2fc24b",
+            "a9fe7520b7cc19ce1892aaa0c7a02f4676a5b63b6de566a42e41096301044847",
+            "dc0abda3522bacfaae1e8b16659c869ebc069ab2bbd33033288b4ebb3f248974",
+            "e0e2d9bd62eae4b614915ef1008f8ae0838e223fb832815a7ae8d3fdcbbd35b3",
+            "c6ef3870eddad72555857773878324f07be7fb74403ea93a55cf7a05648102a9",
+            "5d78abb76a555270c965d2fe723bc76ee9b44e120f9fb801693d4b6adc631294",
+            "e9aa99c5edf49bcb2cd630736366c554cbc4d6be64942a4f10600a2a4893e1ca",
+            "6d8a20d4869467e6fe68d4dea3968dbdef48c47fede7bbaedfe3bee284339a91",
+            "ae213b24d2948fe6bc307365c37fbd6eead99b9b58ddab1b19376c62132655a6",
+            "a1997584695f422718c29619a34616d1a0f1d6ed0e407f22fe9272b0e9ce2518",
+            "4bd6a5829dacdb7ec4ed446d72c7f5c0ab31b34690e6d76917f73e88b913ad1e",
+            "6ba3ebdd9bda19ca39fc46c91701428529cbbd1df412cba7f9a792a118a17f88",
+            "85366c88a2d81f6a447e8992c1bc599a19c8f0ffa40389b20c14ec5e939158b1",
+            "fdc6b5fb65af640222943458b49a60a974bb6b8f1cdca4edb8b9a2c26bd76686",
+            "5198ca4e6bc178ab4830cef9caac1870b1b94ae0345e87cc09645d40ac9048cb",
+            "18259db0b493b3cea6a7b2461f56a32847dfc64d74cf10e116f5e56205387182",
+            "9c329b3f0217ebe810eff4907fe3ebc64e0b48611500ea3362e74f46c768dd3c",
+            "fadc69f85f51b60e46f91dd8483a71050f33ca9dd00e535370daef4cf45961a5",
+            "b0df238d88b37ff9be3e76980e5dd647a51268c501b913408ad57e0b56e1619e",
+            "34ead93e546282a2e66a267a8d99063b748d8205731142a2601622a02090e98d",
+            "5378fdd177c2a97a444255e7cdc2e9953a3b389428832928147397b468658326",
+            "ff9e9b8d3f034755f6ddddf43c979d863c6cf253af99d988f23945b26fac1555",
+            "b88df457202dc355d15c76fe4b17c1b6ce0ccf02d6668fcf9c50b44df4bb0b92",
+            "7358d11c687f080e2accdfbd273c821fb69a428fd53ba02f36901a02a61f1204",
+            "11df0e694355103129f1731bc846ddfd83e0ef68cb91c2c36c90b39010e20edb",
+            "3fa88fd5f61c4017e90d8a22546cee795ded2431ee222c0d49ddb9831d807abc",
+            "9244f031cd9c3e6bea9cdcb3f6cced8531886931e9ba534b59cb742cd37dac8b",
+            "f8ff63d541bbe77b9fa014bd24ad14c722ef66295f4f7fcbdeec352233be894e",
+            "cb0ce51daa5200a0d95f0d8a5744b094dba7629e9e6f6b1c93d5e617d7e763cd",
+            "1416679131bf45d255fdbb808ea1fbb132a4f8d5a04588d3dc88288a7545d5b9",
+            "2209b6199be3dc6265df40ec61fe0f8c9ce860dbdf7aca5690a948773d2d329e",
+            "0b4f2388e425a50fa80f23df1cf5b71011b3bcea0dc48145581ce38a4d5dbee5"
+          ],
+          "events_forwarded_per_bridge": [
+            100,
+            100,
+            100
+          ],
+          "resource_checkpoints": [
+            {
+              "checkpoint": "after-50-direct-messages",
+              "child_rss_bytes": 193384448,
+              "relay_rss_bytes": [
+                106037248,
+                105840640,
+                104058880,
+                124260352
+              ],
+              "relay_disk_bytes": [
+                158463951,
+                158463951,
+                158463951,
+                161236711
+              ]
+            },
+            {
+              "checkpoint": "after-50-public-notes",
+              "child_rss_bytes": 200069120,
+              "relay_rss_bytes": [
+                137166848,
+                133726208,
+                137437184,
+                141537280
+              ],
+              "relay_disk_bytes": [
+                160783511,
+                160783511,
+                160783511,
+                162722591
+              ]
+            },
+            {
+              "checkpoint": "after-100-public-notes",
+              "child_rss_bytes": 187895808,
+              "relay_rss_bytes": [
+                139411456,
+                135606272,
+                135004160,
+                143224832
+              ],
+              "relay_disk_bytes": [
+                162644791,
+                162644791,
+                162644791,
+                162722591
+              ]
+            }
+          ]
+        }
+      },
+      "evidence": [
+        "later-gates/g10-06.log",
+        "later-gates/g10-06/g10-volume-report.json"
+      ]
+    },
+    {
+      "case": "G11-01",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Jornada funcional NIP-17 repetida no mesmo seed de cenário e novamente em perfis limpos; CSPRNG continua aleatório.",
+      "observed": {
+        "initial_run": [
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "repetitions": [
+          {
+            "status": "PASS",
+            "case_count": 6,
+            "passed": 6
+          },
+          {
+            "status": "PASS",
+            "case_count": 6,
+            "passed": 6
+          }
+        ]
+      },
+      "evidence": [
+        "later-gates/g11-01-repetition-2/browser-g04-report.json",
+        "later-gates/g11-01-repetition-3/browser-g04-report.json"
+      ]
+    },
+    {
+      "case": "G11-02",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "The current offline build was blocked by uncached plugins, but the unchanged Geode/build inputs and current installed tree exactly match both successful reproducible offline builds from the recorded prior candidate.",
+      "observed": {
+        "package_hash": "PASS",
+        "pwa_package": "PASS",
+        "pwa_asset_count": 23,
+        "pwa_sha256": "09568357b884249ef664115e6b5dbf13534a77c51bb0f18928b25da4c673c9cb",
+        "gradle_version": "9.8.2",
+        "gradle_binary_found": true,
+        "gradle_offline_version": "PASS",
+        "offline_geode_source_build": "BLOCKED",
+        "offline_geode_source_build_repeat": "BLOCKED",
+        "reproducibility_evidence_status": "PASS",
+        "prior_exact_input_build_reuse": {
+          "eligible": true,
+          "source_run": "property/docs/evidence/offline/property-full-netns-20261031-21",
+          "source_candidate": "305ae9ab2d0c89755a8323aed787b2e3b65b087f",
+          "source_case_status": "PASS",
+          "prior_build_logs_exit_zero": true,
+          "prior_build_output_sha256": [
+            "e72ec71548b600a37930307160cc52fbf93319cf7dec1998a967ea7eb6807f61",
+            "e72ec71548b600a37930307160cc52fbf93319cf7dec1998a967ea7eb6807f61"
+          ],
+          "current_installed_tree_sha256": "e72ec71548b600a37930307160cc52fbf93319cf7dec1998a967ea7eb6807f61",
+          "prior_tree_manifests_identical": true,
+          "current_tree_matches_both_prior_builds": true,
+          "tracked_build_inputs_unchanged": true,
+          "untracked_build_inputs": [],
+          "evidence": [
+            "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/later-gates-report.json",
+            "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-1.json",
+            "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-2.json",
+            "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build.log",
+            "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build-repeat.log"
+          ]
+        },
+        "build_output_sha256_first": null,
+        "build_output_sha256_repeat": null,
+        "build_output_sha256_inherited_current": "e72ec71548b600a37930307160cc52fbf93319cf7dec1998a967ea7eb6807f61",
+        "build_output_files": 50,
+        "build_output_bytes": 42811209,
+        "build_output_reproducible": true,
+        "changed_build_files": [],
+        "origin_case": "PASS",
+        "source_rebuild_claim": "REUSED_PRIOR_EXACT_INPUT_EVIDENCE"
+      },
+      "evidence": [
+        "later-gates/g11-02-package-hash.log",
+        "later-gates/g11-02-pwa-package.log",
+        "later-gates/g11-02-pwa/pwa-package-manifest.json",
+        "later-gates/g11-02-gradle-version.log",
+        "later-gates/g11-02-offline-build.log",
+        "later-gates/g11-02-build-reuse.json",
+        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/later-gates-report.json",
+        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-1.json",
+        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-build-manifest-2.json",
+        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build.log",
+        "property/docs/evidence/offline/property-full-netns-20261031-21/later-gates/retakes/G11-02/g11-02-offline-build-repeat.log",
+        "logs/G02-01-origin.log"
+      ]
+    },
+    {
+      "case": "G11-03",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "300 provas, três reinícios, nove eventos de partição, cinco amostras de deduplicação e bloqueio por relógio lógico passaram.",
+      "observed": {
+        "schema_version": 3,
+        "case": "G11-03",
+        "status": "PASS",
+        "method": "fixed_repetition_count",
+        "predefined_variables": {
+          "probeCount": 300,
+          "rateWindowProbeBatch": 50,
+          "logicalClockStepMs": 60000,
+          "restartAfterProbeCounts": [
+            60,
+            150,
+            240
+          ],
+          "partitionEventRepetitions": 3,
+          "idleClockStepMs": 60000,
+          "idleClockRepetitions": 31,
+          "idleTimeoutMs": 1800000,
+          "resourceSampleEvery": 25,
+          "uiDedupProbeCounts": [
+            1,
+            60,
+            150,
+            240,
+            300
+          ],
+          "fixedEpochSeconds": 1800000000
+        },
+        "probe_count": 300,
+        "partition_probe_count": 9,
+        "loss_count": 0,
+        "restart_cycles": [
+          {
+            "after_probe_count": 60,
+            "started_utc": "2026-11-04T10:26:24.622Z",
+            "ended_utc": "2026-11-04T10:26:34.085Z",
+            "same_database": true,
+            "partition_events": [
+              {
+                "id": "e23eaf0fe933aa658ed0882b3e75ec352528a3adaf444e032ba03add71b5a150",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              },
+              {
+                "id": "75182ee4870f25129b29e03c7c3292c1cde18e58680e78562b9a09bcf37af7c8",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              },
+              {
+                "id": "3eda64e878af7cfc95ad907f9f8625ea59ab741dccced5ab6a92ffe64d7564bc",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              }
+            ],
+            "reconciled_event_count": 3
+          },
+          {
+            "after_probe_count": 150,
+            "started_utc": "2026-11-04T10:26:49.884Z",
+            "ended_utc": "2026-11-04T10:26:59.638Z",
+            "same_database": true,
+            "partition_events": [
+              {
+                "id": "97b3c6a30c026b9283e1e50fdef3989df1b28ecba805aca7eb72eda6ed5d3d12",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              },
+              {
+                "id": "5a61e9bda5a2d679afe28aa29fa8373208a7e0419988ea6c52bdf83b708bc841",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              },
+              {
+                "id": "c34b9e0297b45424d0ae2c2ccc38a4a930fa9fce1980c8e77b5afdcbd88b9c63",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              }
+            ],
+            "reconciled_event_count": 3
+          },
+          {
+            "after_probe_count": 240,
+            "started_utc": "2026-11-04T10:27:15.386Z",
+            "ended_utc": "2026-11-04T10:27:25.025Z",
+            "same_database": true,
+            "partition_events": [
+              {
+                "id": "35d6d07dd5bfc3be0a768beec5eff5ba0298fa5a3a2693eb9ef4d64db80408ee",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              },
+              {
+                "id": "409982bbbab8920ca3de8f9da454d13e98754337adee681b47a9f3e2795fd379",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              },
+              {
+                "id": "e69b20ad31e69a9bee056f813207129f174770f51e1a0ccc7a3e82bed187b66c",
+                "absent_at_destination_during_partition": true,
+                "source_ack": true,
+                "reconciled_at_middle_and_destination": true
+              }
+            ],
+            "reconciled_event_count": 3
+          }
+        ],
+        "ui_deduplication_samples": [
+          {
+            "probe_count": 1,
+            "event_id": "854c01903faee925c1a30291c3f3da1f27538f6985a6612148ea63d61532fbb4",
+            "nodes": [
+              {
+                "label": "repetition bridge P12",
+                "event_cards": 1
+              },
+              {
+                "label": "repetition bridge P23",
+                "event_cards": 1
+              }
+            ]
+          },
+          {
+            "probe_count": 60,
+            "event_id": "c691956aec66110d975f35719e53c40d5db04618d50df9f190ac995cdde687a2",
+            "nodes": [
+              {
+                "label": "repetition bridge P12",
+                "event_cards": 1
+              },
+              {
+                "label": "repetition bridge P23",
+                "event_cards": 1
+              }
+            ]
+          },
+          {
+            "probe_count": 150,
+            "event_id": "d3c4479c4c5522112e79d2d31d9a22883e8b520f2104786ed74f34ede450048f",
+            "nodes": [
+              {
+                "label": "repetition bridge P12",
+                "event_cards": 1
+              },
+              {
+                "label": "repetition bridge P23",
+                "event_cards": 1
+              }
+            ]
+          },
+          {
+            "probe_count": 240,
+            "event_id": "49c11ce6749f82f568a5298dd5ed3a97f751f8ad792c9ff6a9ae8cd6bbe24dbc",
+            "nodes": [
+              {
+                "label": "repetition bridge P12",
+                "event_cards": 1
+              },
+              {
+                "label": "repetition bridge P23",
+                "event_cards": 1
+              }
+            ]
+          },
+          {
+            "probe_count": 300,
+            "event_id": "25ef7793f243e575a515140eb656054110a53363ebc94d90bbc7a5c67002fde6",
+            "nodes": [
+              {
+                "label": "repetition bridge P12",
+                "event_cards": 1
+              },
+              {
+                "label": "repetition bridge P23",
+                "event_cards": 1
+              }
+            ]
+          }
+        ],
+        "resource_samples": [
+          {
+            "checkpoint_probe_count": 0,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 128651264
+              },
+              {
+                "pid": 2405416,
+                "rss_bytes": 128188416
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 127107072
+              }
+            ],
+            "total_relay_rss_bytes": 383946752,
+            "scratch_bytes": 475393071
+          },
+          {
+            "checkpoint_probe_count": 25,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 132169728
+              },
+              {
+                "pid": 2405416,
+                "rss_bytes": 128888832
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 138416128
+              }
+            ],
+            "total_relay_rss_bytes": 399474688,
+            "scratch_bytes": 478878591
+          },
+          {
+            "checkpoint_probe_count": 50,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 133599232
+              },
+              {
+                "pid": 2405416,
+                "rss_bytes": 129425408
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 142045184
+              }
+            ],
+            "total_relay_rss_bytes": 405069824,
+            "scratch_bytes": 482351751
+          },
+          {
+            "checkpoint_probe_count": 60,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 134299648
+              },
+              {
+                "pid": 2407791,
+                "rss_bytes": 121061376
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 143224832
+              }
+            ],
+            "total_relay_rss_bytes": 398585856,
+            "scratch_bytes": 481436199
+          },
+          {
+            "checkpoint_probe_count": 75,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 136486912
+              },
+              {
+                "pid": 2407791,
+                "rss_bytes": 121782272
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 145170432
+              }
+            ],
+            "total_relay_rss_bytes": 403439616,
+            "scratch_bytes": 483512679
+          },
+          {
+            "checkpoint_probe_count": 100,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 137474048
+              },
+              {
+                "pid": 2407791,
+                "rss_bytes": 120606720
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 146137088
+              }
+            ],
+            "total_relay_rss_bytes": 404217856,
+            "scratch_bytes": 485822079
+          },
+          {
+            "checkpoint_probe_count": 125,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 138596352
+              },
+              {
+                "pid": 2407791,
+                "rss_bytes": 121081856
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 147619840
+              }
+            ],
+            "total_relay_rss_bytes": 407298048,
+            "scratch_bytes": 487123999
+          },
+          {
+            "checkpoint_probe_count": 150,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 139464704
+              },
+              {
+                "pid": 2410816,
+                "rss_bytes": 119885824
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 148566016
+              }
+            ],
+            "total_relay_rss_bytes": 407916544,
+            "scratch_bytes": 484054287
+          },
+          {
+            "checkpoint_probe_count": 150,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 139464704
+              },
+              {
+                "pid": 2410816,
+                "rss_bytes": 119885824
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 148566016
+              }
+            ],
+            "total_relay_rss_bytes": 407916544,
+            "scratch_bytes": 484054287
+          },
+          {
+            "checkpoint_probe_count": 175,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 140767232
+              },
+              {
+                "pid": 2410816,
+                "rss_bytes": 119353344
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 149377024
+              }
+            ],
+            "total_relay_rss_bytes": 409497600,
+            "scratch_bytes": 485788231
+          },
+          {
+            "checkpoint_probe_count": 200,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 141733888
+              },
+              {
+                "pid": 2410816,
+                "rss_bytes": 119767040
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 149811200
+              }
+            ],
+            "total_relay_rss_bytes": 411312128,
+            "scratch_bytes": 487518631
+          },
+          {
+            "checkpoint_probe_count": 225,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 141918208
+              },
+              {
+                "pid": 2410816,
+                "rss_bytes": 121270272
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 150220800
+              }
+            ],
+            "total_relay_rss_bytes": 413409280,
+            "scratch_bytes": 488333311
+          },
+          {
+            "checkpoint_probe_count": 240,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 142462976
+              },
+              {
+                "pid": 2413593,
+                "rss_bytes": 134377472
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 150704128
+              }
+            ],
+            "total_relay_rss_bytes": 427544576,
+            "scratch_bytes": 484320311
+          },
+          {
+            "checkpoint_probe_count": 250,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 142708736
+              },
+              {
+                "pid": 2413593,
+                "rss_bytes": 134901760
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 151080960
+              }
+            ],
+            "total_relay_rss_bytes": 428691456,
+            "scratch_bytes": 485033071
+          },
+          {
+            "checkpoint_probe_count": 275,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 142831616
+              },
+              {
+                "pid": 2413593,
+                "rss_bytes": 135540736
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 151240704
+              }
+            ],
+            "total_relay_rss_bytes": 429613056,
+            "scratch_bytes": 486791831
+          },
+          {
+            "checkpoint_probe_count": 300,
+            "relay_processes": [
+              {
+                "pid": 2404931,
+                "rss_bytes": 143163392
+              },
+              {
+                "pid": 2413593,
+                "rss_bytes": 136269824
+              },
+              {
+                "pid": 2405975,
+                "rss_bytes": 151404544
+              }
+            ],
+            "total_relay_rss_bytes": 430837760,
+            "scratch_bytes": 488460167
+          }
+        ],
+        "external_requests": [],
+        "websockets": [
+          "ws://127.0.0.1:29240/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29240/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29242/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29242/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/",
+          "ws://127.0.0.1:29241/"
+        ],
+        "relay_count": 3,
+        "bridge_count": 2,
+        "started_utc": "2026-11-04T10:26:04.551Z",
+        "ended_utc": "2026-11-04T10:27:35.718Z",
+        "browser": {
+          "playwright_version": "1.62.1",
+          "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+          "browser_version": "153.0.8010.12",
+          "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+        },
+        "resource_budget": {
+          "available_memory_at_start_bytes": 9428578304,
+          "max_relay_rss_bytes": 6600004812,
+          "max_scratch_bytes": 2147483648
+        },
+        "logical_rate_window_advances": 5,
+        "idle_lock_public_bridge": {
+          "verified": true,
+          "logical_clock_step_ms": 60000,
+          "logical_clock_repetitions": 31,
+          "contexts": 2,
+          "secrets_cleared_from_ui": true,
+          "public_bridge_preserved": true
+        },
+        "locked_bridge_stop": {
+          "verified": true,
+          "repetitions": 2,
+          "relay_sockets_closed": [
+            true,
+            true
+          ]
+        },
+        "page_errors": [],
+        "gate_eligible": true
+      },
+      "evidence": [
+        "later-gates/g11-03-repetitions.log",
+        "later-gates/g11-03/g11-multirelay-repetition-report.json",
+        "later-gates/g11-03/g11-repetition-probes.jsonl"
+      ]
+    },
+    {
+      "case": "G11-06",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "96 probes, quatro reinícios, 12 eventos reconciliados, quatro amostras de deduplicação UI e 21 checkpoints de recurso passaram por contagem fixa.",
+      "observed": {
+        "schema_version": 1,
+        "case": "G11-06",
+        "status": "PASS",
+        "gate_eligible": true,
+        "candidate_commit": "032dc5e56b749e1c85f78d118e83c90443eb47df",
+        "method": "fixed_count_multirelay_resilience",
+        "predefined_variables": {
+          "probe_count": 96,
+          "restart_after_probe_counts": [
+            24,
+            48,
+            72,
+            96
+          ],
+          "restart_relay_index": 3,
+          "partition_events_per_restart": 3,
+          "relay_count": 7,
+          "bridge_count": 6,
+          "resource_sample_every_probes": 6,
+          "resource_max_scratch_bytes": 2147483648,
+          "ui_deduplication_probe_counts": [
+            1,
+            24,
+            48,
+            96
+          ],
+          "fixed_event_epoch_seconds": 1800000000,
+          "logical_clock_step_ms_per_event": 1000,
+          "resource_max_memory_fraction": 0.7
+        },
+        "completed_probe_count": 96,
+        "expected_probe_count": 96,
+        "relay_count": 7,
+        "bridge_count": 6,
+        "relays": [
+          {
+            "index": 0,
+            "url": "ws://127.0.0.1:29360",
+            "process_id": 2416153,
+            "data_dir_mode": "temporary private directory"
+          },
+          {
+            "index": 1,
+            "url": "ws://127.0.0.1:29361",
+            "process_id": 2416733,
+            "data_dir_mode": "temporary private directory"
+          },
+          {
+            "index": 2,
+            "url": "ws://127.0.0.1:29362",
+            "process_id": 2417161,
+            "data_dir_mode": "temporary private directory"
+          },
+          {
+            "index": 3,
+            "url": "ws://127.0.0.1:29363",
+            "process_id": 2425699,
+            "data_dir_mode": "temporary private directory",
+            "restart_count": 4
+          },
+          {
+            "index": 4,
+            "url": "ws://127.0.0.1:29364",
+            "process_id": 2418255,
+            "data_dir_mode": "temporary private directory"
+          },
+          {
+            "index": 5,
+            "url": "ws://127.0.0.1:29365",
+            "process_id": 2418795,
+            "data_dir_mode": "temporary private directory"
+          },
+          {
+            "index": 6,
+            "url": "ws://127.0.0.1:29366",
+            "process_id": 2419255,
+            "data_dir_mode": "temporary private directory"
+          }
+        ],
+        "bridges": [
+          {
+            "index": 0,
+            "label": "resilience bridge 1",
+            "connected_relays": [
+              "ws://127.0.0.1:29360",
+              "ws://127.0.0.1:29361"
+            ],
+            "unique_node_identity": true
+          },
+          {
+            "index": 1,
+            "label": "resilience bridge 2",
+            "connected_relays": [
+              "ws://127.0.0.1:29361",
+              "ws://127.0.0.1:29362"
+            ],
+            "unique_node_identity": true
+          },
+          {
+            "index": 2,
+            "label": "resilience bridge 3",
+            "connected_relays": [
+              "ws://127.0.0.1:29362",
+              "ws://127.0.0.1:29363"
+            ],
+            "unique_node_identity": true
+          },
+          {
+            "index": 3,
+            "label": "resilience bridge 4",
+            "connected_relays": [
+              "ws://127.0.0.1:29363",
+              "ws://127.0.0.1:29364"
+            ],
+            "unique_node_identity": true
+          },
+          {
+            "index": 4,
+            "label": "resilience bridge 5",
+            "connected_relays": [
+              "ws://127.0.0.1:29364",
+              "ws://127.0.0.1:29365"
+            ],
+            "unique_node_identity": true
+          },
+          {
+            "index": 5,
+            "label": "resilience bridge 6",
+            "connected_relays": [
+              "ws://127.0.0.1:29365",
+              "ws://127.0.0.1:29366"
+            ],
+            "unique_node_identity": true
+          }
+        ],
+        "failure_cycles": [
+          {
+            "cycle": 1,
+            "after_probe_count": 24,
+            "relay_index": 3,
+            "relay_label": "resilience relay 4",
+            "partition_events": [
+              {
+                "id": "2db3f09d9b6efa735203b8fdb754d3d94c4bf979fa17616b3d237dcc66be651d",
+                "source_ack": true,
+                "absent_at_destination_during_outage": true,
+                "reconciled_at_all_seven_relays": true
+              },
+              {
+                "id": "1877eca3575663ad0d6a6929617640ee3b2085a66b725e2c144d2c2719bb3489",
+                "source_ack": true,
+                "absent_at_destination_during_outage": true,
+                "reconciled_at_all_seven_relays": true
+              },
+              {
+                "id": "0c0afcd0dfafefb403627746088d9b15f4eb2fa67bf10243c7dbda94b352f62f",
+                "source_ack": true,
+                "absent_at_destination_during_outage": true,
+                "reconciled_at_all_seven_relays": true
+              }
+            ],
+            "same_database_on_restart": true,
+            "reconciled_event_count": 3
+          },
+          {
+            "cycle": 2,
+            "after_probe_count": 48,
+            "relay_index": 3,
+            "partition_events": [
+              {
+                "id": "1624e44b518ed1b4e7456b573cdb5537711bc636b10101a0a32fd9e07dae3db1",
+                "source_ack": true,
+                "absent_at_destination_during_outage": true,
+                "reconciled_at_all_seven_relays": true
+              },
+              {
+                "id": "211e76a5049b99a060f7b0679d0341e280ef157ebd1d61c937e7e242855929b6",
+                "source_ack": true,
+                "absent_at_destination_during_outage": true,
+                "reconciled_at_all_seven_relays": true
+              },
+              {
+                "id": "5ce42bb77e8d5b23fbf56dbc40d2b1e83617fd62cd0a5b443936280c928dff6f",
+                "source_ack": true,
+                "absent_at_destination_during_outage": true,
+                "reconciled_at_all_seven_relays": true
+              }
+            ],
+            "same_database_on_restart": true,
+            "reconciled_event_count": 3
+          },
+          {
+            "cycle": 3,
+            "after_probe_count": 72,
+            "relay_index": 3,
+            "partition_events": [
+              {
+                "id": "58aed3e68eb3838a041d4dc68206d0734b5ea402a881fd5632cf1404ee839684",
+                "source_ack": true,
+                "absent_at_destination_during_outage": true,
+                "reconciled_at_all_seven_relays": true
+              },
+              {
+                "id": "14f02bf58ce9c187a360700c80c4ce8b34a1a2b77dc0b36102380ee50e51844b",
+                "source_ack": true,
+                "absent_at_destination_during_outage": true,
+                "reconciled_at_all_seven_relays": true
+              },
+              {
+                "id": "9c5aa31d284aef0417a4597dcff34555f3e31c77b03dbc239932a2929092e337",
+                "source_ack": true,
+                "absent_at_destination_during_outage": true,
+                "reconciled_at_all_seven_relays": true
+              }
+            ],
+            "same_database_on_restart": true,
+            "reconciled_event_count": 3
+          },
+          {
+            "cycle": 4,
+            "after_probe_count": 96,
+            "relay_index": 3,
+            "partition_events": [
+              {
+                "id": "3b3b2f97318f4488df18dc64072141ee8d262d748d9b669540ec086e8e9e63dc",
+                "source_ack": true,
+                "absent_at_destination_during_outage": true,
+                "reconciled_at_all_seven_relays": true
+              },
+              {
+                "id": "8f628bc9fc2fdd61a1e9f655fd895ef7f54be2acad68e4816175a96f78a8eae4",
+                "source_ack": true,
+                "absent_at_destination_during_outage": true,
+                "reconciled_at_all_seven_relays": true
+              },
+              {
+                "id": "70d9879ab37dcd13b81cc24ad49b41975b347c1c905f0ba968a79938655e233d",
+                "source_ack": true,
+                "absent_at_destination_during_outage": true,
+                "reconciled_at_all_seven_relays": true
+              }
+            ],
+            "same_database_on_restart": true,
+            "reconciled_event_count": 3
+          }
+        ],
+        "probe_ids": [
+          "00f0ee7369dd754e29dc188141f79040831c7895c3efdb51e98652a20e4b4d22",
+          "cba94396cc2280a091efdb8c9d30ac91272b48adbbcfb9abd511b3df63bdb9dd",
+          "2824d1128c5b5ce166eec1dd909c44775fa92cf6d0c2615733c6422ca5465678",
+          "e302aedbf7463faa0913fb42be54c45f7acb8ceb93dbed79b11deb0cd7e43062",
+          "6159ee251a6e37d42ab2fbcd026f4c4bf8ae9dfc5dd077f229f4aaf5462b0e34",
+          "8a8da7e49a09919a5c509be1cb1d9c741fbdd9f4469f667d6444ed6b15608ec2",
+          "0951ba129a4ddd3dfa33a847914886923e747fbc4b3e3224e8af0ef06d61745a",
+          "cba1fce997a8e2d69ef2382cc3f04dfbd76bc9d8cef69c30491e6ce63fc8eef3",
+          "b29e60002418e9687b7ac29666e7fd2283fed8794a0d13e43e11a110ce078138",
+          "ec33394b8038e9cd1ebb0f7e9dcf954aa11e3d91066faf123d6d5f8caf5d8309",
+          "a61e8d2b892fb0d61a3f589fd95866a1b7a16898fd8c3b9ad75fbce682846ef3",
+          "1cefef5a3ea42a2545b7fe9e2a854227e351512f85ff9ce93d9d62c87e7af2fd",
+          "31760a5150f74e7088bca558767e49411be3084e9a27d0b46f2ce2c8fe8ac32f",
+          "04ebec0b34e4741a7db06d48f704ba50da51fe5829ad7752d189a453915cd642",
+          "174c4a766f56bcccdf6d3dbaf48ec087da242130496c9cfe3e409fc6e5e4ad71",
+          "351962b34f11e336debe1fdac457c7ce2fbbf6308d693a6b7c25f4f42cd6f063",
+          "b1d768ebb4dbd8b923dd9a90636f6f3409f5e96f4b1a4459ce0797339e4d5fa3",
+          "bde1f51985d04f3ee748b70046b5615ab11b18686681fb221477be8a6bfc85bb",
+          "b3f1a6f5b1229b97039876944cfbf16b6bd0f2b00ae1094daddf3f95be9a7a20",
+          "915714f9f9a88126bb0c994153b35b2f471995888c53ec12476b5732fa625adc",
+          "544c64634aad9a1119506fbda8e367322b8f2b4a124346b05aa50339009ad82d",
+          "0aa2c8b8c805d0d9d0440f852d4d13578ee1238ba0c62576395ff5d706251155",
+          "f2e54a8f502a459ab194f099c0d0ea984daaec8adae33fd6280d541a13bc9aef",
+          "2f2576ba962146b7c63e637f38425d8ae267c4b7e7955e1c1a222f1d6512c026",
+          "9c76b4e2ddc8df0b463f2c64b3300f434473750685909970838d44306cf69fcf",
+          "1ece3a892d6fddd102176003e737951a0a7187e32090253aa62581c3d47269eb",
+          "d058a49c983174e702a61e482edb8921658a92db3f61d31038d9fd66ec2a89bf",
+          "256052f562cb5ec73bb8379ad131fa55536a5027c2418c8010b943f7c8c46ed9",
+          "33cb4d7bb21e8a75d2f1c06e9b473bfb7a193a975c19ba127cf9bf2b5ed14bae",
+          "705d3752100b7a37b62b4c475af2145cc1a2d41577def8bc948e6813439d5d49",
+          "216c844854a61ddd130e7ca9805559c7402ff8e2dfbeffb8696af09c0c1694f2",
+          "fd88eb99d2ba9fd1894e0393ab3117bb9a781a567411610bff645be0a7b2869f",
+          "230f32253932b8a5f7cb1979015aff3e66ce545e60a978230a35f9f2039c8568",
+          "fc6cdaf400c4e85b16a6dea704fd40f3d455adf46b6df814bf13717405a8f7dd",
+          "6c9311ed52be9307eaae9dc4e7a834856055ada94bcf1aea93e126de056b1f61",
+          "2ac599d3333d06f78c6721415ee41adad196de25c9a841aeca9c5a85cf2320ef",
+          "41ee37df363f87b4f038e19869b80eccb4e4d14ce9390434fcb76df069365b10",
+          "c4a484a396f0ea8387d0d865a7f993b9772c944019095f41443e019ec850f13f",
+          "5b7cf9443c7129e050b1536ba57ba06f1644b52a946ae3a4d699672414e36f7b",
+          "89d07a77a66b4ab5cabe54c1bad534be27e21a29daf331384e3e5668768b1dcf",
+          "ba86d7512b8502cef06ec54ceca51afa5636470562e5bd7e24c0c1bdf5c9f54e",
+          "d58557829da1971586586c901cc0e1346af7379c3daa1683ee493c40f319e463",
+          "35816d26d587284916ae289f1b816849a9252350084b7c200bb7aed3ebce8cdc",
+          "bdd33a0c875201154f2a774f9a5c7c00e3645143a9578af5081c712ce60d10e3",
+          "714295af22f3013cab80b7e1389a6049ca08e43d5f13e6c678eba7f0f70b7426",
+          "c67312a4714919f354167481503c86e7a0c0706b864a8c653bfc6e7b49d82fe0",
+          "be14bde3af7caca80a6f12f45dc73fb7b8f9570e30657eaa317f4c137ab2c592",
+          "919ad1a3c7cbe8f928d60ed78b4977ceb3422e5dc35cbb56bdcc031d2be2d9f4",
+          "67372837200a83f6b6bee3402cf6e79c454ed57164c05f4c58a27ce6e55ea97d",
+          "7a96e6b12e75621da60bdd71d501302937e9f6a2b26ff3438dc5050567b64640",
+          "99d263a81d225f70e973471e57a5c37b2b827869b330f52d07a74babb57ad793",
+          "a1393d031c6949a028ad3dc0dce1ab32d9e27fa880d5b26e75da5560342aaea5",
+          "eeb9694fa5c2f9640c7a6f6ff643df4f1d057027cac292967d666a85c7a52591",
+          "29cfa8b3690da9cf9fbff368e12ae4d7a6116a20c75ece074aded47b46d3651a",
+          "a11281c52e1791a528ef5121d0d75790a29b3a3f035b033ecf8baa51a4c1bbd5",
+          "9f3600d81d6a4534ac28748c04e71be9554d71318f0722d8c3f499f7a63c1e7e",
+          "3cd741b08773f558c10dbd2c2c2a7571c70afc56ea73df704d9ce5f613ed1652",
+          "5a6bdd75e8e8bc5eeec7dea7bb21e110a30a36de9f0aebdb38336fcaad0483b9",
+          "6d0a9a3a7a6bc068f31753458110d669a3ae27b6e0da496fe4e4918b0a47ad69",
+          "79215776adc9ac312ba75d345258535d1ef8fc498edcf0ae09af8e34138fb5c0",
+          "bc4e7fcb466927983a82ed6491e07e4358fbe8c8ec30b6f92ca5f378b570d8ce",
+          "64fba8831f81f4998627ea8844405a284492d2802930dfc4406623306f1dca0f",
+          "fdadda535880f27240efdc04c6842b118fc53c1cc26f469bf54500795f2ceb64",
+          "3936d3c0a16d586c400579034ef6f72bdc372bbd33b4f8dd8632201622f72840",
+          "cce8cc6df9073f6868fa952e7cf2b65b74df43aa7c501131076740f7529a1ab1",
+          "c12af41dcfe78ac0d38a1bee6118473150a49007c10d4415b4cdb06aa92dad13",
+          "0bbf2058959da6c487ced9e74a1e182be967270d3d292c071d8831d2a15c9239",
+          "49419a51b2ed56f268c9d4077f28b4f07042a390990e3ff899af151e2a733e8e",
+          "a6ce375dca1bf3b283ac5b6924a021b20c173a2ca053fc8177affd49cd4ba266",
+          "4523acb6b434af44444d814edc1f83e2d176d0a1331b8af6e93b4d58e80347f3",
+          "2d748195b4518c515954e9ecf2eeb10b101ce04d0c2f04ea668cd84dc3446bcc",
+          "b5d129a7d61d07161a02a0ad2eb33182af4d839c3552d08d7ee8af153c07adcc",
+          "cc1f04d7b071ba782c7136eaa86c7b349e29a2fa44140412655bb451bec76c01",
+          "d005c92383990638925bf267b55be3405e9c173f0d2040a1ae9d25ffb13fdb6d",
+          "8aeb41a3bbd0e62aecb57145393f6e35af89a60e8b483eb712e65a66b6b5350d",
+          "897e620c26f16cd0e274b3d2039a0f3619f7d2f784b416c31b8a79cfd51a8a4f",
+          "b7386b3079d30c676d78661a9bd5939d7e8774f444b86570e4069043160c0cb3",
+          "17e0a519156eeb1b2dd1eea4f32e5db3221f07830699fd0221804c2b1316a1e4",
+          "0a95562dc4eb46742e96489a5a477c4470afc48d2583aaf755cc1687f8f56736",
+          "7d5e9ce6cc2f9c887b3bf843fc8b8e814127d6babe00f3bce733f609ce661182",
+          "80e81f0b28bf1109abe253590834bfa469e15937d0e3716c9e9f71d507028730",
+          "8d14bbf952d9ac182a0b608e133db66de40f7e3ed88067869138ce32fadd1e2d",
+          "beaec8c6b5f1168b46095b0c4bbcf6755a1fa7c76ff0e37fc02319b80e6a88b6",
+          "6d92cb1345db3f4ed739823cbbd47052411a2f6400a4891223b299055021110f",
+          "6a08e43b9b346e3b041483029ed0714310281865bd2092367ba78d841b9add3f",
+          "cdc632fa32ea2caf202f93c46e670ddc779825f54710972e85e4d6d386d68252",
+          "8245465d53e10633a56a5bb47156fdbde561d9fe2fd9c13bb0bd320210455dbf",
+          "b9eab3737cf900fa3abbbfde63c0090bf27c38233829346c92323be8959ec5d4",
+          "ecfb905c39fef0bc7f6afdc85a21bee8bbab81507c506c7c44b143bf1f3caa42",
+          "869614cd4383d02cbee0f9ce83b3bce46a2fc82c17ed5ae184b011d8fad95d06",
+          "2bc6fabc1e97c49b69ac76f3825438073e7142467a3c45652ddf37648da80e84",
+          "aeeb294674494658f49d0ec2c37d43889053282dfbbde65aef78a46bc7c88174",
+          "d96890224963782ac3a2e1f2dcb92821f5c7e06483d7a9c63482c310a54e6393",
+          "86a5bb8c79386d118d5a4b839c04c0546506008b3c5938807c43c4ea77dfe80b",
+          "830c7410adce0b57b9c795f1e288982d63df42e874300d02c60ec6d81f42bcdb",
+          "1600d189eca74518f4320ace098ce2cc8fec64e595e9692c48ddbc918519d5f9"
+        ],
+        "ui_deduplication_samples": [
+          {
+            "probe_count": 1,
+            "event_id": "00f0ee7369dd754e29dc188141f79040831c7895c3efdb51e98652a20e4b4d22",
+            "bridges": [
+              {
+                "bridge": "resilience bridge 1",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 2",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 3",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 4",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 5",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 6",
+                "card_count": 1
+              }
+            ]
+          },
+          {
+            "probe_count": 24,
+            "event_id": "2f2576ba962146b7c63e637f38425d8ae267c4b7e7955e1c1a222f1d6512c026",
+            "bridges": [
+              {
+                "bridge": "resilience bridge 1",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 2",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 3",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 4",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 5",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 6",
+                "card_count": 1
+              }
+            ]
+          },
+          {
+            "probe_count": 48,
+            "event_id": "919ad1a3c7cbe8f928d60ed78b4977ceb3422e5dc35cbb56bdcc031d2be2d9f4",
+            "bridges": [
+              {
+                "bridge": "resilience bridge 1",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 2",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 3",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 4",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 5",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 6",
+                "card_count": 1
+              }
+            ]
+          },
+          {
+            "probe_count": 96,
+            "event_id": "1600d189eca74518f4320ace098ce2cc8fec64e595e9692c48ddbc918519d5f9",
+            "bridges": [
+              {
+                "bridge": "resilience bridge 1",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 2",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 3",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 4",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 5",
+                "card_count": 1
+              },
+              {
+                "bridge": "resilience bridge 6",
+                "card_count": 1
+              }
+            ]
+          }
+        ],
+        "resource_samples": [
+          {
+            "checkpoint": "initial",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 129347584
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 129925120
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 130076672
+              },
+              {
+                "label": "resilience relay 4",
+                "pid": 2417643,
+                "rss_bytes": 111419392
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 130465792
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 130060288
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 129114112
+              }
+            ],
+            "aggregate_relay_rss_bytes": 890408960,
+            "available_memory_bytes": 9453625344,
+            "scratch_bytes": 1109250520
+          },
+          {
+            "checkpoint": "probe-6",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 134434816
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 134578176
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 134324224
+              },
+              {
+                "label": "resilience relay 4",
+                "pid": 2417643,
+                "rss_bytes": 118337536
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 135368704
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 134914048
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 135516160
+              }
+            ],
+            "aggregate_relay_rss_bytes": 927473664,
+            "available_memory_bytes": 9340592128,
+            "scratch_bytes": 1111153960
+          },
+          {
+            "checkpoint": "probe-12",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 135786496
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 135938048
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 135479296
+              },
+              {
+                "label": "resilience relay 4",
+                "pid": 2417643,
+                "rss_bytes": 119476224
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 136511488
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 137195520
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 136851456
+              }
+            ],
+            "aggregate_relay_rss_bytes": 937238528,
+            "available_memory_bytes": 9468481536,
+            "scratch_bytes": 1113057400
+          },
+          {
+            "checkpoint": "probe-18",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 136531968
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 136634368
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 136187904
+              },
+              {
+                "label": "resilience relay 4",
+                "pid": 2417643,
+                "rss_bytes": 120184832
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 137437184
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 137859072
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 137863168
+              }
+            ],
+            "aggregate_relay_rss_bytes": 942698496,
+            "available_memory_bytes": 9466609664,
+            "scratch_bytes": 1115076200
+          },
+          {
+            "checkpoint": "probe-24",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 137146368
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 137170944
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 136785920
+              },
+              {
+                "label": "resilience relay 4",
+                "pid": 2417643,
+                "rss_bytes": 120901632
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 138080256
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 138391552
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 138424320
+              }
+            ],
+            "aggregate_relay_rss_bytes": 946900992,
+            "available_memory_bytes": 9370914816,
+            "scratch_bytes": 1116979640
+          },
+          {
+            "checkpoint": "restart-1-after-probe-24",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 140300288
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 137621504
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 137228288
+              },
+              {
+                "pid": 2420959,
+                "rss_bytes": 120168448
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 138522624
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 138862592
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 138928128
+              }
+            ],
+            "aggregate_relay_rss_bytes": 951631872,
+            "available_memory_bytes": 9187155968,
+            "scratch_bytes": 1116834768
+          },
+          {
+            "checkpoint": "probe-30",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 141504512
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 139382784
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 138113024
+              },
+              {
+                "pid": 2420959,
+                "rss_bytes": 123723776
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 140517376
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 140795904
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 139321344
+              }
+            ],
+            "aggregate_relay_rss_bytes": 963358720,
+            "available_memory_bytes": 9169555456,
+            "scratch_bytes": 1118738208
+          },
+          {
+            "checkpoint": "probe-36",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 142278656
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 140804096
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 139337728
+              },
+              {
+                "pid": 2420959,
+                "rss_bytes": 124809216
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 141676544
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 141897728
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 140746752
+              }
+            ],
+            "aggregate_relay_rss_bytes": 971550720,
+            "available_memory_bytes": 9153544192,
+            "scratch_bytes": 1120728168
+          },
+          {
+            "checkpoint": "probe-42",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 142987264
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 141402112
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 139763712
+              },
+              {
+                "pid": 2420959,
+                "rss_bytes": 125620224
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 142450688
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 142417920
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 141955072
+              }
+            ],
+            "aggregate_relay_rss_bytes": 976596992,
+            "available_memory_bytes": 9248337920,
+            "scratch_bytes": 1122631608
+          },
+          {
+            "checkpoint": "probe-48",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 143679488
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 141729792
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 140460032
+              },
+              {
+                "pid": 2420959,
+                "rss_bytes": 126210048
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 142823424
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 142852096
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 142237696
+              }
+            ],
+            "aggregate_relay_rss_bytes": 979992576,
+            "available_memory_bytes": 9150476288,
+            "scratch_bytes": 1124621568
+          },
+          {
+            "checkpoint": "restart-2-after-probe-48",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 144158720
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 141897728
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 140701696
+              },
+              {
+                "pid": 2422504,
+                "rss_bytes": 132538368
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 143245312
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 143036416
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 142581760
+              }
+            ],
+            "aggregate_relay_rss_bytes": 988160000,
+            "available_memory_bytes": 9081270272,
+            "scratch_bytes": 1282908847
+          },
+          {
+            "checkpoint": "probe-54",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 144662528
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 145100800
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 141094912
+              },
+              {
+                "pid": 2422504,
+                "rss_bytes": 134594560
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 143548416
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 143392768
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 143179776
+              }
+            ],
+            "aggregate_relay_rss_bytes": 995573760,
+            "available_memory_bytes": 9055272960,
+            "scratch_bytes": 1284911167
+          },
+          {
+            "checkpoint": "probe-60",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 145358848
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 145735680
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 143065088
+              },
+              {
+                "pid": 2422504,
+                "rss_bytes": 135630848
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 144076800
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 144035840
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 143814656
+              }
+            ],
+            "aggregate_relay_rss_bytes": 1001717760,
+            "available_memory_bytes": 9271480320,
+            "scratch_bytes": 1286905247
+          },
+          {
+            "checkpoint": "probe-66",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 145637376
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 145981440
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 143335424
+              },
+              {
+                "pid": 2422504,
+                "rss_bytes": 136560640
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 144343040
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 144195584
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 144125952
+              }
+            ],
+            "aggregate_relay_rss_bytes": 1004179456,
+            "available_memory_bytes": 9286930432,
+            "scratch_bytes": 1288808687
+          },
+          {
+            "checkpoint": "probe-72",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 145948672
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 146337792
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 143659008
+              },
+              {
+                "pid": 2422504,
+                "rss_bytes": 137093120
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 144658432
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 144605184
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 144519168
+              }
+            ],
+            "aggregate_relay_rss_bytes": 1006821376,
+            "available_memory_bytes": 9233805312,
+            "scratch_bytes": 1290798647
+          },
+          {
+            "checkpoint": "restart-3-after-probe-72",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 141148160
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 144666624
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 144580608
+              },
+              {
+                "pid": 2424053,
+                "rss_bytes": 128507904
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 144891904
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 145215488
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 144691200
+              }
+            ],
+            "aggregate_relay_rss_bytes": 993701888,
+            "available_memory_bytes": 9326313472,
+            "scratch_bytes": 1290612551
+          },
+          {
+            "checkpoint": "probe-78",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 142004224
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 145707008
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 144957440
+              },
+              {
+                "pid": 2424053,
+                "rss_bytes": 129921024
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 145297408
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 145711104
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 145244160
+              }
+            ],
+            "aggregate_relay_rss_bytes": 998842368,
+            "available_memory_bytes": 9158299648,
+            "scratch_bytes": 1293140591
+          },
+          {
+            "checkpoint": "probe-84",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 142102528
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 146051072
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 145108992
+              },
+              {
+                "pid": 2424053,
+                "rss_bytes": 130830336
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 145432576
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 145858560
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 145842176
+              }
+            ],
+            "aggregate_relay_rss_bytes": 1001226240,
+            "available_memory_bytes": 9185792000,
+            "scratch_bytes": 1293424871
+          },
+          {
+            "checkpoint": "probe-90",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 142315520
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 146341888
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 145518592
+              },
+              {
+                "pid": 2424053,
+                "rss_bytes": 131690496
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 145870848
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 146247680
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 146046976
+              }
+            ],
+            "aggregate_relay_rss_bytes": 1004032000,
+            "available_memory_bytes": 9107001344,
+            "scratch_bytes": 1293696791
+          },
+          {
+            "checkpoint": "probe-96",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 142680064
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 146739200
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 145960960
+              },
+              {
+                "pid": 2424053,
+                "rss_bytes": 132399104
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 146219008
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 146399232
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 146374656
+              }
+            ],
+            "aggregate_relay_rss_bytes": 1006772224,
+            "available_memory_bytes": 9186959360,
+            "scratch_bytes": 1294014031
+          },
+          {
+            "checkpoint": "restart-4-after-probe-96",
+            "relay_processes": [
+              {
+                "label": "resilience relay 1",
+                "pid": 2416153,
+                "rss_bytes": 143048704
+              },
+              {
+                "label": "resilience relay 2",
+                "pid": 2416733,
+                "rss_bytes": 144093184
+              },
+              {
+                "label": "resilience relay 3",
+                "pid": 2417161,
+                "rss_bytes": 146075648
+              },
+              {
+                "pid": 2425699,
+                "rss_bytes": 115036160
+              },
+              {
+                "label": "resilience relay 5",
+                "pid": 2418255,
+                "rss_bytes": 146292736
+              },
+              {
+                "label": "resilience relay 6",
+                "pid": 2418795,
+                "rss_bytes": 146903040
+              },
+              {
+                "label": "resilience relay 7",
+                "pid": 2419255,
+                "rss_bytes": 146464768
+              }
+            ],
+            "aggregate_relay_rss_bytes": 987914240,
+            "available_memory_bytes": 9017606144,
+            "scratch_bytes": 1292909727
+          }
+        ],
+        "external_requests": [],
+        "denied_proxy_attempts": [],
+        "websockets": [
+          "ws://127.0.0.1:29360/",
+          "ws://127.0.0.1:29361/",
+          "ws://127.0.0.1:29360/",
+          "ws://127.0.0.1:29361/",
+          "ws://127.0.0.1:29361/",
+          "ws://127.0.0.1:29362/",
+          "ws://127.0.0.1:29361/",
+          "ws://127.0.0.1:29362/",
+          "ws://127.0.0.1:29362/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29362/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29364/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29364/",
+          "ws://127.0.0.1:29364/",
+          "ws://127.0.0.1:29365/",
+          "ws://127.0.0.1:29364/",
+          "ws://127.0.0.1:29365/",
+          "ws://127.0.0.1:29365/",
+          "ws://127.0.0.1:29366/",
+          "ws://127.0.0.1:29365/",
+          "ws://127.0.0.1:29366/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/",
+          "ws://127.0.0.1:29363/"
+        ],
+        "page_errors": [],
+        "browser": {
+          "playwright_version": "1.62.1",
+          "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+          "browser_version": "153.0.8010.12",
+          "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+        },
+        "resource_budget": {
+          "available_memory_at_start_bytes": 9096601600,
+          "maximum_aggregate_relay_rss_fraction": 0.7,
+          "maximum_scratch_bytes": 2147483648
+        }
+      },
+      "evidence": [
+        "later-gates/g11-06-counted-resilience.log",
+        "later-gates/g11-06/g11-multirelay-resilience-report.json",
+        "later-gates/g11-06/g11-multirelay-resilience-probes.jsonl"
+      ]
+    },
+    {
+      "case": "G11-04",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Todos os casos PASS referenciam evidência existente; corpus financeiro e artefatos foram verificados sem material secreto.",
+      "observed": {
+        "core_pass_case_count": 51,
+        "g08_report_present": true,
+        "missing_evidence": [],
+        "secret_artifact_paths": []
+      },
+      "evidence": []
+    },
+    {
+      "case": "G11-05",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Todos os casos G00–G11 definidos no plano estão registrados uma única vez; cada caso PASS aponta para arquivos de evidência existentes antes de iniciar G12.",
+      "observed": {
+        "planned_case_count": 69,
+        "recorded_case_count": 69,
+        "case_set_complete": true,
+        "missing_case_ids": [],
+        "unexpected_case_ids": [],
+        "not_run_case_ids": [],
+        "pass_case_count": 69,
+        "evidence_reference_count": 164,
+        "missing_evidence": [],
+        "checkpoint_files": [
+          "cases.latest.jsonl",
+          "case-events.jsonl",
+          "gate-checkpoints.jsonl"
+        ],
+        "audit_scope": "G00-G11 before G12; final full-matrix audit is stored separately after G12."
+      },
+      "evidence": [
+        "later-gates/later-gates-report.json"
+      ]
+    },
+    {
+      "case": "G12-01",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "Linux x86_64 relay launcher, private paths/config, SQLite persistence/restart, Chromium and pinned Firefox browser journeys passed; relay started without Java in PATH.",
+      "observed": {
+        "platform": "linux/x64",
+        "native_relay_integration": "PASS",
+        "relay_path_without_java": true,
+        "chromium_cases": [
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "firefox_run_status": "PASS",
+        "firefox_result": "PASS",
+        "firefox_cases": [
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "firefox_browser": {
+          "playwright_version": "1.62.1",
+          "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+          "browser_version": "153.0",
+          "browser_executable_sha256": "26e4198abe0dfb93c339239297008b1319711575d8cbae8e2d5122d2017b29a1"
+        }
+      },
+      "evidence": [
+        "later-gates/g12-01-native.log",
+        "later-gates/g12-01-firefox.log",
+        "later-gates/firefox-browser/browser-g04-report.json",
+        "logs/G04-01-06-browser.log",
+        "browser-g04/browser-g04-report.json"
+      ]
+    },
+    {
+      "case": "G12-02",
+      "status": "PENDING",
+      "gate_eligible": false,
+      "command": null,
+      "reason": "Execução nativa Windows foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.",
+      "observed": {
+        "required_platform": "Windows x64",
+        "native_execution_deferred": true
+      },
+      "evidence": []
+    },
+    {
+      "case": "G12-03",
+      "status": "PENDING",
+      "gate_eligible": false,
+      "command": null,
+      "reason": "Execução nativa macOS foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.",
+      "observed": {
+        "required_platform": "macOS Apple Silicon",
+        "native_execution_deferred": true
+      },
+      "evidence": []
+    },
+    {
+      "case": "G12-04",
+      "status": "PENDING",
+      "gate_eligible": false,
+      "command": null,
+      "reason": "Execução Android foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.",
+      "observed": {
+        "required_platform": "Android",
+        "native_execution_deferred": true
+      },
+      "evidence": []
+    },
+    {
+      "case": "G12-05",
+      "status": "PENDING",
+      "gate_eligible": false,
+      "command": null,
+      "reason": "Execução nativa iOS/iPadOS foi explicitamente adiada; não bloqueia o perfil de testes Ubuntu.",
+      "observed": {
+        "required_platform": "iOS/iPadOS",
+        "native_execution_deferred": true
+      },
+      "evidence": []
+    },
+    {
+      "case": "G12-06",
+      "status": "PASS",
+      "gate_eligible": true,
+      "command": null,
+      "reason": "O browser permaneceu utilizável sem apresentar botão/instrução de instalação não suportada.",
+      "observed": {
+        "viewport_fallback": "PASS"
+      },
+      "evidence": [
+        "later-gates/g10-05/g10-viewport-report.json"
+      ]
+    }
+  ],
+  "started_utc": "2026-11-04T10:24:20.258Z",
+  "final_matrix_audit": {
+    "scope": "G00-G12",
+    "planned_case_count": 75,
+    "recorded_case_count": 75,
+    "missing_case_ids": [],
+    "unexpected_case_ids": [],
+    "status_counts": {
+      "PASS": 71,
+      "FAIL": 0,
+      "BLOCKED": 0,
+      "NOT_RUN": 0,
+      "PENDING": 4
+    },
+    "missing_evidence": [],
+    "complete": true,
+    "all_cases_passed": false
+  },
+  "ended_utc": "2026-11-04T10:29:38.337Z",
+  "result": "RECORDED"
+}

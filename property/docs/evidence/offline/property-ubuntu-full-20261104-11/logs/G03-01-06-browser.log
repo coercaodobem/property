@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/browser-g03-smoke.mjs --playwright-module /home/<USER>/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs --engine chromium --executable /home/<USER>/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell --playwright-version 1.62.1 --browser-version 153.0.8010.12 --playwright-package-sha256 f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30 --browser-executable-sha256 ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e --output /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261104-11/browser-g03
+started: 2026-11-04T10:22:04.449Z
+ended: 2026-11-04T10:22:10.330Z
+exit_code: 0
+signal:
+timeout: false
+error:
+--- stdout ---
+{"result":"PASS","cases":[{"case":"G03-01","status":"PASS","reason":"A and B were created through the UI in separate persistent browser profiles with the same password; public keys differ and both vaults store encrypted key material without password/nsec fields."},{"case":"G03-02","status":"PASS","reason":"Persistent browser restart restored A only when requested; B required the correct password, rejected the wrong one without vault mutation, and manual lock cleared the session."},{"case":"G03-03","status":"PASS","reason":"The UI exported an encrypted backup and a clean context imported the same public identity; it could reopen the contact using the other person’s public npub."},{"case":"G03-04","status":"PASS","reason":"The public key shown in B profile opened A’s conversation; a valid nprofile preserved its local relay hint and did not connect automatically."},{"case":"G03-05","status":"PASS","reason":"Empty, truncated, name-only, nsec and self contacts were rejected in Portuguese without closing the dialog, creating the wrong contact or changing identity."},{"case":"G03-06","status":"PASS","reason":"Across creation, lock, backup and contact flows, only localhost assets were requested; passwords/private keys were absent from Web Storage and no central login/recovery request was observed."}],"output":"/home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261104-11/browser-g03"}
+
+--- stderr ---

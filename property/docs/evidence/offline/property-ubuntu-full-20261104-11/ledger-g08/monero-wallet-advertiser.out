@@ -1,0 +1,38 @@
+eived money: 35.179507027953, with tx: <cc51f65011c1d42204485f6bfd0638a3aa552df3682d5e438291f25a950f1d56>
+2026-11-04 10:24:04.773	W Received money: 35.179439928368, with tx: <d89be3c23f1be4f5af15069fb763ead4ece2caa71af24f445d6dd29c72ba3fbe>
+2026-11-04 10:24:04.774	W Received money: 35.179372828911, with tx: <ceb687d195ee47b6d2b6554de054931a0dbd21e1c8e4d663196e1bdfaa3dcaf8>
+2026-11-04 10:24:04.775	W Received money: 35.179305729583, with tx: <d9815d92ff3e5d350c47c2e0f9585808d093a6919fed3c1d38a03f3f96d45da4>
+2026-11-04 10:24:04.776	W Received money: 35.179238630382, with tx: <f7830f37e6f5027692240ea0bac6e66d592a34c6cd6c18ad5b36641e468ae434>
+2026-11-04 10:24:04.777	W Received money: 35.179171531309, with tx: <35ae4187a165cb3a691aa1340e4740715820a4f740f166bf7e4a2fcbc659c992>
+2026-11-04 10:24:04.777	W Received money: 35.179104432365, with tx: <1e13db19a8ea99dd0280d1ca14000b04f10f9319df3834be24f0abb71dc528e6>
+2026-11-04 10:24:04.778	W Received money: 35.179037333548, with tx: <cda2d13f1024038aba95ce11ea37f4c5de66eafc02ec24510ff453eaac413020>
+2026-11-04 10:24:09.001	W Requested ring size 1 too low, using 16
+2026-11-04 10:24:09.011	W amount=35.184338534400, real_output=0, real_output_in_tx_index=0, indexes: 0 13 17 18 26 31 35 41 48 49 62 64 68 79 83 93
+2026-11-04 10:24:09.013	W amount=35.184338534400, real_output=0, real_output_in_tx_index=0, indexes: 0 13 17 18 26 31 35 41 48 49 62 64 68 79 83 93
+2026-11-04 10:24:09.026	W amount=35.184338534400, real_output=0, real_output_in_tx_index=0, indexes: 0 5 9 14 23 29 44 45 57 61 66 77 90 92 95 96
+2026-11-04 10:24:09.026	W amount=35.179037333548, real_output=10, real_output_in_tx_index=0, indexes: 3 23 30 34 36 40 49 63 69 72 79 81 82 86 89 96
+2026-11-04 10:24:09.028	W amount=35.184338534400, real_output=0, real_output_in_tx_index=0, indexes: 0 5 9 14 23 29 44 45 57 61 66 77 90 92 95 96
+2026-11-04 10:24:09.028	W amount=35.179037333548, real_output=10, real_output_in_tx_index=0, indexes: 3 23 30 34 36 40 49 63 69 72 79 81 82 86 89 96
+2026-11-04 10:24:09.029	W amount=35.184338534400, real_output=0, real_output_in_tx_index=0, indexes: 0 5 9 14 23 29 44 45 57 61 66 77 90 92 95 96
+2026-11-04 10:24:09.029	W amount=35.179037333548, real_output=10, real_output_in_tx_index=0, indexes: 3 23 30 34 36 40 49 63 69 72 79 81 82 86 89 96
+2026-11-04 10:24:10.461	W Requested ring size 1 too low, using 16
+2026-11-04 10:24:10.470	W amount=35.184271425600, real_output=0, real_output_in_tx_index=0, indexes: 1 28 33 38 39 47 59 60 82 83 88 97 102 106 110 161
+2026-11-04 10:24:10.471	W amount=35.184271425600, real_output=0, real_output_in_tx_index=0, indexes: 1 28 33 38 39 47 59 60 82 83 88 97 102 106 110 161
+2026-11-04 10:24:10.484	W amount=35.184271425600, real_output=0, real_output_in_tx_index=0, indexes: 1 4 6 20 37 54 60 63 65 73 77 94 97 100 110 161
+2026-11-04 10:24:10.484	W amount=35.179104432365, real_output=7, real_output_in_tx_index=0, indexes: 8 11 20 24 41 73 77 78 81 86 87 88 93 97 111 161
+2026-11-04 10:24:10.486	W amount=35.184271425600, real_output=0, real_output_in_tx_index=0, indexes: 1 4 6 20 37 54 60 63 65 73 77 94 97 100 110 161
+2026-11-04 10:24:10.486	W amount=35.179104432365, real_output=7, real_output_in_tx_index=0, indexes: 8 11 20 24 41 73 77 78 81 86 87 88 93 97 111 161
+2026-11-04 10:24:10.487	W amount=35.184271425600, real_output=0, real_output_in_tx_index=0, indexes: 1 4 6 20 37 54 60 63 65 73 77 94 97 100 110 161
+2026-11-04 10:24:10.487	W amount=35.179104432365, real_output=7, real_output_in_tx_index=0, indexes: 8 11 20 24 41 73 77 78 81 86 87 88 93 97 111 161
+2026-11-04 10:24:11.655	W Requested ring size 1 too low, using 16
+2026-11-04 10:24:11.663	W amount=35.184204316927, real_output=0, real_output_in_tx_index=0, indexes: 2 6 22 31 45 51 56 79 84 89 93 96 110 111 161 162
+2026-11-04 10:24:11.665	W amount=35.184204316927, real_output=0, real_output_in_tx_index=0, indexes: 2 6 22 31 45 51 56 79 84 89 93 96 110 111 161 162
+2026-11-04 10:24:11.681	W amount=35.184204316927, real_output=0, real_output_in_tx_index=0, indexes: 2 12 15 37 42 51 66 78 84 88 89 92 95 96 98 103
+2026-11-04 10:24:11.681	W amount=35.179171531309, real_output=9, real_output_in_tx_index=0, indexes: 9 18 22 28 41 46 49 59 61 77 94 98 103 106 110 161
+2026-11-04 10:24:11.683	W amount=35.184204316927, real_output=0, real_output_in_tx_index=0, indexes: 2 12 15 37 42 51 66 78 84 88 89 92 95 96 98 103
+2026-11-04 10:24:11.683	W amount=35.179171531309, real_output=9, real_output_in_tx_index=0, indexes: 9 18 22 28 41 46 49 59 61 77 94 98 103 106 110 161
+2026-11-04 10:24:11.685	W amount=35.184204316927, real_output=0, real_output_in_tx_index=0, indexes: 2 12 15 37 42 51 66 78 84 88 89 92 95 96 98 103
+2026-11-04 10:24:11.685	W amount=35.179171531309, real_output=9, real_output_in_tx_index=0, indexes: 9 18 22 28 41 46 49 59 61 77 94 98 103 106 110 161
+2026-11-04 10:24:14.444	W Stopped wallet RPC server
+2026-11-04 10:24:14.444	W Saving wallet...
+2026-11-04 10:24:14.448	W Successfully saved
