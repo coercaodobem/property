@@ -1,0 +1,16 @@
+{
+  "name": "Property",
+  "short_name": "Property",
+  "description": "Cliente Nostr com identidade local e relays escolhidos por você.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#090a0c",
+  "theme_color": "#090a0c",
+  "icons": [
+    {"src":"./assets/property-icon-192.png?v=property-v21","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"./assets/property-icon-512.png?v=property-v21","sizes":"512x512","type":"image/png","purpose":"any maskable"},
+    {"src":"./assets/icon.svg?v=property-v21","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
