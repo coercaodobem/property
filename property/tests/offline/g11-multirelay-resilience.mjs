@@ -38,6 +38,7 @@ const app = startAppServer(), proxy = startProxy();
 let runtime, sender, relays = [], bridges = [], bridgeEvidence = null, failure = null;
 const portsBase = Number(manifest.ports.seven_relay_base) + 200;
 const relayUrls = Array.from({ length: VARIABLES.relay_count }, (_, index) => `ws://127.0.0.1:${portsBase + index}`);
+const logicalClock = { epochMs: VARIABLES.fixed_event_epoch_seconds * 1000, idleDelayMs: 2_000_000_000 };
 let eventSequence = 0;
 const report = {
   schema_version: 1,
@@ -217,7 +218,7 @@ try {
     websockets: report.websockets, page_errors: report.page_errors };
   for (let index = 0; index < VARIABLES.bridge_count; index++) {
     bridges.push(await startNode(runtime, origin, bridgeEvidence, `resilience bridge ${index + 1}`,
-      [relayUrls[index], relayUrls[index + 1]], { bridge: true }));
+      [relayUrls[index], relayUrls[index + 1]], { bridge: true, logicalClock }));
   }
   await waitUntil(async () => bridges.length === VARIABLES.bridge_count && bridges.every((bridge, index) => {
     const expected = [relayUrls[index], relayUrls[index + 1]];

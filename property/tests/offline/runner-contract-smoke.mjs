@@ -50,6 +50,8 @@ assert.match(resilienceSource, /restart_after_probe_counts:\s*Object\.freeze\(\[
   'G11-06 declares four restart checkpoints by completed probe count');
 assert.match(resilienceSource, /partition_events_per_restart:\s*3/, 'G11-06 declares exactly three partition events per restart');
 assert.match(resilienceSource, /fixed_event_epoch_seconds:\s*1_800_000_000/, 'G11-06 uses a predefined logical event epoch');
+assert.match(resilienceSource, /epochMs:\s*VARIABLES\.fixed_event_epoch_seconds\s*\*\s*1000/,
+  'all six relay bridges share the predefined event epoch');
 assert.doesNotMatch(resilienceSource, /monotonic|probe_interval|failure_offsets|scheduled_offset|elapsed_ms|required_duration_ms|24.hour/i,
   'G11-06 has no elapsed-time, interval, or 24-hour acceptance logic');
 assert.ok(laterGatesSource.indexOf("if(!gatePassed('G11'))") < laterGatesSource.lastIndexOf('await runG1201(prior)'),
