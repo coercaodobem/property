@@ -29,11 +29,16 @@ import { summarizeRoutes } from '../platform/native-network-isolation.mjs';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
 const plan = await readFile(path.join(root, 'property/docs/plano-de-testes-central.md'), 'utf8');
 const runnerSource = await readFile(path.join(root, 'property/tests/offline/run-offline.mjs'), 'utf8');
+const viewportSource = await readFile(path.join(root, 'property/tests/offline/g10-viewport-smoke.mjs'), 'utf8');
+const laterGatesSource = await readFile(path.join(root, 'property/tests/offline/later-gates.mjs'), 'utf8');
 assert.match(runnerSource, /-Djava\.io\.tmpdir=\$\{os\.tmpdir\(\)\}/,
   'Java children use the isolated run scratch directory for temporary native libraries');
 assert.match(runnerSource, /browser-g05-smoke\.mjs/, 'full profile executes the G05 multi-relay harness');
 assert.match(runnerSource, /const g05Ids = \['G05-01', 'G05-02', 'G05-03', 'G05-04', 'G05-05', 'G05-06', 'G05-07'\]/,
   'runner records every G05 case individually');
+assert.match(viewportSource, /page\.screenshot\(/, 'G10-05 captures viewport screenshots for visual review');
+assert.match(viewportSource, /required_screenshots: 8/, 'G10-05 requires captures for all fixed viewport/zoom cases');
+assert.match(laterGatesSource, /viewportScreenshots/, 'the G10-05 gate records its screenshot evidence paths');
 await access(path.join(root, 'property/tests/offline/browser-g05-smoke.mjs'));
 assert.match(runnerSource, /browser-g06-smoke\.mjs/, 'full profile executes the G06 Hangout and marketplace harness');
 assert.match(runnerSource, /const g06Ids = \['G06-01', 'G06-02', 'G06-03', 'G06-04', 'G06-05'\]/,

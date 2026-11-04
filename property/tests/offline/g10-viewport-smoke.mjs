@@ -13,7 +13,9 @@ const config = manifest.browser_automation;
 assert.ok(config, 'pinned browser configuration is required');
 const output = path.resolve(outputArg); await mkdir(output, { recursive: true, mode: 0o700 });
 const report = { schema_version: 1, viewport_case: 'G10-05', pwa_fallback_case: 'G12-06', result: 'FAIL',
-  viewports: [], unnamed_controls: [], focus: null, install_fallback: null, browser: null, external_requests: [] };
+  viewports: [], unnamed_controls: [], focus: null, install_fallback: null, browser: null, external_requests: [], evidence: [],
+  visual_review: { status: 'PENDING_HUMAN_REVIEW', required_screenshots: 8, captured_screenshots: 0,
+    note: 'Captures document the automated journey; they do not simulate human review.' } };
 const app = startAppServer(), proxy = startProxy();
 let runtime, context, page;
 try {
@@ -30,6 +32,14 @@ try {
   page = await openApp(context, origin);
   await createAccount(page);
   assert.equal(await page.locator('#workspace').isVisible(), true, 'interactive app workspace is usable');
+  const screenshotDir = path.join(output, 'screenshots');
+  await mkdir(screenshotDir, { recursive: true, mode: 0o700 });
+  const captureScreenshot = async name => {
+    const relative = `screenshots/${name}.png`;
+    await page.screenshot({ path: path.join(output, relative), fullPage: false, animations: 'disabled' });
+    report.evidence.push(relative);
+    return relative;
+  };
 
   const targets = [[360,800],[390,844],[768,1024],[1440,900]];
   for (const [width, height] of targets) {
@@ -40,7 +50,8 @@ try {
       visible_primary_controls: [...document.querySelectorAll('#workspace button[data-view], #workspace #profile-button, #workspace #mobile-open-settings')]
         .filter(element => { const r=element.getBoundingClientRect(); return r.width>0 && r.height>0; }).map(element=>element.getAttribute('aria-label')||element.textContent.trim()),
       overflow_elements:[...document.querySelectorAll('body *')].filter(element=>{const r=element.getBoundingClientRect();return r.right>innerWidth+1||r.left< -1;}).slice(0,12).map(element=>({tag:element.tagName,id:element.id,classes:String(element.className||''),left:Math.round(element.getBoundingClientRect().left),right:Math.round(element.getBoundingClientRect().right),width:Math.round(element.getBoundingClientRect().width)})) }));
-    report.viewports.push({ width, height, layout, pass: layout.document_width <= layout.viewport_width + 1 && layout.body_width <= layout.viewport_width + 1 });
+    const screenshot = await captureScreenshot(`viewport-${width}x${height}`);
+    report.viewports.push({ width, height, layout, screenshot, pass: layout.document_width <= layout.viewport_width + 1 && layout.body_width <= layout.viewport_width + 1 });
     assert.ok(layout.document_width <= layout.viewport_width + 1 && layout.body_width <= layout.viewport_width + 1,
       `no unintended horizontal overflow at ${width}x${height}`);
     assert.ok(layout.visible_primary_controls.length >= 3, `primary navigation remains available at ${width}x${height}`);
@@ -54,7 +65,8 @@ try {
       width: innerWidth, document_width: document.documentElement.scrollWidth,
       body_width: document.body.scrollWidth, viewport_width: document.documentElement.clientWidth,
       overflow_elements:[...document.querySelectorAll('body *')].filter(element=>{const r=element.getBoundingClientRect();return r.right>innerWidth+1||r.left< -1;}).slice(0,12).map(element=>({tag:element.tagName,id:element.id,classes:String(element.className||''),left:Math.round(element.getBoundingClientRect().left),right:Math.round(element.getBoundingClientRect().right),width:Math.round(element.getBoundingClientRect().width)})) }));
-    report.viewports.push({ width, height, effective_zoom: '200%', layout, pass: layout.document_width <= layout.viewport_width + 1 && layout.body_width <= layout.viewport_width + 1 });
+    const screenshot = await captureScreenshot(`viewport-200pct-from-${width}x${height}`);
+    report.viewports.push({ width, height, effective_zoom: '200%', layout, screenshot, pass: layout.document_width <= layout.viewport_width + 1 && layout.body_width <= layout.viewport_width + 1 });
     assert.ok(layout.document_width <= layout.viewport_width + 1 && layout.body_width <= layout.viewport_width + 1,
       `responsive layout reflows at 200% effective width for ${width}x${height}`);
   }
@@ -95,6 +107,8 @@ try {
   assert.equal(installFallback.custom_install_controls, 0, 'unsupported browser receives no fake install control');
   report.install_fallback = installFallback;
   report.pwa_fallback_case_result = 'PASS';
+  report.visual_review.captured_screenshots = report.evidence.length;
+  assert.equal(report.evidence.length, report.visual_review.required_screenshots, 'every declared viewport has a saved screenshot');
   report.result = 'PASS';
   await writeFile(path.join(output, 'g10-viewport-report.json'), JSON.stringify(report,null,2)+'\n',{mode:0o600});
   process.stdout.write(JSON.stringify(report)+'\n');

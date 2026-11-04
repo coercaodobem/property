@@ -320,9 +320,14 @@ async function main(){
   await inherited('G10-04',['G02-06','G03-02','G03-03','G03-06'],'Sessão, bloqueio, backup/recuperação e privacidade em perfil limpo passaram nos casos herdados do mesmo run.');
   const viewport=await runAndRead('G10-05','property/tests/offline/g10-viewport-smoke.mjs',[manifestPath,path.join(out,'g10-05')],
     path.join(path.relative(runDir,out),'g10-05/g10-viewport-report.json'),data=>data,{timeoutMs:180000});
+  const viewportScreenshots=(viewport.data?.evidence||[]).map(file=>path.join('later-gates/g10-05',file));
   await record('G12-06',viewport.result.status,viewport.data?.install_fallback?.before_install_prompt_supported===false?
     'No navegador fixado, a PWA continua utilizável sem API de instalação e sem instrução de instalação falsa.':'Fallback de instalação conferido com a mesma sessão responsiva.',
     {viewport_case:viewport.result.status,install_fallback:viewport.data?.install_fallback||null},['later-gates/g10-05/g10-viewport-report.json']);
+  await record('G10-05',viewport.result.status,viewport.result.status==='PASS'?
+    'Viewports, zoom, acessibilidade, fallback e oito capturas automatizadas passaram; aprovação humana das capturas permanece explicitamente pendente.':'A jornada responsiva ou a captura visual não concluiu todos os casos.',
+    {viewport_case:viewport.result.status,visual_review:viewport.data?.visual_review||null,screenshots:viewportScreenshots},
+    ['later-gates/g10-05/g10-viewport-report.json',...viewportScreenshots]);
   await runAndRead('G10-06','property/tests/offline/g10-volume-smoke.mjs',[manifestPath,String(base+10),path.join(out,'g10-06')],
     path.join(path.relative(runDir,out),'g10-06/g10-volume-report.json'),data=>data,{timeoutMs:600000});
 
