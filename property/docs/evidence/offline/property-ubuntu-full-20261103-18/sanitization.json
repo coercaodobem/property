@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "sanitized_utc": "2026-11-04T00:41:24.171Z",
+  "reason": "Redacted local account paths and secret-shaped tokens before publishing the failed-run evidence. Trailing spaces in two captured ledger stdout files were normalized before publication.",
+  "original_sha256sums_sha256": "918d5944ab375088a378766ea75acce6ab601bccf00c80e16e3f0f878b1e7249",
+  "modified_files": {
+    "inventory.json": {
+      "redactions": 1,
+      "patterns": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "c4f38214914cb5e9dd0cc708965d22de227760637d0f7cd14f0d54ed367f133e",
+      "sanitized_sha256": "1e88b33a36baa549c24992da43682e3302a16465d3a6d30e82e81ec155a8f46c"
+    },
+    "later-gates/g09-01.log": {
+      "redactions": 1,
+      "patterns": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "f48216b5e69c67348637873a0bec04bec49d63bb7e3ca8dcddbde21cfa083fc0",
+      "sanitized_sha256": "9fa5613084b42a2a858090192e05c4c0193a1d2dfa2973f408cefb7f17b85a91"
+    },
+    "later-gates/g09-03.log": {
+      "redactions": 2,
+      "patterns": {
+        "LOCAL_HOME_PATH": 2
+      },
+      "original_sha256": "289930af46160e1deb09731da4628c8e89aaa67e0ccc085d49b8cd2523387e2d",
+      "sanitized_sha256": "b0e41a73b93b2c82b06808f6fdab8a2deb964afb3abb460b58934a8be4c8ca5f"
+    },
+    "later-gates/g09-04.log": {
+      "redactions": 1,
+      "patterns": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "6009e173da40dc1fd394748c84356052bf5757285ca4a3c7f2078fc67932b787",
+      "sanitized_sha256": "854db7b24a8f98ff7fdea3ad858e94ad5728d6f37c9efa0c3a166c3c09378417"
+    },
+    "later-gates/g09-05.log": {
+      "redactions": 1,
+      "patterns": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "14204caf9f946ccd8f621be26edb5f36c6cb6e2b16085c3c870173855775ed21",
+      "sanitized_sha256": "4fe60a76e1e53aaa812e833548ba72fda83a0abdf7ca550943e21ce828fb2f67"
+    },
+    "later-gates/g10-05.log": {
+      "redactions": 2,
+      "patterns": {
+        "LOCAL_HOME_PATH": 2
+      },
+      "original_sha256": "b160cc9898bdc2c66e572e2ec6e68e25da6b4407748ac02f7de84c9dfb7d7564",
+      "sanitized_sha256": "7c2076ce0552fcfdad28f604980d623c7d31f0bd5bce54c7d30949d5cef31d04"
+    },
+    "later-gates/g10-06.log": {
+      "redactions": 2,
+      "patterns": {
+        "LOCAL_HOME_PATH": 2
+      },
+      "original_sha256": "233d22af886bab7e2608451b8a35135d308b3e37e264c6d8b6135eb51b3cf98b",
+      "sanitized_sha256": "812e3657bdeafaa6aadcb2581999dadd6282adb3f9ffb59bb181b930a844f75d"
+    },
+    "later-gates/g11-01-repeat-2.log": {
+      "redactions": 4,
+      "patterns": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "05ae179aae926ac098433c92e994c984b3a6885982c09dfbd0e54596d3d31c9b",
+      "sanitized_sha256": "d95d8f4238993fd6a2785dacae47e1ed40119af1804fd8320178eb633da5085b"
+    },
+    "later-gates/g11-01-repeat-3.log": {
+      "redactions": 4,
+      "patterns": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "3d729128d642b91efe7780c209473313dc71d9ebbbe5a46395366b5f85a88f76",
+      "sanitized_sha256": "6fb76b9e567a531e3436b3d527ba29a9fca438f24d6c846c1e8b56c5756e2599"
+    },
+    "later-gates/g11-02-gradle-version.log": {
+      "redactions": 2,
+      "patterns": {
+        "LOCAL_HOME_PATH": 2
+      },
+      "original_sha256": "0b095be6b88726ac2d4c8496e278b4eb00d8cdf4b05b85bfebad6122d9a9ac69",
+      "sanitized_sha256": "2d91234a03a36901f59a27dc846341374688661312859b866cea31296778c3d9"
+    },
+    "later-gates/g11-02-pwa-package.log": {
+      "redactions": 1,
+      "patterns": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "e1a87e4ace75b02699fa685da7250cc424441ea30da3598c4d70f32418f4dbf0",
+      "sanitized_sha256": "a930f9743f5554e22e063b427df93749f0d597eaf3ac73662fbedd45149c484a"
+    },
+    "later-gates/g11-03-repetitions.log": {
+      "redactions": 2,
+      "patterns": {
+        "LOCAL_HOME_PATH": 2
+      },
+      "original_sha256": "399973b6ebcaa73cbd1fa51e210bd394dd86f94bcae9152d462785d5384173dd",
+      "sanitized_sha256": "ad3e883bab1378a35624c9a3131ffe0c383f0e1cdc45eb21de85c427b2c2c38c"
+    },
+    "later-gates/g12-01-firefox.log": {
+      "redactions": 4,
+      "patterns": {
+        "LOCAL_HOME_PATH": 4
+      },
+      "original_sha256": "c632ee78385f4847a0022639147580b1d499e9cde97b1a0a4c9bb5ecfd098ba4",
+      "sanitized_sha256": "73e89624782e8f0b0968e932de918e4b836bfe9ea50eba0c35d8f6135f3dc248"
+    },
+    "ledger-g08/monerod-regtest.log": {
+      "redactions": 1,
+      "patterns": {
+        "LOCAL_HOME_PATH": 1
+      },
+      "original_sha256": "3c82930893aff8ac6f390e364fa3aaad1762600eabe3f59efd36af17a103395b",
+      "sanitized_sha256": "0cd049bdbaf3680003ed2b1db95b4970061ef5ad9924bb4d151fc3372e04004a"
+    },
+    "ledger-g08/nano-dev-node-initial.log": {
+      "redactions": 6,
+      "patterns": {
+        "LOCAL_HOME_PATH": 6
+      },
+      "original_sha256": "3a763fcc76344cb28c2b6a4ff3f2dd010042daec14056e36542d49f88beefc4a",
+      "sanitized_sha256": "0af800388ae248ee468b89f1559d6b2fac86045a4b5ee7cdf7bb3aeb18e7b771"
+    },
+    "ledger-g08/nano-internal-log_2026-11-03_21-30-03_041289020.log": {
+      "redactions": 6,
+      "patterns": {
+        "LOCAL_HOME_PATH": 6
+      },
+      "original_sha256": "924d1ff731feaf886b70ef2cc41334104cf913302ef4910bb6f77bccc8f5c0b3",
+      "sanitized_sha256": "68b50fcde5637af23ae8a06dce29e17d0739363b86294f2a9d1b40e4477334a0"
+    },
+    "ledger-g08/nano-internal-log_2026-11-03_21-30-03_478871296.log": {
+      "redactions": 6,
+      "patterns": {
+        "LOCAL_HOME_PATH": 6
+      },
+      "original_sha256": "eb8f997dfa8f0006b8ac605113c701093df7e971225f875e18cfaf59e39c18ec",
+      "sanitized_sha256": "367961766f7f1bf20eaa6775d8b0bf35323ff9e5b0971e1cf369a48c2a72eee8"
+    },
+    "manifest.json": {
+      "redactions": 5,
+      "patterns": {
+        "LOCAL_HOME_PATH": 5
+      },
+      "original_sha256": "9c0bc8bc9834efc5b5381eec68014b5ce38ebb09d8115f42ac19bc942af3c785",
+      "sanitized_sha256": "fb57e3cbb60f09cd1dfe408f1df6d090434cb49d52d98036481a39d3eadaf35f"
+    }
+  },
+  "total_redactions": 111,
+  "checksum_policy": "SHA256SUMS covers every file in this directory except itself."
+}

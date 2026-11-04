@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101720">
+  <meta name="description" content="Como funciona o Property e quais dados ficam neste aparelho.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Sobre o Property</title>
+  <link rel="icon" href="./assets/property-icon-192.png?v=property-v20" type="image/png" sizes="192x192">
+  <link rel="icon" href="./assets/icon.svg?v=property-v20" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v20">
+  <link rel="stylesheet" href="./styles.css?v=property-v20">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./index.html" aria-label="Voltar ao Property"><img class="brand-mark" src="./assets/property-icon-192.png?v=property-v20" alt=""><span>Property</span></a>
+    <a class="button secondary" href="./index.html">Voltar ao app</a>
+  </header>
+  <main class="feature-view about-page">
+    <header class="feature-header">
+      <p class="eyebrow">SOBRE O PROJETO</p>
+      <h1>Comunicação sob seu controle.</h1>
+      <p>Property é um cliente Nostr que conecta você diretamente aos relays que escolhe. O site entrega o pacote do app; não é necessário passar mensagens por um servidor central.</p>
+    </header>
+    <section class="node-card">
+      <h2>Identidade e mensagens</h2>
+      <p>A identidade é criada neste navegador. A chave privada fica cifrada no aparelho; sua senha serve para desbloqueá-la e não é enviada aos relays. Mensagens privadas usam eventos NIP-17 cifrados de ponta a ponta.</p>
+    </section>
+    <section class="node-card">
+      <h2>Relays e funcionamento móvel</h2>
+      <p>Você escolhe os relays e pode instalar o app pelo navegador em um endereço HTTPS. A ponte voluntária entre relays funciona enquanto a página está ativa. Sistemas móveis podem suspender o navegador, então o celular não é anunciado como relay sempre ligado.</p>
+    </section>
+    <section class="node-card">
+      <h2>Marketplace e pagamentos</h2>
+      <p>A versão atual permite publicar, editar, retirar e descobrir ofertas públicas NIP-15. Retirar assina um pedido NIP-09; relays podem manter cópias antigas. No Hangout, você pode optar por exibir campanhas assinadas de nodes; a preferência fica no aparelho, e o app não envia ao node eventos de clique ou visualização. Os relays ainda veem as consultas e os metadados de conexão. A assinatura do node não confirma pagamento nas redes Bitcoin, Monero ou Nano: aceite, cobrança e reembolso em BTC, XMR e XNO ainda não estão implementados. O app não processa compras nem guarda pagamentos do marketplace.</p>
+    </section>
+    <section class="node-card">
+      <h2>Relay para Ubuntu</h2>
+      <p>O pacote inclui o relay Geode para Linux x86_64. Na configuração inicial, ele escuta apenas em <code>127.0.0.1:7447</code> e armazena os dados no diretório do usuário. Expor um relay à internet exige configuração consciente de TLS, firewall e armazenamento.</p>
+    </section>
+    <section class="node-card">
+      <h2>Código e distribuição</h2>
+      <p>Os arquivos necessários ao cliente são locais ao pacote publicado. Não carregamos scripts executáveis de CDN, Maven, JitPack ou do repositório upstream durante o uso. O Amethyst é a base de código reutilizada; consulte a licença incluída no repositório.</p>
+    </section>
+  </main>
+  <footer class="app-footer"><span>Property · código local</span><a href="./index.html">Voltar ao app</a></footer>
+</body>
+</html>

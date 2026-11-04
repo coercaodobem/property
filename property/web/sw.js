@@ -1,6 +1,6 @@
 'use strict';
-const CACHE = 'property-shell-v20';
-const SHELL = ['./', './index.html', './about.html', './styles.css?v=property-v20', './app.js?v=property-v20', './vault.js?v=property-v20', './routing.js?v=property-v20', './forwarding.js?v=property-v20', './nano.js?v=property-v20', './money.js?v=property-v20', './marketplace.js?v=property-v20', './campaigns.js?v=property-v20', './contact.js?v=property-v20', './agent-messaging.js?v=property-v20', './manifest.webmanifest?v=property-v20', './assets/icon.svg?v=property-v20', './assets/property-icon-180.png?v=property-v20', './assets/property-icon-192.png?v=property-v20', './assets/property-icon-512.png?v=property-v20', './vendor/nostr-tools-2.25.2.bundle.js?v=property-v20'];
+const CACHE = 'property-shell-v21';
+const SHELL = ['./', './index.html', './about.html', './styles.css?v=property-v21', './app.js?v=property-v21', './vault.js?v=property-v21', './routing.js?v=property-v21', './forwarding.js?v=property-v21', './nano.js?v=property-v21', './money.js?v=property-v21', './marketplace.js?v=property-v21', './campaigns.js?v=property-v21', './contact.js?v=property-v21', './agent-messaging.js?v=property-v21', './manifest.webmanifest?v=property-v21', './assets/icon.svg?v=property-v21', './assets/property-icon-180.png?v=property-v21', './assets/property-icon-192.png?v=property-v21', './assets/property-icon-512.png?v=property-v21', './vendor/nostr-tools-2.25.2.bundle.js?v=property-v21'];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const existingCaches = await caches.keys();

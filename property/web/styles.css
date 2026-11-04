@@ -13,6 +13,7 @@
 .mobile-relay-settings,.mobile-new-chat{display:none}
 @media(max-width:800px){.mobile-relay-settings,.mobile-new-chat{display:grid}}
 @media(max-width:360px){.topbar{padding:0 6px;gap:4px}.brand{font-size:13px;gap:5px}.brand-mark{width:24px;height:24px;border-radius:8px;font-size:14px}.connection{gap:0;letter-spacing:0;font-size:0}#connection-label{display:none}.mobile-relay-settings,.mobile-new-chat{height:30px;min-width:30px;border-radius:9px;font-size:17px}.profile-button{width:30px;height:30px;flex:0 0 30px}.empty-state{width:100%;min-width:0;padding:20px 12px}.empty-state h2,.empty-state p{overflow-wrap:anywhere}}
+@media(max-width:200px){.topbar{padding:0 4px;gap:2px}.connection{display:none}.brand{font-size:12px;gap:4px}.brand-mark{width:22px;height:22px;flex:0 0 22px}.mobile-relay-settings,.mobile-new-chat,.profile-button{width:24px;height:24px;min-width:24px;flex:0 0 24px;border-radius:8px;font-size:14px}}
 .locked-node-status{margin:0 0 24px;padding:18px;border:1px solid #829b45;border-radius:14px;background:#1c2b24;color:#d8e6d3;line-height:1.55}.locked-node-status p{margin:0 0 10px}.locked-node-status .eyebrow{color:var(--accent)}
 
 .agent-manager-dialog[open] { display: flex; flex-direction: column; }
