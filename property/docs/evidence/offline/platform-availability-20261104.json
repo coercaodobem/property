@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "audit_id": "property-platform-availability-20261104-01",
+  "captured_utc": "2026-11-04T03:43:10Z",
+  "scope": "Availability audit only; it does not execute or pass any G12 case.",
+  "host": {
+    "platform": "Linux",
+    "architecture": "x86_64",
+    "kernel": "7.0.0-38-generic"
+  },
+  "observations": {
+    "dev_kvm": false,
+    "qemu_system_x86_64": false,
+    "qemu_system_aarch64": false,
+    "wine": false,
+    "powershell": false,
+    "pwsh": false,
+    "android_adb": false,
+    "android_emulator": false,
+    "apple_xcrun": false,
+    "vm_images_found_in_workspace": [],
+    "usb_enumeration": "unavailable: lsusb could not initialize libusb in this environment"
+  },
+  "cases": {
+    "G12-02": {
+      "status": "PENDING",
+      "reason": "No Windows host or local Windows VM is attached; the Linux host has no KVM/QEMU, Windows VM image, Wine, or PowerShell."
+    },
+    "G12-03": {
+      "status": "PENDING",
+      "reason": "No macOS host or compatible VM is attached; the Linux host has no Apple toolchain or simulator."
+    },
+    "G12-04": {
+      "status": "PENDING",
+      "reason": "No Android SDK, adb, or emulator is installed; hardware virtualization is unavailable and USB device enumeration could not be performed."
+    },
+    "G12-05": {
+      "status": "PENDING",
+      "reason": "No macOS host, iOS simulator, or Apple toolchain is attached; USB device enumeration could not be performed."
+    }
+  },
+  "integrity": {
+    "tests_executed": [],
+    "cases_marked_pass": [],
+    "viewport_emulation_counted_as_device_test": false,
+    "result": "PENDING"
+  }
+}
