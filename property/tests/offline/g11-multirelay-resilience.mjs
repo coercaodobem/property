@@ -27,6 +27,7 @@ const VARIABLES = Object.freeze({
   resource_max_scratch_bytes: 2 * 1024 ** 3,
   ui_deduplication_probe_counts: Object.freeze([1, 24, 48, 96]),
   fixed_event_epoch_seconds: 1_800_000_000,
+  logical_clock_step_ms_per_event: 1000,
   resource_max_memory_fraction: 0.70
 });
 const output = path.resolve(outputText);
@@ -39,6 +40,7 @@ let runtime, sender, relays = [], bridges = [], bridgeEvidence = null, failure =
 const portsBase = Number(manifest.ports.seven_relay_base) + 200;
 const relayUrls = Array.from({ length: VARIABLES.relay_count }, (_, index) => `ws://127.0.0.1:${portsBase + index}`);
 const logicalClock = { epochMs: VARIABLES.fixed_event_epoch_seconds * 1000, idleDelayMs: 2_000_000_000 };
+let eventSequence = 0;
 const report = {
   schema_version: 1,
   case: 'G11-06',
@@ -103,8 +105,14 @@ async function sampleResources(checkpoint) {
   report.resource_samples.push(sample);
 }
 
-function signEvent(content) {
-  return runtime.sign(1, content, VARIABLES.fixed_event_epoch_seconds, sender.secret);
+async function signEvent(content) {
+  const createdAt = VARIABLES.fixed_event_epoch_seconds + eventSequence;
+  await Promise.all(bridges.map(bridge => bridge.page.evaluate(stepMs => {
+    if (typeof window.__propertyTestClock?.advance !== 'function') throw new Error('fixed logical clock is unavailable');
+    return window.__propertyTestClock.advance(1, stepMs);
+  }, VARIABLES.logical_clock_step_ms_per_event)));
+  eventSequence++;
+  return runtime.sign(1, content, createdAt, sender.secret);
 }
 
 async function assertStoredExactlyOnce(url, event, context) {
@@ -115,7 +123,7 @@ async function assertStoredExactlyOnce(url, event, context) {
 }
 
 async function probe(index) {
-  const event = signEvent(`Property fixed-count relay probe ${index + 1}`);
+  const event = await signEvent(`Property fixed-count relay probe ${index + 1}`);
   const ack = await publishEvent(relayUrls[0], event);
   assert.equal(ack.accepted, true, `source relay rejected probe ${index + 1}`);
   for (const [relayIndex, url] of relayUrls.entries()) {
@@ -168,7 +176,7 @@ async function restartAndReconcile(cycleNumber, probeCount) {
   await stopGeode(relay);
 
   for (let repetition = 1; repetition <= VARIABLES.partition_events_per_restart; repetition++) {
-    const event = signEvent(`Property fixed-count partition ${cycleNumber}, event ${repetition}`);
+    const event = await signEvent(`Property fixed-count partition ${cycleNumber}, event ${repetition}`);
     const ack = await publishEvent(relayUrls[0], event);
     assert.equal(ack.accepted, true, 'source relay must accept each outage event');
     await assertStoredExactlyOnce(relayUrls[0], event, 'partition source');
