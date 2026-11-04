@@ -1,0 +1,11 @@
+command: /usr/bin/node property/tests/offline/browser-deep-g02-smoke.mjs --playwright-module /home/<USER>/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs --engine chromium --executable /home/<USER>/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell --playwright-version 1.62.1 --browser-version 153.0.8010.12 --playwright-package-sha256 f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30 --browser-executable-sha256 ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e --output /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261104-18/browser-deep-g02
+started: 2026-11-04T14:02:10.844Z
+ended: 2026-11-04T14:02:46.481Z
+exit_code: 0
+signal:
+timeout: false
+error:
+--- stdout ---
+{"result":"PASS","cases":[{"case":"G02-04","status":"PASS","reason":"Complete update activated; interrupted and mixed packages were rejected while the previous shell, identity and unrelated cache remained available."},{"case":"G02-05","status":"PASS","reason":"Legacy backup and database restored the same identity/data; wrong-password/tampered imports and unavailable storage failed visibly without creating another account."},{"case":"G02-06","status":"PASS","reason":"CSP blocked remote script execution; malicious text stayed inert; the pinned local TLS/WSS endpoint worked and an untrusted certificate was rejected."}],"output":"/home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261104-18/browser-deep-g02"}
+
+--- stderr ---

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "scope": "sanitized public evidence snapshot",
+  "personal_home_path_redaction": {
+    "files": 19,
+    "occurrences": 47,
+    "remaining_occurrences": 0
+  },
+  "secret_pattern_scan": {
+    "patterns_checked": 6,
+    "matches": 0,
+    "values_emitted": false
+  },
+  "structured_data_validation": {
+    "json_files": 32,
+    "jsonl_files": 7,
+    "parse_errors": 0
+  },
+  "sha256_manifest": {
+    "algorithm": "SHA-256",
+    "entry_count": 115,
+    "manifest_excludes_itself": true
+  },
+  "raw_evidence_backup": {
+    "retained_locally": true,
+    "publicly_included": false
+  },
+  "log_whitespace_normalization": {
+    "files_changed": 36,
+    "lines_trimmed": 55,
+    "characters_removed": 55,
+    "extra_final_blank_lines_removed": 19,
+    "scope": "diagnostic .log and .out text only; semantic output preserved"
+  }
+}

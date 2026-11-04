@@ -1,0 +1,10 @@
+command: /usr/bin/node property/tests/offline/g11-02-pwa-package-smoke.mjs /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/property-ubuntu-full-20261104-18/later-gates/g11-02-pwa
+started: 2026-11-04T14:06:42.192Z
+ended: 2026-11-04T14:06:42.362Z
+exit_code: 0
+signal:
+timeout: false
+--- stdout ---
+{"result":"PASS","asset_count":23,"total_asset_bytes":458474,"sha256":"09568357b884249ef664115e6b5dbf13534a77c51bb0f18928b25da4c673c9cb"}
+
+--- stderr ---
