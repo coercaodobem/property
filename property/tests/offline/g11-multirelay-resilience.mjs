@@ -39,7 +39,6 @@ let runtime, sender, relays = [], bridges = [], bridgeEvidence = null, failure =
 const portsBase = Number(manifest.ports.seven_relay_base) + 200;
 const relayUrls = Array.from({ length: VARIABLES.relay_count }, (_, index) => `ws://127.0.0.1:${portsBase + index}`);
 const logicalClock = { epochMs: VARIABLES.fixed_event_epoch_seconds * 1000, idleDelayMs: 2_000_000_000 };
-let eventSequence = 0;
 const report = {
   schema_version: 1,
   case: 'G11-06',
@@ -105,8 +104,7 @@ async function sampleResources(checkpoint) {
 }
 
 function signEvent(content) {
-  const createdAt = VARIABLES.fixed_event_epoch_seconds + eventSequence++;
-  return runtime.sign(1, content, createdAt, sender.secret);
+  return runtime.sign(1, content, VARIABLES.fixed_event_epoch_seconds, sender.secret);
 }
 
 async function assertStoredExactlyOnce(url, event, context) {
