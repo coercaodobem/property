@@ -36,9 +36,8 @@ const VARIABLES = Object.freeze({
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const [manifestText, outputText, modeText] = process.argv.slice(2);
 assert.ok(manifestText && outputText && process.argv.length >= 4 && process.argv.length <= 5,
-  'Usage: node g11-multirelay-24h.mjs <manifest.json> <evidence-output-dir> --preflight-only');
-assert.equal(modeText, '--preflight-only',
-  'The duration-based runner is archived and disabled; only its non-gating diagnostic preflight remains available.');
+  'Usage: node g11-multirelay-24h.mjs <manifest.json> <evidence-output-dir> [--preflight-only]');
+assert.ok(modeText === undefined || modeText === '--preflight-only', 'only the fixed 24-hour run or a diagnostic preflight is supported');
 const preflightOnly = modeText === '--preflight-only';
 const manifestPath = path.resolve(manifestText);
 const output = path.resolve(outputText);
