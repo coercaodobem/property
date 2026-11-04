@@ -75,6 +75,8 @@ Todos os casos do perfil solicitado são obrigatórios. O gate passa somente com
 
 O orquestrador retorna código 0 para o perfil Ubuntu integralmente aprovado (`PROPERTY_UBUNTU_OFFLINE_PASS`), mesmo que os casos nativos de outros sistemas permaneçam PENDING; 1 para reprovação e 2 para bloqueio, interrupção ou infraestrutura incompleta dentro do perfil solicitado. Ele só usa `PROPERTY_SCOPE_OFFLINE_PASS` quando a matriz completa também passou. Um perfil parcial nunca usa esse nome.
 
+Enquanto Windows, macOS, Android e iOS/iPadOS estiverem adiados, pushes e pull requests executam somente smoke e relay Ubuntu. As matrizes dessas plataformas só iniciam por `workflow_dispatch` quando o mantenedor define explicitamente `run_deferred_platforms=true`; o padrão é `false`. O despacho manual não altera critérios nem converte PENDING em PASS.
+
 ## 5. Preparação e topologia do laboratório
 
 ### 5.1 Ambiente fechado

@@ -6,6 +6,12 @@ on:
   push:
     branches: [modelo-mvp]
   workflow_dispatch:
+    inputs:
+      run_deferred_platforms:
+        description: Executar agora a matriz nativa de Windows e macOS
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -34,11 +40,31 @@ jobs:
         run: bash property/tests/run-smoke.sh
 
   native-relay:
+    name: Relay nativo (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            property
+            .github
+      - name: Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - name: Relay com runtime incluído e dados persistentes
+        run: node property/tests/native-relay-integration.mjs
+
+  native-relay-deferred:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_deferred_platforms == 'true' }}
     name: Relay nativo (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-15]
+        os: [windows-latest, macos-15]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:

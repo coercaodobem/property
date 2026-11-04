@@ -4,6 +4,12 @@ on:
   push:
     branches: [modelo-mvp]
   workflow_dispatch:
+    inputs:
+      run_deferred_platforms:
+        description: Executar agora a matriz nativa Windows, macOS, Android e iOS
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -14,6 +20,7 @@ concurrency:
 
 jobs:
   native-platform:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_deferred_platforms == 'true' }}
     name: ${{ matrix.case }} (${{ matrix.os }})
     strategy:
       fail-fast: false
