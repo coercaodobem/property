@@ -1205,7 +1205,10 @@ async function runCoreProfile(profile, manifest, outputDir, cases, inventory, is
   });
   const isolationReasons = [...isolation.reasons];
   addSimple('G00-02', isolation.verdict, isolationReasons.join('; ') || 'Routes, firewall, proxy policy and loopback were checked without public probes.');
-  setCase(cases, 'G00-02', { observed: isolationReasons.join('; ') || 'All recorded isolation checks passed.' });
+  setCase(cases, 'G00-02', {
+    observed: isolationReasons.join('; ') || 'All recorded isolation checks passed.',
+    evidence: ['isolation.json']
+  });
 
   const budget = manifest.resource_budget;
   const cpuAvailable = inventory.cgroup_limits.effective_cpu_count;

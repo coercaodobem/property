@@ -26,6 +26,7 @@ import {
 import { validateNativePlatformReport } from './native-platform-report.mjs';
 import { summarizeRoutes } from '../platform/native-network-isolation.mjs';
 import { downstreamCaseIds, gateRowsPassed } from './gate-sequencing.mjs';
+import { missingEvidenceReferences } from './evidence-audit.mjs';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
 const plan = await readFile(path.join(root, 'property/docs/plano-de-testes-central.md'), 'utf8');
@@ -44,8 +45,18 @@ assert.match(viewportSource, /required_screenshots: 8/, 'G10-05 requires capture
 assert.match(laterGatesSource, /viewportScreenshots/, 'the G10-05 gate records its screenshot evidence paths');
 assert.match(laterGatesSource, /if\(!gatePassed\('G11'\)\)/, 'G12 does not start before the complete G11 gate passes');
 assert.match(laterGatesSource, /g11-multirelay-resilience\.mjs/, 'G11-06 uses the fixed-count multi-relay resilience harness');
+assert.match(runnerSource, /evidence: \['isolation\.json'\]/, 'G00-02 links its observed network-isolation evidence');
 assert.doesNotMatch(laterGatesSource, /g11-24h-soak|monotonic_duration_ms|required_duration_ms|24-hour-soak/i,
   'G11-06 has no duration-based harness or eligibility check');
+assert.match(laterGatesSource, /missingEvidenceReferences\(allRows,evidenceFileExists\)/,
+  'G11-05 audits that every PASS case has evidence references');
+assert.deepEqual(await missingEvidenceReferences([
+  { case: 'G00-02', status: 'PASS', evidence: [] },
+  { case: 'G00-03', status: 'PASS', evidence: ['isolation.json'] },
+  { case: 'G00-04', status: 'PENDING', evidence: [] }
+], async reference => reference === 'isolation.json'), [
+  { case: 'G00-02', evidence: null, reason: 'PASS case has no evidence references' }
+], 'PASS rows without evidence are rejected; existing references and PENDING rows are handled correctly');
 assert.match(resilienceSource, /probe_count:\s*96/, 'G11-06 declares exactly 96 fixed-count probes');
 assert.match(resilienceSource, /restart_after_probe_counts:\s*Object\.freeze\(\[24, 48, 72, 96\]\)/,
   'G11-06 declares four restart checkpoints by completed probe count');

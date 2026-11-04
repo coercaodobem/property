@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { downstreamCaseIds, gateRowsPassed } from './gate-sequencing.mjs';
+import { missingEvidenceReferences } from './evidence-audit.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../..');
 const options={};
@@ -42,9 +43,7 @@ async function finishReport(){
   const rows=[...byCase.values()],recordedIds=rows.map(row=>row.case),recordedSet=new Set(recordedIds);
   const missingIds=[...plannedIds].filter(id=>!recordedSet.has(id)).sort();
   const unexpectedIds=[...recordedSet].filter(id=>!plannedIds.has(id)).sort();
-  const missingEvidence=[];
-  for(const row of rows)if(row.status==='PASS')for(const evidence of row.evidence||[])
-    if(!await evidenceFileExists(evidence))missingEvidence.push({case:row.case,evidence});
+  const missingEvidence=await missingEvidenceReferences(rows,evidenceFileExists);
   const statusCounts=Object.fromEntries(['PASS','FAIL','BLOCKED','NOT_RUN','PENDING'].map(status=>
     [status,rows.filter(row=>row.status===status).length]));
   baseReport.final_matrix_audit={scope:'G00-G12',planned_case_count:plannedIds.size,recorded_case_count:recordedIds.length,
@@ -409,8 +408,7 @@ async function main(){
       'later-gates/g11-06/g11-multirelay-resilience-report.json','later-gates/g11-06/g11-multirelay-resilience-probes.jsonl']);
 
   const rows=await readCoreRows();
-  const missingEvidence=[];
-  for(const row of rows.values())if(row.status==='PASS')for(const item of row.evidence||[])try{await access(path.join(runDir,item));}catch{missingEvidence.push({case:row.case,evidence:item});}
+  const missingEvidence=await missingEvidenceReferences(rows.values(),evidenceFileExists);
   const passedCore=[...rows.values()].filter(row=>row.status==='PASS').length;
   const g08Evidence=await access(path.join(runDir,'ledger-g08/ledger-g08-report.json')).then(()=>true,()=>false);
   const secretFindings=[];
@@ -418,7 +416,8 @@ async function main(){
   await scan(runDir);
   const reconStatus=missingEvidence.length===0&&secretFindings.length===0?'PASS':'FAIL';
   await record('G11-04',reconStatus,reconStatus==='PASS'?'Todos os casos PASS referenciam evidência existente; corpus financeiro e artefatos foram verificados sem material secreto.':'Evidência ausente ou padrão de segredo encontrado no relatório.',
-    {core_pass_case_count:passedCore,g08_report_present:g08Evidence,missing_evidence:missingEvidence,secret_artifact_paths:secretFindings},[]);
+    {core_pass_case_count:passedCore,g08_report_present:g08Evidence,missing_evidence:missingEvidence,secret_artifact_paths:secretFindings},
+    ['later-gates/later-gates-report.json','ledger-g08/ledger-g08-report.json']);
 
   const allRowsByCase=new Map([...rows].filter(([caseId])=>/^G(?:0\d|1[01])-/.test(caseId)));
   for(const [caseId,row] of cases)if(/^G(?:0\d|1[01])-/.test(caseId))allRowsByCase.set(caseId,row);
@@ -432,11 +431,8 @@ async function main(){
   const missingCaseIds=[...plannedCaseIds].filter(id=>!recordedSet.has(id)).sort();
   const unexpectedCaseIds=[...recordedSet].filter(id=>!plannedCaseIds.has(id)).sort();
   const evidenceRows=allRows.filter(row=>row.status==='PASS');
-  const missingReferences=[];let evidenceReferenceCount=0;
-  for(const row of evidenceRows)for(const reference of row.evidence||[]){
-    evidenceReferenceCount++;
-    if(!await evidenceFileExists(reference))missingReferences.push({case:row.case,evidence:reference});
-  }
+  const missingReferences=await missingEvidenceReferences(allRows,evidenceFileExists);
+  const evidenceReferenceCount=evidenceRows.reduce((count,row)=>count+(Array.isArray(row.evidence)?row.evidence.length:0),0);
   const notRunCaseIds=allRows.filter(row=>row.status==='NOT_RUN').map(row=>row.case).sort();
   const caseCount=recordedIds.length,caseSetComplete=caseCount===plannedCaseIds.size&&missingCaseIds.length===0&&
     unexpectedCaseIds.length===0&&notRunCaseIds.length===0;
