@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "run_id": "property-ubuntu-full-20261103-20",
+  "profile": "full",
+  "candidate_commit": "0577a23c7ee6de0faf95ee8ca1b30649feb08ea9",
+  "observed_head": "0577a23c7ee6de0faf95ee8ca1b30649feb08ea9",
+  "requested_executor": "Executor ativo escolhido pelo mantenedor",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active task runtime; executor identity is provenance only.",
+  "executor_matches_request": false,
+  "executor_identity_is_gating": false,
+  "started_utc": "2026-11-04T01:00:38.035Z",
+  "ended_utc": "2026-11-04T01:09:20.137Z",
+  "gate_status": {
+    "G00": "PASS",
+    "G01": "PASS",
+    "G02": "PASS",
+    "G03": "PASS",
+    "G04": "PASS",
+    "G05": "PASS",
+    "G06": "PASS",
+    "G07": "PASS",
+    "G08": "PASS",
+    "G09": "PASS",
+    "G10": "PASS",
+    "G11": "PASS",
+    "G12": "PENDING"
+  },
+  "case_totals": {
+    "PASS": 70,
+    "PENDING": 4
+  },
+  "isolation": "PASS",
+  "ubuntu_scope_pass": true,
+  "deferred_platform_cases": [
+    "G12-02",
+    "G12-03",
+    "G12-04",
+    "G12-05"
+  ],
+  "scope_result": "PROPERTY_UBUNTU_OFFLINE_PASS",
+  "exit_code": 0
+}

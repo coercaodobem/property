@@ -1,0 +1,556 @@
+{
+  "schema_version": 3,
+  "case": "G11-03",
+  "status": "PASS",
+  "method": "fixed_repetition_count",
+  "predefined_variables": {
+    "probeCount": 300,
+    "rateWindowProbeBatch": 50,
+    "logicalClockStepMs": 60000,
+    "restartAfterProbeCounts": [
+      60,
+      150,
+      240
+    ],
+    "partitionEventRepetitions": 3,
+    "idleClockStepMs": 60000,
+    "idleClockRepetitions": 31,
+    "idleTimeoutMs": 1800000,
+    "resourceSampleEvery": 25,
+    "uiDedupProbeCounts": [
+      1,
+      60,
+      150,
+      240,
+      300
+    ],
+    "fixedEpochSeconds": 1800000000
+  },
+  "probe_count": 300,
+  "partition_probe_count": 9,
+  "loss_count": 0,
+  "restart_cycles": [
+    {
+      "after_probe_count": 60,
+      "started_utc": "2026-11-04T01:07:08.414Z",
+      "ended_utc": "2026-11-04T01:07:18.325Z",
+      "same_database": true,
+      "partition_events": [
+        {
+          "id": "8ee7c7aa5f3b4b76a233f30c6ec24f8cd1000b114a4f236ca443fd6daa834b7e",
+          "absent_at_destination_during_partition": true,
+          "source_ack": true,
+          "reconciled_at_middle_and_destination": true
+        },
+        {
+          "id": "3cdc57ec47fbad0348925593e04b18ac0152aa03c2d4bb1c4a32dfe609231c25",
+          "absent_at_destination_during_partition": true,
+          "source_ack": true,
+          "reconciled_at_middle_and_destination": true
+        },
+        {
+          "id": "02013d2d20e9c91c064272a41305f69bcebb740cf9fca153f87a9229d45a9e8f",
+          "absent_at_destination_during_partition": true,
+          "source_ack": true,
+          "reconciled_at_middle_and_destination": true
+        }
+      ],
+      "reconciled_event_count": 3
+    },
+    {
+      "after_probe_count": 150,
+      "started_utc": "2026-11-04T01:07:33.995Z",
+      "ended_utc": "2026-11-04T01:07:43.749Z",
+      "same_database": true,
+      "partition_events": [
+        {
+          "id": "796f98eb0ab802bdafea8431f9e36ebf8c2d2b9ca53a614aef1f0991dd4dcc0d",
+          "absent_at_destination_during_partition": true,
+          "source_ack": true,
+          "reconciled_at_middle_and_destination": true
+        },
+        {
+          "id": "e94c38d28d5740281b18d8c2d36920231e9f86ac04e8977e333420bb1b0e5746",
+          "absent_at_destination_during_partition": true,
+          "source_ack": true,
+          "reconciled_at_middle_and_destination": true
+        },
+        {
+          "id": "acac49062ca38d3771b76a66b0029deb6ebe011423f7cc453d57e871974e50bd",
+          "absent_at_destination_during_partition": true,
+          "source_ack": true,
+          "reconciled_at_middle_and_destination": true
+        }
+      ],
+      "reconciled_event_count": 3
+    },
+    {
+      "after_probe_count": 240,
+      "started_utc": "2026-11-04T01:07:59.501Z",
+      "ended_utc": "2026-11-04T01:08:09.405Z",
+      "same_database": true,
+      "partition_events": [
+        {
+          "id": "ebafbfaa190ded587361262b89d81771a0decc540524521e6b4e84b18b02396b",
+          "absent_at_destination_during_partition": true,
+          "source_ack": true,
+          "reconciled_at_middle_and_destination": true
+        },
+        {
+          "id": "b5850aa68baf311b2f7ce1527f73a9440614bf80af1b35111a5856cfdd260de3",
+          "absent_at_destination_during_partition": true,
+          "source_ack": true,
+          "reconciled_at_middle_and_destination": true
+        },
+        {
+          "id": "a1e989219b31f40e5d48c8be186172bb90cae449198ac0dea43c9449a37bd907",
+          "absent_at_destination_during_partition": true,
+          "source_ack": true,
+          "reconciled_at_middle_and_destination": true
+        }
+      ],
+      "reconciled_event_count": 3
+    }
+  ],
+  "ui_deduplication_samples": [
+    {
+      "probe_count": 1,
+      "event_id": "7012e1bae0c89e5c7d077be87e445f7f1b4e39a2f1f2b188fc93db728a16dbb4",
+      "nodes": [
+        {
+          "label": "repetition bridge P12",
+          "event_cards": 1
+        },
+        {
+          "label": "repetition bridge P23",
+          "event_cards": 1
+        }
+      ]
+    },
+    {
+      "probe_count": 60,
+      "event_id": "74baf365623687b8d1cf4fb3443f6d8d839e1d88b5ee562dea8d6d6374622409",
+      "nodes": [
+        {
+          "label": "repetition bridge P12",
+          "event_cards": 1
+        },
+        {
+          "label": "repetition bridge P23",
+          "event_cards": 1
+        }
+      ]
+    },
+    {
+      "probe_count": 150,
+      "event_id": "e815bb7ae7f9bab6f097199f5c69d55e747f50df5c9f0f18bc8b772005a85a72",
+      "nodes": [
+        {
+          "label": "repetition bridge P12",
+          "event_cards": 1
+        },
+        {
+          "label": "repetition bridge P23",
+          "event_cards": 1
+        }
+      ]
+    },
+    {
+      "probe_count": 240,
+      "event_id": "70fca43d4dc399f6d8e2fed36280ceb5a655444d27e49d699cacb2392907df87",
+      "nodes": [
+        {
+          "label": "repetition bridge P12",
+          "event_cards": 1
+        },
+        {
+          "label": "repetition bridge P23",
+          "event_cards": 1
+        }
+      ]
+    },
+    {
+      "probe_count": 300,
+      "event_id": "cc22c9cd66455139fbe69442b36f7c503f9eed9e84c24b9e57712ff1f83d098a",
+      "nodes": [
+        {
+          "label": "repetition bridge P12",
+          "event_cards": 1
+        },
+        {
+          "label": "repetition bridge P23",
+          "event_cards": 1
+        }
+      ]
+    }
+  ],
+  "resource_samples": [
+    {
+      "checkpoint_probe_count": 0,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 111591424
+        },
+        {
+          "pid": 3043843,
+          "rss_bytes": 128176128
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 127447040
+        }
+      ],
+      "total_relay_rss_bytes": 367214592,
+      "scratch_bytes": 475393071
+    },
+    {
+      "checkpoint_probe_count": 25,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 119050240
+        },
+        {
+          "pid": 3043843,
+          "rss_bytes": 128966656
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 137232384
+        }
+      ],
+      "total_relay_rss_bytes": 385249280,
+      "scratch_bytes": 478878591
+    },
+    {
+      "checkpoint_probe_count": 50,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 120483840
+        },
+        {
+          "pid": 3043843,
+          "rss_bytes": 129449984
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 143908864
+        }
+      ],
+      "total_relay_rss_bytes": 393842688,
+      "scratch_bytes": 482351751
+    },
+    {
+      "checkpoint_probe_count": 60,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 121225216
+        },
+        {
+          "pid": 3046765,
+          "rss_bytes": 136445952
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 144986112
+        }
+      ],
+      "total_relay_rss_bytes": 402657280,
+      "scratch_bytes": 481440319
+    },
+    {
+      "checkpoint_probe_count": 75,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 125489152
+        },
+        {
+          "pid": 3046765,
+          "rss_bytes": 137076736
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 146653184
+        }
+      ],
+      "total_relay_rss_bytes": 409219072,
+      "scratch_bytes": 483516799
+    },
+    {
+      "checkpoint_probe_count": 100,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 123412480
+        },
+        {
+          "pid": 3046765,
+          "rss_bytes": 137609216
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 147861504
+        }
+      ],
+      "total_relay_rss_bytes": 408883200,
+      "scratch_bytes": 485826199
+    },
+    {
+      "checkpoint_probe_count": 125,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 128462848
+        },
+        {
+          "pid": 3046765,
+          "rss_bytes": 138047488
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 149364736
+        }
+      ],
+      "total_relay_rss_bytes": 415875072,
+      "scratch_bytes": 487136359
+    },
+    {
+      "checkpoint_probe_count": 150,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 129236992
+        },
+        {
+          "pid": 3049517,
+          "rss_bytes": 119382016
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 150556672
+        }
+      ],
+      "total_relay_rss_bytes": 399175680,
+      "scratch_bytes": 484033687
+    },
+    {
+      "checkpoint_probe_count": 150,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 129236992
+        },
+        {
+          "pid": 3049517,
+          "rss_bytes": 119382016
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 150556672
+        }
+      ],
+      "total_relay_rss_bytes": 399175680,
+      "scratch_bytes": 484033687
+    },
+    {
+      "checkpoint_probe_count": 175,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 138145792
+        },
+        {
+          "pid": 3049517,
+          "rss_bytes": 120176640
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 151285760
+        }
+      ],
+      "total_relay_rss_bytes": 409608192,
+      "scratch_bytes": 485747031
+    },
+    {
+      "checkpoint_probe_count": 200,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 140869632
+        },
+        {
+          "pid": 3049517,
+          "rss_bytes": 121139200
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 151711744
+        }
+      ],
+      "total_relay_rss_bytes": 413720576,
+      "scratch_bytes": 487452711
+    },
+    {
+      "checkpoint_probe_count": 225,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 136179712
+        },
+        {
+          "pid": 3049517,
+          "rss_bytes": 121589760
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 152469504
+        }
+      ],
+      "total_relay_rss_bytes": 410238976,
+      "scratch_bytes": 488312735
+    },
+    {
+      "checkpoint_probe_count": 240,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 136818688
+        },
+        {
+          "pid": 3052398,
+          "rss_bytes": 135843840
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 152649728
+        }
+      ],
+      "total_relay_rss_bytes": 425312256,
+      "scratch_bytes": 484303831
+    },
+    {
+      "checkpoint_probe_count": 250,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 136970240
+        },
+        {
+          "pid": 3052398,
+          "rss_bytes": 136232960
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 153006080
+        }
+      ],
+      "total_relay_rss_bytes": 426209280,
+      "scratch_bytes": 484991871
+    },
+    {
+      "checkpoint_probe_count": 275,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 137150464
+        },
+        {
+          "pid": 3052398,
+          "rss_bytes": 136753152
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 153141248
+        }
+      ],
+      "total_relay_rss_bytes": 427044864,
+      "scratch_bytes": 486795951
+    },
+    {
+      "checkpoint_probe_count": 300,
+      "relay_processes": [
+        {
+          "pid": 3043283,
+          "rss_bytes": 137388032
+        },
+        {
+          "pid": 3052398,
+          "rss_bytes": 137252864
+        },
+        {
+          "pid": 3044377,
+          "rss_bytes": 153468928
+        }
+      ],
+      "total_relay_rss_bytes": 428109824,
+      "scratch_bytes": 488464311
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28740/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28740/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28742/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28742/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/",
+    "ws://127.0.0.1:28741/"
+  ],
+  "relay_count": 3,
+  "bridge_count": 2,
+  "started_utc": "2026-11-04T01:06:47.114Z",
+  "ended_utc": "2026-11-04T01:08:20.111Z",
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "resource_budget": {
+    "available_memory_at_start_bytes": 9108529152,
+    "max_relay_rss_bytes": 6375970406,
+    "max_scratch_bytes": 2147483648
+  },
+  "logical_rate_window_advances": 5,
+  "idle_lock_public_bridge": {
+    "verified": true,
+    "logical_clock_step_ms": 60000,
+    "logical_clock_repetitions": 31,
+    "contexts": 2,
+    "secrets_cleared_from_ui": true,
+    "public_bridge_preserved": true
+  },
+  "locked_bridge_stop": {
+    "verified": true,
+    "repetitions": 2,
+    "relay_sockets_closed": [
+      true,
+      true
+    ]
+  },
+  "page_errors": [],
+  "gate_eligible": true
+}
