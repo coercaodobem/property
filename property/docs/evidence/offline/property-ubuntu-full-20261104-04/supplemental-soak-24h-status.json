@@ -8,8 +8,8 @@
   "started_utc": "2026-11-04T02:14:46.939Z",
   "required_seconds": 86400,
   "probe_interval_seconds": 60,
-  "probe_passes_observed": 13,
-  "last_event_utc": "2026-11-04T02:27:47.165Z",
+  "probe_passes_observed": 19,
+  "last_event_utc": "2026-11-04T02:33:47.358Z",
   "planned_faults": [
     "SIGTERM at one-third of the window",
     "SIGKILL at two-thirds of the window"
@@ -19,5 +19,18 @@
   "public_relays_used": false,
   "real_funds_used": false,
   "partial_run_counts_as_pass": false,
-  "public_log": "Final sanitized log will be added only after the run completes."
+  "public_log": "Final sanitized log will be added only after the run completes.",
+  "test_source_commit": "136a7f4b5b6aeedc1ed5dc35049e989d58fe44fc",
+  "delivery_head_at_checkpoint": "be849a9471566c5b31a074bf4014b50f25595847",
+  "delivery_equivalence": {
+    "checked_paths": [
+      "property/web",
+      "property/relay",
+      "property/tests",
+      "property/docs/plano-de-testes-central.md",
+      "property/AGENTS.md"
+    ],
+    "diff": "empty between tested source commit and delivery head; intervening commits contain evidence files only"
+  },
+  "checkpoint_updated_utc": "2026-11-04T02:34:34.542Z"
 }
