@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "candidate_commit": "7fcac0b11d46cda2ad147429414b9cf36c2a6bd1",
+  "method": "deterministic text-artifact sanitization",
+  "files_scanned": 84,
+  "files_changed": 43,
+  "home_path_replacements": 47,
+  "trailing_whitespace_lines_removed": 87,
+  "credential_pattern_scan": "PASS",
+  "credential_pattern_matches": 0,
+  "note": "Token, nsec, mnemonic, private-key, and RPC credential patterns were scanned; no matches. Binary screenshots were preserved unchanged."
+}

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "run_id": "property-ubuntu-full-20261104-goal02",
+  "profile": "full",
+  "candidate_commit": "7fcac0b11d46cda2ad147429414b9cf36c2a6bd1",
+  "observed_head": "7fcac0b11d46cda2ad147429414b9cf36c2a6bd1",
+  "requested_executor": "Luna Max",
+  "actual_executor": "Codex GPT-6",
+  "actual_executor_source": "Active Codex task runtime; identity is provenance, not a gate.",
+  "executor_matches_request": false,
+  "executor_identity_is_gating": false,
+  "started_utc": "2026-11-04T15:41:02.826Z",
+  "ended_utc": "2026-11-04T15:50:20.837Z",
+  "gate_status": {
+    "G00": "PASS",
+    "G01": "PASS",
+    "G02": "PASS",
+    "G03": "PASS",
+    "G04": "PASS",
+    "G05": "PASS",
+    "G06": "PASS",
+    "G07": "PASS",
+    "G08": "PASS",
+    "G09": "PASS",
+    "G10": "PASS",
+    "G11": "PASS",
+    "G12": "PENDING"
+  },
+  "case_totals": {
+    "PASS": 71,
+    "PENDING": 4
+  },
+  "isolation": "PASS",
+  "ubuntu_scope_pass": true,
+  "deferred_platform_cases": [
+    "G12-02",
+    "G12-03",
+    "G12-04",
+    "G12-05"
+  ],
+  "scope_result": "PROPERTY_UBUNTU_OFFLINE_PASS",
+  "exit_code": 0
+}
