@@ -93,7 +93,7 @@ Result: PROPERTY_UBUNTU_OFFLINE_PASS
 - G10-02 — PASS: Destinatário offline, recuperação após reabrir, perda de inbox e restauração foram verificadas neste run.
 - G10-03 — PASS: Hangout, marketplace, campanha opt-in/bloqueio e contato foram exercitados pela UI e relay neste run.
 - G10-04 — PASS: Sessão, bloqueio, backup/recuperação e privacidade em perfil limpo passaram nos casos herdados do mesmo run.
-- G10-05 — PASS: Viewports, zoom, acessibilidade, fallback e oito capturas automatizadas passaram; aprovação humana das capturas permanece explicitamente pendente.
+- G10-05 — PASS: Viewports, zoom, acessibilidade, fallback e oito capturas automatizadas passaram; aprovação humana das capturas permanece explicitamente pendente. O [índice de revisão humana](later-gates/g10-05/HUMAN-REVIEW.md) reúne as imagens sem marcar resultado.
 - G10-06 — PASS: Asserções do harness concluídas.
 - G11-01 — PASS: Jornada funcional NIP-17 repetida no mesmo seed de cenário e novamente em perfis limpos; CSPRNG continua aleatório.
 - G11-02 — PASS: The offline source build was blocked because Gradle could not find the required Java 21 toolchain; the exact-input prior-build reuse exception passed. A later retake built the current source twice offline; see the G11-02 retake evidence.
