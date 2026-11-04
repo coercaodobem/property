@@ -42,8 +42,10 @@ AVD_HOME="${RUNNER_TEMP:-/tmp}/property-android-avd"
 mkdir -p "$AVD_HOME"
 chmod 700 "$AVD_HOME"
 export ANDROID_AVD_HOME="$AVD_HOME"
+mkdir -p "${HOME:?HOME must be set}/.android"
+chmod 700 "$HOME/.android"
 printf 'no\n' | "$AVDMANAGER" create avd --force --path "$AVD_HOME/$AVD.avd" --name "$AVD" --package "$IMAGE" --device "$DEVICE"
-"$EMULATOR" -avd "$AVD" -port 5554 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data -no-metrics >"${RUNNER_TEMP:-/tmp}/property-android-emulator.log" 2>&1 &
+"$EMULATOR" -avd "$AVD" -port 5554 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data -no-metrics -accel off >"${RUNNER_TEMP:-/tmp}/property-android-emulator.log" 2>&1 &
 EMULATOR_PID=$!
 UDID='emulator-5554'
 READY=0
@@ -65,7 +67,7 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const [output, release, api, image, avd, udid, pid] = process.argv.slice(2);
 const report = { schema_version: 1, kind: 'android-emulator-preparation', result: 'PASS',
-  release, api_level: Number(api), system_image: image, avd, transport: 'adb emulator',
+  release, api_level: Number(api), system_image: image, avd, transport: 'adb emulator', acceleration: 'software (-accel off)',
   udid_sha256: crypto.createHash('sha256').update(udid).digest('hex'), emulator_process_started: Number(pid) > 0 };
 fs.writeFileSync(output, JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
 if (process.env.GITHUB_ENV) fs.appendFileSync(process.env.GITHUB_ENV,

@@ -366,6 +366,7 @@ async function createIdentity(driver, url, relayUrl, title) {
   await driver.click('#save-relays');
   await driver.waitUntil("/[1-9]\\d*\\/\\d+ relay/.test(document.querySelector('#connection-label')?.textContent || '')", 240);
   await openRelaySettings(driver);
+  await driver.fill('#dm-relay-input', relayUrl);
   await driver.click('#publish-inbox-list');
   await driver.waitUntil("/Sua lista pública de recebimento NIP-17 foi publicada/.test(document.querySelector('#toast')?.textContent || '') || Boolean(document.querySelector('#relay-error')?.textContent?.trim())", 200);
   const relayError = await driver.evaluate("document.querySelector('#relay-error')?.textContent?.trim() || ''");
