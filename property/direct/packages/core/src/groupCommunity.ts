@@ -668,6 +668,10 @@ export class CommunitySession {
   private asked = new Map<string, number>();
   /** Per member: until when what comes over its edge may be its answer to my sync (`ANSWER_WINDOW_MS`). In memory only. */
   private readonly answering = new Map<string, number>();
+  /** The advertised `have`, highest messages handed so far, and whether this member answered an open sync. In memory only. */
+  private readonly answerOf = new Map<string, { have: Record<string, Record<string, number>>; top: Record<string, Record<string, number>>; heard: boolean }>();
+  /** Author → `epoch:commit` → sequence through which an unanswered gap is known to be gone. In memory only. */
+  private readonly gapsGone: Record<string, Record<string, number>> = {};
   /** The message frames given to `handle` that came live here (`CommunityIncomingMessage.live`): `passOn` marks them. */
   private readonly cameLive = new WeakSet<object>();
   /** Syncs answered per member, a few a minute (`COMMUNITY_LIMITS.syncAnswers`). In memory only. */
@@ -988,11 +992,39 @@ export class CommunitySession {
     }
     return chain.slice(start, out + 1).map(commit => ({ t: "group-commit" as const, v: 2 as const, g: this.id, commit }));
   }
+  /**
+   * Gaps no active answer can still fill: an answer hands every frame its member holds above our advertised mark.
+   * After those answers end, a remaining gap below the mark or highest delivered is not held by any member.
+   */
   missing(sender: string): number {
-    const entry = this.state.seen[sender]?.[seenKey(this.epoch, shortHash(this.topHash))];
+    this.settleGaps();
+    const key = seenKey(this.epoch, shortHash(this.topHash));
+    const entry = this.state.seen[sender]?.[key];
     if (!entry) return 0;
-    const lowest = Math.max(0, entry.high - COMMUNITY_LIMITS.replay + 1);
+    const lowest = Math.max(0, entry.high - COMMUNITY_LIMITS.replay + 1, (entry.floor ?? -1) + 1, (this.gapsGone[sender]?.[key] ?? -1) + 1);
     return Math.max(0, entry.high - lowest + 1 - (1 + entry.window.filter(n => n >= lowest).length));
+  }
+
+  /** An answer that ended marks any unfilled part of its range as gone. A sync nobody answered settles nothing. */
+  settleGaps(): boolean {
+    const now = this.hooks.clock?.() ?? Date.now();
+    let changed = false;
+    for (const [from, answer] of this.answerOf) {
+      if ((this.answering.get(from) ?? 0) > now) continue;
+      this.answerOf.delete(from);
+      if (!answer.heard) continue;
+      for (const marks of [answer.have, answer.top]) for (const [sender, byKey] of Object.entries(marks)) for (const [key, upTo] of Object.entries(byKey)) {
+        if (!this.state.seen[sender]?.[key] || upTo <= (this.gapsGone[sender]?.[key] ?? -1)) continue;
+        (this.gapsGone[sender] ??= {})[key] = upTo;
+        changed = true;
+      }
+    }
+    // Keep only authors and commits still represented in the bounded seen window.
+    for (const [sender, byKey] of Object.entries(this.gapsGone)) {
+      for (const key of Object.keys(byKey)) if (!this.state.seen[sender]?.[key]) delete byKey[key];
+      if (!Object.keys(byKey).length) delete this.gapsGone[sender];
+    }
+    return changed;
   }
 
   // -- the tree of commits -------------------------------------------------------------------------
@@ -1965,6 +1997,14 @@ export class CommunitySession {
       const key = seenKey(f.e, f.h);
       (have[f.s] ??= {})[key] ??= Math.max(f.n, this.state.seen[f.s]?.[key]?.high ?? -1);
     }
+    if (to) {
+      const open = this.answerOf.get(to);
+      this.answerOf.set(to, {
+        have: Object.fromEntries(Object.entries(have).map(([sender, byKey]) => [sender, { ...byKey }])),
+        top: open?.top ?? {},
+        heard: open?.heard ?? false,
+      });
+    }
     const secrets = this.state.chain.slice(-COMMUNITY_LIMITS.window - 1).map(c => communityCommitHash(c)).filter(h => this.state.secrets[h]).map(shortHash);
     const loc: string[] = [];
     for (let back = 1; back < this.state.chain.length && loc.length < 12; back *= 2) loc.push(communityCommitHash(this.state.chain[this.state.chain.length - 1 - back]));
@@ -1984,7 +2024,11 @@ export class CommunitySession {
       if (frame.g !== this.id || frame.v !== 2) return false;
       // A frame of an answer to my sync keeps it open: the answer goes a slice at a time.
       const now = this.hooks.clock?.() ?? Date.now();
-      if ((this.answering.get(from) ?? 0) > now) this.answering.set(from, now + ANSWER_WINDOW_MS);
+      if ((this.answering.get(from) ?? 0) > now) {
+        this.answering.set(from, now + ANSWER_WINDOW_MS);
+        const answer = this.answerOf.get(from);
+        if (answer) answer.heard = true;
+      }
       // A member who lost its admission still hears commits: the next one may take it in.
       if (this.state.status !== "active" && !(this.state.status === "lost" && (frame.t === "group-commit" || frame.t === "group-secret" || frame.t === "group-secrets"))) return false;
       switch (frame.t) {
@@ -2063,7 +2107,7 @@ export class CommunitySession {
     if (live) this.cameLive.add(input);
     // One I took already (from a second hub, or in a catch-up answer) is dropped before its signature is checked: it
     // would be dropped below whether the signature holds or not.
-    if (this.isDuplicate(raw)) return false;
+    if (this.isDuplicate(raw)) { this.handedInAnswer(from, raw, now); return false; }
     // Signed by its author before anything else, so a frame no member wrote never takes a place among those waiting.
     if (!verify(fromBase64Url(raw.sig), messageSigned(raw), publicKeyFromZ32(raw.s))) return false;
     // Someone removed is heard no more, even for an epoch it was in (whose secret it still holds); one who left, for
@@ -2078,6 +2122,7 @@ export class CommunitySession {
     let pace = this.messagePace.get(raw.s);
     if (!pace) this.messagePace.set(raw.s, pace = new MessagePace());
     if (!pace.take(seenKey(raw.e, raw.h), raw.n, raw.c.length, this.hooks.clock?.() ?? Date.now())) return false;
+    this.handedInAnswer(from, raw, now);
     // From before I was let in: nothing for me to read, but its author may have reached nobody else yet (it wrote
     // before it heard of me, with no edge up, and I am its hub). Kept and passed on like any frame, never opened, so
     // the members it was written for get it; the store hands it to those only.
@@ -2192,6 +2237,13 @@ export class CommunitySession {
     entry.gap = [gap, asked === gap ? times + 1 : 1, now];
     return gap - 1;
   }
+  /** A known frame from a member whose answer to my sync is open: the highest one it handed (`settleGaps`). */
+  private handedInAnswer(from: string, f: { s: string; e: number; h: string; n: number }, now: number): void {
+    const answer = (this.answering.get(from) ?? 0) > now ? this.answerOf.get(from) : undefined;
+    if (!answer) return;
+    const byKey = (answer.top[f.s] ??= {}), key = seenKey(f.e, f.h);
+    byKey[key] = Math.max(f.n, byKey[key] ?? -1);
+  }
   private markSeen(f: CommunityMessageFrame): void {
     const bySender = (this.state.seen[f.s] ??= {});
     const entry = (bySender[seenKey(f.e, f.h)] ??= { high: -1, window: [] });
@@ -2228,9 +2280,7 @@ export class CommunitySession {
   private question(from: string): CommunitySyncFrame | null {
     const now = this.hooks.clock?.() ?? Date.now();
     if (now - (this.asked.get(from) ?? 0) < 5_000) return null;
-    this.asked.set(from, now);
-    this.answering.set(from, now + ANSWER_WINDOW_MS);
-    return this.syncFrame();
+    return this.syncFrame(from);
   }
 
   private async replayWaiting(): Promise<void> {
@@ -2522,4 +2572,3 @@ interface Branch { tip: string; fork: number; path: string[] }
 export function signCommunity(commit: Omit<CommunityCommit, "sig">, seed: Uint8Array): CommunityCommit {
   return { ...commit, sig: toBase64Url(sign(utf8Encode(tuple(commit)), seed)) };
 }
-

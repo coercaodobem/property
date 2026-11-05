@@ -1087,6 +1087,7 @@ export class Communities {
     }
     // Something I said with no edge up may be sealed under a commit I took for the newest: said again once caught up.
     await s.reseal().catch(() => {});
+    if (s.settleGaps()) this.host.emit();
     await this.reconcile(groupId, live, now);
   }
 
