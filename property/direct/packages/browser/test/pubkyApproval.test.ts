@@ -13,8 +13,8 @@ import { passportUrl, PUBKY_CLIENT_ID, withPubkyApproval } from "../src/proofs/p
  */
 
 /** Look like real ones: the relay secrets are in them. */
-const GRANT_URL = "pubkyauth://signin_grant?caps=%2Fpub%2Fghostly.app%2Fproofs%2F&relay=https%3A%2F%2Fhttprelay.pubky.app%2Finbox&secret=Z3JhbnQtcmVsYXkta2V5&cid=ghostly.tools&cpk=cG9wLWtleQ&x-source=Ghostly";
-const COOKIE_URL = "pubkyauth://signin?caps=%2Fpub%2Fghostly.app%2Fproofs%2F&relay=https%3A%2F%2Fhttprelay.pubky.app%2Finbox&secret=Y29va2llLXJlbGF5LWtleQ&x-source=Ghostly";
+const GRANT_URL = "pubkyauth://signin_grant?caps=%2Fpub%2Fghostly.app%2Fproofs%2F&relay=https%3A%2F%2Fhttprelay.pubky.app%2Finbox&secret=Z3JhbnQtcmVsYXkta2V5&cid=coercaodobem.github.io&cpk=cG9wLWtleQ&x-source=Property";
+const COOKIE_URL = "pubkyauth://signin?caps=%2Fpub%2Fghostly.app%2Fproofs%2F&relay=https%3A%2F%2Fhttprelay.pubky.app%2Finbox&secret=Y29va2llLXJlbGF5LWtleQ&x-source=Property";
 const SECRETS = ["Z3JhbnQtcmVsYXkta2V5", "Y29va2llLXJlbGF5LWtleQ"];
 
 interface FakeSession {
@@ -59,14 +59,14 @@ vi.mock("@synonymdev/pubky", () => {
     GrantAuthFlow: {
       start(capabilities: string, kind: unknown, options: { clientId: unknown; relay: unknown; xCallback: unknown }) {
         sdk.started.push({ form: "grant", capabilities, kind, relay: options.relay, xCallback: options.xCallback, clientId: options.clientId });
-        return flow("grant", "pubkyauth://signin_grant?caps=%2Fpub%2Fghostly.app%2Fproofs%2F&relay=https%3A%2F%2Fhttprelay.pubky.app%2Finbox&secret=Z3JhbnQtcmVsYXkta2V5&cid=ghostly.tools&cpk=cG9wLWtleQ&x-source=Ghostly");
+        return flow("grant", "pubkyauth://signin_grant?caps=%2Fpub%2Fghostly.app%2Fproofs%2F&relay=https%3A%2F%2Fhttprelay.pubky.app%2Finbox&secret=Z3JhbnQtcmVsYXkta2V5&cid=coercaodobem.github.io&cpk=cG9wLWtleQ&x-source=Property");
       },
     },
     AuthFlow: {
       start(capabilities: string, kind: unknown, relay: unknown, xCallback: unknown) {
         if (sdk.failCookieStart) throw new Error("Invalid capability in pubkyauth://signin?secret=Y29va2llLXJlbGF5LWtleQ");
         sdk.started.push({ form: "cookie", capabilities, kind, relay, xCallback });
-        return flow("cookie", "pubkyauth://signin?caps=%2Fpub%2Fghostly.app%2Fproofs%2F&relay=https%3A%2F%2Fhttprelay.pubky.app%2Finbox&secret=Y29va2llLXJlbGF5LWtleQ&x-source=Ghostly");
+        return flow("cookie", "pubkyauth://signin?caps=%2Fpub%2Fghostly.app%2Fproofs%2F&relay=https%3A%2F%2Fhttprelay.pubky.app%2Finbox&secret=Y29va2llLXJlbGF5LWtleQ&x-source=Property");
       },
     },
   };
@@ -121,7 +121,7 @@ describe("Pubky approval", () => {
     vi.restoreAllMocks();
   });
 
-  it("asks for write access to one fresh proof folder, as ghostly.tools, and shows it both ways", async () => {
+  it("asks for write access to one fresh proof folder as Property on coercaodobem.github.io, and shows it both ways", async () => {
     const opened: string[] = [];
     const { ctx, requests } = context();
     const approved = session();
@@ -146,8 +146,9 @@ describe("Pubky approval", () => {
     const { capabilities } = grant;
     expect(capabilities).toMatch(new RegExp(`^${PUBKY_PROOF_ROOT.replaceAll(".", "\\.")}[a-f0-9]{64}/:w$`));
     expect(capabilities).not.toContain(",");
-    expect(grant).toMatchObject({ clientId: PUBKY_CLIENT_ID, relay: null, xCallback: { xSource: "Ghostly" } });
-    expect(cookie).toMatchObject({ capabilities, relay: null, xCallback: { xSource: "Ghostly" } });
+    expect(grant).toMatchObject({ clientId: PUBKY_CLIENT_ID, relay: null, xCallback: { xSource: "Property" } });
+    expect(cookie).toMatchObject({ capabilities, relay: null, xCallback: { xSource: "Property" } });
+    expect(PUBKY_CLIENT_ID).toBe("coercaodobem.github.io");
     // A sign-in each, each its own: the SDK moves the kind into the flow it starts.
     expect(grant.kind).toEqual({ intent: "signin" });
     expect(cookie.kind).toEqual({ intent: "signin" });

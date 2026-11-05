@@ -6,7 +6,7 @@ import { readPubkyFile, withPubkyApproval, type PubkyApprovalOptions } from "../
 
 /**
  * A Pubky identity (WISP 302, docs/wisps/302-pubky.md), proven by publication: Pubky Ring and Pubky Passport sign
- * only standard Pubky auth requests, so Ghostly asks, in ONE request either of them can approve, for write access to
+ * only standard Pubky auth requests, so Property asks, in ONE request either of them can approve, for write access to
  * one fresh folder of the key's homeserver (`/pub/ghostly.app/proofs/<random>/`), and writes the identity statement
  * there. Contacts' apps read the file back from the homeserver the key's own signed Pkarr records name. The session
  * is used once, in memory, and signed out; removing the proof needs a new approval to delete the file.

@@ -16,7 +16,7 @@ import { proofView } from "./views";
  */
 
 /** Look like real ones: the relay secrets are in them. */
-const GRANT_URL = "pubkyauth://signin_grant?caps=%2Fpub%2Fghostly.app%2Fproofs%2Fx%2F%3Aw&relay=https%3A%2F%2Fhttprelay.pubky.app%2Finbox&secret=c2VjcmV0LXJlbGF5LWtleQ&cid=ghostly.tools&cpk=a2V5";
+const GRANT_URL = "pubkyauth://signin_grant?caps=%2Fpub%2Fghostly.app%2Fproofs%2Fx%2F%3Aw&relay=https%3A%2F%2Fhttprelay.pubky.app%2Finbox&secret=c2VjcmV0LXJlbGF5LWtleQ&cid=coercaodobem.github.io&cpk=a2V5";
 const COOKIE_URL = "pubkyauth://signin?caps=%2Fpub%2Fghostly.app%2Fproofs%2Fx%2F%3Aw&relay=https%3A%2F%2Fhttprelay.pubky.app%2Finbox&secret=Y29va2llLXNlY3JldA";
 const SECRETS = ["c2VjcmV0LXJlbGF5LWtleQ", "Y29va2llLXNlY3JldA"];
 const PASSPORT = `https://passport.pubky.app/authorize#d=${encodeURIComponent(GRANT_URL)}`;
@@ -171,7 +171,7 @@ describe("Pubky approval in the UI", () => {
     await user.click(screen.getByTestId("identity-proof"));
     await user.click(screen.getByTestId("identity-proof-remove"));
     const notes = screen.getByTestId("identity-proof-remove-notes");
-    expect(notes).toHaveTextContent("Also deletes the proof file on your homeserver: that takes one more approval in Pubky Ring or Passport, since Ghostly kept no access to it.");
+    expect(notes).toHaveTextContent("Also deletes the proof file on your homeserver: that takes one more approval in Pubky Ring or Passport, since Property kept no access to it.");
 
     await user.click(screen.getByTestId("identity-proof-remove-confirm"));
     const approval = await within(notes).findByTestId("approval");

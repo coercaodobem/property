@@ -3,7 +3,7 @@ import type { IdentityStatement } from "./identityProofs";
 
 /**
  * A Pubky identity proof, by publication (WISP 302, docs/wisps/302-pubky.md). Neither Pubky Ring nor Pubky
- * Passport signs arbitrary text: they approve standard Pubky auth requests. So Ghostly asks, through one of them,
+ * Passport signs arbitrary text: they approve standard Pubky auth requests. So Property Direct asks, through one of them,
  * for write access to ONE fresh folder of the key's homeserver, `/pub/ghostly.app/proofs/<folder>/`, and writes the
  * identity statement there (the #80 statement: the Pubky key authorizes this profile's per-proof key). A contact's
  * app reads the file back, finding the homeserver through the key's own signed PKDNS records (pkdns.ts), never
@@ -36,7 +36,7 @@ export const isPubkyProofFolder = (value: unknown): value is string => typeof va
 /** A fresh folder name: 32 random bytes, hex. One per proof, so two proofs never share a path. */
 export const newPubkyProofFolder = () => Array.from(randomBytes(32), b => b.toString(16).padStart(2, "0")).join("");
 
-/** The only capability Ghostly ever asks for: write access to one proof folder. */
+/** The only capability Property Direct asks for: write access to one proof folder. */
 export function pubkyProofCapability(folder: string): `/pub/${string}/:w` {
   if (!isPubkyProofFolder(folder)) throw new Error("Invalid Pubky proof folder");
   return `${PUBKY_PROOF_ROOT}${folder}/:w`;

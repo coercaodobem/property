@@ -46,7 +46,7 @@ describe("Pubky approval links", () => {
     expect(ring.get("caps")).toBe(CAPABILITY);
     expect(ring.get("relay")).toBe(relay);
     expect(ring.get("secret")).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(ring.get("x-source")).toBe("Ghostly");
+    expect(ring.get("x-source")).toBe("Property");
     expect(ring.has("cid")).toBe(false);
     expect(ring.has("cpk")).toBe(false);
 
@@ -63,7 +63,7 @@ describe("Pubky approval links", () => {
 
   it("is read as an auth request by the Pubky Ring in the app stores, which does not know the grant link", async () => {
     const { qr, passport } = await links("http://127.0.0.1:9/inbox/");
-    expect(storeRingRoute(qr)).toEqual({ action: "auth", kind: "signin", caps: [CAPABILITY], relay: query(qr).get("relay"), secret: query(qr).get("secret"), xSource: "Ghostly" });
+    expect(storeRingRoute(qr)).toEqual({ action: "auth", kind: "signin", caps: [CAPABILITY], relay: query(qr).get("relay"), secret: query(qr).get("secret"), xSource: "Property" });
     // The grant link is what it answered "Unrecognized format" to.
     expect(storeRingRoute(passport)).toEqual({ action: "unknown" });
   });

@@ -85,7 +85,7 @@ export async function readPubkyFile(key: string, path: `/pub/${string}`, fetch: 
 // -- approving -------------------------------------------------------------------------------------
 
 /** The app identifier Pubky Ring and Passport list the grant under. */
-export const PUBKY_CLIENT_ID = "ghostly.tools";
+export const PUBKY_CLIENT_ID = "coercaodobem.github.io";
 export const PASSPORT_ORIGIN = "https://passport.pubky.app";
 /** How long one request waits: Pubky's relay keeps a message about five minutes. */
 const APPROVAL_TIMEOUT = 5 * 60_000;
