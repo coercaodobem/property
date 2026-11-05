@@ -1,0 +1,91 @@
+import { engine } from "@ghostly/browser/platform/engine";
+import type { HandoffFailure, HandoffView } from "@ghostly/browser/devices/handoff";
+import type { TranslationKey } from "../contexts/I18nContext";
+import { WALLET_NAME } from "../components/wallet/names";
+import { englishT, type Translate } from "../locales/translate";
+import { sizeIn } from "./sizeText";
+import { useShownPoll } from "../hooks/useShownPoll";
+import { said } from "./notices";
+import type { Problem } from "./problemText";
+
+/* The handoff (WISP 06 § The handoff) as the pages need it: what a failure says, sizes, and the view of the engine's. */
+
+/** A size as people read it, in the app's language: "480 MB", "1.2 GB", "1,2 Go" in French. */
+export function sizeText(bytes: number, t: Translate = englishT): string {
+  if (bytes >= 1024 ** 3) return sizeIn(bytes / 1024 ** 3, "gb", t, 1, true);
+  if (bytes >= 1024 ** 2) return sizeIn(Math.max(1, Math.round(bytes / 1024 ** 2)), "mb", t);
+  return sizeIn(Math.max(1, Math.round(bytes / 1024)), "kb", t);
+}
+
+export const FAILURES: Record<HandoffFailure, TranslationKey> = {
+  unreachable: "devices.handoff.fail.unreachable", password: "devices.handoff.fail.password", "locked-out": "devices.handoff.fail.lockedOut",
+  refused: "devices.handoff.fail.refused", payment: "devices.handoff.fail.payment", call: "devices.handoff.fail.call", "call-there": "devices.handoff.fail.callThere", busy: "devices.handoff.fail.busy",
+  older: "devices.handoff.fail.older", room: "devices.handoff.fail.room", damaged: "devices.handoff.fail.damaged", dropped: "devices.handoff.fail.dropped",
+  wallet: "devices.handoff.fail.wallet", loading: "devices.handoff.fail.loading", mainnet: "devices.handoff.fail.mainnet", expiry: "devices.handoff.fail.expiry",
+  cancelled: "devices.handoff.fail.cancelled", turn: "devices.handoff.fail.turn", offline: "devices.handoff.fail.offline",
+  version: "devices.handoff.fail.version", failed: "devices.handoff.fail.failed", woken: "devices.handoff.fail.woken",
+  stalled: "devices.handoff.fail.stalled", settle: "devices.handoff.fail.settle",
+};
+
+/**
+ * Refusals this device's own engine makes before asking the other one (devices/handoff.ts, engine/node.ts): they say
+ * what is true here, not that the other device refused. By the engine's own line, which the ⓘ keeps.
+ */
+export const LOCAL_REFUSALS: Record<string, { key: TranslationKey; next?: TranslationKey }> = {
+  "handoff-refused: Only the active device moves the profile.": { key: "devices.handoff.fail.notActive" },
+  "handoff-refused: That device is not one of this profile's.": { key: "devices.handoff.fail.notOurs" },
+  "handoff-refused: This device cannot move the profile.": { key: "devices.handoff.fail.cannotMove" },
+  "handoff-refused: This device is not on standby.": { key: "devices.handoff.fail.notStandby" },
+  "handoff-refused: No other device is active.": { key: "devices.handoff.fail.noneActive" },
+  "handoff-refused: There is no offer to accept.": { key: "devices.handoff.fail.offerEnded", next: "devices.handoff.fail.offerEndedNext" },
+  "handoff-refused: This device is the active one.": { key: "devices.handoff.fail.isActive" },
+  "handoff-refused: This device is not taking the profile.": { key: "devices.handoff.fail.notTaking" },
+  "handoff-busy: Another move is in progress.": { key: "devices.handoff.fail.busyHere", next: "devices.handoff.fail.busyHereNext" },
+};
+
+/**
+ * What an engine call's refusal says: one of this device's own in its words, with the engine's line behind the ⓘ;
+ * else the failure it names (`handoff-<reason>:`), said as from the other device; null for another error.
+ */
+export function handoffProblem(error: unknown, t: Translate, params: Record<string, string>): Problem | null {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  const local = LOCAL_REFUSALS[message];
+  if (local) return { tone: "error", title: t(local.key, params), ...(local.next && { next: t(local.next, params) }), detail: message.replace(/^handoff-[a-z-]+: /, "") };
+  const key = handoffErrorKey(error);
+  return key ? said(key, t, { ...params, wallet: handoffErrorWallet(error) ?? "" }) : null;
+}
+
+/** The failure an engine call ended with (`handoff-<reason>:`), or null for another error. */
+export function handoffErrorKey(error: unknown): TranslationKey | null {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  const reason = message.match(/^handoff-([a-z-]+):/)?.[1];
+  return reason && reason in FAILURES ? FAILURES[reason as HandoffFailure] : reason ? "devices.handoff.fail.failed" : null;
+}
+
+/**
+ * The wallet a refusal names (`handoff-expiry:bark: …`), by its name as the cards say it, or undefined. The engine puts
+ * its type between colons after the reason.
+ */
+export function handoffErrorWallet(error: unknown): string | undefined {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  const type = message.match(/^handoff-[a-z-]+:([a-z]+):/)?.[1];
+  return type && type in WALLET_NAME ? WALLET_NAME[type as keyof typeof WALLET_NAME] : undefined;
+}
+
+/** A date as people read it, in the app's language ("12 Oct 2026"): when coins expire. */
+export function dayText(at: number, language: string): string {
+  try { return new Intl.DateTimeFormat(language, { dateStyle: "medium" }).format(new Date(at)); }
+  catch { return new Date(at).toDateString(); }
+}
+
+/** A wallet type the engine names, as the cards say it. */
+export const walletNameOf = (type: string | undefined): string => (type && type in WALLET_NAME ? WALLET_NAME[type as keyof typeof WALLET_NAME] : type ?? "");
+
+/** How often a handoff's progress is read while its screen is in front. */
+const HANDOFF_EVERY_MS = 500;
+const readHandoff = () => engine.call("deviceHandoffView");
+
+/** The handoff on this device, read twice a second while `on` and the page shows (`useShownPoll`). */
+export function useHandoffView(on = true): HandoffView | null {
+  return useShownPoll(readHandoff, HANDOFF_EVERY_MS, on);
+}

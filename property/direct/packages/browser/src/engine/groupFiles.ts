@@ -1,0 +1,1312 @@
+import {
+  ChatFiles,
+  FileUplink,
+  GROUP_FILE_LIMITS,
+  GROUP_HAVE_FRAME,
+  GROUP_WANT_FRAME,
+  GROUP_WANT_NO_FRAME,
+  RateWindow,
+  fetchesByItself,
+  fileMessageText,
+  groupFileFallback,
+  isGroupMessageId,
+  randomBytes,
+  readGroupHave,
+  readGroupWant,
+  readGroupWantNo,
+  toBase64Url,
+  transferEnded,
+  type FileInfo,
+  type FileTransferRecord,
+  type GroupFileMeta,
+  type GroupWantRefusal,
+  type IncomingTarget,
+  type OfferDecision,
+  type OutgoingSource,
+} from "@ghostly/core";
+import { fileBytes, fileBytesOf } from "../shared/fileBytes";
+import { fileStore, type StoredFile } from "../shared/idb";
+import { FileAppender, readStored, removeStored } from "../shared/storedFiles";
+import type { FileTransferView, MessageFile } from "../shared/types";
+
+/*
+ * Files and voice messages in groups (WISP 503 · Group Files), the engine's side. A file is announced as a group message
+ * carrying its description (`fl`); each member's app then fetches the bytes from a member that holds them, over
+ * `files/3` on the edge between the two (`ChatFiles`, WISP 501): it sends `group-want`, the holder offers the file with
+ * `gm` naming the message, and what arrives is checked against the author's digest. Whoever stored it holds it, and says
+ * so (`group-have`), so a member away during the announcement gets it later from whoever is there.
+ */
+
+/** A group file's local id: its group's and a random part, never anything a member sends. */
+export const groupFileId = (groupId: string, direction: "in" | "out", random = toBase64Url(randomBytes(12))) => `group-${groupId}-${direction}-${random}`;
+/** The group a local file id names, among `groupIds`. */
+export const groupOfFile = (fileId: string, groupIds: Iterable<string>): string | undefined =>
+  [...groupIds].find(g => fileId.startsWith(`group-${g}-in-`) || fileId.startsWith(`group-${g}-out-`));
+
+/** What a file's message says: its caption, or (when the author wrote none) the file itself, not the line older apps show. */
+export const groupFileText = (text: string, meta: GroupFileMeta): string => text === groupFileFallback(meta) ? fileMessageText(meta) : text;
+
+/** Where a group's files are kept: the profile's file store and file storage (`storedGroupFiles`), or a test's memory. */
+export interface GroupFileStore {
+  /** The records of a group's files (`linkId` `group:<id>`). */
+  list(groupId: string): Promise<StoredFile[]>;
+  /** Every group a stored file is of, whether or not this device still has the group. */
+  groups(): Promise<string[]>;
+  get(id: string): Promise<StoredFile | undefined>;
+  put(file: StoredFile): Promise<void>;
+  patch(id: string, fields: Pick<StoredFile, "transfer" | "group">): Promise<void>;
+  /** The record and its bytes. */
+  remove(id: string): Promise<void>;
+  /**
+   * Writes a file in order: from its first byte (whatever was there goes), or with `resume` after what an earlier
+   * transfer stored (the writer's `offset`).
+   */
+  write(id: string, resume?: boolean): Promise<GroupFileWriter>;
+  /** At most `length` bytes of a kept file from `offset`. */
+  read(file: StoredFile, offset: number, length: number): Promise<Uint8Array>;
+  /** Bytes this device can still take for files, or null when the platform does not say. */
+  room(): Promise<number | null>;
+}
+
+export interface GroupFileWriter {
+  /** Where it writes from: the bytes already stored. */
+  offset: number;
+  append(bytes: Uint8Array): Promise<void>;
+  flush(): Promise<void>;
+  /** SHA-256 of what was stored, read back from storage, base64url. */
+  digest(): Promise<string>;
+  /** Done writing for now: what is stored stays. */
+  close(): Promise<void>;
+  discard(): Promise<void>;
+}
+
+/** The profile's files store and file storage, as a 1:1 chat's files use them. */
+export const storedGroupFiles: GroupFileStore = {
+  list: groupId => fileStore.listForLink(`group:${groupId}`),
+  groups: () => fileStore.groupIds(),
+  get: id => fileStore.get(id),
+  put: file => fileStore.put(file),
+  patch: (id, fields) => fileStore.patch(id, fields),
+  remove: id => removeStored(id),
+  async write(id, resume = false) {
+    const stored = await fileStore.get(id);
+    const bytes = (stored?.bytes && await fileBytesOf(stored.bytes)) || await fileBytes();
+    const size = await bytes.size(id);
+    const offset = resume && size !== null ? size : 0;
+    if (size !== null && size !== offset) await bytes.truncate(id, offset);
+    if (stored && stored.bytes !== bytes.kind) await fileStore.patch(id, { bytes: bytes.kind });
+    const appender = new FileAppender(bytes, id, offset);
+    return {
+      offset,
+      append: chunk => appender.append(chunk),
+      flush: () => appender.flush(),
+      digest: async () => { await appender.close(); return bytes.digest(id); },
+      close: () => appender.close(),
+      discard: async () => { await appender.close().catch(() => {}); await bytes.remove(id); },
+    };
+  },
+  read: (file, offset, length) => readStored(file, offset, length),
+  room: async () => (await fileBytes()).room(),
+};
+
+/** What the engine gives the group files: where they are kept, their views, the profile's settings, an edge's files/3. */
+export interface GroupFilesHost {
+  store: GroupFileStore;
+  transfers: Map<string, FileTransferView>;
+  /** The file's view goes in the next state the engine sends, and then away: the file's record says the rest. */
+  brief(fileId: string): void;
+  settings(): { autoDownloads: boolean; serveFiles: boolean };
+  /** A files/3 frame on an edge's open session; false when it could not go. */
+  sendFiles(linkId: string, frame: Record<string, unknown>): boolean;
+  /** A file's bytes on an edge, in the form its session agreed (`GhostLink.sendFileData`, files/4). Absent: `pf-data` frames. */
+  sendData?(linkId: string, id: string, offset: number, data: Uint8Array): boolean;
+  /** Resolves once the edge's session can take another data frame. */
+  writable?(linkId: string): Promise<void> | undefined;
+}
+
+/** Me in a group I am active in, and who could read one of its messages. */
+export interface GroupFileMembership {
+  me: string;
+  community: boolean;
+  /**
+   * A private group laid out on hubs (WISP 902 § Hubs): a member that is not a hub has edges with its hubs only, so the
+   * other members' files reach it only once a hub holds them.
+   */
+  onHubs?: boolean;
+  inRoster(key: string): boolean;
+  /**
+   * In the roster now, and in the roster of the message's epoch or (given the message's time `ts`) let in no later than
+   * it, as its author said it again (WISP 503 § Asking).
+   */
+  couldRead(key: string, messageId: string, ts?: number): boolean;
+}
+
+export interface GroupFileDeps extends GroupFilesHost {
+  /** A group frame on an edge; false when it could not go. */
+  send(linkId: string, frame: Record<string, unknown>): boolean;
+  /** Member key → edge link id, for the group's edges. */
+  edges(groupId: string): Map<string, string>;
+  /** The edge is up, and the app at its other end announced group files (`GROUP_VERSION_FILES`). */
+  ready(linkId: string): boolean;
+  membership(groupId: string): GroupFileMembership | undefined;
+  /** An application frame to everyone in a community. */
+  sendApp(groupId: string, frame: Record<string, unknown>): Promise<void>;
+  changed(): void;
+  now(): number;
+}
+
+/** A group file this device knows of: one it announced, or one a member announced. */
+interface Kept {
+  id: string;
+  groupId: string;
+  message: string;
+  author: string;
+  /** The message's time, as its author wrote it: who could read it (`couldRead`). None on a record from before. */
+  ts?: number;
+  meta: GroupFileMeta;
+  /** I announced it: my copy is its first. */
+  mine: boolean;
+  /** Fetched without asking: it counts toward the group's automatic limit. */
+  auto: boolean;
+  /** Its person asked for it (Download). */
+  asked: boolean;
+  /** Its person paused it: what came stays, and it reads paused after a restart too, until Resume. */
+  paused?: boolean;
+  /** Every byte is here, checked against the author's digest: this device holds it. */
+  held: boolean;
+  /** Members said to hold it (`group-have`), or that offered it, newest first. The author is asked whether or not it is here. */
+  holders: string[];
+  /** A discard of what an earlier transfer stored, which the next one waits for. */
+  idle?: Promise<void>;
+  /** Its transfer's write under way to storage, which a Leave waits for before it deletes the file (`drop`). */
+  writing?: Promise<unknown>;
+  /** Bytes a transfer stored here that the next one goes on from, shown while it waits for a holder. */
+  stored?: number;
+  /** The transfer (its id on the edge) its person cancelled: what it stored is deleted, not kept for the next one. */
+  dropped?: string;
+  /**
+   * The bytes kept from an earlier holder did not check out with the next one's tail: who served the bad part is not
+   * known, so the next transfer starts from 0 (`fresh`) and the holder whose tail failed is not counted as damaged
+   * (`unclear`, read once by `transferChanged`).
+   */
+  fresh?: boolean;
+  unclear?: boolean;
+  /**
+   * The holder every byte stored here came from, in this run (none once two holders' bytes are mixed): its tail failing
+   * the check is its own bytes failing, so it counts as damaged, however many transfers it split them into.
+   */
+  storedBy?: string;
+  /**
+   * Holders whose bytes failed the author's digest: not asked again for it, whatever the round, until its person asks
+   * for it again (Download). Once every holder known is here, it is fetched no more (`DAMAGED`).
+   */
+  damaged: Set<string>;
+  /**
+   * Holders whose tail failed the check on bytes an earlier holder stored (`unclear`): whose bytes were bad is not known,
+   * so each is asked last, never left for mid-way (`leaveSlow`), and serves only from 0: its own bytes failing then
+   * count as damaged. Until its person asks for it again (Download).
+   */
+  suspect?: Set<string>;
+  /** The holder its last transfer was left with (it stalled, or its person paused it): asked last, not first, next time. */
+  left?: string;
+}
+
+/** A file being asked for: of one holder at a time. */
+interface Want {
+  /** The holder asked now and the edge it was asked on; none while nobody reachable has it. */
+  holder?: string;
+  linkId?: string;
+  at: number;
+  /**
+   * When this round began: once `wantWaitMs` went by and nobody is asked, a new round asks every holder again, the one
+   * left too. Asks that find nobody, or a member that says it holds the file and answers `gone`, do not put it off.
+   */
+  round: number;
+  /** Holders asked in this round that had nothing to give: the next ask goes to another. */
+  tried: Set<string>;
+  /**
+   * The holder's transfer, once it offered: its id on the edge, and the bytes stored when it last moved by
+   * `wantMoveBytes` and when (-1 until its first change: a resumed transfer starts at what was stored before).
+   */
+  wire?: string;
+  moved: number;
+  movedAt: number;
+  /** When the holder offered, and the bytes stored here then: its pace is what moved since. */
+  offeredAt?: number;
+  offeredBytes?: number;
+  /**
+   * Holders that answered `busy` in this round and said since, while another served it, that they hold the file (a place
+   * of theirs freed): one it may leave for, when that one is slow (`leaveSlow`).
+   */
+  free?: Set<string>;
+  /** What the last holder asked in this round answered, when it was not the file: shown while the want waits. */
+  why?: "busy" | "day" | "damaged";
+  /**
+   * Holders that answered `busy` in this round: one of them in reach tells this device when its place frees (its
+   * `group-have`), so members never heard of as holders are not asked meanwhile.
+   */
+  busy?: Set<string>;
+}
+
+/** One edge's files/3, both ways. */
+interface Edge {
+  linkId: string;
+  groupId: string;
+  peer: string;
+  files: ChatFiles;
+  /** Transfers this side serves on the edge (their wire id) → the local file. */
+  serving: Map<string, string>;
+  /**
+   * Of each transfer served: the bytes the asker confirmed, when that last moved, and when it was offered; once accepted,
+   * what was confirmed at a mark at least `servePaceMs` old (`mark`, the first at the offer) and at the next (`next`),
+   * as [bytes, when].
+   */
+  servedMoved: Map<string, { confirmed: number; at: number; from: number; mark?: [number, number]; next?: [number, number] }>;
+  /** Files this side served its member that lost their place for their pace (`makeRoom`): not again. */
+  paced: Set<string>;
+  /** Transfers this side takes on the edge (the holder's wire id) → the local file. */
+  taking: Map<string, string>;
+  /** Transfers that ended on the edge, oldest first: the last `ENDED_KEPT` keep their record, the rest are forgotten. */
+  ended: ["in" | "out", string][];
+  /** Message ids to say in the next `group-have`, and the frames of it that went lately (`haveFrames` in `haveWindowMs`). */
+  have: Set<string>;
+  haveSent: RateWindow;
+  /** Its member's `group-have` frames taken lately: no more than `haveFramesTaken` in `haveWindowMs`, twice what it may send; past that, dropped. */
+  haveTaken: RateWindow;
+  /**
+   * Message ids its member asked for while this device served all it serves at once, and when: said in a `group-have`
+   * once a slot frees.
+   */
+  busy: Map<string, number>;
+  /** Message ids its member said it does not hold (`gone`): not asked of it again until it says it does, or the edge's session closes or opens. */
+  gone: Set<string>;
+}
+
+/**
+ * Ended transfers an edge keeps the record of. A late frame for one of them is still answered as files/3 says (an abort
+ * to an asker going on with a transfer cancelled here); older ones are forgotten, so an edge's records stay few
+ * however many transfers it has seen.
+ */
+const ENDED_KEPT = 8;
+
+/** Why a want waits, as the person reads it (the app shows its own words for each `wait`). */
+const WAITING_NOTES = {
+  nobody: "Nobody you are connected to has this file yet",
+  author: "Nobody you are connected to has this file yet, and its sender is not one of them",
+  busy: "Its holders are busy; asking again soon",
+  day: "Its holders have shared all they can today; it comes when another member has it, or tomorrow",
+  damaged: "It arrived damaged; ask again",
+} as const;
+/** Why a want stopped: every holder served bytes that are not the author's file. */
+const DAMAGED = "Every copy of this file arrived damaged and was deleted. Ask for it again later.";
+/** Why a want stopped, or a Download was refused: this device has no room for the file. */
+const NO_ROOM = "Not enough space on this device for this file";
+
+export class GroupFileDesk {
+  private readonly kept = new Map<string, Kept>();
+  /** `<group>\n<message id>` → local id. */
+  private readonly byMessage = new Map<string, string>();
+  private readonly wants = new Map<string, Want>();
+  /**
+   * The want last asked on each edge (by link id), and its file: whether a file is asked of an edge's member is read here,
+   * not by going through every want each time (`askedOf`). An entry the want has moved on from is dropped when read.
+   */
+  private readonly askedOn = new Map<string, { id: string; want: Want }>();
+  private readonly edgesById = new Map<string, Edge>();
+  /** My file about to be announced, by `<group>\n<digest>`: the message that announces it takes this local id. */
+  private readonly own = new Map<string, string>();
+  /** Announcements sent per group, and taken per member of a group (WISP 503 § Rules for both, Pace). */
+  private readonly sentPace = new Map<string, RateWindow>();
+  private readonly sentTaken = new Map<string, RateWindow>();
+  private readonly takenPace = new Map<string, RateWindow>();
+  /** `<group>\n<message id>` a `group-have` named before its message came → its holders, newest first. */
+  private readonly ahead = new Map<string, string[]>();
+  /** A community's ids for its next `group-have`, and when one last went. */
+  private readonly communityHave = new Map<string, { ids: Set<string>; at: number }>();
+  /** Bytes served today, and the day (UTC days since the epoch). */
+  private served = { day: 0, bytes: 0 };
+
+  /**
+   * The uplink every edge's files leave this device by: the floor of their windows is shared out among those sending.
+   * Each with 64 KiB of its own, serving one file to three members at 1 Mbit/s held everything else this device said
+   * 1-2 s behind them (agents#1569).
+   */
+  private readonly uplink = new FileUplink();
+
+  constructor(private readonly deps: GroupFileDeps) {}
+
+  // -- what the groups hand over -------------------------------------------------------------------------------
+
+  /**
+   * At start: each group's files as they were kept. One fetched by itself, or asked for, and not here yet is asked for
+   * again; with automatic downloads off, one chosen by itself before waits for a Download instead.
+   */
+  async load(groupIds: string[]): Promise<void> {
+    for (const groupId of groupIds) {
+      for (const file of await this.deps.store.list(groupId).catch(() => [])) {
+        if (!file.group || !file.metadata || !file.digest || this.kept.has(file.id)) continue;
+        const { name, size, mime, voice, video, image } = file.metadata;
+        const kept: Kept = { id: file.id, groupId, message: file.group.message, author: file.group.author, ...(file.group.ts !== undefined && { ts: file.group.ts }),
+          meta: { name, size, mime, d: file.digest, ...(voice && { voice }), ...(video && { video }), ...(image && { image }) },
+          mine: file.direction === "out", auto: !!file.group.auto, asked: !!file.group.asked, held: file.transfer?.state === "done", holders: [], damaged: new Set() };
+        this.add(kept);
+        // All here: it shows no transfer (a file with none reads as finished; its record says done). A view for each
+        // would go into every state the engine builds, so each state would cost more with every file the groups ever had.
+        if (kept.held) continue;
+        // Every holder served it damaged: it waits for its person to ask again, not fetched again by itself.
+        if (file.transfer?.state === "failed") this.show(kept, { state: "failed", transferred: 0, size, direction: "in", retry: true, error: file.transfer.error ?? DAMAGED });
+        // Paused by its person: still paused, with the bytes that came (what the next transfer goes on from).
+        else if (file.group.paused) {
+          kept.paused = true;
+          kept.stored = await this.keptBytes(kept.id);
+          this.show(kept, { state: "transferring", stage: "paused", pausedBy: "me", transferred: kept.stored, size, direction: "in" });
+        }
+        else if (kept.asked || (kept.auto && this.deps.settings().autoDownloads)) this.wants.set(kept.id, this.newWant());
+        else if (kept.auto) await this.stop(kept, false);
+        // Waiting for a Download: no transfer either. Its record says it is not here (`waitingGroupFile`).
+      }
+    }
+    for (const [id] of this.wants) this.ask(this.kept.get(id)!);
+    this.deps.changed();
+  }
+
+  /**
+   * At start, once every group was read: the files of a group this device no longer has (`groupIds` are the groups it
+   * has, a tombstone or a join under way among them) go, with their bytes. A group left before Leave took its files
+   * left them behind, where nothing lists them.
+   */
+  async sweep(groupIds: string[]): Promise<void> {
+    const here = new Set(groupIds);
+    for (const groupId of await this.deps.store.groups().catch(() => [])) {
+      if (here.has(groupId)) continue;
+      for (const file of await this.deps.store.list(groupId).catch(() => [])) await this.deps.store.remove(file.id).catch(() => {});
+    }
+  }
+
+  /**
+   * The person stops a file that is coming, or that this device would fetch (Cancel, Decline): nobody is asked for it
+   * any more, the transfer under way ends, what came of it is deleted, and it waits for a Download. Paused (`keep`),
+   * what came stays, and Resume (`download`) goes on from there.
+   */
+  async halt(fileId: string, keep = false): Promise<void> {
+    const kept = this.kept.get(fileId);
+    if (!kept) throw new Error("No such file");
+    // Only a file that is coming pauses: one waiting for a Download has nothing to go on with.
+    if (keep && !this.wants.has(fileId)) return;
+    await this.stop(kept, keep);
+  }
+
+  /**
+   * Its author deleted the message for everyone (WISP 400 § Delete for everyone): its file stops coming, nobody is
+   * asked for it, and what came of it goes from this device.
+   */
+  async forget(groupId: string, messageId: string): Promise<void> {
+    const key = `${groupId}\n${messageId}`, kept = this.kept.get(this.byMessage.get(key) ?? "");
+    if (!kept) return;
+    await this.stop(kept, false).catch(() => {});
+    this.kept.delete(kept.id);
+    this.byMessage.delete(key);
+    this.wants.delete(kept.id);
+    this.deps.transfers.delete(kept.id);
+    await kept.writing?.catch(() => {});
+    await this.deps.store.remove(kept.id).catch(() => {});
+    this.deps.changed();
+  }
+
+  /** Automatic downloads were turned off: files chosen by themselves and not here yet stop coming, and wait for a Download. */
+  async autoDownloadsOff(): Promise<void> {
+    for (const kept of [...this.kept.values()]) if (kept.auto && !kept.asked && this.wants.has(kept.id)) await this.stop(kept, false);
+  }
+
+  private async stop(kept: Kept, keep: boolean): Promise<void> {
+    if (kept.held || kept.mine) return;
+    const want = this.wants.get(kept.id);
+    // Gone first: the transfer's end below asks nobody else (`transferChanged`), and a late offer is refused.
+    this.wants.delete(kept.id);
+    // Paused on a holder's transfer: Resume asks the others first.
+    if (want?.wire && want.holder) kept.left = want.holder;
+    const edge = want?.wire && want.linkId ? this.edgesById.get(want.linkId) : undefined;
+    const record = edge?.files.get("in", want!.wire!);
+    const { size } = kept.meta;
+    // One every holder served damaged waits for a Download as any other: its record no longer says it failed.
+    const failed = !keep && this.deps.transfers.get(kept.id)?.state === "failed";
+    if (!keep) { kept.stored = 0; kept.fresh = true; }
+    if (edge && record && !transferEnded(record)) {
+      // The transfer's own writer deletes what it stored (`openTarget`), or keeps it when paused.
+      if (!keep) kept.dropped = record.id;
+      edge.files.cancel("in", record.id);
+      edge.taking.delete(record.id);
+    } else if (!keep) {
+      // No transfer under way: what an earlier one stored goes, before the next one writes.
+      kept.idle = (kept.idle ?? Promise.resolve()).then(() => this.deps.store.write(kept.id)).then(writer => writer.discard()).catch(() => {});
+    }
+    if (keep) this.show(kept, { state: "transferring", stage: "paused", pausedBy: "me", transferred: kept.stored ?? 0, size, direction: "in" });
+    else this.waiting(kept);
+    // Not fetched by itself any more, nor asked for: it stays stopped (or paused) after a restart, and counts toward no limit.
+    const wasPaused = !!kept.paused;
+    kept.paused = keep;
+    if (kept.auto || kept.asked || wasPaused !== keep || failed) {
+      kept.auto = kept.asked = false;
+      await this.deps.store.patch(kept.id, { group: this.groupField(kept), ...(failed && { transfer: { state: "transferring", transferred: 0, size } }) }).catch(() => {});
+    }
+  }
+
+  /**
+   * An error when this group took as many announcements of mine as it takes in a minute, or as its members take from
+   * one member in `announceWindowMs` (past that they would not fetch the file by themselves); null when one may go now.
+   */
+  mayAnnounce(groupId: string): string | null {
+    const wait = Math.max(...this.sentPaces(groupId).map(pace => pace.wait()));
+    if (!wait) return null;
+    const minutes = Math.ceil(wait / 60_000);
+    return `You sent many files to this group just now. Wait ${minutes > 1 ? `${minutes} minutes` : "a minute"}.`;
+  }
+
+  /** My file, stored under `fileId` with the author's digest, is about to be announced in the group: its message takes it. */
+  outgoing(groupId: string, fileId: string, meta: GroupFileMeta): void {
+    this.own.set(`${groupId}\n${meta.d}`, fileId);
+  }
+  /** The announcement did not go: the file is not this group's after all. */
+  notSent(groupId: string, meta: GroupFileMeta): void { this.own.delete(`${groupId}\n${meta.d}`); }
+
+  /**
+   * A message of the group announces a file (mine, or a member's): the file its row shows. A member's is kept here
+   * unfetched, and fetched now when it is one this device takes by itself and the member announced no more than the
+   * group fetches that way. The same message again (a catch-up, a whole copy) is the same file.
+   */
+  async announced(groupId: string, m: { id: string; sender: string; ts: number; file: GroupFileMeta }, me: string): Promise<MessageFile | undefined> {
+    const known = this.byMessage.get(`${groupId}\n${m.id}`);
+    if (known) return messageFile(this.kept.get(known)!);
+    // Who could read it is judged by its time (`couldRead`), never later than it came here: an author's clock ahead
+    // does not let members let in after it was written fetch it.
+    const ts = Math.min(m.ts, this.deps.now());
+    const ownId = m.sender === me ? this.own.get(`${groupId}\n${m.file.d}`) : undefined;
+    if (ownId) {
+      this.own.delete(`${groupId}\n${m.file.d}`);
+      for (const pace of this.sentPaces(groupId)) pace.take();
+      const kept: Kept = { id: ownId, groupId, message: m.id, author: me, ts, meta: m.file, mine: true, auto: false, asked: false, held: true, holders: [], damaged: new Set() };
+      this.add(kept);
+      const transfer = { state: "done" as const, transferred: m.file.size, size: m.file.size };
+      await this.deps.store.patch(ownId, { group: { message: m.id, author: me, ts }, transfer }).catch(() => {});
+      this.finished(kept, "out");
+      this.queueHave(kept);
+      return messageFile(kept);
+    }
+    // More from one member than a group fetches by itself: past it, the file is kept and waits for a Download (WISP 503,
+    // Pace). Counted as they come, so a catch-up of files sent over hours is one burst: none of them is lost to it.
+    const paced = this.pace(this.takenPace, `${groupId}\n${m.sender}`, GROUP_FILE_LIMITS.announceTaken, GROUP_FILE_LIMITS.announceWindowMs).take();
+    const id = groupFileId(groupId, "in");
+    // No room here for it: it waits for a Download, which says so, rather than be asked for and refused here.
+    const auto = paced && this.deps.settings().autoDownloads && fetchesByItself(m.file, this.keptAutomatically(groupId)) && await this.hasRoom(m.file.size);
+    const holders = this.ahead.get(`${groupId}\n${m.id}`) ?? [];
+    this.ahead.delete(`${groupId}\n${m.id}`);
+    const kept: Kept = { id, groupId, message: m.id, author: m.sender, ts, meta: m.file, mine: false, auto, asked: false, held: false, holders, damaged: new Set() };
+    const { name, size, mime, voice, video, image } = m.file;
+    // Known at once: the same message coming again meanwhile (another copy of it) is this file.
+    this.add(kept);
+    // No bytes yet: where they go is decided when they come (`GroupFileStore.write`).
+    await this.deps.store.put({ id, linkId: `group:${groupId}`, direction: "in", digest: m.file.d, createdAt: this.deps.now(),
+      metadata: { name, size, mime, timestamp: this.deps.now(), voice, video, image },
+      transfer: { state: "transferring", transferred: 0, size }, group: { message: m.id, author: m.sender, ts, ...(auto && { auto: true }) } });
+    if (auto) { this.wants.set(id, this.newWant()); this.ask(kept); }
+    else this.waiting(kept);
+    return messageFile(kept);
+  }
+
+  /** The person asks for a file this device did not fetch by itself (Download), or for one that stopped coming. */
+  async download(fileId: string): Promise<void> {
+    const kept = this.kept.get(fileId);
+    if (!kept) throw new Error("No such file");
+    if (kept.held) return;
+    if (!await this.hasRoom(kept.meta.size)) throw new Error(NO_ROOM);
+    if (!kept.asked || kept.paused) {
+      kept.asked = true; kept.paused = false;
+      await this.deps.store.patch(kept.id, { group: this.groupField(kept) }).catch(() => {});
+    }
+    // Asked again: every holder is worth asking again, one that served it damaged too.
+    kept.damaged.clear();
+    kept.suspect = undefined;
+    if (this.deps.transfers.get(kept.id)?.state === "failed") {
+      await this.deps.store.patch(kept.id, { transfer: { state: "transferring", transferred: 0, size: kept.meta.size } }).catch(() => {});
+    }
+    const want = this.wants.get(kept.id);
+    if (!want) this.wants.set(kept.id, this.newWant());
+    else if (!want.wire) { want.tried.clear(); want.why = want.busy = undefined; want.round = this.deps.now(); }
+    this.ask(kept);
+  }
+
+  /** The group is gone from this device: its files go too. */
+  async drop(groupId: string): Promise<void> {
+    for (const kept of [...this.kept.values()].filter(k => k.groupId === groupId)) {
+      this.kept.delete(kept.id);
+      this.byMessage.delete(`${groupId}\n${kept.message}`);
+      this.wants.delete(kept.id);
+      this.deps.transfers.delete(kept.id);
+      // A write under way goes first; after it, the file's transfer writes nothing more (`openTarget`).
+      await kept.writing?.catch(() => {});
+      await this.deps.store.remove(kept.id).catch(() => {});
+    }
+    for (const [linkId, edge] of this.edgesById) if (edge.groupId === groupId) { edge.files.detach(); this.edgesById.delete(linkId); }
+    for (const key of [...this.ahead.keys()]) if (key.startsWith(`${groupId}\n`)) this.ahead.delete(key);
+    this.communityHave.delete(groupId);
+    this.deps.changed();
+  }
+
+  // -- edges ---------------------------------------------------------------------------------------------------
+
+  /** An edge's files/3 session opened (both sides agreed it) or closed. */
+  session(groupId: string, peer: string, linkId: string, open: boolean): void {
+    const edge = this.edge(groupId, peer, linkId);
+    if (open) edge.files.attach(); else edge.files.detach();
+    // Another session, or none: its member may have fetched since what it did not hold, and is asked again.
+    edge.gone.clear();
+    if (open) this.retry(groupId);
+  }
+
+  /** An edge came up and both sides said where they are: what this device holds goes to it, and wants waiting for a holder go. */
+  edgeReady(groupId: string, peer: string, linkId: string): void {
+    if (!this.deps.ready(linkId)) return;
+    const edge = this.edge(groupId, peer, linkId);
+    if (this.deps.settings().serveFiles) {
+      const held = [...this.kept.values()].filter(k => k.groupId === groupId && k.held).map(k => k.message).slice(-GROUP_FILE_LIMITS.haveIds);
+      if (held.length) this.sendHave(edge, held);
+    }
+    this.retry(groupId);
+  }
+
+  /** A `group-want`, `group-want-no` or `group-have` on an edge, from the member it is pinned to. */
+  async frame(groupId: string, peer: string, linkId: string, frame: Record<string, unknown>): Promise<void> {
+    if (frame.t === GROUP_WANT_FRAME) {
+      const want = readGroupWant(frame, groupId);
+      if (want) await this.serve(this.edge(groupId, peer, linkId), want.id);
+    } else if (frame.t === GROUP_WANT_NO_FRAME) {
+      const no = readGroupWantNo(frame, groupId);
+      if (no) this.refused(groupId, peer, linkId, no.id, no.why);
+    } else if (frame.t === GROUP_HAVE_FRAME) {
+      const ids = readGroupHave(frame, groupId);
+      // Each one makes its member worth asking again: taken at about the pace it may send them, not much faster.
+      if (ids && this.edge(groupId, peer, linkId).haveTaken.take()) this.heard(groupId, peer, ids);
+    }
+  }
+
+  /** A community's `group-have`, an application frame its signer sent the group. */
+  communityApp(groupId: string, sender: string, frame: Record<string, unknown>): void {
+    const ids = readGroupHave(frame);
+    if (ids) this.heard(groupId, sender, ids);
+  }
+
+  /**
+   * A files/3 frame on an edge. An offer is taken only for a file this device asked that member for (`gm` naming the
+   * message): nobody can push a file into another's storage. What it brings belongs to the group's message, not to the
+   * edge as a chat.
+   */
+  filesFrame(groupId: string, peer: string, linkId: string, frame: Record<string, unknown>): Promise<void> {
+    const edge = this.edge(groupId, peer, linkId);
+    if (frame.t === "pf-offer" && typeof frame.id === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(frame.id) && !edge.taking.has(frame.id)) {
+      const kept = isGroupMessageId(frame.gm) ? this.kept.get(this.byMessage.get(`${groupId}\n${frame.gm}`) ?? "") : undefined;
+      const want = kept && this.wants.get(kept.id);
+      if (!kept || kept.held || !want || want.linkId !== linkId || want.wire) {
+        this.deps.sendFiles(linkId, { t: "pf-refuse", id: frame.id, why: "invalid" });
+        return Promise.resolve();
+      }
+      edge.taking.set(frame.id, kept.id);
+      // It offers the file: it holds it, whether or not it ever said so.
+      kept.holders = newestHolder(peer, kept.holders);
+      want.wire = frame.id;
+      want.why = undefined;
+      want.moved = -1;
+      want.movedAt = want.offeredAt = this.deps.now();
+      want.offeredBytes = kept.stored ?? 0;
+      want.free = undefined;
+    }
+    return edge.files.handle(frame);
+  }
+
+  /** Wants that waited too long for an offer, or for bytes, go to the next holder; `group-have`s gathered go. */
+  tick(): void {
+    const now = this.deps.now();
+    for (const [id, want] of this.wants) {
+      const kept = this.kept.get(id);
+      if (!kept) { this.wants.delete(id); continue; }
+      if (this.leaveSlow(kept, want) || this.leaveGone(kept, want)) continue;
+      if (now - (want.wire ? want.movedAt : want.holder ? want.at : want.round) < GROUP_FILE_LIMITS.wantWaitMs) continue;
+      if (want.wire) {
+        // A holder that stalls, or sends too little to count (`wantMoveBytes`), is left: the transfer ends here, and the
+        // next holder is asked (`transferChanged`).
+        kept.left = want.holder;
+        const edge = want.linkId ? this.edgesById.get(want.linkId) : undefined;
+        if (edge?.files.get("in", want.wire) && !transferEnded(edge.files.get("in", want.wire)!)) { edge.files.cancel("in", want.wire); continue; }
+        want.wire = undefined;
+      }
+      if (want.holder) want.tried.add(want.holder);
+      // Everyone asked in turn: a new round, as holders come and go.
+      else { want.tried.clear(); want.why = want.busy = undefined; want.round = now; }
+      this.ask(kept);
+    }
+    this.letGo();
+    this.makeRoomForWaiting();
+    for (const edge of this.edgesById.values()) {
+      if (edge.have.size && this.deps.ready(edge.linkId)) this.sendHave(edge, [...edge.have]);
+    }
+    for (const [groupId, have] of this.communityHave) {
+      if (!have.ids.size || now - have.at < GROUP_FILE_LIMITS.communityHaveEveryMs) continue;
+      const ids = [...have.ids].slice(-GROUP_FILE_LIMITS.haveIds);
+      have.ids.clear();
+      have.at = now;
+      void this.deps.sendApp(groupId, { t: GROUP_HAVE_FRAME, ids }).catch(() => {});
+    }
+  }
+
+  // -- asking --------------------------------------------------------------------------------------------------
+
+  private newWant(): Want { return { at: this.deps.now(), round: this.deps.now(), tried: new Set(), moved: 0, movedAt: 0 }; }
+
+  /**
+   * Wants of this group that wait for a holder: asked now (an edge came up or freed, or a member said it holds
+   * something). One queued behind an edge's file is asked only while an edge of the group is free to take it, and free
+   * for it (`freeFor`): once every edge has a file asked of it, or the free ones are of members it already asked, it would
+   * only queue again. So a file that ends asks the few wants it frees an edge for, not every want waiting (a member back
+   * from away with hundreds of files to fetch asked each of them once per file, more so with a member in the group that
+   * holds none of them, or serves none).
+   */
+  private retry(groupId: string): void {
+    let free: [string, string][] | undefined;
+    for (const [id, want] of this.wants) {
+      const kept = this.kept.get(id);
+      if (kept?.groupId !== groupId || want.holder) continue;
+      if (this.deps.transfers.get(id)?.stage === "queued" && !this.freeFor(kept, want, free ??= this.freeEdges(groupId))) continue;
+      this.ask(kept);
+      // That ask may have taken a free edge.
+      free = undefined;
+    }
+  }
+
+  /** The group's edges that are up, with files/3 live and no file asked of their member: a want could be asked on them. */
+  private freeEdges(groupId: string): [string, string][] {
+    return [...this.deps.edges(groupId)].filter(([, linkId]) => this.deps.ready(linkId) && this.edgesById.get(linkId)?.files.live && !this.askedOf(linkId));
+  }
+
+  /** One of these free edges (member key, link id) is one `ask` would ask this want on: asked now, it would not only queue again. */
+  private freeFor(kept: Kept, want: Want, free: [string, string][]): boolean {
+    const membership = this.deps.membership(kept.groupId);
+    if (!membership) return false;
+    const known = this.knownHolders(kept, membership);
+    // As in `ask`: the others only while no known holder is worth waiting for.
+    const others = !this.waitForKnown(kept, want, known, this.deps.edges(kept.groupId));
+    return free.some(([key, linkId]) => this.mayAsk(kept, want, key, linkId)
+      && (known.includes(key) || (others && key !== membership.me && membership.couldRead(key, kept.message, kept.ts))));
+  }
+
+  /** The members known to hold the file (its author first), in the group's roster, but this device. */
+  private knownHolders(kept: Kept, membership: GroupFileMembership | undefined): string[] {
+    return [kept.author, ...kept.holders.filter(key => key !== kept.author)]
+      .filter(key => membership && key !== membership.me && membership.inRoster(key));
+  }
+
+  /**
+   * The author, its edge up, that answered busy or whose edge another file of this device's is asked of, serves when its
+   * place frees: the others are asked only when it is not worth waiting for (out of reach), as after a restart here.
+   * Only the author holds them back: any member can say it holds files, and one that answers busy, or serves the file
+   * asked of it slowly, would keep every file it named here from coming while the author is away. Its busy only skips
+   * it for the round.
+   */
+  private waitForKnown(kept: Kept, want: Want, known: string[], edges: Map<string, string>): boolean {
+    if (!known.includes(kept.author)) return false;
+    const linkId = edges.get(kept.author) ?? "";
+    return this.deps.ready(linkId) && (!!want.busy?.has(kept.author) || this.askedOf(linkId, want));
+  }
+
+  /** The want may ask this member in this round: not asked yet, it did not serve it damaged, and did not say it is gone. */
+  private mayAsk(kept: Kept, want: Want, key: string, linkId: string | undefined): boolean {
+    return !want.tried.has(key) && !kept.damaged.has(key) && !this.edgesById.get(linkId ?? "")?.gone.has(kept.message);
+  }
+
+  /**
+   * Asks the next holder for a file: the author first while its edge is up, then the holders whose edge is up, then every
+   * other member whose edge is up and that could read its message. Who holds what is heard, not kept: a holder names few
+   * of its files to an edge that opens, and none it was told of is known after a restart here, so a member in reach is
+   * asked whether or not it said so (one that does not hold it answers `gone`, and is not asked again). Only over an
+   * edge this device has. (A private group past 16 members, or a community, reaches a holder it has no edge with
+   * over a file session of the two members, WISP 503 § The file session; that session is not built yet, so such a
+   * holder is not asked, and the file waits for one that is reachable: `author` when that is its author alone.)
+   */
+  private ask(kept: Kept): void {
+    const want = this.wants.get(kept.id);
+    if (!want || kept.held || want.wire) return;
+    const membership = this.deps.membership(kept.groupId);
+    const edges = this.deps.edges(kept.groupId);
+    const known = this.knownHolders(kept, membership);
+    // Every holder known served it damaged: asking again would fetch the same bytes, all of them, round after round.
+    if (known.length && known.every(key => kept.damaged.has(key))) { this.stopFailed(kept); return; }
+    const others = this.waitForKnown(kept, want, known, edges) ? [] : [...edges.keys()].filter(key => !known.includes(key) && membership && key !== membership.me && membership.couldRead(key, kept.message, kept.ts));
+    const order = [...known, ...others].filter(key => this.mayAsk(kept, want, key, edges.get(key)));
+    // The holder last left for this file is asked once the others were.
+    if (kept.left && order.includes(kept.left)) order.push(...order.splice(order.indexOf(kept.left), 1));
+    // Then those whose tail failed on another's bytes: asked, they serve from 0, and what came here before goes.
+    for (const key of order.filter(key => kept.suspect?.has(key))) order.push(...order.splice(order.indexOf(key), 1));
+    let behind = false;
+    for (const key of order) {
+      const linkId = edges.get(key);
+      if (!linkId || !this.deps.ready(linkId) || !this.edgesById.get(linkId)?.files.live) continue;
+      // A holder serves this device one file at a time (WISP 503 § Serving limits): asked now, it would answer `busy`.
+      // This one waits its turn, and is asked when the file before it ends (`transferChanged`).
+      if (this.askedOf(linkId, want)) { behind = true; continue; }
+      // Asked of it before the frame goes: its answer is this want's, however soon it comes.
+      Object.assign(want, { holder: key, linkId, at: this.deps.now() });
+      this.askedOn.set(linkId, { id: kept.id, want });
+      if (!this.deps.send(linkId, { t: GROUP_WANT_FRAME, g: kept.groupId, id: kept.message })) { want.tried.add(key); continue; }
+      if (want.holder === key) this.show(kept, { state: "transferring", stage: "queued", transferred: kept.stored ?? 0, size: kept.meta.size, direction: "in" });
+      return;
+    }
+    Object.assign(want, { holder: undefined, linkId: undefined, at: this.deps.now() });
+    if (behind) { this.show(kept, { state: "transferring", stage: "queued", transferred: kept.stored ?? 0, size: kept.meta.size, direction: "in" }); return; }
+    // Why it waits: a holder busy, bytes that came damaged (its person can ask again), or nobody in reach has it. On
+    // hubs, a file only its author is known to hold, the author with no edge here, comes only once a hub holds it: said
+    // so, rather than blamed on who is online.
+    const outOfReach = !!membership?.onHubs && known.includes(kept.author) && known.every(key => !edges.has(key));
+    const wait = want.why ?? (outOfReach ? "author" : "nobody");
+    this.show(kept, { state: "transferring", stage: "waiting", transferred: kept.stored ?? 0, size: kept.meta.size, direction: "in",
+      wait, note: WAITING_NOTES[wait], ...(wait === "damaged" && { stalled: true }) });
+  }
+
+  /**
+   * Another file is asked of, or coming from, the member at the other end of this edge. A want gets its edge only in
+   * `ask`, which notes it in `askedOn`, and one edge has one want at a time: the want noted there is it, while it still
+   * waits and is still on that edge.
+   */
+  private askedOf(linkId: string, except?: Want): boolean {
+    const on = this.askedOn.get(linkId);
+    if (!on || on.want === except) return false;
+    if (on.want.linkId === linkId && this.wants.get(on.id) === on.want) return true;
+    this.askedOn.delete(linkId);
+    return false;
+  }
+
+  /**
+   * The holder serving this want is slow (served `slowAfterMs`, and at its pace more than `wantWaitMs` to go) and a holder
+   * that answered it busy said since that a place freed (`want.free`), and is free to ask: the transfer ends here, what
+   * came stays, and the next holder is asked (`transferChanged`), so a phone's slow upload does not keep a member the
+   * author or a fast holder could serve.
+   */
+  private leaveSlow(kept: Kept, want: Want): boolean {
+    if (!want.wire || !want.free?.size || want.offeredAt === undefined) return false;
+    const edge = want.linkId ? this.edgesById.get(want.linkId) : undefined;
+    const record = edge?.files.get("in", want.wire);
+    if (!edge || !record || transferEnded(record) || record.state === "verifying") return false;
+    const elapsed = this.deps.now() - want.offeredAt;
+    if (elapsed < GROUP_FILE_LIMITS.slowAfterMs) return false;
+    const stored = Math.max(want.moved, kept.stored ?? 0, want.offeredBytes ?? 0), pace = (stored - (want.offeredBytes ?? 0)) / elapsed;
+    if (pace > 0 && (kept.meta.size - stored) / pace <= GROUP_FILE_LIMITS.wantWaitMs) return false;
+    const edges = this.deps.edges(kept.groupId);
+    const other = [...want.free].some(key => {
+      const linkId = edges.get(key);
+      return !!linkId && key !== want.holder && !kept.suspect?.has(key) && this.mayAsk(kept, want, key, linkId) && this.deps.ready(linkId)
+        && !!this.edgesById.get(linkId)?.files.live && !this.askedOf(linkId, want);
+    });
+    if (!other) return false;
+    want.free = undefined;
+    edge.files.cancel("in", want.wire);
+    return true;
+  }
+
+  /**
+   * The holder serving this want is gone (its edge's file session closed: its app went away mid-way) and another holder
+   * may be asked now: the transfer ends here, what came stays, and that one is asked (`transferChanged`), not once
+   * `wantWaitMs` went by with nothing moving. With nobody else in reach it waits, and goes on if the holder comes back.
+   */
+  private leaveGone(kept: Kept, want: Want): boolean {
+    const edge = want.wire && want.linkId ? this.edgesById.get(want.linkId) : undefined;
+    const record = edge?.files.get("in", want.wire!);
+    if (!edge || edge.files.live || !record || transferEnded(record) || record.state === "verifying") return false;
+    if (!this.freeFor(kept, want, this.freeEdges(kept.groupId))) return false;
+    kept.left = want.holder;
+    edge.files.cancel("in", want.wire!);
+    return true;
+  }
+
+  /**
+   * No holder serves the author's bytes (`DAMAGED`), or this device has no room for them (`NO_ROOM`): the want stops,
+   * and stays stopped after a restart, until Download.
+   */
+  private stopFailed(kept: Kept, error = DAMAGED): void {
+    this.wants.delete(kept.id);
+    const { size } = kept.meta;
+    void this.deps.store.patch(kept.id, { transfer: { state: "failed", transferred: 0, size, error } }).catch(() => {});
+    this.show(kept, { state: "failed", transferred: 0, size, direction: "in", retry: true, error });
+  }
+
+  /** A holder's no: the next one is asked. One that deleted the file is no holder any more. */
+  private refused(groupId: string, peer: string, linkId: string, messageId: string, why: GroupWantRefusal): void {
+    const kept = this.kept.get(this.byMessage.get(`${groupId}\n${messageId}`) ?? "");
+    const want = kept && this.wants.get(kept.id);
+    if (!kept || !want || want.linkId !== linkId || want.wire) return;
+    if (why === "gone") {
+      kept.holders = kept.holders.filter(key => key !== peer);
+      this.edgesById.get(linkId)?.gone.add(messageId);
+    }
+    // Its day spent (agents#1672): said as such, not as "asking again soon", which held for up to a day.
+    if (why === "busy" || why === "day") { want.why = why; (want.busy ??= new Set()).add(peer); }
+    want.tried.add(peer);
+    want.holder = want.linkId = undefined;
+    this.ask(kept);
+    // The edge is free for a file waiting its turn there.
+    this.retry(groupId);
+  }
+
+  /** A member says it holds these files: remembered as a holder of each (newest first), and asked when a want waits. */
+  private heard(groupId: string, from: string, ids: string[]): void {
+    const membership = this.deps.membership(groupId);
+    if (!membership || from === membership.me || !membership.inRoster(from)) return;
+    const newest = (holders: string[]) => newestHolder(from, holders);
+    const edge = this.edgesById.get(this.deps.edges(groupId).get(from) ?? "");
+    // Its edge, while free: a want queued behind other edges' files is asked again only if it can be asked there.
+    let free: [string, string][] | undefined;
+    for (const message of ids) {
+      const key = `${groupId}\n${message}`, kept = this.kept.get(this.byMessage.get(key) ?? "");
+      if (!kept) {
+        // Its message has not come yet (it is on its way in a catch-up): who holds it is kept for when it does.
+        this.ahead.set(key, newest(this.ahead.get(key) ?? []));
+        if (this.ahead.size > GROUP_FILE_LIMITS.heardAhead) this.ahead.delete(this.ahead.keys().next().value!);
+        continue;
+      }
+      if (kept.mine) continue;
+      kept.holders = newest(kept.holders);
+      edge?.gone.delete(message);
+      const want = this.wants.get(kept.id);
+      if (!want) continue;
+      want.tried.delete(from);
+      // Free for it only when it says so after answering it busy: its places freed. Any other `group-have` says it holds
+      // the file, not that a place is free (one that just fetched it says so to every edge, whose waiting members take
+      // its places at once): left for, it would answer busy, and the transfer left would be lost for nothing.
+      if (want.wire && from !== want.holder && want.busy?.has(from)) (want.free ??= new Set()).add(from);
+      want.busy?.delete(from);
+      if (want.holder) continue;
+      if (this.deps.transfers.get(kept.id)?.stage === "queued" && !this.freeFor(kept, want, free ??= this.freeEdges(groupId).filter(([key]) => key === from))) continue;
+      this.ask(kept);
+      free = undefined;
+    }
+  }
+
+  // -- serving -------------------------------------------------------------------------------------------------
+
+  /** A member asks for a file: offered over files/3 on its edge, or a `group-want-no` saying why not. */
+  private async serve(edge: Edge, messageId: string): Promise<void> {
+    const kept = this.kept.get(this.byMessage.get(`${edge.groupId}\n${messageId}`) ?? "");
+    const here = !!kept?.held && !!(await this.deps.store.get(kept.id).catch(() => undefined));
+    // Decided and offered in one step: two wants at once never both find the last free place.
+    const why = this.mayServe(edge, messageId, here ? kept : undefined, kept?.ts);
+    if (why || !kept) { this.deps.send(edge.linkId, { t: GROUP_WANT_NO_FRAME, g: edge.groupId, id: messageId, why: why ?? "gone" }); return; }
+    const wire = toBase64Url(randomBytes(12));
+    edge.serving.set(wire, kept.id);
+    edge.servedMoved.set(wire, { confirmed: 0, at: this.deps.now(), from: this.deps.now() });
+    const { name, mime, size, voice, video, image } = kept.meta;
+    const file: FileInfo = { id: wire, name, mime, size, timestamp: this.deps.now(), ...(voice && { voice }), ...(video && { video }), ...(image && { image }) };
+    edge.files.offer(file, kept.meta.d);
+  }
+
+  /**
+   * Why this device does not serve a file now, or null when it does (WISP 503 § Asking, Serving limits): `refused` to
+   * someone who could not read the announcement, `gone` when it is not here (`kept` undefined), `busy` when serving is
+   * off or full, `day` when this device served its bytes for the day (`serveBytesPerDay`).
+   */
+  private mayServe(edge: Edge, messageId: string, kept: Kept | undefined, ts: number | undefined): GroupWantRefusal | null {
+    const membership = this.deps.membership(edge.groupId);
+    if (!membership || !membership.couldRead(edge.peer, messageId, ts)) return "refused";
+    if (!kept) return "gone";
+    if (!this.deps.settings().serveFiles || !edge.files.live) return "busy";
+    this.letGo();
+    const active = this.servingNow();
+    // One place per member, whatever it confirms. One that has all its bytes, lately, waits only for the member's word
+    // that its check passed, which may come after this want: that one alone is not its place.
+    const theirs = active.filter(a => a.peer === edge.peer);
+    const placed = theirs.length > 1 || theirs.some(a => a.sending || this.deps.now() - a.since >= GROUP_FILE_LIMITS.doneWaitMs);
+    // All places taken: a member holding none gets the one held longest past `servePlaceMs`, or the slowest, if there is one.
+    if (active.length >= GROUP_FILE_LIMITS.serveAtOnce && (placed || !this.makeRoom())) { edge.busy.set(messageId, this.deps.now()); return "busy"; }
+    if (placed) return "busy";
+    const today = Math.floor(this.deps.now() / 86_400_000);
+    if (this.served.day !== today) this.served = { day: today, bytes: 0 };
+    const reserved = this.servingNow().reduce((sum, a) => sum + a.size, 0);
+    return this.served.bytes + reserved + kept.meta.size > GROUP_FILE_LIMITS.serveBytesPerDay ? "day" : null;
+  }
+
+  /**
+   * Ends a served transfer for a member that holds no place: the one that has held its place longest, once past
+   * `servePaceMs`; else the slowest of those under way for `servePaceMs` with more left to go at their pace than they
+   * have been served (and than `servePaceMs`), each member's file once (its asker goes on from what it stored, from the
+   * next holder or this one, and the members on fast links do not wait for the slow ones that asked first). False when
+   * none is.
+   */
+  private makeRoom(): boolean {
+    const now = this.deps.now();
+    let oldest: { edge: Edge; wire: string; from: number } | undefined;
+    let slowest: { edge: Edge; wire: string; pace: number } | undefined;
+    for (const edge of this.edgesById.values()) for (const [wire, id] of edge.serving) {
+      const record = edge.files.get("out", wire), moved = edge.servedMoved.get(wire), from = moved?.from ?? now;
+      if (!record || transferEnded(record)) continue;
+      if (now - from >= GROUP_FILE_LIMITS.servePlaceMs && (!oldest || from < oldest.from)) oldest = { edge, wire, from };
+      if (!moved?.mark || now - moved.mark[1] < GROUP_FILE_LIMITS.servePaceMs || edge.paced.has(id) || record.confirmed >= record.file.size) continue;
+      const pace = (record.confirmed - moved.mark[0]) / (now - moved.mark[1]);
+      if (pace > 0 && (record.file.size - record.confirmed) / pace <= Math.max(GROUP_FILE_LIMITS.servePaceMs, now - from)) continue;
+      if (!slowest || pace < slowest.pace) slowest = { edge, wire, pace };
+    }
+    const cut = oldest ?? slowest;
+    if (!cut) return false;
+    if (!oldest) cut.edge.paced.add(cut.edge.serving.get(cut.wire)!);
+    cut.edge.files.cancel("out", cut.wire);
+    return true;
+  }
+
+  /**
+   * A member turned away as busy within `wantWaitMs`, holding no place, waits for the holder's word that a place freed:
+   * it is made one as when it asks (`makeRoom`), and hears so.
+   */
+  private makeRoomForWaiting(): void {
+    if (!this.deps.settings().serveFiles) return;
+    const active = this.servingNow(), now = this.deps.now();
+    if (active.length < GROUP_FILE_LIMITS.serveAtOnce) return;
+    const waits = [...this.edgesById.values()].some(edge => edge.files.live && !active.some(a => a.peer === edge.peer)
+      && [...edge.busy.values()].some(at => now - at < GROUP_FILE_LIMITS.wantWaitMs));
+    if (waits) this.makeRoom();
+  }
+
+  /**
+   * Transfers served now, all groups together: to whom, what each takes of the day (its size, or what it sent when that
+   * is more), whether bytes are still to go, and since when it has not gone further.
+   */
+  private servingNow(): { peer: string; size: number; sending: boolean; since: number }[] {
+    const active: { peer: string; size: number; sending: boolean; since: number }[] = [];
+    for (const edge of this.edgesById.values()) for (const wire of edge.serving.keys()) {
+      const record = edge.files.get("out", wire);
+      if (record && !transferEnded(record)) {
+        active.push({ peer: edge.peer, size: Math.max(record.file.size, edge.files.sent(wire)), sending: record.confirmed < record.file.size,
+          since: edge.servedMoved.get(wire)?.at ?? this.deps.now() });
+      }
+    }
+    return active;
+  }
+
+  /**
+   * An asker has a served transfer send parts again (WISP 503 § Serving limits): every byte sent counts toward the day,
+   * so it goes on only while the day has room for it.
+   */
+  private mayResend(): boolean {
+    const today = Math.floor(this.deps.now() / 86_400_000);
+    if (this.served.day !== today) this.served = { day: today, bytes: 0 };
+    return this.served.bytes + this.servingNow().reduce((sum, a) => sum + a.size, 0) < GROUP_FILE_LIMITS.serveBytesPerDay;
+  }
+
+  /**
+   * Served transfers that no longer count end, their places free for others (WISP 503 § Serving limits): the asker's
+   * session closed, it is not in the roster any more, it has not had `serveMoveBytes` more confirmed (or the rest of
+   * its file) for `wantWaitMs` (the asker has moved on by then), or it has all its bytes and the member's next want has
+   * overtaken its word for `doneWaitMs`.
+   */
+  private letGo(): void {
+    const now = this.deps.now();
+    const theirs = new Map<string, number>();
+    for (const a of this.servingNow()) theirs.set(a.peer, (theirs.get(a.peer) ?? 0) + 1);
+    for (const edge of this.edgesById.values()) for (const wire of [...edge.serving.keys()]) {
+      const record = edge.files.get("out", wire);
+      if (!record || transferEnded(record)) continue;
+      let moved = edge.servedMoved.get(wire);
+      if (!moved) edge.servedMoved.set(wire, (moved = { confirmed: record.confirmed, at: now, from: now }));
+      const gone = !edge.files.live || !this.deps.membership(edge.groupId)?.inRoster(edge.peer);
+      const overtaken = record.confirmed === record.file.size && theirs.get(edge.peer)! > 1 && now - moved.at >= GROUP_FILE_LIMITS.doneWaitMs;
+      if (gone || overtaken || now - moved.at >= GROUP_FILE_LIMITS.wantWaitMs) {
+        edge.files.cancel("out", wire);
+        theirs.set(edge.peer, theirs.get(edge.peer)! - 1);
+        continue;
+      }
+      // Its pace (`makeRoom`): a new mark each `servePaceMs`.
+      if (moved.next && now - moved.next[1] >= GROUP_FILE_LIMITS.servePaceMs) { moved.mark = moved.next; moved.next = [record.confirmed, now]; }
+    }
+  }
+
+  /**
+   * Says on an edge which files this device holds, as many frames as the edge takes now (`haveFrames` in
+   * `haveWindowMs`); the ids past that, and those of a frame that could not go, wait for the next tick with room.
+   */
+  private sendHave(edge: Edge, ids: string[]): void {
+    for (const id of ids) edge.have.add(id);
+    for (let i = 0; i < ids.length; i += GROUP_FILE_LIMITS.haveIds) {
+      const frame = ids.slice(i, i + GROUP_FILE_LIMITS.haveIds);
+      if (edge.haveSent.wait() || !this.deps.send(edge.linkId, { t: GROUP_HAVE_FRAME, g: edge.groupId, ids: frame })) return;
+      edge.haveSent.take();
+      for (const id of frame) edge.have.delete(id);
+    }
+  }
+
+  /**
+   * This device holds a new file: the group hears it with the next `group-have`, which gathers what there is to say
+   * until the next tick.
+   */
+  private queueHave(kept: Kept): void {
+    if (!this.deps.settings().serveFiles) return;
+    if (this.deps.membership(kept.groupId)?.community) {
+      let have = this.communityHave.get(kept.groupId);
+      if (!have) this.communityHave.set(kept.groupId, (have = { ids: new Set(), at: 0 }));
+      have.ids.add(kept.message);
+      return;
+    }
+    for (const [key, linkId] of this.deps.edges(kept.groupId)) this.edge(kept.groupId, key, linkId).have.add(kept.message);
+  }
+
+  // -- files/3 on an edge --------------------------------------------------------------------------------------
+
+  private edge(groupId: string, peer: string, linkId: string): Edge {
+    const known = this.edgesById.get(linkId);
+    if (known) return known;
+    const edge: Edge = { linkId, groupId, peer, files: undefined as unknown as ChatFiles, serving: new Map(), servedMoved: new Map(), taking: new Map(), ended: [], have: new Set(),
+      haveSent: new RateWindow(GROUP_FILE_LIMITS.haveFrames, GROUP_FILE_LIMITS.haveWindowMs, () => this.deps.now()),
+      haveTaken: new RateWindow(GROUP_FILE_LIMITS.haveFramesTaken, GROUP_FILE_LIMITS.haveWindowMs, () => this.deps.now()), busy: new Map(), gone: new Set(), paced: new Set() };
+    edge.files = new ChatFiles({
+      uplink: this.uplink,
+      // An offer names the group message it serves (`gm`), which a 1:1 chat never carries.
+      send: frame => {
+        const kept = frame.t === "pf-offer" ? this.kept.get(edge.serving.get(frame.id as string) ?? "") : undefined;
+        return this.deps.sendFiles(linkId, kept ? { ...frame, gm: kept.message } : frame);
+      },
+      decide: file => this.decide(edge, file),
+      openTarget: record => this.openTarget(edge, record),
+      openSource: record => this.openSource(edge, record),
+      changed: (record, transferred) => this.transferChanged(edge, record, transferred),
+      room: () => this.deps.store.room(),
+      ...(this.deps.sendData && { sendData: (id: string, offset: number, data: Uint8Array) => this.deps.sendData!(linkId, id, offset, data) }),
+      writable: () => this.deps.writable?.(linkId),
+      resend: record => !edge.serving.has(record.id) || this.mayResend(),
+    });
+    this.edgesById.set(linkId, edge);
+    return edge;
+  }
+
+  /**
+   * An offer that answers my want (`filesFrame` checked that): taken, unless it is not the file announced or there is no
+   * room. With no room, every holder's offer would be refused the same: the want stops and says so, until Download.
+   */
+  private async decide(edge: Edge, file: FileInfo): Promise<OfferDecision> {
+    const kept = this.kept.get(edge.taking.get(file.id) ?? ""), want = kept && this.wants.get(kept.id);
+    if (!kept || kept.held || want?.linkId !== edge.linkId || want.wire !== file.id || file.size !== kept.meta.size) return { refuse: "invalid" };
+    const room = await this.deps.store.room().catch(() => null);
+    if (room === null || file.size <= room) return "accept";    // A refused offer makes no transfer here, so nothing else ends the want.
+    edge.taking.delete(file.id);
+    if (this.wants.get(kept.id) === want && want.wire === file.id) {
+      this.stopFailed(kept, NO_ROOM);
+      this.retry(kept.groupId);
+    }
+    return { refuse: "no-room", room };
+  }
+
+  /** This device has room for a file of this size, or does not say. */
+  private async hasRoom(size: number): Promise<boolean> {
+    const room = await this.deps.store.room().catch(() => null);
+    return room === null || size <= room;
+  }
+
+  private async openTarget(edge: Edge, record: FileTransferRecord): Promise<IncomingTarget> {
+    const kept = this.kept.get(edge.taking.get(record.id) ?? "");
+    if (!kept) throw new Error("No such file");
+    // What an earlier holder's transfer stored stays, and this one goes on from there (WISP 503: the asker accepts from
+    // the offset it stored): every holder serves the author's bytes, and the whole file is checked at the end.
+    await kept.idle;
+    const writer = await this.deps.store.write(kept.id, !kept.fresh && !kept.suspect?.has(edge.peer));
+    kept.fresh = false;
+    const resumed = writer.offset > 0;
+    if (!resumed) kept.storedBy = edge.peer;
+    else if (kept.storedBy !== edge.peer) kept.storedBy = undefined;
+    let damaged = false;
+    // Its group was left (`drop`): what the transfer still has to write (its checkpoint as the edge closes) is deleted,
+    // not stored as a file nothing knows of.
+    const gone = () => this.kept.get(kept.id) !== kept;
+    const write = async <T>(op: () => Promise<T>): Promise<T> => {
+      if (gone()) { await writer.discard(); throw new Error("No such file"); }
+      return await (kept.writing = op());
+    };
+    return {
+      offset: writer.offset,
+      append: bytes => write(() => writer.append(bytes)),
+      flush: () => write(() => writer.flush()),
+      // Against the author's digest, read back from storage, not the holder's word: a holder can withhold a file, never
+      // serve another one.
+      verify: async () => {
+        damaged = (await write(() => writer.digest())) !== kept.meta.d;
+        const want = this.wants.get(kept.id);
+        if (damaged && want) want.why = "damaged";
+        return !damaged;
+      },
+      // Only damaged bytes go, and those of a file its person cancelled. Left with a holder that stalled or stopped, what
+      // came is kept for the next holder.
+      discard: () => {
+        // Whole from this holder and damaged: its bytes are not the author's, and it is not asked for them again.
+        if (damaged) {
+          kept.stored = 0;
+          if (resumed && kept.storedBy !== edge.peer) {
+            kept.fresh = kept.unclear = true;
+            (kept.suspect ??= new Set()).add(edge.peer);
+          } else kept.damaged.add(edge.peer);
+          kept.storedBy = undefined;
+        }
+        return (kept.idle = (damaged || kept.dropped === record.id || gone() ? writer.discard() : writer.close()).catch(() => {}));
+      },
+    };
+  }
+
+  private async openSource(edge: Edge, record: FileTransferRecord): Promise<OutgoingSource> {
+    const kept = this.kept.get(edge.serving.get(record.id) ?? "");
+    const stored = kept && await this.deps.store.get(kept.id);
+    if (!kept || !stored) throw new Error("The file is gone");
+    return { read: (offset, length) => this.deps.store.read(stored, offset, length), digest: async () => kept.meta.d };
+  }
+
+  /** A transfer on the edge ended: its record stays among the last `ENDED_KEPT`, and the oldest past that is forgotten. */
+  private transferOver(edge: Edge, record: FileTransferRecord): void {
+    if (edge.ended.some(([direction, id]) => direction === record.direction && id === record.id)) return;
+    edge.ended.push([record.direction, record.id]);
+    while (edge.ended.length > ENDED_KEPT) edge.files.forget(...edge.ended.shift()!);
+  }
+
+  private transferChanged(edge: Edge, record: FileTransferRecord, transferred: number): void {
+    if (transferEnded(record)) this.transferOver(edge, record);
+    if (record.direction === "out") {
+      // Only bytes confirmed for the first time are progress, and only `serveMoveBytes` of them (or the rest of the
+      // file): one accepted back and forth stays where it was, and a byte now and then does not keep a place.
+      const moved = edge.servedMoved.get(record.id);
+      // Its pace is measured from the offer, from the bytes the asker had (where it accepted from).
+      if (moved && !moved.mark && record.state === "active") moved.mark = moved.next = [record.confirmed, moved.from];
+      if (moved && record.confirmed > moved.confirmed && (record.confirmed - moved.confirmed >= GROUP_FILE_LIMITS.serveMoveBytes || record.confirmed === record.file.size)) {
+        edge.servedMoved.set(record.id, { ...moved, confirmed: record.confirmed, at: this.deps.now() });
+      }
+      if (transferEnded(record) && edge.serving.has(record.id)) {
+        // What was sent to a member counts toward the day's serving, done or not, and whatever it confirmed.
+        const today = Math.floor(this.deps.now() / 86_400_000);
+        if (this.served.day !== today) this.served = { day: today, bytes: 0 };
+        this.served.bytes += edge.files.sent(record.id);
+        edge.serving.delete(record.id);
+        edge.servedMoved.delete(record.id);
+        // A slot is free: those turned away as busy hear this device holds their file (with the next `group-have`), and
+        // ask it again rather than wait out their round.
+        const serving = this.deps.settings().serveFiles;
+        for (const other of this.edgesById.values()) {
+          if (serving) for (const id of other.busy.keys()) other.have.add(id);
+          other.busy.clear();
+        }
+      }
+      return;
+    }
+    const kept = this.kept.get(edge.taking.get(record.id) ?? ""), want = kept && this.wants.get(kept.id);
+    // A transfer this device moved on from (the holder stalled, then went on) changes nothing.
+    if (!kept || !want || want.wire !== record.id || want.linkId !== edge.linkId) return;
+    // Moving: `wantMoveBytes` more since it last moved (or the rest of the file), not any byte.
+    if (want.moved < 0) want.moved = transferred;
+    else if (transferred - want.moved >= Math.min(GROUP_FILE_LIMITS.wantMoveBytes, kept.meta.size - want.moved)) { want.moved = transferred; want.movedAt = this.deps.now(); }
+    if (record.state !== "failed" && record.state !== "declined" && record.state !== "cancelled") kept.stored = transferred;
+    const { size } = kept.meta;
+    switch (record.state) {
+      case "done": {
+        kept.held = true;
+        this.wants.delete(kept.id);
+        edge.taking.delete(record.id);
+        void this.deps.store.patch(kept.id, { transfer: { state: "done", transferred: size, size } }).catch(() => {});
+        this.finished(kept, "in");
+        this.queueHave(kept);
+        // The holder is free for the next file this device waits for.
+        this.retry(kept.groupId);
+        return;
+      }
+      case "failed": case "declined": case "cancelled":
+        // Damaged (refused, its bytes deleted), stopped by the holder or left here: the next holder is asked.
+        edge.taking.delete(record.id);
+        // A resumed file that failed its check may owe its bad bytes to the earlier holder: this one is asked again, from 0.
+        if (want.holder && !kept.unclear) want.tried.add(want.holder);
+        kept.unclear = false;
+        Object.assign(want, { wire: undefined, holder: undefined, linkId: undefined, moved: 0 });
+        this.ask(kept);
+        this.retry(kept.groupId);
+        return;
+      case "verifying":
+        this.show(kept, { state: "transferring", stage: "verifying", transferred, size, direction: "in" });
+        return;
+      default:
+        this.show(kept, { state: "transferring", transferred, size, direction: "in" });
+    }
+  }
+
+  // -- bookkeeping ---------------------------------------------------------------------------------------------
+
+  private add(kept: Kept): void {
+    this.kept.set(kept.id, kept);
+    this.byMessage.set(`${kept.groupId}\n${kept.message}`, kept.id);
+  }
+
+  /** Bytes this device fetched by itself from the group and keeps (or is fetching): what `autoBytesPerGroup` bounds. */
+  private keptAutomatically(groupId: string): number {
+    let sum = 0;
+    for (const kept of this.kept.values()) if (kept.groupId === groupId && kept.auto && !kept.mine) sum += kept.meta.size;
+    return sum;
+  }
+
+  private groupField(kept: Kept): NonNullable<StoredFile["group"]> {
+    return { message: kept.message, author: kept.author, ...(kept.ts !== undefined && { ts: kept.ts }), ...(kept.auto && { auto: true }), ...(kept.asked && { asked: true }), ...(kept.paused && { paused: true }) };
+  }
+
+  /** The bytes of a file kept here from transfers that did not finish. */
+  private async keptBytes(id: string): Promise<number> {
+    const writer = await this.deps.store.write(id, true).catch(() => undefined);
+    if (!writer) return 0;
+    await writer.close().catch(() => {});
+    return writer.offset;
+  }
+
+  private pace(windows: Map<string, RateWindow>, key: string, limit: number, ms: number): RateWindow {
+    let window = windows.get(key);
+    if (!window) windows.set(key, (window = new RateWindow(limit, ms, () => this.deps.now())));
+    return window;
+  }
+
+  /** My announcements in a group, in a minute and in the window the members count them over. */
+  private sentPaces(groupId: string): RateWindow[] {
+    return [this.pace(this.sentPace, groupId, GROUP_FILE_LIMITS.announcePerMinute, 60_000),
+      this.pace(this.sentTaken, groupId, GROUP_FILE_LIMITS.announceTaken, GROUP_FILE_LIMITS.announceWindowMs)];
+  }
+
+  /**
+   * The file waits for its person's Download: said in one state (the CLI's `file.offered`), then left to its record,
+   * which says it is not here (`waitingGroupFile`). A view kept for each such file would go into every state the engine
+   * builds, so each would cost more with every file the groups ever had.
+   */
+  private waiting(kept: Kept): void {
+    this.show(kept, { state: "transferring", stage: "asking", transferred: 0, size: kept.meta.size, direction: "in" });
+    this.deps.brief(kept.id);
+  }
+
+  /**
+   * All here: said in one state (the CLI's `file.done`), then left to its record, which says it is done. A view kept for
+   * each file fetched or sent would go into every state the engine builds until the next start.
+   */
+  private finished(kept: Kept, direction: "in" | "out"): void {
+    this.show(kept, { state: "done", transferred: kept.meta.size, size: kept.meta.size, direction });
+    this.deps.brief(kept.id);
+  }
+
+  /** A file's row shows `view`; the engine hears of it only when that is not what the row shows already. */
+  private show(kept: Kept, view: FileTransferView): void {
+    if (sameView(this.deps.transfers.get(kept.id), view)) return;
+    this.deps.transfers.set(kept.id, view);
+    this.deps.changed();
+  }
+}
+
+/** Two views of a transfer that say the same: their fields are all plain values. */
+function sameView(a: FileTransferView | undefined, b: FileTransferView): boolean {
+  if (!a) return false;
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof FileTransferView)[]);
+  for (const key of keys) if (a[key] !== b[key]) return false;
+  return true;
+}
+
+/** A file's holders with `key` the newest of them, the `holders` newest kept. */
+const newestHolder = (key: string, holders: string[]): string[] => [key, ...holders.filter(other => other !== key)].slice(0, GROUP_FILE_LIMITS.holders);
+
+function messageFile(kept: Kept): MessageFile {
+  const { name, size, mime, voice, video, image } = kept.meta;
+  return { id: kept.id, name, size, mime, ...(voice && { voice }), ...(video && { video }), ...(image && { image }) };
+}

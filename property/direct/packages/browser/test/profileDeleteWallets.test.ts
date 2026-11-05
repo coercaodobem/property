@@ -1,0 +1,176 @@
+import "fake-indexeddb/auto";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { wrap } from "../src/shared/idb";
+import { setStorageProfile } from "../../../apps/ui/src/lib/storage";
+import { registerProfile } from "../../../apps/ui/src/lib/profiles";
+import { deleteProfile } from "../../../apps/ui/src/lib/profileData";
+import { breezDatabase, breezDatabasesOf } from "../src/engine/paymentAdapters/providers/breezDatabases";
+// covers: profiles.delete, wallet.spark.storage
+
+class FakeStorage {
+  entries = new Map<string, string>();
+  get length() { return this.entries.size; }
+  key(i: number) { return [...this.entries.keys()][i] ?? null; }
+  getItem(k: string) { return this.entries.get(k) ?? null; }
+  setItem(k: string, v: string) { this.entries.set(k, v); }
+  removeItem(k: string) { this.entries.delete(k); }
+}
+/** The origin-private file system, as far as deleting a file goes. */
+const files = new Set<string>();
+const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+beforeEach(() => {
+  setStorageProfile("");
+  files.clear();
+  Object.defineProperty(globalThis, "localStorage", { value: new FakeStorage(), configurable: true });
+  Object.defineProperty(globalThis, "window", { value: { dispatchEvent: vi.fn(), location: { hash: "", reload: vi.fn() } }, configurable: true });
+  const root = { async removeEntry(name: string) { if (!files.delete(name)) throw Object.assign(new Error("missing"), { name: "NotFoundError" }); } };
+  Object.defineProperty(globalThis, "navigator", { value: { storage: { getDirectory: async () => root } }, configurable: true });
+});
+afterEach(() => {
+  if (previousNavigator) Object.defineProperty(globalThis, "navigator", previousNavigator); else Reflect.deleteProperty(globalThis, "navigator");
+});
+
+async function makeDatabase(name: string) {
+  const request = indexedDB.open(name, 1);
+  request.onupgradeneeded = () => { request.result.createObjectStore("data"); };
+  (await wrap(request)).close();
+}
+async function makeProfile(id: string, records: Record<string, unknown>) {
+  const entry = registerProfile(id, id);
+  const request = indexedDB.open(`ghostly_${id}`, 1);
+  request.onupgradeneeded = () => {
+    const settings = request.result.createObjectStore("settings");
+    for (const [key, value] of Object.entries(records)) settings.put(value, key);
+  };
+  (await wrap(request)).close();
+  return entry;
+}
+const databases = async () => (await indexedDB.databases()).map((d) => d.name);
+
+it("deleting a profile deletes its Bark databases and Fedimint files too, and never those another profile still names", async () => {
+  const gone = await makeProfile("goneprofil", {
+    "barkWallet-mode-testnet": { config: { walletId: "bark-gone", network: "signet" } },
+    "barkWallet-retired-1": { config: { walletId: "bark-shared", network: "signet" } },
+    "fedimintWallet-testnet": { federations: [{ id: "f1", database: "ghostly-fedimint-gone.db" }, { id: "f2", database: "ghostly-fedimint-shared.db" }] },
+    "fedimintRetired-testnet-f0": { id: "f0", database: "ghostly-fedimint-retired.db" },
+  });
+  await makeProfile("keptprofil", {
+    "barkWallet-mode-testnet": { config: { walletId: "bark-shared", network: "signet" } },
+    "fedimintWallet-testnet": { federations: [{ id: "f2", database: "ghostly-fedimint-shared.db" }] },
+  });
+  for (const name of ["ghostly-bark-bark-gone", "ghostly-bark-bark-gone-onchain", "ghostly-bark-bark-shared", "ghostly-bark-bark-shared-onchain"]) await makeDatabase(name);
+  for (const name of ["ghostly-fedimint-gone.db", "ghostly-fedimint-shared.db", "ghostly-fedimint-retired.db"]) files.add(name);
+
+  await deleteProfile(gone.id);
+
+  const left = await databases();
+  expect(left).not.toContain("ghostly-bark-bark-gone");
+  expect(left).not.toContain("ghostly-bark-bark-gone-onchain");
+  expect(left, "the other profile's Bark wallet stays").toContain("ghostly-bark-bark-shared");
+  expect(left).toContain("ghostly-bark-bark-shared-onchain");
+  expect([...files], "only the other profile's federation file stays").toEqual(["ghostly-fedimint-shared.db"]);
+});
+
+it("a Fedimint file already gone, or no file system at all, does not stop the delete", async () => {
+  const gone = await makeProfile("nofileprof", { "fedimintWallet-testnet": { federations: [{ id: "f1", database: "ghostly-fedimint-never.db" }] } });
+  await deleteProfile(gone.id);
+  Object.defineProperty(globalThis, "navigator", { value: {}, configurable: true });
+  const bare = await makeProfile("nofsprofil", { "fedimintWallet-testnet": { federations: [{ id: "f1", database: "ghostly-fedimint-other.db" }] } });
+  await deleteProfile(bare.id);
+  expect(await databases()).not.toContain(`ghostly_${bare.id}`);
+});
+
+// covers: devices.gate
+it("deleting a profile takes its device record with it, and leaves another profile's (WISP 06)", async () => {
+  const { putDeviceRecord } = await import("./helpers/deviceRecord");
+  const { closeDevicesDb, deviceStateOf } = await import("../src/devices/store");
+  const gone = registerProfile("devicegone", "Gone"), kept = registerProfile("devicekept", "Kept");
+  const record = (id: string) => ({ v: 1 as const, profile: `ghostly_${id}`, state: "standby" as const, saved: 1, turn: 1, rev: 0, deviceSet: [], takeovers: 0, earlierSets: [] });
+  await putDeviceRecord(record(gone.id));
+  await putDeviceRecord(record(kept.id));
+  await deleteProfile(gone.id);
+  expect(await deviceStateOf(`ghostly_${gone.id}`)).toBe("single");
+  expect(await deviceStateOf(`ghostly_${kept.id}`)).toBe("standby");
+  await closeDevicesDb();
+});
+
+it("deleting a profile has the host forget what the contacts' apps it opened kept on this device, and only its", async () => {
+  const { setBrowserHost } = await import("../src/host");
+  const forgotten: unknown[] = [];
+  setBrowserHost({ forgetServices: async (which: unknown) => { forgotten.push(which); } } as unknown as import("../src/host").BrowserHost);
+  const gone = registerProfile("svcgone001", "Gone");
+  registerProfile("svckept001", "Kept");
+  await deleteProfile(gone.id);
+  expect(forgotten).toEqual([{ profile: gone.id }]);
+});
+
+it("deleting a profile forgets what another profile's peek saw of it, and keeps the others' (WISP 04)", async () => {
+  const { mergePeek, peekFresh, storeKey } = await import("../../../apps/ui/src/lib/profilePeek");
+  const gone = registerProfile("peekgone01", "Gone"), kept = registerProfile("peekkept01", "Kept");
+  const chats = [{ linkId: "link1", peer: "peerpubkeyz32", peerSequence: 4, text: "msg-1", held: 0 }];
+  mergePeek(gone.id, { chats });
+  mergePeek(kept.id, { chats });
+  expect(peekFresh(gone.id)).toBe(1);
+  await deleteProfile(gone.id);
+  expect(peekFresh(gone.id)).toBe(0);
+  expect(localStorage.getItem(storeKey())).not.toContain(gone.id);
+  expect(localStorage.getItem(storeKey())).toContain(kept.id);
+  expect(peekFresh(kept.id)).toBe(1);
+});
+
+it("deleting a profile deletes its Breez databases (both of the SDK's), and never another profile's of the same phrase", async () => {
+  const mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+  const gone = await makeProfile("breezgone1", { "sparkWallet-mode-testnet": { network: "regtest" } });
+  await makeProfile("breezkept1", { "sparkWallet-mode-testnet": { network: "regtest" } });
+  const goneName = await breezDatabase("regtest", mnemonic, `ghostly_${gone.id}`);
+  const keptName = await breezDatabase("regtest", mnemonic, "ghostly_breezkept1");
+  // What the SDK leaves under a storage name: `<name>/<network>/<identity>` and its `-tree`.
+  const sdkFiles = (name: string) => [`${name}/regtest/f578b13b`, `${name}/regtest/f578b13b-tree`];
+  for (const name of [...sdkFiles(goneName), ...sdkFiles(keptName)]) await makeDatabase(name);
+
+  await deleteProfile(gone.id);
+
+  const left = await databases();
+  for (const name of sdkFiles(goneName)) expect(left).not.toContain(name);
+  expect(left, "the other profile's wallet stays").toEqual(expect.arrayContaining(sdkFiles(keptName)));
+  expect(await breezDatabasesOf(`ghostly_${gone.id}`)).toEqual([]);
+});
+
+// covers: devices.gate
+it("deleting a profile deletes the fork a handoff left of it on this device, its keys and linked files with it (WISP 06)", async () => {
+  const { putDeviceRecord } = await import("./helpers/deviceRecord");
+  const { closeDevicesDb, readDeviceRecord } = await import("../src/devices/store");
+  const { setHandoffProfileHost } = await import("../src/devices/handoffHost");
+  const { handoffProfileHost } = await import("../../../apps/ui/src/lib/handoffProfile");
+  const { pointProfile } = await import("../../../apps/ui/src/lib/profiles");
+  setHandoffProfileHost(handoffProfileHost("test", "web"));
+  try {
+    // The profile ran on `ghostly_forkedold1`; a handoff installed `ghostly_forkednew1` and kept the old one as a fork.
+    const gone = await makeProfile("forkedold1", { "barkWallet-mode-testnet": { config: { walletId: "bark-fork", network: "signet" } } });
+    await makeDatabase("ghostly-bark-bark-fork");
+    await makeDatabase("ghostly_forkedold1-files");
+    localStorage.setItem("ghostly_forkedold1_sess1", "an old chat");
+    await makeDatabase("ghostly_forkednew1");
+    pointProfile("ghostly_forkedold1", "ghostly_forkednew1");
+    localStorage.setItem("ghostly_forkednew1_sess1", "the chat now");
+    await makeProfile("forkedkep1", {});
+    localStorage.setItem("ghostly_forkedkep1_sess1", "another profile's chat");
+    await putDeviceRecord({ v: 1, profile: "ghostly_forkednew1", state: "active", saved: 1, turn: 1, rev: 0, deviceSet: [], takeovers: 0, earlierSets: [], forks: ["ghostly_forkedold1", "ghostly_forkedkep1"] });
+
+    await deleteProfile(gone.id);
+
+    const left = await databases();
+    expect(left).not.toContain("ghostly_forkednew1");
+    expect(left, "the fork goes").not.toContain("ghostly_forkedold1");
+    expect(left, "its linked files").not.toContain("ghostly_forkedold1-files");
+    expect(left, "its wallets' own storage").not.toContain("ghostly-bark-bark-fork");
+    expect(localStorage.getItem("ghostly_forkedold1_sess1"), "its chats").toBeNull();
+    expect(localStorage.getItem("ghostly_forkednew1_sess1")).toBeNull();
+    expect(left, "never a profile on the list, whatever the record says").toContain("ghostly_forkedkep1");
+    expect(localStorage.getItem("ghostly_forkedkep1_sess1")).toBe("another profile's chat");
+    expect(await readDeviceRecord("ghostly_forkednew1")).toBeNull();
+  } finally {
+    setHandoffProfileHost(null);
+    await closeDevicesDb();
+  }
+});

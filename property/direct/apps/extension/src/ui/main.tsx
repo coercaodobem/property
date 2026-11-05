@@ -1,0 +1,43 @@
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { setBrowserHost } from "@ghostly/browser/host";
+import { startSessionSync } from "@ghostly/browser/platform/sync";
+import { setDatabaseName } from "@ghostly/browser/shared/idb";
+import { openDeviceGate } from "@ghostly/browser/devices/gate";
+import { Root } from "../../../ui/src/Root";
+import { setStorageProfile } from "../../../ui/src/lib/storage";
+import { extensionHost } from "../host";
+import { loadSettings } from "../../../ui/src/lib/settings";
+import { applyDocumentLanguage } from "../../../ui/src/lib/documentLanguage";
+import { loadLocale } from "../../../ui/src/locales";
+import { databaseFor, followEngineRestart, followProfileSwitch, openPageProfile, startAsProfileInUse } from "../profile";
+
+// Ghostly Browser renders the Desktop UI as is. What differs is below it: the
+// platform modules come from @ghostly/browser, on top of the extension host.
+
+// The local profile in use (WISP 04), the one the peer runs as: its chats, database and settings. The
+// first profile keeps the original names, so an install from before profiles finds everything in place.
+const profile = openPageProfile();
+setStorageProfile(profile);
+setDatabaseName(databaseFor(profile));
+// Another tab switched: the peer follows it, and this page starts again as that profile, where it was left.
+followProfileSwitch(profile, startAsProfileInUse);
+// Another tab started the peer again (Clear all data, the device gate): this page starts again on the new one.
+followEngineRestart(() => location.reload());
+
+setBrowserHost(extensionHost);
+// The language on <html> before anything is painted (the I18nProvider keeps it in step from then on).
+applyDocumentLanguage(loadSettings().language);
+
+// The device state, before the page touches the profile (WISP 06 § The gate): the peer reads it too, in its own
+// document, before it starts. On a device that is not the active one the page shows the standby screen and keeps
+// no session in step with a peer that does not run. The profile's words are loaded meanwhile: only English is in the
+// entry, every other language is loaded when a profile reads in it.
+void Promise.all([openDeviceGate(), loadLocale(loadSettings().language)]).then(([gate]) => {
+  if (gate.full) startSessionSync();
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <Root />
+    </StrictMode>,
+  );
+});

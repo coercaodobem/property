@@ -1,0 +1,182 @@
+import { useEffect, useRef, useState } from "react";
+import { parseEngineError, parseLightningDestination } from "@ghostly/core";
+import type { LightningAddressInfo, WalletPlatform } from "../../lib/platform";
+import { CASHU_MINT_SOURCE, holdsLess, spendable } from "../walletCardData";
+import { ConfirmRealMoney } from "../ConfirmRealMoney";
+import { externalLinkProps } from "../../lib/externalLink";
+import { useI18n } from "../../contexts/I18nContext";
+import { fillNodes } from "../../lib/fillNodes";
+import { formatAmount } from "../../lib/amount";
+import { useComposition } from "../../hooks/useComposition";
+import { satsIn } from "../NetworkTag";
+import { useAmountText } from "../../hooks/useAmountText";
+import { problemText, type Problem } from "../../lib/problemText";
+import { Notice } from "../ui/Notice";
+
+interface Quote { quote: string; mint: string; amount: number; feeReserve: number; source?: string }
+interface Invoice { invoice: string; note: string; successAction?: { tag: "message" | "url"; message?: string; description?: string; url?: string } }
+
+/**
+ * Paying a Lightning address or an LNURL, step by step: the domain that will learn of it, then what it
+ * asks for and the amount, then the invoice it answered with (checked) as a normal review through the
+ * Lightning source, then the payment. Used by the wallet's Send tab and by an address pasted in a chat.
+ * `via: "cashu"`: the Cashu mints pay, whatever the Lightning source (the Cashu card).
+ */
+export function LightningAddressPay({ wallet, text, via, onDone, dense }: { wallet: WalletPlatform; text: string; via?: "cashu"; onDone?: () => void; dense?: boolean }) {
+  const { t } = useI18n();
+  const [info, setInfo] = useState<LightningAddressInfo | null>(null);
+  const [amount, setAmount] = useState("");
+  const [comment, setComment] = useState("");
+  const composition = useComposition();
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [outcome, setOutcome] = useState<"paid" | "pending" | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<Problem | null>(null);
+  /** Real money: Pay opens the second step, and only it pays. A wallet naming no network is Mainnet's. */
+  const [confirming, setConfirming] = useState(false);
+  /** The amount typed the person's way ("1.000" sats in Portuguese); `amount` is what it means, or "" while unclear. */
+  const amountField = useAmountText(amount, setAmount, t.language ?? "en", 0, t);
+  /** Max was pressed and the amount not typed over: it comes down by the fee, as all the card holds leaves none for it. */
+  const maxed = useRef(false);
+  const real = wallet.getState()?.mode !== "testnet";
+  /** Test sats say so wherever an amount shows, as the Cashu panel does. */
+  const unit = satsIn(t, real ? "mainnet" : "testnet");
+  const ln = wallet.getState()?.lightning;
+  const sourceName = (source?: string) => (via === "cashu" || !source || source === CASHU_MINT_SOURCE ? t("wallet.lightning.cashuMints") : source === ln?.providerId ? ln.alias ?? ln.label ?? source : source);
+
+  const run = async (task: () => Promise<void>) => {
+    setError(null); setBusy(true);
+    try { await task(); } catch (e) { setError(problemText(e, t)); } finally { setBusy(false); }
+  };
+  // The button pressed stays focusable while it works (busy, not disabled): a disabled one drops the keys to the page,
+  // and they stay there when the server or the wallet refuses. A press while busy does nothing.
+  const working = busy ? { "aria-disabled": true, "aria-busy": true, "data-loading": true } as const : {};
+
+  // A step that comes takes the place of the button that asked for it: its first line takes the keys, so they go on
+  // from there (to the amount, to Pay, to Done). Not when they went somewhere else meanwhile, nor on the first step.
+  const step = outcome ? "done" : !info ? "resolve" : quote && invoice ? "review" : "amount";
+  const stepLine = useRef<HTMLParagraphElement>(null);
+  const shownStep = useRef(step);
+  useEffect(() => {
+    if (shownStep.current === step) return;
+    shownStep.current = step;
+    if (!document.activeElement || document.activeElement === document.body) stepLine.current?.focus();
+  }, [step]);
+  const primary = `${dense ? "px-3 py-1.5 text-xs" : "px-4 py-2 min-h-10 text-sm"} max-md:min-h-11 rounded-lg font-bold bg-accent text-on-accent hover:bg-accent-hover transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed data-[loading]:opacity-80 data-[loading]:cursor-progress`;
+  const quiet = `${dense ? "px-3 py-1.5 text-xs" : "px-4 py-2 min-h-10 text-sm"} max-md:min-h-11 rounded-lg font-bold bg-black/20 hover:bg-black/30 transition-colors cursor-pointer disabled:opacity-40`;
+  const field = `w-full min-w-0 bg-black/20 rounded-lg px-3 py-2 ${dense ? "text-xs" : "text-sm"} placeholder-current/50 focus:outline-none focus:ring-1 focus:ring-accent`;
+  const muted = `${dense ? "text-[11px]" : "text-xs"} opacity-70 m-0`;
+
+  if (outcome) {
+    return (
+      <div className="space-y-1.5" data-testid="lnurl-done">
+        <p ref={stepLine} tabIndex={-1} className={`${dense ? "text-xs" : "text-sm"} font-semibold text-accent m-0 focus:outline-none`} data-testid={outcome === "paid" ? "lnurl-paid" : "lnurl-pending"}>{outcome === "paid" ? t("wallet.lightning.paidTo", { amount: quote ? formatAmount(quote.amount, t.language) : "", unit, to: text }) : t("wallet.lightning.pending")}</p>
+        {invoice?.successAction?.tag === "message" && invoice.successAction.message && <p className={muted} data-testid="lnurl-success">{t("wallet.lightning.says", { domain: info?.domain ?? "", message: invoice.successAction.message })}</p>}
+        {invoice?.successAction?.tag === "url" && invoice.successAction.url && <p className={muted}>{fillNodes(t("wallet.lightning.linkLine", { what: invoice.successAction.description || t("wallet.lightning.leftLink", { domain: info?.domain ?? "" }) }), { link: <a className="underline" {...externalLinkProps(invoice.successAction.url)}>{invoice.successAction.url}</a> })}</p>}
+        {onDone && <button type="button" className={quiet} onClick={onDone}>{t("wallet.lightning.done")}</button>}
+      </div>
+    );
+  }
+
+  if (!info) {
+    return (
+      <div className="space-y-2" data-testid="lnurl-resolve">
+        <p ref={stepLine} tabIndex={-1} className={`${muted} focus:outline-none`}>{fillNodes(t("wallet.lightning.lookupAsks"), { domain: <b>{domainOf(text) ?? t("wallet.lightning.lnurlServer")}</b> })}</p>
+        <button type="button" className={primary} {...working} data-testid="lnurl-lookup" onClick={() => { if (!busy) void run(async () => {
+          const resolved = await wallet.resolveLightningAddress(text);
+          setInfo(resolved);
+          if (resolved.minSat === resolved.maxSat) setAmount(String(resolved.minSat));
+        }); }}>{busy ? t("wallet.lightning.lookingUp") : t("wallet.lightning.lookUp")}</button>
+        {error && <Notice problem={error} testId="lnurl-error" className={`${dense ? "text-[11px]" : "text-xs"} m-0`} />}
+      </div>
+    );
+  }
+
+  if (quote && invoice) {
+    // More than the paying card holds is never approved: the node or the mint would only refuse it afterwards.
+    const over = holdsLess(via === "cashu" ? "cashu" : "lightning", wallet.getState(), quote.amount);
+    const pay = (confirmedReal: boolean) => { if (!busy) void run(async () => {
+      const paid = await wallet.payQuote(quote.quote, quote.mint, invoice.note, confirmedReal);
+      setOutcome(paid ? "paid" : "pending");
+    }); };
+    return (
+      <div className="space-y-2" data-testid="lnurl-review">
+        <p ref={stepLine} tabIndex={-1} className={`${dense ? "text-xs" : "text-sm"} m-0 focus:outline-none`}>{fillNodes(t("wallet.lightning.payTo", { to: info.text }), {
+          amount: <b>{t("wallet.cards.amount", { amount: formatAmount(quote.amount, t.language), unit })}</b>,
+          fees: <span className="opacity-70"> {t("wallet.lightning.feesThrough", { fee: formatAmount(quote.feeReserve, t.language), source: sourceName(quote.source) })}</span>,
+        })}</p>
+        {/* The server's own words, in any script: laid out by their own direction. */}
+        {info.description && <p className={muted} dir="auto">{info.description}</p>}
+        {over !== undefined && <p className={`${dense ? "text-[11px]" : "text-xs"} text-danger-ink m-0`} data-testid="lnurl-over">{t("payments.composer.tooMuch", { amount: formatAmount(over, t.language), unit })}</p>}
+        {confirming && over === undefined ? <ConfirmRealMoney what={t("wallet.lightning.confirmWhat", { amount: formatAmount(quote.amount, t.language), fee: formatAmount(quote.feeReserve, t.language) })} busy={busy} onSend={() => pay(true)} onBack={() => setConfirming(false)} /> : (
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={primary} disabled={over !== undefined} {...working} data-testid="lnurl-pay" onClick={() => real ? setConfirming(true) : pay(false)}>{busy ? t("wallet.lightning.paying") : t("wallet.lightning.pay")}</button>
+            <button type="button" className={quiet} disabled={busy} onClick={() => { setError(null); setQuote(null); setInvoice(null); }}>{t("common.cancel")}</button>
+          </div>
+        )}
+        {error && <Notice problem={error} testId="lnurl-error" className={`${dense ? "text-[11px]" : "text-xs"} m-0`} />}
+      </div>
+    );
+  }
+
+  const fixed = info.minSat === info.maxSat;
+  // What the paying card holds, and the most of it this address takes (Max): asking for its invoice takes the fee off.
+  const state = wallet.getState();
+  const holds = state ? spendable(via === "cashu" ? "cashu" : "lightning", state) : undefined;
+  const max = holds === undefined ? undefined : Math.min(holds, info.maxSat);
+  // Not a <form>: this panel lives inside the wallet's Send form, and a form in a form submits the page.
+  const getInvoice = () => { if (!busy && Number(amount)) void run(async () => {
+    // The fee is known only from a quote of an invoice, so a Max asks again for what it leaves: twice at most, as a fee
+    // may grow a little with another invoice. What is left below the address's least is the refusal, or the review's say.
+    let sats = Number(amount);
+    for (let again = maxed.current ? 2 : 0; ; again--) {
+      let room: number;
+      try {
+        const got = await wallet.lightningAddressInvoice(info.id, sats, comment || undefined);
+        const quoted = await wallet.quoteInvoice(got.invoice, via);
+        if (quoted.amount !== sats) throw new Error(t("wallet.lightning.mismatch"));
+        room = maxed.current && holds !== undefined && sats + quoted.feeReserve > holds ? holds - quoted.feeReserve : sats;
+        if (room === sats || !again || room < info.minSat) { setAmount(String(sats)); setInvoice(got); setQuote(quoted); return; }
+      } catch (cause) {
+        const refusal = parseEngineError(cause instanceof Error ? cause.message : String(cause));
+        room = refusal?.code === "notEnoughForFee" ? Number(refusal.values.amount) : 0;
+        if (!maxed.current || !again || room < info.minSat || room >= sats) throw cause;
+      }
+      sats = room;
+    }
+  }); };
+  const onEnter = (e: React.KeyboardEvent) => { if (e.key === "Enter" && !composition.composing(e)) { e.preventDefault(); e.stopPropagation(); getInvoice(); } };
+  return (
+    <div className="space-y-2" data-testid="lnurl-amount-form">
+      <p ref={stepLine} tabIndex={-1} className={`${dense ? "text-xs" : "text-sm"} m-0 focus:outline-none`}><b>{info.text}</b>{info.description && <> · <bdi>{info.description}</bdi></>}</p>
+      <p className={muted} data-testid="lnurl-domain">{t("wallet.lightning.domainLine", {
+        answered: info.callbackDomain !== info.domain ? t("wallet.lightning.answeredVia", { domain: info.domain, callback: info.callbackDomain }) : t("wallet.lightning.answeredBy", { domain: info.domain }),
+        limits: fixed ? t("wallet.lightning.asksExactly", { amount: formatAmount(info.minSat, t.language), unit }) : t("wallet.lightning.takesRange", { min: formatAmount(info.minSat, t.language), max: formatAmount(info.maxSat, t.language), unit }),
+      })}</p>
+      <label className="flex items-baseline gap-2 bg-black/20 rounded-lg px-3 py-2 focus-within:ring-1 focus-within:ring-accent">
+        <input data-testid="lnurl-amount" inputMode="numeric" placeholder="0" aria-label={t("wallet.ui.amountIn", { unit })} autoFocus={!fixed} disabled={fixed}
+          className={`min-w-0 flex-1 bg-transparent border-none outline-none ${dense ? "text-lg" : "text-2xl"} font-semibold tabular-nums`}
+          aria-invalid={amountField.hint ? true : undefined} value={fixed ? amount : amountField.text} onChange={(e) => { maxed.current = false; amountField.change(e.target.value); }} onKeyDown={onEnter} />
+        <span className="text-xs opacity-70 shrink-0">{unit}</span>
+      </label>
+      {amountField.hint && <p role="alert" className="text-xs m-0 text-danger-ink" data-testid="amount-unclear">{amountField.hint}</p>}
+      {/* The line's dim is its text's only: Max keeps full-strength ink and the panel's phone-sized target. */}
+      {holds !== undefined && <p className={`${dense ? "text-[11px]" : "text-xs"} m-0 flex flex-wrap items-center gap-2`} data-testid="lnurl-balance">
+        <span className="opacity-70">{t("wallet.send.balance", { amount: formatAmount(holds, t.language), unit })}</span>
+        {!fixed && max !== undefined && max >= info.minSat && <button type="button" className="min-h-6 max-md:min-h-11 rounded-md px-2.5 py-1 font-bold bg-black/20 hover:bg-black/30 cursor-pointer disabled:opacity-40" disabled={busy} data-testid="lnurl-max" onClick={() => { maxed.current = true; setAmount(String(max)); }}>{t("wallet.send.max")}</button>}
+      </p>}
+      {info.commentAllowed > 0 && <input data-testid="lnurl-comment" className={field} placeholder={t("wallet.lightning.commentFor", { to: info.text })} maxLength={info.commentAllowed} value={comment} onChange={(e) => setComment(e.target.value)} {...composition.inputProps} onKeyDown={onEnter} />}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={primary} disabled={!Number(amount)} {...working} data-testid="lnurl-invoice" onClick={getInvoice}>{busy ? t("wallet.lightning.askingInvoice") : t("wallet.lightning.getInvoice")}</button>
+        <button type="button" className={quiet} disabled={busy} onClick={() => { setError(null); setInfo(null); setAmount(""); setComment(""); }}>{t("common.back")}</button>
+      </div>
+      {error && <Notice problem={error} testId="lnurl-error" className={`${dense ? "text-[11px]" : "text-xs"} m-0`} />}
+    </div>
+  );
+}
+
+/** The host that will be asked, read as the lookup reads it: an address's domain, or an LNURL's host, bech32 or plain (null: not readable). */
+function domainOf(text: string): string | null {
+  try { return parseLightningDestination(text)?.domain ?? null; } catch { return null; }
+}

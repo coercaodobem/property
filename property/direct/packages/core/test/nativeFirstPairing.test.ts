@@ -1,0 +1,204 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { INVITER_DIAL_GRACE_MS, type GhostLink } from "../src/ghostlink";
+import type { NativeEndpoint, PairedTransport, TransportDescriptors } from "../src/pairedTransports";
+import { DESKTOP_NETWORK, MemoryPkarr, closeWorld, invitationWhere, open, run, useFakeWorld, type NetworkModel, type Opened } from "./support/pairingWorld";
+import { NativeWorld } from "./support/nativeWorld";
+
+// covers: chat.one-chat, chat.paired.pair-timing, core.dht-direct
+
+/**
+ * Two Linux Desktops pair from a fresh invite: WebKitGTK has no WebRTC, so the joiner's first packet carries no offer,
+ * and the chat goes live on a native transport once a side reads the other's capability record (its descriptors).
+ * The inviter used to wait `INVITER_DIAL_GRACE_MS` for an offer that could not come before dialling, and the joiner,
+ * still reading, often did not dial meanwhile: 2.5 s of the ~11 s two Desktops took on the DHT alone (dht-direct on
+ * CI, 2026-10-07). In-memory Pkarr and native transports on fake time; the record read is the engine's
+ * (`peerCapsChanged` → `learnPeerTransports`), stood in for here.
+ */
+
+interface Desk { side: Opened; endpoint: NativeEndpoint; dials: number[] }
+
+function desktop(native: NativeWorld, name: string, side: Opened): Desk {
+  const endpoint = native.endpoint("hyperdht/1", name);
+  const desk: Desk = { side, endpoint, dials: [] };
+  const connect = endpoint.connect.bind(endpoint);
+  endpoint.connect = async descriptor => { desk.dials.push(Date.now()); return connect(descriptor); };
+  side.link.registerEndpoint(endpoint);
+  return desk;
+}
+
+/** What the contact's capability record says: the transports its app runs (no WebRTC), and how to dial them. */
+const record = (desk: Desk): [PairedTransport[], TransportDescriptors] =>
+  [["hyperdht/1"], { "hyperdht/1": desk.endpoint.descriptor } as TransportDescriptors];
+
+const channelOf = (link: GhostLink) => (link as unknown as { channel: unknown }).channel;
+const live = (desk: Desk) => desk.side.link.isDataLinkOpen && desk.side.link.pairingProgress?.stage === "live";
+
+async function until(check: () => boolean, limit: number): Promise<number> {
+  const start = Date.now();
+  while (!check()) {
+    if (Date.now() - start > limit) return Infinity;
+    await run(50);
+  }
+  return Date.now() - start;
+}
+
+/** A fresh invite between two Desktops with no WebRTC, each with its HyperDHT endpoint up; the inviter's key dials. */
+async function pair(dialer: "inviter" | "joiner"): Promise<{ native: NativeWorld; inviter: Desk; joiner: Desk }> {
+  const pkarr = new MemoryPkarr(DESKTOP_NETWORK), native = new NativeWorld(), made = invitationWhere(dialer);
+  const inviter = desktop(native, "ana", open(made.inviter, pkarr, { dht: true, link: { rtcAvailable: false } }));
+  await run(2_000);
+  const joiner = desktop(native, "bia", open(made.joiner, pkarr, { dht: true, link: { rtcAvailable: false } }));
+  // The inviter sees the joiner and has pinned it, as when it reads the joiner's record (only a pinned contact's is read).
+  const seen = await until(() => inviter.side.progress.some(p => p.peerSeen) && !!inviter.side.credentials.peerKey, 60_000);
+  expect(seen, "the inviter sees the joiner").toBeLessThan(Infinity);
+  return { native, inviter, joiner };
+}
+
+beforeEach(useFakeWorld);
+afterEach(closeWorld);
+
+describe("a first pairing with no WebRTC on either side", () => {
+  it.each(["inviter", "joiner"] as const)("the inviter dials the joiner's native transport as soon as its record says how, not after the grace an offer gets (the %s's key is lower)", async dialer => {
+    const { inviter, joiner } = await pair(dialer);
+    expect(inviter.dials, "nothing to dial before the record").toEqual([]);
+    const learnt = Date.now();
+    inviter.side.link.learnPeerTransports(...record(joiner), true);
+    const took = await until(() => inviter.dials.length > 0, 10_000);
+    expect(took, "the inviter dials").toBeLessThan(Infinity);
+    expect(inviter.dials[0] - learnt, "at once, not after the inviter's grace").toBeLessThan(INVITER_DIAL_GRACE_MS / 5);
+    expect(await until(() => live(inviter) && live(joiner), 10_000), "live on both sides").toBeLessThan(Infinity);
+    expect(inviter.side.link.isDataLinkOpen && joiner.side.link.isDataLinkOpen).toBe(true);
+  }, 60_000);
+
+  it.each(["inviter", "joiner"] as const)("both reading each other's record at once dial each other, and one session carries the chat on both sides (the %s's key is lower)", async dialer => {
+    const { native, inviter, joiner } = await pair(dialer);
+    joiner.side.link.learnPeerTransports(...record(inviter), true);
+    inviter.side.link.learnPeerTransports(...record(joiner), true);
+    expect(await until(() => live(inviter) && live(joiner), 10_000), "live on both sides").toBeLessThan(Infinity);
+    expect(inviter.dials.length + joiner.dials.length, "each dialled once").toBe(2);
+    // The two ends of one connection: the crossing settled on the same one at both sides, and it stays.
+    await run(15_000);
+    for (const desk of [inviter, joiner]) expect(live(desk), `${desk.side.link.pairingProgress?.role} still live`).toBe(true);
+    const a = channelOf(inviter.side.link) as { peer?: unknown }, b = channelOf(joiner.side.link);
+    expect(a?.peer, "one session, the same connection at both ends").toBe(b);
+    expect(native.dials, "no dial after the crossing").toBe(2);
+  }, 60_000);
+
+  it("the lower key's own dial stalling, the contact's that crossed it carries the chat once it connected, not after the redial", async () => {
+    // A HyperDHT dial that opened and brought no preface: dialled again at 2 s (redial.mjs `PREFACE_WAIT_MS`); the
+    // contact never saw the first. Before, the joiner kept the inviter's connection waiting for that redial (lab, DHT
+    // direct: 5 of 20 pairings live 0.9-1.2 s after a working connection was there).
+    const { native, inviter, joiner } = await pair("joiner");
+    const connect = joiner.endpoint.connect;
+    let stalled = false;
+    joiner.endpoint.connect = async descriptor => {
+      if (!stalled) { stalled = true; await new Promise(resolve => setTimeout(resolve, 2_000)); }
+      return connect(descriptor);
+    };
+    joiner.side.link.learnPeerTransports(...record(inviter), true);
+    await run(200);
+    inviter.side.link.learnPeerTransports(...record(joiner), true);
+    const took = await until(() => inviter.dials.length > 0, 10_000);
+    expect(took, "the inviter dials").toBeLessThan(Infinity);
+    const liveMs = await until(() => live(inviter) && live(joiner), 10_000) + took;
+    // The inviter's dial connects in `dialMs` (0.4 s). Before: live 2.4 s after it dialled, with the joiner's redial; 1.15 s after.
+    expect(liveMs, "live soon after the inviter's dial connected").toBeLessThan(native.dialMs + 1_000);
+    // The joiner's redial, landing late, is closed on both sides: the session stays where it is.
+    await run(15_000);
+    for (const desk of [inviter, joiner]) expect(live(desk), `${desk.side.link.pairingProgress?.role} still live`).toBe(true);
+    const a = channelOf(inviter.side.link) as { peer?: unknown }, b = channelOf(joiner.side.link);
+    expect(a?.peer, "one session, the same connection at both ends").toBe(b);
+  }, 60_000);
+});
+
+/**
+ * agents#1657: each side's first stream dial fails in milliseconds (a hole punch that aborts, as on a lossy network).
+ * The contact was pinned over the DHT already, so the failure turned the pairing `on-dht`, and its dials fell to a
+ * saved contact's: the lower key alone, 20 s × 2^n later. Live after 40 s (8 of 8 in the lab), or not in 180 s at 15%
+ * loss. A first pairing keeps its pace (`PAIRING_RETRY_MS` × 2^n) and both sides dial, until it is live.
+ */
+describe("a first pairing whose first stream dial fails on each side", () => {
+  it.each(["inviter", "joiner"] as const)("goes live in seconds, both sides dialling again at a pairing's pace (the %s's key is lower)", async dialer => {
+    const { inviter, joiner } = await pair(dialer);
+    for (const desk of [inviter, joiner]) {
+      const connect = desk.endpoint.connect;
+      let failed = false;
+      desk.endpoint.connect = async descriptor => {
+        if (!failed) { failed = true; desk.dials.push(Date.now()); await new Promise(resolve => setTimeout(resolve, 5)); throw new Error("HOLEPUNCH_ABORTED: Holepunch aborted"); }
+        return connect(descriptor);
+      };
+    }
+    const learnt = Date.now();
+    joiner.side.link.learnPeerTransports(...record(inviter), true);
+    inviter.side.link.learnPeerTransports(...record(joiner), true);
+    const took = await until(() => live(inviter) && live(joiner), 120_000);
+    const dials = [...inviter.dials.map(at => `inviter ${((at - learnt) / 1000).toFixed(1)}s`), ...joiner.dials.map(at => `joiner ${((at - learnt) / 1000).toFixed(1)}s`)];
+    console.log(`FAILED FIRST DIALS (${dialer} lower): live after ${(took / 1000).toFixed(1)} s; dials ${dials.join(", ")}`);
+    expect(took, "live within a pairing's retries, not a saved contact's 40 s").toBeLessThan(10_000);
+    expect(inviter.dials.length, "the inviter dialled again").toBeGreaterThanOrEqual(2);
+    expect(joiner.dials.length, "the joiner dialled again").toBeGreaterThanOrEqual(2);
+  }, 180_000);
+});
+
+/**
+ * A slow DHT (a busy public one, or a testnet with dead nodes: puts 5-12 s, reads 2.5-7.5 s): for 20 s neither Desktop
+ * has read the other's capability record, so a dial has nothing to try ("No transport both apps allow is available
+ * yet"). Each such dial used to count as a failed one: the pairing turned `on-dht` with a transport reason at 12-15 s,
+ * and the next dial waited 160 s.
+ */
+const SLOW_DHT: NetworkModel = { publishMs: 5_000, visibleAfterMs: 5_000, readMs: 2_500 };
+
+describe("a first pairing with no WebRTC, before either side read the other's record", () => {
+  it("counts no dial that had nothing to try: no on-dht for a transport, no wait grown", async () => {
+    const pkarr = new MemoryPkarr(SLOW_DHT), native = new NativeWorld(), made = invitationWhere("inviter");
+    const inviter = desktop(native, "ana", open(made.inviter, pkarr, { dht: true, link: { rtcAvailable: false } }));
+    await run(8_000);
+    const joiner = desktop(native, "bia", open(made.joiner, pkarr, { dht: true, link: { rtcAvailable: false } }));
+    await run(20_000);
+    for (const desk of [inviter, joiner]) {
+      const role = desk.side.link.pairingProgress?.role;
+      expect(desk.dials, `${role}: nothing was dialled`).toEqual([]);
+      expect(desk.side.progress.filter(p => p.reason === "transport"), `${role}: no transport failed`).toEqual([]);
+      const attempt = desk.side.link.liveAttempt;
+      expect(attempt?.reason, `${role}: says why nothing was tried`).toMatch(/No transport both apps allow/);
+      // At most the first wait of the background pace (20 s), not 160 s.
+      expect(attempt!.retryAt! - Date.now(), `${role}: the next dial is not pushed back`).toBeLessThanOrEqual(20_000);
+    }
+  }, 60_000);
+});
+
+/**
+ * The local Mainline testnet of dht-direct.spec.ts once DHT puts stopped waiting for silent nodes (#1421): a key's
+ * first put lands in ~1.15 s, and the joiner's first read of the inviter returns after `DHT_ANSWER_WAIT` (1.5 s).
+ */
+const DHT_TESTNET: NetworkModel = { publishMs: 1_150, visibleAfterMs: 1_150, readMs: 1_500 };
+
+/** A fresh invite joined 3 s after it was made: when the joiner's link packet first goes out, and when the inviter sees it. */
+async function join(rtcAvailable: boolean, firstPublish?: "after-first-poll"): Promise<{ firstPut: number; seen: number; joinerPuts: number; puts: number }> {
+  const pkarr = new MemoryPkarr(DHT_TESTNET), made = invitationWhere("inviter");
+  const inviter = open(made.inviter, pkarr, { dht: true, link: { rtcAvailable } });
+  await run(3_000);
+  const joined = Date.now(), puts = pkarr.publishes;
+  const joiner = open(made.joiner, pkarr, { dht: true, link: { rtcAvailable, ...(firstPublish && { firstPublish }) } });
+  const key = joiner.link.session.identity.pubKeyZ32;
+  const firstPut = await until(() => (pkarr.publishesByKey.get(key) ?? 0) > 0, 10_000);
+  const seen = await until(() => inviter.progress.some(p => p.peerSeen), 30_000) + firstPut;
+  await run(20_000 - (Date.now() - joined));
+  return { firstPut, seen, joinerPuts: pkarr.publishesByKey.get(key) ?? 0, puts: pkarr.publishes - puts };
+}
+
+describe("a joiner's first link packet", () => {
+  it("with no WebRTC, goes out as the link starts, not after its first read of the inviter, and with no put more", async () => {
+    const early = await join(false), late = await join(false, "after-first-poll");
+    // Before: out after the read (1.5 s), the inviter saw the joiner 3.75 s after the join. After: 0 s and 2 s, the same puts.
+    expect(early.firstPut, "out as the link starts").toBeLessThan(DHT_TESTNET.readMs / 5);
+    expect(early.seen, "the inviter sees the joiner a read sooner").toBeLessThanOrEqual(late.seen - DHT_TESTNET.readMs);
+    expect(early.joinerPuts, "the joiner's link key: no put more").toBe(late.joinerPuts);
+    expect(early.puts, "both apps, every key: no put more").toBe(late.puts);
+  }, 120_000);
+
+  it("with WebRTC, still waits for its first read: its offer goes in it", async () => {
+    const { firstPut } = await join(true);
+    expect(firstPut, "after the first read").toBeGreaterThanOrEqual(DHT_TESTNET.readMs);
+  }, 60_000);
+});

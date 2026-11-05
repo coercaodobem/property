@@ -1,0 +1,85 @@
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
+import type { GroupView } from "@ghostly/browser/shared/types";
+import { useBackdropDismiss, useBackCloses } from "../hooks/useDismiss";
+import { memberName } from "../lib/groups";
+import { useI18n } from "../contexts/I18nContext";
+import { problemText, type Problem } from "../lib/problemText";
+import { Notice } from "./ui/Notice";
+import { focusPastRow, rowAfter } from "./GroupInvitation";
+
+/**
+ * Leaving a group, said before it happens: it goes from this device with its history, and an admin
+ * hands the role to a member who is online (the engine picks the first one over a direct edge, as here). Closed without
+ * leaving, it gives the focus back to what opened it, or to `returnFocus` (the group's ⋮, whose row went with its menu).
+ * `forget`: asked by "Delete from this device", which leaves an active group as well, under the same checks, but for a
+ * community nobody is connected to: a member's delete goes ahead, and the dialog says the others still list them.
+ */
+export function LeaveGroupDialog({ group, onClose, onConfirm, returnFocus, forget }: { group: GroupView; onClose(): void; onConfirm(): Promise<void>; returnFocus?: RefObject<HTMLElement | null>; forget?: boolean }) {
+  const { t } = useI18n();
+  const id = useId();
+  const dialog = useRef<HTMLDialogElement>(null), cancel = useRef<HTMLButtonElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<Problem | null>(null);
+  // Once the leave went ahead: the chat list's row after the group's, taken as it starts (the group's own row goes with
+  // it). Closed without leaving, undefined.
+  const leaving = useRef<HTMLElement | null | undefined>(undefined);
+  const close = () => { leaving.current = undefined; onClose(); };
+  const backdrop = useBackdropDismiss(close);
+  useBackCloses(close);
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null, opener = returnFocus?.current;
+    const element = dialog.current!; element.showModal(); cancel.current?.focus();
+    return () => {
+      element.close();
+      // Left: the group's page goes, with what opened this (it may still be there as this closes, the list not yet
+      // shown). The focus goes to the list's next row, or New, as a declined invitation's and a deleted chat's do; it
+      // was left on the page's body.
+      if (leaving.current !== undefined) { focusPastRow(leaving.current, null); return; }
+      const back = before && before !== document.body && before.isConnected ? before : opener;
+      if (back?.isConnected) back.focus();
+    };
+  }, [returnFocus]);
+  const others = group.members.filter(m => !m.me);
+  // A community hands the role to a member it is connected to, or to anyone: the commit travels through the hubs.
+  // A private group hands it to the first member over a direct edge of mine, as the engine's `successor()` does: a
+  // member reached through a hub is online, but the role commit does not travel through hubs.
+  const community = group.profile === "community";
+  const successor = !group.isAdmin ? undefined : community ? others.find(m => m.online) ?? others[0] : others.find(m => m.online && !m.viaHub);
+  const unheard = community && others.length > 0 && !group.community?.connected;
+  // A member deleting a community nobody is connected to: it goes anyway (the engine's `deleteHere`), the leave unsaid.
+  const unsaid = unheard && forget && !group.isAdmin;
+  const blocked = others.length > 0 && !unsaid && (community ? unheard : group.isAdmin && !successor);
+  // A community's admin waits for members who may never come back: what works with nobody connected is removing them
+  // (alone, the admin leaves or deletes it), or, for Delete, making one admin (a member's delete goes ahead unsaid).
+  const blockedNext = !community ? "group.leave.blockedNext" : !group.isAdmin ? "group.leave.blockedCommunityNext"
+    : forget ? "group.leave.blockedCommunityAdminForgetNext" : "group.leave.blockedCommunityAdminNext";
+  const leave = async () => {
+    if (busy) return;
+    leaving.current = rowAfter(group.id);
+    setBusy(true); setError(null);
+    try { await onConfirm(); } catch (e) { leaving.current = undefined; setError(e instanceof Error ? problemText(e, t) : { tone: "error", title: t("group.error.generic") }); setBusy(false); }
+  };
+  return createPortal(<dialog ref={dialog} {...backdrop} onCancel={e => { e.preventDefault(); close(); }} aria-labelledby={`${id}-title`} aria-describedby={`${id}-body`}
+    data-testid="group-leave-dialog" className="m-auto w-[calc(100%_-_2rem)] max-w-sm rounded-2xl border border-border bg-sidebar-bg p-5 text-text-primary shadow-2xl backdrop:bg-black/60">
+    <h2 id={`${id}-title`} className="break-words text-base font-semibold">{forget
+      ? group.name ? t("group.leave.forgetTitle", { name: group.name }) : t("group.leave.forgetTitleUnnamed")
+      : group.name ? t("group.leave.title", { name: group.name }) : t("group.leave.titleUnnamed")}</h2>
+    <div id={`${id}-body`} className="mt-2 space-y-2 text-sm text-text-muted">
+      {forget && <p>{t("group.leave.forgetBody")}</p>}
+      <p>{t(community ? "group.leave.bodyCommunity" : "group.leave.body")}</p>
+      {successor && others.length > 0 && <p data-testid="group-leave-successor">{t("group.leave.successor", { name: memberName(successor, t) })}
+        {/* A private group's link works from the admin's app: the one shared so far stops working with the role. */}
+        {group.entryLink && !community && <> {t("group.link.endsOnHandover", { name: memberName(successor, t) })}</>}</p>}
+      {unsaid && <Notice tone="warning" className="text-sm" testId="leave-unsaid" title={t("group.leave.blockedCommunity")} next={t("group.leave.unsaidNext")} />}
+      {blocked && <Notice tone={community ? "wait" : "error"} className="text-sm" testId="leave-blocked" title={community ? t("group.leave.blockedCommunity") : t("group.leave.blocked")} next={t(blockedNext)} />}
+    </div>
+    {error && <Notice problem={error} className="mt-2 text-sm" />}
+    <div className="mt-5 flex justify-end gap-2">
+      <button ref={cancel} onClick={close} className="min-h-11 rounded-lg px-4 text-sm hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-accent">{t("common.cancel")}</button>
+      {/* While it leaves, a press does nothing; not disabled, which would drop the focus to the page (and keep it there if refused). */}
+      <button disabled={blocked} aria-disabled={busy || undefined} onClick={() => void leave()} data-testid="group-leave-confirm"
+        className="min-h-11 rounded-lg bg-danger/15 px-4 text-sm text-danger-ink hover:bg-danger/25 focus-visible:ring-2 focus-visible:ring-danger disabled:opacity-40 aria-disabled:opacity-40">{forget ? t("group.menu.forget") : t("group.menu.leave")}</button>
+    </div>
+  </dialog>, document.body);
+}

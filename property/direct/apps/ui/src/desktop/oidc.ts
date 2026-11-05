@@ -1,0 +1,43 @@
+import { invoke } from "@tauri-apps/api/core";
+import type { OidcHost } from "@ghostly/browser/host";
+import { DESKTOP_RELAY } from "@ghostly/browser/proofs/oidc/popup";
+
+/**
+ * The language of the page the browser lands on after a sign-in, which Rust serves in its own words
+ * (apps/desktop/src/oidc.rs `page`): the app's language, as a tag.
+ */
+export function signInPageLanguage(): string {
+  return document.documentElement.lang || navigator.language;
+}
+
+/**
+ * Sign-in for an identity proof in the system browser: providers refuse
+ * embedded WebViews. The provider returns to the web app's static callback
+ * page, registered once per provider, which forwards the fragment to Rust's
+ * one-shot listener on 127.0.0.1 (apps/desktop/src/oidc.rs). The state names that
+ * listener's port so the page knows where to send it. The Android app listens on
+ * no port (Rust says 0): its `a.` state sends the answer to the app's deep link.
+ */
+export const desktopOidc: OidcHost = {
+  platform: "desktop",
+  async open() {
+    const port = await invoke<number>("oidc_loopback_start", { lang: signInPageLanguage() });
+    return {
+      redirectUri: DESKTOP_RELAY,
+      statePrefix: port === 0 ? "a." : `d.${port}.`,
+      async authorize(url, signal) {
+        const state = new URL(url).searchParams.get("state") ?? "";
+        const cancel = () => void invoke("oidc_loopback_cancel", { port }).catch(() => {});
+        signal.addEventListener("abort", cancel, { once: true });
+        try {
+          const answer = await invoke<string>("oidc_loopback_wait", { port, url, expectedState: state });
+          // The listener hands back "?query#fragment": put it on the address the provider redirected to.
+          return `${DESKTOP_RELAY}${answer}`;
+        } finally {
+          signal.removeEventListener("abort", cancel);
+        }
+      },
+      close: () => void invoke("oidc_loopback_cancel", { port }).catch(() => {}),
+    };
+  },
+};

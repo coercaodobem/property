@@ -1,0 +1,164 @@
+{
+  "board": {
+    "card": {
+      "botLabel": "Da:",
+      "chatLabel": "Chat:",
+      "checks": {
+        "failing": "Controlli falliti",
+        "passing": "Controlli superati",
+        "pending": "Controlli in corso"
+      },
+      "details": "Dettagli",
+      "filesLabel": "File:",
+      "from": "{{bot}} in {{chat}}",
+      "in": "in {{chat}}",
+      "openPr": "Apri su {{host}}",
+      "parts": "{{done}} di {{total}} completate",
+      "prLabel": "Pull request:",
+      "prState": {
+        "closed": "Chiusa",
+        "draft": "Bozza",
+        "merged": "Unita",
+        "open": "Aperta"
+      },
+      "statusLabel": "Stato:",
+      "steps": "{{done}} di {{total}}",
+      "tagsLabel": "Etichette:",
+      "updatedLabel": "Aggiornata:"
+    },
+    "clearFinished": "Cancella concluse",
+    "clearFinishedHint": "Nasconde su questo dispositivo le attività completate, fallite e annullate. Il prossimo aggiornamento di un bot ne riporta una.",
+    "column": {
+      "blocked": "Bloccate",
+      "closed": "Fermate",
+      "done": "Completate",
+      "queued": "In coda",
+      "review": "Revisione",
+      "running": "In corso"
+    },
+    "columns": "Colonne",
+    "empty": "Ancora nessuna attività",
+    "emptyHint": "Le schede attività dei bot delle tue chat compaiono qui.",
+    "filter": "Filtra attività",
+    "groupBy": {
+      "bot": "Bot",
+      "chat": "Chat",
+      "label": "Raggruppa per",
+      "status": "Stato"
+    },
+    "hideOlder": "Nascondi le vecchie",
+    "info": "Le schede attività dei bot, da tutte le chat. Le attività completate e fermate restano un giorno. Una scheda mostra soltanto l'attività: lo stato lo cambia il suo bot.",
+    "me": "Tu",
+    "noMatch": "Nessuna attività corrisponde",
+    "none": "Nessuna",
+    "showMore": "Mostra altre ({{count}})",
+    "showOlder": "Mostra le vecchie ({{count}})",
+    "tagFilter": "Mostra solo {{tag}}",
+    "tags": "Etichette",
+    "tasksMany": "{{count}} attività",
+    "tasksOne": "1 attività",
+    "title": "Attività",
+    "view": {
+      "label": "Mostra",
+      "routines": "Routine",
+      "tasks": "Attività"
+    }
+  },
+  "buttons": {
+    "answers": "Risposte",
+    "chosen": "Scelta",
+    "closed": "Chiusa",
+    "failed": "Invio non riuscito",
+    "jump": "Vai alla domanda",
+    "sending": "Invio…"
+  },
+  "panel": {
+    "activeCount": "{{count}} in corso",
+    "allOk": "tutto OK",
+    "button": "Attività",
+    "buttonCount": "Attività, {{count}} in corso",
+    "close": "Chiudi",
+    "empty": "Nessuna attività in corso",
+    "failedCount": "{{count}} non riuscite",
+    "finishedCount": "Concluse ({{count}})",
+    "idle": "Niente in corso",
+    "info": "I bot pubblicano queste schede e le tengono aggiornate. Tocca una scheda per andarci nella chat.",
+    "nextRun": "prossima {{when}}",
+    "routinesMany": "{{count}} routine",
+    "routinesOne": "1 routine",
+    "title": "Attività"
+  },
+  "routine": {
+    "cron": "Cron",
+    "label": "Routine: {{name}}, {{state}}",
+    "lastRun": "Ultima esecuzione: {{result}}",
+    "next": "Prossima {{when}}",
+    "noRuns": "Nessuna esecuzione ancora",
+    "result": {
+      "failed": "Non riuscita",
+      "ok": "OK",
+      "skipped": "Saltata"
+    },
+    "runs": "Esecuzioni recenti",
+    "schedule": "Orario",
+    "state": {
+      "active": "Attiva",
+      "paused": "In pausa"
+    }
+  },
+  "task": {
+    "branch": "Branch:",
+    "elapsed": {
+      "blocked": "bloccata da {{duration}}",
+      "queued": "in coda da {{duration}}",
+      "running": "in corso da {{duration}}",
+      "took": "ha richiesto {{duration}}"
+    },
+    "item": {
+      "done": "Fatto",
+      "failed": "Non riuscito",
+      "pending": "Da fare",
+      "running": "In corso",
+      "skipped": "Saltato"
+    },
+    "label": "Attività: {{title}}, {{status}}",
+    "labelProgress": "Attività: {{title}}, {{status}}, {{progress}}%",
+    "now": "Ora:",
+    "pr": "PR #{{number}}",
+    "prNoNumber": "Pull request",
+    "progress": "Avanzamento",
+    "started": "Iniziata {{ago}}",
+    "status": {
+      "blocked": "Bloccata",
+      "cancelled": "Annullata",
+      "done": "Completata",
+      "failed": "Non riuscita",
+      "queued": "In coda",
+      "running": "In corso"
+    },
+    "steps": "{{done}} di {{total}} passi",
+    "updated": "aggiornata {{ago}}"
+  },
+  "usage": {
+    "accountLabel": "Account",
+    "info": "Quello che il bot dice di avere ancora. Property non lo verifica.",
+    "label": "{{name}}: resta il {{left}}%",
+    "labelResets": "{{name}}: resta il {{left}}%, si rinnova {{time}}",
+    "left": "resta il {{left}}%",
+    "leftLabel": "Resta",
+    "resets": "si rinnova {{time}}",
+    "resetsLabel": "Si rinnova",
+    "stale": "non aggiornato di recente",
+    "staleHint": "Numeri vecchi: il bot non li aggiorna da un po', o la finestra si è rinnovata.",
+    "title": "Utilizzo",
+    "updatedLabel": "Aggiornato",
+    "used": "{{used}} di {{limit}} usati",
+    "usedLabel": "Usato",
+    "wasReset": "rinnovata {{ago}}"
+  },
+  "working": {
+    "label": "Al lavoro",
+    "quiet": "Al lavoro? · ultimo aggiornamento {{ago}}",
+    "stale": "Nessun aggiornamento da {{duration}}"
+  }
+}

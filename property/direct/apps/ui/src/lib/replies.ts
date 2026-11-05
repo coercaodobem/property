@@ -1,0 +1,192 @@
+import { replySnippet, type StatusCard } from "@ghostly/core";
+import { replyRef, replyTo, type ReplyTarget } from "@ghostly/browser/shared/replies";
+import type { MessageReply } from "@ghostly/browser/shared/types";
+import { revealMessage } from "../hooks/useRowWindow";
+import { reducedMotion } from "./motion";
+import { filePreview } from "./chatList";
+import { appCardLine, cardLine, showsCard } from "./statusCards";
+import type { ChatFile, ChatMessage } from "./types";
+import { englishT, type Translate } from "../locales/translate";
+
+/*
+ * Replies in the chat's view (WISP 400 § Replies): which message a reply's quote stands for, and how it reads.
+ */
+
+/**
+ * - `found`: the original is in this chat; the quote shows it as it is here, and a tap goes to it.
+ * - `deleted`: it was here when the reply came, and is gone.
+ * - `unverified`: it is not here; the line is only what the replier's app said.
+ * - `missing`: it is not here, and nothing came with the reply but its id (a reply over the DHT).
+ * - `loading`: it is not here yet: the chat's older messages have not come in (just started, the engine's history not
+ *   in). The line is what the reply carries until they do.
+ */
+export type QuoteState = "found" | "deleted" | "unverified" | "missing" | "loading";
+
+export interface QuoteView {
+  state: QuoteState;
+  /** Who wrote the original, as this chat names them; absent when nothing says. */
+  name?: string;
+  /** A line of it; empty when there is none to show. */
+  snippet: string;
+  /** Mine: the quote takes my colour. */
+  mine: boolean;
+  /** A group member's original, not mine: its author's key, whose colour the name takes (lib/memberColors.ts). */
+  member?: string;
+  /** The original's row, to scroll to. */
+  targetId?: string;
+}
+
+/** What a quote needs of a message: the UI's copy of a paired chat's, or a group's row as the engine keeps it. */
+export type Quotable = ReplyTarget & { sender: string; text: string; member?: string; card?: StatusCard; file?: ChatFile };
+
+/**
+ * A message's line where it is quoted or pinned: its text's, a bot's card's title (the text is only its fallback), or
+ * a voice message's or a video's line in the reader's language (its text is kept in English, `fileMessageText`).
+ */
+export function messageSnippet(message: { text: string; card?: StatusCard; file?: ChatFile }, t: Translate = englishT): string {
+  if (showsCard(message.card)) return replySnippet(cardLine(message.card));
+  return replySnippet(appCardLine(message.card, t) ?? filePreview(message.file, t) ?? message.text);
+}
+
+/**
+ * A chat's messages by their id here and by the id a reply names (`replyRef`). `partial`: its older messages are not
+ * all here yet (a session read without them, `older` in lib/storage), so one missing may only be not loaded.
+ */
+export interface ReplyIndex { byId: Map<string, Quotable>; byRef: Map<string, Quotable>; partial?: boolean }
+
+export function replyIndex(messages: readonly Quotable[], group = false, partial = false): ReplyIndex {
+  const byId = new Map<string, Quotable>(), byRef = new Map<string, Quotable>();
+  for (const message of messages) {
+    byId.set(message.id, message);
+    const ref = replyRef(message, group);
+    if (ref && !byRef.has(ref)) byRef.set(ref, message);
+  }
+  return { byId, byRef, ...(partial && { partial }) };
+}
+
+/**
+ * `replyIndex` for one chat's list as it changes, for the page that shows it (it gets a new list with each message). Its
+ * rows keep their objects from one list to the next, but for the newest ones (`withWhole` in lib/storage), so only the
+ * rows from the first that differs are read: a message arriving in a chat of thousands costs what it does in a short
+ * one. So does a text I just sent taking its wire id in its row's place (`me_<time>`, which no reply can name, becomes
+ * `me_<wire id>`). Any other list with a row gone, moved or named otherwise is read whole. An index it gave before
+ * shares its maps and sees the rows that came since: it is for the list being drawn.
+ */
+export function replyIndexer(group = false): (messages: readonly Quotable[], partial?: boolean) => ReplyIndex {
+  let list: readonly Quotable[] = [];
+  let maps: ReplyIndex = { byId: new Map(), byRef: new Map() };
+  return (messages, partial = false) => {
+    let same = 0;
+    while (same < list.length && list[same] === messages[same]) same++;
+    let kept = messages.length >= list.length;
+    for (let i = same; kept && i < list.length; i++) {
+      const was = list[i], now = messages[i], ref = replyRef(now, group);
+      kept = was.id === now.id ? replyRef(was, group) === ref : !replyRef(was, group) && !maps.byId.has(now.id) && !(ref && maps.byRef.has(ref));
+    }
+    if (kept) {
+      for (let i = same; i < messages.length; i++) {
+        const message = messages[i], was = list[i], ref = replyRef(message, group), inPlace = was?.id === message.id;
+        if (was && !inPlace) maps.byId.delete(was.id);
+        maps.byId.set(message.id, message);
+        // The first row with a ref holds it, as `replyIndex` has it: a row in its place takes over only what it held.
+        if (ref && (inPlace ? maps.byRef.get(ref) === was : !maps.byRef.has(ref))) maps.byRef.set(ref, message);
+      }
+    } else maps = replyIndex(messages, group);
+    list = messages;
+    return { byId: maps.byId, byRef: maps.byRef, ...(partial && { partial }) };
+  };
+}
+
+/** The id a reply to this message names; none when it cannot be replied to (a notice, a group payment line). */
+export function replyTarget(message: Quotable & Pick<ChatMessage, "systemEvent" | "callEvent">, group = false): string | undefined {
+  if (message.sender === "system" || message.systemEvent || message.callEvent) return undefined;
+  return replyRef(message, group);
+}
+
+/**
+ * A reply to `original` as the sender's own copy of a file keeps it, the way the engine keeps a reply sent here
+ * (`replyTo` in shared/replies): found, since it is here. None when it cannot be replied to.
+ */
+export function sentReply(original: Quotable, group = false): MessageReply | undefined {
+  const ref = replyRef(original, group);
+  return ref ? replyTo(original, ref) : undefined;
+}
+
+/** Who wrote a message or an original, as the page names people: me, the contact, a member. */
+export type NameOf = (from: "me" | "peer" | undefined, member?: string) => string | undefined;
+
+/** The quote a reply shows. The original found here wins over what the wire said about it. */
+export function quoteFor(reply: MessageReply, index: ReplyIndex, nameOf: NameOf, t: Translate = englishT): QuoteView {
+  const original = (reply.messageId ? index.byId.get(reply.messageId) : undefined) ?? index.byRef.get(reply.id);
+  if (original) {
+    const from = original.sender === "me" ? "me" : "peer";
+    const member = from === "peer" ? original.member ?? reply.member : undefined;
+    // A button press quotes the question as the presser answered it, even if its bot changed it after (WISP 406 · Message Buttons).
+    const snippet = reply.button && reply.snippet ? reply.snippet : messageSnippet(original, t);
+    return { state: "found", name: nameOf(from, original.member ?? reply.member), snippet, mine: from === "me", targetId: original.id, ...(member && { member }) };
+  }
+  const name = reply.from ? nameOf(reply.from, reply.member) : undefined;
+  // Not deleted while the older messages are still on their way: it may be among them.
+  const state: QuoteState = index.partial ? "loading" : reply.messageId ? "deleted" : reply.snippet ? "unverified" : "missing";
+  const member = reply.from === "peer" ? reply.member : undefined;
+  return { state, name, snippet: state === "unverified" || state === "loading" ? reply.snippet : "", mine: reply.from === "me", ...(member && { member }) };
+}
+
+/** How long a message a quote jumped to stays marked. */
+export const REPLY_FLASH_MS = 1600;
+
+/** Fired on a row just before a jump scrolls to it, for the list to follow it there (useChatScroll). */
+export const JUMP_EVENT = "ghostly:jump-to-message";
+
+/**
+ * Whether a jump to this row glides there. Not when the person asked for less motion, nor far away (a search's match a
+ * thousand messages up): a smooth scroll that long takes seconds, so it goes at once.
+ */
+export function jumpGlides(row: Element): boolean {
+  return !reducedMotion() && Math.abs(row.getBoundingClientRect().top) <= 3 * window.innerHeight;
+}
+
+/**
+ * Scrolls a message into the middle of the chat and marks it for a moment (`data-reply-flash`). False when it is not
+ * in the page (a history never holds more than what is loaded, which is all of it).
+ */
+export function jumpToMessage(id: string, root: ParentNode = document): boolean {
+  const row = [...root.querySelectorAll<HTMLElement>("[data-message-id]")].find(el => el.dataset.messageId === id);
+  if (!row) return false;
+  row.dispatchEvent(new Event(JUMP_EVENT, { bubbles: true }));
+  row.scrollIntoView?.({ block: "center", behavior: jumpGlides(row) ? "smooth" : "auto" });
+  row.removeAttribute("data-reply-flash");
+  // A second jump while it is still marked starts the mark again.
+  void row.offsetWidth;
+  row.setAttribute("data-reply-flash", "");
+  const timer = Number(row.dataset.replyFlashTimer);
+  if (timer) clearTimeout(timer);
+  row.dataset.replyFlashTimer = String(setTimeout(() => { row.removeAttribute("data-reply-flash"); delete row.dataset.replyFlashTimer; }, REPLY_FLASH_MS));
+  return true;
+}
+
+/**
+ * Goes to a status card's message (a row of the Tasks panel, a card of the Tasks board) and puts the focus on the card.
+ * In a long chat its row may not be in the page (useRowWindow): the rows around it first, then go. False when no open
+ * chat has it.
+ */
+export function jumpToCard(messageId: string): boolean {
+  const land = () => {
+    if (!jumpToMessage(messageId)) return false;
+    const row = [...document.querySelectorAll<HTMLElement>("[data-message-id]")].find((el) => el.dataset.messageId === messageId);
+    row?.querySelector<HTMLElement>("[data-testid=status-card-toggle]")?.focus({ preventScroll: true });
+    return true;
+  };
+  if (land()) return true;
+  if (!revealMessage(messageId)) return false;
+  requestAnimationFrame(land);
+  return true;
+}
+
+/**
+ * Goes to the message a reply answers. Not in the page (a long chat has a window of its rows, useRowWindow): the rows
+ * around it first, and again. False when it is not in this chat.
+ */
+export function jumpToQuoted(targetId: string | undefined): boolean {
+  return !!targetId && (jumpToMessage(targetId) || (revealMessage(targetId) && jumpToMessage(targetId)));
+}

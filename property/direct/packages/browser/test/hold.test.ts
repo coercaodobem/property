@@ -1,0 +1,700 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createIdentity, createLink, createRelayPayload, parseRelayPayload, HoldKeys, HOLD_LIMITS, RatchetBox, emptyRatchetState, fromBase64Url, identityFromSeedB64, type PaymentRequest, type PkarrTransport, type SignedPacket, type ImageMeta, type VideoMeta, type VoiceMeta } from "@ghostly/core";
+import { HoldEngine, emptyHoldState, holdFetchTimeoutMs, type HoldHost } from "../src/engine/hold";
+import { presignS3 } from "../src/backup/s3";
+import type { HoldStore, StoredBackup } from "../src/backup/storage";
+import type { HoldState, StoredLink } from "../src/shared/types";
+// covers: chat.replies.wire, files.voice.meta, files.video.meta, files.image.meta, delivery.hold.enable, delivery.hold.text, delivery.hold.picture, delivery.hold.request, delivery.hold.tamper, delivery.hold.expiry, delivery.hold.protocol, chat.ratchet
+
+/**
+ * A bucket in memory that hands out presigned addresses the way S3 does, and a relay in memory: two
+ * engines, Alice holding for Bob and Bob picking up, with nothing but these between them.
+ */
+function bucket(bucketName = "bucket") {
+  const objects = new Map<string, Uint8Array>();
+  const store: HoldStore & { objects: typeof objects; tamper(name: string): void } = {
+    objects,
+    description: "S3 · test",
+    async put(name, bytes) { objects.set(name, bytes.slice()); },
+    async get(name) { const bytes = objects.get(name); if (!bytes) throw new Error("S3 refused (404 NoSuchKey)"); return bytes; },
+    async list() { return []; },
+    async listFolder(space, mailbox): Promise<StoredBackup[]> { return [...objects.keys()].filter((k) => k.startsWith(`${space}/hold/${mailbox}/`)).map((name) => ({ name, created: 0 })); },
+    async remove(name) { objects.delete(name); },
+    presign: (name, seconds) => presignS3({ method: "GET", url: new URL(`https://s3.test/${bucketName}/${name}`), expiresSeconds: seconds }, { region: "us-east-1", accessKeyId: "k", secretAccessKey: "s" }),
+    tamper(name) { const bytes = objects.get(name)!; bytes[bytes.length - 2] ^= 0x01; },
+  };
+  const fetcher = (async (input: RequestInfo | URL) => {
+    const url = new URL(String(input));
+    if (url.host !== "s3.test" || !url.searchParams.get("X-Amz-Signature")) return new Response("forbidden", { status: 403 });
+    const bytes = objects.get(decodeURIComponent(url.pathname.replace(`/${bucketName}/`, "")));
+    return bytes ? new Response(bytes.slice() as BodyInit, { headers: { "content-length": String(bytes.length) } }) : new Response("nope", { status: 404 });
+  }) as unknown as typeof fetch;
+  return { store, fetcher };
+}
+
+function relay(): PkarrTransport & { packets: Map<string, SignedPacket>; puts: number } {
+  const packets = new Map<string, SignedPacket>();
+  return {
+    packets, puts: 0,
+    async publish(identity, records) { this.puts++; packets.set(identity.pubKeyZ32, parseRelayPayload(identity.pubKeyZ32, createRelayPayload(identity, records))); },
+    async resolve(key) { return packets.get(key) ?? null; },
+    describe: () => ({ protocol: "memory", relays: [] }),
+  };
+}
+
+interface Side {
+  box?: RatchetBox;
+  engine: HoldEngine;
+  host: HoldHost;
+  /** This chat's ratchet as a device that never had its state starts it: what a Move or a restore leaves. */
+  freshBox?: () => RatchetBox;
+  stored: StoredLink;
+  messages: Map<string, { text?: string; file?: { name: string; size: number; mime: string }; request?: PaymentRequest; timestamp: number }>;
+  received: { kind: string; id: string; text?: string; name?: string; mime?: string; bytes?: Uint8Array; request?: PaymentRequest; voice?: VoiceMeta; video?: VideoMeta; image?: ImageMeta; reply?: unknown; timestamp: number }[];
+  replies: Map<string, { i: string; s: string; f: string }>;
+  delivery: Map<string, { state: string; error?: string }>;
+  files: Map<string, { bytes: Uint8Array; name: string; size: number; mime: string; voice?: VoiceMeta; video?: VideoMeta; image?: ImageMeta }>;
+  requests: Map<string, PaymentRequest>;
+  open: boolean;
+  refuseFiles?: string;
+}
+
+function setup(options: { aliceStorage?: boolean; bobStorage?: boolean; now?: () => number; aliceNow?: () => number; loopbackStorage?: boolean; fetch?: (inner: typeof fetch) => typeof fetch; ratchet?: { alice: boolean; bob: boolean }; bobHidesIp?: () => string[] | null; buckets?: { alice: string; bob: string } } = {}) {
+  const link = createLink();
+  const alice = createIdentity(), bob = createIdentity();
+  const transport = relay();
+  const buckets = { alice: bucket(options.buckets?.alice), bob: bucket(options.buckets?.bob) };
+  const make = (mine: StoredLink, storageOn: boolean, own: typeof buckets.alice, other: typeof buckets.alice, now = options.now): Side => {
+    const side: Partial<Side> = { stored: mine, messages: new Map(), received: [], delivery: new Map(), files: new Map(), requests: new Map(), replies: new Map(), open: false };
+    const host: HoldHost = {
+      transport,
+      storage: () => (storageOn ? { store: own.store, space: "abcdefghijklmnop" } : null),
+      link: () => ({ stored: side.stored!, open: side.open! }),
+      linkIds: () => [mine.id],
+      saveHold: async (_id, hold) => { side.stored = { ...side.stored!, hold: structuredClone(hold) }; },
+      delivery: async (_id, messageId, state, error) => { side.delivery!.set(messageId, { state, error }); },
+      text: async (_id, messageId) => side.messages!.get(messageId)?.text ?? null,
+      reply: async (_id, messageId) => side.replies!.get(messageId),
+      file: async (fileId) => side.files!.get(fileId) ?? null,
+      paymentRequest: (paymentId) => side.requests!.get(paymentId) ?? null,
+      receiveText: async (_id, m) => { side.received!.push({ kind: "text", id: m.id, text: m.text, timestamp: m.timestamp, ...(m.reply && { reply: m.reply }) }); },
+      receiveFile: async (_id, f, bytes) => { if (side.refuseFiles) return side.refuseFiles; side.received!.push({ kind: "file", id: f.wireId, name: f.name, mime: f.mime, bytes, timestamp: f.timestamp, ...(f.voice && { voice: f.voice }), ...(f.video && { video: f.video }), ...(f.image && { image: f.image }) }); return null; },
+      receivePaymentRequest: async (_id, request) => { side.received!.push({ kind: "pay-req", id: request.id, request, timestamp: request.timestamp }); },
+      changed: () => {},
+      // Bob reads Alice's bucket and Alice reads Bob's: each fetches from wherever the manifest points.
+      fetch: options.fetch ? options.fetch(other.fetcher) : other.fetcher,
+      ...(options.loopbackStorage && { loopbackStorage: () => true }),
+      ...(options.bobHidesIp && mine.id === "link-b" && { hiddenIpPlaces: options.bobHidesIp }),
+      now,
+    };
+    // The chat's ratchet (WISP 4xx), on a side whose app has it; the other side's record says whether it does too.
+    const mineHas = options.ratchet ? (mine.id === "link-a" ? options.ratchet.alice : options.ratchet.bob) : false;
+    const peerHas = () => !!options.ratchet && (mine.id === "link-a" ? options.ratchet.bob : options.ratchet.alice);
+    if (mineHas) {
+      side.freshBox = () => new RatchetBox(() => ({ seed: fromBase64Url(mine.participationSeed!), self: identityFromSeedB64(mine.participationSeed!).pubKeyZ32, peer: mine.pairedPeerKey!,
+        rendezvous: [identityFromSeedB64(mine.seedB64).pubKeyZ32, mine.peerPubKeyZ32], secret: fromBase64Url(mine.encKeyB64) }), emptyRatchetState(), async () => {});
+      side.box = side.freshBox();
+      host.ratchet = () => ({ box: side.box!, peerSupports: peerHas });
+    }
+    side.host = host;
+    side.engine = new HoldEngine(host);
+    return side as Side;
+  };
+  const enabled: HoldState = { ...emptyHoldState(), enabled: true, peerAllows: true, peerPaymentMethods: ["cashu", "lightning"] };
+  const a = make({ id: "link-a", ...link.mine, profile: "paired-chat/1", participationSeed: alice.seedB64, pairedPeerKey: bob.pubKeyZ32, createdAt: 0, hold: structuredClone(enabled) }, options.aliceStorage ?? true, buckets.alice, buckets.bob, options.aliceNow ?? options.now);
+  const b = make({ id: "link-b", ...link.invite, profile: "paired-chat/1", participationSeed: bob.seedB64, pairedPeerKey: alice.pubKeyZ32, createdAt: 0, hold: structuredClone(enabled) }, options.bobStorage ?? false, buckets.bob, buckets.alice);
+  /**
+   * The profile moves to another device (Use here / Move to): the chat's row goes along, its hold state with it, but not
+   * its ratchet (WISP 4xx § Several devices), and nothing the engine kept in memory.
+   */
+  const move = async (side: Side) => {
+    await side.engine.stop();
+    side.box = side.freshBox!();
+    side.engine = new HoldEngine(side.host);
+    engines.push(side.engine);
+  };
+  return { a, b, transport, buckets, move, keys: { bob: new HoldKeys(link.invite, bob.seedB64, alice.pubKeyZ32) } };
+}
+
+const engines: HoldEngine[] = [];
+afterEach(async () => { for (const e of engines.splice(0)) await e.stop(); vi.useRealTimers(); });
+
+describe("store-and-forward engine", () => {
+  it("a held text that replies carries the reply in its sealed header, and the contact gets it beside the text", async () => {
+    const { a, b, buckets } = setup();
+    engines.push(a.engine, b.engine);
+    const reply = { i: "B".repeat(22), s: "the plan for friday", f: "recipient" };
+    a.messages.set("me_r1", { text: "yes, that one", timestamp: 1000 });
+    a.replies.set("me_r1", reply);
+    a.messages.set("me_r2", { text: "and a plain one", timestamp: 2000 });
+    await a.engine.hold("link-a", { kind: "text", id: "wire-reply-1", messageId: "me_r1", bytes: 13, timestamp: 1000 });
+    await a.engine.hold("link-a", { kind: "text", id: "wire-plain-1", messageId: "me_r2", bytes: 15, timestamp: 2000 });
+    for (const bytes of buckets.alice.store.objects.values()) expect(new TextDecoder("utf-8", { fatal: false }).decode(bytes)).not.toMatch(/the plan/);
+    b.engine.start();
+    await vi.waitFor(() => expect(b.received).toHaveLength(2));
+    expect(b.received[0]).toMatchObject({ id: "wire-reply-1", text: "yes, that one", reply });
+    expect(b.received[1]).not.toHaveProperty("reply");
+  });
+
+  // Reported 2026-10-01 (a contact whose clock runs two minutes fast). Its pointer was dropped without a word (dated
+  // over a minute ahead), so nothing it held was ever fetched; past that, its manifest and each item were refused, the
+  // items for good, and it was told they "could not be verified as yours, or were too large".
+  it.each([["two minutes ahead", 2 * 60_000], ["an hour ahead", 60 * 60_000], ["an hour behind", -60 * 60_000]])("what a contact whose clock is %s holds is picked up, in order, once, and it sees it delivered", async (_, skew) => {
+    const theirNow = () => Date.now() + skew;
+    const { a, b, buckets } = setup({ aliceNow: theirNow });
+    engines.push(a.engine, b.engine);
+    a.messages.set("me_s1", { text: "from a clock that is off", timestamp: theirNow() });
+    a.messages.set("me_s2", { text: "and a second one", timestamp: theirNow() + 1 });
+    await a.engine.hold("link-a", { kind: "text", id: "wire-skew-1", messageId: "me_s1", bytes: 24, timestamp: theirNow() });
+    await a.engine.hold("link-a", { kind: "text", id: "wire-skew-2", messageId: "me_s2", bytes: 16, timestamp: theirNow() + 1 });
+    b.engine.start();
+    await vi.waitFor(() => expect(b.received).toHaveLength(2));
+    expect(b.received.map((r) => r.text)).toEqual(["from a clock that is off", "and a second one"]);
+    expect(b.engine.view("link-b")).toMatchObject({ refused: 0 });
+    expect(b.stored.hold!.inSeq).toBe(2);
+    // The sender reads the acknowledgement: delivered, nothing refused, its storage empty again.
+    a.engine.start();
+    await vi.waitFor(() => expect([...a.delivery.values()].map((d) => d.state)).toEqual(["delivered", "delivered"]));
+    await vi.waitFor(() => expect(buckets.alice.store.objects.size).toBe(0));
+    // Its sequence is what stops an item from being taken twice: another look takes nothing.
+    b.engine.wake("link-b");
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(b.received).toHaveLength(2);
+  });
+
+  it("dates its pointer and the lifetimes it gives back, so an app up to 1.0.2 (a date over a minute ahead is refused) reads a sender whose clock is minutes ahead", async () => {
+    // The 1.0.2 reader's rules, as they were: a pointer issued over 60 s ahead is dropped; an expiry over one
+    // lifetime plus 60 s from now is refused.
+    for (const [skew, taken] of [[0, true], [2 * 60_000, true], [10 * 60_000, true], [12 * 60_000, false]] as const) {
+      const { a, transport, keys } = setup({ aliceNow: () => Date.now() + skew });
+      engines.push(a.engine);
+      a.messages.set("me_o1", { text: "to an older app", timestamp: Date.now() });
+      await a.engine.hold("link-a", { kind: "text", id: "wire-old-1", messageId: "me_o1", bytes: 15, timestamp: Date.now() });
+      const pointer = keys.bob.readPointer([...transport.packets.values()][0])!;
+      expect(Math.abs(pointer.issued - (a.stored.hold!.outbox[0].expires - HOLD_LIMITS.ttlMs))).toBeLessThan(1_000);
+      expect(Math.abs(pointer.expires - a.stored.hold!.outbox[0].expires)).toBeLessThan(1_000);
+      const readBy102 = pointer.issued <= Date.now() + 60_000 && a.stored.hold!.outbox[0].expires <= Date.now() + HOLD_LIMITS.ttlMs + 60_000 && pointer.expires <= Date.now() + HOLD_LIMITS.ttlMs + 60_000;
+      expect(readBy102, `a sender ${skew / 60_000} min ahead`).toBe(taken);
+    }
+  });
+
+  it("clearing the profile's data deletes every held item and the manifest from storage, and the contact finds nothing", async () => {
+    const { a, b, buckets } = setup();
+    engines.push(a.engine, b.engine);
+    a.messages.set("me_c1", { text: "held, then cleared", timestamp: 1000 });
+    a.messages.set("me_c2", { text: "this one too", timestamp: 2000 });
+    await a.engine.hold("link-a", { kind: "text", id: "wire-clear-1", messageId: "me_c1", bytes: 18, timestamp: 1000 });
+    await a.engine.hold("link-a", { kind: "text", id: "wire-clear-2", messageId: "me_c2", bytes: 12, timestamp: 2000 });
+    expect(buckets.alice.store.objects.size, "two items and the manifest").toBe(3);
+    await a.engine.withdrawAll();
+    expect([...buckets.alice.store.objects.keys()]).toEqual([]);
+    b.engine.start();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(b.received).toEqual([]);
+  });
+
+  it("cleans the name and the media type of a held file as it does for a file that arrives live", async () => {
+    const { a, b } = setup();
+    engines.push(a.engine, b.engine);
+    const voice: VoiceMeta = { duration: 2, waveform: "AQID" };
+    const held = [
+      { name: "../../.bashrc\u202Efdp.exe\n", mime: "text/html\r\nx" },
+      { name: "..\\..\\CON", mime: "IMAGE/PNG" },
+      { name: "\u200B/\u0000", mime: "audio/webm; codecs=opus\u0000", voice },
+    ];
+    for (const [i, file] of held.entries()) {
+      a.files.set(`link-a-out-n${i}`, { bytes: new Uint8Array(10).fill(i), size: 10, ...file });
+      a.messages.set(`me_${i}`, { file: { name: file.name, size: 10, mime: file.mime }, timestamp: 1000 + i });
+      await a.engine.hold("link-a", { kind: "file", id: `wire-name-${i}`, messageId: `me_${i}`, ref: `link-a-out-n${i}`, bytes: 10, timestamp: 1000 + i });
+    }
+    b.engine.start();
+    await vi.waitFor(() => expect(b.received).toHaveLength(3));
+    expect(b.received.map((r) => [r.name, r.mime])).toEqual([
+      ["bashrcfdp.exe", "application/octet-stream"],
+      ["_CON", "image/png"],
+      ["file", "application/octet-stream"],
+    ]);
+    // No path part, no control or direction character, never a dotfile.
+    for (const r of b.received) expect(r.name).toMatch(/^[^./\\:\p{Cc}\p{Cf}][^/\\:\p{Cc}\p{Cf}]*$/u);
+    // A description of a voice message stands only beside a media type that is audio once cleaned.
+    expect(b.received[2].voice).toBeUndefined();
+    expect(b.engine.view("link-b").refused).toBe(0);
+  });
+
+  it("holds text, a file and a payment request in order, the contact picks them up in order and the sender sees them delivered", async () => {
+    const { a, b, buckets, transport } = setup();
+    engines.push(a.engine, b.engine);
+    a.messages.set("me_t1", { text: "first, while you were out", timestamp: 1000 });
+    a.files.set("link-a-out-f1", { bytes: new Uint8Array(70_000).fill(7), name: "ghost.png", size: 70_000, mime: "image/png" });
+    a.requests.set("p1-payment-req", { id: "p1-payment-req", timestamp: 3000, amount: { value: "21", asset: "sat" }, memo: "coffee", endpoints: [["cashu", '{"mints":["https://mint.test"]}']] });
+    a.messages.set("me_2000", { file: { name: "ghost.png", size: 70_000, mime: "image/png" }, timestamp: 2000 });
+    a.messages.set("me_3000", { request: a.requests.get("p1-payment-req"), timestamp: 3000 });
+    await a.engine.hold("link-a", { kind: "text", id: "wire-text-1", messageId: "me_t1", bytes: 25, timestamp: 1000 });
+    await a.engine.hold("link-a", { kind: "file", id: "wire-file-1", messageId: "me_2000", ref: "link-a-out-f1", bytes: 70_000, timestamp: 2000 });
+    await a.engine.hold("link-a", { kind: "pay-req", id: "p1-payment-req", messageId: "me_3000", ref: "p1-payment-req", bytes: 1024, timestamp: 3000 });
+    expect([...a.delivery.values()].map((d) => d.state)).toEqual(["held", "held", "held"]);
+    expect(a.stored.hold!.outSeq).toBe(3);
+    expect(a.stored.hold!.outbox.map((e) => e.state)).toEqual(["held", "held", "held"]);
+    // Ciphertext, in Alice's own bucket, under her mailbox for Bob; nothing readable.
+    const names = [...buckets.alice.store.objects.keys()];
+    expect(names).toHaveLength(4);
+    expect(names.filter((n) => n.includes("/hold/")).length).toBe(4);
+    for (const bytes of buckets.alice.store.objects.values()) expect(new TextDecoder("utf-8", { fatal: false }).decode(bytes)).not.toMatch(/first, while|ghost\.png|mint\.test|coffee/);
+    expect(a.engine.view("link-a")).toMatchObject({ outstanding: 3, canHold: true, refused: 0 });
+    // Nothing of it in the relay either, only Alice's pointer under a key of its own.
+    expect(transport.packets.size).toBe(1);
+
+    // Bob comes back: one look at Alice's pointer, then everything in order, and his acknowledgement goes up.
+    b.engine.start();
+    await vi.waitFor(() => expect(b.received).toHaveLength(3));
+    expect(b.received.map((r) => r.kind)).toEqual(["text", "file", "pay-req"]);
+    expect(b.received[0]).toMatchObject({ id: "wire-text-1", text: "first, while you were out", timestamp: 1000 });
+    expect(b.received[1].bytes).toEqual(new Uint8Array(70_000).fill(7));
+    expect(b.received[2].request).toMatchObject({ id: "p1-payment-req", amount: { value: "21", asset: "sat" }, memo: "coffee" });
+    expect(b.stored.hold!.inSeq).toBe(3);
+    expect(transport.packets.size).toBe(2);
+    // Alice reads Bob's pointer: delivered, and her bucket is empty again.
+    a.engine.start();
+    await vi.waitFor(() => expect([...a.delivery.values()].map((d) => d.state)).toEqual(["delivered", "delivered", "delivered"]));
+    await vi.waitFor(() => expect(buckets.alice.store.objects.size).toBe(0));
+    expect(a.stored.hold!.outbox).toEqual([]);
+    expect(a.engine.view("link-a")).toMatchObject({ outstanding: 0, bytes: 0 });
+    // A second look changes nothing: no duplicate, no new pointer.
+    const puts = transport.puts;
+    b.engine.wake("link-b");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(b.received).toHaveLength(3);
+    expect(transport.puts).toBe(puts);
+  });
+
+  it("with ratchet/1 on both sides every held item is a ratcheted bundle, picked up in order; an app without it gets plain ones", async () => {
+    for (const bobHas of [true, false]) {
+      const { a, b, buckets } = setup({ ratchet: { alice: true, bob: bobHas } });
+      engines.push(a.engine, b.engine);
+      for (const [i, text] of ["one", "two", "three"].entries()) {
+        a.messages.set(`me_${i}`, { text, timestamp: 1000 + i });
+        await a.engine.hold("link-a", { kind: "text", id: `wire-text-${i}`, messageId: `me_${i}`, bytes: 10, timestamp: 1000 + i });
+      }
+      const items = [...buckets.alice.store.objects.entries()].filter(([name]) => !name.endsWith("manifest.ghostly-held")).map(([, bytes]) => bytes);
+      expect(items).toHaveLength(3);
+      // "GHLD" then the version: 2 sealed by the ratchet, 1 as before. The manifest stays version 1 either way.
+      for (const bytes of items) expect(bytes[4]).toBe(bobHas ? 2 : 1);
+      b.engine.start();
+      await vi.waitFor(() => expect(b.received).toHaveLength(3));
+      expect(b.received.map((r) => r.text)).toEqual(["one", "two", "three"]);
+      if (bobHas) expect(b.box!.heard("hold")).toBe(true);
+      await a.engine.stop(); await b.engine.stop();
+    }
+  });
+
+  it("a ratcheted item refused once opened still uses its key and counts: a plain item from that contact is refused after", async () => {
+    const { a, b } = setup({ ratchet: { alice: true, bob: true } });
+    engines.push(a.engine, b.engine);
+    a.files.set("link-a-out-f1", { bytes: new Uint8Array(10).fill(1), name: "big.bin", size: 10, mime: "application/octet-stream" });
+    a.messages.set("me_f", { file: { name: "big.bin", size: 10, mime: "application/octet-stream" }, timestamp: 1000 });
+    await a.engine.hold("link-a", { kind: "file", id: "wire-file-1", messageId: "me_f", ref: "link-a-out-f1", bytes: 10, timestamp: 1000 });
+    b.refuseFiles = "no room for more files";
+    b.engine.start();
+    await vi.waitFor(() => expect(b.stored.hold!.inSeq).toBe(1));
+    expect(b.received).toHaveLength(0);
+    expect(b.box!.heard("hold")).toBe(true);
+  });
+
+  it("holds nothing for a contact whose app stopped saying ratchet/1 after items came ratcheted: they wait for live", async () => {
+    const ratchet = { alice: true, bob: true };
+    const { a, b } = setup({ ratchet, bobStorage: true });
+    engines.push(a.engine, b.engine);
+    a.messages.set("me_1", { text: "ratcheted", timestamp: 1000 });
+    await a.engine.hold("link-a", { kind: "text", id: "wire-text-1", messageId: "me_1", bytes: 10, timestamp: 1000 });
+    b.engine.start();
+    await vi.waitFor(() => expect(b.received).toHaveLength(1));
+    expect(b.engine.canHold("link-b")).toBe(true);
+    // Alice's app goes back to one without it: her record no longer lists ratchet/1.
+    ratchet.alice = false;
+    expect(b.engine.canHold("link-b")).toBe(false);
+  });
+
+  // agents#2395. A Move (or a restore) leaves the account's new device without the chat's ratchet, which no handoff
+  // carries. What the contact held in the session it shared with the old device, before the Move and after it, was
+  // taken there as refused, so the contact failed it as "could not be verified as yours", and a Retry failed the same way.
+  it("after a Move, what the contact held in the old device's ratchet session waits, is sealed again once the contact follows the new device, and is delivered; a changed item is still refused", async () => {
+    let itemReads = 0;
+    const { a, b, buckets, move } = setup({ ratchet: { alice: true, bob: true }, bobStorage: true, fetch: (inner) => (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (!String(input).includes("manifest")) itemReads++;
+      return inner(input, init);
+    }) as typeof fetch });
+    engines.push(a.engine, b.engine);
+    const say = async (side: Side, id: string, text: string) => {
+      side.messages.set(id, { text, timestamp: Date.now() });
+      await side.engine.hold(side.stored.id, { kind: "text", id: `wire-${id}-item`, messageId: id, bytes: text.length, timestamp: Date.now() });
+    };
+    // A keep-alive on the DHT floor, sealed by one side's ratchet and opened by the other's, with its floor sequence.
+    const floor = async (from: Side, to: Side, order: number) => {
+      const sealed = await from.box!.lock((tx) => tx.seal("floor", new TextEncoder().encode(`keep-alive ${order}`)));
+      await to.box!.lock(async (tx) => { await tx.open("floor", sealed)!.commit(order); });
+    };
+    const settled = () => new Promise((resolve) => setTimeout(resolve, 200));
+
+    // The turn passes both ways in one session (a1 to Bob, b1 to Alice, a2 to Bob), and Bob's floor is heard there.
+    await say(a, "a1", "one");
+    b.engine.start();
+    await vi.waitFor(() => expect(b.received).toHaveLength(1));
+    await say(b, "b1", "back");
+    a.engine.start();
+    await vi.waitFor(() => expect(a.received.map((r) => r.text)).toEqual(["back"]));
+    await say(a, "a2", "two");
+    b.engine.wake("link-b");
+    await vi.waitFor(() => expect(b.received).toHaveLength(2));
+    expect(a.box!.on || b.box!.on, "forward secrecy is on").toBe(true);
+    await floor(b, a, 1);
+    // a3 waits for Bob's old device; Bob moves; a4 is held after, and a5 fails to upload and is retried.
+    await say(a, "a3", "three");
+    await move(b);
+    await say(a, "a4", "four");
+    const put = buckets.alice.store.put;
+    buckets.alice.store.put = async () => { throw new Error("S3 refused (503 SlowDown)"); };
+    await expect(say(a, "a5", "five")).rejects.toThrow(/Could not store/);
+    buckets.alice.store.put = put;
+    expect(await a.engine.retry("link-a", "a5")).toBe(true);
+
+    // The new device cannot open them (sealed in a session it never had): it neither takes nor refuses them.
+    itemReads = 0;
+    b.engine.start();
+    await vi.waitFor(() => expect(b.engine.view("link-b")?.error).toBeDefined());
+    expect(b.stored.hold!.refusedSeqs ?? [], "nothing told the contact as refused").toEqual([]);
+    expect(b.stored.hold).toMatchObject({ inSeq: 2, refused: 0 });
+    expect(b.received).toHaveLength(2);
+    expect(b.engine.view("link-b")?.error).toMatch(/sealed them for the device this profile was on before/);
+    expect(itemReads, "the first item, and the pickup waits there").toBe(1);
+    // Looking again fetches that item again only once the contact rewrote its manifest.
+    b.engine.wake("link-b");
+    await settled();
+    expect(itemReads).toBe(1);
+    a.engine.wake("link-a");
+    await settled();
+    expect(["a3", "a4", "a5"].map((id) => a.delivery.get(id)?.state)).toEqual(["held", "held", "held"]);
+
+    // The new device's first floor envelope: the contact's ratchet follows its session, and seals the three again there.
+    await floor(b, a, 2);
+    expect(a.box!.session).toBe(b.box!.session);
+    a.engine.wake("link-a");
+    await vi.waitFor(() => expect(a.stored.hold!.outbox.every((e) => e.sid === a.box!.session)).toBe(true));
+    b.engine.wake("link-b");
+    await vi.waitFor(() => expect(b.received.map((r) => r.text)).toEqual(["one", "two", "three", "four", "five"]));
+    expect(b.stored.hold).toMatchObject({ inSeq: 5, refused: 0 });
+    expect(b.engine.view("link-b")?.error).toBeUndefined();
+    a.engine.wake("link-a");
+    await vi.waitFor(() => expect(["a3", "a4", "a5"].map((id) => a.delivery.get(id)?.state)).toEqual(["delivered", "delivered", "delivered"]));
+
+    // Control: an item changed in storage, in a session the new device has, is refused as before, and fails at the contact.
+    await say(a, "a6", "six");
+    buckets.alice.store.tamper(a.stored.hold!.outbox.find((e) => e.messageId === "a6")!.name);
+    b.engine.wake("link-b");
+    await vi.waitFor(() => expect(b.stored.hold).toMatchObject({ inSeq: 6, refused: 1, refusedSeqs: [6] }));
+    expect(b.received).toHaveLength(5);
+    a.engine.wake("link-a");
+    await vi.waitFor(() => expect(a.delivery.get("a6")).toMatchObject({ state: "failed", error: expect.stringContaining("refused") }));
+  });
+
+  it("holds a voice message with its length and waveform, and drops a description that is not one", async () => {
+    const { a, b } = setup();
+    engines.push(a.engine, b.engine);
+    const voice = { duration: 3200, peaks: [0, 90, 255, 12] };
+    a.files.set("link-a-out-v1", { bytes: new Uint8Array(900).fill(3), name: "Voice message.webm", size: 900, mime: "audio/webm", voice });
+    a.files.set("link-a-out-v2", { bytes: new Uint8Array(10).fill(4), name: "notes.bin", size: 10, mime: "application/octet-stream", voice });
+    a.messages.set("me_5000", { file: { name: "Voice message.webm", size: 900, mime: "audio/webm" }, timestamp: 5000 });
+    a.messages.set("me_6000", { file: { name: "notes.bin", size: 10, mime: "application/octet-stream" }, timestamp: 6000 });
+    await a.engine.hold("link-a", { kind: "file", id: "wire-voice-1", messageId: "me_5000", ref: "link-a-out-v1", bytes: 900, timestamp: 5000 });
+    await a.engine.hold("link-a", { kind: "file", id: "wire-voice-2", messageId: "me_6000", ref: "link-a-out-v2", bytes: 10, timestamp: 6000 });
+    b.engine.start();
+    await vi.waitFor(() => expect(b.received).toHaveLength(2));
+    expect(b.received[0]).toMatchObject({ kind: "file", id: "wire-voice-1", voice });
+    // Not audio: the file arrives, the description does not.
+    expect(b.received[1]).toMatchObject({ kind: "file", id: "wire-voice-2" });
+    expect(b.received[1].voice).toBeUndefined();
+  });
+
+  it("holds a video with its length, size and poster; a bad poster alone is dropped", async () => {
+    const { a, b } = setup();
+    engines.push(a.engine, b.engine);
+    const poster = Buffer.from([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, 0, 180, 1, 64, 3, 7, 7]).toString("base64url"); // a JPEG frame header: 320 × 180
+    const video = { duration: 2000, width: 320, height: 180, poster };
+    a.files.set("link-a-out-m1", { bytes: new Uint8Array(700).fill(5), name: "clip.mp4", size: 700, mime: "video/mp4", video });
+    a.files.set("link-a-out-m2", { bytes: new Uint8Array(700).fill(6), name: "clip2.mp4", size: 700, mime: "video/mp4", video: { ...video, poster: "bm90IGEganBlZw" } });
+    a.messages.set("me_7000", { file: { name: "clip.mp4", size: 700, mime: "video/mp4" }, timestamp: 7000 });
+    a.messages.set("me_8000", { file: { name: "clip2.mp4", size: 700, mime: "video/mp4" }, timestamp: 8000 });
+    await a.engine.hold("link-a", { kind: "file", id: "wire-video-1", messageId: "me_7000", ref: "link-a-out-m1", bytes: 700, timestamp: 7000 });
+    await a.engine.hold("link-a", { kind: "file", id: "wire-video-2", messageId: "me_8000", ref: "link-a-out-m2", bytes: 700, timestamp: 8000 });
+    b.engine.start();
+    await vi.waitFor(() => expect(b.received).toHaveLength(2));
+    expect(b.received[0]).toMatchObject({ kind: "file", id: "wire-video-1", video });
+    expect(b.received[1].video).toEqual({ duration: 2000, width: 320, height: 180 });
+  });
+
+  it("holds a picture with its size; one held without a size, or with a bad one, still arrives", async () => {
+    const { a, b } = setup();
+    engines.push(a.engine, b.engine);
+    const image = { width: 1080, height: 1920 };
+    a.files.set("link-a-out-p1", { bytes: new Uint8Array(500).fill(1), name: "a.jpg", size: 500, mime: "image/jpeg", image });
+    a.files.set("link-a-out-p2", { bytes: new Uint8Array(500).fill(2), name: "b.png", size: 500, mime: "image/png" });
+    a.files.set("link-a-out-p3", { bytes: new Uint8Array(500).fill(3), name: "c.png", size: 500, mime: "image/png", image: { width: 1.5, height: 2 } });
+    for (const [n, ts] of [[1, 9000], [2, 9001], [3, 9002]]) {
+      a.messages.set(`me_${ts}`, { file: { name: "p", size: 500, mime: "image/png" }, timestamp: ts });
+      await a.engine.hold("link-a", { kind: "file", id: `wire-picture-${n}`, messageId: `me_${ts}`, ref: `link-a-out-p${n}`, bytes: 500, timestamp: ts });
+    }
+    b.engine.start();
+    await vi.waitFor(() => expect(b.received).toHaveLength(3));
+    expect(b.received[0]).toMatchObject({ kind: "file", id: "wire-picture-1", image });
+    expect(b.received[1].image).toBeUndefined();
+    expect(b.received[2]).toMatchObject({ kind: "file", id: "wire-picture-3" });
+    expect(b.received[2].image).toBeUndefined();
+  });
+
+  it("refuses a tampered item, keeps the rest, counts it, and survives a crash between store and acknowledgement", async () => {
+    const { a, b, buckets } = setup();
+    engines.push(a.engine, b.engine);
+    a.messages.set("m1", { text: "one", timestamp: 1 }); a.messages.set("m2", { text: "two", timestamp: 2 }); a.messages.set("m3", { text: "three", timestamp: 3 });
+    for (const [i, id] of ["m1", "m2", "m3"].entries()) await a.engine.hold("link-a", { kind: "text", id: `wire-${id}-item`, messageId: id, bytes: 5, timestamp: i + 1 });
+    const second = a.stored.hold!.outbox[1].name;
+    buckets.alice.store.tamper(second);
+    b.engine.start();
+    await vi.waitFor(() => expect(b.received.map((r) => r.text)).toEqual(["one", "three"]));
+    expect(b.stored.hold!.refused).toBe(1);
+    expect(b.stored.hold!.inSeq).toBe(3);
+    expect(b.engine.view("link-b")?.error).toMatch(/Refused a held item/);
+    // Alice learns Bob's word on all three: two delivered, the tampered one refused, and all gone from her bucket.
+    a.engine.start();
+    await vi.waitFor(() => expect(a.stored.hold!.outbox).toEqual([]));
+    expect(a.delivery.get("m1")?.state).toBe("delivered");
+    expect(a.delivery.get("m2")).toMatchObject({ state: "failed", error: expect.stringContaining("refused") });
+    expect(a.delivery.get("m3")?.state).toBe("delivered");
+    expect(buckets.alice.store.objects.size).toBe(0);
+    // Something Bob's app cannot keep (a file with no room) is refused and skipped the same way.
+    a.messages.set("m4", { file: { name: "big", size: 3, mime: "a/b" }, timestamp: 4 });
+    a.files.set("f4", { bytes: new Uint8Array(3), name: "big", size: 3, mime: "a/b" });
+    b.refuseFiles = "no room for more files";
+    await a.engine.hold("link-a", { kind: "file", id: "wire-m4-item", messageId: "m4", ref: "f4", bytes: 3, timestamp: 4 });
+    b.engine.wake("link-b");
+    await vi.waitFor(() => expect(b.stored.hold!.inSeq).toBe(4));
+    expect(b.stored.hold!.refused).toBe(2);
+  });
+
+  it("asks nothing of an address on this machine or its network, whether the pointer or the manifest names it, and follows no redirect", async () => {
+    // What a contact's app would be made to ask, were the address taken as given: the router, this machine's own ports.
+    for (const [which, address] of [["manifest", "http://192.168.1.1/cgi-bin/luci?reboot=1"], ["manifest", "http://127.0.0.1:4959/admin"], ["manifest", "https://10.0.0.5:8080/admin/delete?all=1"],
+      ["item", "http://127.0.0.1:4959/admin?x"], ["item", "http://169.254.169.254/latest/meta-data/"], ["item", "https://192.168.1.1/o"]] as const) {
+      const asked: string[] = [], inits: (RequestInit | undefined)[] = [];
+      const { a, b, buckets, transport } = setup({ fetch: (inner) => (async (input: RequestInfo | URL, init?: RequestInit) => {
+        asked.push(String(input)); inits.push(init);
+        // The address answers, and not with a held item: what told the contact "something is there" before.
+        return new URL(String(input)).host === "s3.test" ? inner(input, init) : new Response("hello");
+      }) as typeof fetch });
+      engines.push(a.engine, b.engine);
+      const presign = buckets.alice.store.presign;
+      buckets.alice.store.presign = async (name, seconds) => (name.endsWith("manifest.ghostly-held") === (which === "manifest") ? address : presign(name, seconds));
+      a.messages.set("me_1", { text: "held", timestamp: 1000 });
+      await a.engine.hold("link-a", { kind: "text", id: "wire-id-0001", messageId: "me_1", bytes: 4, timestamp: 1000 });
+      // Bob reads Alice's pointer; stopping waits for the pickup under way to end.
+      const resolve = vi.spyOn(transport, "resolve");
+      b.engine.start();
+      await vi.waitFor(() => expect(resolve).toHaveBeenCalled());
+      await b.engine.stop();
+      expect(asked.filter((url) => !url.startsWith("https://s3.test/")), address).toEqual([]);
+      expect(asked.length, address).toBe(which === "manifest" ? 0 : 1);
+      for (const init of inits) expect(init?.redirect).toBe("error");
+      // Nothing is taken, and nothing about the address is told back: no sequence passed, none listed as refused.
+      expect(b.received, address).toEqual([]);
+      expect(b.stored.hold!.inSeq, address).toBe(0);
+      expect(b.stored.hold!.refusedSeqs ?? [], address).toEqual([]);
+    }
+  });
+
+  it("reads plain HTTP on this machine only where the host says so: the e2e suite's local storage", async () => {
+    const asked: string[] = [];
+    const { a, b, buckets } = setup({ loopbackStorage: true, fetch: (inner) => (async (input: RequestInfo | URL, init?: RequestInit) => {
+      asked.push(String(input));
+      const url = new URL(String(input));
+      return inner(`https://s3.test${url.pathname}${url.search}`, init);
+    }) as typeof fetch });
+    engines.push(a.engine, b.engine);
+    const presign = buckets.alice.store.presign;
+    buckets.alice.store.presign = async (name, seconds) => (await presign(name, seconds)).replace("https://s3.test/", "http://127.0.0.1:9000/");
+    a.messages.set("me_1", { text: "held", timestamp: 1000 });
+    await a.engine.hold("link-a", { kind: "text", id: "wire-id-0001", messageId: "me_1", bytes: 4, timestamp: 1000 });
+    b.engine.start();
+    await vi.waitFor(() => expect(b.received.map((r) => r.text)).toEqual(["held"]));
+    expect(asked.every((url) => url.startsWith("http://127.0.0.1:9000/"))).toBe(true);
+  });
+
+  it("with Hide my IP on, nothing is fetched from the contact's storage: the items wait, said once, and come when it goes off", async () => {
+    const asked: string[] = [];
+    let hidden: string[] | null = ["https://mine.example/bucket/"];
+    const { a, b, buckets } = setup({ bobHidesIp: () => hidden, fetch: (inner) => (async (input: RequestInfo | URL, init?: RequestInit) => {
+      asked.push(String(input));
+      const url = new URL(String(input));
+      return inner(`https://s3.test${url.pathname}${url.search}`, init);
+    }) as typeof fetch });
+    engines.push(a.engine, b.engine);
+    const presign = buckets.alice.store.presign;
+    buckets.alice.store.presign = async (name, seconds) => (await presign(name, seconds)).replace("https://s3.test/", "https://contact.example/");
+    a.messages.set("me_1", { text: "held", timestamp: 1000 });
+    await a.engine.hold("link-a", { kind: "text", id: "wire-id-0001", messageId: "me_1", bytes: 4, timestamp: 1000 });
+    b.engine.start();
+    await vi.waitFor(() => expect(b.engine.view("link-b")?.error).toBe("Hide my IP from contacts is on: what your contact held for you waits on their storage until you turn it off."));
+    expect(asked).toEqual([]);
+    expect(b.received).toEqual([]);
+    expect(b.stored.hold!).toMatchObject({ inSeq: 0, refused: 0 });
+    // Off: picked up at the next look, and the line goes.
+    hidden = null;
+    b.engine.wake("link-b");
+    await vi.waitFor(() => expect(b.received.map((r) => r.text)).toEqual(["held"]));
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.every((url) => url.startsWith("https://contact.example/"))).toBe(true);
+    expect(b.engine.view("link-b")?.error).toBeUndefined();
+  });
+
+  it("with Hide my IP on, a pickup from this person's own bucket still goes", async () => {
+    const { a, b } = setup({ bobHidesIp: () => ["https://s3.test/bucket/"] });
+    engines.push(a.engine, b.engine);
+    a.messages.set("me_1", { text: "held", timestamp: 1000 });
+    await a.engine.hold("link-a", { kind: "text", id: "wire-id-0001", messageId: "me_1", bytes: 4, timestamp: 1000 });
+    b.engine.start();
+    await vi.waitFor(() => expect(b.received.map((r) => r.text)).toEqual(["held"]));
+  });
+
+  // Path-style addresses: two people at one provider share its host, and only the bucket (the first path segment) says
+  // whose storage it is. A bucket whose name starts with this person's is someone else's too.
+  for (const contactBucket of ["alice", "bobby"]) {
+    it(`with Hide my IP on, nothing is fetched from the contact's bucket "${contactBucket}" on this person's own storage host`, async () => {
+      const asked: string[] = [];
+      const { a, b } = setup({ buckets: { alice: contactBucket, bob: "bob" }, bobHidesIp: () => ["https://s3.test/bob/"],
+        fetch: (inner) => (async (input: RequestInfo | URL, init?: RequestInit) => { asked.push(String(input)); return inner(input, init); }) as typeof fetch });
+      engines.push(a.engine, b.engine);
+      a.messages.set("me_1", { text: "held", timestamp: 1000 });
+      await a.engine.hold("link-a", { kind: "text", id: "wire-id-0001", messageId: "me_1", bytes: 4, timestamp: 1000 });
+      b.engine.start();
+      await vi.waitFor(() => expect(b.engine.view("link-b")?.error).toBe("Hide my IP from contacts is on: what your contact held for you waits on their storage until you turn it off."));
+      expect(asked).toEqual([]);
+      expect(b.received).toEqual([]);
+    });
+  }
+
+  it("a storage request that never answers is given up after its timeout, and the next poll picks everything up", async () => {
+    // "never": no answer at all. "stalled": the answer starts, then its body stops. Neither honours the abort signal.
+    let hang: "never" | "stalled" | null = null;
+    const signals: AbortSignal[] = [];
+    let calls = 0;
+    const { a, b } = setup({
+      fetch: (inner) => (async (input: RequestInfo | URL, init?: RequestInit) => {
+        calls++;
+        if (!hang) return inner(input, init);
+        signals.push(init!.signal!);
+        if (hang === "never") return new Promise<Response>(() => {});
+        return new Response(new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new Uint8Array(8)); } }));
+      }) as unknown as typeof fetch,
+    });
+    engines.push(a.engine, b.engine);
+    a.messages.set("m1", { text: "one", timestamp: 1 }); a.messages.set("m2", { text: "two", timestamp: 2 });
+    for (const [i, id] of ["m1", "m2"].entries()) await a.engine.hold("link-a", { kind: "text", id: `wire-${id}-item`, messageId: id, bytes: 3, timestamp: i + 1 });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+    // The manifest's address hangs: nothing for a moment short of its timeout, then the pickup fails as a network one.
+    hang = "never";
+    b.engine.start();
+    await vi.waitFor(() => expect(signals).toHaveLength(1));
+    const manifestMs = holdFetchTimeoutMs(HOLD_LIMITS.maxManifestBytes);
+    await vi.advanceTimersByTimeAsync(manifestMs - 1_000);
+    expect(signals[0].aborted).toBe(false);
+    expect(b.engine.view("link-b")?.error).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.waitFor(() => expect(b.engine.view("link-b")?.error).toMatch(/Could not pick up held items: The storage did not answer in time/));
+    expect(signals[0].aborted, "the request is aborted, not left open").toBe(true);
+    expect(b.received).toEqual([]);
+    expect(b.stored.hold!.inSeq).toBe(0);
+
+    // The answer starts and its body stops half way: the same.
+    hang = "stalled";
+    b.engine.wake("link-b");
+    await vi.waitFor(() => expect(signals).toHaveLength(2));
+    await vi.advanceTimersByTimeAsync(manifestMs);
+    await vi.waitFor(() => expect(signals[1].aborted).toBe(true));
+    expect(b.engine.view("link-b")?.error).toMatch(/did not answer in time/);
+    expect(b.stored.hold!.inSeq).toBe(0);
+
+    // The storage answers again: the next poll starts where it stopped, and the timers of the reads that worked are gone.
+    hang = null;
+    const before = calls;
+    b.engine.wake("link-b");
+    await vi.waitFor(() => expect(b.received.map((r) => r.text)).toEqual(["one", "two"]));
+    expect(calls - before, "the manifest and both items").toBe(3);
+    expect(b.stored.hold!.inSeq).toBe(2);
+    expect(b.engine.view("link-b")?.error).toBeUndefined();
+  });
+
+  it("the timeout grows with what the manifest declared: seconds for a manifest, minutes for the largest item", () => {
+    expect(holdFetchTimeoutMs(0)).toBe(20_000);
+    expect(holdFetchTimeoutMs(HOLD_LIMITS.maxManifestBytes)).toBe(21_000);
+    expect(holdFetchTimeoutMs(HOLD_LIMITS.maxBundleBytes)).toBe(148_000);
+  });
+
+  it("stops holding at the quota, and fails an item that cannot be uploaded until it is retried", async () => {
+    const { a, buckets } = setup();
+    engines.push(a.engine);
+    const put = buckets.alice.store.put;
+    buckets.alice.store.put = async () => { throw new Error("S3 refused (503 SlowDown)"); };
+    a.messages.set("m1", { text: "one", timestamp: 1 });
+    await expect(a.engine.hold("link-a", { kind: "text", id: "wire-m1-item", messageId: "m1", bytes: 3, timestamp: 1 })).rejects.toThrow(/Could not store/);
+    expect(a.delivery.get("m1")).toMatchObject({ state: "failed", error: expect.stringContaining("SlowDown") });
+    expect(a.stored.hold!.outbox[0]).toMatchObject({ seq: 1, state: "failed" });
+    buckets.alice.store.put = put;
+    expect(await a.engine.retry("link-a", "m1")).toBe(true);
+    expect(a.delivery.get("m1")?.state).toBe("held");
+    expect(a.stored.hold!.outbox[0]).toMatchObject({ seq: 1, state: "held" });
+    expect(await a.engine.retry("link-a", "unknown")).toBe(false);
+    // Too large, too many, too much: refused before anything is chosen or stored.
+    await expect(a.engine.hold("link-a", { kind: "text", id: "wire-big", messageId: "big", bytes: HOLD_LIMITS.maxBundleBytes, timestamp: 2 })).rejects.toThrow(/at most/);
+    const many: HoldState = { ...a.stored.hold!, outbox: Array.from({ length: HOLD_LIMITS.maxMailboxBundles }, (_, i) => ({ ...a.stored.hold!.outbox[0], seq: i + 1, messageId: `x${i}` })) };
+    a.stored = { ...a.stored, hold: many };
+    await expect(a.engine.hold("link-a", { kind: "text", id: "wire-more", messageId: "more", bytes: 3, timestamp: 3 })).rejects.toThrow(/At most 64 items/);
+    a.stored = { ...a.stored, hold: { ...a.stored.hold!, outbox: [{ ...a.stored.hold!.outbox[0], bytes: HOLD_LIMITS.maxMailboxBytes - 10 }] } };
+    await expect(a.engine.hold("link-a", { kind: "text", id: "wire-fat", messageId: "fat", bytes: 100, timestamp: 4 })).rejects.toThrow(/would exceed/);
+    expect(a.delivery.get("fat")?.state).toBe("failed");
+  });
+
+  it("drops an item nobody picked up after seven days, and the contact never sees it", async () => {
+    let now = Date.parse("2026-09-23T00:00:00Z");
+    const { a, b, buckets } = setup({ now: () => now });
+    engines.push(a.engine, b.engine);
+    a.messages.set("m1", { text: "stale", timestamp: now });
+    await a.engine.hold("link-a", { kind: "text", id: "wire-m1-item", messageId: "m1", bytes: 5, timestamp: now });
+    expect(buckets.alice.store.objects.size).toBe(2);
+    vi.useFakeTimers({ now });
+    a.engine.start();
+    now += HOLD_LIMITS.ttlMs + 1000;
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(a.delivery.get("m1")).toMatchObject({ state: "failed", error: expect.stringContaining("whole lifetime") });
+    expect(a.stored.hold!.outbox).toEqual([]);
+    expect(buckets.alice.store.objects.size).toBe(0);
+    vi.useRealTimers();
+    b.engine.start();
+    await new Promise((r) => setTimeout(r, 100));
+    expect(b.received).toEqual([]);
+  });
+
+  it("holds nothing without storage, without the contact's consent or before the contact is pinned", async () => {
+    const { a } = setup({ aliceStorage: false });
+    expect(a.engine.canHold("link-a")).toBe(false);
+    expect(a.engine.view("link-a")).toMatchObject({ storage: false, canHold: false, enabled: true, peerAllows: true });
+    a.messages.set("m1", { text: "one", timestamp: 1 });
+    await expect(a.engine.hold("link-a", { kind: "text", id: "wire-m1-item", messageId: "m1", bytes: 3, timestamp: 1 })).rejects.toThrow(/S3 storage/);
+    const { a: c } = setup();
+    await c.engine.peerSaid("link-a", { peerAllows: false });
+    expect(c.engine.canHold("link-a")).toBe(false);
+    expect(c.engine.heldPaymentMethods("link-a")).toBeNull();
+    await c.engine.peerSaid("link-a", { peerAllows: true });
+    expect(c.engine.heldPaymentMethods("link-a")).toEqual(["cashu", "lightning"]);
+    c.stored = { ...c.stored, pairedPeerKey: undefined };
+    expect(c.engine.canHold("link-a")).toBe(false);
+    expect(c.engine.keysFor("link-a")).toBeNull();
+  });
+});

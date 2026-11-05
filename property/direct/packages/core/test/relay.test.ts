@@ -1,0 +1,1581 @@
+import { describe, expect, it, vi } from "vitest";
+import { BACKGROUND_REQUESTS_PER_MINUTE, DEFAULT_RELAYS, BACKGROUND_WHILE_SIGNALING, CHAT_RESERVE, CHAT_RESERVE_MOST_SHARE, CHAT_RESERVE_PER_CHAT, CHAT_WATCH_SHARE, DEPARTED_READS, SIGNALING_ALLOWANCE_SHARE, DiscoveryBudgetError, GROUP_BURST_MS, GROUP_BURST_ONE_LINK, FRESH_READ_MS, REQUESTS_PER_MINUTE, PKARR_FUTURE_SKEW_MS, RELAY_REQUESTS_PER_MINUTE, RelayTransport, newerPacket, parseRelayPayload, readOwnRelayPayload, SIGNALING_WINDOW_MS, SLOW_MS, GROUP_RATION_WINDOW_MS, GROUP_OVER_PACE_MS, GROUP_SIGNALING_ALLOWANCE_SHARE, WATCH_SHARE, WAY_BACK_SHARE, WRITE_FIRST_MS, CarriedTransport, createIdentity, createRelayPayload, isDiscoveryBudgetError, withRequestOptions } from "../src";
+import type { PkarrRequestOptions, PkarrTransport } from "../src/transport";
+// covers: core.relay-client
+
+describe("relay transport", () => {
+  const id = createIdentity();
+  const packet = (micros: bigint) => createRelayPayload(id, [{ label: "_ts", value: String(micros) }], micros);
+  const parse = async (micros: bigint) => parseRelayPayload(id.pubKeyZ32, packet(micros));
+
+  function transport(handlers: Record<string, () => Response>) {
+    const calls: string[] = [];
+    const fetchFn = (async (input: RequestInfo | URL) => {
+      const host = new URL(String(input)).host;
+      calls.push(host);
+      return handlers[host]();
+    }) as typeof fetch;
+    return { calls, relay: new RelayTransport({ freshReadMs: 0, relays: Object.keys(handlers).map((h) => `https://${h}`), fetch: fetchFn }) };
+  }
+
+  it("a packet signed here is put, and kept as written, without its signature checked again", async () => {
+    // A daemon at its budget checked each packet it had just signed twice (~1 ms each, ~500 a minute). The bytes are
+    // made unverifiable here to show that nothing checks them: `publishPayload`, for bytes signed elsewhere, does.
+    const bytes = packet(5000n);
+    bytes[0] ^= 1;
+    expect(() => parseRelayPayload(id.pubKeyZ32, bytes)).toThrow("Invalid signature");
+    expect(readOwnRelayPayload(id.pubKeyZ32, bytes)).toEqual({ ...(await parse(5000n)) });
+    const puts: string[] = [];
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PUT") { puts.push(String(input)); return new Response(null, { status: 204 }); }
+      return new Response(null, { status: 500 });
+    }) as typeof fetch });
+    await relay.putSigned(id.pubKeyZ32, bytes, 5000n);
+    expect(puts).toHaveLength(1);
+    await expect(relay.publishPayload(id.pubKeyZ32, bytes)).rejects.toThrow("Invalid signature");
+    expect(puts).toHaveLength(1);
+  });
+
+  it("a payload signed here that says its date (`signedAt`, a group edge's) is put without its signature checked again", async () => {
+    const bytes = packet(5000n);
+    bytes[0] ^= 1;
+    const puts: string[] = [];
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PUT") { puts.push(String(input)); return new Response(null, { status: 204 }); }
+      return new Response(null, { status: 500 });
+    }) as typeof fetch });
+    // Through the wrapper a group's edges publish with, as the app makes it.
+    await withRequestOptions(relay, { group: true }).publishPayload!(id.pubKeyZ32, bytes, { background: true, signedAt: 5000n });
+    expect(puts).toHaveLength(1);
+  });
+
+  it("spends one request per poll, taking relays in turn, and keeps the newest packet", async () => {
+    const { relay, calls } = transport({
+      "a.test": () => new Response(packet(2000n) as BodyInit),
+      "b.test": () => new Response(packet(1000n) as BodyInit),
+    });
+    expect((await relay.resolve(id.pubKeyZ32))?.timestampMicros).toBe(2000n);
+    // b still serves an older cached copy; the newer one already seen wins
+    expect((await relay.resolve(id.pubKeyZ32))?.timestampMicros).toBe(2000n);
+    expect(calls).toEqual(["a.test", "b.test"]);
+  });
+
+  it("takes the relays in turn for each key: one that lacks a key's newest packet answers its reads at most once in a row", async () => {
+    // Bug hunt r5a: a member's offer reached only b.test (a.test had rate limited the publish). The other member read
+    // the offerer's key between reads of its other links, and with one turn for all keys, every read of that key went to
+    // a.test, which kept serving the packet from before the offer: the offer was read 12 to 60 s late.
+    const peer = createIdentity(), other = createIdentity();
+    const reads: string[] = [];
+    const fetchFn = (async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname.slice(1) !== peer.pubKeyZ32) return new Response(null, { status: 404 });
+      reads.push(url.host);
+      const offer = url.host === "b.test";
+      return new Response(createRelayPayload(peer, [{ label: "_ts", value: "1" }], offer ? 2000n : 1000n) as BodyInit);
+    }) as typeof fetch;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: fetchFn });
+    const seen: bigint[] = [];
+    for (let i = 0; i < 6; i++) {
+      seen.push((await relay.resolve(peer.pubKeyZ32))!.timestampMicros);
+      // The link's neighbours read their own peers in between.
+      await relay.resolve(other.pubKeyZ32);
+    }
+    expect(reads).toEqual(["a.test", "b.test", "a.test", "b.test", "a.test", "b.test"]);
+    // The offer is read on the second look, not never.
+    expect(seen[1]).toBe(2000n);
+  });
+
+  it("keeps each relay's share of the reads when every key takes them in turn", async () => {
+    const { relay, calls } = transport({ "a.test": () => new Response(null, { status: 404 }), "b.test": () => new Response(null, { status: 404 }) });
+    const keys = Array.from({ length: 5 }, () => createIdentity().pubKeyZ32);
+    for (let round = 0; round < 6; round++) for (const key of keys) await relay.resolve(key);
+    // 30 reads of five keys: as many on each relay as one turn for all keys gave.
+    expect(calls.filter((h) => h === "a.test")).toHaveLength(15);
+    expect(calls.filter((h) => h === "b.test")).toHaveLength(15);
+  });
+
+  it("a packet dated far ahead never hides one dated now: the next read of a present packet is taken", async () => {
+    const now = BigInt(Date.now()) * 1000n;
+    const ahead = now + BigInt(PKARR_FUTURE_SKEW_MS + 3_600_000) * 1000n;
+    const { relay } = transport({
+      "a.test": () => new Response(packet(ahead) as BodyInit),
+      "b.test": () => new Response(packet(now) as BodyInit),
+    });
+    expect((await relay.resolve(id.pubKeyZ32))?.timestampMicros).toBe(ahead);
+    expect((await relay.resolve(id.pubKeyZ32))?.timestampMicros).toBe(now);
+    // Within the skew, a later time still wins as before.
+    const soon = now + 60_000_000n;
+    expect(newerPacket(await parse(now), await parse(soon))?.timestampMicros).toBe(soon);
+    expect(newerPacket(await parse(ahead), await parse(ahead + 1n))?.timestampMicros).toBe(ahead + 1n);
+  });
+
+  it("answers a read of a key it just read from that answer, until the key is published or the answer ages", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      let next = 1000n;
+      const calls: string[] = [];
+      const other = createIdentity();
+      const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const key = new URL(String(input)).pathname.slice(1);
+        calls.push(`${init?.method ?? "GET"} ${key.slice(0, 6)}`);
+        if (init?.method === "PUT") return new Response(null, { status: 204 });
+        return key === id.pubKeyZ32 ? new Response(packet(next) as BodyInit) : new Response(null, { status: 404 });
+      }) as typeof fetch;
+      const relay = new RelayTransport({ relays: ["https://a.test", "https://b.test"], fetch: fetchFn });
+      const get = `GET ${id.pubKeyZ32.slice(0, 6)}`;
+      expect((await relay.resolve(id.pubKeyZ32))?.timestampMicros).toBe(1000n);
+      // A link's poll right after its capabilities read the same key: the answer of a moment ago, no request.
+      next = 2000n;
+      vi.setSystemTime(Date.now() + FRESH_READ_MS - 1);
+      expect((await relay.resolve(id.pubKeyZ32, { urgent: true }))?.timestampMicros).toBe(1000n);
+      expect(calls).toEqual([get]);
+      // Another key is its own read.
+      await relay.resolve(other.pubKeyZ32);
+      expect(calls).toHaveLength(2);
+      // Once the answer is older, the relays are asked again.
+      vi.setSystemTime(Date.now() + 1);
+      expect((await relay.resolve(id.pubKeyZ32))?.timestampMicros).toBe(2000n);
+      expect(calls).toHaveLength(3);
+      // A record read, changed and written back is read from the relays the next time, however soon.
+      await relay.publish(id, [{ label: "_ts", value: "3" }]);
+      next = 3000n;
+      expect((await relay.resolve(id.pubKeyZ32))?.timestampMicros).toBe(3000n);
+      expect(calls.slice(3)).toEqual([`PUT ${id.pubKeyZ32.slice(0, 6)}`, `PUT ${id.pubKeyZ32.slice(0, 6)}`, get]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a read the budget holds back answers what this client published since its last read, not the older packet read", async () => {
+    // A community hub reads its beacon, writes its own entry into it, and reads it again while the budget is spent
+    // (another link signaling): its own entry must not look as old as the one it replaced, or the hub stops
+    // counting itself at the door (doorHubs) until its next write, and a knock waits that long.
+    const stored = new Map<string, Uint8Array>();
+    const calls: string[] = [];
+    const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const key = new URL(String(input)).pathname.slice(1);
+      calls.push(init?.method ?? "GET");
+      if (init?.method === "PUT") { stored.set(key, new Uint8Array(await new Response(init.body).arrayBuffer())); return new Response(null, { status: 204 }); }
+      const bytes = stored.get(key);
+      return bytes ? new Response(bytes as BodyInit) : new Response(null, { status: 404 });
+    }) as typeof fetch;
+    stored.set(id.pubKeyZ32, packet(1000n));
+    const relay = new RelayTransport({ freshReadMs: 0, requestsPerMinute: 2, relays: ["https://a.test"], fetch: fetchFn });
+    expect((await relay.resolve(id.pubKeyZ32, { background: true, group: true }))?.timestampMicros).toBe(1000n);
+    await relay.publish(id, [{ label: "_ts", value: "mine" }], { background: true, group: true });
+    const mine = parseRelayPayload(id.pubKeyZ32, stored.get(id.pubKeyZ32)!);
+    // The minute's two requests are spent: no request, and the answer is the packet just published.
+    const held = await relay.resolve(id.pubKeyZ32, { background: true, group: true });
+    expect(calls).toEqual(["GET", "PUT"]);
+    expect(held?.timestampMicros).toBe(mine.timestampMicros);
+    expect(held?.records.find((r) => r.label === "_ts")?.value).toBe("mine");
+  });
+
+  it("a read the relays fail is an outage, even under a key this client published", async () => {
+    // An inviter puts a placeholder under its contact's key before they join: a relay that errs on the read must
+    // surface as "Could not read discovery", not be answered by that placeholder.
+    const fetchFn = (async (_input: RequestInfo | URL, init?: RequestInit) =>
+      new Response(null, { status: init?.method === "PUT" ? 204 : 503 })) as typeof fetch;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: fetchFn });
+    await relay.publish(id, [{ label: "_ts", value: "mine" }]);
+    await expect(relay.resolve(id.pubKeyZ32)).rejects.toThrow("No Pkarr relay reachable");
+  });
+
+  it("backs off from a relay that rate limits and uses the other one", async () => {
+    const { relay, calls } = transport({
+      "a.test": () => new Response(null, { status: 429, headers: { "retry-after": "30" } }),
+      "b.test": () => new Response(packet(5n) as BodyInit),
+    });
+    expect((await relay.resolve(id.pubKeyZ32))?.timestampMicros).toBe(5n);
+    await relay.resolve(id.pubKeyZ32);
+    await relay.resolve(id.pubKeyZ32);
+    expect(calls).toEqual(["a.test", "b.test", "b.test", "b.test"]);
+  });
+
+  it("reports nothing published, and fails only when no relay answers", async () => {
+    const missing = transport({ "a.test": () => new Response(null, { status: 404 }) });
+    expect(await missing.relay.resolve(id.pubKeyZ32)).toBeNull();
+
+    const down = transport({ "a.test": () => new Response(null, { status: 502 }) });
+    await expect(down.relay.resolve(id.pubKeyZ32)).rejects.toThrow("No Pkarr relay reachable");
+  });
+
+  it("ignores a packet with a bad signature", async () => {
+    const forged = createRelayPayload(createIdentity(), [{ label: "_ts", value: "1" }]);
+    const { relay } = transport({ "a.test": () => new Response(forged as BodyInit) });
+    await expect(relay.resolve(id.pubKeyZ32)).rejects.toThrow();
+  });
+});
+
+describe("relay transport under pressure", () => {
+  const id = createIdentity();
+
+  it("treats a network error like a rate limit and leaves that relay alone", async () => {
+    const calls: string[] = [];
+    const fetchFn = (async (input: RequestInfo | URL) => {
+      const host = new URL(String(input)).host;
+      calls.push(host);
+      if (host === "a.test") throw new TypeError("Failed to fetch"); // a 429 without CORS headers looks like this
+      return new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 9n) as BodyInit);
+    }) as typeof fetch;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: fetchFn });
+    for (let i = 0; i < 4; i++) expect((await relay.resolve(id.pubKeyZ32))?.timestampMicros).toBe(9n);
+    expect(calls.filter((h) => h === "a.test")).toHaveLength(1);
+  });
+
+  it("never spends more than its budget on a relay, and keeps answering from what it knows", async () => {
+    let requests = 0;
+    const fetchFn = (async () => {
+      requests++;
+      return new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+    }) as typeof fetch;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: fetchFn });
+    for (let i = 0; i < 100; i++) expect((await relay.resolve(id.pubKeyZ32))?.timestampMicros).toBe(3n);
+    expect(requests).toBe(30);
+  });
+
+  it("spends only part of the budget on background requests, keeping the rest for the links", async () => {
+    let requests = 0;
+    const fetchFn = (async (_: RequestInfo | URL, init?: RequestInit) => {
+      requests++;
+      return init?.method === "PUT" ? new Response(null, { status: 204 }) : new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+    }) as typeof fetch;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: fetchFn });
+    // A hub's periodic looks run out at the background share, reads and writes alike…
+    for (let i = 0; i < BACKGROUND_REQUESTS_PER_MINUTE; i++) await relay.resolve(id.pubKeyZ32, { background: true });
+    await expect(relay.publish(id, [{ label: "_ts", value: "2" }], { background: true })).rejects.toThrow("budget");
+    // …and a background read with nothing known yet says it waits for the budget, rather than answering from nothing.
+    await expect(relay.resolve(createIdentity().pubKeyZ32, { background: true })).rejects.toBeInstanceOf(DiscoveryBudgetError);
+    expect(requests).toBe(BACKGROUND_REQUESTS_PER_MINUTE);
+    // …while a link's signaling still has the rest.
+    for (let i = BACKGROUND_REQUESTS_PER_MINUTE; i < REQUESTS_PER_MINUTE; i++) await relay.resolve(id.pubKeyZ32);
+    expect(requests).toBe(REQUESTS_PER_MINUTE);
+    await relay.resolve(id.pubKeyZ32);
+    expect(requests).toBe(REQUESTS_PER_MINUTE);
+  });
+
+  it("lets a link's refused write go before any read once the minute frees a request", async () => {
+    // A link polling fast for its peer while its offer waits for the budget: the offer is what the peer
+    // waits for, so the request the minute frees goes to it, not to one more poll (the e2e community
+    // join waited half a minute so: every freed request went to a poll, the offer out once polls slowed).
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const writes: number[] = [], reads: number[] = [];
+      const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (_: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "PUT") { writes.push(Date.now()); return new Response(null, { status: 204 }); }
+        reads.push(Date.now()); return new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+      }) as typeof fetch });
+      const start = Date.now();
+      for (let i = 0; i < REQUESTS_PER_MINUTE; i++) { await relay.resolve(id.pubKeyZ32); vi.setSystemTime(Date.now() + 1_000); }
+      const offer = createIdentity();
+      await expect(relay.publish(offer, [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+      // The link tries again every few seconds (`PUBLISH_RETRY_MS`), refused while the minute is full…
+      vi.setSystemTime(start + 57_000);
+      await expect(relay.publish(offer, [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+      // …then the first request of the minute frees up: a poll comes first, and waits; the offer's retry goes.
+      vi.setSystemTime(start + 60_000);
+      expect((await relay.resolve(id.pubKeyZ32))?.timestampMicros).toBe(3n);
+      expect(reads).toHaveLength(REQUESTS_PER_MINUTE);
+      await relay.publish(offer, [{ label: "_ts", value: "2" }]);
+      expect(writes).toHaveLength(1);
+      // Out: polls take what frees up again.
+      vi.setSystemTime(start + 61_000);
+      await relay.resolve(id.pubKeyZ32);
+      expect(reads).toHaveLength(REQUESTS_PER_MINUTE + 1);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("gives up the reads' wait for a write that never comes back", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      let reads = 0;
+      const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (_: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "PUT") return new Response(null, { status: 204 });
+        reads++; return new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+      }) as typeof fetch });
+      const start = Date.now();
+      for (let i = 0; i < REQUESTS_PER_MINUTE; i++) await relay.resolve(id.pubKeyZ32);
+      await expect(relay.publish(createIdentity(), [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+      // The link that wanted to write stopped: after a while, polls go on.
+      vi.setSystemTime(start + 60_000 + WRITE_FIRST_MS);
+      await relay.resolve(id.pubKeyZ32);
+      expect(reads).toBe(REQUESTS_PER_MINUTE + 1);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("does not hold reads back on a relay that refused a write another relay took", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const gets: string[] = [];
+      const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "PUT") return new Response(null, { status: 204 });
+        gets.push(new URL(String(input)).host); return new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+      }) as typeof fetch });
+      const start = Date.now();
+      // Writes go to both relays: 29 on each, then one read fills a's minute.
+      for (let i = 0; i < REQUESTS_PER_MINUTE - 1; i++) await relay.publish(createIdentity(), [{ label: "_ts", value: "1" }]);
+      vi.setSystemTime(start + 1_000);
+      await relay.resolve(id.pubKeyZ32);
+      expect(gets).toEqual(["a.test"]);
+      // a refuses a link's packet, b takes it: it is out, and the link will not try again…
+      vi.setSystemTime(start + 57_000);
+      await relay.publish(createIdentity(), [{ label: "_ts", value: "2" }]);
+      // …so when a's minute frees up, its reads go on: there is no write to wait for.
+      vi.setSystemTime(start + 60_500);
+      await relay.resolve(id.pubKeyZ32);
+      await relay.resolve(id.pubKeyZ32);
+      expect(gets.slice(1).sort()).toEqual(["a.test", "b.test"]);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("does not hold reads back for a background write the budget refused", async () => {
+    let reads = 0;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (_: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "PUT") return new Response(null, { status: 204 });
+      reads++; return new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+    }) as typeof fetch });
+    for (let i = 0; i < BACKGROUND_REQUESTS_PER_MINUTE; i++) await relay.resolve(id.pubKeyZ32, { background: true });
+    await expect(relay.publish(createIdentity(), [{ label: "_ts", value: "1" }], { background: true })).rejects.toThrow("budget");
+    await relay.resolve(id.pubKeyZ32);
+    expect(reads).toBe(BACKGROUND_REQUESTS_PER_MINUTE + 1);
+  });
+
+  it("counts background requests on their own: a burst of signaling does not hold them back afterwards", async () => {
+    let requests = 0;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async () => {
+      requests++; return new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+    }) as typeof fetch });
+    // A link's signaling spent most of the minute…
+    for (let i = 0; i < REQUESTS_PER_MINUTE - 5; i++) await relay.resolve(id.pubKeyZ32);
+    // …the background still has what is left of the whole, not nothing.
+    for (let i = 0; i < 10; i++) await relay.resolve(id.pubKeyZ32, { background: true });
+    expect(requests).toBe(REQUESTS_PER_MINUTE);
+  });
+});
+
+describe("relay transport publishing in bursts", () => {
+  it("does not hammer a relay with publish retries after a CORS/network failure", async () => {
+    let requests = 0;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async () => {
+      requests++; throw new TypeError("Failed to fetch");
+    }) as typeof fetch });
+    const id = createIdentity();
+    for (let i = 0; i < 10; i++) await expect(relay.publish(id, [{ label: "_ts", value: "1" }])).rejects.toThrow();
+    expect(requests).toBe(1);
+  });
+  it("budgets writes as well as polls", async () => {
+    let requests = 0;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async () => {
+      requests++; return new Response(null, { status: 204 });
+    }) as typeof fetch });
+    const id = createIdentity();
+    for (let i = 0; i < 30; i++) await relay.publish(id, [{ label: "_ts", value: "1" }]);
+    await expect(relay.publish(id, [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+    expect(requests).toBe(30);
+  });
+  it("signs no packet every relay's budget holds back, nor dates one: the wait is said before", async () => {
+    let requests = 0;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: (async () => {
+      requests++; return new Response(null, { status: 204 });
+    }) as typeof fetch });
+    // Each signature reads the seed: counted.
+    let signed = 0;
+    const id = createIdentity();
+    const counted = new Proxy(id, { get: (target, name) => { if (name === "seed") signed++; return Reflect.get(target, name); } });
+    for (let i = 0; i < 30; i++) await relay.publish(counted, [{ label: "_ts", value: String(i) }]);
+    expect(signed).toBe(30);
+    const dated = (relay as unknown as { lastTimestamp: Map<string, bigint> }).lastTimestamp.get(id.pubKeyZ32);
+    // A daemon at its budget signed ~500 packets a minute that never went out; now each costs nothing but the wait.
+    for (let i = 0; i < 5; i++) await expect(relay.publish(counted, [{ label: "_ts", value: "late" }])).rejects.toSatisfy(isDiscoveryBudgetError);
+    expect(signed).toBe(30);
+    expect(requests).toBe(60);
+    expect((relay as unknown as { lastTimestamp: Map<string, bigint> }).lastTimestamp.get(id.pubKeyZ32)).toBe(dated);
+    // Where `put` takes it past the relays too (the CLI's DHT), it is signed whatever the budgets say.
+    let put = 0;
+    await relay.publishDated(counted, [{ label: "_ts", value: "dht" }], async () => { put++; }, {}, false, true);
+    expect([signed, put]).toEqual([31, 1]);
+  });
+
+  // agents#1573: a group edge signs its own packets (`CarriedTransport`) and hands them to `publishPayload`, which
+  // had no check before signing: a hub at its budget signed ~450-670 edge packets a minute that never went out.
+  it("a group edge that is up signs no packet every relay's budget holds back either: the wait is said before", async () => {
+    let requests = 0;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: (async () => {
+      requests++; return new Response(null, { status: 204 });
+    }) as typeof fetch });
+    let signed = 0;
+    const id = createIdentity(), peer = createIdentity();
+    const counted = new Proxy(id, { get: (target, name) => { if (name === "seed") signed++; return Reflect.get(target, name); } });
+    const edge = new CarriedTransport(withRequestOptions(relay, { group: true }), id.pubKeyZ32, peer.pubKeyZ32, { carry: () => ({ taken: 0, sure: false }), open: () => true, look: () => {} });
+    let held = 0;
+    for (let i = 0; i < 60; i++) await edge.publish(counted, [{ label: "_ts", value: String(i) }]).catch((error: unknown) => { if (isDiscoveryBudgetError(error)) held++; else throw error; });
+    console.log(`EDGE SIGNS: 60 publishes, ${signed} signed, ${requests} requests, ${held} held back`);
+    expect(held).toBeGreaterThan(0);
+    // Every packet signed went out.
+    expect(signed).toBe(requests / 2);
+    // Down, a packet is signed whatever the relays say: members carry it.
+    const down = new CarriedTransport(withRequestOptions(relay, { group: true }), id.pubKeyZ32, peer.pubKeyZ32, { carry: () => ({ taken: 1, sure: true }), open: () => false, look: () => {} });
+    const before = signed;
+    await down.publish(counted, [{ label: "_ts", value: "carried" }]);
+    expect(signed).toBe(before + 1);
+    down.stop();
+  });
+
+  it("signs a publish one relay takes while another rate limits this address", async () => {
+    let calls = 0;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: (async (input: RequestInfo | URL) => {
+      calls++;
+      return new URL(String(input)).host === "a.test" ? new Response(null, { status: 429, headers: { "retry-after": "60" } }) : new Response(null, { status: 204 });
+    }) as typeof fetch });
+    let signed = 0;
+    const id = createIdentity();
+    const counted = new Proxy(id, { get: (target, name) => { if (name === "seed") signed++; return Reflect.get(target, name); } });
+    await relay.publish(counted, [{ label: "_ts", value: "1" }]);
+    await relay.publish(counted, [{ label: "_ts", value: "2" }]);
+    expect(signed).toBe(2);
+    // a.test is left alone for its minute after the first 429: the second went to b.test only.
+    expect(calls).toBe(3);
+  });
+
+  it("tells the relay which packet it replaces, and insists when the relay never saw it", async () => {
+    const id = createIdentity();
+    const seen: (string | null)[] = [];
+    let stored: string | null = null;
+    const fetchFn = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const ifMatch = new Headers(init?.headers).get("if-match");
+      seen.push(ifMatch);
+      // Like a relay with a put in flight: replacing needs the right If-Match.
+      if (stored !== null && ifMatch === null) return new Response(null, { status: 428 });
+      if (ifMatch !== null && ifMatch !== stored) return new Response(null, { status: 412 });
+      const body = new Uint8Array(init!.body as Uint8Array);
+      stored = new DataView(body.buffer, body.byteOffset + 64, 8).getBigUint64(0).toString();
+      return new Response(null, { status: 204 });
+    }) as typeof fetch;
+
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: fetchFn });
+    await relay.publish(id, [{ label: "_ts", value: "1" }]);
+    await relay.publish(id, [{ label: "_ts", value: "2" }]);
+    await relay.publish(id, [{ label: "_ts", value: "3" }]);
+    expect(seen[0]).toBeNull();
+    expect(seen[1]).not.toBeNull();
+    expect(seen).toHaveLength(3);
+
+    // The relay forgot everything: the stale If-Match gets 412 and the publish goes through without it.
+    stored = null;
+    await relay.publish(id, [{ label: "_ts", value: "4" }]);
+    expect(seen.slice(3)).toEqual([seen[2] === null ? null : expect.any(String), null]);
+  });
+});
+
+describe("relay operation backoff", () => {
+  it("keeps healthy reads available while backing off failed publications", async () => {
+    const calls: string[] = [];
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (_url, init) => {
+      calls.push(init?.method ?? "GET");
+      if (init?.method === "PUT") throw new TypeError("Failed to fetch");
+      return new Response(null, {status:404});
+    }) as typeof fetch });
+    const id = createIdentity();
+    for (let i = 0; i < 3; i++) {
+      await expect(relay.publish(id, [])).rejects.toThrow();
+      expect(await relay.resolve(id.pubKeyZ32)).toBeNull();
+    }
+    expect(calls).toEqual(["PUT", "GET", "GET", "GET"]);
+  });
+
+  it.each(["GET", "PUT"])("keeps observed %s rate limits global across operations", async method => {
+    let requests = 0;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async () => {
+      requests++;
+      return new Response(null, {status:429, headers:{"retry-after":"30"}});
+    }) as typeof fetch });
+    const id = createIdentity();
+    if (method === "GET") await expect(relay.resolve(id.pubKeyZ32)).rejects.toThrow();
+    else await expect(relay.publish(id, [])).rejects.toThrow();
+    await expect(relay.publish(id, [])).rejects.toThrow();
+    await expect(relay.resolve(id.pubKeyZ32)).rejects.toThrow();
+    expect(requests).toBe(1);
+  });
+});
+
+describe("relay transport: the budget holds requests back as a wait", () => {
+  const id = createIdentity();
+  const ok = (async (_: RequestInfo | URL, init?: RequestInit) =>
+    init?.method === "PUT" ? new Response(null, { status: 204 }) : new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit)) as typeof fetch;
+
+  it("says a publish waits, and for how long: until the oldest request of the minute ages out on the relay that frees first", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: ok });
+      const start = Date.now();
+      // 30 reads a second apart, alternating: each relay's minute is full, a.test's oldest request the older one.
+      for (let i = 0; i < 2 * REQUESTS_PER_MINUTE; i++) { await relay.resolve(id.pubKeyZ32); vi.setSystemTime(Date.now() + 500); }
+      const refused = await relay.publish(createIdentity(), [{ label: "_ts", value: "1" }]).then(() => null, (error: unknown) => error);
+      expect(isDiscoveryBudgetError(refused)).toBe(true);
+      // a.test's first read was at `start`: it frees at start + 60 s.
+      expect((refused as DiscoveryBudgetError).retryInMs).toBe(start + 60_000 - Date.now());
+      expect((refused as Error).message).toContain("Publish held back on every relay");
+      // Nothing went out, and the refusal cost nothing: at the time it named, the publish goes.
+      vi.setSystemTime(start + 60_000);
+      await relay.publish(createIdentity(), [{ label: "_ts", value: "1" }]);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("types a relay's own 429 as a wait for its Retry-After", async () => {
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async () => new Response(null, { status: 429, headers: { "retry-after": "20" } })) as typeof fetch });
+    const first = await relay.publish(id, []).then(() => null, (error: unknown) => error);
+    expect(isDiscoveryBudgetError(first) && first.retryInMs).toBe(20_000);
+    const again = await relay.resolve(createIdentity().pubKeyZ32).then(() => null, (error: unknown) => error);
+    expect(isDiscoveryBudgetError(again) && again.retryInMs).toBeGreaterThan(19_000);
+  });
+
+  it("is a failure, not a wait, when a relay failed at the network level", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      let spent = 0;
+      const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("b.test")) throw new TypeError("Failed to fetch");
+        spent++;
+        return ok(input, init);
+      }) as typeof fetch });
+      while (spent < REQUESTS_PER_MINUTE) await relay.resolve(id.pubKeyZ32).catch(() => {});
+      const refused = await relay.publish(createIdentity(), []).then(() => null, (error: unknown) => error);
+      expect(refused).toBeInstanceOf(Error);
+      expect(isDiscoveryBudgetError(refused)).toBe(false);
+      expect((refused as Error).message).toContain("Publish failed on every relay");
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("recognises a budget error from another copy of the module by its code", () => {
+    const foreign = Object.assign(new Error("Discovery request budget reached; retry shortly"), { code: "discovery-budget", retryInMs: 1_000 });
+    expect(isDiscoveryBudgetError(foreign)).toBe(true);
+    expect(isDiscoveryBudgetError(new Error("Discovery request budget reached; retry shortly"))).toBe(false);
+  });
+});
+
+describe("relay transport: a chat before its groups", () => {
+  // A profile in several groups: an edge per member polls and signals. Once the budget holds a 1:1 chat back, the
+  // groups leave it the last CHAT_RESERVE requests of each minute, for a minute; until then they have them all.
+  const id = createIdentity();
+  function counting() {
+    const log: { method: string; at: number }[] = [];
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (_: RequestInfo | URL, init?: RequestInit) => {
+      log.push({ method: init?.method ?? "GET", at: Date.now() });
+      return init?.method === "PUT" ? new Response(null, { status: 204 }) : new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+    }) as typeof fetch });
+    return { relay, log, group: withRequestOptions(relay, { group: true }) };
+  }
+  /** The groups spend the minute one request a second from `start`, as a busy community door and its edges do. */
+  async function groupsSpendTheMinute(group: ReturnType<typeof counting>["group"], start: number) {
+    for (let i = 0; i < REQUESTS_PER_MINUTE; i++) { vi.setSystemTime(start + i * 1_000); await group.resolve(id.pubKeyZ32); }
+  }
+
+  it("gives the groups the whole minute while no chat is held back, a chat's own traffic included", async () => {
+    const { relay, log, group } = counting();
+    await relay.resolve(id.pubKeyZ32);
+    for (let i = 0; i < REQUESTS_PER_MINUTE; i++) await group.resolve(id.pubKeyZ32, { background: i % 2 === 0 }).catch(() => {});
+    expect(log).toHaveLength(REQUESTS_PER_MINUTE);
+  });
+
+  it("gives a chat the budget held back the next requests that free, before any group's, and room for what follows", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { relay, log, group } = counting();
+      const start = Date.now(), message = createIdentity();
+      await groupsSpendTheMinute(group, start);
+      vi.setSystemTime(start + 30_000);
+      await expect(relay.publish(message, [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+      // The groups' first request ages out: an edge's poll (and even its write) waits, the message goes…
+      vi.setSystemTime(start + 60_000);
+      await expect(group.resolve(createIdentity().pubKeyZ32)).rejects.toBeInstanceOf(DiscoveryBudgetError);
+      await expect(group.publish(createIdentity(), [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+      await relay.publish(message, [{ label: "_ts", value: "2" }]);
+      expect(log.filter((r) => r.method === "PUT")).toHaveLength(1);
+      // …and as the groups' requests age out, their share refills only to what leaves the chat its reserve.
+      for (let t = 61_000; t < 80_000; t += 1_000) {
+        vi.setSystemTime(start + t);
+        await group.resolve(id.pubKeyZ32).catch(() => {});
+      }
+      const inMinute = (at: number) => log.filter((r) => r.at > at - 60_000 && r.at <= at).length;
+      expect(inMinute(start + 79_000)).toBe(REQUESTS_PER_MINUTE - CHAT_RESERVE);
+      // The chat's looks for its receipt go at once.
+      for (let i = 0; i < CHAT_RESERVE; i++) await relay.resolve(id.pubKeyZ32);
+      expect(inMinute(start + 79_000)).toBe(REQUESTS_PER_MINUTE);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("counts a group's background looks (a community hub's) toward the groups' share too", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { relay, log, group } = counting();
+      const start = Date.now();
+      await groupsSpendTheMinute(group, start);
+      vi.setSystemTime(start + 40_000);
+      await expect(relay.publish(createIdentity(), [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+      // A minute on, the chat reads a few times; a hub's background looks stop at the groups' share, short of their own.
+      const at = start + 99_000;
+      vi.setSystemTime(at);
+      for (let i = 0; i < 5; i++) await relay.resolve(id.pubKeyZ32);
+      for (let i = 0; i < REQUESTS_PER_MINUTE; i++) await group.resolve(id.pubKeyZ32, { background: true }).catch(() => {});
+      expect(log.filter((r) => r.at === at)).toHaveLength(REQUESTS_PER_MINUTE - CHAT_RESERVE);
+      expect(REQUESTS_PER_MINUTE - CHAT_RESERVE - 5).toBeLessThan(BACKGROUND_REQUESTS_PER_MINUTE);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("lifts the reserve a minute after the chat was last held back", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { relay, log, group } = counting();
+      const start = Date.now();
+      await groupsSpendTheMinute(group, start);
+      const refusedAt = start + 40_000;
+      vi.setSystemTime(refusedAt);
+      await expect(relay.publish(createIdentity(), [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+      // Everything of that minute aged out, but the chat was held back less than a minute ago.
+      vi.setSystemTime(refusedAt + 59_000);
+      for (let i = 0; i < REQUESTS_PER_MINUTE; i++) await group.resolve(id.pubKeyZ32).catch(() => {});
+      expect(log.filter((r) => r.at === refusedAt + 59_000)).toHaveLength(REQUESTS_PER_MINUTE - CHAT_RESERVE);
+      // A group's request says how long it waits: until the reserve lifts, not until the minute's requests age out.
+      const offer = createIdentity();
+      const refused = await group.publish(offer, [{ label: "_ts", value: "1" }]).catch((e: unknown) => e) as DiscoveryBudgetError;
+      expect(refused.retryInMs).toBe(1_000);
+      // Lifted: the edge's offer goes first, then its polls.
+      vi.setSystemTime(refusedAt + 60_000);
+      await group.publish(offer, [{ label: "_ts", value: "2" }]);
+      for (let i = 1; i < CHAT_RESERVE; i++) await group.resolve(id.pubKeyZ32);
+      expect(log.filter((r) => r.at >= refusedAt + 59_000)).toHaveLength(REQUESTS_PER_MINUTE);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("lets a chat's refused write go before a group's requests, and a group's refused write never holds a chat back", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { relay, log, group } = counting();
+      const start = Date.now();
+      for (let i = 0; i < REQUESTS_PER_MINUTE; i++) await relay.resolve(id.pubKeyZ32);
+      const message = createIdentity();
+      await expect(relay.publish(message, [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+      // The chat tries again every few seconds, refused while the minute is full…
+      vi.setSystemTime(start + 57_000);
+      await expect(relay.publish(message, [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+      // …then the minute frees a request: the group's poll and even its write wait, the chat's write goes.
+      vi.setSystemTime(start + 60_000);
+      await expect(group.resolve(createIdentity().pubKeyZ32)).rejects.toBeInstanceOf(DiscoveryBudgetError);
+      await expect(group.publish(createIdentity(), [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+      await relay.publish(message, [{ label: "_ts", value: "2" }]);
+      expect(log.filter((r) => r.method === "PUT")).toHaveLength(1);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("leaves a chat that polls fast its reserve on every relay before anything is refused, for a minute after", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const log: { host: string; at: number }[] = [];
+      const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        log.push({ host: new URL(String(input)).host, at: Date.now() });
+        return init?.method === "PUT" ? new Response(null, { status: 204 }) : new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+      }) as typeof fetch });
+      const group = withRequestOptions(relay, { group: true });
+      const start = Date.now();
+      // A contact went away from a chat and from two groups: the chat and the edges all watch fast for it (the two edges
+      // read every 2 s each, a read a second).
+      await relay.resolve(id.pubKeyZ32, { urgent: true });
+      for (let i = 0; i < 2 * REQUESTS_PER_MINUTE; i++) { vi.setSystemTime(start + i * 1_000); await group.resolve(id.pubKeyZ32, { urgent: true }).catch(() => {}); }
+      // The edges stop short of the reserve on both relays, the one the chat read from (its read counted) and the other.
+      const on = (host: string) => log.filter((r) => r.host === host).length;
+      expect(on("a.test") + on("b.test")).toBe(2 * (REQUESTS_PER_MINUTE - CHAT_RESERVE));
+      // The contact's offer is read at once, on either relay, and what follows too.
+      for (let i = 0; i < 2 * CHAT_RESERVE; i++) await relay.resolve(id.pubKeyZ32, { urgent: true });
+      expect(log).toHaveLength(2 * REQUESTS_PER_MINUTE);
+      // The reserve holds a minute after the chat's last fast read (a watch goes on at the active pace): the edges'
+      // requests aged out, the chat's did not, and the edges fill only up to the reserve…
+      const lastUrgent = Date.now();
+      vi.setSystemTime(lastUrgent + 59_000);
+      for (let i = 0; i < 2 * REQUESTS_PER_MINUTE; i++) await group.resolve(id.pubKeyZ32).catch(() => {});
+      expect(log.filter((r) => r.at === lastUrgent + 59_000)).toHaveLength(2 * (REQUESTS_PER_MINUTE - 2 * CHAT_RESERVE));
+      // …and say how long they wait: until the reserve lifts.
+      const offer = createIdentity();
+      const refused = await group.publish(offer, [{ label: "_ts", value: "1" }]).catch((e: unknown) => e) as DiscoveryBudgetError;
+      expect(refused.retryInMs).toBe(1_000);
+      vi.setSystemTime(lastUrgent + 60_000);
+      await group.publish(offer, [{ label: "_ts", value: "2" }]);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("gives a chat's reserve back once the chat reads its contact at a slow pace again (it is live)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const log: { at: number }[] = [];
+      // The contacts have published nothing yet (404); the edge's member has.
+      const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (input: RequestInfo | URL) => {
+        log.push({ at: Date.now() });
+        return String(input).endsWith(id.pubKeyZ32) ? new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit) : new Response(null, { status: 404 });
+      }) as typeof fetch });
+      const group = withRequestOptions(relay, { group: true });
+      const start = Date.now(), contact = createIdentity().pubKeyZ32, other = createIdentity().pubKeyZ32;
+      // Two chats watch fast for their contacts; the edges' reads stop short of the reserve.
+      await relay.resolve(contact, { urgent: true });
+      await relay.resolve(other, { urgent: true });
+      for (let i = 0; i < REQUESTS_PER_MINUTE; i++) { vi.setSystemTime(start + i * 100); await group.resolve(id.pubKeyZ32).catch(() => {}); }
+      expect(log).toHaveLength(REQUESTS_PER_MINUTE - CHAT_RESERVE);
+      // One chat is live (it reads at the connected pace, a background read, which leaves the other its reserve too): the
+      // other still waits, the reserve holds.
+      vi.setSystemTime(start + 20_000);
+      await relay.resolve(contact, { background: true }).catch(() => {});
+      vi.setSystemTime(start + 30_000);
+      await group.resolve(id.pubKeyZ32);
+      // A group's own background read of a key is no chat going live.
+      await group.resolve(other, { background: true }).catch(() => {});
+      await group.resolve(id.pubKeyZ32);
+      expect(log).toHaveLength(REQUESTS_PER_MINUTE - CHAT_RESERVE);
+      // Both live: the edges take the rest of the minute at once. Dev: nothing until a minute after the chats' last fast
+      // read.
+      await relay.resolve(other, { background: true });
+      for (let i = 0; i < REQUESTS_PER_MINUTE; i++) await group.resolve(id.pubKeyZ32).catch(() => {});
+      expect(log).toHaveLength(REQUESTS_PER_MINUTE);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("keeps more for several chats that need the relays at once, and background looks leave it too", async () => {
+    // An app back after a restart, four chats looking fast for their contacts at once (none has published yet: 404).
+    const log: { at: number }[] = [];
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+      log.push({ at: Date.now() });
+      if (init?.method === "PUT") return new Response(null, { status: 204 });
+      return String(input).endsWith(id.pubKeyZ32) ? new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit) : new Response(null, { status: 404 });
+    }) as typeof fetch });
+    const group = withRequestOptions(relay, { group: true });
+    const contacts = Array.from({ length: 4 }, () => createIdentity().pubKeyZ32);
+    for (const contact of contacts) await relay.resolve(contact, { urgent: true });
+    // The groups, and the background looks of chats whose contacts are away and their presence, stop short of what the
+    // four keep: a read, an offer or answer, and the read for its answer each.
+    for (let i = 0; i < REQUESTS_PER_MINUTE; i++) await group.resolve(id.pubKeyZ32).catch(() => {});
+    for (let i = 0; i < 5; i++) await relay.resolve(createIdentity().pubKeyZ32, { background: true }).catch(() => {});
+    await expect(relay.publish(createIdentity(), [{ label: "_ts", value: "1" }], { background: true })).rejects.toThrow("budget");
+    expect(4 * CHAT_RESERVE_PER_CHAT).toBeGreaterThan(CHAT_RESERVE);
+    expect(log).toHaveLength(REQUESTS_PER_MINUTE - 4 * CHAT_RESERVE_PER_CHAT);
+    // The chats' own requests take the rest.
+    for (let i = 0; i < 4 * CHAT_RESERVE_PER_CHAT; i++) await relay.resolve(contacts[i % 4], { urgent: true });
+    expect(log).toHaveLength(REQUESTS_PER_MINUTE);
+  });
+
+  it("leaves the groups part of the minute however many chats need the rest", async () => {
+    const { relay, log, group } = counting();
+    // Thirty chats looked fast for their contacts within the minute (their reads went elsewhere: the need is what counts).
+    for (let i = 0; i < REQUESTS_PER_MINUTE; i++) relay["chatNeed"](createIdentity().pubKeyZ32, Date.now());
+    for (let i = 0; i < REQUESTS_PER_MINUTE; i++) await group.resolve(id.pubKeyZ32).catch(() => {});
+    expect(log).toHaveLength(REQUESTS_PER_MINUTE - Math.floor(REQUESTS_PER_MINUTE * CHAT_RESERVE_MOST_SHARE));
+    expect(log.length).toBeGreaterThan(0);
+  });
+
+  it("weighs a group's or a background request without walking every chat that needs the relay", () => {
+    // Contacts away by the thousand: each chat the budget refused needs the relay for a minute, and every group's or
+    // background request asked walked all those needs, twice (bug hunt, 2026-11-01: 2.7 s per 10 idle minutes at 500).
+    const url = "https://a.test";
+    const relay = new RelayTransport({ freshReadMs: 0, relays: [url], fetch: (async () => new Response(null, { status: 404 })) as typeof fetch });
+    const who = (options: { urgent?: boolean; write?: boolean; group?: boolean; background?: boolean }) =>
+      ({ background: false, group: false, urgent: false, door: false, write: false, signal: false, watch: false, watchWrite: false, departed: false, resume: false, back: false, ...options });
+    const chats = 5_000;
+    for (let i = 0; i < chats; i++) relay["take"](url, who({ urgent: true, write: true }), `chat-${i}`);
+    const start = performance.now();
+    let held = 0;
+    for (let i = 0; i < chats; i++) {
+      if (relay["heldFor"](url, who({ group: true }), Date.now(), `group-${i}`) > 0) held++;
+      if (relay["heldFor"](url, who({ background: true }), Date.now(), `look-${i}`) > 0) held++;
+    }
+    expect(held).toBe(2 * chats);
+    // Dev: 4.5 s, the work growing with the square of the chats.
+    expect(performance.now() - start).toBeLessThan(1_000);
+  });
+
+  it("does not keep a reserve for a chat that is not waiting for anything", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { relay, log, group } = counting();
+      const start = Date.now();
+      // Its looks at the active pace and its background ones leave the groups the whole minute (an edge polling fast).
+      await relay.resolve(id.pubKeyZ32);
+      await relay.resolve(id.pubKeyZ32, { background: true });
+      for (let i = 0; i < REQUESTS_PER_MINUTE; i++) { vi.setSystemTime(start + i * 1_900); await group.resolve(id.pubKeyZ32, { urgent: true }).catch(() => {}); }
+      expect(log).toHaveLength(REQUESTS_PER_MINUTE);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("spreads the groups' fast reads over the minute: a burst of edges does not spend it in seconds", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { log, group } = counting();
+      const start = Date.now();
+      // An app back after a restart: four edges offer at once and look fast for their answers, a read every 2 s each.
+      for (let t = 0; t < 60_000; t += 500) { vi.setSystemTime(start + t); await group.resolve(id.pubKeyZ32, { urgent: true }).catch(() => {}); }
+      const inWindow = (from: number) => log.filter((r) => r.at >= start + from && r.at < start + from + GROUP_BURST_MS).length;
+      // A quarter of the relay's minute in any 15 s, and never fewer than one edge alone reads (8): the answers that
+      // come 20 or 45 s on (the members noticing the old sessions went) are read then, not a minute later.
+      for (const from of [0, 15_000, 30_000]) expect(inWindow(from)).toBe(Math.max(GROUP_BURST_ONE_LINK, REQUESTS_PER_MINUTE / 4));
+      // What the minute has left goes in its last quarter. On dev they took the whole minute in its first 15 s, and read
+      // nothing for the other 45.
+      expect(inWindow(45_000)).toBe(REQUESTS_PER_MINUTE - 3 * GROUP_BURST_ONE_LINK);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("does not hold a chat's reads back for a group's refused write", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { relay, log, group } = counting();
+      const start = Date.now(), offer = createIdentity();
+      // No chat about: the groups spend the minute, and an edge's offer is refused, and again at its next try.
+      for (let i = 0; i < REQUESTS_PER_MINUTE; i++) await group.resolve(id.pubKeyZ32);
+      await expect(group.publish(offer, [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+      vi.setSystemTime(start + 57_000);
+      await expect(group.publish(offer, [{ label: "_ts", value: "1" }])).rejects.toThrow("budget");
+      // The first request frees: a chat's read takes it, the offer does not hold it back…
+      vi.setSystemTime(start + 60_000);
+      await relay.resolve(id.pubKeyZ32);
+      expect(log).toHaveLength(REQUESTS_PER_MINUTE + 1);
+      // …while a group's own read still lets the offer go first.
+      await expect(group.resolve(createIdentity().pubKeyZ32)).rejects.toBeInstanceOf(DiscoveryBudgetError);
+    } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("relay transport: background requests yield to a link that signals", () => {
+  const id = createIdentity();
+  function counting() {
+    const log: { background: boolean; at: number }[] = [];
+    let background = false;
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async () => {
+      log.push({ background, at: Date.now() });
+      return new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+    }) as typeof fetch });
+    const look = (at: number) => { vi.setSystemTime(at); background = true; return relay.resolve(id.pubKeyZ32, { background: true, group: true }); };
+    return { relay, log, look, edge: withRequestOptions(relay, { group: true }), setBackground: (b: boolean) => { background = b; } };
+  }
+
+  it("holds a community's looks to a small share while a new edge polls fast, and lets them go on once it stops", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { log, look, edge, setBackground } = counting();
+      const start = Date.now();
+      // A hub looks at its records all the time, a look every 3 s: its whole share of the minute.
+      for (let i = 0; i < BACKGROUND_REQUESTS_PER_MINUTE; i++) await look(start + i * 3_000);
+      // A new edge starts signaling: it polls fast, and the looks wait until their minute is down to the small share.
+      const signalFrom = start + 60_000;
+      for (let t = 0; t < 30_000; t += 1_000) {
+        vi.setSystemTime(signalFrom + t);
+        if (t % 2_000 === 0) { setBackground(false); await edge.resolve(id.pubKeyZ32, { urgent: true }); }
+        await look(signalFrom + t).catch(() => {});
+      }
+      const inMinute = (at: number, background: boolean) => log.filter((r) => r.background === background && r.at > at - 60_000 && r.at <= at).length;
+      // The hub's minute still holds more looks than the small share: none went while the edge signaled.
+      expect(inMinute(signalFrom + 29_000, true)).toBeGreaterThan(BACKGROUND_WHILE_SIGNALING);
+      expect(log.filter((r) => r.background && r.at >= signalFrom)).toHaveLength(0);
+      // The edge had every poll it asked for: 15 in 30 s, on one relay, next to the hub.
+      expect(inMinute(signalFrom + 29_000, false)).toBe(15);
+      // A look held back says how long: until the edge stops signaling, if that comes before its own minute frees one.
+      vi.setSystemTime(signalFrom + 29_000);
+      const held = await edge.resolve(createIdentity().pubKeyZ32, { background: true }).catch((e: unknown) => e) as DiscoveryBudgetError;
+      expect(held.retryInMs).toBe(SIGNALING_WINDOW_MS - 1_000);
+      // Once the edge is live (no fast polls), the hub's looks take what the minute has left again.
+      const after = signalFrom + 28_000 + SIGNALING_WINDOW_MS;
+      for (let i = 0; i < BACKGROUND_REQUESTS_PER_MINUTE; i++) await look(after).catch(() => {});
+      expect(log.filter((r) => r.background && r.at === after).length).toBeGreaterThan(BACKGROUND_WHILE_SIGNALING);
+      expect(inMinute(after, true) + inMinute(after, false)).toBe(REQUESTS_PER_MINUTE);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("lets a community door read its knock bell while a link signals, within the background share", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { log, edge, relay, setBackground } = counting();
+      const start = Date.now();
+      // The door has just let someone in: that person's edges signal, polling fast.
+      const bells: number[] = [];
+      for (let t = 0; t < 30_000; t += 1_000) {
+        vi.setSystemTime(start + t);
+        if (t % 2_000 === 0) { setBackground(false); await edge.resolve(id.pubKeyZ32, { urgent: true }); }
+        // The door reads its bell every 4 s (knockPollMs), the next person's knock due any moment.
+        if (t % 4_000 === 0) {
+          setBackground(true);
+          await relay.resolve(id.pubKeyZ32, { background: true, group: true, door: true }).then(() => bells.push(t), () => {});
+        }
+      }
+      // Every look at the bell went: more than the small share a minute's background has while a link signals.
+      expect(bells).toHaveLength(8);
+      expect(log.filter((r) => r.background)).toHaveLength(8);
+      // Other background looks still wait for the signaling to end.
+      vi.setSystemTime(start + 30_000);
+      await expect(relay.resolve(createIdentity().pubKeyZ32, { background: true, group: true })).rejects.toBeInstanceOf(DiscoveryBudgetError);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("keeps a community door's bell within the background share of the minute", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { log, relay, setBackground } = counting();
+      setBackground(true);
+      for (let i = 0; i < BACKGROUND_REQUESTS_PER_MINUTE + 5; i++) await relay.resolve(id.pubKeyZ32, { background: true, group: true, door: true }).catch(() => {});
+      expect(log).toHaveLength(BACKGROUND_REQUESTS_PER_MINUTE);
+    } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("relay transport: a relay that held a packet back gets it later", () => {
+  // Bug hunt r7a: a packet one relay took and the other's budget refused was never put there, so that relay kept the
+  // key's older packet; an app that restarted and read it first answered a contact's offer long answered.
+  const id = createIdentity(), other = createIdentity();
+  function twoRelays() {
+    const log: { host: string; method: string; key: string; body?: Uint8Array }[] = [];
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://relay.pkarr.org"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input));
+      log.push({ host: url.host, method: init?.method ?? "GET", key: url.pathname.slice(1), body: init?.body as Uint8Array | undefined });
+      return init?.method === "PUT" ? new Response(null, { status: 204 }) : new Response(null, { status: 404 });
+    }) as typeof fetch });
+    return { relay, log };
+  }
+  const putsOf = (log: ReturnType<typeof twoRelays>["log"], host: string) => log.filter(r => r.method === "PUT" && r.host === host && r.key === id.pubKeyZ32);
+  /**
+   * relay.pkarr.org takes 5 requests a minute: spent on writes of another key, which go to every relay (reads go to it
+   * only once a.test refuses them: a relay with a small share takes no read turns).
+   */
+  async function spendSmallRelay(relay: RelayTransport) {
+    for (let i = 0; i < 5; i++) await relay.publish(other, [{ label: "_ts", value: String(i) }]);
+  }
+
+  it("puts the newest packet there once its budget frees, once", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      const { relay, log } = twoRelays();
+      await spendSmallRelay(relay);
+      await relay.publish(id, [{ label: "_ts", value: "1" }]);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(putsOf(log, "a.test")).toHaveLength(1);
+      expect(putsOf(log, "relay.pkarr.org"), "held back there").toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(65_000);
+      const late = putsOf(log, "relay.pkarr.org");
+      expect(late, "put there once the minute freed a request").toHaveLength(1);
+      expect(late[0].body).toEqual(putsOf(log, "a.test")[0].body);
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(putsOf(log, "relay.pkarr.org"), "and only once").toHaveLength(1);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("drops it when a newer packet of the key goes out meanwhile", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      const { relay, log } = twoRelays();
+      await spendSmallRelay(relay);
+      await relay.publish(id, [{ label: "_ts", value: "1" }]);
+      await vi.advanceTimersByTimeAsync(5_000);
+      // Still held back there: the newer packet replaces the one waiting, and only it goes there once the minute frees.
+      await relay.publish(id, [{ label: "_ts", value: "2" }]);
+      await vi.advanceTimersByTimeAsync(120_000);
+      const there = putsOf(log, "relay.pkarr.org");
+      expect(there).toHaveLength(1);
+      expect(there[0].body).toEqual(putsOf(log, "a.test")[1].body);
+    } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("relay transport: a chat's packet one relay took waits for the others while chats need the relays", () => {
+  // Bug hunt, 2026-10-14: an app opened with 30 contacts online wrote each chat's offer to both relays, and the chats
+  // whose contact's offer or answer came a few seconds later found both minutes spent.
+  const me = createIdentity();
+  function twoRelays(failing?: string, slow?: string) {
+    const log: { host: string; method: string; key: string }[] = [];
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input)), key = url.pathname.slice(1);
+      log.push({ host: url.host, method: init?.method ?? "GET", key });
+      if (init?.method !== "PUT") return new Response(null, { status: 404 });
+      // Takes the packet, and says so just before the 10 s timeout.
+      if (url.host === slow && key === me.pubKeyZ32) await new Promise((resolve) => setTimeout(resolve, 9_000));
+      return new Response(null, { status: url.host === failing && key === me.pubKeyZ32 ? 500 : 204 });
+    }) as typeof fetch });
+    return { relay, log };
+  }
+  const putsOf = (log: ReturnType<typeof twoRelays>["log"]) => log.filter(r => r.method === "PUT" && r.key === me.pubKeyZ32).map(r => r.host);
+  /** Four chats look fast for their contacts; the groups' writes spend both relays up to what the chats keep. */
+  async function busy(relay: RelayTransport) {
+    for (let i = 0; i < 4; i++) await relay.resolve(createIdentity().pubKeyZ32, { urgent: true });
+    const group = withRequestOptions(relay, { group: true });
+    for (let i = 0; i < REQUESTS_PER_MINUTE; i++) await group.publish(createIdentity(), [{ label: "_ts", value: "1" }]).catch(() => {});
+  }
+
+  it("puts a chat's offer on one relay, and on the other once the chats no longer need it", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      const { relay, log } = twoRelays();
+      await busy(relay);
+      await relay.publish(me, [{ label: "_ts", value: "1" }], { signal: true });
+      await vi.advanceTimersByTimeAsync(0);
+      // Dev: on both at once.
+      expect(putsOf(log)).toEqual(["a.test"]);
+      await vi.advanceTimersByTimeAsync(65_000);
+      expect(putsOf(log), "put there once the chats' need lapsed").toEqual(["a.test", "b.test"]);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("puts it on the other at once when the relay that took its request does not take the packet", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      const { relay, log } = twoRelays("a.test");
+      await busy(relay);
+      await relay.publish(me, [{ label: "_ts", value: "1" }], { signal: true });
+      expect(putsOf(log)).toEqual(["a.test", "b.test"]);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("puts it on the other once the relay that took its request has not answered within SLOW_MS", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      const { relay, log } = twoRelays(undefined, "a.test");
+      await busy(relay);
+      const published = relay.publish(me, [{ label: "_ts", value: "1" }], { signal: true });
+      await vi.advanceTimersByTimeAsync(SLOW_MS - 1);
+      expect(putsOf(log)).toEqual(["a.test"]);
+      await vi.advanceTimersByTimeAsync(1);
+      // Dev: only once a.test answered, 9 s on, and the contact reading b.test found nothing until then.
+      expect(putsOf(log)).toEqual(["a.test", "b.test"]);
+      await published;
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("puts it everywhere at once while the relays have requests to spare", async () => {
+    const { relay, log } = twoRelays();
+    for (let i = 0; i < 4; i++) await relay.resolve(createIdentity().pubKeyZ32, { urgent: true });
+    await relay.publish(me, [{ label: "_ts", value: "1" }], { signal: true });
+    expect(putsOf(log).sort()).toEqual(["a.test", "b.test"]);
+  });
+});
+
+describe("relay transport: a chat's offer or answer goes over a spent minute", () => {
+  // mx-d707d8d5 (2026-09-30): the pairing and the texts over the DHT spent the extension's minute on the one relay, and
+  // leaving DHT only then held the chat's offer or answer (or its reads for the answer) 40 s, while the contact's
+  // attempt gave up: "On DHT · retrying live" 46 times in 120. Its signaling now has a small allowance past the limit.
+  const id = createIdentity();
+  const allowance = Math.floor(REQUESTS_PER_MINUTE * SIGNALING_ALLOWANCE_SHARE);
+  function counting(relays = ["https://a.test"]) {
+    const log: string[] = [];
+    const relay = new RelayTransport({ freshReadMs: 0, relays, fetch: (async (_: RequestInfo | URL, init?: RequestInit) => {
+      log.push(init?.method ?? "GET");
+      return init?.method === "PUT" ? new Response(null, { status: 204 }) : new Response(createRelayPayload(id, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+    }) as typeof fetch });
+    /** Whether the request reached the relay (a read the budget holds back answers from memory, with no request). */
+    const went = async (request: () => Promise<unknown>) => { const before = log.length; await request().catch(() => {}); return log.length > before; };
+    return { relay, log, went };
+  }
+  async function spendTheMinute(relay: RelayTransport, n = REQUESTS_PER_MINUTE) {
+    for (let i = 0; i < n; i++) await relay.resolve(id.pubKeyZ32);
+  }
+  const write = (relay: PkarrTransport, signal = true) => () => relay.publish(createIdentity(), [{ label: "_ts", value: "1" }], signal ? { signal } : undefined);
+  const read = (relay: RelayTransport, options: PkarrRequestOptions = { urgent: true, signal: true }) => () => relay.resolve(id.pubKeyZ32, options);
+
+  it("lets a chat's offer or answer go at once, up to its allowance, while everything else waits", async () => {
+    const { relay, log, went } = counting();
+    await spendTheMinute(relay);
+    // Ordinary requests wait, as before…
+    expect(await went(read(relay, { urgent: true, signal: false }))).toBe(false);
+    expect(await went(write(relay, false))).toBe(false);
+    // …the signaling goes, a fifth of the minute more, and never beyond.
+    expect(allowance).toBe(6);
+    for (let i = 0; i < allowance; i++) expect(await went(write(relay))).toBe(true);
+    expect(await went(write(relay))).toBe(false);
+    expect(log).toHaveLength(REQUESTS_PER_MINUTE + allowance);
+  });
+
+  it("gives the reads for an answer all but the last of it, which a write still takes", async () => {
+    const { relay, log, went } = counting();
+    await spendTheMinute(relay);
+    for (let i = 0; i < allowance - 1; i++) expect(await went(read(relay))).toBe(true);
+    expect(await went(read(relay))).toBe(false);
+    expect(await went(write(relay))).toBe(true);
+    expect(log.slice(REQUESTS_PER_MINUTE)).toEqual([...Array(allowance - 1).fill("GET"), "PUT"]);
+  });
+
+  it("leaves a group's edge a smaller one, which a chat still goes past, and a background request none", async () => {
+    const { relay, went } = counting();
+    await spendTheMinute(relay);
+    const groupAllowance = Math.floor(REQUESTS_PER_MINUTE * GROUP_SIGNALING_ALLOWANCE_SHARE);
+    expect(groupAllowance).toBe(4);
+    for (let i = 0; i < groupAllowance; i++) expect(await went(write(withRequestOptions(relay, { group: true })))).toBe(true);
+    expect(await went(write(withRequestOptions(relay, { group: true })))).toBe(false);
+    expect(await went(read(relay, { background: true, signal: true }))).toBe(false);
+    for (let i = groupAllowance; i < allowance; i++) expect(await went(write(relay))).toBe(true);
+    expect(await went(write(relay))).toBe(false);
+  });
+
+  it("is sized by each relay's own share: one more on relay.pkarr.org (5 of its 10), for a write only", async () => {
+    const { relay, log, went } = counting(["https://relay.pkarr.org"]);
+    await spendTheMinute(relay, 5);
+    expect(await went(read(relay))).toBe(false);
+    expect(await went(write(relay))).toBe(true);
+    expect(await went(write(relay))).toBe(false);
+    expect(log).toHaveLength(6);
+  });
+});
+
+describe("relay transport: a chat's reads of a contact that just went away go over a spent minute", () => {
+  // #1441 (2026-10-07): a daemon restarted ~20 s after its last restart found its contact's minute spent on both relays.
+  // The contact's reads of it were all held back, the offer it published as it came up was never read, and the chat came
+  // back only through the race's DHT dial, 8 s on. Those reads now have a few requests past the limit.
+  const contact = createIdentity(), other = createIdentity();
+  function counting() {
+    const log: { key: string; method: string; host: string }[] = [];
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input));
+      const key = url.pathname.slice(1), peer = key === contact.pubKeyZ32 ? contact : other;
+      log.push({ key, method: init?.method ?? "GET", host: url.host });
+      return init?.method === "PUT" ? new Response(null, { status: 204 }) : new Response(createRelayPayload(peer, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+    }) as typeof fetch });
+    const went = async (request: () => Promise<unknown>) => { const before = log.length; await request().catch(() => {}); return log.length > before; };
+    return { relay, log, went };
+  }
+  const spendBoth = async (relay: RelayTransport) => { for (let i = 0; i < 2 * REQUESTS_PER_MINUTE; i++) await relay.resolve(other.pubKeyZ32); };
+  /** A chat's fast read of its contact while it watches for it (`LinkSession.watchPeer`), `departed` in its first seconds. */
+  const look = (relay: PkarrTransport, key: string, departed = true) => () => relay.resolve(key, { urgent: true, watch: true, ...(departed && { departed }) });
+  const presence = (relay: RelayTransport) => () => relay.publish(createIdentity(), [{ label: "_ts", value: "1" }], { watch: true });
+
+  it("reads the contact a few times past the limit, then holds its reads back as before", async () => {
+    const { relay, log, went } = counting();
+    await spendBoth(relay);
+    // A watch read, as before: held back.
+    expect(await went(look(relay, contact.pubKeyZ32, false))).toBe(false);
+    // In the first seconds after the contact went away: a few reads of it go, on the relays in turn, and no more.
+    expect(DEPARTED_READS).toBe(6);
+    for (let i = 0; i < DEPARTED_READS; i++) expect(await went(look(relay, contact.pubKeyZ32))).toBe(true);
+    expect(await went(look(relay, contact.pubKeyZ32))).toBe(false);
+    const over = log.slice(2 * REQUESTS_PER_MINUTE);
+    expect(over.every((r) => r.key === contact.pubKeyZ32 && r.method === "GET")).toBe(true);
+    for (const host of ["a.test", "b.test"]) expect(over.filter((r) => r.host === host)).toHaveLength(DEPARTED_READS / 2);
+    // Only a chat's: a group edge's or a background read has its own rules.
+    expect(await went(() => withRequestOptions(relay, { group: true }).resolve(other.pubKeyZ32, { urgent: true, departed: true }))).toBe(false);
+    expect(await went(() => relay.resolve(other.pubKeyZ32, { background: true, departed: true }))).toBe(false);
+  });
+
+  it("draws on the chat's signaling allowance: an offer or answer still has its last request", async () => {
+    const { relay, went } = counting();
+    await spendBoth(relay);
+    const allowance = Math.floor(REQUESTS_PER_MINUTE * SIGNALING_ALLOWANCE_SHARE);
+    // Two contacts gone at once take the allowance's reads on each relay, never the last of it.
+    for (let i = 0; i < DEPARTED_READS; i++) await went(look(relay, contact.pubKeyZ32));
+    let reads = 0;
+    for (let i = 0; i < DEPARTED_READS; i++) if (await went(look(relay, other.pubKeyZ32))) reads++;
+    expect(reads).toBe(2 * (allowance - 1) - DEPARTED_READS);
+    expect(await went(() => relay.publish(createIdentity(), [{ label: "_ts", value: "1" }], { signal: true }))).toBe(true);
+  });
+
+  it("is not held back by a chat's write that waits for the minute: that write cannot go before it frees anyway", async () => {
+    const { relay, went } = counting();
+    await spendBoth(relay);
+    expect(await went(presence(relay))).toBe(false);
+    expect(await went(look(relay, contact.pubKeyZ32))).toBe(true);
+  });
+
+  it("has its reads back a minute on, once the minute frees", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { relay, went } = counting();
+      await spendBoth(relay);
+      for (let i = 0; i < DEPARTED_READS; i++) await went(look(relay, contact.pubKeyZ32));
+      expect(await went(look(relay, contact.pubKeyZ32))).toBe(false);
+      vi.setSystemTime(Date.now() + 60_000);
+      await spendBoth(relay);
+      expect(await went(look(relay, contact.pubKeyZ32))).toBe(true);
+    } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("relay transport: reads for contacts that went away take a share of the minute", () => {
+  /** Two relays; the requests each key's reads and writes made, and when. */
+  function watching(count: number) {
+    const peers = Array.from({ length: count }, () => createIdentity());
+    const log: { key: string; method: string; host: string; at: number }[] = [];
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input)), key = url.pathname.slice(1);
+      log.push({ key, method: init?.method ?? "GET", host: url.host, at: Date.now() });
+      if (init?.method === "PUT") return new Response(null, { status: 204 });
+      const peer = peers.find((p) => p.pubKeyZ32 === key);
+      return peer ? new Response(createRelayPayload(peer, [{ label: "_ts", value: "1" }], 3n) as BodyInit) : new Response(null, { status: 404 });
+    }) as typeof fetch });
+    const group = withRequestOptions(relay, { group: true });
+    /** An edge looking fast for its member that left (`LinkSession.watchPeer`), as a link reads: a read the budget holds back answers from memory. */
+    const watch = (peer: ReturnType<typeof createIdentity>) => group.resolve(peer.pubKeyZ32, { urgent: true, watch: true }).catch(() => {});
+    const reads = (key: string) => log.filter((r) => r.key === key && r.method === "GET").map((r) => r.at);
+    return { peers, log, relay, group, watch, reads };
+  }
+  it("leaves the rest of the minute to the member that comes back, and reads each one that left in turn", async () => {
+    // Bug hunt r12 (2026-10-02), measured again on 2026-10-03 with daemons on local relays: a member alone in a private
+    // group whose three other members left at once watched each of them every 2 s. Those reads (with the admin's knock
+    // poll) spent both relays' minute, so when one member came back 5 s later, its offer was read and answered only when
+    // the minute freed: its edge came up 25 to 37 s after it was back.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { peers, log, group, watch, reads } = watching(3);
+      const start = Date.now();
+      const back = createIdentity(), returning = createIdentity();
+      let answered = false, readBack = false;
+      for (let t = 0; t < 60_000; t += 2_000) {
+        for (const [i, peer] of peers.entries()) { vi.setSystemTime(start + t + i * 5); await watch(peer); }
+        if (t === 30_000) {
+          // One of them is back: its edge reads its offer, and publishes the answer.
+          vi.setSystemTime(start + t + 100);
+          const before = log.length;
+          await group.resolve(back.pubKeyZ32, { urgent: true }).catch(() => {});
+          readBack = log.length > before;
+          answered = await group.publish(returning, [{ label: "_ts", value: "1" }], { signal: true }).then(() => true, () => false);
+        }
+      }
+      // On dev the three watches had taken the whole minute of both relays: the read and the answer waited for it to free.
+      expect(readBack).toBe(true);
+      expect(answered).toBe(true);
+      // Watch reads stay within their share on each relay (a third of it), spread over the minute…
+      const share = Math.ceil(REQUESTS_PER_MINUTE * WATCH_SHARE * GROUP_RATION_WINDOW_MS / 60_000);
+      for (const host of ["a.test", "b.test"]) {
+        const watched = log.filter((r) => r.host === host && r.method === "GET" && peers.some((p) => p.pubKeyZ32 === r.key)).map((r) => r.at);
+        for (const at of watched) expect(watched.filter((other) => other >= at && other < at + GROUP_RATION_WINDOW_MS).length).toBeLessThanOrEqual(share);
+      }
+      // …and each member that left is still read every few seconds: none waits behind the others.
+      for (const peer of peers) {
+        const at = reads(peer.pubKeyZ32);
+        const gaps = at.slice(1).map((t, i) => t - at[i]);
+        expect(Math.max(...gaps), `a member read ${at.length} times`).toBeLessThanOrEqual(12_000);
+      }
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("gives the chats' reads of contacts that went away a share of their own, read in turn", async () => {
+    // CLI bug hunt, 2026-10-14: ten contacts left a daemon at once. Its chats read each one every 2 s, spent both relays'
+    // minute in 10 s, and read nobody for 45 s more, while the contacts were back with their offers out.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { peers: contacts, log, relay, reads } = watching(10);
+      const start = Date.now();
+      for (let t = 0; t < 60_000; t += 2_000) {
+        for (const [i, contact] of contacts.entries()) { vi.setSystemTime(start + t + i * 5); await relay.resolve(contact.pubKeyZ32, { urgent: true, watch: true }).catch(() => {}); }
+      }
+      // On dev they took both relays' minute in the first 6 s, and read nobody for the rest of it.
+      for (const host of ["a.test", "b.test"]) expect(log.filter((r) => r.host === host).length).toBeLessThan(REQUESTS_PER_MINUTE);
+      // Within their share on each relay, spread over the minute: the minute is never spent.
+      const share = Math.ceil(REQUESTS_PER_MINUTE * CHAT_WATCH_SHARE * GROUP_RATION_WINDOW_MS / 60_000);
+      for (const host of ["a.test", "b.test"]) {
+        const watched = log.filter((r) => r.host === host && contacts.some((p) => p.pubKeyZ32 === r.key)).map((r) => r.at);
+        for (const at of watched) expect(watched.filter((other) => other >= at && other < at + GROUP_RATION_WINDOW_MS).length).toBeLessThanOrEqual(share);
+      }
+      // Each contact is read in turn: none waits behind the others for long.
+      for (const contact of contacts) {
+        const at = [start, ...reads(contact.pubKeyZ32), start + 60_000];
+        expect(Math.max(...at.slice(1).map((t, i) => t - at[i]))).toBeLessThanOrEqual(22_000);
+      }
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("reads one contact that went away nearly at its own pace", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { peers, watch, reads } = watching(1);
+      const start = Date.now();
+      for (let t = 0; t < 60_000; t += 2_000) { vi.setSystemTime(start + t); await watch(peers[0]); }
+      const at = reads(peers[0].pubKeyZ32);
+      // Every 2 s on its own; the share (10 a relay) reads it every 3 s.
+      expect(at.length).toBeGreaterThanOrEqual(20);
+      expect(Math.max(...at.slice(1).map((t, i) => t - at[i]))).toBeLessThanOrEqual(4_000);
+    } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("relay transport: a group's reads spread over the minute once they fill it", () => {
+  it("reads every key every few seconds under a load past the minute, and the member back within seconds", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const keys = Array.from({ length: 5 }, () => createIdentity());
+      const [knock, left1, left2, left3, back] = keys;
+      const log: { key: string; method: string; host: string; at: number }[] = [];
+      const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input)), key = url.pathname.slice(1);
+        log.push({ key, method: init?.method ?? "GET", host: url.host, at: Date.now() });
+        if (init?.method === "PUT") return new Response(null, { status: 204 });
+        return new Response(createRelayPayload(keys.find((k) => k.pubKeyZ32 === key) ?? knock, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+      }) as typeof fetch });
+      const group = withRequestOptions(relay, { group: true });
+      const read = (key: (typeof keys)[number], options: PkarrRequestOptions) => group.resolve(key.pubKeyZ32, options).catch(() => {});
+      const start = Date.now();
+      // A private group's admin: its knock poll every 2 s (its link was handed out a minute ago), its three edges
+      // watching the members that left, and its edges' presence going out every 4 s. More than the minute.
+      for (let t = 0; t < 180_000; t += 1_000) {
+        vi.setSystemTime(start + t);
+        if (t % 2_000 === 0) {
+          await read(knock, {});
+          for (const left of [left1, left2, left3]) await read(left, { urgent: true, watch: true });
+          if (t >= 120_000) await read(back, { urgent: true });
+        }
+        if (t % 4_000 === 0) await group.publish(createIdentity(), [{ label: "_ts", value: "1" }]).catch(() => {});
+      }
+      const reads = (key: (typeof keys)[number]) => log.filter((r) => r.key === key.pubKeyZ32 && r.method === "GET").map((r) => r.at - start);
+      const longestGap = (at: number[]) => Math.max(...at.slice(1).map((t, i) => t - at[i]));
+      // Once the minute is full, a relay is never silent long: on dev the minute went in 25 to 35 s and nothing freed
+      // for 30 s more, so the member back was read only then (a 32 s silence on each relay here).
+      for (const host of ["a.test", "b.test"]) expect(longestGap(log.filter((r) => r.host === host && r.at - start >= 60_000).map((r) => r.at - start))).toBeLessThanOrEqual(8_000);
+      // Every key is read every few seconds, in turn (34 to 36 s gaps on dev).
+      for (const key of [knock, left1, left2, left3]) expect(longestGap(reads(key).filter((t) => t >= 60_000))).toBeLessThanOrEqual(15_000);
+      // The member back has its first read within seconds.
+      expect(reads(back)[0] - 120_000).toBeLessThanOrEqual(6_000);
+    } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("relay transport: a group edge's requests for a member that may be back go over a spent minute", () => {
+  it("reads the member back and answers it within seconds after a burst spent the minute, one read at a time", async () => {
+    // Member-back runs, 2026-10-03 (CLI daemons, two local relays): a private group's admin let three members in and saw
+    // them restart, and had spent both relays' minute in 30 s (its knock poll every 2 s, the edges' reads and writes).
+    // The three left; one was back 5 s later, alone with the admin, so no member could carry its offer: the admin read
+    // it only when the minute freed, and the edge came up 18 to 42 s after the member was back.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const keys = Array.from({ length: 4 }, () => createIdentity());
+      const [knock, left1, left2, back] = keys;
+      const log: { key: string; method: string; host: string; at: number }[] = [];
+      const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test", "https://b.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input)), key = url.pathname.slice(1);
+        log.push({ key, method: init?.method ?? "GET", host: url.host, at: Date.now() });
+        if (init?.method === "PUT") return new Response(null, { status: 204 });
+        return new Response(createRelayPayload(keys.find((k) => k.pubKeyZ32 === key) ?? knock, [{ label: "_ts", value: "1" }], 3n) as BodyInit);
+      }) as typeof fetch });
+      const group = withRequestOptions(relay, { group: true });
+      const start = Date.now(), at = (t: number) => vi.setSystemTime(start + t);
+      // The burst: 30 s of admissions and restarts, the whole minute of both relays.
+      for (let t = 0; t < 30_000; t += 500) {
+        at(t);
+        await group.resolve(knock.pubKeyZ32, {}).catch(() => {});
+        if (t % 2_000 === 0) await group.publish(createIdentity(), [{ label: "_ts", value: "1" }]).catch(() => {});
+      }
+      for (const host of ["a.test", "b.test"]) expect(log.filter((r) => r.host === host).length).toBe(REQUESTS_PER_MINUTE);
+      // Then the three leave: the admin's edges watch them every 2 s, and its knock poll goes on. One is back at 35 s.
+      let answeredAt = -1, readAt = -1;
+      const answer = createIdentity();
+      for (let t = 30_000; t < 60_000; t += 2_000) {
+        at(t);
+        await group.resolve(knock.pubKeyZ32, {}).catch(() => {});
+        for (const [i, peer] of [left1, left2, back].entries()) {
+          at(t + 10 * (i + 1));
+          const before = log.length;
+          await group.resolve(peer.pubKeyZ32, { urgent: true, watch: true }).catch(() => {});
+          // Its first read since it is back finds its offer: the edge answers.
+          if (peer === back && t + 10 * (i + 1) >= 35_000 && readAt < 0 && log.length > before) {
+            readAt = t + 10 * (i + 1);
+            if (await group.publish(answer, [{ label: "_ts", value: "1" }], { signal: true }).then(() => true, () => false)) answeredAt = readAt;
+          }
+        }
+      }
+      // On dev nothing went until the burst's first requests aged out, at 60 s.
+      expect(readAt - 35_000).toBeGreaterThanOrEqual(0);
+      expect(readAt - 35_000).toBeLessThanOrEqual(12_000);
+      expect(answeredAt).toBe(readAt);
+      // Past the limit, a relay takes a group's reads one at a time, and never more than the allowance in the minute.
+      const allowance = Math.floor(REQUESTS_PER_MINUTE * GROUP_SIGNALING_ALLOWANCE_SHARE);
+      for (const host of ["a.test", "b.test"]) {
+        const over = log.filter((r) => r.host === host && r.at - start >= 30_000 && r.at - start < 60_000);
+        expect(over.length).toBeLessThanOrEqual(allowance);
+        const gets = over.filter((r) => r.method === "GET").map((r) => r.at);
+        for (const [i, t] of gets.entries()) if (i > 0) expect(t - gets[i - 1]).toBeGreaterThanOrEqual(GROUP_OVER_PACE_MS);
+        // The knock poll waits like the rest.
+        expect(over.some((r) => r.key === knock.pubKeyZ32)).toBe(false);
+      }
+    } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("relay transport: a group edge's signaling keeps its share of the minute while chats signal", () => {
+  it("lets an edge offer and read for its answer while 30 chats back after a restart spend the minute and keep their reserve", async () => {
+    // CLI bug hunt, 2026-10-08: a daemon with 30 chats and 5 groups of 6, back after a restart. Its 30 chats looked fast
+    // for their contacts and signaled for 332 s, and while they did, they kept their reserve and their allowance past
+    // the limit took the rest. The edges got nothing. By then their attempts had failed and backed off: the group
+    // members were reachable again 13 to 25 min after the restart, and group texts sent meanwhile never arrived.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const log: { key: string; method: string; at: number }[] = [];
+      const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        log.push({ key: new URL(String(input)).pathname.slice(1), method: init?.method ?? "GET", at: Date.now() });
+        return init?.method === "PUT" ? new Response(null, { status: 204 }) : new Response(null, { status: 404 });
+      }) as typeof fetch });
+      const group = withRequestOptions(relay, { group: true });
+      const went = async (request: () => Promise<unknown>) => { const before = log.length; await request().catch(() => {}); return log.length > before; };
+      const start = Date.now(), at = (t: number) => vi.setSystemTime(start + t);
+      const contacts = Array.from({ length: 30 }, () => createIdentity().pubKeyZ32);
+      // Every chat looks fast for its contact; between them they spend the minute, then its allowance with offers.
+      for (let i = 0; i < REQUESTS_PER_MINUTE; i++) { at(i * 100); await relay.resolve(contacts[i], { urgent: true }); }
+      const chatAllowance = Math.floor(REQUESTS_PER_MINUTE * SIGNALING_ALLOWANCE_SHARE);
+      for (let i = 0; i < chatAllowance; i++) await relay.publish(createIdentity(), [{ label: "_ts", value: "1" }], { signal: true });
+      expect(log).toHaveLength(REQUESTS_PER_MINUTE + chatAllowance);
+      // An edge offers to its member and reads for the answer, one read at a time. On dev each one waited for the minute.
+      const floor = Math.floor(REQUESTS_PER_MINUTE * GROUP_SIGNALING_ALLOWANCE_SHARE);
+      const member = createIdentity().pubKeyZ32;
+      at(5_000);
+      expect(await went(() => group.publish(createIdentity(), [{ label: "_ts", value: "1" }], { signal: true }))).toBe(true);
+      for (let i = 0; i < floor - 2; i++) {
+        at(10_000 + i * GROUP_OVER_PACE_MS);
+        expect(await went(() => group.resolve(member, { urgent: true, signal: true }))).toBe(true);
+      }
+      // A read leaves the last request of the floor to a write: an answer for another edge.
+      at(30_000);
+      expect(await went(() => group.resolve(member, { urgent: true, signal: true }))).toBe(false);
+      expect(await went(() => group.publish(createIdentity(), [{ label: "_ts", value: "1" }], { signal: true }))).toBe(true);
+      // That was the floor. The edges' other requests wait for the chats as before.
+      expect(await went(() => group.publish(createIdentity(), [{ label: "_ts", value: "1" }], { signal: true }))).toBe(false);
+      expect(await went(() => group.resolve(createIdentity().pubKeyZ32, { urgent: true }))).toBe(false);
+      expect(log).toHaveLength(REQUESTS_PER_MINUTE + chatAllowance + floor);
+      // The chats keep the requests that free: once their first minute ages out, their reserve is theirs.
+      at(60_000 + 5_000);
+      for (const contact of contacts.slice(0, CHAT_RESERVE)) expect(await went(() => relay.resolve(contact, { urgent: true }))).toBe(true);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("lets an edge back after a restart read its member while 30 chats spend the minute and keep their reserve", async () => {
+    // CLI bug hunt, 2026-10-14: the same daemon after #2154. An edge back after a restart reads its member before it
+    // offers (`resume`), and that read was a plain one: it waited behind the chats, so the edges never signaled. The
+    // first member was back 71 to 367 s after the restart, and group texts were read 2 to 7 min late.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const log: { key: string; method: string }[] = [];
+      const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+        log.push({ key: new URL(String(input)).pathname.slice(1), method: init?.method ?? "GET" });
+        return init?.method === "PUT" ? new Response(null, { status: 204 }) : new Response(null, { status: 404 });
+      }) as typeof fetch });
+      const group = withRequestOptions(relay, { group: true });
+      const went = async (request: () => Promise<unknown>) => { const before = log.length; await request().catch(() => {}); return log.length > before; };
+      const start = Date.now(), at = (t: number) => vi.setSystemTime(start + t);
+      const contacts = Array.from({ length: 30 }, () => createIdentity().pubKeyZ32);
+      for (let i = 0; i < REQUESTS_PER_MINUTE; i++) { at(i * 100); await relay.resolve(contacts[i], { urgent: true }); }
+      const chatAllowance = Math.floor(REQUESTS_PER_MINUTE * SIGNALING_ALLOWANCE_SHARE);
+      for (let i = 0; i < chatAllowance; i++) await relay.publish(createIdentity(), [{ label: "_ts", value: "1" }], { signal: true });
+      const floor = Math.floor(REQUESTS_PER_MINUTE * GROUP_SIGNALING_ALLOWANCE_SHARE);
+      const members = Array.from({ length: floor }, () => createIdentity().pubKeyZ32);
+      // A plain read of a member waits for the chats, as it did.
+      at(5_000);
+      expect(await went(() => group.resolve(members[0], { urgent: true }))).toBe(false);
+      // The edges' reads back after a restart go, one at a time, and leave the last of the floor to a write: an offer.
+      for (let i = 0; i < floor - 1; i++) {
+        at(5_000 + i * GROUP_OVER_PACE_MS);
+        expect(await went(() => group.resolve(members[i], { urgent: true, resume: true }))).toBe(true);
+      }
+      at(5_000 + floor * GROUP_OVER_PACE_MS);
+      expect(await went(() => group.resolve(members[floor - 1], { urgent: true, resume: true }))).toBe(false);
+      expect(await went(() => group.publish(createIdentity(), [{ label: "_ts", value: "1" }], { signal: true }))).toBe(true);
+      expect(log.slice(-floor).map((request) => request.key).slice(0, floor - 1)).toEqual(members.slice(0, floor - 1));
+      // A chat's read back after a restart is a chat's like any other: it waits for the minute.
+      expect(await went(() => relay.resolve(createIdentity().pubKeyZ32, { urgent: true, resume: true }))).toBe(false);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("counts the edges' signaling under the limit toward their floor", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      let spent = 0;
+      const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (_: RequestInfo | URL, init?: RequestInit) => {
+        spent++;
+        return init?.method === "PUT" ? new Response(null, { status: 204 }) : new Response(null, { status: 404 });
+      }) as typeof fetch });
+      const group = withRequestOptions(relay, { group: true });
+      const floor = Math.floor(REQUESTS_PER_MINUTE * GROUP_SIGNALING_ALLOWANCE_SHARE);
+      // The edges' offers went while the minute had room; then a chat that looks fast spends the rest.
+      for (let i = 0; i < floor; i++) await group.publish(createIdentity(), [{ label: "_ts", value: "1" }], { signal: true });
+      const contact = createIdentity().pubKeyZ32;
+      while (spent < REQUESTS_PER_MINUTE) await relay.resolve(contact, { urgent: true });
+      // Their floor is spent: the next offer waits, with the chat's reserve, as it did.
+      const before = spent;
+      await group.publish(createIdentity(), [{ label: "_ts", value: "1" }], { signal: true }).catch(() => {});
+      expect(spent).toBe(before);
+    } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("relay transport: a community member's way back has its own share past a spent minute", () => {
+  // Bug hunt, 2026-10-14: a web app opened with 30 chats whose contacts were online and 15 groups whose edges all offered
+  // at once. The edges' offers and reads for their members spent the groups' allowance in the first second, and the
+  // communities' readings of their beacon, which went as an edge's signaling, waited the minute behind the limit and the
+  // chats' reserve: none of its 5 communities was back in 2 minutes.
+  function setup() {
+    const log: { key: string; method: string }[] = [];
+    const relay = new RelayTransport({ freshReadMs: 0, relays: ["https://a.test"], fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+      log.push({ key: new URL(String(input)).pathname.slice(1), method: init?.method ?? "GET" });
+      return init?.method === "PUT" ? new Response(null, { status: 204 }) : new Response(null, { status: 404 });
+    }) as typeof fetch });
+    const group = withRequestOptions(relay, { group: true });
+    const went = async (request: () => Promise<unknown>) => { const before = log.length; await request().catch(() => {}); return log.length > before; };
+    return { relay, group, log, went };
+  }
+  const allowance = Math.floor(REQUESTS_PER_MINUTE * WAY_BACK_SHARE);
+  const offer = (relay: PkarrTransport) => () => relay.publish(createIdentity(), [{ label: "_ts", value: "1" }], { signal: true });
+  /** 30 chats look fast for their contacts and spend the minute, and the edges offer until their own allowance is spent. */
+  async function busy(relay: RelayTransport, group: PkarrTransport) {
+    for (let i = 0; i < REQUESTS_PER_MINUTE; i++) await relay.resolve(createIdentity().pubKeyZ32, { urgent: true });
+    for (let i = 0; i < Math.floor(REQUESTS_PER_MINUTE * GROUP_SIGNALING_ALLOWANCE_SHARE); i++) await offer(group)();
+  }
+
+  it("reads the beacon and asks a hub's lobby while the edges' allowance is spent and a chat's offer waits", async () => {
+    const { relay, group, log, went } = setup();
+    await busy(relay, group);
+    // A chat still offering spends its allowance, and its next offer waits for the minute to free a request.
+    while (await went(offer(relay)));
+    // An edge's signaling waits now, and so did a way back that went as one.
+    expect(await went(() => group.resolve(createIdentity().pubKeyZ32, { signal: true }))).toBe(false);
+    expect(allowance).toBe(6);
+    const beacons = Array.from({ length: allowance - 2 }, () => createIdentity().pubKeyZ32), lobby = createIdentity();
+    const spent = log.length;
+    for (const beacon of beacons) expect(await went(() => group.resolve(beacon, { back: true }))).toBe(true);
+    // Its reads leave the last of it to a write: the request in the lobby.
+    expect(await went(() => group.resolve(lobby.pubKeyZ32, { back: true }))).toBe(true);
+    expect(await went(() => group.resolve(createIdentity().pubKeyZ32, { back: true }))).toBe(false);
+    expect(await went(() => group.publish(lobby, [{ label: "_ts", value: "1" }], { back: true }))).toBe(true);
+    expect(await went(() => group.publish(lobby, [{ label: "_ts", value: "1" }], { back: true }))).toBe(false);
+    expect(log.slice(spent).map(r => r.method)).toEqual([...Array(allowance - 1).fill("GET"), "PUT"]);
+  });
+
+  it("takes nothing from a chat's allowance past the minute", async () => {
+    const { relay, group, went } = setup();
+    for (let i = 0; i < REQUESTS_PER_MINUTE; i++) await relay.resolve(createIdentity().pubKeyZ32, { urgent: true });
+    for (let i = 0; i < allowance - 1; i++) expect(await went(() => group.resolve(createIdentity().pubKeyZ32, { back: true }))).toBe(true);
+    expect(await went(() => group.publish(createIdentity(), [{ label: "_ts", value: "1" }], { back: true }))).toBe(true);
+    // The chat's offers still have all of theirs.
+    for (let i = 0; i < Math.floor(REQUESTS_PER_MINUTE * SIGNALING_ALLOWANCE_SHARE); i++) expect(await went(offer(relay))).toBe(true);
+    expect(await went(offer(relay))).toBe(false);
+  });
+
+  it("is a group's only: a chat's request or a background one saying `back` has none", async () => {
+    const { relay, group, went } = setup();
+    await busy(relay, group);
+    expect(await went(() => relay.resolve(createIdentity().pubKeyZ32, { back: true }))).toBe(false);
+    expect(await went(() => group.resolve(createIdentity().pubKeyZ32, { back: true, background: true }))).toBe(false);
+    expect(await went(() => group.resolve(createIdentity().pubKeyZ32, { back: true }))).toBe(true);
+  });
+
+  it("waits a group read's turn when nothing else holds it, and keeps its allowance for a full minute", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { group, log, went } = setup();
+      const start = Date.now(), beacon = createIdentity().pubKeyZ32, edge = createIdentity().pubKeyZ32;
+      // The groups fill the minute, the beacon among them; the edge's member, never read, finds it full.
+      await group.resolve(createIdentity().pubKeyZ32);
+      vi.setSystemTime(start + 1_000);
+      await group.resolve(beacon);
+      for (let i = 2; i < REQUESTS_PER_MINUTE; i++) await group.resolve(createIdentity().pubKeyZ32);
+      vi.setSystemTime(start + 59_000);
+      expect(await went(() => group.resolve(edge))).toBe(false);
+      // The first read ages out: one request is free, and it is the edge's turn (read longest ago).
+      vi.setSystemTime(start + 60_500);
+      expect(await went(() => group.resolve(beacon, { back: true }))).toBe(false);
+      expect(await went(() => group.resolve(edge))).toBe(true);
+      // The minute is full again: now the way back goes within its own allowance, all of it left.
+      for (let i = 0; i < allowance - 1; i++) expect(await went(() => group.resolve(beacon, { back: true }))).toBe(true);
+      expect(log.slice(-allowance).map((r) => r.key)).toEqual([edge, ...Array(allowance - 1).fill(beacon)]);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("keeps a relay's worst minute (its limit and every allowance past it) within what the relay allows", () => {
+    // Each relay's own limit an address, from its `x-ratelimit-limit` (docs/TRANSPORTS.md, "The default list").
+    const allows: Record<string, number> = { "https://pkarr.pubky.org": 50, "https://pkarr.pubky.app": 1000, "https://relay.pkarr.org": 10, "https://pkarr.miguelmedeiros.dev": 10 };
+    const worst = (limit: number) => limit + [SIGNALING_ALLOWANCE_SHARE, GROUP_SIGNALING_ALLOWANCE_SHARE, WAY_BACK_SHARE].reduce((sum, share) => sum + Math.floor(limit * share), 0);
+    expect(worst(REQUESTS_PER_MINUTE)).toBe(46);
+    for (const [relay, allowed] of Object.entries(allows)) expect(worst(RELAY_REQUESTS_PER_MINUTE[relay] ?? REQUESTS_PER_MINUTE)).toBeLessThanOrEqual(allowed);
+    // Every default relay is in the list: one added without its limit here fails.
+    expect(DEFAULT_RELAYS.filter((relay) => !(relay in allows))).toEqual([]);
+  });
+});

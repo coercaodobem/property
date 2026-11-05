@@ -1,0 +1,330 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { configure, screen, waitFor } from "@testing-library/react";
+import { Route, Routes } from "react-router-dom";
+import { LockScreenProvider } from "../../contexts/LockScreenContext";
+import { UpdateProvider } from "../../contexts/UpdateContext";
+import { Settings } from "../../pages/Settings";
+import { AddDeviceDialog } from "../../components/devices/AddDeviceDialog";
+import { JoinProfileDialog } from "../../components/devices/JoinProfileDialog";
+import { JoinHost } from "../../components/devices/JoinHost";
+import { defaultDeviceName, fitsDeviceName, lockPasswordMin, lockPasswordProblem } from "../../lib/devices";
+import { loadLocale, translatorFor } from "../../locales";
+import { hashPassword } from "../../lib/settings";
+import { Home } from "../../pages/Home";
+import { renderApp } from "../render";
+import type { EnrollView } from "@ghostly/browser/devices/enroll";
+// covers: devices.enroll
+
+/*
+ * What these tests wait for sits behind the lock password's hash (600,000 rounds): about 200 ms on an idle machine,
+ * over a second on a busy runner. The default wait of 1 s is too short for that; and a test gets longer than its
+ * longest wait, so one that fails still says what it waited for.
+ */
+configure({ asyncUtilTimeout: 10_000 });
+vi.setConfig({ testTimeout: 30_000 });
+
+/** happy-dom has no <dialog> modal; the dialog only needs to open. */
+HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) { this.open = true; };
+
+const waiting = { role: "inviter" as const, step: "waiting" as const, code: "ghostly1zexample", expires: Math.floor(Date.now() / 1000) + 600 };
+
+afterEach(() => { vi.unstubAllGlobals(); Reflect.deleteProperty(navigator, "userAgent"); });
+
+describe("the lock password a device set needs (WISP 06 § Adding a device)", () => {
+  it("is 8 characters with a device set, 4 without, and typed the same twice", () => {
+    expect(lockPasswordMin(false)).toBe(4);
+    expect(lockPasswordMin(true)).toBe(8);
+    expect(lockPasswordProblem("abcd", "abcd", false)).toBeNull();
+    expect(lockPasswordProblem("abcd", "abcd", true)).toBe("short");
+    expect(lockPasswordProblem("abcdefg", "abcdefg", true)).toBe("short");
+    expect(lockPasswordProblem("abcdefgh", "abcdefgh", true)).toBeNull();
+    expect(lockPasswordProblem("abcdefgh", "abcdefgx", true)).toBe("mismatch");
+  });
+
+  it("Add a device asks to set one first, and refuses one under 8 characters; nothing starts until it is set", async () => {
+    const { user, engine } = renderApp(<AddDeviceDialog onClose={() => {}} />);
+    engine.on("deviceEnrollInvite", () => waiting);
+    // The password proof's verifier is made as the password is typed (part 5).
+    engine.on("deviceHandoffVerifier", () => undefined);
+    // One dialog, "Add a device", asks for it inline; why is behind ⓘ.
+    expect(screen.getByTestId("device-add")).toHaveTextContent("Add a device");
+    expect(screen.getByText("Set a password first")).toBeInTheDocument();
+    expect(screen.queryByText("Without a password, anyone holding one of your devices can take this profile.")).toBeNull();
+    await user.click(screen.getByTestId("device-add-password-ask-info"));
+    expect(screen.getByText("Without a password, anyone holding one of your devices can take this profile.")).toBeInTheDocument();
+    await user.type(screen.getByTestId("device-add-password"), "short1");
+    await user.type(screen.getByTestId("device-add-password-again"), "short1");
+    await user.click(screen.getByTestId("device-add-next"));
+    expect(await screen.findByTestId("device-add-password-error")).toHaveTextContent("Use 8 characters or more.");
+    expect(engine.callsTo("deviceEnrollInvite")).toHaveLength(0);
+    await user.clear(screen.getByTestId("device-add-password")); await user.clear(screen.getByTestId("device-add-password-again"));
+    await user.type(screen.getByTestId("device-add-password"), "long enough");
+    await user.type(screen.getByTestId("device-add-password-again"), "long enough");
+    await user.click(screen.getByTestId("device-add-next"));
+    await waitFor(() => expect(engine.callsTo("deviceEnrollInvite")).toHaveLength(1));
+    expect(await screen.findByTestId("device-add-code")).toHaveAttribute("data-code", "ghostly1zexample");
+    // Under the code, where it stands and the time left on it.
+    expect(screen.getByTestId("device-add-status")).toHaveTextContent("Waiting for your other device…");
+    expect(screen.getByTestId("device-add-left")).toHaveTextContent(/^(10:00|9:5\d) left$/);
+    // The lock is on, with the new password. The settings reach storage in an effect after the render that turned
+    // the lock on, which can land after the code shows on a busy runner: waited for, not read once.
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("ghostly_app_settings")!).lockScreen).toMatchObject({ enabled: true }));
+  });
+
+  it("a password stored with the lock turned off: typing it turns the lock on before the code is made", async () => {
+    localStorage.setItem("ghostly_app_settings", JSON.stringify({ lockScreen: { enabled: false, passwordHash: await hashPassword("a long password"), timeoutMinutes: 5 } }));
+    const { user, engine } = renderApp(<AddDeviceDialog onClose={() => {}} />);
+    engine.on("deviceEnrollInvite", () => waiting);
+    // The password proof's verifier is made as the password is typed (part 5).
+    engine.on("deviceHandoffVerifier", () => undefined);
+    await user.type(screen.getByTestId("device-add-password"), "a long password");
+    await user.click(screen.getByTestId("device-add-next"));
+    // The stored password is checked first (PBKDF2, 600,000 rounds): more than waitFor's 1 s on a busy runner.
+    await waitFor(() => expect(engine.callsTo("deviceEnrollInvite")).toHaveLength(1), { timeout: 10_000 });
+    // The lock is turned on before the code is asked for; storage follows in the effect after that render, which a
+    // busy runner can run after the call is seen (the code is asked for in the same task): waited for, not read once.
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("ghostly_app_settings")!).lockScreen).toMatchObject({ enabled: true }));
+  }, 20_000);
+
+  it("Settings keeps 8 characters while it does not know the profile has no device set (loading, or the call failed)", async () => {
+    const settings = () => renderApp(<LockScreenProvider><UpdateProvider><Routes><Route path="/settings" element={<Settings />} /></Routes></UpdateProvider></LockScreenProvider>, { route: "/settings" });
+    const { user, engine } = settings();
+    engine.on("deviceSet", () => { throw new Error("no answer"); });
+    await user.click(screen.getByTestId("settings-lock"));
+    const [fresh, again] = screen.getByTestId("settings-password-form").querySelectorAll("input");
+    await user.type(fresh, "abcde"); await user.type(again, "abcde");
+    await user.click(screen.getByRole("button", { name: "Set password" }));
+    expect(await screen.findByTestId("settings-password-new-error")).toHaveTextContent("A profile on several devices keeps its lock password, 8 characters or more.");
+    expect(JSON.parse(localStorage.getItem("ghostly_app_settings") ?? "{}").lockScreen?.passwordHash ?? null).toBeNull();
+  }, 20_000);
+
+  it("Settings keeps the 4-character rule for a profile that has no device set", async () => {
+    const { user, engine } = renderApp(<LockScreenProvider><UpdateProvider><Routes><Route path="/settings" element={<Settings />} /></Routes></UpdateProvider></LockScreenProvider>, { route: "/settings" });
+    engine.on("deviceSet", () => ({ state: "single", devices: [] }));
+    await waitFor(() => expect(engine.callsTo("deviceSet")).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await user.click(screen.getByTestId("settings-lock"));
+    const [fresh, again] = screen.getByTestId("settings-password-form").querySelectorAll("input");
+    await user.type(fresh, "abcde"); await user.type(again, "abcde");
+    await user.click(screen.getByRole("button", { name: "Set password" }));
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("ghostly_app_settings")!).lockScreen.passwordHash).toBeTruthy());
+  }, 20_000);
+
+  it("a lock of 4 characters still opens the profile, and is made longer before a device is added", async () => {
+    localStorage.setItem("ghostly_app_settings", JSON.stringify({ lockScreen: { enabled: true, passwordHash: await hashPassword("1234"), timeoutMinutes: 5 } }));
+    const { user, engine } = renderApp(<AddDeviceDialog onClose={() => {}} />);
+    engine.on("deviceEnrollInvite", () => waiting);
+    // The password proof's verifier is made as the password is typed (part 5).
+    engine.on("deviceHandoffVerifier", () => undefined);
+    expect(screen.getByText("Type your lock password")).toBeInTheDocument();
+    await user.type(screen.getByTestId("device-add-password"), "4321");
+    await user.click(screen.getByTestId("device-add-next"));
+    expect(await screen.findByTestId("device-add-password-error")).toHaveTextContent("Wrong password.");
+    await user.clear(screen.getByTestId("device-add-password"));
+    await user.type(screen.getByTestId("device-add-password"), "1234");
+    await user.click(screen.getByTestId("device-add-next"));
+    expect(await screen.findByText("Choose a longer password")).toBeInTheDocument();
+    expect(engine.callsTo("deviceEnrollInvite")).toHaveLength(0);
+  }, 20_000);
+
+  it("the digits, and the person's answer goes to the engine", async () => {
+    localStorage.setItem("ghostly_app_settings", JSON.stringify({ lockScreen: { enabled: true, passwordHash: await hashPassword("a long password"), timeoutMinutes: 5 } }));
+    const { user, engine } = renderApp(<AddDeviceDialog onClose={() => {}} />);
+    engine.on("deviceEnrollInvite", () => waiting);
+    // The password proof's verifier is made as the password is typed (part 5).
+    engine.on("deviceHandoffVerifier", () => undefined);
+    engine.on("deviceEnrollView", () => ({ role: "inviter", step: "confirm", digits: "482913", device: "Phone", kind: "web", refused: 1 }));
+    engine.on("deviceEnrollConfirm", () => ({ role: "inviter", step: "adding", device: "Phone" }));
+    await user.type(screen.getByTestId("device-add-password"), "a long password");
+    await user.click(screen.getByTestId("device-add-next"));
+    expect(await screen.findByTestId("device-add-digits", {}, { timeout: 3_000 })).toHaveTextContent("482 913");
+    // The name is the new device's own claim; the digits are the check.
+    expect(screen.getByTestId("device-add-status")).toHaveTextContent("Found Phone. Check that it shows the same digits.");
+    expect(screen.getByTestId("device-add-refused")).toHaveTextContent("Another device tried to use this code. It got nothing.");
+    await user.click(screen.getByTestId("device-add-match"));
+    expect(engine.callsTo("deviceEnrollConfirm")).toEqual([{ match: true }]);
+  }, 20_000);
+
+  it("the focus stays in the dialog when Next and They match go away with their step", async () => {
+    localStorage.setItem("ghostly_app_settings", JSON.stringify({ lockScreen: { enabled: true, passwordHash: await hashPassword("a long password"), timeoutMinutes: 5 } }));
+    const { user, engine } = renderApp(<AddDeviceDialog onClose={() => {}} />);
+    engine.on("deviceEnrollInvite", () => waiting);
+    engine.on("deviceHandoffVerifier", () => undefined);
+    engine.on("deviceEnrollView", () => ({ role: "inviter", step: "confirm", digits: "482913", device: "Phone", kind: "web" }));
+    engine.on("deviceEnrollConfirm", () => ({ role: "inviter", step: "adding", device: "Phone" }));
+    await user.type(screen.getByTestId("device-add-password"), "a long password");
+    await user.click(screen.getByTestId("device-add-next"));
+    await screen.findByTestId("device-add-digits", {}, { timeout: 3_000 });
+    expect(screen.getByTestId("device-add")).toContainElement(document.activeElement as HTMLElement);
+    await user.click(screen.getByTestId("device-add-match"));
+    await screen.findByTestId("device-add-adding");
+    expect(screen.getByTestId("device-add")).toContainElement(document.activeElement as HTMLElement);
+  }, 20_000);
+
+  it("a double click on They match is one answer: both buttons are off until the engine has answered", async () => {
+    localStorage.setItem("ghostly_app_settings", JSON.stringify({ lockScreen: { enabled: true, passwordHash: await hashPassword("a long password"), timeoutMinutes: 5 } }));
+    const { user, engine } = renderApp(<AddDeviceDialog onClose={() => {}} />);
+    engine.on("deviceEnrollInvite", () => waiting);
+    engine.on("deviceHandoffVerifier", () => undefined);
+    engine.on("deviceEnrollView", () => ({ role: "inviter", step: "confirm", digits: "482913", device: "Phone", kind: "web" }));
+    // The engine takes its time over the answer (it reads and writes the device record first).
+    let answer!: (view: EnrollView) => void;
+    engine.on("deviceEnrollConfirm", () => new Promise<EnrollView>((resolve) => { answer = resolve; }));
+    await user.type(screen.getByTestId("device-add-password"), "a long password");
+    await user.click(screen.getByTestId("device-add-next"));
+    await user.dblClick(await screen.findByTestId("device-add-match", {}, { timeout: 3_000 }));
+    expect(screen.getByTestId("device-add-match")).toBeDisabled();
+    expect(screen.getByTestId("device-add-no-match")).toBeDisabled();
+    await user.click(screen.getByTestId("device-add-no-match"));
+    expect(engine.callsTo("deviceEnrollConfirm")).toEqual([{ match: true }]);
+    answer({ role: "inviter", step: "adding", device: "Phone" });
+    expect(await screen.findByTestId("device-add-adding")).toHaveTextContent("Phone");
+    expect(screen.queryByTestId("device-add-error")).toBeNull();
+  }, 20_000);
+
+  it("says a device is connecting once one read the code, and Try again after a failure makes a new code", async () => {
+    localStorage.setItem("ghostly_app_settings", JSON.stringify({ lockScreen: { enabled: true, passwordHash: await hashPassword("a long password"), timeoutMinutes: 5 } }));
+    const { user, engine } = renderApp(<AddDeviceDialog onClose={() => {}} />);
+    engine.on("deviceEnrollInvite", () => waiting);
+    engine.on("deviceHandoffVerifier", () => undefined);
+    let view: EnrollView = { ...waiting, seen: true };
+    engine.on("deviceEnrollView", () => view);
+    await user.type(screen.getByTestId("device-add-password"), "a long password");
+    await user.click(screen.getByTestId("device-add-next"));
+    const status = await screen.findByTestId("device-add-status");
+    await waitFor(() => expect(status).toHaveTextContent("A device is connecting…"), { timeout: 3_000 });
+    view = { role: "inviter", step: "failed", reason: "expired" };
+    expect(await screen.findByTestId("device-add-failed", {}, { timeout: 3_000 })).toHaveTextContent("This code ran out of time. Make a new one.");
+    view = waiting;
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(engine.callsTo("deviceEnrollInvite")).toHaveLength(2));
+    expect(await screen.findByTestId("device-add-code")).toBeInTheDocument();
+  }, 20_000);
+
+  it("says the two devices could not connect, in place of the code, when the engine ends it so", async () => {
+    localStorage.setItem("ghostly_app_settings", JSON.stringify({ lockScreen: { enabled: true, passwordHash: await hashPassword("a long password"), timeoutMinutes: 5 } }));
+    const { user, engine } = renderApp(<AddDeviceDialog onClose={() => {}} />);
+    engine.on("deviceEnrollInvite", () => waiting);
+    engine.on("deviceHandoffVerifier", () => undefined);
+    engine.on("deviceEnrollView", () => ({ role: "inviter", step: "failed", reason: "unreached" }));
+    await user.type(screen.getByTestId("device-add-password"), "a long password");
+    await user.click(screen.getByTestId("device-add-next"));
+    const failed = await screen.findByTestId("device-add-failed", {}, { timeout: 3_000 });
+    expect(failed).toHaveAttribute("data-reason", "unreached");
+    expect(failed).toHaveTextContent("The devices couldn't connect" + "Keep both online and make a new code.");
+  }, 20_000);
+
+  it("Try again says the new code is being made, and one the engine refuses keeps Try again under the reason", async () => {
+    localStorage.setItem("ghostly_app_settings", JSON.stringify({ lockScreen: { enabled: true, passwordHash: await hashPassword("a long password"), timeoutMinutes: 5 } }));
+    const { user, engine } = renderApp(<AddDeviceDialog onClose={() => {}} />);
+    engine.on("deviceEnrollInvite", () => waiting);
+    engine.on("deviceHandoffVerifier", () => undefined);
+    let view: EnrollView | null = { role: "inviter", step: "failed", reason: "unreached" };
+    engine.on("deviceEnrollView", () => view);
+    await user.type(screen.getByTestId("device-add-password"), "a long password");
+    await user.click(screen.getByTestId("device-add-next"));
+    await screen.findByTestId("device-add-failed", {}, { timeout: 3_000 });
+    // The turn address cannot be read: the engine refuses the new code, and drops the enrollment that ended.
+    let refuse = (_: Error) => {};
+    engine.on("deviceEnrollInvite", () => new Promise<EnrollView>((_, reject) => { refuse = reject; }));
+    await user.click(screen.getByTestId("device-add-again"));
+    await waitFor(() => expect(engine.callsTo("deviceEnrollInvite")).toHaveLength(2));
+    // While it is asked for: a status line in place of the reason and its button, and the focus stays in the dialog.
+    expect(screen.getByTestId("device-add-preparing")).toHaveTextContent("Getting ready…");
+    expect(screen.queryByTestId("device-add-failed")).toBeNull();
+    expect(screen.queryByTestId("device-add-again")).toBeNull();
+    expect(screen.getByTestId("device-add")).toContainElement(document.activeElement as HTMLElement);
+    view = null;
+    refuse(new Error("enroll-unreachable: The active device's turn could not be read"));
+    expect(await screen.findByTestId("device-add-error")).toHaveTextContent("Can't check which device is active. Check your connection.");
+    expect(screen.queryByTestId("device-add-preparing")).toBeNull();
+    // Try again is still there, and asks for a code again: no closing the dialog to type the password once more.
+    engine.on("deviceEnrollInvite", () => waiting);
+    await user.click(screen.getByTestId("device-add-again"));
+    await waitFor(() => expect(engine.callsTo("deviceEnrollInvite")).toHaveLength(3));
+    expect(await screen.findByTestId("device-add-code")).toBeInTheDocument();
+    expect(screen.queryByTestId("device-add-error")).toBeNull();
+  }, 20_000);
+
+  it("Try again refused while offline shows that reason only: the enrollment that ended stays off the dialog", async () => {
+    localStorage.setItem("ghostly_app_settings", JSON.stringify({ lockScreen: { enabled: true, passwordHash: await hashPassword("a long password"), timeoutMinutes: 5 } }));
+    const { user, engine } = renderApp(<AddDeviceDialog onClose={() => {}} />);
+    engine.on("deviceEnrollInvite", () => waiting);
+    engine.on("deviceHandoffVerifier", () => undefined);
+    // The engine refuses before it replaces the old enrollment: it keeps answering with the one that ended.
+    engine.on("deviceEnrollView", () => ({ role: "inviter", step: "failed", reason: "dropped" }));
+    await user.type(screen.getByTestId("device-add-password"), "a long password");
+    await user.click(screen.getByTestId("device-add-next"));
+    await screen.findByTestId("device-add-failed", {}, { timeout: 3_000 });
+    engine.on("deviceEnrollInvite", () => { throw new Error("enroll-offline: You are offline"); });
+    await user.click(screen.getByTestId("device-add-again"));
+    expect(await screen.findByTestId("device-add-error")).toHaveTextContent("You are offline.");
+    const reads = engine.callsTo("deviceEnrollView").length;
+    await waitFor(() => expect(engine.callsTo("deviceEnrollView").length).toBeGreaterThan(reads + 1), { timeout: 3_000 });
+    expect(screen.queryByTestId("device-add-failed")).toBeNull();
+    expect(screen.getByTestId("device-add-again")).toBeInTheDocument();
+  }, 20_000);
+});
+
+describe("I already use Ghostly", () => {
+  it("is offered on a new profile, with Add this device to my profile and Restore a backup", async () => {
+    const { user } = renderApp(<><Home /><JoinHost /></>);
+    await user.click(screen.getByTestId("home-already"));
+    expect(screen.getByTestId("device-join-add")).toHaveTextContent("Add this device to my profile");
+    expect(screen.getByTestId("device-join-restore")).toHaveTextContent("Restore a backup");
+  });
+
+  it("on an iPhone in a browser tab it says to add Ghostly to the Home Screen first, in three steps", () => {
+    Object.defineProperty(navigator, "userAgent", { configurable: true, value: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" });
+    const { unmount } = renderApp(<JoinProfileDialog onClose={() => {}} onRestore={() => {}} />);
+    const steps = screen.getByTestId("device-join-home-screen");
+    expect(steps).toHaveTextContent("Tap Share in Safari (in the ⋯ menu on newer iPhones).");
+    expect(steps).toHaveTextContent("Tap Add to Home Screen (under More if you don't see it).");
+    expect(steps).toHaveTextContent("Open Ghostly from your Home Screen and choose I already use Ghostly.");
+    expect(screen.queryByTestId("device-join-add")).toBeNull();
+    unmount();
+    // A code the camera opened in Safari: the same steps, and it is scanned again in the app.
+    renderApp(<JoinProfileDialog request={{ code: "ghostly1zexample" }} onClose={() => {}} onRestore={() => {}} />);
+    expect(screen.getByTestId("device-join")).toHaveTextContent("Add Ghostly to your Home Screen first");
+    expect(screen.getByTestId("device-join-home-screen")).toHaveTextContent("Open Ghostly from your Home Screen and scan the code again.");
+    expect(screen.queryByTestId("device-join-confirm")).toBeNull();
+  });
+
+  it("names the device from what it is, at most 16 characters", () => {
+    expect(defaultDeviceName({ userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)" })).toBe("iPhone");
+    expect(defaultDeviceName({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Gecko/20100101 Firefox/131.0" })).toBe("Firefox on Mac");
+    expect(defaultDeviceName({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", desktop: true })).toBe("Mac app");
+    expect(defaultDeviceName({ userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile Safari/537.36 Chrome/131.0" })).toBe("Phone");
+    for (const ua of ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36 Edg/131.0"]) expect(defaultDeviceName({ userAgent: ua }).length).toBeLessThanOrEqual(16);
+    // Never a word cut short: a shorter form, not "Chrome on Window" or "Firefox on Windo".
+    expect(defaultDeviceName({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36" })).toBe("Chrome, Windows");
+    expect(defaultDeviceName({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0" })).toBe("Firefox, Windows");
+    expect(defaultDeviceName({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36 Edg/131.0" })).toBe("Edge on Windows");
+    expect(defaultDeviceName({ userAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36" })).toBe("Chrome on Linux");
+  });
+
+  it("suggests the name in the app's language, in its 16 bytes, the system's and browser's names as they are", async () => {
+    const android = "Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile Safari/537.36 Chrome/131.0";
+    const mac = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36";
+    const windows = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36";
+    await Promise.all([loadLocale("ar"), loadLocale("ja"), loadLocale("pt")]);
+    const [ar, ja, pt] = [translatorFor("ar"), translatorFor("ja"), translatorFor("pt")];
+    expect(defaultDeviceName({ userAgent: android }, ar)).toBe("هاتف");
+    expect(defaultDeviceName({ userAgent: windows }, ar)).toBe("Chrome، Windows");
+    expect(defaultDeviceName({ userAgent: mac }, ja)).toBe("Mac の Chrome");
+    expect(defaultDeviceName({ userAgent: mac }, pt)).toBe("Chrome no Mac");
+    expect(defaultDeviceName({ userAgent: mac, desktop: true }, pt)).toBe("App para Mac");
+    expect(defaultDeviceName({ userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)" }, ar)).toBe("iPhone");
+    for (const language of ["ar", "es", "fr", "it", "ja", "pt", "zh"] as const) {
+      await loadLocale(language);
+      const t = translatorFor(language);
+      for (const ua of [android, mac, windows, "Mozilla/5.0 (X11; Linux x86_64) Gecko/20100101 Firefox/131.0"]) {
+        for (const desktop of [false, true]) {
+          const name = defaultDeviceName({ userAgent: ua, desktop }, t);
+          expect([language, fitsDeviceName(name)]).toEqual([language, true]);
+          expect(name).not.toMatch(/ on |^Phone$|^Browser$| app$/);
+        }
+      }
+    }
+  });
+});

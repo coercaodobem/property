@@ -1,0 +1,289 @@
+import "fake-indexeddb/auto";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { GhostLink, createIdentity, createLink, identityFromSeedB64, readStatusCard, type IncomingMessage, type PairingState } from "@ghostly/core";
+import { GhostlyNode } from "../src/engine/node";
+import { db } from "../src/engine/db";
+import { fileStore } from "../src/shared/idb";
+import { groupReply, pairedWireReply, receivedPairedReply, replyRef } from "../src/shared/replies";
+import type { StoredMessage } from "../src/shared/types";
+import { FakeNativeNet, fakeDescriptor } from "./helpers/fakeNative";
+// covers: chat.replies.wire, groups.protocol.replies
+
+/**
+ * Replies in the engine (WISP 400 § Replies): a real node and its contact's link over a stand-in for Iroh. What the
+ * node sends names a message of the chat as both sides know it; what it receives is checked against this chat's own
+ * history, and the original found here, not the wire, gives the line and the author.
+ */
+
+Object.defineProperty(globalThis.navigator, "storage", { value: { estimate: async () => ({ quota: 50 * 1024 ** 3, usage: 10 * 1024 ** 3 }) }, configurable: true });
+
+const cleanup: (() => Promise<void>)[] = [];
+afterEach(async () => { for (const step of cleanup.splice(0).reverse()) await step(); });
+
+async function setup() {
+  const net = new FakeNativeNet();
+  const invitation = createLink();
+  const [mine, theirs] = [createIdentity().seedB64, createIdentity().seedB64];
+  const id = `replies-${crypto.randomUUID()}`;
+  await db.putSettings({ online: true, nick: "", relays: [], iceServers: [], mints: [], mintsInitialized: true });
+  await db.putLink({ ...invitation.mine, id, profile: "paired-chat/1", participationSeed: mine, createdAt: 1,
+    pairedPeerKey: identityFromSeedB64(theirs).pubKeyZ32, peerTrust: { version: 1 },
+    peerTransports: ["iroh/1"], peerFallback: true, preferredTransport: "iroh/1", transportFallback: true,
+    peerDescriptors: { "iroh/1": fakeDescriptor("iroh/1", "contact") } });
+  const transport = { publish: vi.fn(async () => {}), resolve: vi.fn(async () => null), describe: () => ({ protocol: "in-process", relays: [] }) };
+  const node = new GhostlyNode({ onState: vi.fn(), onMessages: vi.fn(), onCallSignal: vi.fn() }, { transport, automaticWallets: false,
+    nativeTransports: { "iroh/1": async () => net.endpoint("iroh/1", "app") } });
+  let contactState: PairingState = { status: "connecting" };
+  const contactGot: IncomingMessage[] = [];
+  const contact = new GhostLink({
+    params: { ...invitation.invite, profile: "paired-chat/1" }, rtcAvailable: false,
+    pairing: { credentials: { seedB64: theirs, peerKey: identityFromSeedB64(mine).pubKeyZ32 }, pinPeer: async () => {} },
+    native: { preferred: "iroh/1", fallback: true, peerTransports: ["iroh/1"], peerFallback: true, peerDescriptors: { "iroh/1": fakeDescriptor("iroh/1", "app") } },
+    transport, createPeerConnection: () => { throw new Error("No WebRTC here"); }, localFetch: vi.fn(), getServices: () => [], getHostedHttpService: () => undefined,
+    events: { onPairingState: state => { contactState = state; }, onMessage: message => { contactGot.push(message); } },
+  });
+  contact.registerEndpoint(net.endpoint("iroh/1", "contact"));
+  cleanup.push(async () => { await contact.stop(false); await node.shutdown(); await db.deleteLink(id); });
+  await node.start();
+  node.setActiveLink({ linkId: id });
+  const view = () => node.getState().links.find(l => l.id === id)!;
+  await vi.waitFor(() => expect(view().availableTransports).toHaveLength(1));
+  void contact.connect(5_000).catch(() => {});
+  await vi.waitFor(() => expect([view().pairing?.status, contactState.status]).toEqual(["ready", "ready"]));
+  const messages = () => db.getMessages(id);
+  const peerRow = async (text: string) => { await vi.waitFor(async () => expect((await messages()).find(m => m.text === text)).toBeDefined()); return (await messages()).find(m => m.text === text)!; };
+  return { node, contact, id, contactGot, messages, peerRow };
+}
+
+describe("a reply over the live link", () => {
+  it("names the contact's message by its wire id; the contact gets the line and who wrote it", async () => {
+    const t = await setup();
+    expect(await t.contact.sendMessage("lunch at noon?")).toBeNull();
+    const original = await t.peerRow("lunch at noon?");
+    const sent = await t.node.sendMessage({ linkId: t.id, text: "yes!", replyTo: original.id });
+    expect(sent.error).toBeNull();
+    await vi.waitFor(() => expect(t.contactGot.find(m => m.text === "yes!")).toBeDefined());
+    // From the reply's sender: the original was the recipient's.
+    expect(t.contactGot.find(m => m.text === "yes!")!.reply).toEqual({ i: replyRef(original), s: "lunch at noon?", f: "recipient" });
+    const mine = (await t.messages()).find(m => m.id === sent.messageId)!;
+    expect(mine.replyTo).toEqual({ id: replyRef(original), snippet: "lunch at noon?", from: "peer", messageId: original.id });
+  });
+
+  it("a received reply is checked against this chat: the original here gives the line and the author, not the wire", async () => {
+    const t = await setup();
+    const sent = await t.node.sendMessage({ linkId: t.id, text: "the plan: friday" });
+    const mine = (await t.messages()).find(m => m.id === sent.messageId)!;
+    await vi.waitFor(() => expect(t.contactGot).toHaveLength(1));
+    // The contact's app claims another line, and that it wrote it: what this side has wins.
+    expect(await t.contact.sendMessage("agreed", Date.now(), undefined, undefined, { i: mine.wireId!, s: "send me your seed", f: "sender" })).toBeNull();
+    const reply = await t.peerRow("agreed");
+    expect(reply.replyTo).toEqual({ id: mine.wireId, snippet: "the plan: friday", from: "me", messageId: mine.id });
+  });
+
+  it("a reply that came with only the id (over the DHT) finds its original here, line and author included", async () => {
+    const t = await setup();
+    const sent = await t.node.sendMessage({ linkId: t.id, text: "are you there?" });
+    const mine = (await t.messages()).find(m => m.id === sent.messageId)!;
+    // What the node's DHT path hands over: the text and `{ i }`, kept as a reply with no line and no author yet.
+    const store = (t.node as unknown as { storeMessage(m: StoredMessage): Promise<void> }).storeMessage.bind(t.node);
+    await store({ linkId: t.id, id: `peer_${"D".repeat(22)}`, text: "yes", sender: "peer", timestamp: Date.now(), via: "pkarr", replyTo: receivedPairedReply({ i: mine.wireId! }) });
+    const reply = await t.peerRow("yes");
+    expect(reply.replyTo).toEqual({ id: mine.wireId, snippet: "are you there?", from: "me", messageId: mine.id });
+    // One whose original is not here keeps nothing but the id: the chat says the original is not available.
+    await store({ linkId: t.id, id: `peer_${"F".repeat(22)}`, text: "and?", sender: "peer", timestamp: Date.now(), via: "pkarr", replyTo: receivedPairedReply({ i: "Z".repeat(22) }) });
+    expect((await t.peerRow("and?")).replyTo).toEqual({ id: "Z".repeat(22), snippet: "" });
+  });
+
+  it("an original not in this chat, even one of another chat, is kept as the wire said it, unchecked", async () => {
+    const t = await setup();
+    // A message of another chat, under a wire id the contact names.
+    const elsewhere = "E".repeat(22);
+    await db.addMessage({ linkId: "another-chat", id: `me_${elsewhere}`, wireId: elsewhere, text: "secret elsewhere", sender: "me", timestamp: 1, via: "datalink" });
+    expect(await t.contact.sendMessage("about that", Date.now(), undefined, undefined, { i: elsewhere, s: "a line", f: "recipient" })).toBeNull();
+    const reply = await t.peerRow("about that");
+    expect(reply.replyTo).toEqual({ id: elsewhere, snippet: "a line", from: "me" });
+    expect(reply.replyTo).not.toHaveProperty("messageId");
+  });
+
+  it("refuses to reply to what is not a message of this chat", async () => {
+    const t = await setup();
+    await db.addMessage({ linkId: "another-chat", id: "me_other", wireId: "O".repeat(22), text: "x", sender: "me", timestamp: 1, via: "datalink" });
+    for (const replyTo of ["me_other", "O".repeat(22), "nope", ""]) {
+      const result = await t.node.sendMessage({ linkId: t.id, text: "hi", replyTo });
+      expect(result).toMatchObject({ refused: true });
+      expect(result.error).toBeTruthy();
+    }
+    expect((await t.messages()).filter(m => m.text === "hi")).toHaveLength(0);
+  });
+});
+
+describe("a received reply in a long history", () => {
+  // A node that only keeps what it receives, and the chat's whole-history reads it makes meanwhile (the UI takes changes).
+  async function keeper(linkId: string, rows: StoredMessage[]) {
+    for (const row of rows) await db.putMessage(row);
+    const node = new GhostlyNode({ onState: vi.fn(), onMessages: vi.fn(), onMessageChanges: vi.fn(), onCallSignal: vi.fn() }, { automaticWallets: false });
+    cleanup.push(async () => { await node.shutdown(); await db.deleteLink(linkId); });
+    const whole = vi.spyOn(db, "getMessages");
+    cleanup.push(async () => whole.mockRestore());
+    const store = (node as unknown as { storeMessage(m: StoredMessage): Promise<void> }).storeMessage.bind(node);
+    return { whole: () => whole.mock.calls.filter(([chat]) => chat === linkId).length, store, row: (id: string) => db.getMessage(linkId, id) };
+  }
+  const history = (linkId: string, row: (i: number) => Partial<StoredMessage>) => Array.from({ length: 50 }, (_, i): StoredMessage =>
+    ({ linkId, id: `x${i}`, text: `line ${i}`, sender: "peer", timestamp: 1_700_000_000_000 + i, via: "datalink", ...row(i) }));
+
+  it("in a group, finds its original by its id alone: neither one here nor one not here reads the whole history", async () => {
+    const linkId = `group:${crypto.randomUUID()}`;
+    const t = await keeper(linkId, history(linkId, i => ({ id: `k1:0:${i}`, member: "k1" })));
+    await t.store({ linkId, id: "k2:0:1", text: "agreed", sender: "peer", member: "k2", timestamp: Date.now(), via: "datalink", replyTo: { id: "k1:0:7", snippet: "not the line", from: "peer", member: "k1" } });
+    expect((await t.row("k2:0:1"))?.replyTo).toEqual({ id: "k1:0:7", snippet: "line 7", from: "peer", member: "k1", messageId: "k1:0:7" });
+    await t.store({ linkId, id: "k2:0:2", text: "and?", sender: "peer", member: "k2", timestamp: Date.now(), via: "datalink", replyTo: { id: "k3:0:1", snippet: "a line", from: "peer", member: "k3" } });
+    expect((await t.row("k2:0:2"))?.replyTo).toEqual({ id: "k3:0:1", snippet: "a line", from: "peer", member: "k3" });
+    expect(t.whole()).toBe(0);
+  });
+
+  it("a reply I send finds its original by its id: in a group or a chat, it reads no whole history unless the keyed reads miss in a chat", async () => {
+    const replyFor = (node: GhostlyNode, linkId: string, id: string) => (node as unknown as { replyFor(l: string, m: string): Promise<unknown> }).replyFor(linkId, id);
+    const group = `group:${crypto.randomUUID()}`;
+    const g = await keeper(group, history(group, i => ({ id: `k1:0:${i}`, member: "k1" })));
+    const node = new GhostlyNode({ onState: vi.fn(), onMessages: vi.fn(), onCallSignal: vi.fn() }, { automaticWallets: false });
+    cleanup.push(async () => { await node.shutdown(); });
+    expect(await replyFor(node, group, "k1:0:7")).toEqual({ id: "k1:0:7", snippet: "line 7", from: "peer", member: "k1", messageId: "k1:0:7" });
+    expect(await replyFor(node, group, "k3:0:1")).toMatch(/not in this chat/);
+    expect(g.whole()).toBe(0);
+    const chat = `replies-${crypto.randomUUID()}`, wire = (i: number) => `${"W".repeat(20)}${String(i).padStart(2, "0")}`;
+    const c = await keeper(chat, [
+      ...history(chat, i => ({ id: `peer_${wire(i)}`, wireId: wire(i) })),
+      { linkId: chat, id: "me_9", text: "a.txt", sender: "me", timestamp: 1_700_000_001_000, via: "datalink", file: { id: `${chat}-out-${"F".repeat(22)}`, name: "a.txt", size: 1, mime: "text/plain" } },
+    ]);
+    // By the row's id, and by the wire id both sides know a text by: keyed reads only.
+    expect(await replyFor(node, chat, `peer_${wire(7)}`)).toMatchObject({ id: wire(7), snippet: "line 7", messageId: `peer_${wire(7)}` });
+    expect(await replyFor(node, chat, wire(8))).toMatchObject({ id: wire(8), snippet: "line 8", messageId: `peer_${wire(8)}` });
+    expect(c.whole()).toBe(0);
+    // A file's wire id is not a row's id: the whole chat, once.
+    expect(await replyFor(node, chat, "F".repeat(22))).toMatchObject({ id: "F".repeat(22), messageId: "me_9" });
+    expect(c.whole()).toBe(1);
+  });
+
+  it("in a group, a press on my open buttons still reads who already answered", async () => {
+    const linkId = `group:${crypto.randomUUID()}`;
+    const card = readStatusCard({ kind: "buttons", id: "ask", buttons: [{ id: "yes", label: "Yes", once: true }, { id: "no", label: "No", once: true }] })!;
+    const t = await keeper(linkId, [...history(linkId, i => ({ id: `k1:0:${i}`, member: "k1" })), { linkId, id: "me:0:1", text: "Yes or no?", sender: "me", member: "me", timestamp: 1_700_000_001_000, via: "datalink", card }]);
+    const press = (id: string, text: string, button: string): StoredMessage => ({ linkId, id, text, sender: "peer", member: "k2", timestamp: Date.now(), via: "datalink", replyTo: { id: "me:0:1", snippet: "", from: "me", member: "me", button } });
+    await t.store(press("k2:0:1", "Yes", "yes"));
+    expect((await t.row("k2:0:1"))?.press).toEqual({ messageId: "me:0:1", button: "yes", label: "Yes" });
+    // The same member's second answer to a once question is only a reply.
+    await t.store(press("k2:0:2", "No", "no"));
+    expect(await t.row("k2:0:2")).not.toHaveProperty("press");
+  });
+
+  it("in a group, many members' presses on a once question read the history once, and each member still answers once", async () => {
+    const linkId = `group:${crypto.randomUUID()}`;
+    const card = readStatusCard({ kind: "buttons", id: "ask", buttons: [{ id: "yes", label: "Yes", once: true }, { id: "no", label: "No", once: true }] })!;
+    const press = (member: string, id: string, text: string, button: string): StoredMessage => ({ linkId, id, text, sender: "peer", member, timestamp: Date.now(), via: "datalink", replyTo: { id: "me:0:1", snippet: "", from: "me", member: "me", button } });
+    // k0 answered before this app started: the history says so.
+    const t = await keeper(linkId, [...history(linkId, i => ({ id: `k1:0:${i}`, member: "k1" })), { linkId, id: "me:0:1", text: "Yes or no?", sender: "me", member: "me", timestamp: 1_700_000_001_000, via: "datalink", card },
+      { ...press("k0", "k0:0:1", "Yes", "yes"), timestamp: 1_700_000_002_000, press: { messageId: "me:0:1", button: "yes", label: "Yes" } }]);
+    for (let i = 2; i < 22; i++) await t.store(press(`k${i}`, `k${i}:0:1`, "Yes", "yes"));
+    for (let i = 2; i < 22; i++) expect((await t.row(`k${i}:0:1`))?.press).toEqual({ messageId: "me:0:1", button: "yes", label: "Yes" });
+    expect(t.whole()).toBe(1);
+    // A second answer, from one who answered before the start or since, is only a reply; the same copy again keeps its press.
+    await t.store(press("k0", "k0:0:2", "No", "no"));
+    await t.store(press("k5", "k5:0:2", "No", "no"));
+    expect(await t.row("k0:0:2")).not.toHaveProperty("press");
+    expect(await t.row("k5:0:2")).not.toHaveProperty("press");
+    await db.deleteMessage(linkId, "k6:0:1");
+    await t.store(press("k6", "k6:0:1", "Yes", "yes"));
+    expect((await t.row("k6:0:1"))?.press).toEqual({ messageId: "me:0:1", button: "yes", label: "Yes" });
+    // An answer that is no longer here answers nothing: that member may answer again.
+    await db.deleteMessage(linkId, "k7:0:1");
+    await t.store(press("k7", "k7:0:2", "No", "no"));
+    expect((await t.row("k7:0:2"))?.press).toEqual({ messageId: "me:0:1", button: "no", label: "No" });
+    expect(t.whole()).toBe(1);
+  });
+
+  it("in a chat, finds a text's original by its row alone", async () => {
+    const linkId = `long-${crypto.randomUUID()}`, wire = (i: number) => `${"W".repeat(20)}${String(i).padStart(2, "0")}`;
+    const t = await keeper(linkId, history(linkId, i => ({ id: `peer_${wire(i)}` })));
+    await t.store({ linkId, id: `peer_${"R".repeat(22)}`, text: "yes", sender: "peer", timestamp: Date.now(), via: "pkarr", replyTo: receivedPairedReply({ i: wire(7) }) });
+    expect((await t.row(`peer_${"R".repeat(22)}`))?.replyTo).toEqual({ id: wire(7), snippet: "line 7", from: "peer", messageId: `peer_${wire(7)}` });
+    expect(t.whole()).toBe(0);
+  });
+
+  it("in a chat, finds a file of mine by its stored file: a reply to it, received or sent, reads no whole history", async () => {
+    const replyFor = (node: GhostlyNode, linkId: string, id: string) => (node as unknown as { replyFor(l: string, m: string): Promise<unknown> }).replyFor(linkId, id);
+    const linkId = `long-${crypto.randomUUID()}`, wire = (i: number) => `${"W".repeat(20)}${String(i).padStart(2, "0")}`, fileWire = "F".repeat(22), at = 1_700_000_001_000;
+    const file = { id: `${linkId}-out-${fileWire}`, name: "photo.jpg", size: 5, mime: "image/jpeg" };
+    await fileStore.put({ id: file.id, linkId, blob: new Blob([new Uint8Array(5)]), createdAt: 1, direction: "out", wireId: fileWire, metadata: { name: file.name, size: file.size, mime: file.mime, timestamp: at } });
+    cleanup.push(() => fileStore.delete(file.id));
+    // My file's row goes by its time, as sending it keeps it; its wire id is its file id's tail.
+    const t = await keeper(linkId, [...history(linkId, i => ({ id: `peer_${wire(i)}` })), { linkId, id: `me_${at}`, text: "📎 photo.jpg", sender: "me", timestamp: at, via: "datalink", file }]);
+    await t.store({ linkId, id: `peer_${"R".repeat(22)}`, text: "nice photo", sender: "peer", timestamp: Date.now(), via: "datalink", replyTo: receivedPairedReply({ i: fileWire }) });
+    expect((await t.row(`peer_${"R".repeat(22)}`))?.replyTo).toMatchObject({ id: fileWire, from: "me", messageId: `me_${at}` });
+    const node = new GhostlyNode({ onState: vi.fn(), onMessages: vi.fn(), onCallSignal: vi.fn() }, { automaticWallets: false });
+    cleanup.push(async () => { await node.shutdown(); });
+    expect(await replyFor(node, linkId, fileWire)).toMatchObject({ id: fileWire, messageId: `me_${at}` });
+    expect(t.whole()).toBe(0);
+  });
+
+  it("in a chat, replies to the contact's file or to messages not here read the whole history once in a run, not each", async () => {
+    const t = await setup();
+    const wire = (i: number) => `${"W".repeat(20)}${String(i).padStart(2, "0")}`, at = 1_700_000_001_000;
+    for (const row of history(t.id, i => ({ id: `peer_${wire(i)}`, wireId: wire(i) }))) await db.putMessage(row);
+    // The contact's file sent over files/2: its row goes by the sender's time, a reply names it by its wire id.
+    const photo = (id: string, fileWire: string, timestamp: number): StoredMessage => ({ linkId: t.id, id, wireId: fileWire, text: "📎 photo.jpg", sender: "peer", timestamp, via: "datalink",
+      file: { id: `${t.id}-in-${fileWire}`, name: "photo.jpg", size: 5, mime: "image/jpeg" } });
+    await db.putMessage(photo(`peer_${at}`, "F".repeat(22), at));
+    const whole = vi.spyOn(db, "getMessages");
+    cleanup.push(async () => whole.mockRestore());
+    const reads = () => whole.mock.calls.filter(([chat]) => chat === t.id).length;
+    const store = (t.node as unknown as { storeMessage(m: StoredMessage): Promise<void> }).storeMessage.bind(t.node);
+    const reply = (k: number, to: string) => store({ linkId: t.id, id: `peer_${"R".repeat(20)}${String(k).padStart(2, "0")}`, text: `re ${k}`, sender: "peer", timestamp: Date.now(), via: "datalink",
+      replyTo: receivedPairedReply({ i: to, s: "a line", f: "sender" }) });
+    // What storing a row costs here besides its original (this page takes whole histories): replies to texts, keyed reads.
+    for (let k = 20; k < 31; k++) await reply(k, wire(k));
+    const keyed = reads();
+    for (let k = 0; k < 5; k++) await reply(k, "F".repeat(22));
+    for (let k = 5; k < 10; k++) await reply(k, `${"N".repeat(20)}${String(k).padStart(2, "0")}`);
+    // A file that came after that read is found too.
+    await store(photo(`peer_${at + 1}`, "G".repeat(22), at + 1));
+    await reply(10, "G".repeat(22));
+    const row = (k: number) => db.getMessage(t.id, `peer_${"R".repeat(20)}${String(k).padStart(2, "0")}`);
+    expect((await row(0))?.replyTo).toEqual({ id: "F".repeat(22), snippet: "📎 photo.jpg", from: "peer", messageId: `peer_${at}` });
+    expect((await row(4))?.replyTo).toMatchObject({ messageId: `peer_${at}` });
+    expect((await row(9))?.replyTo).toEqual({ id: `${"N".repeat(20)}09`, snippet: "a line", from: "peer" });
+    expect((await row(10))?.replyTo).toMatchObject({ messageId: `peer_${at + 1}` });
+    // 11 replies and a file, as 11 replies to texts plus the file's row cost, and one read of the chat in a run.
+    expect(reads() - 2 * keyed).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("what a reply names", () => {
+  const row = (fields: Partial<StoredMessage>): StoredMessage => ({ linkId: "l", id: "x", text: "", sender: "me", timestamp: 1, via: "datalink", ...fields });
+  it("is the id both sides know a message by", () => {
+    const wire = "W".repeat(22);
+    expect(replyRef(row({ id: `me_${wire}`, wireId: wire }))).toBe(wire);
+    expect(replyRef(row({ id: `peer_${wire}`, sender: "peer" }))).toBe(wire);
+    expect(replyRef(row({ id: "me_1790000000000", paymentId: "pay-12345678" }))).toBe("pay-12345678");
+    expect(replyRef(row({ id: "me_1790000000000", file: { id: "l-out-FFFFFFFFFFFFFFFF", name: "a", size: 1, mime: "x" } }))).toBe("FFFFFFFFFFFFFFFF");
+    expect(replyRef(row({ id: "peer_1790000000000", sender: "peer", wireId: "GGGGGGGGGGGGGGGG", file: { id: "l-in-local", name: "a", size: 1, mime: "x" } }))).toBe("GGGGGGGGGGGGGGGG");
+    // What only this side has: a received file from before, a refused payment's line, a notice.
+    expect(replyRef(row({ id: "peer_1790000000000", sender: "peer", file: { id: "l-in-local", name: "a", size: 1, mime: "x" } }))).toBeUndefined();
+    expect(replyRef(row({ id: "peer_1790000000000_refused", sender: "peer" }))).toBeUndefined();
+    // A group: its message id, never a payment line or an event.
+    expect(replyRef(row({ linkId: "group:g", id: "key:0:3", member: "key" }))).toBe("key:0:3");
+    expect(replyRef(row({ linkId: "group:g", id: "edge:me_1", paymentId: "p" }))).toBeUndefined();
+    expect(replyRef(row({ linkId: "group:g", id: "e1", event: "joined" }))).toBeUndefined();
+  });
+
+  it("goes on the wire from the sender's side, and comes back to each side's own words", () => {
+    const reply = { id: "W".repeat(22), snippet: "hi", from: "peer" as const, messageId: "peer_x" };
+    expect(pairedWireReply(reply)).toEqual({ i: reply.id, s: "hi", f: "recipient" });
+    expect(receivedPairedReply({ i: reply.id, s: "hi", f: "recipient" })).toEqual({ id: reply.id, snippet: "hi", from: "me" });
+    expect(receivedPairedReply({ i: reply.id, s: "hi", f: "sender" })).toEqual({ id: reply.id, snippet: "hi", from: "peer" });
+    // Over the DHT only the id came: nothing says who wrote it.
+    expect(receivedPairedReply({ i: reply.id })).toEqual({ id: reply.id, snippet: "" });
+    const me = createIdentity().pubKeyZ32, them = createIdentity().pubKeyZ32;
+    expect(groupReply({ i: `${them}:0:1`, s: "x", f: them }, me)).toEqual({ id: `${them}:0:1`, snippet: "x", from: "peer", member: them });
+    expect(groupReply({ i: `${me}:0:1`, s: "x", f: me }, me)).toMatchObject({ from: "me", member: me });
+  });
+});

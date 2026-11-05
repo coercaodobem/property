@@ -1,0 +1,87 @@
+import { mayPin, nextPinNumber, type WirePin } from "@ghostly/core";
+import { replyRef } from "../shared/replies";
+import type { GroupView, PinView, StoredMessage, StoredPin } from "../shared/types";
+import { reactionTarget } from "./reactions";
+
+/*
+ * A chat's pinned message (WISP 400 § Pinned message), as the engine keeps it: one per chat, on the link or the group,
+ * the highest number winning. How it travels is the caller's: a 1:1 chat's session (`pin/1`), a private group's
+ * signed frame over the edges, a community's sealed frame.
+ */
+
+export interface PinsHost {
+  messages(chat: string): Promise<StoredMessage[]>;
+  /** One row by its id (`db.getMessage`): a pin's row is looked for so first. */
+  message?(chat: string, id: string): Promise<StoredMessage | undefined>;
+  /** The rows of a 1:1 chat a wire id may name besides `peer_`/`me_` and that id (`ReactionsHost.rows`), each read alone. */
+  rows?(chat: string, id: string): Promise<string[]>;
+  /**
+   * The rows of a 1:1 chat that go by another id than their own, by that id, read once in a run; undefined when the
+   * host keeps none for that chat (the chat is then read whole).
+   */
+  unkeyed?(chat: string): Promise<ReadonlyMap<string, string>> | undefined;
+}
+
+const isGroup = (chat: string) => chat.startsWith("group:");
+
+/** What the pages and the CLI see of a pin (`id` "" once unpinned, and by whom). */
+export function pinView(pin: StoredPin | undefined): PinView | undefined {
+  return pin && { id: pin.id, by: pin.by, at: pin.at, ...(pin.messageId && { messageId: pin.messageId }) };
+}
+
+/**
+ * Whether a private group's pin was made by someone no longer in its roster (`inRoster`): it goes when they do, so a
+ * member removed leaves nothing of theirs at the top of the chat.
+ */
+export function pinOfFormerMember(pin: StoredPin | undefined, inRoster: (key: string) => boolean): boolean {
+  return !!pin && pin.by !== "me" && !inRoster(pin.by);
+}
+
+/** Whether I may pin in this group now: the rule (`mayPin`) with my key and its admin's. */
+export function mayPinIn(group: GroupView | undefined): boolean {
+  return !!group?.myKey && group.status === "active" && mayPin(group.profile, group.myKey, group.members.find(m => m.role === "admin")?.key);
+}
+
+/**
+ * The row a pin names, when it is here: the row of that id (a group's), or of `peer_`/`me_` and that id, or one the host
+ * knows that id names (a file of mine, a payment), each read alone; else any other of a chat's, from the rows the host
+ * knows by another id (`unkeyed`) or, without those, the whole chat.
+ */
+export async function pinnedRow(host: PinsHost, chat: string, id: string): Promise<StoredMessage | undefined> {
+  if (!id) return undefined;
+  const group = isGroup(chat);
+  if (host.message) {
+    for (const rowId of group ? [id] : [`peer_${id}`, `me_${id}`, ...await host.rows?.(chat, id) ?? []]) {
+      const row = await host.message(chat, rowId);
+      if (row && replyRef(row, group) === id) return row;
+    }
+    // In a group there is no other: a row that takes a pin goes by its own id there, and a long group is not read whole.
+    if (group) return undefined;
+    // Nor is a chat for each pin: a contact can name ids that never were, ten a window.
+    const unkeyed = host.unkeyed?.(chat);
+    if (unkeyed) {
+      const rowId = (await unkeyed).get(id), row = rowId === undefined ? undefined : await host.message(chat, rowId);
+      return row && replyRef(row, false) === id ? row : undefined;
+    }
+  }
+  return reactionTarget(await host.messages(chat), id, group);
+}
+
+/**
+ * This side's pin (`messageId` its row here or the id both sides know; `remove` unpins): numbered past the pin shown
+ * now, or why it cannot be.
+ */
+export async function myPin(host: PinsHost, chat: string, messageId: unknown, remove: boolean, current: WirePin | undefined, now = Date.now()): Promise<StoredPin | { error: string }> {
+  const n = nextPinNumber(current?.n, now);
+  const group = isGroup(chat);
+  if (remove) return current?.id ? { id: "", n, by: "me", at: now } : { error: `Nothing is pinned in this ${group ? "group" : "chat"}` };
+  if (typeof messageId !== "string" || !messageId) return { error: "No message to pin" };
+  // By its row's id, read alone, else by the id both sides know (as the pages may name it): the chat read whole only
+  // when neither finds it.
+  const target = host.message
+    ? (await host.message(chat, messageId)) ?? await pinnedRow(host, chat, messageId)
+    : (await host.messages(chat)).find(m => m.id === messageId) ?? await pinnedRow(host, chat, messageId);
+  const id = target && replyRef(target, group);
+  if (!target || !id) return { error: `That message is not in this ${group ? "group" : "chat"}, or cannot be pinned` };
+  return { id, n, by: "me", at: now, messageId: target.id };
+}

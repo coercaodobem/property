@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#090a0c" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Property" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Property Direct</title>
+    <!-- What a link to the app shows where it is shared (a chat, a post): the manifest's description, and the
+         website's share image. Absolute and on the website, so a copy of the app served from another host shows the
+         same card; no og:url, so the card links to the address that was shared. -->
+    <meta name="description" content="Property Direct: peer-to-peer conversations, calls and file sharing. No central messaging account." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Property" />
+    <meta property="og:title" content="Property Direct" />
+    <meta property="og:description" content="Peer-to-peer conversations, calls and file sharing. No central messaging account." />
+    <meta property="og:image" content="https://coercaodobem.github.io/property/direct/property-brand.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Property mark in yellow on black" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- What the page says when the app cannot start (public/boot-guard.js): a plain script, before the bundle. It
+         also puts the saved theme on <html> and in the theme-color above, before the first paint. -->
+    <script src="/boot-guard.js"></script>
+    <!-- The first paint (#boot-shell below), styled here because it must draw before any file of the app arrives.
+         Over the page's own background, so a warm start that draws the app in a moment shows nothing new; its ghost
+         and words come only after a short wait, and at once (visibility, not a fade: an opacity animation runs off
+         the main thread, and the browser never counts it as the page's first contentful paint). The site's policy
+         allows inline styles (style-src 'unsafe-inline'). -->
+    <style>
+      #boot-shell {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        color: var(--theme-text-secondary, #aebbc3);
+        font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        text-align: center;
+        animation: boot-shell-in 0s 0.4s both;
+      }
+      #boot-shell img { width: 64px; height: 64px; }
+      #boot-shell p { margin: 0; }
+      @keyframes boot-shell-in { from { visibility: hidden; } to { visibility: visible; } }
+    </style>
+  </head>
+  <body>
+    <!-- What a cold first visit shows while the app's files arrive (seconds on a slow phone): React's first render
+         replaces it, and the boot guard (public/boot-guard.js) puts its words in the browser's language and does not
+         take it for the app having drawn. -->
+    <div id="root"><div id="boot-shell" role="status" data-testid="boot-shell"><img src="/icon-192.png" alt="" /><p>Starting Property…</p></div></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,316 @@
+import { describe, expect, it, vi } from "vitest";
+import { MINI_APP_LIMITS } from "@ghostly/core/miniApp";
+import { APP_CLOSED_EVENT, APP_REQUEST_EVENT, desktopOpener, forIpc } from "../../lib/apps/desktopOpener";
+import { memoryAppId, memoryHost } from "../../lib/apps/memoryHost";
+import { nameToldIn } from "../../lib/apps/nameInChat";
+import { stopTakenDown } from "../../lib/apps/open";
+import type { AppEntry } from "../../lib/platform";
+import { engineState, linkView } from "../fakeEngine";
+
+// covers: apps.desktop-sandbox
+
+/**
+ * Desktop's opener (WISP 1200, Desktop row): the web broker in the Ghostly window, one per app window, reached through
+ * Rust (apps/desktop/src/app_sandbox.rs). Rust is played here: `app_open` answers a label, the window's requests come
+ * as `ghostly-app-request` events with that label, and what the broker sends goes to `app_post`.
+ */
+const REF = "pubkeyalpha/chess";
+const LINK = "link-1";
+
+function setup(entry: Partial<AppEntry> = {}, windowTitle?: (title: string, linkId: string | null, serving: boolean) => string, nameIn: (linkId: string) => string | undefined = () => undefined) {
+  const host = memoryHost("ghostly-app://localhost/", "ghostly-app://localhost/");
+  host.entry = async (ref) => ({ ref, digest: "d", version: "1.2.0", title: "Chess", permissions: ["chat"], entry: "<p>chess</p>", ...entry });
+  const handlers = new Map<string, (event: { payload: unknown }) => void>();
+  const calls: { command: string; args: Record<string, unknown> }[] = [];
+  let labels = 0;
+  const hooks: { opened?: (label: string) => void; focused?: boolean } = {};
+  const invoke = vi.fn(async (command: string, args: Record<string, unknown> = {}) => {
+    calls.push({ command, args });
+    if (command === "app_focused") return hooks.focused ?? true;
+    if (command === "app_open") {
+      const label = `app-${++labels}`;
+      hooks.opened?.(label);
+      return label;
+    }
+    return undefined;
+  }) as unknown as <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
+  const listen = async <T,>(event: string, handler: (event: { payload: T }) => void) => { handlers.set(event, handler as (event: { payload: unknown }) => void); return () => {}; };
+  const stops: string[] = [];
+  const open = desktopOpener({ apps: () => host, invoke, listen, nameIn, windowTitle, onStop: (_, reason) => stops.push(reason), view: { theme: () => "light", locale: () => "en" }, startTimeoutMs: 200 });
+  /** The app window `label` asks, as Rust hands it over. */
+  const request = (label: string, message: unknown) => handlers.get(APP_REQUEST_EVENT)!({ payload: { label, request: message } });
+  const posts = (label: string) => calls.filter((c) => c.command === "app_post" && c.args.label === label).map((c) => c.args.message as Record<string, unknown>);
+  const answer = async (label: string, id: number) => {
+    await vi.waitFor(() => expect(posts(label).some((m) => m.id === id)).toBe(true));
+    return posts(label).find((m) => m.id === id)!;
+  };
+  return { host, calls, hooks, open, request, posts, answer, stops, closed: (label: string) => handlers.get(APP_CLOSED_EVENT)!({ payload: label }) };
+}
+
+describe("opening an app on Desktop", () => {
+  it("closes an app's window when its version is found revoked, and not one run anyway after a removal", async () => {
+    const { calls, open } = setup();
+    await open(REF, LINK);
+    await open(REF, null, { runAnyway: true });
+    const removed = { status: "removed", by: [{ name: "Ghostly" }] };
+    stopTakenDown([{ ref: REF, digest: "d", run: removed }]);
+    expect(calls.filter((c) => c.command === "app_close").map((c) => c.args.label)).toEqual(["app-1"]);
+    stopTakenDown([{ ref: REF, digest: "d", run: { status: "revoked" } }]);
+    expect(calls.filter((c) => c.command === "app_close").map((c) => c.args.label)).toEqual(["app-1", "app-2"]);
+  });
+
+  it("closes an app's window when the app is no longer installed, Run anyway or not", async () => {
+    const { calls, open, stops } = setup();
+    await open(REF, LINK);
+    await open(REF, null, { runAnyway: true });
+    stopTakenDown([{ ref: `${REF}-other`, digest: "d", run: { status: "ok" } }]);
+    expect(calls.filter((c) => c.command === "app_close").map((c) => c.args.label)).toEqual(["app-1", "app-2"]);
+    expect(stops).toEqual(["stopped", "stopped"]);
+  });
+
+  it("names its window after the app and the contact in a chat, and the app alone outside one", async () => {
+    const { calls, open } = setup({}, (title, linkId) => (linkId ? `${title} with Ana` : title));
+    await open(REF, LINK);
+    await open(REF, null);
+    const titles = calls.filter((c) => c.command === "app_open").map((c) => (c.args.request as { title: string }).title);
+    expect(titles).toEqual(["Chess with Ana", "Chess"]);
+  });
+
+  it("refuses a files.pick while the person is not in the app's window: its sheet would pull the Ghostly window over what they are doing", async () => {
+    const { host, hooks, open, request, answer } = setup({ permissions: ["chat", "files"] });
+    await open(REF, LINK);
+    request("app-1", { id: 0, type: "writing", args: [] });
+    await answer("app-1", 0);
+    host.nextPick = [{ path: "Films/Up.mp4", bytes: new Uint8Array(10) }];
+    hooks.focused = false;
+    request("app-1", { id: 1, type: "files.pick", args: [] });
+    expect(await answer("app-1", 1)).toMatchObject({ ok: false, error: "too-fast" });
+    // Back in its window, the same app asks at once: nothing waits, as nobody cancelled.
+    hooks.focused = true;
+    request("app-1", { id: 2, type: "files.pick", args: [] });
+    expect(await answer("app-1", 2)).toMatchObject({ ok: true });
+  });
+
+  it("says in its window's title while the app serves the contact a file, and no longer once it stops", async () => {
+    // WISP 1200 § A read lane to the contact: the header says "sharing a file with Ana"; on Desktop the window is it.
+    const { calls, host, open, request, answer } = setup({ permissions: ["chat", "files"] }, (title, linkId, serving) => (serving ? `${title} · sharing a file with Ana` : `${title} with Ana`));
+    const titles = () => calls.filter((c) => c.command === "app_title").map((c) => [c.args.label, c.args.title]);
+    await open(REF, LINK);
+    request("app-1", { id: 0, type: "writing", args: [] });
+    await answer("app-1", 0);
+    host.nextPick = [{ path: "Films/Up.mp4", bytes: new Uint8Array(10) }];
+    request("app-1", { id: 1, type: "files.pick", args: [] });
+    const [film] = (await answer("app-1", 1)).value as { id: string }[];
+    request("app-1", { id: 2, type: "files.serve", args: [film!.id] });
+    const serve = (await answer("app-1", 2)).value as string;
+    expect(titles()).toEqual([["app-1", "Chess · sharing a file with Ana"]]);
+    // A second serve of the same window changes nothing; the last one ended gives the window its name back.
+    request("app-1", { id: 3, type: "files.serve", args: [film!.id] });
+    const again = (await answer("app-1", 3)).value as string;
+    request("app-1", { id: 4, type: "files.unserve", args: [serve] });
+    await answer("app-1", 4);
+    expect(titles()).toHaveLength(1);
+    request("app-1", { id: 5, type: "files.unserve", args: [again] });
+    await answer("app-1", 5);
+    expect(titles()).toEqual([["app-1", "Chess · sharing a file with Ana"], ["app-1", "Chess with Ana"]]);
+  });
+
+  it("opens a window with the checked entry and what the person granted, and runs the web broker for it", async () => {
+    const { calls, open, request, answer, host } = setup();
+    await open(REF, LINK);
+    expect(calls[0]).toEqual({ command: "app_open", args: { request: { app: REF, title: "Chess", entry: "<p>chess</p>", internet: false, view: "chat" } } });
+
+    request("app-1", { id: 1, type: "writing", args: [] });
+    expect(await answer("app-1", 1)).toEqual({ id: 1, ok: true });
+    request("app-1", { id: 2, type: "context", args: [] });
+    expect(await answer("app-1", 2)).toEqual({ id: 2, ok: true, value: { version: "1.2.0", inChat: true, peer: null, theme: "light", locale: "en" } });
+    request("app-1", { id: 3, type: "storage.set", args: ["k", 1] });
+    await answer("app-1", 3);
+    expect(host.stored.get(`${REF} ${LINK}`)?.get("k")).toBe(1);
+    expect(host.calls.find((c) => c.op === "chat.open")).toEqual({ op: "chat.open", ref: REF, linkId: LINK });
+  });
+
+  it("tells an app granted name the name the contact was told in that chat, and no other app, chat or name", async () => {
+    /** The app's `context()`, as a profile in `state` opens it in the chat (or alone). */
+    const context = async (permissions: string[], state: Parameters<typeof nameToldIn>[0], linkId: string | null = LINK) => {
+      const { open, request, answer } = setup({ permissions }, undefined, (id) => nameToldIn(state, id));
+      await open(REF, linkId);
+      request("app-1", { id: 1, type: "writing", args: [] });
+      await answer("app-1", 1);
+      request("app-1", { id: 2, type: "context", args: [] });
+      return (await answer("app-1", 2)).value as Record<string, unknown>;
+    };
+    // Ana's chat, where both sides said their names; the profile goes by Bia and shares it.
+    const chat = linkView({ id: LINK, profile: "paired-chat/1", peerNick: "Ana" });
+    const profile = (settings: { nick?: string; shareProfile?: boolean } = {}, links = [chat]) => engineState({ settings: { nick: "Bia", ...settings }, links });
+
+    expect(await context(["chat", "name"], profile())).toEqual({ version: "1.2.0", inChat: true, peer: null, theme: "light", locale: "en", name: "Bia" });
+    // Without the permission: no `name` at all.
+    expect(await context(["chat"], profile())).not.toHaveProperty("name");
+    // The profile does not share its name: the contact has none, so the app gets none.
+    expect(await context(["chat", "name"], profile({ shareProfile: false }))).not.toHaveProperty("name");
+    // The profile has no name.
+    expect(await context(["chat", "name"], profile({ nick: "" }))).not.toHaveProperty("name");
+    // The contact was never heard from in this chat: it may not have the name yet.
+    expect(await context(["chat", "name"], profile({}, [linkView({ id: LINK, profile: "paired-chat/1" })]))).not.toHaveProperty("name");
+    // Opened alone: there is no chat to have a name in.
+    expect(await context(["name"], profile(), null)).toEqual({ version: "1.2.0", inChat: false, peer: null, theme: "light", locale: "en" });
+  });
+
+  it("asks for the entry with Run anyway only when the person chose it (a version a store removed)", async () => {
+    const { host, open } = setup();
+    const asked: (boolean | undefined)[] = [];
+    const entry = host.entry;
+    host.entry = async (ref, runAnyway) => { asked.push(runAnyway); return entry(ref, runAnyway); };
+    await open(REF, LINK);
+    await open(REF, LINK, { runAnyway: true });
+    expect(asked).toEqual([false, true]);
+  });
+
+  it("opens an app granted internet in the network runner's window", async () => {
+    const { calls, open } = setup({ permissions: ["internet"] });
+    await open(REF, null);
+    expect(calls[0]!.args).toEqual({ request: { app: REF, title: "Chess", entry: "<p>chess</p>", internet: true, view: "chat" } });
+  });
+
+  it("asks Rust for a full-screen app's window, at the Ghostly window's size", async () => {
+    const { calls, open } = setup({ view: "full" });
+    await open(REF, null);
+    expect((calls[0]!.args.request as { view: string }).view).toBe("full");
+  });
+
+  it("refuses an app granted internet where the client has no network runner", async () => {
+    const { host, calls, open } = setup({ permissions: ["internet"] });
+    delete host.netRunnerUrl;
+    await expect(open(REF, null)).rejects.toThrow(/internet/);
+    expect(calls).toEqual([]);
+  });
+
+  it("knows each app by its window's label, never by what it says", async () => {
+    const { open, request, answer, host, posts } = setup();
+    await open(REF, LINK);
+    await open("pubkeybeta/snake", null);
+    request("app-1", { id: 1, type: "writing", args: [] });
+    request("app-2", { id: 1, type: "writing", args: [] });
+    await answer("app-2", 1);
+    request("app-2", { id: 2, type: "storage.set", args: ["k", "b"], ref: REF, linkId: LINK });
+    await answer("app-2", 2);
+    expect(host.stored.get(`pubkeybeta/snake alone`)?.get("k")).toBe("b");
+    expect(host.stored.get(`${REF} ${LINK}`)).toBeUndefined();
+    // A window nobody opened is nobody's: its requests are not answered.
+    request("app-9", { id: 1, type: "context", args: [] });
+    await new Promise((done) => setTimeout(done, 20));
+    expect(posts("app-9")).toEqual([]);
+  });
+
+  it("keeps the web broker's caps: 64 KiB, 50 a second, the API and nothing more", async () => {
+    const { open, request, answer } = setup();
+    await open(REF, LINK);
+    request("app-1", { id: 1, type: "writing", args: [] });
+    await answer("app-1", 1);
+    request("app-1", { id: 2, type: "storage.set", args: ["k", "x".repeat(MINI_APP_LIMITS.requestBytes)] });
+    expect(await answer("app-1", 2)).toEqual({ id: 2, ok: false, error: "too-large" });
+    request("app-1", { id: 3, type: "fetch", args: ["https://example.com/"] });
+    expect(await answer("app-1", 3)).toEqual({ id: 3, ok: false, error: "unknown-type" });
+    for (let id = 4; id < 4 + MINI_APP_LIMITS.requestsPerSecond; id++) request("app-1", { id, type: "storage.keys", args: [] });
+    const last = 4 + MINI_APP_LIMITS.requestsPerSecond - 1;
+    expect(await answer("app-1", last)).toEqual({ id: last, ok: false, error: "too-fast" });
+  });
+
+  it("sends a file's bytes as base64, which the runner turns back into an ArrayBuffer", async () => {
+    const { open, request, answer, host } = setup();
+    host.files.set(REF, new Map([["board.svg", new Uint8Array([0, 1, 2, 250, 255])]]));
+    await open(REF, LINK);
+    request("app-1", { id: 1, type: "writing", args: [] });
+    await answer("app-1", 1);
+    request("app-1", { id: 2, type: "file", args: ["board.svg"] });
+    expect(await answer("app-1", 2)).toEqual({ id: 2, ok: true, bytes: "AAEC+v8=" });
+    expect(forIpc({ id: 1, ok: true, value: "x" })).toEqual({ id: 1, ok: true, value: "x" });
+  });
+
+  it("encodes a file with core's encoder, not btoa, on the Ghostly window's thread (about 100 ms a MiB)", () => {
+    const btoa = vi.spyOn(globalThis, "btoa");
+    try {
+      for (const length of [0, 1, 2, 3, 0x8000 * 2 + 3, 1024 * 1024 + 1]) {
+        const bytes = new Uint8Array(length).map((_, i) => (i * 131) & 255);
+        expect(forIpc({ id: 2, ok: true, value: bytes.buffer })).toEqual({ id: 2, ok: true, bytes: Buffer.from(bytes).toString("base64") });
+      }
+      expect(btoa.mock.calls.length).toBe(0);
+    } finally {
+      btoa.mockRestore();
+    }
+  });
+
+  it("sends the contact's frames to that window as events", async () => {
+    const { open, request, answer, host, posts } = setup();
+    await open(REF, LINK);
+    request("app-1", { id: 1, type: "writing", args: [] });
+    await answer("app-1", 1);
+    const app = memoryAppId(LINK, REF);
+    await vi.waitFor(() => expect(host.calls.some((c) => c.op === "chat.open")).toBe(true));
+    await Promise.resolve();
+    host.receive(LINK, { app, o: "open", v: "1.2.0" });
+    host.receive(LINK, { app, d: { move: "e4" } });
+    await vi.waitFor(() => expect(posts("app-1").filter((m) => "event" in m)).toEqual([
+      { event: "chat.peer", data: { open: true, version: "1.2.0" } },
+      { event: "chat.message", data: { move: "e4" } },
+    ]));
+  });
+
+  it("closes the window when the app asks, and stops the app when its window closes", async () => {
+    const { open, request, answer, calls, stops, closed, host } = setup();
+    await open(REF, LINK);
+    request("app-1", { id: 1, type: "writing", args: [] });
+    await answer("app-1", 1);
+    request("app-1", { id: 2, type: "close", args: [] });
+    expect(await answer("app-1", 2)).toEqual({ id: 2, ok: true });
+    expect(calls.filter((c) => c.command === "app_close")).toEqual([{ command: "app_close", args: { label: "app-1" } }]);
+    expect(stops).toEqual(["closed"]);
+
+    await open(REF, LINK);
+    request("app-2", { id: 1, type: "writing", args: [] });
+    await answer("app-2", 1);
+    closed("app-2");
+    expect(stops).toEqual(["closed", "stopped"]);
+    await vi.waitFor(() => expect(host.calls.filter((c) => c.op === "chat.close")).toHaveLength(2));
+  });
+
+  it("brings the app's window to the front when it is opened again in the same chat, and its chat closes once with it", async () => {
+    const { open, request, answer, calls, closed, host } = setup();
+    // A double click: both opens find the one window.
+    expect(await Promise.all([open(REF, LINK), open(REF, LINK)])).toEqual([undefined, "shown"]);
+    request("app-1", { id: 1, type: "writing", args: [] });
+    await answer("app-1", 1);
+    // Its card, or + → Apps, pressed while it runs.
+    expect(await open(REF, LINK)).toBe("shown");
+    expect(calls.filter((c) => c.command === "app_open")).toHaveLength(1);
+    expect(calls.filter((c) => c.command === "app_focus")).toEqual([{ command: "app_focus", args: { label: "app-1" } }, { command: "app_focus", args: { label: "app-1" } }]);
+    // Another chat, or alone: a window of its own.
+    expect(await open(REF, "link-2")).toBeUndefined();
+    expect(calls.filter((c) => c.command === "app_open")).toHaveLength(2);
+
+    closed("app-1");
+    await vi.waitFor(() => expect(host.calls.filter((c) => c.op === "chat.close" && c.linkId === LINK)).toHaveLength(1));
+    // Closed: the next open is a new window.
+    expect(await open(REF, LINK)).toBeUndefined();
+    expect(calls.filter((c) => c.command === "app_open")).toHaveLength(3);
+  });
+
+  it("tears down an app whose first word is not the runner's, and one that never starts", async () => {
+    const { open, request, stops, calls } = setup();
+    await open(REF, null);
+    request("app-1", { id: 1, type: "context", args: [] });
+    expect(stops).toEqual(["protocol"]);
+    await open(REF, null);
+    await vi.waitFor(() => expect(stops).toEqual(["protocol", "timeout"]));
+    expect(calls.filter((c) => c.command === "app_close").map((c) => c.args.label)).toEqual(["app-1", "app-2"]);
+  });
+
+  it("holds a window's first requests until its label is known", async () => {
+    const { hooks, open, request, answer } = setup();
+    // Rust's `writing` can reach the Ghostly window before `app_open`'s answer does.
+    hooks.opened = (label) => request(label, { id: 1, type: "writing", args: [] });
+    await open(REF, null);
+    expect(await answer("app-1", 1)).toEqual({ id: 1, ok: true });
+  });
+});

@@ -1,0 +1,12 @@
+{
+  "createChat": "إنشاء محادثة جديدة",
+  "description": "رسائل خاصة من نظير إلى نظير.",
+  "features": {
+    "decentralized": "بدون خادم مركزي",
+    "encrypted": "تشفير من طرف إلى طرف",
+    "onDevice": "رسائلك تبقى على أجهزتك"
+  },
+  "unpublishedVersion": "إصدار محلي — عرض الإصدارات المنشورة",
+  "viewRelease": "عرض هذا الإصدار",
+  "welcome": "مرحباً بك في Property"
+}

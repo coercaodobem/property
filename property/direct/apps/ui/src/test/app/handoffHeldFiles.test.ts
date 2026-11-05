@@ -1,0 +1,195 @@
+import "fake-indexeddb/auto";
+import { Blob as NodeBlob } from "node:buffer";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { digestText, registerFileBytes, resetFileBytes, type FileBytes } from "@ghostly/browser/shared/fileBytes";
+import { setDatabaseName } from "@ghostly/browser/shared/idb";
+import { handoffProfileHost } from "../../lib/handoffProfile";
+// covers: devices.handoff
+
+/*
+ * The files a taker's frozen copy already holds (WISP 06 § The handoff: "what the frozen copy holds is copied in here,
+ * not sent"). The taker tells the giver it holds them, so the giver never sends them, and copies them into its staging
+ * itself. A file up to 16 MiB is kept whole as a Blob on its record, not in file storage: the copy read only file
+ * storage, failed, and every move back to a device that held a small file (a photo in a chat) ended "The copy was
+ * damaged" (bug hunt r9a, 2026-10-05).
+ */
+
+/** File storage as the origin-private file system keeps it: one folder per profile space. */
+function folders() {
+  const files = new Map<string, Uint8Array>();
+  const calls = { read: 0, digest: 0 };
+  const view = (space: string): FileBytes => ({
+    kind: "opfs",
+    append: async (id: string, offset: number, bytes: Uint8Array) => {
+      const key = `${space}/${id}`, had = files.get(key) ?? new Uint8Array();
+      if (had.length !== offset) throw new Error("File write out of order");
+      const next = new Uint8Array(had.length + bytes.length);
+      next.set(had); next.set(bytes, had.length);
+      files.set(key, next);
+    },
+    flush: async () => {},
+    close: async () => {},
+    size: async (id: string) => files.get(`${space}/${id}`)?.length ?? null,
+    read: async (id: string, offset: number, length: number) => {
+      const held = files.get(`${space}/${id}`);
+      calls.read++;
+      if (!held) throw new DOMException("No such file", "NotFoundError");
+      return held.slice(offset, offset + length);
+    },
+    digest: async (id: string) => (calls.digest++, digestText(sha256(files.get(`${space}/${id}`) ?? new Uint8Array()))),
+    remove: async (id: string) => { files.delete(`${space}/${id}`); },
+    removeWhere: async () => {},
+    forSpace: (other: string) => view(other),
+  } as unknown as FileBytes);
+  return { store: view("ghostly"), files, calls };
+}
+
+/** The frozen copy's peer database: its file records as the app stores them (Node's Blob: fake-indexeddb clones it whole, happy-dom's it does not). */
+const frozenCopy = (rows: object[]) => new Promise<void>((resolve, reject) => {
+  const r = indexedDB.open("ghostly", 1);
+  r.onupgradeneeded = () => { r.result.createObjectStore("files", { keyPath: "id" }); r.result.createObjectStore("fileState", { keyPath: "id" }); };
+  r.onsuccess = () => {
+    const tx = r.result.transaction("files", "readwrite");
+    for (const row of rows) tx.objectStore("files").put(row);
+    tx.oncomplete = () => { r.result.close(); resolve(); };
+    tx.onerror = () => reject(tx.error);
+  };
+  r.onerror = () => reject(r.error);
+});
+
+const dropAll = async () => {
+  for (const { name } of await indexedDB.databases()) if (name) await new Promise<void>((resolve) => { const r = indexedDB.deleteDatabase(name); r.onsuccess = r.onerror = r.onblocked = () => resolve(); });
+};
+
+let storage: ReturnType<typeof folders>;
+beforeEach(async () => {
+  await dropAll();
+  setDatabaseName("ghostly");
+  storage = folders();
+  registerFileBytes("opfs", async () => storage.store);
+  resetFileBytes(["opfs"]);
+});
+afterEach(async () => {
+  registerFileBytes("opfs", async () => null);
+  resetFileBytes();
+  await dropAll();
+});
+
+describe("a taker copies the files its frozen copy holds into its staging", () => {
+  it("a small file kept as a Blob on its record", async () => {
+    const bytes = Uint8Array.from({ length: 300_000 }, (_, i) => (i * 7) % 251);
+    const digest = digestText(sha256(bytes));
+    await frozenCopy([{ id: "chat1-out-photo", linkId: "chat1", direction: "out", blob: new NodeBlob([bytes]), digest, createdAt: 1, metadata: { name: "photo.jpg", size: bytes.length, mime: "image/jpeg", timestamp: 1 } }]);
+    const staging = await handoffProfileHost("1.1.2", "web").staging.open();
+    const file = { id: "chat1-out-photo", size: bytes.length, sha256: digest };
+
+    await staging.copyHeld([{ fromId: "chat1-out-photo", file }]);
+
+    expect(await staging.held()).toEqual([file]);
+    // Left on its record: `restore` puts that Blob on the staged one, nothing of it is written to file storage.
+    expect(storage.files.has(`${staging.database}/chat1-out-photo`)).toBe(false);
+  });
+
+  it("a large file in file storage", async () => {
+    const bytes = Uint8Array.from({ length: 70_000 }, (_, i) => (i * 13) % 241);
+    const digest = digestText(sha256(bytes));
+    await storage.store.append("chat1-in-video", 0, bytes);
+    await frozenCopy([{ id: "chat1-in-video", linkId: "chat1", direction: "in", bytes: "opfs", digest, createdAt: 1, metadata: { name: "video.mp4", size: bytes.length, mime: "video/mp4", timestamp: 1 } }]);
+    const staging = await handoffProfileHost("1.1.2", "web").staging.open();
+    const file = { id: "chat1-in-video", size: bytes.length, sha256: digest };
+
+    await staging.copyHeld([{ fromId: "chat1-in-video", file }]);
+
+    expect(await staging.held()).toEqual([file]);
+    expect(storage.files.get(`${staging.database}/chat1-in-video`)).toEqual(bytes);
+  });
+
+  it("a file the frozen copy does not hold is left out, and the ones after it are still copied", async () => {
+    const bytes = Uint8Array.from({ length: 900 }, (_, i) => (i * 5) % 239);
+    const digest = digestText(sha256(bytes));
+    await storage.store.append("chat1-in-clip", 0, bytes);
+    await frozenCopy([{ id: "chat1-in-clip", linkId: "chat1", direction: "in", bytes: "opfs", digest, createdAt: 1, metadata: { name: "clip.mp4", size: bytes.length, mime: "video/mp4", timestamp: 1 } }]);
+    const staging = await handoffProfileHost("1.1.2", "web").staging.open();
+    const file = { id: "chat1-in-clip", size: bytes.length, sha256: digest };
+
+    await staging.copyHeld([{ fromId: "gone", file: { id: "gone", size: 3, sha256: digestText(sha256(new Uint8Array(3))) } }, { fromId: "chat1-in-clip", file }]);
+
+    expect(await staging.held()).toEqual([file]);
+  });
+
+  it("a copy that is not the file it should be is removed, not noted as staged", async () => {
+    const bytes = Uint8Array.from({ length: 900 }, (_, i) => (i * 5) % 239);
+    await storage.store.append("chat1-in-clip", 0, bytes);
+    await frozenCopy([{ id: "chat1-in-clip", linkId: "chat1", direction: "in", bytes: "opfs", createdAt: 1, metadata: { name: "clip.mp4", size: bytes.length, mime: "video/mp4", timestamp: 1 } }]);
+    const staging = await handoffProfileHost("1.1.2", "web").staging.open();
+
+    await staging.copyHeld([{ fromId: "chat1-in-clip", file: { id: "chat1-in-clip", size: bytes.length, sha256: digestText(sha256(new Uint8Array(900))) } }]);
+
+    expect(await staging.held()).toEqual([]);
+    expect(storage.files.has(`${staging.database}/chat1-in-clip`)).toBe(false);
+  });
+
+  /*
+   * A move back to a device whose frozen copy holds many files opened that copy's database once for each file (a list
+   * of every database, then an open) and read each copied file twice, the second time whole for its digest: 2,000
+   * lookups took 0.5 s in Chrome against 0.25 s on one connection, before any byte is read twice (bug hunt, 2026-10-09).
+   */
+  it("forty files are copied from one connection to the frozen copy, each read once", async () => {
+    const held = Array.from({ length: 40 }, (_, i) => {
+      const bytes = Uint8Array.from({ length: 500 + i }, (_, at) => (at * 11 + i) % 253);
+      return { id: `chat1-in-${i}`, bytes, digest: digestText(sha256(bytes)), blob: i % 2 === 0 };
+    });
+    for (const file of held) if (!file.blob) await storage.store.append(file.id, 0, file.bytes);
+    await frozenCopy(held.map((file) => ({ id: file.id, linkId: "chat1", direction: "in", ...(file.blob ? { blob: new NodeBlob([file.bytes]) } : { bytes: "opfs" }), digest: file.digest, createdAt: 1, metadata: { name: "photo.jpg", size: file.bytes.length, mime: "image/jpeg", timestamp: 1 } })));
+    const staging = await handoffProfileHost("1.1.2", "web").staging.open();
+    const files = held.map((file) => ({ id: file.id, size: file.bytes.length, sha256: file.digest }));
+    const opened = vi.spyOn(indexedDB, "open"), listed = vi.spyOn(indexedDB, "databases");
+    storage.calls.read = storage.calls.digest = 0;
+
+    try {
+      await staging.copyHeld(files.map((file) => ({ fromId: file.id, file })));
+
+      expect(opened.mock.calls.map(([name]) => name)).toEqual(["ghostly"]);
+      expect(listed).toHaveBeenCalledTimes(1);
+      // The twenty in file storage, one read each: the digest is of the bytes as they are copied.
+      expect(storage.calls).toEqual({ read: 20, digest: 0 });
+    } finally { opened.mockRestore(); listed.mockRestore(); }
+    expect(await staging.held()).toEqual(files);
+    for (const file of held) expect(storage.files.get(`${staging.database}/${file.id}`)).toEqual(file.blob ? undefined : file.bytes);
+  });
+});
+
+/*
+ * A group file's record holds its author's digest from the announcement on, before any byte came. A member can serve
+ * another file of the same size whole and never confirm it: the bytes stay, the record still `transferring`. The giver
+ * named them by the announced digest, the taker's check failed twice, and every move of the profile ended "The copy
+ * was damaged".
+ */
+describe("a giver names a group file by the digest of its bytes until they passed the author's", () => {
+  const announced = Uint8Array.from({ length: 4_000 }, (_, i) => (i * 3) % 251);
+  const served = Uint8Array.from(announced, (byte, i) => (i === 0 ? byte ^ 1 : byte));
+  const group = { message: "m1", author: "a1" };
+  const record = (id: string, transfer: object) => ({ id, linkId: "group:g1", direction: "in", bytes: "opfs", digest: digestText(sha256(announced)), createdAt: 1,
+    metadata: { name: "clip.mp4", size: announced.length, mime: "video/mp4", timestamp: 1 }, transfer, group });
+
+  // One source per test: it keeps its connection to the database open, as a move does.
+  it("a file still coming, other bytes stored whole, is listed by their own digest; one whose bytes passed, by the author's, unread", async () => {
+    await storage.store.append("group-g1-in-1", 0, served);
+    await storage.store.append("group-g1-in-2", 0, announced);
+    await frozenCopy([
+      record("group-g1-in-1", { state: "transferring", transferred: 0, size: announced.length }),
+      record("group-g1-in-2", { state: "done", transferred: announced.length, size: announced.length }),
+    ]);
+    storage.calls.read = storage.calls.digest = 0;
+
+    const files = await handoffProfileHost("1.1.2", "web").source("ghostly").files();
+
+    expect(files).toEqual([
+      { id: "group-g1-in-1", size: served.length, sha256: digestText(sha256(served)) },
+      { id: "group-g1-in-2", size: announced.length, sha256: digestText(sha256(announced)) },
+    ]);
+    // Only the file still coming is read, once.
+    expect(storage.calls).toEqual({ read: 1, digest: 0 });
+  });
+});

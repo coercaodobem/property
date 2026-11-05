@@ -1,0 +1,9 @@
+{
+  "answer": "Answer",
+  "answerPassword": "Enter your password to answer",
+  "enterPassword": "Enter your password to unlock",
+  "incorrectPassword": "Incorrect password, try again",
+  "title": "Property is locked",
+  "tooManyAttempts": "Too many attempts. Try again in {{seconds}} s",
+  "unlock": "Unlock"
+}

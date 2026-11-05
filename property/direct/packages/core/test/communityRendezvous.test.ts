@@ -1,0 +1,144 @@
+import { describe, expect, it } from "vitest";
+import { createIdentity } from "../src/identity";
+import { randomBytes, toBase64Url } from "../src/bytes";
+import { measureRecords, MAX_DNS_PACKET_BYTES } from "../src/pkarr";
+import {
+// covers: groups.protocol.community-topology, groups.community.head
+  COMMUNITY_TOPOLOGY, beaconKeys, beaconRecords, doorHubs, freshHubs, newerHead, readBeaconHead, type CommunityHead, lobbyKeys, lobbyRecords, mergeBeacon, mergeLobby, pickHubs, rankHubs, readBeacon, readLobby, shouldBeHub,
+  type Hub,
+} from "../src/communityRendezvous";
+
+const rv = toBase64Url(randomBytes(32));
+const G = "AAAAAAAAAAAAAAAAAAAAAA";
+const keys = (n: number) => Array.from({ length: n }, () => createIdentity().pubKeyZ32);
+
+describe("community rendezvous: beacon and lobbies", () => {
+  it("seals the beacon so only holders of the rendezvous secret read it, within one Pkarr value", () => {
+    const now = Date.now();
+    const hubs: Hub[] = keys(COMMUNITY_TOPOLOGY.maxHubs + 3).map((key, i) => ({ key, ts: now - i * 1000, load: i }));
+    const records = beaconRecords(beaconKeys(rv, G), hubs);
+    expect(records[0].value.length).toBeLessThanOrEqual(900);
+    const read = readBeacon(beaconKeys(rv, G), records);
+    expect(read).toHaveLength(COMMUNITY_TOPOLOGY.maxHubs);
+    expect(read[0]).toEqual({ key: hubs[0].key, ts: Math.floor(hubs[0].ts / 1000) * 1000, load: 0, since: Math.floor(hubs[0].ts / 1000) * 1000 });
+    expect(readBeacon(beaconKeys(toBase64Url(randomBytes(32)), G), records)).toEqual([]);
+    expect(readBeacon(beaconKeys(rv, "BBBBBBBBBBBBBBBBBBBBBB"), records)).toEqual([]);
+    // Another group, another identity; the same group, the same one for everyone.
+    expect(beaconKeys(rv, G).identity.pubKeyZ32).toBe(beaconKeys(rv, G).identity.pubKeyZ32);
+    expect(beaconKeys(rv, "BBBBBBBBBBBBBBBBBBBBBB").identity.pubKeyZ32).not.toBe(beaconKeys(rv, G).identity.pubKeyZ32);
+  });
+
+  it("merges: my entry refreshed, stale and departed hubs dropped, newest first, bounded", () => {
+    const now = Date.now(), [me, a, b, c] = keys(4);
+    const existing: Hub[] = [{ key: a, ts: now - 10_000, load: 3 }, { key: b, ts: now - COMMUNITY_TOPOLOGY.beaconFreshMs - 1, load: 1 }, { key: me, ts: now - 50_000, load: 9 }, { key: c, ts: now - 5_000, load: 0 }];
+    const merged = mergeBeacon(existing, me, { key: me, ts: now, load: 2 }, now, key => key !== c);
+    expect(merged.map(h => h.key)).toEqual([me, a]);
+    expect(mergeBeacon(existing, me, null, now).map(h => h.key)).toEqual([c, a]);
+  });
+
+  it("lobbies hold the latest few requests, per hub", () => {
+    const now = Date.now(), [hub, other] = keys(2);
+    let entries: { key: string; ts: number }[] = [];
+    for (const key of keys(COMMUNITY_TOPOLOGY.lobbyEntries + 2)) entries = mergeLobby(entries, { key, ts: now }, now);
+    expect(entries).toHaveLength(COMMUNITY_TOPOLOGY.lobbyEntries);
+    const records = lobbyRecords(lobbyKeys(rv, G, hub), entries);
+    expect(records[0].value.length).toBeLessThanOrEqual(900);
+    expect(readLobby(lobbyKeys(rv, G, hub), records).map(e => e.key)).toEqual(entries.map(e => e.key));
+    expect(readLobby(lobbyKeys(rv, G, other), records)).toEqual([]);
+    expect(lobbyKeys(rv, G, hub).identity.pubKeyZ32).not.toBe(lobbyKeys(rv, G, other).identity.pubKeyZ32);
+    expect(mergeLobby([{ key: "x", ts: now - COMMUNITY_TOPOLOGY.lobbyFreshMs - 1 }], { key: hub, ts: now }, now)).toEqual([{ key: hub, ts: now }]);
+  });
+
+  it("becomes a hub when there are too few, or all are full; otherwise picks the least loaded", () => {
+    const now = Date.now(), [me, a, b, c] = keys(4);
+    expect(shouldBeHub(me, [], now)).toBe(true);
+    expect(shouldBeHub(me, [{ key: a, ts: now, load: 0 }], now)).toBe(true);
+    const two: Hub[] = [{ key: a, ts: now, load: 5 }, { key: b, ts: now, load: 1 }];
+    expect(shouldBeHub(me, two, now)).toBe(false);
+    expect(pickHubs(me, [...two, { key: c, ts: now, load: COMMUNITY_TOPOLOGY.hubCapacity }], now)).toEqual([b]);
+    expect(pickHubs(me, two, now, new Set([b]))).toEqual([a]);
+    const full: Hub[] = [{ key: a, ts: now, load: COMMUNITY_TOPOLOGY.hubCapacity }, { key: b, ts: now, load: COMMUNITY_TOPOLOGY.hubCapacity }];
+    expect(shouldBeHub(me, full, now)).toBe(true);
+    const many: Hub[] = keys(COMMUNITY_TOPOLOGY.maxHubs).map(key => ({ key, ts: now, load: COMMUNITY_TOPOLOGY.hubCapacity }));
+    expect(shouldBeHub(me, many, now)).toBe(false);
+    expect(freshHubs([{ key: a, ts: now - COMMUNITY_TOPOLOGY.beaconFreshMs, load: 0 }], now)).toEqual([]);
+  });
+
+  it("the hubs at the door: settled ones; a hub that sees no other is the door alone, listed yet or not", () => {
+    const now = Date.now(), [me, other] = keys(2);
+    const hub = (key: string, age: number, since = now - 5 * 60_000): Hub => ({ key, ts: now - age, load: 0, since });
+    expect(doorHubs([hub(me, 1_000), hub(other, 1_000, now - 10_000)], now, me)).toEqual([me]);
+    // Not listed (its write held back), nobody else: the door at once. Without asking as a hub, nobody.
+    expect(doorHubs([], now, me)).toEqual([me]);
+    expect(doorHubs([], now)).toEqual([]);
+    // Its own entry stale for the door (45 s) but nobody else there: still the door.
+    expect(doorHubs([hub(me, 50_000)], now, me)).toEqual([me]);
+    // Another hub listed lately: that one, whatever this one's entry says.
+    expect(doorHubs([hub(other, 1_000)], now, me)).toEqual([other]);
+    // Another hub fresh in the beacon but not lately: nobody, as before (two of them must not both count themselves).
+    expect(doorHubs([hub(other, 50_000)], now, me)).toEqual([]);
+  });
+
+  it("with no settled hub (a group's first minute), one hub is at the door: the one that has been a hub longest", () => {
+    const now = Date.now(), [a, b] = keys(2).sort();
+    const hub = (key: string, since: number): Hub => ({ key, ts: now - 1_000, load: 0, since });
+    // The first hub (40 s) and a member that just became one (5 s), whichever key is lower, as both see it.
+    for (const [first, second] of [[a, b], [b, a]]) {
+      const both = [hub(second, now - 5_000), hub(first, now - 40_000)];
+      expect(doorHubs(both, now, first)).toEqual([first]);
+      expect(doorHubs(both, now, second)).toEqual([first]);
+      // …and as the first hub sees it before it reads of the second.
+      expect(doorHubs([hub(first, now - 40_000)], now, first)).toEqual([first]);
+    }
+    // Hubs since the same second (the beacon keeps seconds): the lower key.
+    expect(doorHubs([hub(b, now - 5_000), hub(a, now - 5_000)], now, b)).toEqual([a]);
+    // Once hubs are settled, they take turns as before, and the new one waits its minute.
+    expect(doorHubs([hub(a, now - 90_000), hub(b, now - 70_000)], now, a).sort()).toEqual([a, b]);
+    expect(doorHubs([hub(a, now - 5_000), hub(b, now - 70_000)], now, a)).toEqual([b]);
+  });
+
+  it("the first hub whose entry is held back stays the door; a hub of a few seconds that knows of it leaves the door to it", () => {
+    const now = Date.now(), [a, b] = keys(2).sort();
+    const hub = (key: string, since: number): Hub => ({ key, ts: now - 1_000, load: 0, since });
+    for (const [first, second] of [[a, b], [b, a]]) {
+      // The first hub (40 s), unlisted, reads the new hub's entry (5 s): it counts itself, and is the door, as the new one
+      // would see it with both listed.
+      expect(doorHubs([hub(second, now - 5_000)], now, first, { since: now - 40_000, known: [] })).toEqual([first]);
+      // The new hub reads only itself, or nobody, but knows of the first (it let it in): nobody at the door for it.
+      for (const beacon of [[hub(second, now - 5_000)], []]) expect(doorHubs(beacon, now, second, { since: now - 5_000, known: [first] })).toEqual([]);
+      // Knowing of nobody (a group's first hub), or a hub for a minute: the door alone, as before.
+      expect(doorHubs([], now, second, { since: now - 5_000, known: [] })).toEqual([second]);
+      expect(doorHubs([], now, second, { since: now - 60_000, known: [first] })).toEqual([second]);
+    }
+  });
+
+  it("ranks hubs per subject: one order for everyone, different subjects spread", () => {
+    const hubs = keys(5), subjects = keys(40);
+    expect(rankHubs(subjects[0], hubs)).toEqual(rankHubs(subjects[0], [...hubs].reverse()));
+    const firsts = new Set(subjects.map(s => rankHubs(s, hubs)[0]));
+    expect(firsts.size).toBeGreaterThan(2);
+  });
+
+  it("carries the newest frame as a head beside the hubs, readable only as a head, and old readers still read the hubs", () => {
+    const now = Date.now(), k = beaconKeys(rv, G);
+    const hubs: Hub[] = keys(COMMUNITY_TOPOLOGY.maxHubs).map((key, i) => ({ key, ts: now - i * 1000, load: i, since: now - 60_000 }));
+    const head: CommunityHead = { s: createIdentity().pubKeyZ32, e: 7, h: "0123456789abcdef", n: 42, ts: Math.floor(now / 1000) * 1000 };
+    const records = beaconRecords(k, hubs, head);
+    // A full beacon and its head fit one Pkarr packet.
+    expect(measureRecords(k.identity.pubKeyZ32, records)).toBeLessThanOrEqual(MAX_DNS_PACKET_BYTES);
+    expect(readBeaconHead(k, records)).toEqual(head);
+    expect(readBeacon(k, records)).toHaveLength(COMMUNITY_TOPOLOGY.maxHubs);
+    // A beacon from before heads has none; another secret reads nothing; a hub list is not a head.
+    expect(readBeaconHead(k, beaconRecords(k, hubs))).toBeNull();
+    expect(readBeaconHead(beaconKeys(toBase64Url(randomBytes(32)), G), records)).toBeNull();
+    expect(readBeaconHead(k, records.map(r => ({ ...r, label: "_head", value: records[0].value })))).toBeNull();
+    // A head that is not one is left out.
+    expect(beaconRecords(k, hubs, { ...head, h: "not hex" })).toHaveLength(1);
+    // Several hubs write it: the newer stays, and one from the future is not taken.
+    const older = { ...head, n: 41, ts: head.ts - 5_000 };
+    expect(newerHead(older, head, now)).toEqual(head);
+    expect(newerHead(head, older, now)).toEqual(head);
+    expect(newerHead(head, { ...head, ts: now + 3_600_000 }, now)).toEqual(head);
+    expect(newerHead(null, null, now)).toBeNull();
+  });
+});

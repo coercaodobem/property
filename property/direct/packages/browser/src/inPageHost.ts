@@ -1,0 +1,126 @@
+import type { EngineServer, EngineClientSink } from "./engine/server";
+import { createPeerServer } from "./devices/peer";
+import type { PeerServer, PeerStopOptions } from "./devices/linkOnly";
+import type { NodeOptions } from "./engine/node";
+import type { BrowserHost } from "./host";
+
+/**
+ * A host that runs the peer in the page itself: the web app and the desktop
+ * app. (The extension keeps it in an offscreen document instead, so it outlives
+ * its pages.)
+ */
+export interface InPageHostOptions
+  extends Pick<BrowserHost, "version" | "notice" | "updates" | "appRunner" | "appNetRunner" | "appRunnerServed" | "features" | "requestLocalAccess" | "forgetLocalAccess" | "openService" | "forgetServices" | "oidc" | "atproto" | "openPaymentLink" | "fullscreenWindow" | "shareText" | "readClipboardText" | "readClipboardFiles" | "openPubkyPassport" | "pubkyCookieSession" | "callMedia" | "keepAwake" | "hideFromSwitcher"> {
+  node?: NodeOptions;
+  /** Called once the peer exists, e.g. to let something outside the page reach it. Never on a standby: no engine runs there. */
+  onServer?: (server: EngineServer) => void;
+}
+
+export function createInPageHost(options: InPageHostOptions): BrowserHost & { announceDeparture(options?: PeerStopOptions): void } {
+  // The device state is read first (WISP 06 § The gate): the engine, or device-link-only mode on a standby.
+  let server: Promise<PeerServer> | null = null;
+  let running: PeerServer | null = null;
+  return {
+    version: options.version,
+    notice: options.notice,
+    updates: options.updates,
+    appRunner: options.appRunner,
+    appNetRunner: options.appNetRunner,
+    appRunnerServed: options.appRunnerServed,
+    features: options.features,
+    requestLocalAccess: options.requestLocalAccess,
+    forgetLocalAccess: options.forgetLocalAccess,
+    openService: options.openService,
+    forgetServices: options.forgetServices,
+    oidc: options.oidc,
+    atproto: options.atproto,
+    openPaymentLink: options.openPaymentLink,
+    fullscreenWindow: options.fullscreenWindow,
+    shareText: options.shareText,
+    readClipboardText: options.readClipboardText,
+    keepAwake: options.keepAwake,
+    hideFromSwitcher: options.hideFromSwitcher,
+    readClipboardFiles: options.readClipboardFiles,
+    openPubkyPassport: options.openPubkyPassport,
+    pubkyCookieSession: options.pubkyCookieSession,
+    callMedia: options.callMedia,
+
+    async connect(onMessage) {
+      server ??= createPeerServer(options.node).then((peer) => {
+        running = peer;
+        if (!peer.gated) options.onServer?.(peer as EngineServer);
+        return peer;
+      });
+      const active = await server;
+      const client: EngineClientSink = { post: (message) => queueMicrotask(() => onMessage(message)) };
+      active.attach(client);
+      return {
+        // A whole history asked for goes to the engine; a device that is not the active one has none.
+        send: (request) => void (request.kind === "history" ? !active.gated && (active as EngineServer).history(client, request.linkId) : active.handle(client, request)),
+      };
+    },
+
+    /** Say goodbye to every peer when the page closes, if there is time. `quitting`: the app exits, not only the page. */
+    announceDeparture(options?: PeerStopOptions) {
+      void running?.stop(options).catch(() => {});
+    },
+  };
+}
+
+/**
+ * One peer per storage area. Two pages would publish under the same keys and
+ * spend from the same wallet at once, so only the page holding this lock runs.
+ * Resolves once the lock is ours; it is released when the page closes.
+ *
+ * Rejects with `PeerLockUnavailable` when the lock cannot be had at all: the browser has no Web Locks, or refuses
+ * the request (it throws, or its promise rejects before the lock was granted). That is not "open in another tab",
+ * so `onWaiting` is not called for it; the caller says the browser cannot run the app.
+ */
+export function becomeThePeer(lockName: string, onWaiting: () => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let acquired = false;
+    let refused = false;
+    const refuse = (cause: unknown) => {
+      if (acquired || refused) return;
+      refused = true;
+      reject(new PeerLockUnavailable(cause));
+    };
+    try {
+      const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
+      if (!locks || typeof locks.request !== "function") { refuse(new Error("navigator.locks is not available")); return; }
+      Promise.resolve(locks.request(lockName, () => {
+        acquired = true;
+        resolve();
+        return new Promise<never>(() => {});
+      })).catch(refuse);
+    } catch (error) {
+      refuse(error);
+      return;
+    }
+    setTimeout(() => {
+      if (!acquired && !refused) onWaiting();
+    }, 150);
+  });
+}
+
+/**
+ * Resolves once another page asks for the lock this page holds (`becomeThePeer`), or after `timeoutMs`. A page that
+ * must not run what it loaded (another tab took a new version) waits here before it reloads, so the page that asks
+ * gets the lock first instead of racing this one's reload for it. Also resolves where the browser cannot tell.
+ */
+export async function untilAskedFor(lockName: string, { timeoutMs = 10_000, everyMs = 100 } = {}): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const state = await Promise.resolve().then(() => navigator.locks.query()).catch(() => null);
+    if (!state || state.pending?.some((request) => request.name === lockName)) return;
+    await new Promise((resolve) => setTimeout(resolve, everyMs));
+  }
+}
+
+/** The single-peer lock cannot be had in this browser (see `becomeThePeer`). */
+export class PeerLockUnavailable extends Error {
+  constructor(cause: unknown) {
+    super(`The single-peer lock is not available: ${cause instanceof Error ? cause.message : String(cause)}`);
+    this.name = "PeerLockUnavailable";
+  }
+}

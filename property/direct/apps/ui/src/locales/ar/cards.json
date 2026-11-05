@@ -1,0 +1,172 @@
+{
+  "board": {
+    "card": {
+      "botLabel": "من:",
+      "chatLabel": "المحادثة:",
+      "checks": {
+        "failing": "الفحوص فاشلة",
+        "passing": "الفحوص ناجحة",
+        "pending": "الفحوص جارية"
+      },
+      "details": "التفاصيل",
+      "filesLabel": "الملفات:",
+      "from": "{{bot}} في {{chat}}",
+      "in": "في {{chat}}",
+      "openPr": "فتح على {{host}}",
+      "parts": "اكتمل {{done}} من {{total}}",
+      "prLabel": "طلب الدمج:",
+      "prState": {
+        "closed": "مغلق",
+        "draft": "مسودة",
+        "merged": "مدموج",
+        "open": "مفتوح"
+      },
+      "statusLabel": "الحالة:",
+      "steps": "{{done}} من {{total}}",
+      "tagsLabel": "الوسوم:",
+      "updatedLabel": "آخر تحديث:"
+    },
+    "clearFinished": "مسح المنتهية",
+    "clearFinishedHint": "يخفي المهام المنجزة والفاشلة والملغاة على هذا الجهاز. يعيد التحديث التالي من الروبوت المهمة.",
+    "column": {
+      "blocked": "متوقفة مؤقتًا",
+      "closed": "متوقفة",
+      "done": "مكتملة",
+      "queued": "في الانتظار",
+      "review": "المراجعة",
+      "running": "قيد التنفيذ"
+    },
+    "columns": "الأعمدة",
+    "empty": "لا مهام بعد",
+    "emptyHint": "بطاقات المهام من البوتات في محادثاتك تظهر هنا.",
+    "filter": "تصفية المهام",
+    "groupBy": {
+      "bot": "البوت",
+      "chat": "المحادثة",
+      "label": "تجميع حسب",
+      "status": "الحالة"
+    },
+    "hideOlder": "إخفاء الأقدم",
+    "info": "بطاقات مهام البوتات من كل المحادثات. المهام المكتملة والمتوقفة تبقى يومًا واحدًا. البطاقة تعرض المهمة فقط: البوت هو من يغيّر حالتها.",
+    "me": "أنت",
+    "noMatch": "لا مهمة مطابقة",
+    "none": "لا شيء",
+    "showMore": "عرض المزيد ({{count}})",
+    "showOlder": "عرض الأقدم ({{count}})",
+    "tagFilter": "عرض {{tag}} فقط",
+    "tags": "الوسوم",
+    "tasksMany": "{{count}} مهام",
+    "tasksMany_many": "{{count}} مهمة",
+    "tasksMany_one": "مهمة واحدة",
+    "tasksMany_other": "{{count}} مهمة",
+    "tasksMany_two": "مهمتان",
+    "tasksOne": "مهمة واحدة",
+    "title": "المهام",
+    "view": {
+      "label": "عرض",
+      "routines": "المهام الدورية",
+      "tasks": "المهام"
+    }
+  },
+  "buttons": {
+    "answers": "الإجابات",
+    "chosen": "مُختارة",
+    "closed": "مغلقة",
+    "failed": "تعذّر الإرسال",
+    "jump": "الانتقال إلى السؤال",
+    "sending": "جارٍ الإرسال…"
+  },
+  "panel": {
+    "activeCount": "{{count}} نشطة",
+    "allOk": "كلها ناجحة",
+    "button": "المهام",
+    "buttonCount": "المهام، {{count}} نشطة",
+    "close": "إغلاق",
+    "empty": "لا توجد مهام جارية الآن",
+    "failedCount": "{{count}} فشلت",
+    "finishedCount": "منتهية ({{count}})",
+    "idle": "لا شيء جارٍ",
+    "info": "تنشر الروبوتات هذه البطاقات وتحدّثها. اضغط على واحدة للانتقال إليها في المحادثة.",
+    "nextRun": "التالي {{when}}",
+    "routinesMany": "{{count}} روتينات",
+    "routinesMany_many": "{{count}} روتينًا",
+    "routinesMany_one": "روتين واحد",
+    "routinesMany_other": "{{count}} روتين",
+    "routinesMany_two": "روتينان",
+    "routinesOne": "روتين واحد",
+    "title": "المهام"
+  },
+  "routine": {
+    "cron": "Cron",
+    "label": "روتين: {{name}}، {{state}}",
+    "lastRun": "آخر تشغيل: {{result}}",
+    "next": "التالي {{when}}",
+    "noRuns": "لم يعمل بعد",
+    "result": {
+      "failed": "فشل",
+      "ok": "نجح",
+      "skipped": "تم التخطي"
+    },
+    "runs": "آخر التشغيلات",
+    "schedule": "الجدول",
+    "state": {
+      "active": "نشط",
+      "paused": "متوقف مؤقتًا"
+    }
+  },
+  "task": {
+    "branch": "الفرع:",
+    "elapsed": {
+      "blocked": "متوقفة منذ {{duration}}",
+      "queued": "في الانتظار منذ {{duration}}",
+      "running": "قيد التنفيذ منذ {{duration}}",
+      "took": "استغرقت {{duration}}"
+    },
+    "item": {
+      "done": "تم",
+      "failed": "فشل",
+      "pending": "للتنفيذ",
+      "running": "قيد التنفيذ",
+      "skipped": "تم التخطي"
+    },
+    "label": "مهمة: {{title}}، {{status}}",
+    "labelProgress": "مهمة: {{title}}، {{status}}، {{progress}}%",
+    "now": "الآن:",
+    "pr": "PR #{{number}}",
+    "prNoNumber": "طلب دمج",
+    "progress": "التقدم",
+    "started": "بدأت {{ago}}",
+    "status": {
+      "blocked": "متوقفة",
+      "cancelled": "ملغاة",
+      "done": "مكتملة",
+      "failed": "فشلت",
+      "queued": "في الانتظار",
+      "running": "قيد التنفيذ"
+    },
+    "steps": "الخطوات: {{done}}/{{total}}",
+    "updated": "حُدّثت {{ago}}"
+  },
+  "usage": {
+    "accountLabel": "الحساب",
+    "info": "ما يقول البوت إنه تبقّى له. لا يتحقق Property منه.",
+    "label": "{{name}}: تبقّى {{left}}%",
+    "labelResets": "{{name}}: تبقّى {{left}}%، يتجدد {{time}}",
+    "left": "تبقّى {{left}}%",
+    "leftLabel": "المتبقي",
+    "resets": "يتجدد {{time}}",
+    "resetsLabel": "يتجدد",
+    "stale": "لم يُحدَّث مؤخرًا",
+    "staleHint": "أرقام قديمة: لم يحدّثها البوت مؤخرًا، أو تجددت الفترة.",
+    "title": "الاستخدام",
+    "updatedLabel": "آخر تحديث",
+    "used": "{{used}} من {{limit}} مستخدمة",
+    "usedLabel": "المستخدم",
+    "wasReset": "تجدد {{ago}}"
+  },
+  "working": {
+    "label": "يعمل الآن",
+    "quiet": "يعمل الآن؟ · آخر تحديث {{ago}}",
+    "stale": "لا تحديث منذ {{duration}}"
+  }
+}

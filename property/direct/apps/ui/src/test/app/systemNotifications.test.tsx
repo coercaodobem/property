@@ -1,0 +1,464 @@
+import { act, screen, waitFor } from "@testing-library/react";
+import { Route, Routes, useLocation } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AttentionEvent } from "@ghostly/browser/shared/rpc";
+import { AttentionFeedback } from "../../components/AttentionFeedback";
+import { LockScreenProvider } from "../../contexts/LockScreenContext";
+import { UpdateProvider } from "../../contexts/UpdateContext";
+import { loadSettings, saveSettings } from "../../lib/settings";
+import { saveSession } from "../../lib/storage";
+import type { ChatSession } from "../../lib/types";
+import { Settings } from "../../pages/Settings";
+import { fakeEngine, linkView } from "../fakeEngine";
+import { renderApp } from "../render";
+
+// covers: app.attention.notifications, desktop.notifications, app.android.refusals
+
+/*
+ * System notifications on each platform: whether the Settings switch is available, what asking for permission
+ * does (default, granted, denied), where a notification goes (the web API, the extension's, the Desktop app's
+ * native command or the plugin) and what a click on one opens.
+ */
+
+const tauri = vi.hoisted(() => ({
+  invoke: vi.fn(async (_command: string, _args?: unknown): Promise<unknown> => undefined),
+  /** The Desktop app's `notification-open` listener, once the page listens. */
+  opened: undefined as ((event: { payload: string }) => void) | undefined,
+  plugin: { isPermissionGranted: vi.fn(async () => true), requestPermission: vi.fn(async () => "granted"), sendNotification: vi.fn() },
+}));
+// The UI tests alias every `@tauri-apps/api/*` to one stand-in (packages/browser/src/platform/tauri.ts): one mock.
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: tauri.invoke,
+  listen: async (_name: string, handler: (event: { payload: string }) => void) => { tauri.opened = handler; return () => {}; },
+  getVersion: async () => "0.4.0",
+}));
+vi.mock("@tauri-apps/plugin-notification", () => tauri.plugin);
+
+/** The web Notification API, scripted: its permission, what asking answers, and the notifications shown. */
+class FakeNotification {
+  static permission: NotificationPermission = "default";
+  static answer: NotificationPermission = "granted";
+  static shown: FakeNotification[] = [];
+  static requestPermission = vi.fn(async () => (FakeNotification.permission = FakeNotification.answer));
+  onclick: (() => void) | null = null;
+  close = vi.fn();
+  constructor(public title: string, public options: NotificationOptions) { FakeNotification.shown.push(this); }
+}
+
+type Lib = typeof import("../../lib/notifications");
+/** A fresh copy of the module: which clicks it listens to is decided once per page, as in the app. */
+async function lib(): Promise<Lib> {
+  vi.resetModules();
+  return import("../../lib/notifications");
+}
+
+/**
+ * Runs as the Desktop app on `os` (the page sees `__TAURI_INTERNALS__`), with the native commands answering `answers`.
+ * `commands()` lists the calls made since.
+ */
+function desktop(os: "MacIntel" | "Win32" | "Linux x86_64", answers: Record<string, unknown> = {}) {
+  (window as unknown as { __TAURI_INTERNALS__?: object }).__TAURI_INTERNALS__ = {};
+  vi.spyOn(navigator, "platform", "get").mockReturnValue(os);
+  tauri.invoke.mockClear();
+  tauri.invoke.mockImplementation(async (command: string) => {
+    const answer = answers[command];
+    if (answer instanceof Error) throw answer;
+    return answer;
+  });
+}
+const commands = () => tauri.invoke.mock.calls.map(([command, args]) => (args === undefined ? [command] : [command, args]));
+/** The ids the native command was given, in order: the system's, never the page's. */
+const nativeIds = () => tauri.invoke.mock.calls.filter(([command]) => command === "native_private_notification").map(([, args]) => (args as { id: string }).id);
+
+beforeEach(() => {
+  FakeNotification.permission = "default";
+  FakeNotification.answer = "granted";
+  FakeNotification.shown = [];
+  vi.stubGlobal("Notification", FakeNotification);
+});
+afterEach(() => {
+  delete (window as unknown as { __TAURI_INTERNALS__?: object }).__TAURI_INTERNALS__;
+  delete (globalThis as { chrome?: unknown }).chrome;
+  vi.unstubAllGlobals();
+  tauri.invoke.mockReset();
+  tauri.opened = undefined;
+  for (const fn of Object.values(tauri.plugin)) fn.mockClear();
+});
+
+describe("availability and the permission, by platform", () => {
+  it("web: follows the browser's permission, and is unavailable without the Notification API", async () => {
+    const { notificationPermission, requestNotifications, noticeSettings } = await lib();
+    expect(await notificationPermission()).toBe("default");
+    FakeNotification.answer = "denied";
+    expect(await requestNotifications()).toBe("denied");
+    expect(await notificationPermission()).toBe("denied");
+    expect(noticeSettings()).toBeUndefined();
+    vi.stubGlobal("Notification", undefined);
+    expect(await notificationPermission()).toBe("unavailable");
+    expect(await requestNotifications()).toBe("unavailable");
+  });
+
+  it("Desktop on macOS: asks the native command, never the web API, and knows its settings pane", async () => {
+    const { notificationPermission, requestNotifications, noticeSettings } = await lib();
+    desktop("MacIntel", { native_notification_permission: "default" });
+    expect(await notificationPermission()).toBe("default");
+    desktop("MacIntel", { native_notification_permission: "granted" });
+    expect(await requestNotifications()).toBe("granted");
+    desktop("MacIntel", { native_notification_permission: "denied" });
+    expect(await requestNotifications()).toBe("denied");
+    expect(commands()).toEqual([["native_notification_permission", { request: true }]]);
+    expect(FakeNotification.requestPermission).not.toHaveBeenCalled();
+    expect(noticeSettings()).toBe("macos");
+  });
+
+  it("Desktop on Windows and Linux: the plugin decides; Windows has a settings page to open, Linux none", async () => {
+    const { notificationPermission, requestNotifications, noticeSettings } = await lib();
+    desktop("Win32", { native_notification_permission: null });
+    expect(await notificationPermission()).toBe("granted");
+    expect(await requestNotifications()).toBe("granted");
+    expect(tauri.plugin.requestPermission).toHaveBeenCalledTimes(1);
+    expect(noticeSettings()).toBe("windows");
+    desktop("Linux x86_64", { native_notification_permission: null });
+    expect(noticeSettings()).toBeUndefined();
+    // The Android app: Linux by its platform, Android by its agent, and its own settings page to open.
+    const agent = vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Linux; Android 15; Pixel 8; wv) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36");
+    expect(noticeSettings()).toBe("android");
+    agent.mockRestore();
+  });
+
+  it("Desktop: a native command that fails reads as unavailable, not as a crash", async () => {
+    const { notificationPermission, requestNotifications } = await lib();
+    desktop("MacIntel", { native_notification_permission: new Error("Notification authorization unavailable") });
+    expect(await notificationPermission()).toBe("unavailable");
+    expect(await requestNotifications()).toBe("unavailable");
+  });
+
+  it("Desktop: opens the system's notification settings through its own command", async () => {
+    const { openNoticeSettings } = await lib();
+    desktop("MacIntel", { open_notification_settings: undefined });
+    await openNoticeSettings();
+    expect(commands()).toEqual([["open_notification_settings"]]);
+    // Nothing to open (Linux): the button is not shown, and a failure is quiet.
+    desktop("Linux x86_64", { open_notification_settings: new Error("No notification settings to open") });
+    await expect(openNoticeSettings()).resolves.toBeUndefined();
+  });
+});
+
+describe("where a notification goes, and what a click opens", () => {
+  it("web: one private notification, and a click focuses the page and opens its chat", async () => {
+    const { showPrivateNotification, onNotificationOpen } = await lib();
+    const opened = vi.fn();
+    onNotificationOpen(opened);
+    FakeNotification.permission = "granted";
+    await showPrivateNotification("event-1", "New message", "chat-a");
+    expect(FakeNotification.shown).toHaveLength(1);
+    expect(FakeNotification.shown[0]).toMatchObject({ title: "Ghostly", options: { body: "New message", silent: true } });
+    expect(FakeNotification.shown[0]!.options.tag).not.toContain("event-1");
+    const focus = vi.spyOn(window, "focus").mockImplementation(() => {});
+    FakeNotification.shown[0]!.onclick!();
+    expect(focus).toHaveBeenCalled();
+    expect(opened).toHaveBeenCalledWith("chat-a");
+    expect(FakeNotification.shown[0]!.close).toHaveBeenCalled();
+  });
+
+  it("web: shows nothing without the permission", async () => {
+    const { showPrivateNotification } = await lib();
+    FakeNotification.permission = "denied";
+    await showPrivateNotification("event-1", "New message", "chat-a");
+    expect(FakeNotification.shown).toEqual([]);
+  });
+
+  it("Desktop on macOS: the native command shows it; a click names the notification and opens its chat", async () => {
+    const { showPrivateNotification, onNotificationOpen } = await lib();
+    desktop("MacIntel", { native_notification_permission: "granted", native_private_notification: true });
+    const opened = vi.fn();
+    const stop = onNotificationOpen(opened);
+    await showPrivateNotification("event-1", "New message", "group:g1");
+    await showPrivateNotification("event-2", "New message");
+    // The same page id again is the same notification: the system's id repeats, so it replaces the first.
+    await showPrivateNotification("event-1", "New message", "group:g1");
+    const [first, second, again] = nativeIds();
+    expect(commands()).toContainEqual(["native_private_notification", { id: first, body: "New message" }]);
+    expect(again).toBe(first);
+    expect(second).not.toBe(first);
+    expect(tauri.plugin.sendNotification).not.toHaveBeenCalled();
+    expect(FakeNotification.shown).toEqual([]);
+    await waitFor(() => expect(tauri.opened).toBeDefined());
+    // One without a chat, one from before a restart, or the page's own id: the app comes forward (Rust), no chat opens.
+    tauri.opened!({ payload: second! });
+    tauri.opened!({ payload: "event-9" });
+    tauri.opened!({ payload: "event-1" });
+    expect(opened).not.toHaveBeenCalled();
+    tauri.opened!({ payload: first! });
+    expect(opened).toHaveBeenCalledWith("group:g1");
+    // Opened once: a second click on the same one does nothing more.
+    tauri.opened!({ payload: first! });
+    expect(opened).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it("Android: the id the system gets names no chat, and a tap on it still opens the chat", async () => {
+    // A notification's id is its Android tag, which any app with notification access reads. The engine's id for a
+    // group message holds the group id that the group's public link carries (`group2/<groupId>/<host>`).
+    const { showPrivateNotification, onNotificationOpen } = await lib();
+    desktop("Linux x86_64", { native_notification_permission: "granted", native_private_notification: true });
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Linux; Android 15; Pixel 8; wv) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36");
+    const opened = vi.fn();
+    onNotificationOpen(opened);
+    vi.spyOn(window, "focus").mockImplementation(() => {});
+    const groupId = "Gx7pQ2mN9vR4tY8wK1zL5b";
+    await showPrivateNotification(`message:group:${groupId}:peer_w1`, "New message", `group:${groupId}`);
+    await showPrivateNotification("message:a1b2c3d4e5f6a7b8:peer_w2", "New message", "chat-a");
+    const ids = nativeIds();
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).not.toBe(ids[1]);
+    for (const id of ids) expect(id).not.toMatch(/group|message|peer|Gx7pQ2mN9vR4tY8wK1zL5b|a1b2c3d4e5f6a7b8/);
+    await waitFor(() => expect(tauri.opened).toBeDefined());
+    tauri.opened!({ payload: ids[0]! });
+    expect(opened).toHaveBeenCalledWith(`group:${groupId}`);
+  });
+
+  it("Desktop on Windows and Linux: the plugin shows it", async () => {
+    const { showPrivateNotification } = await lib();
+    desktop("Win32", { native_notification_permission: null, native_private_notification: false });
+    await showPrivateNotification("event-1", "New message", "chat-a");
+    expect(tauri.plugin.sendNotification).toHaveBeenCalledWith({ title: "Ghostly", body: "New message", silent: true });
+  });
+
+  /** The extension's page: the worker hears a click and asks the pages (apps/extension/src/background.ts). */
+  function extensionPage(granted: boolean) {
+    let heard: ((message: unknown, sender: { id?: string }, answer: (response: unknown) => void) => boolean) | undefined;
+    const session = new Map<string, string>();
+    const tabs = { getCurrent: vi.fn(async () => ({ id: 7, windowId: 3 })), update: vi.fn(async () => ({})) };
+    const windows = { update: vi.fn(async () => ({})) };
+    const chrome: { runtime: object; permissions: object; storage: object; notifications?: object; tabs: object; windows: object } = {
+      runtime: { id: "ext", getURL: (path: string) => `chrome-extension://ext/${path}`, onMessage: { addListener: (listener: typeof heard) => { heard = listener; } } },
+      permissions: { contains: vi.fn(async () => granted), request: vi.fn(async () => true) },
+      storage: { session: { set: async (items: Record<string, string>) => { for (const [k, v] of Object.entries(items)) session.set(k, v); }, remove: async (key: string) => { session.delete(key); } } },
+      tabs,
+      windows,
+    };
+    (globalThis as { chrome?: unknown }).chrome = chrome;
+    /** What this page answered the worker's question about notification `id`. */
+    const click = (id: string, sender = "ext") => {
+      let answered: unknown;
+      heard!({ target: "app", type: "notification-open", id }, { id: sender }, (response) => { answered = response; });
+      return answered;
+    };
+    return { chrome, session, tabs, windows, click };
+  }
+
+  it("extension: chrome.notifications, its chat kept for the worker, and a click on one of this page's opens its chat", async () => {
+    const { chrome, session, tabs, windows, click } = extensionPage(true);
+    const notifications = { create: vi.fn(async (id: string) => id), clear: vi.fn(async () => true) };
+    chrome.notifications = notifications;
+    const { showPrivateNotification, onNotificationOpen, clearNotification } = await lib();
+    const opened = vi.fn();
+    onNotificationOpen(opened);
+    vi.spyOn(window, "focus").mockImplementation(() => {});
+    await showPrivateNotification("event-1", "New message", "chat-a");
+    expect(notifications.create).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ title: "Ghostly", message: "New message", silent: true }));
+    const id = notifications.create.mock.calls[0]![0];
+    expect(id).not.toContain("event-1");
+    // Where the worker reads it once this page is gone: by the random id, never the page's.
+    expect([...session]).toEqual([[`notice:${id}`, "chat-a"]]);
+    // Another page's notification, or a message from anyone but the extension: this page does nothing, and stays where it is.
+    expect(click("event-other")).toBeUndefined();
+    expect(click(id, "another-extension")).toBeUndefined();
+    expect(opened).not.toHaveBeenCalled();
+    expect(tabs.update).not.toHaveBeenCalled();
+    expect(click(id)).toBe(true);
+    expect(opened).toHaveBeenCalledWith("chat-a");
+    // The app page is a tab: window.focus() cannot bring a background tab forward, so the tab and its window are.
+    await waitFor(() => expect(windows.update).toHaveBeenCalledWith(3, { focused: true }));
+    expect(tabs.update).toHaveBeenCalledWith(7, { active: true });
+    // A ring that ended takes its notification back, and what was kept for it.
+    await showPrivateNotification("call:1", "Incoming call", "chat-b");
+    clearNotification("call:1");
+    await waitFor(() => expect([...session.keys()]).toEqual([`notice:${id}`]));
+  });
+
+  it("extension without the notifications permission: listening does not throw, and a grant later still opens chats", async () => {
+    // "notifications" is an optional permission: until the user grants it, chrome.notifications is undefined.
+    const { chrome, click } = extensionPage(false);
+    const { showPrivateNotification, onNotificationOpen, notificationPermission } = await lib();
+    const opened = vi.fn();
+    expect(() => onNotificationOpen(opened)).not.toThrow();
+    expect(await notificationPermission()).toBe("default");
+    // Granted from Settings: the API appears in the running page.
+    const notifications = { create: vi.fn(async (id: string) => id), clear: vi.fn(async () => true) };
+    chrome.notifications = notifications;
+    chrome.permissions = { contains: vi.fn(async () => true), request: vi.fn(async () => true) };
+    vi.spyOn(window, "focus").mockImplementation(() => {});
+    await showPrivateNotification("event-1", "New message", "chat-a");
+    expect(notifications.create).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ message: "New message" }));
+    const id = notifications.create.mock.calls[0]![0];
+    expect(click(id)).toBe(true);
+    expect(opened).toHaveBeenCalledWith("chat-a");
+  });
+});
+
+describe("Settings → System notifications", () => {
+  function renderSettings() {
+    return renderApp(
+      <LockScreenProvider><UpdateProvider><Routes><Route path="/settings" element={<Settings />} /></Routes></UpdateProvider></LockScreenProvider>,
+      { route: "/settings" },
+    );
+  }
+  const row = () => screen.getByTestId("settings-system-notifications-row");
+  const toggle = () => screen.getByTestId("settings-system-notifications");
+
+  it("Desktop on macOS: available; turning it on asks macOS, and granted turns it on", async () => {
+    desktop("MacIntel", { native_notification_permission: "default" });
+    const { user } = renderSettings();
+    await waitFor(() => expect(row()).toHaveTextContent("While Ghostly is open"));
+    expect(toggle()).toBeEnabled();
+    tauri.invoke.mockImplementation(async (command: string, args?: unknown) =>
+      command === "native_notification_permission" ? ((args as { request: boolean }).request ? "granted" : "default") : undefined);
+    await user.click(toggle());
+    await waitFor(() => expect(toggle()).toHaveAttribute("aria-checked", "true"));
+    expect(commands()).toContainEqual(["native_notification_permission", { request: true }]);
+    expect(loadSettings().notifications.systemEnabled).toBe(true);
+    expect(screen.queryByTestId("settings-notification-settings")).toBeNull();
+  });
+
+  it("Desktop on macOS, denied: one line saying where to allow them, and a button that opens that pane", async () => {
+    desktop("MacIntel", { native_notification_permission: "default" });
+    const { user } = renderSettings();
+    await waitFor(() => expect(row()).toHaveTextContent("While Ghostly is open"));
+    desktop("MacIntel", { native_notification_permission: "denied" });
+    await user.click(toggle());
+    await waitFor(() => expect(row()).toHaveTextContent("Allow them in macOS Settings → Notifications → Ghostly"));
+    expect(toggle()).toHaveAttribute("aria-checked", "false");
+    expect(loadSettings().notifications.systemEnabled).toBe(false);
+    await user.click(screen.getByTestId("settings-notification-settings"));
+    expect(commands()).toContainEqual(["open_notification_settings"]);
+  });
+
+  it("Desktop on Windows, denied: its own settings; on Linux the system's settings and no button", async () => {
+    desktop("Win32", { native_notification_permission: "denied" });
+    const { unmount } = renderSettings();
+    await waitFor(() => expect(row()).toHaveTextContent("Allow them in Windows Settings → Notifications"));
+    expect(screen.getByTestId("settings-notification-settings")).toBeInTheDocument();
+    unmount();
+    desktop("Linux x86_64", { native_notification_permission: "denied" });
+    renderSettings();
+    // No browser here: the line said "device or browser settings".
+    await waitFor(() => expect(row()).toHaveTextContent("Blocked. Allow them in system settings."));
+    expect(screen.queryByTestId("settings-notification-settings")).toBeNull();
+  });
+
+  it("the Android app, denied: the next step and a button to the app's page in Android's settings", async () => {
+    desktop("Linux x86_64", { native_notification_permission: "denied" });
+    const agent = vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Linux; Android 15; sdk_gphone64_x86_64; wv) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36");
+    try {
+      const { user } = renderSettings();
+      await waitFor(() => expect(row()).toHaveTextContent("Blocked. Allow them in system settings."));
+      await user.click(screen.getByTestId("settings-notification-settings"));
+      expect(commands()).toContainEqual(["open_notification_settings"]);
+    } finally {
+      agent.mockRestore();
+    }
+  });
+
+  it("Desktop on macOS, run from a temporary folder: says to move the app, and asking changes nothing", async () => {
+    desktop("MacIntel", { native_notification_permission: "misplaced" });
+    const { user } = renderSettings();
+    await waitFor(() => expect(row()).toHaveTextContent("Move Ghostly to Applications to allow them"));
+    await user.click(toggle());
+    await waitFor(() => expect(commands()).toContainEqual(["native_notification_permission", { request: true }]));
+    expect(toggle()).toHaveAttribute("aria-checked", "false");
+    expect(loadSettings().notifications.systemEnabled).toBe(false);
+    expect(screen.queryByTestId("settings-notification-settings")).toBeNull();
+  });
+
+  it("extension, declined: turning the switch on asks again, and the line says so, not a browser setting", async () => {
+    // "notifications" is an optional permission: Chrome asks each time it is requested, so a refusal is undone here.
+    const chrome = {
+      runtime: { id: "ext", getURL: (path: string) => `chrome-extension://ext/${path}` },
+      permissions: { contains: vi.fn(async () => false), request: vi.fn(async () => false) },
+    };
+    (globalThis as { chrome?: unknown }).chrome = chrome;
+    const { user } = renderSettings();
+    await waitFor(() => expect(row()).toHaveTextContent("While Ghostly is open"));
+    await user.click(toggle());
+    await waitFor(() => expect(row()).toHaveTextContent("Not allowed. Turn the switch on to ask again."));
+    expect(row()).not.toHaveTextContent(/browser settings/);
+    expect(screen.queryByTestId("settings-notification-settings")).toBeNull();
+    expect(toggle()).toHaveAttribute("aria-checked", "false");
+    chrome.permissions.request.mockResolvedValue(true);
+    chrome.permissions.contains.mockResolvedValue(true);
+    await user.click(toggle());
+    await waitFor(() => expect(toggle()).toHaveAttribute("aria-checked", "true"));
+    expect(chrome.permissions.request).toHaveBeenCalledTimes(2);
+  });
+
+  it("web: blocked in the browser has no button; no Notification API says so", async () => {
+    FakeNotification.permission = "denied";
+    const { unmount } = renderSettings();
+    await waitFor(() => expect(row()).toHaveTextContent("Blocked. Allow them in device or browser settings."));
+    expect(screen.queryByTestId("settings-notification-settings")).toBeNull();
+    unmount();
+    vi.stubGlobal("Notification", undefined);
+    renderSettings();
+    await waitFor(() => expect(row()).toHaveTextContent("Not available here"));
+  });
+});
+
+describe("AttentionFeedback: which chat a notification opens", () => {
+  const key = (c: string) => c.repeat(52);
+  const chat = (id: string): ChatSession => ({ id, profile: "paired-chat/1", mySeedB64: `seed-${id}`, peerPubKeyB64: key(id), encKeyB64: "enc", messages: [], createdAt: Date.now() });
+  let n = 0;
+  const event = (patch: Partial<AttentionEvent>): AttentionEvent => ({ id: `note-${++n}`, type: "message", at: Date.now(), ...patch });
+  function Where() { return <p data-testid="where">{useLocation().pathname}</p>; }
+
+  it("extension without the notifications permission: the page starts", () => {
+    (globalThis as { chrome?: unknown }).chrome = {
+      runtime: { id: "ext", getURL: (path: string) => `chrome-extension://ext/${path}` },
+      permissions: { contains: vi.fn(async () => false), request: vi.fn(async () => false) },
+    };
+    renderApp(<><AttentionFeedback /><Routes><Route path="*" element={<Where />} /></Routes></>);
+    expect(screen.getByTestId("where")).toBeInTheDocument();
+  });
+
+  it("a click on a message's notification opens its 1:1 chat or its group", async () => {
+    FakeNotification.permission = "granted";
+    saveSettings({ ...loadSettings(), notifications: { ...loadSettings().notifications, soundEnabled: false, systemEnabled: true } });
+    saveSession(chat("a"));
+    fakeEngine.update({ links: [linkView({ id: "link-a", peerPubKeyZ32: key("a") })] });
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    renderApp(<><AttentionFeedback /><Routes><Route path="*" element={<Where />} /></Routes></>);
+    const first = event({ linkId: "link-a" }), second = event({ linkId: "group:g1" });
+    act(() => { fakeEngine.emit({ kind: "attention", event: first }); fakeEngine.emit({ kind: "attention", event: second }); });
+    await waitFor(() => expect(FakeNotification.shown).toHaveLength(2));
+    // The text is private, and so is the tag: the chat stays in the page.
+    expect(FakeNotification.shown.map(n => n.options.body)).toEqual(["New message", "New message"]);
+    for (const n of FakeNotification.shown) expect([first.id, second.id]).not.toContain(n.options.tag);
+    vi.spyOn(window, "focus").mockImplementation(() => {});
+    act(() => FakeNotification.shown[0]!.onclick!());
+    expect(screen.getByTestId("where")).toHaveTextContent("/chat/a");
+    act(() => FakeNotification.shown[1]!.onclick!());
+    expect(screen.getByTestId("where")).toHaveTextContent("/group/g1");
+  });
+
+  it("a notification server that never answers holds no later event back", async () => {
+    // One event at a time, as the browser's lock: each waits for the one before to finish.
+    let tail = Promise.resolve();
+    const locks = { request: (_name: string, run: () => Promise<void>) => (tail = tail.then(run)) };
+    Object.defineProperty(navigator, "locks", { value: locks, configurable: true });
+    try {
+      // A frozen Linux notification server: the native command never comes back.
+      desktop("Linux x86_64", { native_private_notification: new Promise(() => {}) });
+      saveSettings({ ...loadSettings(), notifications: { ...loadSettings().notifications, soundEnabled: false, systemEnabled: true } });
+      vi.spyOn(document, "hasFocus").mockReturnValue(false);
+      renderApp(<AttentionFeedback />);
+      // Chats of their own: a burst in the test before would keep the notice back for another reason.
+      act(() => { fakeEngine.emit({ kind: "attention", event: event({ linkId: "link-frozen" }) }); });
+      await waitFor(() => expect(nativeIds()).toHaveLength(1));
+      act(() => { fakeEngine.emit({ kind: "attention", event: event({ linkId: "group:frozen" }) }); });
+      await waitFor(() => expect(nativeIds()).toHaveLength(2));
+    } finally {
+      delete (navigator as { locks?: unknown }).locks;
+    }
+  });
+});

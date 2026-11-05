@@ -1,0 +1,9 @@
+{
+  "answer": "Contestar",
+  "answerPassword": "Ingresa tu contraseña para contestar",
+  "enterPassword": "Ingresa tu contraseña para desbloquear",
+  "incorrectPassword": "Contraseña incorrecta, intenta de nuevo",
+  "title": "Property está bloqueado",
+  "tooManyAttempts": "Demasiados intentos. Inténtalo de nuevo en {{seconds}} s",
+  "unlock": "Desbloquear"
+}

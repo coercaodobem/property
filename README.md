@@ -12,6 +12,8 @@ Property is an open project for decentralized communication and voluntary exchan
 
 **Browser access:** open the site on a compatible device and, if you like, add the PWA to your home screen. The app does not need to be distributed through the Play Store or App Store.
 
+**Experimental peer-to-peer app:** [Open Property Direct](https://coercaodobem.github.io/property/direct/) for an alternative adapted from Ghostly. It is a separate client with a different identity and transport; it does not use Nostr relays or share conversations with the main Property PWA.
+
 **Voluntary exchange:** the marketplace lets people publish and discover offers. Purchases, checkout, and custody are not enabled in this version.
 
 ## What we are building

@@ -1,0 +1,164 @@
+{
+  "board": {
+    "card": {
+      "botLabel": "De:",
+      "chatLabel": "Chat:",
+      "checks": {
+        "failing": "Comprobaciones fallidas",
+        "passing": "Comprobaciones correctas",
+        "pending": "Comprobaciones pendientes"
+      },
+      "details": "Detalles",
+      "filesLabel": "Archivos:",
+      "from": "{{bot}} en {{chat}}",
+      "in": "en {{chat}}",
+      "openPr": "Abrir en {{host}}",
+      "parts": "{{done}} de {{total}} hechas",
+      "prLabel": "Pull request:",
+      "prState": {
+        "closed": "Cerrado",
+        "draft": "Borrador",
+        "merged": "Fusionado",
+        "open": "Abierto"
+      },
+      "statusLabel": "Estado:",
+      "steps": "{{done}} de {{total}}",
+      "tagsLabel": "Etiquetas:",
+      "updatedLabel": "Actualizado:"
+    },
+    "clearFinished": "Borrar terminadas",
+    "clearFinishedHint": "Oculta en este dispositivo las tareas hechas, fallidas y canceladas. La próxima actualización de un bot trae una de vuelta.",
+    "column": {
+      "blocked": "Bloqueadas",
+      "closed": "Detenidas",
+      "done": "Hechas",
+      "queued": "En cola",
+      "review": "Revisión",
+      "running": "En curso"
+    },
+    "columns": "Columnas",
+    "empty": "Aún no hay tareas",
+    "emptyHint": "Las tarjetas de tarea de los bots de tus chats aparecen aquí.",
+    "filter": "Filtrar tareas",
+    "groupBy": {
+      "bot": "Bot",
+      "chat": "Chat",
+      "label": "Agrupar por",
+      "status": "Estado"
+    },
+    "hideOlder": "Ocultar antiguas",
+    "info": "Las tarjetas de tarea de los bots, de todos los chats. Las tareas hechas y detenidas se quedan un día. Una tarjeta solo muestra la tarea: su bot cambia el estado.",
+    "me": "Tú",
+    "noMatch": "Ninguna tarea coincide",
+    "none": "Ninguna",
+    "showMore": "Mostrar más ({{count}})",
+    "showOlder": "Mostrar antiguas ({{count}})",
+    "tagFilter": "Mostrar solo {{tag}}",
+    "tags": "Etiquetas",
+    "tasksMany": "{{count}} tareas",
+    "tasksOne": "1 tarea",
+    "title": "Tareas",
+    "view": {
+      "label": "Mostrar",
+      "routines": "Rutinas",
+      "tasks": "Tareas"
+    }
+  },
+  "buttons": {
+    "answers": "Respuestas",
+    "chosen": "Elegida",
+    "closed": "Cerrada",
+    "failed": "No se pudo enviar",
+    "jump": "Ir a la pregunta",
+    "sending": "Enviando…"
+  },
+  "panel": {
+    "activeCount": "{{count}} activas",
+    "allOk": "todo OK",
+    "button": "Tareas",
+    "buttonCount": "Tareas, {{count}} activas",
+    "close": "Cerrar",
+    "empty": "Ninguna tarea en curso",
+    "failedCount": "{{count}} con fallo",
+    "finishedCount": "Terminadas ({{count}})",
+    "idle": "Nada en curso",
+    "info": "Los bots publican estas tarjetas y las mantienen al día. Toca una para ir a ella en el chat.",
+    "nextRun": "próxima {{when}}",
+    "routinesMany": "{{count}} rutinas",
+    "routinesOne": "1 rutina",
+    "title": "Tareas"
+  },
+  "routine": {
+    "cron": "Cron",
+    "label": "Rutina: {{name}}, {{state}}",
+    "lastRun": "Última ejecución: {{result}}",
+    "next": "Próxima {{when}}",
+    "noRuns": "Aún no se ha ejecutado",
+    "result": {
+      "failed": "Falló",
+      "ok": "OK",
+      "skipped": "Omitida"
+    },
+    "runs": "Ejecuciones recientes",
+    "schedule": "Horario",
+    "state": {
+      "active": "Activa",
+      "paused": "En pausa"
+    }
+  },
+  "task": {
+    "branch": "Rama:",
+    "elapsed": {
+      "blocked": "bloqueada desde hace {{duration}}",
+      "queued": "en cola desde hace {{duration}}",
+      "running": "en curso desde hace {{duration}}",
+      "took": "tardó {{duration}}"
+    },
+    "item": {
+      "done": "Hecho",
+      "failed": "Falló",
+      "pending": "Pendiente",
+      "running": "En curso",
+      "skipped": "Omitido"
+    },
+    "label": "Tarea: {{title}}, {{status}}",
+    "labelProgress": "Tarea: {{title}}, {{status}}, {{progress}}%",
+    "now": "Ahora:",
+    "pr": "PR #{{number}}",
+    "prNoNumber": "Pull request",
+    "progress": "Progreso",
+    "started": "Empezó {{ago}}",
+    "status": {
+      "blocked": "Bloqueada",
+      "cancelled": "Cancelada",
+      "done": "Hecha",
+      "failed": "Falló",
+      "queued": "En cola",
+      "running": "En curso"
+    },
+    "steps": "{{done}} de {{total}} pasos",
+    "updated": "actualizada {{ago}}"
+  },
+  "usage": {
+    "accountLabel": "Cuenta",
+    "info": "Lo que el bot dice que le queda. Property no lo comprueba.",
+    "label": "{{name}}: queda {{left}}%",
+    "labelResets": "{{name}}: queda {{left}}%, se renueva {{time}}",
+    "left": "queda {{left}}%",
+    "leftLabel": "Queda",
+    "resets": "se renueva {{time}}",
+    "resetsLabel": "Se renueva",
+    "stale": "sin actualizar hace rato",
+    "staleHint": "Números viejos: el bot no los actualizó hace rato, o la ventana ya se renovó.",
+    "title": "Uso",
+    "updatedLabel": "Actualizado",
+    "used": "{{used}} de {{limit}} usados",
+    "usedLabel": "Usado",
+    "wasReset": "se renovó {{ago}}"
+  },
+  "working": {
+    "label": "Trabajando",
+    "quiet": "¿Trabajando? · última novedad {{ago}}",
+    "stale": "Sin novedades desde hace {{duration}}"
+  }
+}

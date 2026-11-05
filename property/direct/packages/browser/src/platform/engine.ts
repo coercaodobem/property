@@ -1,0 +1,353 @@
+import { getBrowserHost, type EngineConnection } from "../host";
+import type { AppFrameEvent } from "@ghostly/core";
+import type { AppRangeAsk, AttentionEvent, EngineApi, EngineEvent, EngineMethod, RpcResponse } from "../shared/rpc";
+import type { EngineState, LinkView, StoredMessage } from "../shared/types";
+import { applyMessageChanges, type MessageChanges } from "../shared/messageChanges";
+import type { ProfileOpenFailure } from "../shared/idb";
+import type { DeviceGateView } from "../devices/gate";
+
+type Result<M extends EngineMethod> = Awaited<ReturnType<EngineApi[M]>>;
+
+/**
+ * How long what changed in a chat waits for what changes next before the listeners hear of it: the engine sends one
+ * change per stored row, and a group catching up stores hundreds in a row; each told on its own makes the page draw the
+ * whole history again for each.
+ */
+export const MESSAGE_CHANGES_TICK_MS = 50;
+
+/**
+ * The longest a page waits between two tries to connect again after the peer went away: each try that fails doubles the
+ * wait, from half a second up to this, until one succeeds (a tab in the background calls nothing that would reconnect it).
+ */
+export const RECONNECT_MAX_MS = 30_000;
+
+/**
+ * What changed in a chat's list since `from`, the list its listeners last heard: the rows added or changed, as they are
+ * now, and the ids deleted. A listener that kept what it made of `from` has only these to look at.
+ */
+export interface ListChanges extends MessageChanges {
+  from: StoredMessage[];
+}
+
+/** A listener of a chat's messages: the whole list as it is now, and what changed since the last one it heard, if known. */
+export type MessagesListener = (linkId: string, messages: StoredMessage[], changes?: ListChanges) => void;
+
+/**
+ * This page's connection to the Ghostly peer, wherever the host keeps it. The
+ * peer owns the network; pages only ask it to do things.
+ */
+class EngineClient {
+  state: EngineState | null = null;
+  readonly messages = new Map<string, StoredMessage[]>();
+  /** Per chat, the ids the engine deleted in it, as its last whole history said (the `messages` event's `deleted`). */
+  readonly deletedIds = new Map<string, readonly string[]>();
+  /** The chats whose list here is only their newest page (a `messages` event with `more`): the peer has older rows. */
+  private readonly partial = new Set<string>();
+  /** The partial chats and the groups whose whole history this connection asked for (`askWhole`, `history`), once each. */
+  private readonly asked = new Set<string>();
+  /** The chats and groups whose whole history this connection was sent: their list here is kept current since. */
+  private readonly held = new Set<string>();
+  /** Per chat, how many readers hold its whole history here (`keepWhole`). */
+  private readonly kept = new Map<string, number>();
+  /**
+   * Why the peer did not start, when it did not (the profile's database did not open): the app shows this and nothing
+   * of the profile. Null while it runs or is still starting. State listeners hear of it.
+   */
+  startFailure: ProfileOpenFailure | null = null;
+  /**
+   * Set when this device is not the active one for the profile (WISP 06 § The gate): no engine runs, and the app
+   * shows the standby screen and nothing of the profile. State listeners hear of it.
+   */
+  deviceGate: DeviceGateView | null = null;
+
+  private connection: EngineConnection | null = null;
+  private connecting: Promise<void> | null = null;
+  private nextId = 1;
+  private readonly pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+  private readonly stateListeners = new Set<() => void>();
+  private readonly messageListeners = new Set<MessagesListener>();
+  private readonly attentionListeners = new Set<(event: AttentionEvent) => void>();
+  private readonly callListeners = new Set<(linkId: string, signal: string) => void>();
+  private readonly callHandledListeners = new Set<(linkId: string) => void>();
+  private readonly appListeners = new Set<(linkId: string, event: AppFrameEvent) => void>();
+  private readonly appRangeListeners = new Set<(linkId: string, range: AppRangeAsk) => void>();
+  private readonly appsCheckedListeners = new Set<() => void>();
+  /** The chats whose messages changed since their listeners last heard, and what changed, told together when the tick ends. */
+  private readonly changed = new Map<string, { from: StoredMessage[]; rows: Map<string, StoredMessage>; deleted: Set<string> }>();
+  private changesTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * The latest call offer per link, until something answers or ends it: a chat that is not open
+   * when the call comes in is loaded because of it, and then reads the offer it would have missed.
+   * Offers expire by themselves (`parseCallSignal` refuses old ones).
+   */
+  private readonly offers = new Map<string, string>();
+
+  subscribe(listener: () => void): () => void {
+    this.stateListeners.add(listener);
+    return () => this.stateListeners.delete(listener);
+  }
+
+  onMessages(listener: MessagesListener): () => void {
+    this.messageListeners.add(listener);
+    return () => this.messageListeners.delete(listener);
+  }
+
+  /** Whether this chat's list here is its whole history, not only its newest page. */
+  whole(linkId: string): boolean {
+    return !this.partial.has(linkId);
+  }
+
+  /**
+   * Asks the peer for this chat's whole history, when only its newest page is here: the listeners hear it when it comes.
+   * Once per connection; nothing to ask for a whole one.
+   */
+  askWhole(linkId: string): void {
+    if (!this.partial.has(linkId) || this.asked.has(linkId) || !this.connection) return;
+    this.asked.add(linkId);
+    this.connection.send({ kind: "history", linkId });
+  }
+
+  /**
+   * A chat's or group's whole history as this connection was sent it, kept current since. When it was not (a group no
+   * reader asked for yet), undefined: it is asked for, once per connection, and the listeners hear it when it comes. A
+   * group that opens reads it here, not from the store on each open.
+   */
+  history(linkId: string): StoredMessage[] | undefined {
+    if (this.held.has(linkId)) return this.messages.get(linkId);
+    if (!this.connection) {
+      void this.connect().then(() => void this.history(linkId)).catch(() => {});
+      return undefined;
+    }
+    if (this.asked.has(linkId)) return undefined;
+    this.asked.add(linkId);
+    this.connection.send({ kind: "history", linkId });
+    return undefined;
+  }
+
+  /** Forgets every history held here, as a page that just loaded holds none: each test of the UI is a page of its own. */
+  forgetHistories(): void {
+    this.messages.clear();
+    this.partial.clear();
+    this.asked.clear();
+    this.held.clear();
+    this.changed.clear();
+  }
+
+  /**
+   * While held, this chat's whole history is here for a reader that shows all of it (the chat open): asked for
+   * now if only its newest page is, and whenever only its newest page comes later (a page that connects again). The
+   * returned function lets it go.
+   */
+  keepWhole(linkId: string): () => void {
+    this.kept.set(linkId, (this.kept.get(linkId) ?? 0) + 1);
+    this.askWhole(linkId);
+    let held = true;
+    return () => {
+      if (!held) return;
+      held = false;
+      const left = (this.kept.get(linkId) ?? 1) - 1;
+      if (left) this.kept.set(linkId, left);
+      else this.kept.delete(linkId);
+    };
+  }
+
+  /** Whether this chat's list changed since its listeners last heard: they hear of it when the tick ends. */
+  changing(linkId: string): boolean {
+    return this.changed.has(linkId);
+  }
+
+  onAttention(listener: (event: AttentionEvent) => void): () => void {
+    this.attentionListeners.add(listener);
+    return () => this.attentionListeners.delete(listener);
+  }
+
+  /** The pending offer for this link, taken: it is handed out once. */
+  takeCallOffer(linkId: string): string | undefined {
+    const offer = this.offers.get(linkId);
+    this.offers.delete(linkId);
+    return offer;
+  }
+
+  /**
+   * Puts an offer back for this link, to be taken again: a chat that rang while the app was locked since it started
+   * hands its call to the chat the app opens once unlocked (apps/ui/src/lib/lockedRing.ts).
+   */
+  keepCallOffer(linkId: string, signal: string): void {
+    this.offers.set(linkId, signal);
+  }
+
+  /** A contact's mini-app frame in a 1:1 chat (`apps/1`, WISP 1200 § In a chat). */
+  onAppFrame(listener: (linkId: string, event: AppFrameEvent) => void): () => void {
+    this.appListeners.add(listener);
+    return () => this.appListeners.delete(listener);
+  }
+
+  /** A range the contact's app asks of a file an app here serves (`appServe`): the page that served it answers. */
+  onAppRange(listener: (linkId: string, range: AppRangeAsk) => void): () => void {
+    this.appRangeListeners.add(listener);
+    return () => this.appRangeListeners.delete(listener);
+  }
+
+  /** An update check of the installed mini-apps ran (the scheduled one too): what is installed, and may run, can have changed. */
+  onAppsChecked(listener: () => void): () => void {
+    this.appsCheckedListeners.add(listener);
+    return () => this.appsCheckedListeners.delete(listener);
+  }
+
+  onCallSignal(listener: (linkId: string, signal: string) => void): () => void {
+    this.callListeners.add(listener);
+    return () => this.callListeners.delete(listener);
+  }
+
+  /** Another page on this engine (an extension tab) answered or declined the call ringing in a chat. */
+  onCallHandled(listener: (linkId: string) => void): () => void {
+    this.callHandledListeners.add(listener);
+    return () => this.callHandledListeners.delete(listener);
+  }
+
+  /** A chat by its peer's key, or the edge of a group toward a member (payments with that member use it). */
+  linkByPeer(peerPubKeyZ32: string): LinkView | undefined {
+    return this.state?.links.find((l) => l.peerPubKeyZ32 === peerPubKeyZ32) ?? this.state?.edges?.find((l) => l.peerPubKeyZ32 === peerPubKeyZ32);
+  }
+
+  async call<M extends EngineMethod>(method: M, ...params: Parameters<EngineApi[M]>): Promise<Result<M>> {
+    await this.connect();
+    const connection = this.connection;
+    if (!connection) throw new Error("Property is starting…");
+    const id = this.nextId++;
+    return new Promise<Result<M>>((resolve, reject) => {
+      this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
+      connection.send({ kind: "request", id, method, params: params[0] } as Parameters<EngineConnection["send"]>[0]);
+    });
+  }
+
+  /** Pages call this once at startup; calls made earlier wait for it. */
+  connect(): Promise<void> {
+    if (this.connection) return Promise.resolve();
+    this.connecting ??= getBrowserHost()
+      .connect(
+        (message) => this.handle(message),
+        () => {
+          this.connection = null;
+          // The next connection is sent each chat again: what it asked for, it asks again. A group's list here is no
+          // longer kept current: read again when it is asked for.
+          this.asked.clear();
+          this.held.clear();
+          for (const pending of this.pending.values()) pending.reject(new Error("Lost the Property peer"));
+          this.pending.clear();
+          this.reconnect(500);
+        },
+      )
+      .then((connection) => {
+        this.connection = connection;
+      })
+      .finally(() => (this.connecting = null));
+    return this.connecting;
+  }
+
+  /** Connects again after `delay`, and again after twice as long while the tries fail. */
+  private reconnect(delay: number): void {
+    setTimeout(() => void this.connect().catch(() => this.reconnect(Math.min(delay * 2, RECONNECT_MAX_MS))), delay);
+  }
+
+  private handle(message: EngineEvent | RpcResponse): void {
+    switch (message.kind) {
+      case "attention":
+        for (const listener of this.attentionListeners) listener(message.event);
+        break;
+      case "start-failed":
+        this.startFailure = message.failure;
+        for (const listener of this.stateListeners) listener();
+        break;
+      case "device-gate":
+        this.deviceGate = message.gate;
+        for (const listener of this.stateListeners) listener();
+        break;
+      case "state":
+        // A peer that runs (the extension's, started again) takes the notice away.
+        this.startFailure = null;
+        this.deviceGate = null;
+        this.state = message.state;
+        for (const listener of this.stateListeners) listener();
+        break;
+      case "messages":
+        // The whole history holds what changed before it: told now, and not again when the tick ends.
+        this.changed.delete(message.linkId);
+        if (message.more) {
+          this.partial.add(message.linkId);
+          this.held.delete(message.linkId);
+        } else {
+          this.partial.delete(message.linkId);
+          this.asked.delete(message.linkId);
+          this.held.add(message.linkId);
+        }
+        this.messages.set(message.linkId, message.messages);
+        if (message.deleted?.length) this.deletedIds.set(message.linkId, message.deleted);
+        else this.deletedIds.delete(message.linkId);
+        for (const listener of this.messageListeners) listener(message.linkId, message.messages);
+        if (this.kept.has(message.linkId)) this.askWhole(message.linkId);
+        break;
+      case "message-changes": {
+        // Only what changed, in a history the peer sent whole first: listeners still get the whole list, as it is now.
+        // The list here is current at once; its listeners hear once per tick, of every change in it together.
+        const history = this.messages.get(message.linkId);
+        if (!history) break;
+        this.messages.set(message.linkId, applyMessageChanges(history, message));
+        let since = this.changed.get(message.linkId);
+        if (!since) this.changed.set(message.linkId, since = { from: history, rows: new Map(), deleted: new Set() });
+        // As `applyMessageChanges` has it: a row both given and deleted goes.
+        for (const id of message.deleted) { since.rows.delete(id); since.deleted.add(id); }
+        for (const row of message.messages) {
+          if (message.deleted.includes(row.id)) continue;
+          since.rows.set(row.id, row);
+          since.deleted.delete(row.id);
+        }
+        this.changesTimer ??= setTimeout(() => this.tellChanges(), MESSAGE_CHANGES_TICK_MS);
+        break;
+      }
+      case "call-signal": {
+        let kind: unknown;
+        try { kind = (JSON.parse(message.signal) as { t?: unknown })?.t; } catch { kind = undefined; }
+        if (kind === "o") this.offers.set(message.linkId, message.signal);
+        else this.offers.delete(message.linkId);
+        for (const listener of this.callListeners) listener(message.linkId, message.signal);
+        break;
+      }
+      case "call-handled":
+        // A chat opened later must not ring with it either.
+        this.offers.delete(message.linkId);
+        for (const listener of this.callHandledListeners) listener(message.linkId);
+        break;
+      case "app-frame":
+        for (const listener of this.appListeners) listener(message.linkId, message.event);
+        break;
+      case "app-range":
+        for (const listener of this.appRangeListeners) listener(message.linkId, message.range);
+        break;
+      case "apps-checked":
+        for (const listener of this.appsCheckedListeners) listener();
+        break;
+      case "response": {
+        const pending = this.pending.get(message.id);
+        this.pending.delete(message.id);
+        if (message.error !== undefined) pending?.reject(new Error(message.error));
+        else pending?.resolve(message.result);
+        break;
+      }
+    }
+  }
+
+  private tellChanges(): void {
+    this.changesTimer = null;
+    const changed = [...this.changed];
+    this.changed.clear();
+    for (const [linkId, { from, rows, deleted }] of changed) {
+      const messages = this.messages.get(linkId);
+      if (!messages) continue;
+      const changes: ListChanges = { from, messages: [...rows.values()], deleted: [...deleted] };
+      for (const listener of this.messageListeners) listener(linkId, messages, changes);
+    }
+  }
+}
+
+export const engine = new EngineClient();

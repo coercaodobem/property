@@ -16,6 +16,8 @@ The upstream code snapshot is recorded at Amethyst commit `948135f7dbbae81d79a0b
 
 Serve `property/web` over HTTP(S), for example with `python3 -m http.server 8080 --directory property/web`, and open `http://localhost:8080`. PWA installation requires HTTPS (localhost is an exception). The app shell works offline after its first load; messaging requires reachable Nostr relays.
 
+For the separate experimental peer-to-peer client adapted from Ghostly, open [Property Direct](https://coercaodobem.github.io/property/direct/). It has a different identity and transport and does not connect to the Nostr relays used by this PWA.
+
 The **Relay bridge** option forwards signed public events between relays selected by the user. NIP-17 gift wraps are forwarded only to the local identity's inbox relays; the client does not decrypt the content to forward it. Local limits are 60 events and 2 MB of outbound traffic per minute, counting each relay destination. The bridge stops when the browser is suspended and may use mobile data.
 
 ## GitHub Pages deployment

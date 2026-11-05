@@ -1,0 +1,1636 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Groups, KNOCK_REFRESH_MS, type EntryTimings, type GroupStore, type GroupsHost } from "../src/engine/groups";
+import { GroupSession, commitUntaggedHash, confirmationTag, createIdentity, decodeGroupEntryLink, encodeCommunityLink, epochKeys, fromBase64Url, identityFromSeedB64, knockIdentity, readKnocks, signCommit, type GhostRecord, type GroupState } from "@ghostly/core";
+import type { StoredGroup, StoredMessage } from "../src/shared/types";
+
+// Counts the derivations of a public key from a seed (the group link's entry key is derived once, not at every state).
+const derived = vi.hoisted(() => ({ seeds: [] as string[] }));
+vi.mock("@ghostly/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@ghostly/core")>();
+  return { ...actual, identityFromSeedB64: (seedB64: string) => { derived.seeds.push(seedB64); return actual.identityFromSeedB64(seedB64); } };
+});
+// covers: groups.invite, groups.remove-member, groups.admin-change, groups.rotate, groups.leave, groups.forget, groups.link.join, groups.link.replace, groups.protocol.entry
+
+/**
+ * The group engine's rules beyond the happy path (test/groups.test.ts): who may change the roster,
+ * what someone removed can still read, rotation and the admin role, the admission frames it ignores,
+ * and the group's link timers (knocks, pending entries, refusals).
+ */
+
+function memoryStore(messages: StoredMessage[]): GroupStore & { groups: Map<string, StoredGroup> } {
+  const groups = new Map<string, StoredGroup>();
+  return {
+    groups,
+    getGroups: async () => [...groups.values()].map(g => structuredClone(g)),
+    putGroup: async g => { groups.set(g.id, structuredClone(g)); },
+    deleteGroup: async id => { groups.delete(id); },
+    getMessages: async linkId => messages.filter(m => m.linkId === linkId).sort((a, b) => a.timestamp - b.timestamp),
+  };
+}
+
+const keyOf = (state: GroupState) => identityFromSeedB64(state.seedB64).pubKeyZ32;
+interface Edge { peer: string; state: GroupState }
+interface Entry { g: string; me: string; peer: string; role: "host" | "guest" }
+interface Peer { groups: Groups; host: GroupsHost; timings?: EntryTimings; messages: StoredMessage[]; edges: Map<string, Edge>; entries: Map<string, Entry>; store: ReturnType<typeof memoryStore>; failEntry: boolean }
+
+/**
+ * Peers joined by contact chats and by the edges and entry sessions their engines ask for. Frames are
+ * queued, not delivered, until `settle()`: a test can slip something in between.
+ */
+class World {
+  readonly peers = new Map<string, Peer>();
+  readonly pkarr = new Map<string, GhostRecord[]>();
+  publishes = 0;
+  /** Pkarr reads, per peer. */
+  readonly resolves = new Map<string, number>();
+  /** Pkarr reads, in order: who read which key, and when. */
+  readonly reads: { name: string; key: string; at: number }[] = [];
+  /**
+   * `<reader>:<key>`: reads its relays' budget holds back until then. They reach no relay and answer the record the
+   * reader last read, as `PkarrRelays.resolve` does, and `readHeldBackFor` says so.
+   */
+  readonly holds = new Map<string, number>();
+  private readonly lastRead = new Map<string, GhostRecord[] | null>();
+  readonly chats = new Map<string, [string, string]>();
+  /** Contact chats whose other app announces groups up to version 2 only (rosters of eight). */
+  readonly oldChats = new Set<string>();
+  private queue: (() => Promise<unknown>)[] = [];
+
+  private counterpart(entry: Entry): { name: string; linkId: string } | undefined {
+    for (const [name, peer] of this.peers) for (const [linkId, e] of peer.entries) if (e.g === entry.g && e.me === entry.peer && e.peer === entry.me) return { name, linkId };
+    return undefined;
+  }
+  async meetEntries(): Promise<void> {
+    for (const peer of this.peers.values()) for (const [linkId, e] of peer.entries) if (e.role === "host" && this.counterpart(e)) peer.groups.entryReady(e.g, linkId, e.peer);
+    await this.settle();
+  }
+  add(name: string, timings?: EntryTimings): Groups {
+    const peer = { messages: [], edges: new Map(), entries: new Map(), failEntry: false, timings } as unknown as Peer;
+    const host: GroupsHost = {
+      sendOnLink: (linkId, frame) => {
+        const copy = structuredClone(frame) as Record<string, unknown>;
+        const chat = this.chats.get(linkId);
+        if (chat) { const other = this.peers.get(chat[0] === name ? chat[1] : chat[0])!; this.queue.push(() => other.groups.handleContactFrame(linkId, copy)); return; }
+        const entry = peer.entries.get(linkId);
+        if (entry) {
+          const there = this.counterpart(entry);
+          if (!there) throw new Error("entry down");
+          this.queue.push(() => this.peers.get(there.name)!.groups.handleContactFrame(there.linkId, copy));
+          return;
+        }
+        const edge = peer.edges.get(linkId);
+        if (!edge) throw new Error("edge down");
+        const back = (e: Edge) => e.state.id === edge.state.id && e.peer === keyOf(edge.state) && keyOf(e.state) === edge.peer;
+        const target = [...this.peers.values()].find(p => [...p.edges.values()].some(back));
+        if (!target) throw new Error("nobody there");
+        this.queue.push(() => target.groups.handleEdgeFrame(edge.state.id, keyOf(edge.state), copy));
+      },
+      linkReady: (linkId, version = 1) => (version < 3 || !this.oldChats.has(linkId)) && (this.chats.has(linkId) || peer.edges.has(linkId) || (peer.entries.has(linkId) && !!this.counterpart(peer.entries.get(linkId)!))),
+      contactName: linkId => this.chats.has(linkId) ? `contact:${linkId}` : undefined,
+      edges: groupId => new Map([...peer.edges.entries()].filter(([, e]) => e.state.id === groupId).map(([id, e]) => [e.peer, id])),
+      openEdge: async (state, key) => { const id = `edge:${name}:${key.slice(0, 8)}`; peer.edges.set(id, { peer: key, state }); return id; },
+      closeEdge: async linkId => { peer.edges.delete(linkId); peer.entries.delete(linkId); },
+      openEntry: async (link, role, seedB64, key) => {
+        if (peer.failEntry) throw new Error("no room for a session");
+        const id = `entry:${name}:${key.slice(0, 8)}`;
+        peer.entries.set(id, { g: link.g, me: identityFromSeedB64(seedB64).pubKeyZ32, peer: key, role });
+        return id;
+      },
+      entries: groupId => new Map([...peer.entries.entries()].filter(([, e]) => e.g === groupId).map(([id, e]) => [e.peer, id])),
+      publish: async (identity, records) => { this.publishes++; this.pkarr.set(identity.pubKeyZ32, records); },
+      resolve: async key => {
+        if (Date.now() < (this.holds.get(`${name}:${key}`) ?? 0)) return this.lastRead.get(`${name}:${key}`) ?? null;
+        this.resolves.set(name, (this.resolves.get(name) ?? 0) + 1); this.reads.push({ name, key, at: Date.now() });
+        const records = this.pkarr.get(key) ?? null;
+        this.lastRead.set(`${name}:${key}`, records);
+        return records;
+      },
+      readHeldBackFor: key => { const left = (this.holds.get(`${name}:${key}`) ?? 0) - Date.now(); return left > 0 ? left : undefined; },
+      edgeNick: () => undefined,
+      storeMessage: async message => { if (!peer.messages.some(m => m.id === message.id)) peer.messages.push(message); },
+      emit: () => {},
+    };
+    peer.host = host;
+    peer.store = memoryStore(peer.messages);
+    peer.groups = new Groups(host, peer.store, timings);
+    this.peers.set(name, peer);
+    return peer.groups;
+  }
+  /** The app starts again: a new engine reads what was stored. Its edges and entry sessions went with the old one. */
+  async restart(name: string): Promise<Groups> {
+    const peer = this.peers.get(name)!;
+    peer.edges.clear(); peer.entries.clear();
+    peer.groups = new Groups(peer.host, peer.store, peer.timings);
+    await peer.groups.load();
+    return peer.groups;
+  }
+  /** Frames on their way are lost (an app closed before it read them). */
+  drop(): void { this.queue = []; }
+  /** Both ends of every edge say where they are, as they do when it comes up. */
+  async meet(): Promise<void> {
+    for (const peer of this.peers.values()) for (const [linkId, edge] of peer.edges) peer.groups.edgeReady(edge.state.id, edge.peer, linkId);
+    await this.settle();
+  }
+  async settle(): Promise<void> {
+    for (let i = 0; i < 50; i++) {
+      const batch = this.queue.splice(0);
+      await flush();
+      if (!batch.length && !this.queue.length) break;
+      for (const run of batch) await run();
+    }
+  }
+  texts(name: string): string[] { return this.peers.get(name)!.messages.filter(m => !m.event).map(m => m.text); }
+  events(name: string): string[] { return this.peers.get(name)!.messages.filter(m => m.event).map(m => m.event!); }
+}
+const flush = () => new Promise<void>(resolve => setImmediate(resolve));
+const view = (g: Groups, id?: string) => (id ? g.views().find(v => v.id === id) : g.views()[0])!;
+/** Every group in the list is an invitation its inviter took back (and there is one). */
+const takenBack = (g: Groups) => g.views().length > 0 && g.views().every(v => v.invitation?.takenBack && !v.invitation.accepted);
+
+/** Alice's group with Bob (and Carol, when asked) admitted over their contact chats, edges up. */
+async function groupOf(names: string[]) {
+  const world = new World();
+  const alice = world.add("alice");
+  const others = names.map(n => { world.chats.set(`chat-a${n[0]}`, ["alice", n]); return world.add(n); });
+  for (const g of [alice, ...others]) await g.load();
+  const groupId = await alice.create("Ghosts", "mesh");
+  for (const [i, g] of others.entries()) {
+    await alice.invite(groupId, `chat-a${names[i][0]}`); await world.settle();
+    await g.accept(groupId); await world.settle();
+  }
+  await world.meet();
+  return { world, alice, others, groupId, key: (g: Groups) => view(g, groupId).myKey! };
+}
+
+afterEach(() => { vi.useRealTimers(); });
+
+describe("a group's link", () => {
+  it("derives its entry key once, not at every state built, and again when the link is replaced", async () => {
+    const world = new World();
+    const alice = world.add("alice");
+    const groupId = await alice.create("Ghosts", "mesh");
+    const link = await alice.enableLink(groupId);
+    const seed = () => world.peers.get("alice")!.store.groups.get(groupId)!.entry!.seedB64;
+    expect(view(alice, groupId).entryLink).toBe(link);
+    derived.seeds.length = 0;
+    for (let i = 0; i < 20; i++) alice.views();
+    expect(derived.seeds.filter(s => s === seed()).length).toBe(0);
+    const replaced = await alice.enableLink(groupId, true);
+    expect(replaced).not.toBe(link);
+    expect(view(alice, groupId).entryLink).toBe(replaced);
+    for (let i = 0; i < 20; i++) alice.views();
+    expect(derived.seeds.filter(s => s === seed()).length).toBe(1);
+  });
+});
+
+describe("group roster changes: only the admin, and someone removed reads nothing after", () => {
+  it("a removed member is told on the admin's chat, loses its edges, and cannot read what is sent next", async () => {
+    const { world, alice, others: [bob, carol], groupId, key } = await groupOf(["bob", "carol"]);
+    expect(view(carol, groupId).members).toHaveLength(3);
+    await alice.remove(groupId, key(carol));
+    await world.settle(); await world.meet();
+    expect(view(carol, groupId)).toMatchObject({ status: "removed", canSend: false });
+    expect(world.events("carol")).toContain("removed");
+    expect(world.events("alice")).toContain("gone");
+    expect(view(alice, groupId).members.map(m => m.key)).not.toContain(key(carol));
+    expect(world.peers.get("carol")!.edges.size).toBe(0);
+    expect([...world.peers.get("alice")!.edges.values()].map(e => e.peer)).toEqual([key(bob)]);
+
+    expect(await carol.send(groupId, "still here?")).toEqual({ error: expect.stringMatching(/removed/) });
+    expect(await alice.send(groupId, "after carol")).toEqual({ error: null, messageId: expect.any(String) });
+    await world.settle();
+    expect(world.texts("bob")).toContain("after carol");
+    // Even the frame itself, handed to Carol directly, is not read: her secrets went with her membership.
+    const frame = (alice as unknown as { sessions: Map<string, { state: GroupState }> }).sessions.get(groupId)!.state.sent.at(-1);
+    await carol.handleEdgeFrame(groupId, key(alice), frame);
+    expect(world.texts("carol")).not.toContain("after carol");
+  });
+
+  it("a removed member whose edges are down learns it from the admin's chat alone", async () => {
+    const { world, alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    world.peers.get("bob")!.edges.clear();
+    await alice.remove(groupId, key(bob)); await world.settle();
+    expect(view(bob, groupId)).toMatchObject({ status: "removed", canSend: false, statusReason: expect.stringMatching(/removed/) });
+    expect(world.events("bob")).toContain("removed");
+  });
+
+  it("a member removed and invited again keeps the names of what it holds: on the invitation, and once back", async () => {
+    // Bug hunt r4b, r9c: the invitation of a member removed and invited again showed its kept history as "Member xxxx".
+    const { world, alice, others: [bob, carol], groupId, key } = await groupOf(["bob", "carol"]);
+    const [aliceKey, carolKey] = [key(alice), key(carol)];
+    const session = (g: Groups) => (g as unknown as { sessions: Map<string, { setNick(key: string, nick: string): Promise<void> }> }).sessions.get(groupId)!;
+    await session(bob).setNick(carolKey, "Carol");
+    expect(view(bob, groupId).members.find(m => m.key === aliceKey)?.nick).toBe("contact:chat-ab");
+
+    await alice.remove(groupId, key(bob)); await world.settle();
+    await alice.remove(groupId, carolKey); await world.settle();
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    const invited = view(bob, groupId);
+    expect(invited.invitation).toBeDefined();
+    expect(invited.formerNames).toEqual({ [aliceKey]: "contact:chat-ab", [carolKey]: "Carol" });
+
+    await bob.accept(groupId); await world.settle(); await world.meet();
+    const back = view(bob, groupId);
+    expect(back.status).toBe("active");
+    // Carol left while Bob was out: what she wrote before is still hers.
+    expect(back.formerNames).toEqual({ [carolKey]: "Carol" });
+    expect(back.members.find(m => m.key === aliceKey)?.nick).toBe("contact:chat-ab");
+  });
+
+  it("a member removed and invited again reads that it joined again, not the read note a second time", async () => {
+    // Bug hunt 1102: back over the same chat, the private group wrote "You joined. <read note>" again, where a community
+    // writes "You joined again".
+    const { world, alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    const joined = () => world.peers.get("bob")!.messages.filter(m => m.event === "joined").map(m => m.text);
+    expect(joined()).toEqual([expect.stringMatching(/^You joined\. /)]);
+    await alice.remove(groupId, key(bob)); await world.settle();
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    await bob.accept(groupId); await world.settle(); await world.meet();
+    expect(view(bob, groupId).status).toBe("active");
+    expect(joined()).toEqual([expect.stringMatching(/^You joined\. /), "You joined again"]);
+  });
+
+  it("a member removed and invited again who declines keeps the removed group and its history", async () => {
+    const { world, alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    expect((await bob.send(groupId, "mine, before")).error).toBeNull();
+    await world.settle();
+    await alice.remove(groupId, key(bob)); await world.settle();
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    expect(view(bob, groupId).invitation).toBeDefined();
+
+    await bob.decline(groupId); await world.settle();
+    expect(view(bob, groupId)).toMatchObject({ status: "removed", canSend: false });
+    expect(view(bob, groupId).invitation).toBeUndefined();
+    expect(world.peers.get("bob")!.store.groups.get(groupId)?.state?.status).toBe("removed");
+    expect((await bob.messages(groupId)).map(m => m.text)).toContain("mine, before");
+    // Alice's side learns the answer: Bob is not waited for any more.
+    expect((alice as unknown as { invited: Map<string, Set<string>> }).invited.get(groupId)?.size ?? 0).toBe(0);
+    // After a restart too.
+    const again = new Groups((bob as unknown as { host: GroupsHost }).host, world.peers.get("bob")!.store);
+    await again.load();
+    expect(view(again, groupId)).toMatchObject({ status: "removed" });
+  });
+
+  it("a member removed is let back into the history it kept only by that group's chain, not by another genesis under its id", async () => {
+    const { world, alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    await alice.send(groupId, "dinner at 8"); await world.settle();
+    await alice.remove(groupId, key(bob)); await world.settle();
+    // A contact who knows the id signs a genesis of their own under it: the id names no group by itself.
+    const state = GroupSession.create("Ghosts");
+    const { sig: _, c: __, ...draft } = { ...state.chain[0], g: groupId };
+    const genesis = signCommit({ ...draft, c: confirmationTag(epochKeys(fromBase64Url(state.secrets[0]), groupId, 0).confirm, commitUntaggedHash(draft)) }, identityFromSeedB64(state.seedB64).seed);
+    world.chats.set("chat-bm", ["bob", "mallory"]);
+    const mallory = world.add("mallory");
+    await world.peers.get("mallory")!.store.putGroup({ id: groupId, createdAt: Date.now(), state: { ...state, id: groupId, chain: [genesis] } });
+    await mallory.load();
+    await mallory.invite(groupId, "chat-bm"); await world.settle();
+    expect(view(bob, groupId).invitation?.admin).toBe(keyOf(state));
+    await bob.accept(groupId); await world.settle();
+    expect(view(bob, groupId)).toMatchObject({ invitation: { accepted: false } });
+    expect(view(bob, groupId).status).toBeUndefined();
+
+    // The real admin's invitation still takes its place, and the history kept is there once back.
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    expect(view(bob, groupId).invitation?.admin).toBe(key(alice));
+    await bob.accept(groupId); await world.settle(); await world.meet();
+    expect(view(bob, groupId).status).toBe("active");
+    expect(view(bob, groupId).members.map(m => m.key).sort()).toEqual([key(alice), key(bob)].sort());
+    expect(world.texts("bob")).toContain("dinner at 8");
+  });
+
+  it("the admin's invitation of a member it removed is not replaced, nor taken back, by another contact's frames", async () => {
+    const { world, alice, others: [bob, carol], groupId, key } = await groupOf(["bob", "carol"]);
+    world.chats.set("chat-bc", ["bob", "carol"]);
+    await alice.remove(groupId, key(bob)); await world.settle();
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    const invitation = () => world.peers.get("bob")!.store.groups.get(groupId)?.invitation;
+    expect(invitation()).toMatchObject({ linkId: "chat-ab", admin: key(alice) });
+
+    // Carol, still a member and Bob's contact, invites him under the id, then takes it back.
+    await bob.handleContactFrame("chat-bc", { t: "group-invite", g: groupId, name: "Ghosts", admin: key(carol), e: 0, n: 3 });
+    expect(invitation()).toMatchObject({ linkId: "chat-ab", admin: key(alice) });
+    await bob.handleContactFrame("chat-bc", { t: "group-decline", g: groupId });
+    expect(invitation()).toMatchObject({ linkId: "chat-ab", admin: key(alice) });
+
+    // Accept goes to Alice, who lets Bob back in.
+    await bob.accept(groupId); await world.settle(); await world.meet();
+    expect(view(bob, groupId).status).toBe("active");
+    expect(view(alice, groupId).invited).toEqual([]);
+  });
+
+  it("a decline owed to the admin of a group kept stays owed when another contact invites and takes it back", async () => {
+    const { world, alice, others: [bob, carol], groupId, key } = await groupOf(["bob", "carol"]);
+    world.chats.set("chat-bc", ["bob", "carol"]);
+    await alice.remove(groupId, key(bob)); await world.settle();
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    world.chats.delete("chat-ab");
+    await bob.decline(groupId); await world.settle();
+    expect(world.peers.get("bob")!.store.groups.get(groupId)?.declined?.linkId).toBe("chat-ab");
+
+    await bob.handleContactFrame("chat-bc", { t: "group-invite", g: groupId, name: "Ghosts", admin: key(carol), e: 0, n: 3 });
+    await bob.handleContactFrame("chat-bc", { t: "group-decline", g: groupId });
+    expect(world.peers.get("bob")!.store.groups.get(groupId)?.declined?.linkId).toBe("chat-ab");
+
+    // Alice's chat comes up: she hears the answer.
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    await bob.tick(Date.now() + 1000); await world.settle();
+    expect(view(alice, groupId).invited).toEqual([]);
+  });
+
+  it("a pin by a member who is removed goes with them; the others' pins stay", async () => {
+    const { world, alice, others: [bob, carol], groupId, key } = await groupOf(["bob", "carol"]);
+    const pinBy = (by: string) => ({ id: `${key(bob)}:1:1`, n: Date.now(), by, at: Date.now(), k: by, sig: "s" });
+    await alice.setPin(groupId, pinBy(key(carol)));
+    await carol.setPin(groupId, { ...pinBy(key(carol)), by: "me" });
+    await bob.setPin(groupId, pinBy(key(carol)));
+    await alice.remove(groupId, key(carol)); await world.settle();
+    expect(alice.pinOf(groupId)).toBeUndefined();
+    expect(bob.pinOf(groupId)).toBeUndefined();
+    expect(world.peers.get("alice")!.store.groups.get(groupId)!.pin).toBeUndefined();
+
+    // Mine, or a member's still in the group, stays.
+    await alice.setPin(groupId, { ...pinBy(key(bob)), n: Date.now() + 1 });
+    await bob.setPin(groupId, { ...pinBy(key(alice)), by: key(alice), k: key(alice), n: Date.now() + 1 });
+    await alice.rotate(groupId); await world.settle();
+    expect(alice.pinOf(groupId)?.by).toBe(key(bob));
+    expect(bob.pinOf(groupId)?.by).toBe(key(alice));
+  });
+
+  it("only the admin removes, rotates, hands over the role or invites; nobody removes a stranger", async () => {
+    const { alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    await expect(bob.remove(groupId, key(alice))).rejects.toThrow(/Only the admin/);
+    await expect(bob.rotate(groupId)).rejects.toThrow(/Only the admin/);
+    await expect(bob.makeAdmin(groupId, key(bob))).rejects.toThrow(/Only the admin/);
+    await expect(alice.remove(groupId, createIdentity().pubKeyZ32)).rejects.toThrow(/Not a member/);
+    await expect(alice.remove("no-such-group", key(bob))).rejects.toThrow(/Group not found/);
+    expect(view(alice, groupId).members).toHaveLength(2);
+  });
+
+  it("a rotation starts a fresh epoch every member reads, and says so", async () => {
+    const { world, alice, others: [bob], groupId } = await groupOf(["bob"]);
+    expect(view(bob, groupId).epoch).toBe(1);
+    await alice.rotate(groupId); await world.settle();
+    expect(view(alice, groupId).epoch).toBe(2);
+    expect(view(bob, groupId)).toMatchObject({ epoch: 2, canSend: true });
+    expect(world.events("alice")).toContain("rotated");
+    expect(world.events("bob")).toContain("rotated");
+    expect(await bob.send(groupId, "fresh keys")).toEqual({ error: null, messageId: expect.any(String) });
+    await world.settle();
+    expect(world.texts("alice")).toContain("fresh keys");
+  });
+
+  it("one admin: handing the role over makes the other member the only admin, and the old one a member who can go", async () => {
+    const { world, alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    await alice.makeAdmin(groupId, key(bob)); await world.settle();
+    expect(view(alice, groupId).isAdmin).toBe(false);
+    expect(view(bob, groupId).isAdmin).toBe(true);
+    expect(view(bob, groupId).members.filter(m => m.role === "admin").map(m => m.key)).toEqual([key(bob)]);
+    const said = world.peers.get("bob")!.messages.filter(m => m.event === "admin").map(m => m.text);
+    expect(said).toEqual(["You are now the admin"]);
+    await expect(alice.invite(groupId, "chat-ab")).rejects.toThrow(/Only the admin/);
+    await alice.leave(groupId); await world.settle();
+    expect(alice.views().map(g => g.id)).not.toContain(groupId);
+    expect(view(bob, groupId).members.map(m => m.key)).toEqual([key(bob)]);
+  });
+
+  it("forgetting an admin's group with members is allowed: everything of it goes, edges included", async () => {
+    const { world, alice, groupId } = await groupOf(["bob"]);
+    await alice.forget(groupId);
+    expect(alice.views()).toEqual([]);
+    expect(world.peers.get("alice")!.edges.size).toBe(0);
+    expect(world.peers.get("alice")!.store.groups.size).toBe(0);
+    expect(await alice.send(groupId, "anyone?")).toEqual({ error: "You are not in this group yet" });
+  });
+});
+
+describe("invitations: what the admission exchange ignores", () => {
+  it("a group holds 32, and grows past eight only for apps that take it (revision 0.9)", async () => {
+    const world = new World();
+    const alice = world.add("alice");
+    await alice.load();
+    const groupId = await alice.create("Ghosts", "mesh");
+    for (let i = 0; i < 7; i++) { world.chats.set(`chat-${i}`, ["alice", `p${i}`]); await world.add(`p${i}`).load(); await alice.invite(groupId, `chat-${i}`); }
+    // The ninth member's app announced groups up to version 2: it would refuse a roster of nine as malformed.
+    world.chats.set("chat-old", ["alice", "old"]); world.add("old"); world.oldChats.add("chat-old");
+    await expect(alice.invite(groupId, "chat-old")).rejects.toThrow(/groups of 8 at most/);
+    for (let i = 7; i < 31; i++) { world.chats.set(`chat-${i}`, ["alice", `p${i}`]); world.add(`p${i}`); await alice.invite(groupId, `chat-${i}`); }
+    expect(view(alice).invited).toHaveLength(31);
+    world.chats.set("chat-31", ["alice", "p31"]); world.add("p31");
+    await expect(alice.invite(groupId, "chat-31")).rejects.toThrow(/32 members at most/);
+  });
+
+  it("on a device where managing the group is off, Invite is refused with the reason: nothing goes to the contact", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    // A restore or a forced takeover: node.ts turns adminWork off for the group, as Remove and Rotate are told.
+    world.peers.get("alice")!.host.adminWork = () => false;
+    await expect(alice.invite(groupId, "chat-ab")).rejects.toThrow("Managing this group is off on this device. Turn on Manage groups from this device first.");
+    await world.settle();
+    expect(bob.views()).toEqual([]);
+    expect(view(alice).invited).toEqual([]);
+  });
+
+  it("a declined invitation leaves the admin's pending list, and the invitee keeps nothing", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    expect(view(alice).invited).toEqual(["chat-ab"]);
+    await expect(bob.accept("unknown")).rejects.toThrow(/No invitation/);
+    await expect(bob.decline("unknown")).rejects.toThrow(/No invitation/);
+    expect(await bob.send(groupId, "hi")).toEqual({ error: "You are not in this group yet" });
+    await bob.decline(groupId); await world.settle();
+    expect(bob.views()).toEqual([]);
+    expect(view(alice).invited).toEqual([]);
+  });
+
+  it("a Decline while the inviter's chat is down is kept, and said when that chat is next up", async () => {
+    const world = new World();
+    let alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    // Alice closes her app: the chat is down when Bob answers.
+    world.chats.delete("chat-ab");
+    await bob.decline(groupId); await world.settle();
+    expect(bob.views()).toEqual([]);
+    const now = Date.now();
+    await bob.tick(now + 60_000); await world.settle();
+    // Both apps start again, and the chat comes up: the admin hears the answer and may invite again.
+    alice = await world.restart("alice"); bob = await world.restart("bob");
+    expect(view(alice, groupId).invited).toEqual(["chat-ab"]);
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    await bob.tick(now + 30 * 60_000); await world.settle();
+    expect(view(alice, groupId).invited).toEqual([]);
+    expect(bob.views()).toEqual([]);
+    // Said once: nothing of the invitation is kept after.
+    expect(world.peers.get("bob")!.store.groups.size).toBe(0);
+    const sent = vi.spyOn((bob as unknown as { host: GroupsHost }).host, "sendOnLink");
+    await bob.tick(now + 31 * 60_000);
+    expect(sent).not.toHaveBeenCalled();
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    expect(view(bob, groupId).invitation).toBeDefined();
+  });
+
+  it("a Decline nobody could be told is dropped after a week, and gives way to the next invitation", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob"), carol = world.add("carol");
+    world.chats.set("chat-ab", ["alice", "bob"]); world.chats.set("chat-cb", ["carol", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh"), other = await carol.create("Hosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await carol.invite(other, "chat-cb"); await world.settle();
+    world.chats.delete("chat-ab"); world.chats.delete("chat-cb");
+    await bob.decline(groupId); await bob.decline(other);
+    expect(world.peers.get("bob")!.store.groups.size).toBe(2);
+    // Carol invites again before Bob's answer went: the invitation waits as any other, and no old answer follows it.
+    world.chats.set("chat-cb", ["carol", "bob"]);
+    await carol.invite(other, "chat-cb"); await world.settle();
+    expect(view(bob, other).invitation).toBeDefined();
+    const now = Date.now();
+    await bob.tick(now + 1000); await world.settle();
+    expect(view(carol, other).invited).toEqual(["chat-cb"]);
+    // Alice's chat stays down for more than a week: the answer is dropped, unsaid.
+    await bob.tick(now + 8 * 24 * 60 * 60_000);
+    expect([...world.peers.get("bob")!.store.groups.keys()]).toEqual([other]);
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    await bob.tick(now + 8 * 24 * 60 * 60_000 + 1000); await world.settle();
+    expect(view(alice, groupId).invited).toEqual(["chat-ab"]);
+  });
+
+  it("a member removed and invited again who declines while the inviter's chat is down keeps the group, and says it later", async () => {
+    const { world, alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    await alice.remove(groupId, key(bob)); await world.settle();
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    world.chats.delete("chat-ab");
+    await bob.decline(groupId); await world.settle();
+    expect(view(bob, groupId)).toMatchObject({ status: "removed", canSend: false });
+    expect(view(alice, groupId).invited).toEqual(["chat-ab"]);
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    await bob.tick(Date.now() + 1000); await world.settle();
+    expect(view(alice, groupId).invited).toEqual([]);
+    // The removed group stays as it was, with nothing left to say.
+    expect(view(bob, groupId)).toMatchObject({ status: "removed" });
+    expect(world.peers.get("bob")!.store.groups.get(groupId)).not.toHaveProperty("declined");
+  });
+
+  it("an invitation deleted from this device is declined: the admin's row is no longer Invited…", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    await bob.forget(groupId); await world.settle();
+    expect(bob.views()).toEqual([]);
+    expect(view(alice, groupId).invited).toEqual([]);
+    expect(world.peers.get("bob")!.store.groups.size).toBe(0);
+    // Deleted while the inviter's chat is down: said when it is next up, as a Decline is.
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    world.chats.delete("chat-ab");
+    await bob.forget(groupId); await world.settle();
+    expect(bob.views()).toEqual([]);
+    expect(view(alice, groupId).invited).toEqual(["chat-ab"]);
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    await bob.tick(Date.now() + 1000); await world.settle();
+    expect(view(alice, groupId).invited).toEqual([]);
+    expect(world.peers.get("bob")!.store.groups.size).toBe(0);
+    // One accepted that the admin never heard, then deleted: the admin stops waiting too.
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    await bob.accept(groupId); world.drop();
+    await bob.forget(groupId); await world.settle();
+    expect(view(alice, groupId)).toMatchObject({ invited: [], members: [expect.anything()] });
+    // One its inviter takes back goes without an answer: nobody is waiting for one.
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    const sent = vi.spyOn((bob as unknown as { host: GroupsHost }).host, "sendOnLink");
+    await bob.handleContactFrame("chat-ab", { t: "group-decline", g: groupId });
+    expect(takenBack(bob)).toBe(true);
+    expect(sent).not.toHaveBeenCalled();
+  });
+
+  it("deleting a removed group that was invited again declines the invitation and keeps nothing of the group", async () => {
+    const { world, alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    await alice.remove(groupId, key(bob)); await world.settle();
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    await bob.forget(groupId); await world.settle();
+    expect(bob.views()).toEqual([]);
+    expect(world.peers.get("bob")!.store.groups.size).toBe(0);
+    expect(view(alice, groupId).invited).toEqual([]);
+  });
+
+  it("an invitation its inviter takes back says so in the list, accepted or not, and goes after a week; nobody else's word takes it", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob"), carol = world.add("carol");
+    world.chats.set("chat-ab", ["alice", "bob"]); world.chats.set("chat-bc", ["bob", "carol"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    // Another contact's chat, and an entry session's id, say nothing about Alice's invitation.
+    await bob.handleContactFrame("chat-bc", { t: "group-decline", g: groupId });
+    expect(view(bob, groupId).invitation).toMatchObject({ linkId: "chat-ab", accepted: false });
+    await bob.handleContactFrame("chat-ab", { t: "group-decline", g: groupId });
+    expect(takenBack(bob)).toBe(true);
+    expect(world.peers.get("bob")!.store.groups.size).toBe(1);
+    // Accepted and never answered: the row said "Joining…" for good. Taken back, it goes too, and no accept follows.
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    await bob.accept(groupId); world.drop();
+    expect(view(bob, groupId).invitation).toMatchObject({ accepted: true });
+    await bob.handleContactFrame("chat-ab", { t: "group-decline", g: groupId });
+    expect(takenBack(bob)).toBe(true);
+    const sent = vi.spyOn((bob as unknown as { host: GroupsHost }).host, "sendOnLink");
+    await bob.tick(Date.now() + 120_000);
+    expect(sent).not.toHaveBeenCalled();
+    // Nothing to accept; kept through a restart; another contact's invitation to the group takes its place.
+    await expect(bob.accept(groupId)).rejects.toThrow("taken back");
+    const again = await world.restart("bob");
+    expect(takenBack(again)).toBe(true);
+    await again.handleContactFrame("chat-bc", { t: "group-invite", g: groupId, admin: view(alice, groupId).myKey!, name: "Ghosts", e: 0, n: 2 });
+    expect(view(again, groupId).invitation).toMatchObject({ linkId: "chat-bc", accepted: false });
+    expect(view(again, groupId).invitation!.takenBack).toBeUndefined();
+    // Taken back again, then a week: it goes, and deleting it said nothing to anyone.
+    await again.handleContactFrame("chat-bc", { t: "group-decline", g: groupId });
+    expect(takenBack(again)).toBe(true);
+    await again.tick(Date.now() + 8 * 24 * 60 * 60_000);
+    expect(again.views()).toEqual([]);
+    expect(world.peers.get("bob")!.store.groups.size).toBe(0);
+  });
+
+  it("an invitation taken back from a member removed and invited again leaves the group it kept", async () => {
+    const { world, alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    await alice.remove(groupId, key(bob)); await world.settle();
+    expect(view(bob, groupId).status).toBe("removed");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    expect(view(bob, groupId).invitation).toBeDefined();
+    await bob.handleContactFrame("chat-ab", { t: "group-decline", g: groupId });
+    expect(view(bob, groupId)).toMatchObject({ status: "removed" });
+    expect(view(bob, groupId).invitation).toBeUndefined();
+  });
+
+  it("an accept the inviter's app cannot honour is refused, and the invitation says it was taken back: the group deleted, the role handed on", async () => {
+    // Deleted (alone in it) before the answer: the invitation outlived its group.
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const gone = await alice.create("Ghosts", "mesh");
+    await alice.invite(gone, "chat-ab"); await world.settle();
+    await alice.forget(gone); world.drop();
+    expect(view(bob, gone).invitation).toMatchObject({ accepted: false });
+    await bob.accept(gone); await world.settle();
+    expect(takenBack(bob)).toBe(true);
+
+    // The role handed on before the answer: the old admin can let nobody in, and the new one never invited this chat.
+    const { world: w, alice: admin, others: [next], groupId, key } = await groupOf(["bob"]);
+    const carol = w.add("carol");
+    w.chats.set("chat-ac", ["alice", "carol"]);
+    await admin.invite(groupId, "chat-ac"); await w.settle();
+    // Carol's chat is down while it happens: nothing reaches her before she answers.
+    w.chats.delete("chat-ac");
+    await admin.makeAdmin(groupId, key(next)); await w.settle();
+    w.chats.set("chat-ac", ["alice", "carol"]);
+    expect(view(carol, groupId).invitation).toMatchObject({ accepted: false });
+    await carol.accept(groupId); await w.settle();
+    expect(takenBack(carol)).toBe(true);
+    expect(view(admin, groupId).members).toHaveLength(2);
+  });
+
+  it("an accept said twice by the member it let in is not refused; one for a group never heard of is", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    const sent = vi.spyOn((alice as unknown as { host: GroupsHost }).host, "sendOnLink");
+    const refusals = () => sent.mock.calls.filter(([, frame]) => (frame as { t?: string }).t === "group-decline").length;
+    await bob.accept(groupId);
+    const said = identityFromSeedB64(world.peers.get("bob")!.store.groups.get(groupId)!.invitation!.seedB64!).pubKeyZ32;
+    await world.settle(); await world.meet();
+    expect(view(bob, groupId).status).toBe("active");
+    await alice.handleContactFrame("chat-ab", { t: "group-accept", g: groupId, key: said });
+    expect(refusals()).toBe(0);
+    // Another key over the same chat, a malformed one, and a group this app does not hold.
+    await alice.handleContactFrame("chat-ab", { t: "group-accept", g: groupId, key: "nope" });
+    expect(refusals()).toBe(0);
+    await alice.handleContactFrame("chat-ab", { t: "group-accept", g: groupId, key: createIdentity().pubKeyZ32 });
+    expect(refusals()).toBe(1);
+    await alice.handleContactFrame("chat-ab", { t: "group-accept", g: "A".repeat(22), key: createIdentity().pubKeyZ32 });
+    expect(refusals()).toBe(2);
+    await world.settle();
+    expect(view(bob, groupId).status).toBe("active");
+    expect(view(alice, groupId).members).toHaveLength(2);
+  });
+
+  it("a member let in whose welcome was lost gets it again when its app says its accept again", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    // Bob's chat closes while Alice's app lets him in: the admission is saved, its welcome never reaches him.
+    const host = world.peers.get("alice")!.host, send = host.sendOnLink.bind(host);
+    const lost = vi.spyOn(host, "sendOnLink").mockImplementation((linkId, frame) => {
+      if ((frame as { t?: string }).t === "group-welcome" && lost.mock.calls.filter(([, f]) => (f as { t?: string }).t === "group-welcome").length === 1) return;
+      send(linkId, frame);
+    });
+    await bob.accept(groupId); await world.settle();
+    expect(view(alice, groupId).members).toHaveLength(2);
+    expect(view(bob, groupId).status).toBeUndefined();
+    // Alice's app opened its edge toward him; with nobody at the other end it is not up.
+    const bobKey = identityFromSeedB64(world.peers.get("bob")!.store.groups.get(groupId)!.invitation!.seedB64!).pubKeyZ32;
+    const edge = host.edges(groupId).get(bobKey);
+    const ready = host.linkReady.bind(host);
+    vi.spyOn(host, "linkReady").mockImplementation((linkId, version) => linkId !== edge && ready(linkId, version));
+
+    // His app says its accept again a minute later, as it does: this time the welcome comes.
+    await bob.tick(Date.now() + 61_000); await world.settle();
+    expect(view(bob, groupId).status).toBe("active");
+    expect(view(bob, groupId).members).toHaveLength(2);
+    expect(view(alice, groupId).members).toHaveLength(2);
+    // The same accept from a member whose edge is up is answered with nothing (it is in).
+    const welcomes = () => lost.mock.calls.filter(([, f]) => (f as { t?: string }).t === "group-welcome").length;
+    const before = welcomes();
+    vi.mocked(host.linkReady).mockImplementation(ready);
+    await alice.handleContactFrame("chat-ab", { t: "group-accept", g: groupId, key: bobKey });
+    expect(welcomes()).toBe(before);
+  });
+
+  it("an accept said over and over by a member let in whose edge is down gets its welcome again at most every half minute", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    await bob.accept(groupId); await world.settle();
+    expect(view(alice, groupId).members).toHaveLength(2);
+    // Bob's app keeps the edge Alice's app opens toward him down, and says its accept again and again.
+    const host = world.peers.get("alice")!.host;
+    const bobKey = Object.keys(world.peers.get("alice")!.store.groups.get(groupId)!.contacts!)[0];
+    const edge = host.edges(groupId).get(bobKey);
+    const ready = host.linkReady.bind(host);
+    vi.spyOn(host, "linkReady").mockImplementation((linkId, version) => linkId !== edge && ready(linkId, version));
+    const sent = vi.spyOn(host, "sendOnLink");
+    const welcomes = () => sent.mock.calls.filter(([, f]) => (f as { t?: string }).t === "group-welcome").length;
+    const now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    for (let i = 0; i < 20; i++) await alice.handleContactFrame("chat-ab", { t: "group-accept", g: groupId, key: bobKey });
+    expect(welcomes()).toBe(1);
+    clock.mockReturnValue(now + 29_000);
+    await alice.handleContactFrame("chat-ab", { t: "group-accept", g: groupId, key: bobKey });
+    expect(welcomes()).toBe(1);
+    // Its app says it again a minute later, as an honest one does: the welcome goes again.
+    clock.mockReturnValue(now + 60_000);
+    await alice.handleContactFrame("chat-ab", { t: "group-accept", g: groupId, key: bobKey });
+    expect(welcomes()).toBe(2);
+    clock.mockRestore();
+  });
+
+  it("a member let in whose welcome was lost and who then declines goes from the admin's roster, and may be invited again", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    const host = world.peers.get("alice")!.host, send = host.sendOnLink.bind(host);
+    const lost = vi.spyOn(host, "sendOnLink").mockImplementation((linkId, frame) => {
+      if ((frame as { t?: string }).t === "group-welcome") return;
+      send(linkId, frame);
+    });
+    await bob.accept(groupId); await world.settle();
+    const bobKey = identityFromSeedB64(world.peers.get("bob")!.store.groups.get(groupId)!.invitation!.seedB64!).pubKeyZ32;
+    const edge = host.edges(groupId).get(bobKey);
+    const ready = host.linkReady.bind(host);
+    vi.spyOn(host, "linkReady").mockImplementation((linkId, version) => linkId !== edge && ready(linkId, version));
+    expect(view(alice, groupId).members).toHaveLength(2);
+
+    // Bob taps Decline before his accept is answered again: he never had the group's keys, so he is not a member.
+    await bob.decline(groupId); await world.settle();
+    expect(bob.views()).toEqual([]);
+    expect(view(alice, groupId).members.map(m => m.key)).not.toContain(bobKey);
+    expect(world.peers.get("alice")!.store.groups.get(groupId)!.unseen).toBeUndefined();
+    // And he may be invited again.
+    lost.mockRestore(); vi.mocked(host.linkReady).mockImplementation(ready);
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    expect(view(bob, groupId).invitation).toBeDefined();
+  });
+
+  it("a member seen on an edge stays in the roster whatever its contact chat declines after", async () => {
+    const { world, alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    expect(world.peers.get("alice")!.store.groups.get(groupId)!.unseen).toBeUndefined();
+    const chat = world.peers.get("alice")!.store.groups.get(groupId)!.contacts![key(bob)];
+    await alice.handleContactFrame(chat, { t: "group-decline", g: groupId }); await world.settle();
+    expect(view(alice, groupId).members.map(m => m.key)).toContain(key(bob));
+  });
+
+  it("deleting or leaving a group, or handing its admin role on, takes back the invitations nobody answered", async () => {
+    // Deleted, alone in it.
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob"), dan = world.add("dan");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const gone = await alice.create("Ghosts", "mesh");
+    await alice.invite(gone, "chat-ab"); await world.settle();
+    expect(view(bob, gone).invitation).toBeDefined();
+    await alice.forget(gone); await world.settle();
+    expect(takenBack(bob)).toBe(true);
+    // Left, alone in it. A chat that is down is not told, and nothing is thrown for it.
+    world.chats.set("chat-ad", ["alice", "dan"]);
+    const left = await alice.create("Ghouls", "mesh");
+    await alice.invite(left, "chat-ab"); await alice.invite(left, "chat-ad"); await world.settle();
+    world.chats.delete("chat-ad");
+    await alice.leave(left); await world.settle();
+    expect(takenBack(bob)).toBe(true);
+    expect(view(dan, left).invitation).toBeDefined();
+
+    // The role handed on: the old admin's invitations go, here and at the invitee, and stay gone after a restart.
+    const { world: w, alice: admin, others: [next], groupId, key } = await groupOf(["bob"]);
+    const carol = w.add("carol"), erin = w.add("erin");
+    w.chats.set("chat-ac", ["alice", "carol"]); w.chats.set("chat-ae", ["alice", "erin"]);
+    await admin.invite(groupId, "chat-ac"); await w.settle();
+    await admin.makeAdmin(groupId, key(next)); await w.settle();
+    expect(takenBack(carol)).toBe(true);
+    expect(view(admin, groupId).invited).toEqual([]);
+    expect(w.peers.get("alice")!.store.groups.get(groupId)!.invited).toBeUndefined();
+    expect(view(await w.restart("alice"), groupId).invited).toEqual([]);
+
+    // Left with members in it: the role goes to one of them first, and the invitation is taken back all the same.
+    const { world: v, alice: leaver, groupId: kept } = await groupOf(["bob"]);
+    const frank = v.add("frank");
+    v.chats.set("chat-af", ["alice", "frank"]);
+    await leaver.invite(kept, "chat-af"); await v.settle();
+    await leaver.leave(kept); await v.settle();
+    expect(takenBack(frank)).toBe(true);
+    void erin;
+  });
+
+  it("accepting needs the inviter connected", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    world.chats.delete("chat-ab");
+    await expect(bob.accept(groupId)).rejects.toThrow(/not connected/);
+    expect(view(bob).invitation!.accepted).toBe(false);
+  });
+
+  it("an invitation accepted after the admin's app restarted lets the contact in", async () => {
+    const world = new World();
+    let alice = world.add("alice");
+    const bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    alice = await world.restart("alice");
+    expect(view(alice, groupId).invited).toEqual(["chat-ab"]);
+    await bob.accept(groupId); await world.settle(); await world.meet();
+    expect(view(bob, groupId).status).toBe("active");
+    expect(view(alice, groupId)).toMatchObject({ invited: [], members: [expect.anything(), expect.anything()] });
+    // Answered: a restart does not bring the invitation back.
+    alice = await world.restart("alice");
+    expect(view(alice, groupId).invited).toEqual([]);
+  });
+
+  it("an invitation nobody answered in a week stops counting as invited: the contact can be invited again", async () => {
+    const world = new World();
+    let alice = world.add("alice");
+    const bob = world.add("bob");
+    world.add("carol");
+    world.chats.set("chat-ab", ["alice", "bob"]); world.chats.set("chat-ac", ["alice", "carol"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    const day = 24 * 60 * 60_000, start = Date.now();
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    // Bob's answer never comes (his app sent none, or it was lost on the way).
+    await alice.tick(start + 6 * day);
+    expect(view(alice, groupId).invited).toEqual(["chat-ab"]);
+    // Carol is invited on the sixth day: her week starts then.
+    const clock = vi.spyOn(Date, "now").mockReturnValue(start + 6 * day);
+    await alice.invite(groupId, "chat-ac"); await world.settle();
+    clock.mockRestore();
+    await alice.tick(start + 8 * day);
+    expect(view(alice, groupId).invited).toEqual(["chat-ac"]);
+    expect(world.peers.get("alice")!.store.groups.get(groupId)!.invited).toEqual({ "chat-ac": start + 6 * day });
+    alice = await world.restart("alice");
+    expect(view(alice, groupId).invited).toEqual(["chat-ac"]);
+    // An accept that comes after the week lets nobody in, and is refused; invited again, Bob joins.
+    await bob.accept(groupId); await world.settle();
+    expect(view(alice, groupId).members).toHaveLength(1);
+    expect(takenBack(bob)).toBe(true);
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    expect(view(alice, groupId).invited).toEqual(["chat-ac", "chat-ab"]);
+    await bob.accept(groupId); await world.settle(); await world.meet();
+    expect(view(bob, groupId).status).toBe("active");
+    await alice.tick(start + 14 * day);
+    expect(view(alice, groupId)).toMatchObject({ invited: [], members: [expect.anything(), expect.anything()] });
+    expect(world.peers.get("alice")!.store.groups.get(groupId)!.invited).toBeUndefined();
+  });
+
+  it("an accept the admin's app never heard is said again, when the inviter's chat comes up and a few times while it is", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    const sent = vi.spyOn((bob as unknown as { host: GroupsHost }).host, "sendOnLink");
+    const accepts = () => sent.mock.calls.filter(([, frame]) => (frame as { t?: string }).t === "group-accept").length;
+    await bob.accept(groupId); world.drop();
+    const now = Date.now();
+    await bob.tick(now + 10_000); world.drop();
+    expect(accepts()).toBe(1);
+    // The chat goes down and comes up: said at once.
+    world.chats.delete("chat-ab"); await bob.tick(now + 20_000);
+    world.chats.set("chat-ab", ["alice", "bob"]); await bob.tick(now + 21_000); world.drop();
+    expect(accepts()).toBe(2);
+    // While it stays up, once a minute, a few times at most.
+    for (let i = 1; i <= 10; i++) { await bob.tick(now + 21_000 + i * 60_000); world.drop(); }
+    expect(accepts()).toBe(6);
+    expect(view(bob, groupId).status).toBeUndefined();
+    // Up again: heard this time, and nothing more is said once in.
+    world.chats.delete("chat-ab"); await bob.tick(now + 700_000);
+    world.chats.set("chat-ab", ["alice", "bob"]); await bob.tick(now + 701_000); await world.settle(); await world.meet();
+    expect(view(bob, groupId).status).toBe("active");
+    const before = accepts();
+    await bob.tick(now + 800_000);
+    expect(accepts()).toBe(before);
+  });
+
+  it("an accept said as often as it is, with the chat up and nothing back, offers the answer again", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    const emitted = vi.spyOn((bob as unknown as { host: GroupsHost }).host, "emit");
+    await bob.accept(groupId); world.drop();
+    const now = Date.now();
+    // An inviter's app from before answers nothing when it cannot let me in: every accept is lost here.
+    for (let i = 1; i <= 5; i++) { await bob.tick(now + i * 60_000); world.drop(); }
+    expect(view(bob, groupId).invitation).toMatchObject({ accepted: true });
+    expect(view(bob, groupId).invitation!.unanswered).toBeUndefined();
+    emitted.mockClear();
+    await bob.tick(now + 6 * 60_000); world.drop();
+    expect(view(bob, groupId).invitation).toMatchObject({ accepted: true, unanswered: true });
+    expect(emitted).toHaveBeenCalledTimes(1);
+    // It stays said while the chat is down and up again, and nothing is told twice.
+    world.chats.delete("chat-ab"); await bob.tick(now + 7 * 60_000);
+    world.chats.set("chat-ab", ["alice", "bob"]); await bob.tick(now + 8 * 60_000); world.drop();
+    expect(view(bob, groupId).invitation).toMatchObject({ unanswered: true });
+    expect(emitted).toHaveBeenCalledTimes(1);
+    // Accept again: joining once more, and this time the admin hears it.
+    await bob.accept(groupId);
+    expect(view(bob, groupId).invitation!.unanswered).toBeUndefined();
+    await world.settle(); await world.meet();
+    expect(view(bob, groupId).status).toBe("active");
+  });
+
+  it("a new invitation from the admin, on the same chat, replaces one accepted and never answered", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    await bob.accept(groupId); world.drop();
+    expect(view(bob, groupId).invitation).toMatchObject({ accepted: true });
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    expect(view(bob, groupId).invitation).toMatchObject({ linkId: "chat-ab", accepted: false });
+    await bob.accept(groupId); await world.settle(); await world.meet();
+    expect(view(bob, groupId).status).toBe("active");
+    expect(view(alice, groupId).members).toHaveLength(2);
+  });
+
+  it("ignores malformed invitations, a second invitation to a group it is in or joining, and more than 32 pending", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    const admin = view(alice).myKey!;
+    await bob.handleContactFrame("chat-ab", { t: "group-invite", g: "short", name: "x", admin });
+    await bob.handleContactFrame("chat-ab", { t: "group-invite", g: "A".repeat(22), name: "x", admin: "not a key" });
+    await bob.handleContactFrame("chat-ab", { t: "group-invite", g: "A".repeat(22), name: 7, admin });
+    expect(bob.views()).toEqual([]);
+
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    await bob.accept(groupId);
+    // Accepting: another invitation to the same group, even from someone else, does not replace it.
+    const intruder = createIdentity().pubKeyZ32;
+    await bob.handleContactFrame("chat-xb", { t: "group-invite", g: groupId, name: "Other", admin: intruder });
+    expect(view(bob).invitation).toMatchObject({ linkId: "chat-ab", admin, accepted: true });
+    await world.settle();
+    expect(view(bob).status).toBe("active");
+    await bob.handleContactFrame("chat-xb", { t: "group-invite", g: groupId, name: "Other", admin: intruder });
+    expect(view(bob)).toMatchObject({ status: "active", name: "Ghosts" });
+
+    const carol = world.add("carol");
+    const id = (i: number) => `${String(i).padStart(2, "0")}${"B".repeat(20)}`;
+    // More than 32 waiting, all chats together, are not kept.
+    for (let i = 0; i < 33; i++) await carol.handleContactFrame(`chat-${i >> 2}`, { t: "group-invite", g: id(i), name: `g${i}`, admin: intruder, e: 0, n: 1 });
+    expect(carol.views()).toHaveLength(32);
+    expect(carol.views().map(v => v.id)).not.toContain(id(32));
+    expect(carol.views()[0].invitation).toMatchObject({ admin: intruder, members: 1 });
+  });
+
+  it("one chat holds four invitations at a time: its next is answered as declined, and another contact's still arrives", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob"), carol = world.add("carol");
+    world.chats.set("chat-ab", ["alice", "bob"]); world.chats.set("chat-cb", ["carol", "bob"]);
+    const admin = createIdentity().pubKeyZ32;
+    const id = (i: number) => `${String(i).padStart(2, "0")}${"B".repeat(20)}`;
+    const declined: unknown[] = [];
+    const declines = vi.spyOn(carol, "handleContactFrame").mockImplementation(async (_link, frame) => { if (frame.t === "group-decline") declined.push(frame.g); });
+    for (let i = 0; i < 40; i++) await bob.handleContactFrame("chat-cb", { t: "group-invite", g: id(i), name: `g${i}`, admin, e: 0, n: 1 });
+    await world.settle();
+    expect(bob.views().map(v => v.id).sort()).toEqual([0, 1, 2, 3].map(id));
+    expect(declined).toEqual(Array.from({ length: 36 }, (_, i) => id(i + 4)));
+    declines.mockRestore();
+    // One of the four sent again replaces itself, and takes no room.
+    await bob.handleContactFrame("chat-cb", { t: "group-invite", g: id(3), name: "renamed", admin, e: 0, n: 1 });
+    expect(view(bob, id(3)).name).toBe("renamed");
+
+    // Another contact's invitation is unaffected, and can be accepted.
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    expect(view(bob, groupId).invitation).toMatchObject({ linkId: "chat-ab", accepted: false });
+    await bob.accept(groupId); await world.settle();
+    expect(view(bob, groupId).status).toBe("active");
+
+    // An answered one frees its place.
+    await bob.decline(id(0));
+    await bob.handleContactFrame("chat-cb", { t: "group-invite", g: id(9), name: "g9", admin, e: 0, n: 1 });
+    expect(bob.views().map(v => v.id)).toContain(id(9));
+  });
+
+  it("one chat keeps its four newest invitations taken back: an invite and take-back sent over and over does not grow the list", async () => {
+    const world = new World();
+    const bob = world.add("bob");
+    const admin = createIdentity().pubKeyZ32;
+    const id = (i: number) => `${String(i).padStart(3, "0")}${"C".repeat(19)}`;
+    const sent = vi.spyOn((bob as unknown as { host: GroupsHost }).host, "sendOnLink");
+    for (let i = 0; i < 50; i++) {
+      await bob.handleContactFrame("chat-mb", { t: "group-invite", g: id(i), name: `Free coins ${i}`, admin, e: 0, n: 1 });
+      await bob.handleContactFrame("chat-mb", { t: "group-decline", g: id(i) });
+    }
+    // The newest four stay, marked; the older ones go without a word to anyone.
+    expect(bob.views().map(v => v.id).sort()).toEqual([46, 47, 48, 49].map(id));
+    expect(takenBack(bob)).toBe(true);
+    expect([...world.peers.get("bob")!.store.groups.keys()].sort()).toEqual([46, 47, 48, 49].map(id));
+    expect(sent).not.toHaveBeenCalled();
+    // Another contact's taken-back invitation is not one of that chat's.
+    await bob.handleContactFrame("chat-xb", { t: "group-invite", g: "X".repeat(22), name: "Ghosts", admin, e: 0, n: 1 });
+    await bob.handleContactFrame("chat-xb", { t: "group-decline", g: "X".repeat(22) });
+    await bob.handleContactFrame("chat-mb", { t: "group-invite", g: id(50), name: "Free coins 50", admin, e: 0, n: 1 });
+    await bob.handleContactFrame("chat-mb", { t: "group-decline", g: id(50) });
+    expect(bob.views().map(v => v.id).sort()).toEqual([...[47, 48, 49, 50].map(id), "X".repeat(22)]);
+  });
+
+  it("an invitation sent again under an id taken back counts toward its chat's four, its own chat's or another's", async () => {
+    const world = new World();
+    const bob = world.add("bob");
+    const admin = createIdentity().pubKeyZ32;
+    const id = (i: number) => `${String(i).padStart(2, "0")}${"D".repeat(20)}`;
+    const invite = (link: string, i: number) => bob.handleContactFrame(link, { t: "group-invite", g: id(i), name: `g${i}`, admin, e: 0, n: 1 });
+    const sent = vi.spyOn((bob as unknown as { host: GroupsHost }).host, "sendOnLink");
+    const waiting = (link: string) => bob.views().filter(v => v.invitation?.linkId === link && !v.invitation.takenBack).map(v => v.id).sort();
+    for (let i = 0; i < 4; i++) await invite("chat-cb", i);
+    for (let i = 0; i < 4; i++) await bob.handleContactFrame("chat-cb", { t: "group-decline", g: id(i) });
+    for (let i = 4; i < 8; i++) await invite("chat-cb", i);
+    // The four taken back, invited again: past the four waiting, each is answered as declined and keeps its mark.
+    for (let i = 0; i < 4; i++) await invite("chat-cb", i);
+    expect(waiting("chat-cb")).toEqual([4, 5, 6, 7].map(id));
+    expect(sent.mock.calls.map(([link, frame]) => [link, frame.g, frame.t])).toEqual([0, 1, 2, 3].map(i => ["chat-cb", id(i), "group-decline"]));
+    expect(bob.views().filter(v => v.invitation?.takenBack).map(v => v.id).sort()).toEqual([0, 1, 2, 3].map(id));
+    // Another chat's taken-back id is no way past it either.
+    await invite("chat-xb", 10);
+    await bob.handleContactFrame("chat-xb", { t: "group-decline", g: id(10) });
+    await invite("chat-cb", 10);
+    expect(waiting("chat-cb")).toEqual([4, 5, 6, 7].map(id));
+    expect(view(bob, id(10)).invitation).toMatchObject({ linkId: "chat-xb", takenBack: true });
+    // One of the four waiting, sent again, still replaces itself.
+    await bob.handleContactFrame("chat-cb", { t: "group-invite", g: id(5), name: "renamed", admin, e: 0, n: 1 });
+    expect(view(bob, id(5)).name).toBe("renamed");
+    // Once one is answered, an id taken back takes its place.
+    await bob.decline(id(4));
+    await invite("chat-cb", 0);
+    expect(waiting("chat-cb")).toEqual([0, 5, 6, 7].map(id));
+  });
+
+  it("an invitation's member count and epoch are kept within what a group can be", async () => {
+    const world = new World();
+    const bob = world.add("bob");
+    const admin = createIdentity().pubKeyZ32;
+    const id = (i: number) => `${String(i).padStart(2, "0")}${"B".repeat(20)}`;
+    const claims = [{ n: -7, e: -3 }, { n: Number.MAX_SAFE_INTEGER, e: 2 }, { n: 0 }, { n: 1.5, e: "x" }, { n: 12, e: 5 }];
+    for (const [i, claim] of claims.entries()) await bob.handleContactFrame(`chat-${i}`, { t: "group-invite", g: id(i), name: `g${i}`, admin, ...claim });
+    expect(claims.map((_, i) => view(bob, id(i)).invitation!.members)).toEqual([1, 32, 1, 1, 12]);
+    expect(claims.map((_, i) => world.peers.get("bob")!.store.groups.get(id(i))!.invitation)).toMatchObject([{ n: 1, e: 0 }, { n: 32, e: 2 }, { n: 1, e: 0 }, { n: 1, e: 0 }, { n: 12, e: 5 }]);
+  });
+
+  it("an invitation waiting for an answer is not replaced by another contact's under the same id", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    const admin = view(alice).myKey!;
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    // Another contact names the same id, with a key of its own or with the admin's: the first invitation stays.
+    await bob.handleContactFrame("chat-xb", { t: "group-invite", g: groupId, name: "Ghosts", admin: createIdentity().pubKeyZ32, e: 0, n: 3 });
+    await bob.handleContactFrame("chat-xb", { t: "group-invite", g: groupId, name: "Ghosts", admin, e: 0, n: 3 });
+    expect(view(bob).invitation).toMatchObject({ linkId: "chat-ab", admin, members: 1, accepted: false });
+    // The contact that sent it may send it again (renamed since, say).
+    await bob.handleContactFrame("chat-ab", { t: "group-invite", g: groupId, name: "Ghosts 2", admin, e: 0, n: 1 });
+    expect(view(bob)).toMatchObject({ name: "Ghosts 2", invitation: { linkId: "chat-ab", admin } });
+    // Accept goes to the admin that invited, who lets Bob in.
+    await bob.accept(groupId); await world.settle();
+    expect(view(bob).status).toBe("active");
+    expect(view(alice).invited).toEqual([]);
+    expect(view(alice).members).toHaveLength(2);
+  });
+
+  it("an invitation's name shows cleaned: no invisible, direction-changing or line-breaking text", async () => {
+    const world = new World();
+    const bob = world.add("bob");
+    const admin = createIdentity().pubKeyZ32;
+    await bob.handleContactFrame("chat-xb", { t: "group-invite", g: "A".repeat(22), name: "Admin‮​\n\nsays", admin, e: 0, n: 1 });
+    await bob.handleContactFrame("chat-xb", { t: "group-invite", g: "B".repeat(22), name: "⁦​", admin, e: 0, n: 1 });
+    expect(bob.views().map(v => v.name).sort()).toEqual(["Admin says", "Group"]);
+  });
+
+  it("an accept from a chat that was not invited, or with a malformed key, admits nobody", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.handleContactFrame("chat-ab", { t: "group-accept", g: groupId, key: createIdentity().pubKeyZ32 });
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    await alice.handleContactFrame("chat-ab", { t: "group-accept", g: groupId, key: "nope" });
+    await world.settle();
+    expect(view(alice).members).toHaveLength(1);
+    void bob;
+  });
+
+  it("an accept naming a key already in the roster, or the admin's own, changes nothing about that member", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob"), carol = world.add("carol");
+    world.chats.set("chat-ab", ["alice", "bob"]); world.chats.set("chat-ac", ["alice", "carol"]);
+    // Carol's app announced groups up to version 2 (rosters of eight); Bob's takes larger ones.
+    world.oldChats.add("chat-ac");
+    for (const g of [alice, bob, carol]) await g.load();
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ac"); await world.settle();
+    await carol.accept(groupId); await world.settle();
+    const carolKey = view(carol, groupId).myKey!, aliceKey = view(alice, groupId).myKey!;
+    const stored = () => world.peers.get("alice")!.store.groups.get(groupId)!;
+    const nameOf = (key: string) => view(alice, groupId).members!.find(m => m.key === key)?.nick;
+    expect(nameOf(carolKey)).toBe("contact:chat-ac");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    for (const key of [carolKey, aliceKey]) await alice.handleContactFrame("chat-ab", { t: "group-accept", g: groupId, key });
+    await world.settle();
+    expect(nameOf(carolKey)).toBe("contact:chat-ac");
+    expect(stored().state!.nicks).toEqual({ [carolKey]: "contact:chat-ac" });
+    expect(view(alice, groupId).members).toHaveLength(2);
+    expect(view(alice, groupId).invited).toHaveLength(1);
+    // Bob's own accept still lets him in, and only his app is recorded as taking a larger roster.
+    await bob.accept(groupId); await world.settle();
+    expect(view(alice, groupId).members).toHaveLength(3);
+    expect(nameOf(carolKey)).toBe("contact:chat-ac");
+    expect(stored().large).toEqual([view(bob, groupId).myKey]);
+  });
+
+  it("chain pieces from another chat or beyond the limit, and a broken welcome, do not spoil the real welcome", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    await bob.accept(groupId);
+    // The accept is on its way; before the welcome comes back, junk arrives.
+    await bob.handleContactFrame("chat-xb", { t: "group-chain", g: groupId, commits: [{ junk: true }] });
+    await bob.handleContactFrame("chat-ab", { t: "group-chain", g: groupId, commits: Array.from({ length: 1025 }, () => ({ junk: true })) });
+    await bob.handleContactFrame("chat-ab", { t: "group-chain", g: groupId, commits: "not a list" });
+    await bob.handleContactFrame("chat-ab", { t: "group-welcome", g: groupId, commits: [], secrets: [] });
+    expect(view(bob).invitation).toMatchObject({ accepted: true });
+    await bob.handleContactFrame("chat-xb", { t: "group-welcome", g: groupId, commits: [], secrets: [] });
+    await world.settle();
+    expect(view(bob)).toMatchObject({ status: "active", epoch: 1 });
+  });
+
+  it("chain pieces waiting for the welcome are kept only as commits of that group, so they stay small", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    await bob.accept(groupId);
+    const held = () => (bob as unknown as { stored: Map<string, StoredGroup> }).stored.get(groupId)!.invitation!.pieces;
+    const big = "x".repeat(61_240);
+    for (let i = 0; i < 1100; i++) await bob.handleContactFrame("chat-ab", { t: "group-chain", g: groupId, commits: [big] });
+    expect(held()).toEqual([]);
+    const genesis = world.peers.get("alice")!.store.groups.get(groupId)!.state!.chain[0];
+    await bob.handleContactFrame("chat-ab", { t: "group-chain", g: groupId, commits: [{ ...genesis, g: "A".repeat(22) }] });
+    expect(held()).toEqual([]);
+    await bob.handleContactFrame("chat-ab", { t: "group-chain", g: groupId, commits: [{ ...genesis, pad: big }] });
+    expect(held()).toEqual([{ t: "group-chain", g: groupId, commits: [genesis] }]);
+    expect(JSON.stringify(held()).length).toBeLessThan(4096);
+  });
+
+  it("a removal notice from someone other than the admin's chat is ignored", async () => {
+    const { world, others: [bob, carol], groupId } = await groupOf(["bob", "carol"]);
+    world.chats.set("chat-bc", ["bob", "carol"]);
+    await carol.handleContactFrame("chat-bc", { t: "group-removed", g: groupId });
+    await carol.handleContactFrame("chat-ab", { t: "group-removed", g: "C".repeat(22) });
+    expect(view(carol, groupId).status).toBe("active");
+    void bob;
+  });
+
+  it("an edge coming up for someone not in the roster is not told anything; a nick from the edge names the member", async () => {
+    const { world, alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    const sent = vi.spyOn((alice as unknown as { host: GroupsHost }).host, "sendOnLink");
+    alice.edgeReady(groupId, createIdentity().pubKeyZ32, "edge:alice:nobody");
+    alice.edgeReady("unknown-group", key(bob), "edge:alice:nobody");
+    expect(sent).not.toHaveBeenCalled();
+    alice.edgeNick(groupId, key(bob), "Bobby");
+    await world.settle();
+    expect(view(alice, groupId).members.find(m => m.key === key(bob))!.nick).toBe("Bobby");
+  });
+});
+
+describe("the group's link: knocks, pending entries and refusals", () => {
+  const timings: EntryTimings = { pollMs: 1_000, warmPollMs: 1_000, warmMs: 0, knockMs: 2_000, slowKnockMs: 10_000, patienceMs: 30_000 };
+
+  it("the admin's app looks at the link often while it is being handed out or someone just knocked, and less once it is quiet", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t0 = Date.now();
+    const world = new World();
+    const alice = world.add("alice", { ...timings, pollMs: 5_000, warmPollMs: 2_000, warmMs: 60_000 });
+    const groupId = await alice.create("Ghosts", "mesh");
+    const code = await alice.enableLink(groupId);
+    const looks = () => world.resolves.get("alice") ?? 0;
+    await alice.tick(t0); expect(looks()).toBe(1);
+    await alice.tick(t0 + 1_999); expect(looks()).toBe(1);
+    await alice.tick(t0 + 2_000); expect(looks()).toBe(2); // warm: the link was just handed out
+    // Quiet for the warm minute: back to the slow pace.
+    await alice.tick(t0 + 60_000); expect(looks()).toBe(3);
+    await alice.tick(t0 + 62_000); expect(looks()).toBe(3);
+    await alice.tick(t0 + 65_000); expect(looks()).toBe(4);
+    // Someone knocks: warm again, for the ones who come after.
+    vi.setSystemTime(t0 + 66_000);
+    await world.add("dan").joinByLink(code); await flush();
+    await alice.tick(t0 + 70_000); await world.settle(); expect(looks()).toBe(5);
+    await alice.tick(t0 + 72_000); expect(looks()).toBe(6);
+    // Handing the link out again warms it too.
+    await alice.tick(t0 + 70_000 + 60_000); expect(looks()).toBe(7);
+    vi.setSystemTime(t0 + 131_000);
+    await alice.enableLink(groupId);
+    await alice.tick(t0 + 133_000); expect(looks()).toBe(8);
+  });
+
+  it("links nobody is using share one pace among the admin's groups, read in turn; a warm one keeps its own", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t0 = Date.now();
+    const world = new World();
+    const alice = world.add("alice", { ...timings, pollMs: 5_000, warmPollMs: 2_000, warmMs: 60_000 });
+    const groups = [await alice.create("One", "mesh"), await alice.create("Two", "mesh"), await alice.create("Three", "mesh")];
+    for (const groupId of groups) await alice.enableLink(groupId);
+    const looks = () => world.resolves.get("alice") ?? 0;
+    const minute = async (from: number) => { const before = looks(); for (let s = 0; s < 60; s++) await alice.tick(from + s * 1_000); return looks() - before; };
+    // Warm (just handed out): each link on its own, every 2 s.
+    expect(await minute(t0)).toBe(90);
+    // Quiet: three links share the 5 s pace, each every 15 s, as one link alone costs. Not 36 a minute for good.
+    expect(await minute(t0 + 120_000)).toBe(12);
+    // One handed out again is warm on its own; the two quiet ones keep the shared pace.
+    vi.setSystemTime(t0 + 180_000);
+    await alice.enableLink(groups[0]);
+    expect(await minute(t0 + 180_000)).toBe(30 + 12);
+  });
+
+  it("ten quiet links cost what one does, each read in turn: none waits more than ten turns", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t0 = Date.now();
+    const world = new World();
+    const alice = world.add("alice", { ...timings, pollMs: 5_000, warmPollMs: 2_000, warmMs: 60_000 });
+    const groups: string[] = [];
+    for (let i = 0; i < 10; i++) { groups.push(await alice.create(`G${i}`, "mesh")); await alice.enableLink(groups[i]); }
+    // Past the warm minute, ten quiet minutes.
+    const from = t0 + 120_000, to = from + 10 * 60_000;
+    for (let at = from; at < to; at += 1_000) { vi.setSystemTime(at); await alice.tick(at); }
+    const reads = world.reads.filter(r => r.name === "alice" && r.at >= from);
+    for (let m = 0; m < 10; m++) expect(reads.filter(r => r.at >= from + m * 60_000 && r.at < from + (m + 1) * 60_000).length).toBeLessThanOrEqual(13);
+    const byKey = new Map<string, typeof reads>();
+    for (const r of reads) byKey.set(r.key, [...byKey.get(r.key) ?? [], r]);
+    // Every link's knock record is read, and none waits more than its turn among the ten (10 × 5 s), the first one past.
+    expect(byKey.size).toBe(10);
+    for (const list of byKey.values()) {
+      expect(list[0].at - from).toBeLessThanOrEqual(50_000);
+      for (let i = 1; i < list.length; i++) expect(list[i].at - list[i - 1].at).toBeLessThanOrEqual(50_000);
+    }
+  });
+
+  it("a knock read the relays' budget held back is no reading: the link is read again as soon as the hold ends", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t0 = Date.now();
+    const world = new World();
+    const alice = world.add("alice", { ...timings, pollMs: 5_000, warmPollMs: 2_000, warmMs: 60_000 });
+    const groupId = await alice.create("Ghosts", "mesh");
+    const code = await alice.enableLink(groupId);
+    const knockKey = knockIdentity(decodeGroupEntryLink(code)!).pubKeyZ32;
+    await alice.tick(t0);
+    // The admissions just before spent the admin's relay minute: its reads of the link are held back for 10.5 s.
+    world.holds.set(`alice:${knockKey}`, t0 + 10_500);
+    vi.setSystemTime(t0 + 1_000);
+    await world.add("dan").joinByLink(code); await flush();
+    let seen: number | undefined;
+    for (let at = t0 + 1_000; at <= t0 + 30_000 && seen === undefined; at += 1_000) {
+      vi.setSystemTime(at); await alice.tick(at); await world.settle();
+      if (world.peers.get("alice")!.entries.size) seen = at;
+    }
+    // At the first tick past the hold, not the warm pace's turn after the last held read (t0 + 12 s).
+    expect(seen).toBe(t0 + 11_000);
+  });
+
+  it("a quiet link whose read was held back keeps its place among the admin's links: it is read first once the hold ends", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t0 = Date.now();
+    const world = new World();
+    const alice = world.add("alice", { ...timings, pollMs: 5_000, warmPollMs: 2_000, warmMs: 60_000 });
+    const codes: string[] = [];
+    for (const name of ["One", "Two", "Three"]) codes.push(await alice.enableLink(await alice.create(name, "mesh")));
+    const key = knockIdentity(decodeGroupEntryLink(codes[0])!).pubKeyZ32;
+    const readOf = (since: number) => world.reads.find(r => r.name === "alice" && r.key === key && r.at >= since);
+    // Past the warm minute: the three links share the 5 s pace, each read every 15 s.
+    let at = t0 + 120_000;
+    for (; !readOf(t0 + 120_000); at += 1_000) { vi.setSystemTime(at); await alice.tick(at); }
+    const read = readOf(t0 + 120_000)!.at, holdEnd = read + 20_000;
+    // Its next turn (15 s on) falls in a hold of the relays' budget; someone knocks meanwhile.
+    world.holds.set(`alice:${key}`, holdEnd);
+    vi.setSystemTime(read + 1_000);
+    await world.add("dan").joinByLink(codes[0]); await flush();
+    let seen: number | undefined;
+    for (at = read + 1_000; at <= read + 60_000 && seen === undefined; at += 1_000) {
+      vi.setSystemTime(at); await alice.tick(at); await world.settle();
+      if (world.peers.get("alice")!.entries.size) seen = at;
+    }
+    // The held read took no turn: the link is the next one read, at the hold's end, not two turns (10 s) later.
+    expect(world.reads.find(r => r.name === "alice" && r.at >= holdEnd)?.key).toBe(key);
+    expect(seen).toBe(holdEnd);
+  });
+
+  it("a joiner whose link's record holds others' fresh knocks is told the admin's app may be busy with them, until they age", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t0 = Date.now();
+    const world = new World();
+    const alice = world.add("alice", timings);
+    const code = await alice.enableLink(await alice.create("Ghosts", "mesh"));
+    const dan = world.add("dan", timings), erin = world.add("erin", timings);
+    await dan.joinByLink(code); await flush();
+    // Alone in the record: the admin's app is the one to open.
+    expect(view(dan).invitation).toMatchObject({ stage: "knocked" });
+    expect(view(dan).invitation?.othersKnocked).toBeUndefined();
+    vi.setSystemTime(t0 + 1_000);
+    await erin.joinByLink(code); await flush();
+    expect(view(erin).invitation?.othersKnocked).toBe(true);
+    // Dan's next knock reads Erin's.
+    vi.setSystemTime(t0 + 3_000); await dan.tick(t0 + 3_000);
+    expect(view(dan).invitation?.othersKnocked).toBe(true);
+    // Erin's knock not written again (she got in, or left) for longer than a waiting joiner lets it age: no one else waits.
+    const later = t0 + 1_000 + KNOCK_REFRESH_MS + timings.knockMs;
+    vi.setSystemTime(later); await dan.tick(later);
+    expect(view(dan).invitation?.othersKnocked).toBeUndefined();
+  });
+
+  it("a joiner let in takes its knock out of the link's record: the next one is not told others knocked", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const world = new World();
+    const alice = world.add("alice", timings);
+    const groupId = await alice.create("Ghosts", "mesh");
+    const code = await alice.enableLink(groupId);
+    const link = decodeGroupEntryLink(code)!, knockKey = knockIdentity(link).pubKeyZ32;
+    const erin = world.add("erin", timings);
+    await erin.joinByLink(code); await flush();
+    for (let i = 0; i < 6 && view(erin, groupId)?.status !== "active"; i++) {
+      vi.setSystemTime(Date.now() + 2_000);
+      await alice.tick(Date.now()); await erin.tick(Date.now()); await world.settle(); await world.meetEntries(); await world.meet();
+    }
+    expect(view(erin, groupId).status).toBe("active");
+    await world.settle();
+    expect(readKnocks(link, world.pkarr.get(knockKey) ?? [])).toEqual([]);
+    // Dan opens the link a moment after: nobody is waiting, so the admin's app is the one to open.
+    const dan = world.add("dan", timings);
+    await dan.joinByLink(code); await flush();
+    expect(view(dan, groupId).invitation).toMatchObject({ stage: "knocked" });
+    expect(view(dan, groupId).invitation?.othersKnocked).toBeUndefined();
+  });
+
+  it("a link just handed out is looked at fast for a minute, as a community's door, not for ten", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t0 = Date.now();
+    const world = new World();
+    const alice = world.add("alice");
+    const groupId = await alice.create("Ghosts", "mesh");
+    await alice.enableLink(groupId);
+    const looks = () => world.resolves.get("alice") ?? 0;
+    for (let t = 0; t < 60_000; t += 1_000) await alice.tick(t0 + t);
+    expect(looks()).toBe(30); // every 2 s
+    // Nobody came in the minute: every 5 s for the nine after, 12 a minute, not 30 a minute.
+    for (let t = 60_000; t < 10 * 60_000; t += 1_000) await alice.tick(t0 + t);
+    expect(looks() - 30).toBe(108);
+  });
+
+  it("a joiner knocks at its pace, slower once it has waited long, and not while its entry session is up", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t0 = Date.now();
+    const world = new World();
+    const alice = world.add("alice"), dan = world.add("dan", timings);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await dan.joinByLink(await alice.enableLink(groupId)); await flush();
+    // A knock is a look at the record, and a write only when the joiner's entry is gone from it or old.
+    const looks = () => world.resolves.get("dan") ?? 0;
+    expect([looks(), world.publishes]).toEqual([1, 1]);
+    // Read back a moment after it was written (another joiner's write may have replaced it): it is there.
+    await dan.tick(t0 + 1_600);
+    expect([looks(), world.publishes]).toEqual([2, 1]);
+    await dan.tick(t0 + 2_000);
+    expect([looks(), world.publishes]).toEqual([2, 1]);
+    await dan.tick(t0 + 3_600);
+    expect([looks(), world.publishes]).toEqual([3, 1]);
+    // Thirty seconds old: written again. Patience ran out: not read back, and every ten seconds now.
+    await dan.tick(t0 + 40_000);
+    expect([looks(), world.publishes]).toEqual([4, 2]);
+    await dan.tick(t0 + 45_000);
+    expect([looks(), world.publishes]).toEqual([4, 2]);
+    await dan.tick(t0 + 50_000);
+    expect([looks(), world.publishes]).toEqual([5, 2]);
+    // Then less often the longer it waits: a fifth of the wait, 12.6 s at 63 s.
+    await dan.tick(t0 + 62_000);
+    expect(looks()).toBe(5);
+    await dan.tick(t0 + 63_000);
+    expect([looks(), world.publishes]).toEqual([6, 2]);
+    // The admin's app answers: a session is up, and knocking stops.
+    await alice.tick(t0 + 63_000); await world.settle();
+    await dan.tick(t0 + 90_000);
+    expect([looks(), world.publishes]).toEqual([6, 2]);
+  });
+
+  it("a joiner stops knocking as soon as the admin's side of the entry session is seen, before it is up", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t0 = Date.now();
+    const world = new World();
+    const alice = world.add("alice"), dan = world.add("dan", timings);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await dan.joinByLink(await alice.enableLink(groupId)); await flush();
+    const host = (dan as unknown as { host: GroupsHost }).host;
+    let seen = false;
+    host.linkSeen = () => seen;
+    host.linkReady = () => false;
+    const looks = () => world.resolves.get("dan") ?? 0;
+    await dan.tick(t0 + 2_000);
+    expect([looks(), world.publishes]).toEqual([2, 1]);
+    seen = true;
+    await dan.tick(t0 + 4_000); await dan.tick(t0 + 30_000);
+    expect([looks(), world.publishes]).toEqual([2, 1]);
+    // The admin's side went away (it gave up, or its app closed): knock again, and the knock, old by now, is written again.
+    seen = false;
+    await dan.tick(t0 + 32_000);
+    expect([looks(), world.publishes]).toEqual([3, 2]);
+  });
+
+  it("an admission that does not finish in time is dropped, and that key is answered again after 30 s, then a minute, doubling", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t0 = Date.now();
+    const world = new World();
+    const alice = world.add("alice", timings), dan = world.add("dan", timings);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await dan.joinByLink(await alice.enableLink(groupId)); await flush();
+    const hostEntries = () => [...world.peers.get("alice")!.entries.values()].length;
+    await alice.tick(t0); await world.settle();
+    expect(hostEntries()).toBe(1);
+    // Dan never finishes (the entry is not ready on both sides); three minutes on, the admin gives up.
+    await alice.tick(t0 + 3 * 60_000 + 1);
+    expect(hostEntries()).toBe(0);
+    const t1 = t0 + 3 * 60_000 + 1;
+    vi.setSystemTime(t1 + 10_000);
+    await dan.tick(t1 + 10_000);
+    await alice.tick(t1 + 12_000);
+    expect(hostEntries()).toBe(0); // knocked again, but a timeout is waited out first (30 s)
+    vi.setSystemTime(t1 + 40_000);
+    await dan.tick(t1 + 40_000);
+    await alice.tick(t1 + 42_000);
+    await alice.tick(t1 + 44_000);
+    expect(hostEntries()).toBe(1); // answered again: a slow network is no refusal
+    // It times out again: the wait doubles (a minute), not ten.
+    const t2 = t1 + 44_000 + 3 * 60_000 + 1;
+    await alice.tick(t2);
+    expect(hostEntries()).toBe(0);
+    vi.setSystemTime(t2 + 40_000);
+    await dan.tick(t2 + 40_000);
+    await alice.tick(t2 + 42_000);
+    expect(hostEntries()).toBe(0);
+    vi.setSystemTime(t2 + 70_000);
+    await dan.tick(t2 + 70_000);
+    await alice.tick(t2 + 72_000);
+    await alice.tick(t2 + 74_000);
+    expect(hostEntries()).toBe(1);
+  });
+
+  it("a link to a group this profile is out of, or is invited to, is refused: the kept history and the invitation stay", async () => {
+    const { world, alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    world.add("carol"); world.chats.set("chat-ac", ["alice", "carol"]);
+    await alice.send(groupId, "dinner at 8"); await bob.send(groupId, "the only copy of my note"); await world.settle();
+    await alice.remove(groupId, key(bob)); await world.settle(); await world.meet();
+    await alice.invite(groupId, "chat-ac"); await world.settle();
+    const carol = world.peers.get("carol")!, removed = world.peers.get("bob")!;
+    const deleted = [vi.spyOn(removed.store, "deleteGroup"), vi.spyOn(carol.store, "deleteGroup")];
+    const before = [structuredClone(removed.store.groups.get(groupId)), structuredClone(carol.store.groups.get(groupId))];
+    // Any member knows the id; the key is nobody's.
+    const code = `group1/${groupId}/${createIdentity().pubKeyZ32}`;
+    await expect(bob.joinByLink(code)).rejects.toThrow(/history is still here/);
+    await expect(carol.groups.joinByLink(code)).rejects.toThrow(/have an invitation/);
+    await world.settle();
+    expect([removed.store.groups.get(groupId), carol.store.groups.get(groupId)]).toEqual(before);
+    for (const spy of deleted) expect(spy).not.toHaveBeenCalled();
+    expect(view(bob, groupId)).toMatchObject({ status: "removed" });
+    expect(world.texts("bob")).toEqual(expect.arrayContaining(["dinner at 8", "the only copy of my note"]));
+    expect(view(carol.groups, groupId).invitation).toMatchObject({ linkId: "chat-ac" });
+    expect(view(alice, groupId).invited).toEqual(["chat-ac"]);
+    expect(removed.entries.size + carol.entries.size).toBe(0);
+    // The invitation still answers, and the removed member's own choice still deletes.
+    await carol.groups.accept(groupId); await world.settle();
+    expect(view(carol.groups, groupId).status).toBe("active");
+    await bob.forget(groupId);
+    expect(bob.views()).toEqual([]);
+  });
+
+  it("at most four admissions run at once", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const world = new World();
+    const alice = world.add("alice", timings);
+    const groupId = await alice.create("Ghosts", "mesh");
+    const code = await alice.enableLink(groupId);
+    for (let i = 0; i < 5; i++) { await world.add(`j${i}`).joinByLink(code); await flush(); }
+    await alice.tick(Date.now()); await world.settle();
+    expect(world.peers.get("alice")!.entries.size).toBe(4);
+  });
+
+  it("an entry session that cannot be opened is tried again at the next look", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t0 = Date.now();
+    const world = new World();
+    const alice = world.add("alice", timings), dan = world.add("dan");
+    const groupId = await alice.create("Ghosts", "mesh");
+    await dan.joinByLink(await alice.enableLink(groupId)); await flush();
+    world.peers.get("alice")!.failEntry = true;
+    await alice.tick(t0);
+    expect(world.peers.get("alice")!.entries.size).toBe(0);
+    world.peers.get("alice")!.failEntry = false;
+    await alice.tick(t0 + 500);
+    expect(world.peers.get("alice")!.entries.size).toBe(0); // not due yet
+    await alice.tick(t0 + 1_000);
+    expect(world.peers.get("alice")!.entries.size).toBe(1);
+  });
+
+  it("a joiner declining on the entry session closes it; an entry the admin did not open is not invited", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const world = new World();
+    const alice = world.add("alice", timings), dan = world.add("dan");
+    const groupId = await alice.create("Ghosts", "mesh");
+    await dan.joinByLink(await alice.enableLink(groupId)); await flush();
+    const sent = vi.spyOn((alice as unknown as { host: GroupsHost }).host, "sendOnLink");
+    alice.entryReady(groupId, "entry:alice:stranger", createIdentity().pubKeyZ32);
+    expect(sent).not.toHaveBeenCalled();
+    await alice.tick(Date.now()); await world.settle();
+    const [linkId] = [...world.peers.get("alice")!.entries.keys()];
+    await alice.handleContactFrame(linkId, { t: "group-decline", g: groupId });
+    expect(world.peers.get("alice")!.entries.size).toBe(0);
+  });
+
+  it("joining by link: the same link again is a no-op, a pending contact invitation is not overridden, an old membership is replaced", async () => {
+    const world = new World();
+    const alice = world.add("alice"), bob = world.add("bob");
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    const code = await alice.enableLink(groupId);
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    await bob.accept(groupId);
+    await expect(bob.joinByLink(code)).rejects.toThrow(/already joining/);
+    await world.settle();
+    expect(await bob.joinByLink(code)).toBe(groupId); // already in: nothing happens
+    expect(world.peers.get("bob")!.entries.size).toBe(0);
+    await bob.leave(groupId); await world.settle();
+    expect(await bob.joinByLink(code)).toBe(groupId);
+    expect(view(bob).invitation).toMatchObject({ viaLink: true, accepted: true });
+    expect(await bob.joinByLink(code)).toBe(groupId);
+    expect(world.peers.get("bob")!.entries.size).toBe(1);
+  });
+
+  it("a member gives no answer that depends on being in to a chat that did not admit it, even one naming the admin", async () => {
+    const { world, alice, others: [bob, mallory], groupId, key } = await groupOf(["bob", "mallory"]);
+    world.chats.set("chat-bm", ["bob", "mallory"]);
+    const admin = key(alice);
+    await alice.remove(groupId, key(mallory)); await world.settle();
+    const sent = vi.spyOn((bob as unknown as { host: GroupsHost }).host, "sendOnLink");
+    const probe = async () => {
+      await bob.handleContactFrame("chat-bm", { t: "group-invite", g: groupId, name: "x", admin, e: 0, n: 2 });
+      const answered = sent.mock.calls.some(([linkId, frame]) => linkId === "chat-bm" && (frame as { t?: string }).t === "group-decline");
+      await bob.handleContactFrame("chat-bm", { t: "group-decline", g: groupId });
+      sent.mockClear();
+      return answered;
+    };
+    expect(view(bob, groupId)).toMatchObject({ status: "active" });
+    expect(await probe()).toBe(false);
+    expect(view(bob, groupId)).toMatchObject({ status: "active" });
+    // Its admin, over the chat that admitted it, is still told it is in.
+    await bob.handleContactFrame("chat-ab", { t: "group-invite", g: groupId, name: "Ghosts", admin });
+    expect(sent).toHaveBeenCalledWith("chat-ab", { t: "group-decline", g: groupId });
+    sent.mockClear();
+    await alice.remove(groupId, key(bob)); await world.settle();
+    expect(view(bob, groupId)).toMatchObject({ status: "removed" });
+    expect(await probe()).toBe(false);
+  });
+
+  it("a contact who came in through the link and is invited again does not answer: nobody can tell the admin's chat", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const world = new World();
+    const alice = world.add("alice", timings), bob = world.add("bob", timings);
+    world.chats.set("chat-ab", ["alice", "bob"]);
+    const groupId = await alice.create("Ghosts", "mesh");
+    await bob.joinByLink(await alice.enableLink(groupId)); await world.settle();
+    for (let i = 0; i < 6 && view(bob, groupId)?.status !== "active"; i++) {
+      vi.setSystemTime(Date.now() + 2_000);
+      await alice.tick(Date.now()); await bob.tick(Date.now()); await world.settle(); await world.meetEntries(); await world.meet();
+    }
+    expect(view(bob, groupId).status).toBe("active");
+    const sent = vi.spyOn((bob as unknown as { host: GroupsHost }).host, "sendOnLink");
+    await alice.invite(groupId, "chat-ab"); await world.settle();
+    expect(sent).not.toHaveBeenCalled();
+    expect(view(bob, groupId)).toMatchObject({ status: "active" });
+    // Someone who names another admin learns nothing either.
+    await bob.handleContactFrame("chat-ab", { t: "group-invite", g: groupId, name: "Ghosts", admin: createIdentity().pubKeyZ32 });
+    expect(sent).not.toHaveBeenCalled();
+  });
+
+  it("a community link naming a private group's id is refused: the group, its history and its admin stay", async () => {
+    const { world, alice, others: [bob], groupId } = await groupOf(["bob"]);
+    await alice.send(groupId, "only copy of this note"); await world.settle();
+    const before = world.peers.get("alice")!.store.groups.get(groupId);
+    const code = encodeCommunityLink({ g: groupId, host: createIdentity().pubKeyZ32 });
+    for (const g of [alice, bob]) await expect(g.joinByLink(code)).rejects.toThrow(/private group/);
+    await world.settle();
+    expect(world.peers.get("alice")!.store.groups.get(groupId)).toEqual(before);
+    expect(view(alice, groupId)).toMatchObject({ isAdmin: true });
+    expect(view(bob, groupId).isAdmin).toBe(false);
+    expect(world.texts("alice")).toContain("only copy of this note");
+    expect(world.events("bob")).not.toContain("admin");
+    expect(world.peers.get("alice")!.entries.size + world.peers.get("bob")!.entries.size).toBe(0);
+  });
+
+  it("the link goes off by itself once its maker is no longer the admin; turning off a link that is not on is harmless", async () => {
+    const { world, alice, others: [bob], groupId, key } = await groupOf(["bob"]);
+    await alice.disableLink(groupId);
+    await alice.enableLink(groupId);
+    await alice.makeAdmin(groupId, key(bob)); await world.settle();
+    await alice.tick();
+    expect(world.peers.get("alice")!.store.groups.get(groupId)!.entry).toBeUndefined();
+    await expect(alice.enableLink(groupId)).rejects.toThrow(/Only the admin/);
+  });
+
+  it("a member who is not the admin is refused turning the link off, as in a community, and the admin's link stays on", async () => {
+    const { alice, others: [bob], groupId } = await groupOf(["bob"]);
+    const link = await alice.enableLink(groupId);
+    await expect(bob.disableLink(groupId)).rejects.toThrow("Only the admin can replace or turn off the group's link");
+    expect(await alice.enableLink(groupId)).toBe(link);
+  });
+});

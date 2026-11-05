@@ -1,0 +1,40 @@
+{
+  "anonymous": "Anônimo",
+  "back": "Voltar",
+  "cancel": "Cancelar",
+  "chatCreated": "Conversa criada em {{date}}",
+  "close": "Fechar",
+  "confirm": "Confirmar",
+  "copied": "Copiado!",
+  "copy": "Copiar",
+  "deck": {
+    "next": "Próximo cartão",
+    "previous": "Cartão anterior",
+    "turnBack": "Cartões"
+  },
+  "delete": "Excluir",
+  "deleteChatCallOn": "Há uma chamada nesta conversa. Encerre-a primeiro e depois exclua a conversa.",
+  "deleteChatLocal": "Isso exclui a conversa e o histórico deste dispositivo. A cópia do seu contato não é excluída.",
+  "deleteChatTitle": "Excluir conversa?",
+  "error": "Erro",
+  "goHome": "Ir para o início",
+  "loading": "Carregando...",
+  "moreInfo": "Mais informações",
+  "needsYou": {
+    "mark": "precisa de atenção",
+    "show": "Ver",
+    "title": "Esperando por você"
+  },
+  "notCopied": "Não copiado",
+  "save": "Salvar",
+  "size": {
+    "b": "{{n}} B",
+    "gb": "{{n}} GB",
+    "kb": "{{n}} KB",
+    "mb": "{{n}} MB"
+  },
+  "success": "Sucesso",
+  "unnamedContact": "Contato · {{key}}",
+  "unnamedContactShort": "Contato",
+  "viewPhoto": "Ver foto de {{name}}"
+}

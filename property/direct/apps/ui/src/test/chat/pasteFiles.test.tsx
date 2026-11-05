@@ -1,0 +1,565 @@
+import { act, createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MessageInput } from "../../components/MessageInput";
+import { LockScreenProvider, useLockScreen } from "../../contexts/LockScreenContext";
+import { guardFileDrops, pastedFiles, pastedImageName, pasteIsPictureOnly, PLATFORM_PASTE_MAX } from "../../lib/pastedFiles";
+import { fakeEngine } from "../fakeEngine";
+import type { ClipboardFile } from "@ghostly/browser/host";
+import { renderApp } from "../render";
+
+// covers: app.composer.paste-files
+
+const SEED = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+
+const onSend = vi.fn<(text: string) => Promise<string | null>>();
+const onSendFile = vi.fn<(file: File) => Promise<string | null>>();
+
+type Props = Partial<Parameters<typeof MessageInput>[0]>;
+/** A 1:1 chat's composer inside the chat's column, which takes dropped files. */
+const column = (props: Props = {}) => (<LockScreenProvider><div data-file-drop data-testid="column"><p data-testid="messages">messages</p>
+  <MessageInput onSend={onSend} onSendFile={onSendFile} {...props} /></div></LockScreenProvider>);
+function composer(props: Props = {}) {
+  return renderApp(column(props));
+}
+
+const field = () => screen.getByPlaceholderText<HTMLTextAreaElement>("Message…");
+const sheet = () => screen.queryByTestId("attachment-sheet");
+
+/** What a clipboard or a drag hands the page: jsdom-likes have no DataTransfer to build one with. */
+function transfer({ files = [], text = "", html = "", types = [] }: { files?: File[]; text?: string; html?: string; types?: string[] }) {
+  return {
+    files, types: [...(files.length ? ["Files"] : []), ...(text ? ["text/plain"] : []), ...(html ? ["text/html"] : []), ...types],
+    items: files.map((file) => ({ kind: "file", type: file.type, getAsFile: () => file })),
+    getData: (type: string) => type === "text/plain" ? text : type === "text/html" ? html : "",
+    dropEffect: "none",
+  };
+}
+
+/** Pastes into `target`; true when the page left the paste to the field (nothing intercepted). */
+function paste(target: Element | Document, data: Parameters<typeof transfer>[0]): boolean {
+  return fireEvent.paste(target, { clipboardData: transfer(data) });
+}
+
+/** A 1 x 1 PNG's header: the sheet draws a picture only once its header says its size. */
+const PNG = [137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0];
+const png = (name = "image.png", bytes = PNG) => new File([new Uint8Array(bytes)], name, { type: "image/png" });
+
+beforeEach(() => {
+  onSend.mockReset().mockResolvedValue(null);
+  onSendFile.mockReset().mockResolvedValue(null);
+  URL.createObjectURL = vi.fn(() => "blob:picture");
+  URL.revokeObjectURL = vi.fn();
+});
+afterEach(() => vi.useRealTimers());
+
+describe("a pasted picture or file", () => {
+  it("opens the sheet with its picture and a caption; Send sends the file, then the caption", async () => {
+    const { user } = composer();
+    expect(paste(field(), { files: [png()] })).toBe(false);
+    const open = await screen.findByTestId("attachment-sheet");
+    expect(await within(open).findByTestId("attachment-image")).toHaveAttribute("src", "blob:picture");
+    expect(within(open).getByTestId("attachment-name").textContent).toMatch(/^Pasted image \d{4}-\d\d-\d\d \d\d\.\d\d\.\d\d\.png · 29 B$/);
+    // The caption has the keys: typing goes there straight away, and Enter sends.
+    expect(within(open).getByTestId("attachment-caption")).toHaveFocus();
+    await user.keyboard("boo, a ghost{Enter}");
+
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith("boo, a ghost"));
+    expect(onSendFile).toHaveBeenCalledTimes(1);
+    const [sent] = onSendFile.mock.calls[0];
+    expect(sent.name).toMatch(/^Pasted image .*\.png$/);
+    expect(sent.type).toBe("image/png");
+    expect([...new Uint8Array(await sent.arrayBuffer())]).toEqual(PNG);
+    expect(onSendFile.mock.invocationCallOrder[0]).toBeLessThan(onSend.mock.invocationCallOrder[0]);
+    expect(sheet()).toBeNull();
+    // Back to writing.
+    await waitFor(() => expect(field()).toHaveFocus());
+  });
+
+  it("several files are several attachments, each under its own name, and one can be taken out", async () => {
+    const { user } = composer();
+    const notes = new File(["boo"], "notes.pdf", { type: "application/pdf" });
+    paste(field(), { files: [notes, png("haunt.png"), new File(["x"], "list.txt", { type: "text/plain" })] });
+    const open = await screen.findByTestId("attachment-sheet");
+    expect(within(open).getAllByTestId("attachment-item")).toHaveLength(3);
+    expect(within(open).getByText("notes.pdf")).toBeInTheDocument();
+    await user.click(within(open).getByRole("button", { name: "Remove list.txt" }));
+    // Another paste adds to what is waiting.
+    paste(within(open).getByTestId("attachment-caption"), { files: [png()] });
+    expect(within(open).getAllByTestId("attachment-item")).toHaveLength(3);
+    await user.click(within(open).getByTestId("attachment-send"));
+    await waitFor(() => expect(onSendFile).toHaveBeenCalledTimes(3));
+    expect(onSendFile.mock.calls.map(([file]) => file.name)).toEqual(["notes.pdf", "haunt.png", expect.stringMatching(/^Pasted image /)]);
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it("a × pressed from the keyboard leaves the focus on the sheet: on the × now there, the one before, or the caption once none is left", async () => {
+    const { user } = composer();
+    const text = (name: string) => new File([name], name, { type: "text/plain" });
+    paste(field(), { files: [text("one.txt"), text("two.txt"), text("three.txt")] });
+    const open = await screen.findByTestId("attachment-sheet");
+    // The first: the next file's × takes its place.
+    within(open).getByRole("button", { name: "Remove one.txt" }).focus();
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(within(open).getByRole("button", { name: "Remove two.txt" }));
+    paste(within(open).getByTestId("attachment-caption"), { files: [text("four.txt")] });
+    // The last: the one before it.
+    within(open).getByRole("button", { name: "Remove four.txt" }).focus();
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(within(open).getByRole("button", { name: "Remove three.txt" }));
+    // One file left has no ×: the caption.
+    await user.keyboard("{Enter}");
+    expect(within(open).getAllByTestId("attachment-item")).toHaveLength(1);
+    expect(within(open).queryByRole("button", { name: /^Remove / })).toBeNull();
+    expect(document.activeElement).toBe(within(open).getByTestId("attachment-caption"));
+  });
+
+  it("the first file that cannot go stops the rest and says why; the caption is not sent", async () => {
+    onSendFile.mockResolvedValueOnce("That file is too large (max 100.0 MB).");
+    const { user } = composer();
+    paste(field(), { files: [png("a.png"), png("b.png")] });
+    await user.type(await screen.findByTestId("attachment-caption"), "look");
+    await user.click(screen.getByTestId("attachment-send"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("That file is too large (max 100.0 MB).");
+    expect(onSendFile).toHaveBeenCalledTimes(1);
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it("Cancel and Escape send nothing", async () => {
+    const { user } = composer();
+    paste(field(), { files: [png()] });
+    await user.click(await screen.findByTestId("attachment-cancel"));
+    expect(sheet()).toBeNull();
+    paste(field(), { files: [png()] });
+    await screen.findByTestId("attachment-sheet");
+    await user.keyboard("{Escape}");
+    expect(sheet()).toBeNull();
+    expect(onSendFile).not.toHaveBeenCalled();
+  });
+
+  it("a caption that looks like a secret asks first, as the draft does", async () => {
+    const { user } = composer();
+    paste(field(), { files: [png()] });
+    await user.type(await screen.findByTestId("attachment-caption"), SEED);
+    await user.click(screen.getByTestId("attachment-send"));
+    await waitFor(() => expect(onSendFile).toHaveBeenCalledTimes(1));
+    await screen.findByTestId("secret-guard");
+    expect(onSend).not.toHaveBeenCalled();
+    await user.click(screen.getByTestId("secret-guard-send"));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith(SEED));
+  });
+
+  it("where files cannot go now, the paste says why; where they have no place, it is left alone", async () => {
+    composer({ fileUnavailable: "Update both peers to send files" });
+    expect(paste(field(), { files: [png()] })).toBe(false);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Update both peers to send files");
+    expect(sheet()).toBeNull();
+  });
+
+  it("a composer with no files and nothing to say about it never takes a paste", () => {
+    composer({ onSendFile: undefined });
+    expect(paste(field(), { files: [png()] })).toBe(true);
+    expect(sheet()).toBeNull();
+  });
+
+  it("a group's composer has no files: a picture pasted or a file dropped there is told so, not ignored", async () => {
+    composer({ onSendFile: undefined, fileUnavailable: "Files are not part of groups yet" });
+    expect(paste(field(), { files: [png()] })).toBe(false);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Files are not part of groups yet");
+    expect(sheet()).toBeNull();
+  });
+
+  it("a file dropped on a group is told so too, with no veil inviting the drop", async () => {
+    composer({ onSendFile: undefined, fileUnavailable: "Files are not part of groups yet" });
+    const column = screen.getByTestId("column"), data = transfer({ files: [png()] });
+    fireEvent.dragEnter(column, { dataTransfer: data });
+    expect(screen.queryByTestId("file-drop-overlay")).toBeNull();
+    const drop = createEvent.drop(column, { dataTransfer: data });
+    fireEvent(column, drop);
+    expect(drop.defaultPrevented).toBe(true);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Files are not part of groups yet");
+  });
+
+  it("behind the lock screen, a paste opens nothing", () => {
+    localStorage.setItem("ghostly_app_settings", JSON.stringify({ ...JSON.parse(localStorage.getItem("ghostly_app_settings") ?? "{}"),
+      lockScreen: { enabled: true, passwordHash: "hash", timeout: 5 } }));
+    let locked = false;
+    function Lock() { locked = useLockScreen().isLocked; return null; }
+    renderApp(<LockScreenProvider><Lock /><MessageInput onSend={onSend} onSendFile={onSendFile} /></LockScreenProvider>);
+    try {
+      // Locked from the start (a lock with a password), the composer mounted under it: nothing opens.
+      expect(locked).toBe(true);
+      expect(paste(field(), { files: [png()] })).toBe(true);
+      expect(sheet()).toBeNull();
+      expect(paste(document.body, { files: [png()] })).toBe(true);
+      expect(sheet()).toBeNull();
+      expect(onSendFile).not.toHaveBeenCalled();
+    } finally { localStorage.removeItem("ghostly_app_settings"); }
+  });
+
+  it("a paste with nothing focused (the messages clicked last) still brings the picture", async () => {
+    composer();
+    act(() => field().blur());
+    expect(paste(screen.getByTestId("messages"), { files: [png()] })).toBe(false);
+    expect(await screen.findByTestId("attachment-sheet")).toBeInTheDocument();
+  });
+});
+
+/** What the desktop host holds for a paste, read back a few bytes at a time as Rust hands them. */
+function held(name: string | null, bytes: number[], mime: string | null = null): ClipboardFile {
+  return { name, size: bytes.length, mime, read: vi.fn(async (offset: number, length: number) => new Uint8Array(bytes.slice(offset, offset + Math.min(length, 3)))) };
+}
+
+describe("a paste the webview showed nothing of (the desktop app reads the clipboard itself)", () => {
+  afterEach(() => { fakeEngine.readClipboardFiles = undefined; });
+
+  it("a picture only the platform could see opens the sheet and sends as a PNG", async () => {
+    fakeEngine.readClipboardFiles = vi.fn(async () => [held(null, PNG, "image/png")]);
+    const { user } = composer();
+    expect(paste(field(), {})).toBe(false);
+    const open = await screen.findByTestId("attachment-sheet");
+    // The sheet draws the picture a moment after it opens (its address is made once it is on screen).
+    expect((await within(open).findByTestId("attachment-name")).textContent).toMatch(/^Pasted image .*\.png · 29 B$/);
+    await user.click(within(open).getByTestId("attachment-send"));
+    await waitFor(() => expect(onSendFile).toHaveBeenCalledTimes(1));
+    const [sent] = onSendFile.mock.calls[0];
+    expect(sent.type).toBe("image/png");
+    expect([...new Uint8Array(await sent.arrayBuffer())]).toEqual(PNG);
+  });
+
+  it("files copied in a file manager keep their names and get their types", async () => {
+    fakeEngine.readClipboardFiles = vi.fn(async () => [held("scan.pdf", [37, 80, 68, 70]), held("notes", [1])]);
+    const { user } = composer();
+    paste(field(), {});
+    await user.click(await screen.findByTestId("attachment-send"));
+    await waitFor(() => expect(onSendFile).toHaveBeenCalledTimes(2));
+    expect(onSendFile.mock.calls.map(([f]) => [f.name, f.type, f.size])).toEqual([["scan.pdf", "application/pdf", 4], ["notes", "", 1]]);
+  });
+
+  it("text, or files the paste already showed, never ask the platform", async () => {
+    fakeEngine.readClipboardFiles = vi.fn(async () => []);
+    composer();
+    expect(paste(field(), { text: "words" })).toBe(true);
+    paste(field(), { files: [png()] });
+    await screen.findByTestId("attachment-sheet");
+    expect(fakeEngine.readClipboardFiles).not.toHaveBeenCalled();
+  });
+
+  it("nothing on the clipboard is nothing; too large says where to send it from", async () => {
+    fakeEngine.readClipboardFiles = vi.fn(async () => []);
+    composer();
+    paste(field(), {});
+    await waitFor(() => expect(fakeEngine.readClipboardFiles).toHaveBeenCalledTimes(1));
+    expect(sheet()).toBeNull();
+    const huge: ClipboardFile = { name: "film.mkv", size: PLATFORM_PASTE_MAX + 1, mime: null, read: vi.fn() };
+    fakeEngine.readClipboardFiles = vi.fn(async () => [huge]);
+    paste(field(), {});
+    expect(await screen.findByRole("alert")).toHaveTextContent("That is too large to paste. Send it with + → Document.");
+    expect(huge.read).not.toHaveBeenCalled();
+  });
+
+  it("files too large together are not read, though each alone would fit", async () => {
+    const part = (name: string): ClipboardFile => ({ name, size: Math.ceil(PLATFORM_PASTE_MAX / 3) + 1, mime: null, read: vi.fn(), done: vi.fn() });
+    const parts = [part("one.mkv"), part("two.mkv"), part("three.mkv")];
+    fakeEngine.readClipboardFiles = vi.fn(async () => parts);
+    composer();
+    paste(field(), {});
+    expect(await screen.findByRole("alert")).toHaveTextContent("That is too large to paste. Send it with + → Document.");
+    for (const file of parts) {
+      expect(file.read).not.toHaveBeenCalled();
+      expect(file.done).toHaveBeenCalledTimes(1);
+    }
+    expect(sheet()).toBeNull();
+  });
+
+  it("copied files the platform could not read say so, never silence", async () => {
+    // WebKitGTK shows a file manager's copy as types ["text/uri-list"], no files and no text.
+    fakeEngine.readClipboardFiles = vi.fn(async () => []);
+    composer();
+    expect(paste(field(), { types: ["text/uri-list"] })).toBe(false);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not paste those files. Send them with + → Document.");
+    expect(sheet()).toBeNull();
+  });
+
+  it("with the sheet open, another such paste adds the platform's file to it; words pasted into the caption stay words", async () => {
+    fakeEngine.readClipboardFiles = vi.fn(async () => [held("scan.pdf", [37, 80, 68, 70])]);
+    composer();
+    paste(field(), { files: [png()] });
+    const open = await screen.findByTestId("attachment-sheet");
+    const caption = within(open).getByTestId("attachment-caption");
+    expect(paste(caption, {})).toBe(false);
+    await waitFor(() => expect(within(open).getAllByTestId("attachment-item")).toHaveLength(2));
+    expect(within(open).getByText("scan.pdf")).toBeInTheDocument();
+    expect(paste(caption, { text: "words" })).toBe(true);
+    expect(fakeEngine.readClipboardFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it("with the sheet open, a paste too large says so inside the sheet, not behind it", async () => {
+    const huge: ClipboardFile = { name: "film.mkv", size: PLATFORM_PASTE_MAX + 1, mime: null, read: vi.fn() };
+    fakeEngine.readClipboardFiles = vi.fn(async () => [huge]);
+    composer();
+    paste(field(), { files: [png()] });
+    const open = await screen.findByTestId("attachment-sheet");
+    expect(paste(within(open).getByTestId("attachment-caption"), {})).toBe(false);
+    expect(await within(open).findByRole("alert")).toHaveTextContent("That is too large to paste. Send it with + → Document.");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(huge.read).not.toHaveBeenCalled();
+    // What was waiting still is.
+    expect(await within(open).findByTestId("attachment-image")).toBeInTheDocument();
+  });
+
+  /** A read of the clipboard that ends when the test says so. */
+  function slowRead(clips: ClipboardFile[]) {
+    let end = () => {};
+    fakeEngine.readClipboardFiles = vi.fn(() => new Promise<ClipboardFile[]>((resolve) => { end = () => resolve(clips); }));
+    return () => act(async () => end());
+  }
+
+  it("while the paste is read the composer says so, and Ctrl+V again reads nothing more: each file is on the sheet once", async () => {
+    const end = slowRead([held("scan.pdf", [37, 80, 68, 70]), held("notes", [1])]);
+    composer();
+    expect(screen.queryByTestId("paste-reading")).toBeNull();
+    expect(paste(field(), {})).toBe(false);
+    expect(await screen.findByRole("status")).toHaveTextContent("Reading what you pasted…");
+    expect(sheet()).toBeNull();
+    // The natural reaction to a paste that shows nothing yet.
+    expect(paste(field(), {})).toBe(false);
+    expect(paste(screen.getByTestId("messages"), {})).toBe(false);
+    expect(fakeEngine.readClipboardFiles).toHaveBeenCalledTimes(1);
+    await end();
+    const open = await screen.findByTestId("attachment-sheet");
+    expect(within(open).getAllByTestId("attachment-item")).toHaveLength(2);
+    expect(screen.queryByTestId("paste-reading")).toBeNull();
+    // Read to its end, the next paste is read again.
+    slowRead([]);
+    paste(within(open).getByTestId("attachment-caption"), {});
+    expect(fakeEngine.readClipboardFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it("a paste that is being read does not keep one the page can see from the sheet, and a read that fails ends it too", async () => {
+    let fail = () => {};
+    fakeEngine.readClipboardFiles = vi.fn(() => new Promise<ClipboardFile[]>((_, reject) => { fail = () => reject(new Error("no clipboard")); }));
+    composer();
+    paste(field(), {});
+    await screen.findByTestId("paste-reading");
+    paste(field(), { files: [new File(["boo"], "notes.pdf", { type: "application/pdf" })] });
+    const open = await screen.findByTestId("attachment-sheet");
+    // The composer is behind the sheet's veil now: the line is on the sheet.
+    expect(within(open).getByRole("status")).toHaveTextContent("Reading what you pasted…");
+    expect(screen.getAllByTestId("paste-reading")).toHaveLength(1);
+    await act(async () => fail());
+    await waitFor(() => expect(screen.queryByTestId("paste-reading")).toBeNull());
+    expect(within(open).getAllByTestId("attachment-item")).toHaveLength(1);
+    fakeEngine.readClipboardFiles = vi.fn(async () => [held("scan.pdf", [37, 80, 68, 70])]);
+    paste(within(open).getByTestId("attachment-caption"), {});
+    await waitFor(() => expect(within(open).getAllByTestId("attachment-item")).toHaveLength(2));
+  });
+
+  it("a read that ends after an edit began says its files could not be added, not nothing", async () => {
+    const end = slowRead([held("scan.pdf", [37, 80, 68, 70])]);
+    const { rerender } = composer();
+    paste(field(), {});
+    await screen.findByTestId("paste-reading");
+    rerender(column({ edit: { key: "m1", text: "boo", snippet: "boo", onSave: vi.fn(async () => null), onClose: vi.fn() } }));
+    await end();
+    expect(await screen.findByRole("alert")).toHaveTextContent("What you pasted could not be added just now. Paste it again when you are done here.");
+    expect(sheet()).toBeNull();
+    expect(screen.queryByTestId("paste-reading")).toBeNull();
+  });
+
+  it("the web app has no such read: an empty paste is left alone", () => {
+    composer();
+    expect(paste(field(), {})).toBe(true);
+    expect(paste(field(), { html: `<img src="https://example.com/photo.png">`, text: "https://example.com/photo.png" })).toBe(true);
+  });
+
+  /** What a web browser's Copy image shows WebKitGTK's page: the picture's HTML, no picture; Firefox adds its address as text. */
+  const browserCopy = (html = `<meta charset="utf-8"><img src="https://example.com/photo.png">`) => ({ html });
+  const firefoxCopy = () => ({ html: `<html><body>\n<!--StartFragment--><img src="https://example.com/photo.png" alt="A photo"><!--EndFragment-->\n</body>\n</html>`, text: "https://example.com/photo.png" });
+
+  it("a picture copied in a web browser opens the sheet with the picture the platform reads, not its address", async () => {
+    for (const copy of [browserCopy(), firefoxCopy()]) {
+      fakeEngine.readClipboardFiles = vi.fn(async () => [held(null, PNG, "image/png")]);
+      const { unmount } = composer();
+      expect(paste(field(), copy)).toBe(false);
+      const open = await screen.findByTestId("attachment-sheet");
+      expect((await within(open).findByTestId("attachment-name")).textContent).toMatch(/^Pasted image .*\.png · 29 B$/);
+      expect(field().value).toBe("");
+      expect(fakeEngine.readClipboardFiles).toHaveBeenCalledTimes(1);
+      unmount();
+    }
+  });
+
+  it("a browser's picture the platform finds nothing of: its address goes into the draft, or the composer says so", async () => {
+    fakeEngine.readClipboardFiles = vi.fn(async () => []);
+    composer();
+    expect(paste(field(), firefoxCopy())).toBe(false);
+    await waitFor(() => expect(field().value).toBe("https://example.com/photo.png"));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(paste(field(), browserCopy())).toBe(false);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not paste those files. Send them with + → Document.");
+    expect(sheet()).toBeNull();
+  });
+
+  it("a rich copy with words beside its picture, or several pictures, stays text and never asks the platform", () => {
+    fakeEngine.readClipboardFiles = vi.fn(async () => []);
+    composer();
+    expect(paste(field(), { html: `<p>Some words</p><img src="https://example.com/photo.png">`, text: "Some words" })).toBe(true);
+    expect(paste(field(), { html: `<img src="https://example.com/a.png"><img src="https://example.com/b.png">` })).toBe(true);
+    expect(paste(field(), { html: `<img src="https://example.com/a.png">`, text: "a caption" })).toBe(true);
+    expect(fakeEngine.readClipboardFiles).not.toHaveBeenCalled();
+  });
+});
+
+// agents#1575: WebKitGTK makes a rich copy's HTML again on every `getData("text/html")`, ~90 ms a MB, and every paste
+// read and parsed it to see whether it was one picture: a page copied whole froze the chat 0.1-0.9 s more.
+describe("telling a picture's copy from a rich copy", () => {
+  /** A clipboard counting its reads of the HTML. */
+  const clip = (html: string, text: string) => {
+    const reads = { html: 0 };
+    const data = { files: [] as unknown as FileList, items: [] as unknown as DataTransferItemList, types: ["text/html", "text/plain"],
+      getData: (type: string) => type === "text/html" ? (reads.html++, html) : type === "text/plain" ? text : "" } as unknown as DataTransfer;
+    return { data, reads };
+  };
+  const page = `<article>${"<p style='color:#333'>A paragraph of the article, <a href='https://example.com'>a link</a>.</p>".repeat(2_000)}<img src="https://example.com/a.png"></article>`;
+
+  it("a rich copy with text never reads its HTML, nor parses it", () => {
+    const parse = vi.spyOn(DOMParser.prototype, "parseFromString");
+    const { data, reads } = clip(page, "A paragraph of the article, a link.\n".repeat(2_000));
+    expect(pasteIsPictureOnly(data)).toBe(false);
+    expect(reads.html).toBe(0);
+    expect(parse).not.toHaveBeenCalled();
+    parse.mockRestore();
+  });
+
+  it("HTML with no picture or several is not parsed; a picture's copy still is one, with no text or its address", () => {
+    const parse = vi.spyOn(DOMParser.prototype, "parseFromString");
+    expect(pasteIsPictureOnly(clip("<p>words</p>", "").data)).toBe(false);
+    expect(pasteIsPictureOnly(clip(`<img src="https://e.com/a.png"><img src="https://e.com/b.png">`, "").data)).toBe(false);
+    expect(parse).not.toHaveBeenCalled();
+    const one = clip(`<meta charset="utf-8"><img src="https://e.com/a.png">`, "");
+    expect(pasteIsPictureOnly(one.data)).toBe(true);
+    expect(one.reads.html).toBe(1);
+    expect(pasteIsPictureOnly(clip(`<img src="https://e.com/a.png">`, "https://e.com/a.png").data)).toBe(true);
+    expect(pasteIsPictureOnly(clip(`<IMG SRC="https://e.com/a.png">`, "").data)).toBe(true);
+    parse.mockRestore();
+  });
+});
+
+describe("pasted text", () => {
+  it("is left to the field, exactly as before", () => {
+    composer();
+    expect(paste(field(), { text: "just words" })).toBe(true);
+    expect(sheet()).toBeNull();
+  });
+
+  it("a rich copy (cells, a document's paragraph) is text, even with a picture of itself", () => {
+    composer();
+    expect(paste(field(), { files: [png()], text: "Q3 totals", html: "<table><tr><td>Q3 totals</td></tr></table>" })).toBe(true);
+    expect(sheet()).toBeNull();
+    expect(onSendFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("dropping files on the chat", () => {
+  it("shows where to drop them over the column, then opens the sheet with them", async () => {
+    const { user } = composer();
+    const column = screen.getByTestId("column");
+    const files = [new File(["boo"], "ghost story.pdf", { type: "application/pdf" })];
+    fireEvent.dragEnter(column, { dataTransfer: transfer({ files }) });
+    // Moving over a child element keeps the veil up.
+    fireEvent.dragEnter(screen.getByTestId("messages"), { dataTransfer: transfer({ files }) });
+    fireEvent.dragLeave(column, { dataTransfer: transfer({ files }) });
+    const veil = screen.getByTestId("file-drop-overlay");
+    expect(column).toContainElement(veil);
+    expect(veil).toHaveTextContent("Drop to send");
+    const over = createEvent.dragOver(column, { dataTransfer: transfer({ files }) });
+    fireEvent(column, over);
+    expect(over.defaultPrevented).toBe(true);
+
+    expect(fireEvent.drop(screen.getByTestId("messages"), { dataTransfer: transfer({ files }) })).toBe(false);
+    expect(screen.queryByTestId("file-drop-overlay")).toBeNull();
+    const open = await screen.findByTestId("attachment-sheet");
+    expect(within(open).getByText("ghost story.pdf")).toBeInTheDocument();
+    await user.click(within(open).getByTestId("attachment-send"));
+    await waitFor(() => expect(onSendFile.mock.calls.map(([file]) => file.name)).toEqual(["ghost story.pdf"]));
+  });
+
+  it("the veil goes when the drag leaves the column or ends somewhere else", () => {
+    composer();
+    const column = screen.getByTestId("column");
+    const data = () => ({ dataTransfer: transfer({ files: [png()] }) });
+    fireEvent.dragEnter(column, data());
+    fireEvent.dragEnter(screen.getByTestId("messages"), data());
+    // Out to the page beside the chat (this DOM's DragEvent drops `relatedTarget` from its init: set it as a browser does).
+    const out = createEvent.dragLeave(screen.getByTestId("messages"), data());
+    Object.defineProperty(out, "relatedTarget", { value: document.body });
+    fireEvent(screen.getByTestId("messages"), out);
+    expect(screen.queryByTestId("file-drop-overlay")).toBeNull();
+    fireEvent.dragEnter(column, data());
+    expect(screen.getByTestId("file-drop-overlay")).toBeInTheDocument();
+    fireEvent(window, new Event("dragend"));
+    expect(screen.queryByTestId("file-drop-overlay")).toBeNull();
+    expect(sheet()).toBeNull();
+  });
+
+  it("text dragged about is not a drop of files", () => {
+    composer();
+    fireEvent.dragEnter(screen.getByTestId("column"), { dataTransfer: transfer({ text: "words" }) });
+    expect(screen.queryByTestId("file-drop-overlay")).toBeNull();
+  });
+});
+
+describe("pastedFiles and the names of pasted pictures", () => {
+  it("names a picture after the moment it was pasted, in local time", () => {
+    const at = new Date(2026, 8, 27, 14, 52, 10);
+    expect(pastedImageName("image/png", at)).toBe("Pasted image 2026-09-27 14.52.10.png");
+    expect(pastedImageName("image/jpeg", at)).toBe("Pasted image 2026-09-27 14.52.10.jpg");
+    const [named] = pastedFiles(transfer({ files: [png("image.png")] }) as unknown as DataTransfer, at)!;
+    expect(named.name).toBe("Pasted image 2026-09-27 14.52.10.png");
+    // A copied file keeps its own name, a picture included.
+    expect(pastedFiles(transfer({ files: [png("scan.png")] }) as unknown as DataTransfer, at)![0].name).toBe("scan.png");
+    expect(pastedFiles(transfer({ text: "words" }) as unknown as DataTransfer)).toBeNull();
+  });
+
+  it("a file dropped where nothing takes it does not open in place of the app", () => {
+    const stop = guardFileDrops(window);
+    try {
+      const over = createEvent.dragOver(document.body, { dataTransfer: transfer({ files: [png()] }) });
+      fireEvent(document.body, over);
+      expect(over.defaultPrevented).toBe(true);
+      expect(fireEvent.drop(document.body, { dataTransfer: transfer({ files: [png()] }) })).toBe(false);
+      // Text dragged into a field is none of its business, and a file field takes its own drop.
+      expect(fireEvent.drop(document.body, { dataTransfer: transfer({ text: "words" }) })).toBe(true);
+      const input = document.body.appendChild(Object.assign(document.createElement("input"), { type: "file" }));
+      expect(fireEvent.drop(input, { dataTransfer: transfer({ files: [png()] }) })).toBe(true);
+      input.remove();
+    } finally { stop(); }
+  });
+
+  it("a drag that only names its files or a link by address does not open them in place of the app either", () => {
+    // WebKitGTK shows a file manager's drag as `text/uri-list` with no files; a link dragged from a browser has one too.
+    const named = () => ({ dataTransfer: transfer({ types: ["text/uri-list"], html: "<a href='file:///photo.png'>photo.png</a>" }) });
+    const stop = guardFileDrops(window);
+    try {
+      const over = createEvent.dragOver(document.body, named());
+      fireEvent(document.body, over);
+      expect(over.defaultPrevented).toBe(true);
+      expect((over as DragEvent).dataTransfer?.dropEffect).toBe("none");
+      expect(fireEvent.drop(document.body, named())).toBe(false);
+      // A link dropped into a text field is its text, and a file field takes its own drop.
+      for (const field of [document.createElement("textarea"), Object.assign(document.createElement("input"), { type: "file" })]) {
+        document.body.appendChild(field);
+        expect(fireEvent.dragOver(field, named())).toBe(true);
+        expect(fireEvent.drop(field, named())).toBe(true);
+        field.remove();
+      }
+      // A drop something on the page took is left to it.
+      const taker = document.body.appendChild(document.createElement("div"));
+      taker.addEventListener("drop", (e) => e.preventDefault());
+      const taken = createEvent.drop(taker, named());
+      fireEvent(taker, taken);
+      expect(taken.defaultPrevented).toBe(true);
+      taker.remove();
+    } finally { stop(); }
+  });
+});

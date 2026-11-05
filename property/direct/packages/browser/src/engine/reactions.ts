@@ -1,0 +1,382 @@
+import { REACTION_LIMITS, ReactionWindow, nextReactionNumber, reactionEmoji, reactionIsNewer, replySnippet, type WireReaction } from "@ghostly/core";
+import { replyRef } from "../shared/replies";
+import type { ReactionNote, StoredMessage, WaitingReaction } from "../shared/types";
+
+/*
+ * Reactions to messages (WISP 400 § Reactions), as the engine keeps them: on the message's row, one per person, the
+ * highest number winning. How they travel is the caller's: a 1:1 chat's session or DHT envelopes, a group's frames.
+ * A chat is named as the engine files its messages: a link id, or `group:<id>`.
+ */
+
+export interface ReactionsHost {
+  messages(chat: string): Promise<StoredMessage[]>;
+  /** One row by its id (`db.getMessage`): the row a reaction names is found so first, and a long chat is not read whole. */
+  message?(chat: string, id: string): Promise<StoredMessage | undefined>;
+  /**
+   * The rows of a 1:1 chat a wire id may name besides `peer_` and `me_` and that id, each read alone after those: a file
+   * of mine and a payment go by their time here, and by their own id on the wire.
+   */
+  rows?(chat: string, id: string): Promise<string[]>;
+  /** Changes one row in place (`db.patchMessage`); undefined when the row is gone. */
+  patch(chat: string, id: string, change: (message: StoredMessage) => Partial<StoredMessage> | null): Promise<StoredMessage | undefined>;
+  /** Row `id` of the chat changed: the pages hear it. `note`: its latest reaction, when this one is it. */
+  changed(chat: string, id: string, note?: ReactionNote): Promise<void> | void;
+  /** Someone reacted to a message of mine: a quiet notice (the pages mute it with the chat). */
+  notify?(chat: string, key: string): void;
+  /**
+   * What waits in a 1:1 chat changed (those whose wait ended let go): kept on disk before a reaction is confirmed to
+   * the contact, who never says it again once it is (WISP 401 § Reactions), and read back at start (`restore`). A
+   * group's wait in memory.
+   */
+  keep?(chat: string, waiting: WaitingReaction[]): Promise<void>;
+  /** Whether `by` is still someone this group takes reactions from, asked again for one that waited (absent: yes). */
+  believed?(chat: string, by: string): boolean;
+  now?(): number;
+}
+
+/** Why a reaction is not kept: said to whoever asked for it. */
+export type ReactionRefusal = string;
+
+/** Where a received reaction went: shown, older than what is shown, waiting (for its message, or for a group member's next window), or dropped (no room, or not kept on disk). */
+export type ReactionOutcome = "applied" | "stale" | "waiting" | "dropped";
+
+const isGroup = (chat: string) => chat.startsWith("group:");
+
+/** How often a 1:1 chat is read whole for received reactions its rows' ids did not find (`Reactions.find`). */
+export const REACTION_LOOKUP_MS = 10_000;
+
+/** The row a reaction names in a chat: the id both sides know it by (`replyRef`). */
+export function reactionTarget(messages: readonly StoredMessage[], id: string, group: boolean): StoredMessage | undefined {
+  return messages.find(m => replyRef(m, group) === id);
+}
+
+/** The latest reaction shown in a chat's history, for the chat list after a restart. */
+export function latestReaction(messages: readonly StoredMessage[]): ReactionNote | undefined {
+  let best: ReactionNote | undefined;
+  for (const message of messages) for (const [by, r] of Object.entries(message.reactions ?? {})) {
+    if (r.e && (!best || r.at > best.at)) best = note(message, by, r.e, r.at);
+  }
+  return best;
+}
+
+function note(message: StoredMessage, by: string, emoji: string, at: number): ReactionNote {
+  return { at, by, emoji, snippet: replySnippet(message.text), mine: message.sender === "me", message: message.id };
+}
+
+/** The note again after its message changed (an edit): its line is the message's text now. Undefined when nothing changed. */
+export function noteAfterChange(current: ReactionNote, message: StoredMessage): ReactionNote | undefined {
+  const snippet = replySnippet(message.text);
+  return snippet === current.snippet ? undefined : { ...current, snippet };
+}
+
+/** The note as its message's row has it now, when that reaction still stands there (not replaced, not taken back). */
+export function noteIfStanding(current: ReactionNote, message: StoredMessage): ReactionNote | undefined {
+  const r = message.reactions?.[current.by];
+  return r?.e && r.e === current.emoji && r.at === current.at ? note(message, current.by, r.e, r.at) : undefined;
+}
+
+/**
+ * My reactions in a private group to say again to an edge that opened, in case it missed them: the newest `limit`,
+ * newest first (what the member is likeliest to have missed lands before its pace runs out), of this membership only.
+ * One made before I was removed and invited again went out under my old member key; said again now it would go under
+ * the new one, and every member would show it twice.
+ */
+export function groupReactionsToResend(messages: readonly StoredMessage[], limit: number): WireReaction[] {
+  let joinedAt = 0;
+  for (const m of messages) if (m.event === "joined" && !m.member) joinedAt = Math.max(joinedAt, m.timestamp);
+  return messages.flatMap(m => {
+    const r = m.reactions?.me, id = replyRef(m, true);
+    return r && id && r.at >= joinedAt ? [{ id, e: r.e, n: r.n }] : [];
+  }).sort((a, b) => b.n - a.n).slice(0, limit);
+}
+
+/** This side's highest number in a chat's history: the next one goes past it. */
+function lastMine(messages: readonly StoredMessage[]): number {
+  let last = 0;
+  for (const m of messages) last = Math.max(last, m.reactions?.me?.n ?? 0);
+  return last;
+}
+
+export class Reactions {
+  /** Reactions to messages not here yet, per chat, until `REACTION_LIMITS.bufferMs` after they came (`buffer` per sender). */
+  private readonly waiting = new Map<string, WaitingReaction[]>();
+  /** One chat's reactions at a time: a burst for one message lands in order. */
+  private queue = Promise.resolve();
+  /** A group member's reactions taken per window (chat and member key), as a paired chat's session limits them. */
+  private readonly memberPace = new Map<string, ReactionWindow>();
+  /** Per group chat, per member: its reactions past the window, by message, waiting for room (`hold`). */
+  private readonly held = new Map<string, Map<string, Map<string, WireReaction>>>();
+  private readonly heldTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private stopped = false;
+  /**
+   * This side's highest number per chat: read from its history the first time I react in it, then each number given
+   * out. It only has to grow, so a row deleted since leaves it too high and nothing is wrong.
+   */
+  private readonly last = new Map<string, number>();
+  /** Per 1:1 chat: when it was last read whole for a received reaction, and the read of those that waited meanwhile. */
+  private readonly lookups = new Map<string, { at: number; timer?: ReturnType<typeof setTimeout> }>();
+
+  constructor(private readonly host: ReactionsHost) {}
+
+  private now(): number { return this.host.now?.() ?? Date.now(); }
+
+  private run<T>(task: () => Promise<T>): Promise<T> {
+    const next = this.queue.then(task, task);
+    this.queue = next.then(() => {}, () => {});
+    return next;
+  }
+
+  /**
+   * This side reacts (`emoji` "" takes its reaction back): shown here at once, and the wire reaction to send. The
+   * message is named by its id here or the id both sides know it by. `pending`: what still waits to be confirmed in
+   * this chat, which the new number must pass.
+   */
+  mine(chat: string, messageId: unknown, emoji: unknown, pending: readonly WireReaction[] = []): Promise<{ reaction: WireReaction; message: StoredMessage } | { error: ReactionRefusal }> {
+    return this.run(async () => {
+      if (typeof messageId !== "string" || !messageId) return { error: "No message to react to" };
+      const e = emoji === "" ? "" : reactionEmoji(emoji);
+      if (e === null) return { error: "A reaction is one emoji" };
+      const target = await this.named(chat, messageId);
+      const group = isGroup(chat), id = target && replyRef(target, group);
+      if (!target || !id) return { error: `That message is not in this ${group ? "group" : "chat"}, or takes no reaction` };
+      const current = target.reactions?.me;
+      if (!e && !current?.e) return { error: "No reaction of yours to take back" };
+      let last = this.last.get(chat) ?? lastMine(await this.host.messages(chat));
+      for (const p of pending) last = Math.max(last, p.n);
+      const reaction: WireReaction = { id, e, n: nextReactionNumber(last, this.now()) };
+      this.last.set(chat, reaction.n);
+      const message = await this.write(chat, target, "me", reaction) ?? target;
+      return { reaction, message };
+    });
+  }
+
+  /**
+   * A reaction that came from `by` (`peer`, or a member's key), already authenticated as theirs. A message not here
+   * yet keeps it for five minutes; past the room for that sender, it is dropped (and, on a 1:1 session, not confirmed).
+   * Past `REACTION_LIMITS.receive` a window from one group member, the rest wait for the next window (`hold`): a
+   * community's catch-up hands back every reaction of a member at once, and one dropped is never handed again.
+   */
+  receive(chat: string, by: string, reaction: WireReaction): Promise<ReactionOutcome> {
+    if (isGroup(chat)) {
+      const key = `${chat}\n${by}`;
+      let pace = this.memberPace.get(key);
+      if (!pace) this.memberPace.set(key, pace = new ReactionWindow(REACTION_LIMITS.receive, REACTION_LIMITS.windowMs, () => this.now()));
+      // Behind those that wait already, so a member's reactions are taken in the order they came.
+      if (this.held.get(chat)?.has(by) || !pace.take()) return Promise.resolve(this.hold(chat, by, reaction, pace));
+    }
+    return this.take(chat, by, reaction);
+  }
+
+  private take(chat: string, by: string, reaction: WireReaction): Promise<ReactionOutcome> {
+    return this.run(async () => {
+      const target = await this.find(chat, reaction.id, true);
+      if (!target) return await this.wait(chat, by, reaction);
+      if (!reactionIsNewer(target.reactions?.[by], reaction.n)) return "stale";
+      await this.write(chat, target, by, reaction);
+      return "applied";
+    });
+  }
+
+  /**
+   * A reaction past what a group member's window takes: kept, the highest number per message, `REACTION_LIMITS.held` a
+   * group at most (the oldest go first), and taken when the window has room. The work stays what the window allows.
+   */
+  private hold(chat: string, by: string, reaction: WireReaction, pace: ReactionWindow): ReactionOutcome {
+    let group = this.held.get(chat);
+    if (!group) this.held.set(chat, group = new Map());
+    let waiting = group.get(by);
+    if (!waiting) group.set(by, waiting = new Map());
+    const known = waiting.get(reaction.id);
+    if (known && known.n >= reaction.n) return "stale";
+    waiting.delete(reaction.id);
+    waiting.set(reaction.id, reaction);
+    let count = 0;
+    for (const member of group.values()) count += member.size;
+    for (const [member, reactions] of group) {
+      if (count <= REACTION_LIMITS.held) break;
+      while (count > REACTION_LIMITS.held && reactions.size) { reactions.delete(reactions.keys().next().value!); count--; }
+      if (!reactions.size && member !== by) group.delete(member);
+    }
+    this.takeLater(chat, by, pace);
+    return waiting.has(reaction.id) ? "waiting" : "dropped";
+  }
+
+  private takeLater(chat: string, by: string, pace: ReactionWindow): void {
+    const key = `${chat}\n${by}`;
+    if (this.heldTimers.has(key) || this.stopped) return;
+    this.heldTimers.set(key, setTimeout(() => { void this.takeHeld(chat, by).catch(() => {}); }, Math.max(50, pace.wait())));
+  }
+
+  /** The window of a member has room again: its reactions that waited are taken, oldest first, as many as it allows. */
+  private async takeHeld(chat: string, by: string): Promise<void> {
+    const key = `${chat}\n${by}`;
+    this.heldTimers.delete(key);
+    const group = this.held.get(chat), waiting = group?.get(by), pace = this.memberPace.get(key);
+    if (this.stopped || !group || !waiting || !pace) return;
+    for (const [id, reaction] of [...waiting]) {
+      // Out of the group meanwhile (the member, or me): nothing of it is believed.
+      if (this.host.believed && !this.host.believed(chat, by)) { waiting.clear(); break; }
+      if (!pace.take()) break;
+      // Unless a higher one took its place while the last was applied.
+      if (waiting.get(id) !== reaction) continue;
+      waiting.delete(id);
+      await this.take(chat, by, reaction).catch(() => {});
+    }
+    if (waiting.size) { this.takeLater(chat, by, pace); return; }
+    if (group.get(by) === waiting) group.delete(by);
+    if (!group.size) this.held.delete(chat);
+  }
+
+  /** The engine stops: what waits for a window is let go, and no timer is left. */
+  stop(): void {
+    this.stopped = true;
+    this.dropHeld();
+    for (const state of this.lookups.values()) clearTimeout(state.timer);
+    this.lookups.clear();
+  }
+
+  private dropHeld(chat?: string): void {
+    for (const [key, timer] of this.heldTimers) if (chat === undefined || key.startsWith(`${chat}\n`)) { clearTimeout(timer); this.heldTimers.delete(key); }
+    if (chat === undefined) this.held.clear(); else this.held.delete(chat);
+  }
+
+  /** A message was kept: the reactions that waited for it are shown now. */
+  stored(message: StoredMessage): Promise<void> {
+    const list = this.waiting.get(message.linkId);
+    if (!list?.length) return Promise.resolve();
+    const id = replyRef(message, isGroup(message.linkId));
+    if (!id || !list.some(w => w.reaction.id === id)) return Promise.resolve();
+    return this.run(async () => {
+      const now = this.now(), all = (this.waiting.get(message.linkId) ?? []).filter(w => w.until > now);
+      const mine = all.filter(w => w.reaction.id === id).sort((a, b) => a.reaction.n - b.reaction.n);
+      const rest = all.filter(w => w.reaction.id !== id);
+      this.waiting.set(message.linkId, rest);
+      // The message just kept is their row: written to directly (the patch keeps only a newer one), the chat not read.
+      for (const { by, reaction } of mine) await this.write(message.linkId, message, by, reaction);
+      // Written first: a stop between the two only writes them again at start, where the patch keeps only a newer one.
+      await this.keep(message.linkId, rest).catch(() => {});
+    });
+  }
+
+  /** The row I react to: by its id here, as the pages name it, read alone; else by the id both sides know it by. */
+  private async named(chat: string, id: string): Promise<StoredMessage | undefined> {
+    if (this.host.message) return await this.host.message(chat, id) ?? this.find(chat, id);
+    const messages = await this.host.messages(chat);
+    return messages.find(m => m.id === id) ?? reactionTarget(messages, id, isGroup(chat));
+  }
+
+  /**
+   * The row a received reaction names. Most often the row of that id (a group's), or of `peer_` or `me_` and that id (a
+   * chat's), else a row the host knows that id names (a file of mine, a payment): those are read alone. Any other (one
+   * not here yet) is looked for in the whole chat; in a group there is no other, since a row that takes a reaction goes
+   * by its own id there. A `received` one is looked for so at most once a `REACTION_LOOKUP_MS` per chat, since the
+   * contact can name ids that never were: one that comes meanwhile waits, and the next read finds what waited
+   * (`lookUpWaiting`).
+   */
+  private async find(chat: string, id: string, received = false): Promise<StoredMessage | undefined> {
+    const group = isGroup(chat);
+    if (this.host.message) {
+      for (const rowId of group ? [id] : [`peer_${id}`, `me_${id}`]) {
+        const row = await this.host.message(chat, rowId);
+        if (row && replyRef(row, group) === id) return row;
+      }
+      if (group) return undefined;
+      for (const rowId of await this.host.rows?.(chat, id) ?? []) {
+        const row = await this.host.message(chat, rowId);
+        if (row && replyRef(row, false) === id) return row;
+      }
+      if (received && !this.lookupDue(chat)) return undefined;
+    }
+    return reactionTarget(await this.host.messages(chat), id, group);
+  }
+
+  /** Whether a received reaction may read the chat whole now; if not, a read of those that wait is due when it may. */
+  private lookupDue(chat: string): boolean {
+    const now = this.now();
+    let state = this.lookups.get(chat);
+    if (!state) this.lookups.set(chat, state = { at: -Infinity });
+    if (now - state.at >= REACTION_LOOKUP_MS) { state.at = now; return true; }
+    if (!state.timer && !this.stopped) {
+      const due = state;
+      due.timer = setTimeout(() => { due.timer = undefined; void this.lookUpWaiting(chat, due).catch(() => {}); }, due.at + REACTION_LOOKUP_MS - now);
+    }
+    return false;
+  }
+
+  /** The chat read whole once for the reactions that wait in it: those whose row it has land, newest last. */
+  private lookUpWaiting(chat: string, due: { at: number }): Promise<void> {
+    return this.run(async () => {
+      const now = this.now(), list = (this.waiting.get(chat) ?? []).filter(w => w.until > now);
+      if (this.stopped || this.lookups.get(chat) !== due || !list.length) return;
+      due.at = now;
+      const messages = await this.host.messages(chat);
+      const found = list.flatMap(w => { const target = reactionTarget(messages, w.reaction.id, false); return target ? [{ ...w, target }] : []; });
+      if (!found.length) return;
+      const rest = list.filter(w => !found.some(f => f.by === w.by && f.reaction === w.reaction));
+      this.waiting.set(chat, rest);
+      for (const { target, by, reaction } of found.sort((a, b) => a.reaction.n - b.reaction.n)) await this.write(chat, target, by, reaction);
+      await this.keep(chat, rest).catch(() => {});
+    });
+  }
+
+  /**
+   * At start, what waited in a 1:1 chat when the engine stopped (`ReactionsHost.keep`): it waits again until its time,
+   * and one whose message landed before the stop wrote it is written now. `messages`: the chat's history.
+   */
+  restore(chat: string, waiting: readonly WaitingReaction[], messages: readonly StoredMessage[]): Promise<void> {
+    return this.run(async () => {
+      const now = this.now(), list = waiting.filter(w => w.until > now);
+      const found = list.flatMap(w => { const target = reactionTarget(messages, w.reaction.id, false); return target ? [{ ...w, target }] : []; });
+      const rest = list.filter(w => !found.some(f => f.by === w.by && f.reaction === w.reaction));
+      this.waiting.set(chat, [...this.waiting.get(chat) ?? [], ...rest]);
+      for (const { target, by, reaction } of found.sort((a, b) => a.reaction.n - b.reaction.n)) await this.write(chat, target, by, reaction);
+      if (rest.length < waiting.length) await this.keep(chat, this.waiting.get(chat)!).catch(() => {});
+    });
+  }
+
+  /** What waits in a 1:1 chat, on disk (`ReactionsHost.keep`); a group's stays in memory. */
+  private keep(chat: string, waiting: readonly WaitingReaction[]): Promise<void> {
+    return isGroup(chat) || !this.host.keep ? Promise.resolve() : this.host.keep(chat, [...waiting]);
+  }
+
+  /** A chat is gone: nothing waits for it any more, and my highest number in it is read again if it comes back. */
+  forget(chat: string): void {
+    this.dropHeld(chat);
+    this.waiting.delete(chat);
+    this.last.delete(chat);
+    clearTimeout(this.lookups.get(chat)?.timer);
+    this.lookups.delete(chat);
+  }
+
+  /** A reaction to a message not here yet waits for it: in a 1:1 chat, on disk before it is confirmed (`keep`). */
+  private async wait(chat: string, by: string, reaction: WireReaction): Promise<ReactionOutcome> {
+    const now = this.now();
+    const list = (this.waiting.get(chat) ?? []).filter(w => w.until > now);
+    // The same person's reaction to that message, waiting already: the newer one of the two waits.
+    const same = list.find(w => w.by === by && w.reaction.id === reaction.id);
+    if (same && same.reaction.n >= reaction.n) return "stale";
+    const kept = list.filter(w => w !== same);
+    this.waiting.set(chat, kept);
+    // Room per sender: in a group, one member's reactions leave the others' theirs.
+    if (kept.filter(w => w.by === by).length >= REACTION_LIMITS.buffer) return "dropped";
+    const entry = { by, reaction, until: now + REACTION_LIMITS.bufferMs };
+    kept.push(entry);
+    try { await this.keep(chat, kept); } catch {
+      // Not on disk: not confirmed either, so the contact says it again.
+      kept.splice(kept.indexOf(entry), 1);
+      return "dropped";
+    }
+    return "waiting";
+  }
+
+  private async write(chat: string, target: StoredMessage, by: string, reaction: WireReaction): Promise<StoredMessage | undefined> {
+    const at = this.now();
+    const written = await this.host.patch(chat, target.id, row => reactionIsNewer(row.reactions?.[by], reaction.n)
+      ? { reactions: { ...row.reactions, [by]: { e: reaction.e, n: reaction.n, at } } } : null);
+    if (!written) return undefined;
+    const shown = reaction.e ? note(written, by, reaction.e, at) : undefined;
+    if (shown && by !== "me" && written.sender === "me") this.host.notify?.(chat, `${written.id}:${by}:${reaction.n}`);
+    await this.host.changed(chat, written.id, shown);
+    return written;
+  }
+}

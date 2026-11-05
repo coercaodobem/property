@@ -1,0 +1,182 @@
+import { act, screen, within } from "@testing-library/react";
+import { Route, Routes } from "react-router-dom";
+import { describe, expect, it, vi } from "vitest";
+import { createIdentity, encodeGroupEntryLink } from "@ghostly/core";
+import type { GroupMemberView, GroupView } from "@ghostly/browser/shared/types";
+import { GroupShareDialog } from "../../components/GroupLinkPanel";
+import { LeaveGroupDialog } from "../../components/LeaveGroupDialog";
+import { GroupChat } from "../../pages/GroupChat";
+import { fakeEngine, groupView } from "../fakeEngine";
+import { renderApp } from "../render";
+
+// covers: groups.link.enable, groups.create
+
+// A link decodes only with a real group id (22 characters) and a real entry key.
+const ID = "AbCdEfGhIjKlMnOpQrStUv";
+const LINK = encodeGroupEntryLink({ g: ID, host: createIdentity().pubKeyZ32 });
+const URL_OF = `${window.location.origin}/#/join/${LINK}`;
+const ME = "me".padEnd(52, "y");
+const me: GroupMemberView = { key: ME, role: "admin", me: true, online: true, missing: 0 };
+const admin = (patch: Partial<GroupView> = {}) => groupView({ id: ID, status: "active", epoch: 1, isAdmin: true, members: [me], ...patch });
+
+function openGroup(group: GroupView, state?: unknown) {
+  fakeEngine.on("groupMessages", () => []).on("updateSettings", () => undefined);
+  fakeEngine.update({ groups: [group] });
+  return renderApp(<Routes><Route path="/group/:groupId" element={<GroupChat />} /></Routes>, { route: state ? { pathname: `/group/${ID}`, state } : `/group/${ID}` });
+}
+
+describe("the group header's Share link", () => {
+  it("is there for the admin of an active group only", () => {
+    openGroup(admin({ isAdmin: false }));
+    expect(screen.queryByTestId("group-share")).not.toBeInTheDocument();
+  });
+
+  it("opens the link, big, with Share and Copy", async () => {
+    const { user } = openGroup(admin({ entryLink: LINK }));
+    await user.click(screen.getByTestId("group-share"));
+    const dialog = screen.getByTestId("group-share-dialog");
+    expect(dialog).toHaveTextContent("Share Friends");
+    expect(screen.getByRole("textbox", { name: "Group link" })).toHaveValue(URL_OF);
+    expect(screen.getByTestId("group-link-note")).toHaveTextContent("Anyone who opens this link joins");
+    // The big panel shows its QR at once.
+    expect(screen.getByTestId("group-link-qr")).toBeInTheDocument();
+    await user.click(screen.getByTestId("group-share-done"));
+    expect(screen.queryByTestId("group-share-dialog")).not.toBeInTheDocument();
+  });
+
+  it("turns a link that is off on first", async () => {
+    const { user, engine } = openGroup(admin());
+    engine.on("enableGroupLink", () => {
+      // The engine answers with the link, and the state that follows carries it.
+      queueMicrotask(() => engine.update({ groups: [admin({ entryLink: LINK })] }));
+      return { link: LINK };
+    });
+    await user.click(screen.getByTestId("group-share"));
+    expect(engine.callsTo("enableGroupLink")).toEqual([{ groupId: ID }]);
+    expect(await screen.findByTestId("group-share-dialog")).toBeInTheDocument();
+  });
+
+  it("stays open when the link is turned off in it, saying so; turned on again from the members, it does not come back by itself", async () => {
+    const { user, engine } = openGroup(admin({ entryLink: LINK }));
+    engine.on("enableGroupLink", () => { queueMicrotask(() => engine.update({ groups: [admin({ entryLink: LINK })] })); return { link: LINK }; })
+      .on("disableGroupLink", () => { queueMicrotask(() => engine.update({ groups: [admin()] })); });
+    await user.click(screen.getByTestId("group-share"));
+    const dialog = await screen.findByTestId("group-share-dialog");
+    await user.click(within(dialog).getByTestId("group-link-disable"));
+    await user.click(screen.getByTestId("group-link-ask-confirm"));
+    expect(await screen.findByTestId("group-link-enable")).toBeInTheDocument();
+    expect(screen.getByTestId("group-share-dialog")).toHaveTextContent("The link is off");
+    await user.click(screen.getByTestId("group-share-done"));
+    expect(screen.queryByTestId("group-share-dialog")).not.toBeInTheDocument();
+    // The members panel turns it on again: the link shows there, and nothing opens over it.
+    await user.click(screen.getByTestId("group-members"));
+    await user.click(within(screen.getByTestId("group-members-dialog")).getByTestId("group-link-enable"));
+    expect(await within(screen.getByTestId("group-members-dialog")).findByTestId("group-link-url")).toHaveValue(URL_OF);
+    expect(screen.queryByTestId("group-share-dialog")).not.toBeInTheDocument();
+  });
+
+  it("says so when the link cannot be turned on", async () => {
+    const { user, engine } = openGroup(admin());
+    engine.on("enableGroupLink", () => { throw new Error("The group is full"); });
+    await user.click(screen.getByTestId("group-share"));
+    expect(await screen.findByTestId("group-notice")).toHaveTextContent("The group is full");
+    expect(screen.queryByTestId("group-share-dialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("a group's long one-word name", () => {
+  const name = "Donaudampfschifffahrtsgesellschaftskapitaenswitwenrentenkassen";
+
+  it("breaks onto the next line in the title of the share dialog", () => {
+    renderApp(<GroupShareDialog group={admin({ name, entryLink: LINK })} created onClose={() => {}} />);
+    expect(screen.getByRole("heading", { name: `${name} is ready` }).className).toContain("break-words");
+  });
+
+  it.each([false, true])("breaks onto the next line in the title of the leave dialog (forget: %s)", (forget) => {
+    renderApp(<LeaveGroupDialog group={admin({ name })} forget={forget} onClose={() => {}} onConfirm={async () => {}} />);
+    expect(within(screen.getByTestId("group-leave-dialog")).getByRole("heading").className).toContain("break-words");
+  });
+});
+
+describe("GroupShareDialog", () => {
+  it("is where a new group ends: ready, and on to the group", async () => {
+    const onClose = vi.fn();
+    const { user } = renderApp(<GroupShareDialog group={admin({ entryLink: LINK })} created onClose={onClose} />);
+    expect(screen.getByRole("heading", { name: "Friends is ready" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Go to the group" }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("copies the link when this browser has no way to share it", async () => {
+    // happy-dom has no Web Share API and the web app no share sheet: Share falls back to a copy, and says so.
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    const { user } = renderApp(<GroupShareDialog group={admin({ entryLink: LINK })} onClose={() => {}} />);
+    await user.click(screen.getByTestId("group-link-share"));
+    expect(writeText).toHaveBeenCalledWith(URL_OF);
+    expect(screen.getByTestId("group-link-copy")).toHaveTextContent("Copied");
+  });
+
+  it("says Shared when the browser shared it", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "share", { value: share, configurable: true });
+    try {
+      const { user } = renderApp(<GroupShareDialog group={admin({ name: "", entryLink: LINK })} onClose={() => {}} />);
+      await user.click(screen.getByTestId("group-link-share"));
+      expect(share).toHaveBeenCalledWith({ title: "Join a group on Ghostly", url: URL_OF });
+      expect(screen.getByTestId("group-link-share")).toHaveTextContent("Shared");
+    } finally {
+      delete (navigator as { share?: unknown }).share;
+    }
+  });
+
+  it("gives the focus back to Share when the link it opened closes", async () => {
+    const { user } = openGroup(admin({ entryLink: LINK }));
+    const share = screen.getByTestId("group-share");
+    await user.click(share);
+    expect(screen.getByTestId("group-share-dialog")).toContainElement(document.activeElement as HTMLElement);
+    act(() => { screen.getByTestId("group-share-dialog").dispatchEvent(new Event("cancel", { cancelable: true })); });
+    expect(screen.queryByTestId("group-share-dialog")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(share);
+  });
+
+  it("keeps a community member's focus in the dialog when the admin turns the link off under it, then gives it to the ⋮, Share gone", async () => {
+    const member = admin({ isAdmin: false, profile: "community", entryLink: LINK, members: [{ ...me, role: "member" }] });
+    const { user } = openGroup(member);
+    await user.click(screen.getByTestId("group-share"));
+    const dialog = screen.getByTestId("group-share-dialog");
+    expect(within(dialog).getByTestId("group-link-share")).toHaveFocus();
+    act(() => fakeEngine.update({ groups: [{ ...member, entryLink: undefined }] }));
+    expect(within(dialog).getByTestId("group-link")).toHaveAttribute("data-state", "off");
+    expect(screen.queryByTestId("group-share")).not.toBeInTheDocument();
+    // Both fell to the page: Share went with the panel's swap, and the header's Share Done would give it back to.
+    expect(screen.getByTestId("group-share-done")).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(screen.queryByTestId("group-share-dialog")).not.toBeInTheDocument();
+    expect(screen.getByTestId("group-options")).toHaveFocus();
+  });
+
+  it("leaves the focus in the group when a new group's link is put away: on what had it, else on Share", async () => {
+    const { user } = openGroup(admin({ entryLink: LINK }), { share: "created" });
+    await user.click(await screen.findByRole("button", { name: "Go to the group" }));
+    expect(screen.queryByTestId("group-share-dialog")).not.toBeInTheDocument();
+    expect([screen.getByPlaceholderText("Message…"), screen.getByTestId("group-share")]).toContain(document.activeElement);
+  });
+
+  it("hands out the public web app's address from the desktop app and Android, served over http from an address no other device opens", () => {
+    // Windows and Android serve the app from http://tauri.localhost: an http page, but not one a link may name.
+    Object.assign(window, { __TAURI_INTERNALS__: {} });
+    try {
+      renderApp(<GroupShareDialog group={admin({ entryLink: LINK })} onClose={() => {}} />);
+      expect(screen.getByRole("textbox", { name: "Group link" })).toHaveValue(`https://app.ghostly.tools/#/join/${LINK}`);
+    } finally {
+      Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
+    }
+  });
+
+  it("closes on Escape", () => {
+    const onClose = vi.fn();
+    renderApp(<GroupShareDialog group={admin({ entryLink: LINK })} onClose={onClose} />);
+    act(() => { screen.getByTestId("group-share-dialog").dispatchEvent(new Event("cancel", { cancelable: true })); });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+});

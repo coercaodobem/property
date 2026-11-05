@@ -1,0 +1,58 @@
+import { act, renderHook } from "@testing-library/react";
+import { vi } from "vitest";
+import type { CallIceServer, CallMedia } from "@ghostly/core";
+import { useWebRTC } from "../src/useWebRTC";
+
+/**
+ * Renders `useWebRTC` as a chat does: `receive` is the other side's `_call` record changing, and
+ * `published` is every value the hook put in ours, in order (`null` clears it). `media`: where the call's media
+ * comes from, when not the page's own WebRTC; `devices`: the microphone and camera the profile chose; `network`: the
+ * profile's ICE servers and "Hide my IP from contacts".
+ */
+export function renderCall(media?: CallMedia, devices?: () => { audio?: ConstrainDOMString; video?: ConstrainDOMString },
+  network: { iceServers?: CallIceServer[]; relayOnly?: boolean } = {}) {
+  const published: (string | null)[] = [];
+  const publishCallSignal = vi.fn((signal: string | null) => { published.push(signal); });
+  const setFastPoll = vi.fn();
+  let lines = 0;
+  /** Each line gets an id, as the chat's history gives one. */
+  const addCallEventMessage = vi.fn((type: string) => `line_${type}_${++lines}`);
+  const removeCallEventMessage = vi.fn();
+  const onError = vi.fn();
+
+  let props: { signal: string | null; handled?: number } = { signal: null, handled: 0 };
+  const hook = renderHook(
+    ({ signal, handled }: { signal: string | null; handled?: number }) =>
+      useWebRTC({ incomingCallSignal: signal, callHandledElsewhere: handled, publishCallSignal, setFastPoll, addCallEventMessage, removeCallEventMessage, onError, media, devices, ...network }),
+    { initialProps: props },
+  );
+
+  return {
+    ...hook,
+    published,
+    /** The kinds (`o`, `a`, `h`, `v`) of what was published, `null` for a cleared record. */
+    publishedKinds: () => published.map((s) => (s === null ? null : (JSON.parse(s) as { t: string }).t)),
+    setFastPoll,
+    addCallEventMessage,
+    removeCallEventMessage,
+    onError,
+    receive(signal: string) {
+      props = { ...props, signal };
+      hook.rerender(props);
+    },
+    /** Another page on the same engine answered or declined the call ringing in this chat. */
+    handledElsewhere() {
+      props = { ...props, handled: (props.handled ?? 0) + 1 };
+      hook.rerender(props);
+    },
+    /** The last value `setFastPoll` was given. */
+    fastPoll: () => setFastPoll.mock.lastCall?.[0] as boolean | undefined,
+  };
+}
+
+/** Lets every pending promise the hook chained settle, inside `act` so its state updates land. */
+export async function settle() {
+  await act(async () => {
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+  });
+}

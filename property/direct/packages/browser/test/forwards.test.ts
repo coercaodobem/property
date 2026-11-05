@@ -1,0 +1,384 @@
+import "fake-indexeddb/auto";
+import { createHash } from "node:crypto";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ChatFiles, GhostLink, NO_PICTURE_METADATA, createIdentity, createLink, forwardedAgain, forwardedMany, identityFromSeedB64, readForwarded, type FileTransferRecord, type IncomingMessage, type IncomingTarget } from "@ghostly/core";
+import { GhostlyNode } from "../src/engine/node";
+import { db } from "../src/engine/db";
+import { copyForForward, forwardError, forwardKind } from "../src/engine/forwards";
+import { fileStore } from "../src/shared/idb";
+import type { StoredMessage } from "../src/shared/types";
+import { FakeNativeNet, fakeDescriptor } from "./helpers/fakeNative";
+// covers: chat.forward.wire, chat.forward.files, files.paired.send
+
+/**
+ * Forwarding in the engine (WISP 400 § Forwards): a real node with two contacts, A and B, over a stand-in for Iroh,
+ * each contact speaking files/3 with a bare `ChatFiles`. What A sent is forwarded to B as a new message of mine that
+ * carries one more hop, and a file goes from the bytes already here: A is never asked for it again.
+ */
+
+Object.defineProperty(globalThis.navigator, "storage", { value: { estimate: async () => ({ quota: 50 * 1024 ** 3, usage: 10 * 1024 ** 3 }) }, configurable: true });
+
+function pattern(offset: number, length: number): Uint8Array {
+  const out = new Uint8Array(length);
+  for (let i = 0; i < length; i++) out[i] = ((offset + i) * 7 + ((offset + i) >>> 13)) & 0xff;
+  return out;
+}
+const digestOf = (size: number) => createHash("sha256").update(pattern(0, size)).digest("base64url");
+
+const SECRET = "GHOSTLY-SECRET-GPS 52.37N 4.89E";
+const ascii = (value: string) => [...value].map((c) => c.charCodeAt(0));
+const segment = (marker: number, body: number[]) => [0xff, marker, (body.length + 2) >> 8, (body.length + 2) & 0xff, ...body];
+/** A 300 × 200 JPEG, with an Exif holding `secret` when given; its scan `scan` bytes long. */
+function jpegWith(secret?: string, scan = 16): Uint8Array {
+  const exif = secret ? segment(0xe1, [...ascii("Exif\0\0"), 0x4d, 0x4d, 0, 42, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, ...ascii(secret)]) : [];
+  const head = [0xff, 0xd8, ...exif, ...segment(0xdb, [0, ...new Array(64).fill(1)]), ...segment(0xc0, [8, 0, 200, 1, 44, 1, 1, 0x11, 0]),
+    ...segment(0xc4, [0, ...new Array(16).fill(0)]), ...segment(0xda, [1, 1, 0, 0, 63, 0])];
+  const bytes = new Uint8Array(head.length + scan + 2);
+  bytes.set(head);
+  bytes.set([0xff, 0xd9], bytes.length - 2);
+  return bytes;
+}
+
+const cleanup: (() => Promise<void>)[] = [];
+afterEach(async () => { for (const step of cleanup.splice(0).reverse()) await step(); });
+
+type Contact = Awaited<ReturnType<typeof contactOf>>;
+
+/** A contact of the app, on its own chat: the texts it got, the files it got (hashed), every files/3 frame it heard. */
+async function contactOf(net: FakeNativeNet, name: string, transport: ConstructorParameters<typeof GhostlyNode>[1]["transport"], { files = true } = {}) {
+  const invitation = createLink();
+  const [mine, theirs] = [createIdentity().seedB64, createIdentity().seedB64];
+  const id = `forward-${name}-${crypto.randomUUID()}`;
+  // The app's endpoint for this chat: each chat has its own (the engine keys it by this seed), so each its own name here.
+  const transportSeed = createIdentity().seedB64;
+  await db.putLink({ ...invitation.mine, id, profile: "paired-chat/1", participationSeed: mine, createdAt: 1, transportSeeds: { "iroh/1": transportSeed },
+    pairedPeerKey: identityFromSeedB64(theirs).pubKeyZ32, peerTrust: { version: 1 },
+    peerTransports: ["iroh/1"], peerFallback: true, preferredTransport: "iroh/1", transportFallback: true,
+    peerDescriptors: { "iroh/1": fakeDescriptor("iroh/1", `${name}`) } });
+  const got: IncomingMessage[] = [];
+  const frames: Record<string, unknown>[] = [];
+  const received = new Map<string, { hash: ReturnType<typeof createHash>; length: number }>();
+  const records = new Map<string, FileTransferRecord>();
+  const sizes = new Map<string, number>();
+  const contents = new Map<string, Uint8Array>();
+  const peer: { link?: GhostLink } = {};
+  const chatFiles = new ChatFiles({
+    send: frame => peer.link?.sendFilesFrame(frame) ?? false,
+    decide: async () => "accept",
+    openTarget: async (record): Promise<IncomingTarget> => {
+      const disk = received.get(record.id) ?? { hash: createHash("sha256"), length: 0 };
+      received.set(record.id, disk);
+      return { offset: disk.length, append: async bytes => { disk.hash.update(bytes); disk.length += bytes.length; }, flush: async () => {},
+        verify: async digest => disk.hash.copy().digest("base64url") === digest, discard: async () => { received.delete(record.id); } };
+    },
+    openSource: async record => {
+      const bytes = contents.get(record.id);
+      if (bytes) return { read: async (offset, length) => bytes.slice(offset, offset + length), digest: async () => createHash("sha256").update(bytes).digest("base64url") };
+      const size = sizes.get(record.id)!;
+      return { read: async (offset, length) => pattern(offset, Math.min(length, size - offset)), digest: async () => digestOf(size) };
+    },
+    changed: record => { records.set(`${record.direction}:${record.id}`, record); },
+    room: async () => 50 * 1024 ** 3,
+    writable: () => peer.link?.filesWritable(),
+  });
+  const link = new GhostLink({
+    // Without files: an app that takes none, neither files/2 (no handler) nor files/3.
+    params: { ...invitation.invite, profile: "paired-chat/1" }, rtcAvailable: false, largeFilesSupport: files,
+    pairing: { credentials: { seedB64: theirs, peerKey: identityFromSeedB64(mine).pubKeyZ32 }, pinPeer: async () => {} },
+    native: { preferred: "iroh/1", fallback: true, peerTransports: ["iroh/1"], peerFallback: true, peerDescriptors: { "iroh/1": fakeDescriptor("iroh/1", `app-${name}`) } },
+    transport, createPeerConnection: () => { throw new Error("No WebRTC here"); }, localFetch: vi.fn(), getServices: () => [], getHostedHttpService: () => undefined,
+    events: {
+      onMessage: message => { got.push(message); },
+      onFilesFrame: frame => { frames.push(frame as Record<string, unknown>); return chatFiles.handle(frame); },
+      onFilesSession: open => { if (open) chatFiles.attach(); else chatFiles.detach(); },
+    },
+  });
+  peer.link = link;
+  link.registerEndpoint(net.endpoint("iroh/1", name));
+  cleanup.push(async () => { await link.stop(false); await db.deleteLink(id); });
+  return {
+    id, name, transportSeed, link, files: chatFiles, takesFiles: files, got, frames, received, records,
+    offer(wireId: string, size: number, extra: { forwarded?: number } = {}) {
+      sizes.set(wireId, size);
+      chatFiles.offer({ id: wireId, name: `${wireId}.bin`, mime: "application/octet-stream", size, timestamp: Date.now(), ...extra });
+    },
+    /** Offers these bytes, under this name and type. */
+    offerBytes(wireId: string, name: string, mime: string, bytes: Uint8Array) {
+      contents.set(wireId, bytes);
+      chatFiles.offer({ id: wireId, name, mime, size: bytes.length, timestamp: Date.now() });
+    },
+  };
+}
+
+async function setup({ withCarol = false } = {}) {
+  const net = new FakeNativeNet();
+  const transport = { publish: vi.fn(async () => {}), resolve: vi.fn(async () => null), describe: () => ({ protocol: "in-process", relays: [] }) };
+  await db.putSettings({ online: true, nick: "", relays: [], iceServers: [], mints: [], mintsInitialized: true });
+  const a = await contactOf(net, "alice", transport), b = await contactOf(net, "bob", transport);
+  // Carol's app takes no files.
+  const c = withCarol ? await contactOf(net, "carol", transport, { files: false }) : undefined;
+  const node = new GhostlyNode({ onState: vi.fn(), onMessages: vi.fn(), onCallSignal: vi.fn() }, { transport, automaticWallets: false,
+    nativeTransports: { "iroh/1": async seed => net.endpoint("iroh/1", `app-${[a, b, c].find(contact => contact?.transportSeed === seed)?.name ?? "other"}`) } });
+  cleanup.push(async () => { await node.shutdown(); });
+  await node.start();
+  for (const contact of [a, b, ...(c ? [c] : [])]) {
+    node.setActiveLink({ linkId: contact.id });
+    await vi.waitFor(() => expect(node.getState().links.find(l => l.id === contact.id)?.availableTransports).toHaveLength(1));
+    void contact.link.connect(5_000).catch(() => {});
+    if (!contact.takesFiles) { await vi.waitFor(() => expect(node.getState().links.find(l => l.id === contact.id)?.pairing?.status).toBe("ready"), { timeout: 20_000 }); continue; }
+    await vi.waitFor(() => expect(node.getState().links.find(l => l.id === contact.id)?.capabilities?.largeFiles).toBe(true), { timeout: 20_000 });
+    await vi.waitFor(() => expect(contact.files.live).toBe(true), { timeout: 10_000 });
+  }
+  const row = async (contact: Contact, find: (m: StoredMessage) => boolean) => {
+    await vi.waitFor(async () => expect((await db.getMessages(contact.id)).find(find)).toBeDefined(), { timeout: 10_000 });
+    return (await db.getMessages(contact.id)).find(find)!;
+  };
+  return { node, a, b, c, row };
+}
+
+describe("the hop count", () => {
+  it("counts one more hop each time, stops at its limit, and says many from five on", () => {
+    expect(forwardedAgain(undefined)).toBe(1);
+    expect(forwardedAgain(1)).toBe(2);
+    expect(forwardedAgain(255)).toBe(255);
+    expect(forwardedAgain(-3)).toBe(1);
+    expect([4, 5, 9].map(forwardedMany)).toEqual([false, true, true]);
+    for (const bad of [0, 1.5, "2", null, 256, Number.NaN]) expect(readForwarded(bad)).toBeUndefined();
+  });
+
+  it("forwards texts and files, never payments or a group's history lines", () => {
+    const row = (fields: Partial<StoredMessage>): StoredMessage => ({ linkId: "l", id: "x", text: "hi", sender: "peer", timestamp: 1, via: "datalink", ...fields });
+    expect(forwardKind(row({}))).toBe("text");
+    expect(forwardKind(row({ file: { id: "l-in-x", name: "a.png", size: 1, mime: "image/png" } }))).toBe("file");
+    expect(forwardKind(row({ paymentId: "pay-1" }))).toMatchObject({ refused: expect.stringMatching(/Payments/) });
+    expect(forwardKind(row({ linkId: "group:g", event: "joined" }))).toMatchObject({ refused: expect.any(String) });
+    expect(forwardKind(row({ text: "  " }))).toMatchObject({ refused: expect.any(String) });
+  });
+});
+
+describe("a group file", () => {
+  // Every byte of its size can be here before its digest checked out (a holder that stalled at the end): it goes on only
+  // once the group's desk says it arrived.
+  it("is forwarded only once it arrived, never from bytes of its whole size still waiting for the author's digest", async () => {
+    const id = `group:g-in-${crypto.randomUUID()}`, size = 4096;
+    const metadata = { name: "contract.pdf", size, mime: "application/pdf", timestamp: 1 };
+    const target = (n: number) => ({ linkId: "group:h", wireId: `w${n}`, timestamp: 2, file: { id: `group:h-out-${crypto.randomUUID()}`, name: "contract.pdf", size, mime: "application/pdf" } });
+    await fileStore.put({ id, linkId: "group:g", direction: "in", digest: digestOf(size), createdAt: 1, metadata, blob: new Blob([pattern(1, size)]),
+      transfer: { state: "transferring", transferred: size, size }, group: { message: "m1", author: "alice" } });
+    await expect(copyForForward(id, target(1))).rejects.toThrow("The file has not arrived yet");
+    await fileStore.patch(id, { transfer: { state: "failed", transferred: 0, size, error: "damaged" } });
+    await expect(copyForForward(id, target(2))).rejects.toThrow("The file has not arrived yet");
+    await fileStore.patch(id, { transfer: { state: "done", transferred: size, size } });
+    const done = target(3);
+    await copyForForward(id, done);
+    expect(await fileStore.get(done.file.id)).toMatchObject({ direction: "out", digest: digestOf(size) });
+  });
+});
+
+describe("forwarding between chats", { timeout: 60_000 }, () => {
+  it("sends a text on as a new message of mine, one hop further, and nothing of who wrote it", async () => {
+    const t = await setup();
+    expect(await t.a.link.sendMessage("**lunch** at [noon](https://example.com)?")).toBeNull();
+    const original = await t.row(t.a, m => m.sender === "peer");
+    const { results } = await t.node.forwardMessages({ linkId: t.a.id, messageIds: [original.id], to: [t.b.id] });
+    expect(results).toEqual([{ to: t.b.id, messageIds: [expect.stringMatching(/^me_/)], sent: [original.id], error: null }]);
+    await vi.waitFor(() => expect(t.b.got).toHaveLength(1));
+    // The Markdown source goes as it was written; the contact reads a forwarded message, and nothing of Alice.
+    expect(t.b.got[0]).toMatchObject({ text: "**lunch** at [noon](https://example.com)?", forwarded: 1 });
+    expect(t.b.got[0]).not.toHaveProperty("reply");
+    const mine = await t.row(t.b, m => m.id === results[0]!.messageIds[0]);
+    expect(mine).toMatchObject({ sender: "me", forwarded: 1 });
+  });
+
+  it("adds a hop to a message that was forwarded already, and keeps the order of several", async () => {
+    const t = await setup();
+    expect(await t.b.link.sendMessage("first", Date.now() - 10)).toBeNull();
+    expect(await t.b.link.sendMessage("seen before", Date.now(), undefined, undefined, undefined, 4)).toBeNull();
+    const first = await t.row(t.b, m => m.text === "first"), again = await t.row(t.b, m => m.text === "seen before");
+    expect(again.forwarded).toBe(4);
+    // The messages chosen are read by their ids: the chat they come from is not read whole, however long it is.
+    const whole = vi.spyOn(db, "getMessages");
+    const { results } = await t.node.forwardMessages({ linkId: t.b.id, messageIds: [again.id, first.id], to: [t.a.id] });
+    expect(whole.mock.calls.filter(([chat]) => chat === t.b.id)).toEqual([]);
+    whole.mockRestore();
+    expect(results[0]).toMatchObject({ error: null, messageIds: [expect.any(String), expect.any(String)] });
+    await expect(t.node.forwardMessages({ linkId: t.b.id, messageIds: [first.id, "peer_notHere"], to: [t.a.id] })).rejects.toThrow("That message is not in this chat");
+    await vi.waitFor(() => expect(t.a.got).toHaveLength(2));
+    expect(t.a.got.map(m => [m.text, m.forwarded])).toEqual([["first", 1], ["seen before", 5]]);
+    expect(forwardedMany(t.a.got[1]!.forwarded)).toBe(true);
+  });
+
+  it("sends a received file on from the bytes here: the contact gets it whole, and the one who sent it is never asked again", async () => {
+    const t = await setup();
+    const size = 300 * 1024 + 17;
+    t.a.offer("pic-000001", size);
+    const received = await t.row(t.a, m => m.id === "peer_pic-000001");
+    await vi.waitFor(() => expect(t.node.getState().transfers[received.file!.id]).toMatchObject({ state: "done" }), { timeout: 15_000 });
+    // Alice's side is done too (the app's pf-done has reached her): from here on, nothing about it should.
+    await vi.waitFor(() => expect(t.a.records.get("out:pic-000001")).toMatchObject({ state: "done" }), { timeout: 15_000 });
+    const heardFromA = t.a.frames.length;
+    const { results } = await t.node.forwardMessages({ linkId: t.a.id, messageIds: [received.id], to: [t.b.id] });
+    expect(results[0]).toMatchObject({ error: null, messageIds: [expect.stringMatching(/^me_/)] });
+    const sent = await t.row(t.b, m => m.id === results[0]!.messageIds[0]);
+    expect(sent).toMatchObject({ sender: "me", forwarded: 1, file: { name: "pic-000001.bin", size, mime: "application/octet-stream" } });
+    // A copy of its own under the new chat, the original left as it was.
+    expect(sent.file!.id.startsWith(`${t.b.id}-out-`)).toBe(true);
+    expect((await fileStore.get(received.file!.id))?.metadata?.size).toBe(size);
+    await vi.waitFor(() => expect([...t.b.records.values()].find(r => r.direction === "in")).toMatchObject({ state: "done" }), { timeout: 15_000 });
+    const record = [...t.b.records.values()].find(r => r.direction === "in")!;
+    expect(record.file).toMatchObject({ size, forwarded: 1 });
+    expect(t.b.received.get(record.id)!.hash.digest("base64url")).toBe(digestOf(size));
+    // Nothing about that file went to Alice after it arrived: no request, no second transfer.
+    expect(t.a.frames.slice(heardFromA)).toEqual([]);
+  });
+
+  // covers: files.image.metadata
+  it("sends a received photo on without the metadata its author's app left in it: the size and digest are the stripped copy's", async () => {
+    const t = await setup();
+    t.a.offerBytes("photo-0001", "IMG_0001.jpg", "image/jpeg", jpegWith(SECRET, 300 * 1024));
+    const received = await t.row(t.a, m => m.id === "peer_photo-0001");
+    await vi.waitFor(() => expect(t.node.getState().transfers[received.file!.id]).toMatchObject({ state: "done" }), { timeout: 15_000 });
+    const clean = jpegWith(undefined, 300 * 1024);
+    const { results } = await t.node.forwardMessages({ linkId: t.a.id, messageIds: [received.id], to: [t.b.id] });
+    expect(results[0]).toMatchObject({ error: null, messageIds: [expect.stringMatching(/^me_/)] });
+    const sent = await t.row(t.b, m => m.id === results[0]!.messageIds[0]);
+    expect(sent.file).toMatchObject({ name: "IMG_0001.jpg", size: clean.length, mime: "image/jpeg" });
+    expect(await fileStore.get(sent.file!.id)).toMatchObject({ digest: createHash("sha256").update(clean).digest("base64url"), metadata: { size: clean.length } });
+    await vi.waitFor(() => expect([...t.b.records.values()].find(r => r.direction === "in")).toMatchObject({ state: "done" }), { timeout: 15_000 });
+    const record = [...t.b.records.values()].find(r => r.direction === "in")!;
+    expect(record.file).toMatchObject({ size: clean.length });
+    expect(t.b.received.get(record.id)!.hash.digest("base64url")).toBe(createHash("sha256").update(clean).digest("base64url"));
+    // The one received here is kept as it came.
+    expect((await fileStore.get(received.file!.id))?.metadata?.size).toBe(jpegWith(SECRET, 300 * 1024).length);
+  });
+
+  it("refuses to forward a received picture whose metadata cannot be removed, and keeps no copy", async () => {
+    const t = await setup();
+    t.a.offerBytes("photo-cut", "cut.jpg", "image/jpeg", jpegWith(SECRET).slice(0, -2));
+    const received = await t.row(t.a, m => m.id === "peer_photo-cut");
+    await vi.waitFor(() => expect(t.node.getState().transfers[received.file!.id]).toMatchObject({ state: "done" }), { timeout: 15_000 });
+    const { results } = await t.node.forwardMessages({ linkId: t.a.id, messageIds: [received.id], to: [t.b.id] });
+    expect(results[0]).toMatchObject({ error: NO_PICTURE_METADATA, messageIds: [], sent: [] });
+    expect(await fileStore.listForLink(t.b.id)).toEqual([]);
+  });
+
+  it("refuses a file still arriving, and what cannot be forwarded at all; one refused chat does not stop another", async () => {
+    const t = await setup();
+    await db.addMessage({ linkId: t.a.id, id: "peer_pay", text: "💸 Payment", sender: "peer", timestamp: 5, via: "datalink", paymentId: "pay-1" });
+    await expect(t.node.forwardMessages({ linkId: t.a.id, messageIds: ["peer_pay"], to: [t.b.id] })).rejects.toThrow(/Payments/);
+    await expect(t.node.forwardMessages({ linkId: t.a.id, messageIds: ["nope"], to: [t.b.id] })).rejects.toThrow(/not in this chat/);
+    await db.addMessage({ linkId: t.a.id, id: "peer_half", text: "📎 half.png", sender: "peer", timestamp: 6, via: "datalink", file: { id: `${t.a.id}-in-half`, name: "half.png", size: 10, mime: "image/png" } });
+    await fileStore.put({ id: `${t.a.id}-in-half`, linkId: t.a.id, blob: new Blob([new Uint8Array(4)]), createdAt: 6, direction: "in", metadata: { name: "half.png", size: 10, mime: "image/png", timestamp: 6 } });
+    await db.addMessage({ linkId: t.a.id, id: "peer_note", text: "a note", sender: "peer", timestamp: 7, via: "datalink" });
+    const { results } = await t.node.forwardMessages({ linkId: t.a.id, messageIds: ["peer_half", "peer_note"], to: ["group:nope", t.b.id] });
+    expect(results[0]).toEqual({ to: "group:nope", messageIds: [], sent: [], error: "You are not in this group" });
+    // The note went, the file did not: which one is said, so Send again sends only the file (agents#1082).
+    expect(results[1]).toMatchObject({ to: t.b.id, error: "The file has not arrived yet", messageIds: [expect.any(String)], sent: ["peer_note"] });
+    await vi.waitFor(() => expect(t.b.got.map(m => m.text)).toEqual(["a note"]));
+    await expect(t.node.forwardMessages({ linkId: t.a.id, messageIds: ["peer_note"], to: ["a", "b", "c", "d", "e", "f"] })).rejects.toThrow(/at most 5/);
+  });
+
+  it("sending a file to a contact whose app takes none rejects with the reason, says failed, and keeps no message", async () => {
+    const t = await setup({ withCarol: true });
+    const file = { id: `${t.c!.id}-out-carolfile0001`, name: "a.txt", size: 3, mime: "text/plain" };
+    await fileStore.put({ id: file.id, linkId: t.c!.id, blob: new Blob(["abc"]), createdAt: 1, direction: "out", wireId: "carolfile0001", metadata: { ...file, timestamp: 9 } });
+    await expect(t.node.sendFile({ linkId: t.c!.id, file, timestamp: 9 })).rejects.toThrow(/updated peer to send files/);
+    expect(t.node.getState().transfers[file.id]).toMatchObject({ state: "failed", error: expect.stringMatching(/updated peer/) });
+    expect((await db.getMessages(t.c!.id)).filter(m => m.file)).toEqual([]);
+    await expect(t.node.sendFile({ linkId: "no-such-chat", file: { ...file, id: "no-such-chat-out-x" }, timestamp: 9 })).rejects.toThrow("You are offline");
+  });
+
+  it("a file a chat cannot take is said so, never counted as sent, and its copy is not kept", async () => {
+    const t = await setup({ withCarol: true });
+    t.a.offer("doc-000001", 2048);
+    const received = await t.row(t.a, m => m.id === "peer_doc-000001");
+    await vi.waitFor(() => expect(t.node.getState().transfers[received.file!.id]).toMatchObject({ state: "done" }), { timeout: 15_000 });
+    const { results } = await t.node.forwardMessages({ linkId: t.a.id, messageIds: [received.id], to: [t.c!.id, t.b.id] });
+    expect(results[0]).toMatchObject({ to: t.c!.id, messageIds: [], error: expect.stringMatching(/files/) });
+    expect(results[1]).toMatchObject({ to: t.b.id, error: null, messageIds: [expect.any(String)], sent: [received.id] });
+    expect(results[0]!.sent).toEqual([]);
+    expect((await db.getMessages(t.c!.id)).filter(m => m.file)).toEqual([]);
+    expect(await fileStore.listForLink(t.c!.id)).toEqual([]);
+  });
+
+  // Chromium refuses an IndexedDB write past its quota with a QuotaExceededError whose message is "": the result's error
+  // was "", which the dialog took for a success.
+  it("a copy that found no room on this device says so, never as an empty error", async () => {
+    const t = await setup();
+    t.a.offer("full-000001", 2048);
+    const received = await t.row(t.a, m => m.id === "peer_full-000001");
+    await vi.waitFor(() => expect(t.node.getState().transfers[received.file!.id]).toMatchObject({ state: "done" }), { timeout: 15_000 });
+    const put = fileStore.put.bind(fileStore);
+    const full = vi.spyOn(fileStore, "put").mockImplementation(async file => {
+      if (file.id.startsWith(`${t.b.id}-out-`)) throw new DOMException("", "QuotaExceededError");
+      return put(file);
+    });
+    const { results } = await t.node.forwardMessages({ linkId: t.a.id, messageIds: [received.id], to: [t.b.id] });
+    full.mockRestore();
+    expect(results).toEqual([{ to: t.b.id, messageIds: [], sent: [], error: "Not enough space on this device (QuotaExceededError)" }]);
+    expect((await db.getMessages(t.b.id)).filter(m => m.file)).toEqual([]);
+    expect(await fileStore.listForLink(t.b.id)).toEqual([]);
+  });
+});
+
+describe("a forward a group took part of", { timeout: 60_000 }, () => {
+  // A group takes 8 of my files a minute: a forward of 10 posted 1-8, the 9th hit the pace, and the copy of the 10th was
+  // made and thrown away; each Send again posted 1-8 again (agents#1082). Past the pace the rest is refused before its
+  // copy, and the result says which went.
+  it("stops at the group's pace before copying, and says which messages went", async () => {
+    const t = await setup();
+    const files = Array.from({ length: 10 }, (_, i) => `doc-${String(i).padStart(6, "0")}`);
+    for (const name of files) t.a.offer(name, 512);
+    const received = await Promise.all(files.map(name => t.row(t.a, m => m.id === `peer_${name}`)));
+    await vi.waitFor(() => expect(received.every(r => t.node.getState().transfers[r.file!.id]?.state === "done")).toBe(true), { timeout: 30_000 });
+    const node = t.node as unknown as {
+      membership(groupId: string): unknown;
+      groups: { fileCheck(groupId: string): { error: string | null } };
+      sendGroupFile(params: { groupId: string }): Promise<{ error: string | null; messageId?: string }>;
+    };
+    let announced = 0;
+    vi.spyOn(node, "membership").mockReturnValue({ me: "me", members: new Set() });
+    vi.spyOn(node.groups, "fileCheck").mockImplementation(() => ({ error: announced >= 8 ? "You sent many files to this group just now. Wait a minute." : null }));
+    const posted = vi.spyOn(node, "sendGroupFile").mockImplementation(async () => ({ error: null, messageId: `g-${++announced}` }));
+    const copied = vi.spyOn(fileStore, "put");
+    const ids = received.map(r => r.id);
+    const { results } = await t.node.forwardMessages({ linkId: t.a.id, messageIds: ids, to: ["group:g1"] });
+    expect(posted).toHaveBeenCalledTimes(8);
+    // No copy made for the two the pace refused.
+    expect(copied.mock.calls.filter(([file]) => file.linkId === "group:g1")).toHaveLength(8);
+    expect(results).toEqual([{ to: "group:g1", messageIds: Array.from({ length: 8 }, (_, i) => `g-${i + 1}`), sent: ids.slice(0, 8), error: "You sent many files to this group just now. Wait a minute." }]);
+  });
+});
+
+describe("a group I was removed from", { timeout: 60_000 }, () => {
+  // Its page keeps the history and offers Forward on it: the engine refused it whole with "Chat not found", which the
+  // dialog pinned on the chosen chat's name. The messages are read from this device; membership is for sending to one.
+  it.each(["mesh", "community"] as const)("its kept %s history is forwarded, while sending to it is still refused", async (profile) => {
+    const t = await setup();
+    const { groupId } = await t.node.createGroup({ name: "Plaza", profile });
+    await db.addMessage({ linkId: `group:${groupId}`, id: "peer_old", text: "the address is Rua 7", sender: "peer", member: "m", timestamp: Date.now(), via: "datalink" });
+    const groups = (t.node as unknown as { groups: { session(id: string): unknown; communities: { session(id: string): unknown } } }).groups;
+    const session = (profile === "mesh" ? groups.session(groupId) : groups.communities.session(groupId)) as { out(reason: string, text: string): void };
+    session.out("removed", "You were removed from this group");
+    expect(t.node.getState().groups.find(g => g.id === groupId)?.status).toBe("removed");
+    const { results } = await t.node.forwardMessages({ linkId: `group:${groupId}`, messageIds: ["peer_old"], to: [`group:${groupId}`, t.b.id] });
+    expect(results[0]).toEqual({ to: `group:${groupId}`, messageIds: [], sent: [], error: "You are not in this group" });
+    expect(results[1]).toMatchObject({ to: t.b.id, error: null, sent: ["peer_old"] });
+    await vi.waitFor(() => expect(t.b.got).toMatchObject([{ text: "the address is Rua 7", forwarded: 1 }]));
+    await expect(t.node.forwardMessages({ linkId: "group:not-here", messageIds: ["peer_old"], to: [t.b.id] })).rejects.toThrow("Chat not found");
+  });
+});
+
+describe("why a forward failed", () => {
+  it("says no room however the storage put it, and is never empty", () => {
+    expect(forwardError(new DOMException("", "QuotaExceededError"))).toBe("Not enough space on this device (QuotaExceededError)");
+    // The OPFS worker's (fileBytesOpfs.ts keeps its name) and Desktop's io error (the system's English, a string from Rust).
+    expect(forwardError(Object.assign(new Error("This device has no space left for the file"), { name: "QuotaExceededError" })))
+      .toBe("Not enough space on this device (QuotaExceededError: This device has no space left for the file)");
+    expect(forwardError("No space left on device (os error 28)")).toBe("Not enough space on this device (No space left on device (os error 28))");
+    expect(forwardError(new DOMException("", "UnknownError"))).toBe("UnknownError");
+    expect(forwardError(new Error(""))).toBe("Error");
+    expect(forwardError("")).toBe("Error");
+    expect(forwardError(new Error("The file has not arrived yet"))).toBe("The file has not arrived yet");
+  });
+});

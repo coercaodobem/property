@@ -1,0 +1,738 @@
+/**
+ * Signaling for voice/video calls, carried in the `_call` record. A full SDP
+ * does not fit in a Pkarr packet, so only the session-specific parameters
+ * travel and each side rebuilds the SDP around them.
+ */
+export interface CallSignal {
+  /**
+   * offer, answer, hang-up, "my picture changed" while the call is up, or `r`: an offer that restarts ICE on the
+   * call's own connection after its path was lost (WISP 601, "Reconnecting"). An app that does not know `r` drops it.
+   */
+  t: "o" | "a" | "h" | "v" | "r";
+  /** The sender's clock when it made the signal: its order among that sender's signals. */
+  ts: number;
+  /** When this device heard a contact's signal, by its own clock. Never sent: the engine sets it (`heardCallSignal`). */
+  at?: number;
+  /**
+   * On an answer: the `ts` of the offer it answers, so the caller takes it for that offer and no other, whatever the two
+   * clocks say. Apps up to 1.0.2 send none and ignore it; they take an answer only when its `ts` is later than their
+   * offer's, which a callee whose clock is behind by longer than it took to answer never met.
+   */
+  o?: number;
+  u?: string;
+  p?: string;
+  f?: string;
+  s?: string;
+  m?: string[];
+  c?: string[];
+  ss?: number[];
+  /** 1 while this peer is sending a picture, 0 while it is not. */
+  v?: number;
+  /** What the picture is: the camera or a screen. Only meaningful with `v: 1`. */
+  k?: "c" | "s";
+  /**
+   * The payload types the sender's SDP gives Opus and VP8, when not 111 and 96 (the rebuilt SDP's own, and
+   * Chromium's). WebKit offers H264 as 96 and VP8 as 106: rebuilt as `96 VP8`, the offerer read the answerer's
+   * VP8 as H264 and never showed its picture.
+   */
+  ap?: number;
+  vp?: number;
+  /**
+   * On a hang-up, why when it was not the person's choice: `u`, the call could not connect (no connection found a
+   * candidate, or it did not connect in time). Older apps read it as a plain hang-up.
+   */
+  r?: "u";
+  /**
+   * On an offer or an answer: 1 when this side can restart ICE on the call's connection, so a call both sides said
+   * it on reconnects after a network change instead of ending. Older apps leave it out, and ignore it.
+   */
+  x?: 1;
+  /** On the answer to a restart offer (`r`): that offer's `ts`, so an answer to an older one is told apart. */
+  re?: number;
+  /**
+   * On an offer or an answer: 0 when this side takes no picture and sends none (the headless CLI: a bot has no screen
+   * to show one on). Its video section is rebuilt closed (`a=inactive`), so the other side sends nothing on it, a
+   * camera turned on mid-call included. Older apps leave it out, and ignore it: they send a picture nobody reads.
+   */
+  vr?: 0;
+}
+
+/** What the rebuilt SDP gives Opus and VP8 unless the signal says otherwise. */
+const DEFAULT_OPUS_PT = 111;
+const DEFAULT_VP8_PT = 96;
+/** Dynamic RTP payload types: 96-127 (RFC 3551), and 35-63, which WebRTC engines use too. */
+const dynamicPayloadType = (n: unknown): n is number => Number.isInteger(n) && (((n as number) >= 96 && (n as number) <= 127) || ((n as number) >= 35 && (n as number) <= 63));
+
+export type CallState = "idle" | "offering" | "incoming" | "answering" | "connecting" | "connected" | "ended";
+
+export type CallEventType =
+  | "call_started"
+  | "call_received"
+  | "call_connected"
+  | "call_ended"
+  | "call_missed"
+  /** Our call rang out (`RING_MS`) with nobody answering: the caller's line, as "Missed call" is the side it rang. */
+  | "call_unanswered"
+  /** We hung up our call while it still rang, before any answer. */
+  | "call_cancelled"
+  | "call_rejected"
+  /** The call ended without ever connecting: no way to reach the contact was found, or none worked in time. */
+  | "call_failed";
+
+/**
+ * Where a call's media comes from: the browser's own WebRTC and capture, or a stand-in with the same shape.
+ * Ghostly Desktop on Linux brings one: WebKitGTK has no WebRTC there, so GStreamer runs the call (WISP 601).
+ */
+export interface CallMedia {
+  createPeerConnection(config: RTCConfiguration): RTCPeerConnection;
+  getUserMedia(constraints: MediaStreamConstraints): Promise<MediaStream>;
+  /** Left out where the screen cannot be shared. */
+  getDisplayMedia?(options: DisplayMediaStreamOptions): Promise<MediaStream>;
+  /**
+   * Its connections restart ICE as a browser's do: `createOffer({ iceRestart: true })` on a connected one gives an
+   * offer with new ICE credentials and candidates, and a remote offer with new credentials is answered on the same
+   * connection (WISP 601, "Reconnecting"). The browser's own media does; a stand-in says so.
+   */
+  restartsIce?: boolean;
+  /** Why the screen cannot be shared, where it cannot: the call window shows it on the share button, turned off. */
+  screenUnavailable?: string;
+  /**
+   * Its connections keep to the configuration's relay policy (`iceTransportPolicy: "relay"`): they gather and use
+   * only the TURN server's candidates, so a contact never learns this device's address. The browser's own media
+   * does; a stand-in that does not say so is not used for a call while "Hide my IP from contacts" is on.
+   */
+  keepsToRelays?: boolean;
+  /**
+   * `getUserMedia` captures from the `deviceId` asked for, and `replaceTrack` on the audio sender switches the
+   * microphone: the profile's devices and the call's device menu work as with the browser's own media.
+   */
+  choosesDevices?: boolean;
+}
+
+export function compressSdp(sdp: string): string {
+  return btoa(sdp);
+}
+
+export function decompressSdp(compressed: string): string {
+  return atob(compressed);
+}
+
+/**
+ * The apps' STUN servers. No candidate pool: a call's connection is made when the call is placed and its offer follows
+ * at once, so pre-gathered sessions save no time, and each one opens its own sockets, asks every STUN server and takes
+ * its own TURN allocation (a TURN server's per-user quota then refuses the call's own).
+ */
+export const RTC_CONFIG: RTCConfiguration = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
+  ],
+};
+
+/** An ICE server as a profile's settings keep it: one or more URLs in `urls` (space or comma separated). */
+export interface CallIceServer { urls: string | string[]; username?: string; credential?: string }
+
+/**
+ * A call's WebRTC configuration: the apps' STUN servers, then the profile's own (Settings → Network → ICE
+ * servers: a TURN relay, typically). A relay is what connects a call when no direct path works: a VPN that takes
+ * every packet through its tunnel, or a NAT that maps each destination apart.
+ *
+ * `relayOnly` ("Hide my IP from contacts", WISP 100 § Relay only): the profile's TURN servers alone, no STUN server
+ * (the apps' or the profile's), and the relay policy, so the connection gathers and uses relay candidates only. With
+ * no usable TURN server it has no server at all, and finds no candidate: it fails, it never goes direct.
+ */
+export function callRtcConfig(extra: readonly CallIceServer[] = [], { relayOnly = false }: { relayOnly?: boolean } = {}): RTCConfiguration {
+  const servers: RTCIceServer[] = [];
+  for (const server of extra) {
+    const urls = (Array.isArray(server.urls) ? server.urls : server.urls.split(/[\s,]+/)).filter(Boolean)
+      .filter((url) => !relayOnly || /^turns?:/i.test(url));
+    if (!urls.length) continue;
+    // A TURN server without its username and credential (a profile restored from a backup, which leaves the
+    // credential out) is skipped: a browser refuses to make any connection with one in its list.
+    if (urls.some((url) => /^turns?:/i.test(url)) && (!server.username?.trim() || !server.credential?.trim())) continue;
+    servers.push({ urls, ...(server.username ? { username: server.username } : {}), ...(server.credential ? { credential: server.credential } : {}) });
+  }
+  if (relayOnly) return { ...RTC_CONFIG, iceServers: servers, iceTransportPolicy: "relay" };
+  return { ...RTC_CONFIG, iceServers: [...(RTC_CONFIG.iceServers ?? []), ...servers] };
+}
+
+/**
+ * The WebRTC configuration of a chat's data link or a group's edge, from the profile's settings: its ICE servers,
+ * and "Hide my IP from contacts" (`relayOnly`), as a call's (`callRtcConfig`).
+ */
+export function contactRtcConfig(settings: { iceServers?: readonly CallIceServer[]; relayOnly?: boolean }): RTCConfiguration {
+  return callRtcConfig(settings.iceServers ?? [], { relayOnly: settings.relayOnly === true });
+}
+
+/** Whether a connection keeps to relays (`iceTransportPolicy: "relay"`): what it sends a contact is then relay candidates only. */
+export function keepsToRelays(pc: Pick<RTCPeerConnection, "getConfiguration"> | null | undefined): boolean {
+  return pc?.getConfiguration?.().iceTransportPolicy === "relay";
+}
+
+/**
+ * How many candidates a signal on the chat session carries (`paired-call`, WISP 601): the receiver takes eight.
+ * A compatibility chat's `_call` record keeps to one host and one server reflexive candidate (a DHT packet's worth).
+ */
+export const PAIRED_CALL_CANDIDATES = 8;
+
+/**
+ * The candidates a signal carries, from the `a=candidate:` values of an SDP, when it may carry up to `max`.
+ *
+ * A computer often has several interfaces (Wi-Fi, Ethernet, VM bridges, Tailscale, a VPN) and the one listed first is
+ * not always one the contact can reach: on a Mac with a VPN as its default route it is the tunnel's address, which
+ * nothing on that machine can answer. So the signal carries every usable path, in this order:
+ *
+ * 1. host candidates on local networks, IPv4 or an mDNS name (at most four);
+ * 2. the first server reflexive candidate, and relay candidates (a TURN server, when the profile has one);
+ * 3. IPv6 host candidates, global ones first (at most two);
+ * 4. host candidates a browser marks as costly (`network-cost` 50 or more: a VPN, or an interface it does not know);
+ * 5. whatever else fits.
+ *
+ * UDP only, loopback, link-local and unspecified addresses left out (loopback kept with `loopback`), the related
+ * address dropped (it is informational, and an IPv6 one broke apps before 0.5).
+ *
+ * `relayOnly` ("Hide my IP from contacts"): relay candidates alone, whatever else the connection gathered. A relay
+ * candidate's address is the TURN server's; its related address, dropped as every one is, would be this device's.
+ */
+export function pickCallCandidates(candidates: readonly string[], max = PAIRED_CALL_CANDIDATES, { loopback = false, relayOnly = false } = {}): string[] {
+  const type = (c: string) => / typ (\S+)/.exec(c)?.[1];
+  const udp = candidates.map((c) => c.trim()).filter((c) => / udp /i.test(c) && (!relayOnly || type(c) === "relay"));
+  const address = (c: string) => c.split(" ")[4] ?? "";
+  const cost = (c: string) => Number(/ network-cost (\d+)/.exec(c)?.[1] ?? 0);
+  const ipv6 = (c: string) => address(c).includes(":");
+  const usable = (c: string) => {
+    const a = address(c).toLowerCase();
+    if (a === "::" || a === "0.0.0.0" || a.startsWith("169.254.") || a.startsWith("fe80:")) return false;
+    return loopback || !(a === "::1" || a.startsWith("127."));
+  };
+  const hosts = udp.filter((c) => type(c) === "host" && usable(c));
+  const costly = (c: string) => cost(c) >= 50;
+  const groups = [
+    hosts.filter((c) => !ipv6(c) && !costly(c)).slice(0, 4),
+    udp.filter((c) => type(c) === "srflx").slice(0, 1),
+    udp.filter((c) => type(c) === "relay").slice(0, 2),
+    [...hosts.filter((c) => ipv6(c) && !/^f[cd]/i.test(address(c)) && !costly(c)), ...hosts.filter((c) => ipv6(c) && (/^f[cd]/i.test(address(c)) || costly(c)))].slice(0, 2),
+    hosts.filter((c) => !ipv6(c) && costly(c)),
+    hosts,
+  ];
+  const picked: string[] = [];
+  for (const group of groups) for (const c of group) if (picked.length < max && !picked.includes(c)) picked.push(c);
+  return picked.map((c) => c.replace(/ raddr \S+ rport \d+/, ""));
+}
+
+/**
+ * The parameters of a call signal, from an SDP. `maxCandidates` above two (a signal on the chat session) carries
+ * the candidates `pickCallCandidates` chooses; the default keeps a compatibility chat's one host and one server
+ * reflexive candidate. `relayOnly` ("Hide my IP from contacts"): relay candidates only, in either; a compatibility
+ * chat's two then go to the first two relay ones.
+ */
+export function extractParamsFromSdp(sdp: string, { maxCandidates = 2, loopback = false, relayOnly = false }: { maxCandidates?: number; loopback?: boolean; relayOnly?: boolean } = {}): Partial<CallSignal> {
+  const lines = sdp.split("\r\n");
+
+  let ufrag = "";
+  let pwd = "";
+  let fingerprint = "";
+  let setup = "";
+  const media: string[] = [];
+  const candidates: string[] = [];
+  let audioSsrc: number | null = null;
+  let videoSsrc: number | null = null;
+  let opus: number | null = null;
+  let vp8: number | null = null;
+  let currentMedia = "";
+
+  for (const line of lines) {
+    if (line.startsWith("a=ice-ufrag:") && !ufrag) {
+      ufrag = line.substring("a=ice-ufrag:".length);
+    }
+    if (line.startsWith("a=ice-pwd:") && !pwd) {
+      pwd = line.substring("a=ice-pwd:".length);
+    }
+    if (line.startsWith("a=fingerprint:sha-256 ") && !fingerprint) {
+      fingerprint = line
+        .substring("a=fingerprint:sha-256 ".length)
+        .replace(/:/g, "");
+    }
+    if (line.startsWith("a=setup:") && !setup) {
+      setup = line.substring("a=setup:".length);
+    }
+    if (line.startsWith("m=audio")) {
+      media.push("a");
+      currentMedia = "a";
+    }
+    if (line.startsWith("m=video")) {
+      media.push("v");
+      currentMedia = "v";
+    }
+    const rtpmap = line.match(/^a=rtpmap:(\d+) (opus\/48000|VP8\/90000)/i);
+    if (rtpmap) {
+      const pt = Number(rtpmap[1]);
+      if (currentMedia === "a" && opus === null && /^opus/i.test(rtpmap[2])) opus = pt;
+      if (currentMedia === "v" && vp8 === null && /^VP8/i.test(rtpmap[2])) vp8 = pt;
+    }
+    if (line.startsWith("a=candidate:")) {
+      candidates.push(line.substring("a=candidate:".length));
+    }
+    if (line.startsWith("a=ssrc:")) {
+      const ssrcMatch = line.match(/^a=ssrc:(\d+)/);
+      if (ssrcMatch) {
+        const ssrc = parseInt(ssrcMatch[1], 10);
+        if (currentMedia === "a" && audioSsrc === null) {
+          audioSsrc = ssrc;
+        } else if (currentMedia === "v" && videoSsrc === null) {
+          videoSsrc = ssrc;
+        }
+      }
+    }
+  }
+
+  // `typ host` can end the line: browsers add `generation 0` after it, webrtc-rs (the Linux Desktop) does not.
+  const srflxCandidates = candidates.filter(c => / typ srflx( |$)/.test(c));
+  const hostCandidates = candidates.filter(c => / typ host( |$)/.test(c) && / udp /i.test(c));
+  // Include 1 host candidate (for local connections) and 1 srflx (for remote)
+  // Keep packet size under 1000 bytes DHT limit
+  // The related address is informational and names an interface of the sender's (webrtc-rs gives its LAN address),
+  // so it is left out, IPv4 too; an IPv6 one (`raddr ::`, WebKit's IPv6 srflx) also made apps before 0.5 refuse the
+  // whole signal.
+  const selectedCandidates = maxCandidates > 2 || relayOnly ? pickCallCandidates(candidates, maxCandidates, { loopback, relayOnly }) : [
+    ...hostCandidates.slice(0, 1),
+    ...srflxCandidates.slice(0, 1),
+  ].map(c => c.replace(/ raddr \S+ rport \d+/, ""));
+  
+  const ssrcs: number[] = [];
+  if (audioSsrc !== null) ssrcs.push(audioSsrc);
+  if (videoSsrc !== null) ssrcs.push(videoSsrc);
+  
+  return {
+    u: ufrag,
+    p: pwd,
+    f: fingerprint,
+    s: setup,
+    m: media,
+    c: selectedCandidates,
+    ss: ssrcs,
+    // Only when they differ from what every rebuilt SDP assumes: signals between Chromium apps stay as they were.
+    ...(opus !== null && opus !== DEFAULT_OPUS_PT && dynamicPayloadType(opus) ? { ap: opus } : {}),
+    ...(vp8 !== null && vp8 !== DEFAULT_VP8_PT && dynamicPayloadType(vp8) ? { vp: vp8 } : {}),
+  };
+}
+
+/** Offers, answers and hang-ups older (or further in the future) than this are ignored. */
+export const CALL_SIGNAL_MAX_AGE_MS = 120_000;
+/**
+ * A signal dated further ahead of this clock than this is not taken, however it was heard. A receiver acts on a signal
+ * only when its `ts` is later than the last one it acted on: taken, a signal dated a day ahead would be that last one,
+ * and every offer, answer and hang-up its sender made afterwards would be dropped as older, until the app started again.
+ */
+export const CALL_SIGNAL_FUTURE_MS = 10 * 60_000;
+
+/** RFC 8839: ice-char is ALPHA / DIGIT / "+" / "/"; ufrag is 4-256 of them, pwd 22-256. */
+const ICE_UFRAG = /^[A-Za-z0-9+/]{4,256}$/;
+const ICE_PWD = /^[A-Za-z0-9+/]{22,256}$/;
+const ICE_FOUNDATION = /^[A-Za-z0-9+/]{1,32}$/;
+const CANDIDATE_ADDRESS = /^[A-Za-z0-9.:-]{1,64}$/;
+const CANDIDATE_TYPES = new Set(["host", "srflx", "prflx", "relay"]);
+const EXTENSION_TOKEN = /^[A-Za-z0-9+/._-]{1,64}$/;
+const DIGITS = /^\d{1,10}$/;
+const MAX_CANDIDATES = 8;
+
+function uint(value: string, max: number): number | null {
+  if (!DIGITS.test(value)) return null;
+  const n = Number(value);
+  return n <= max ? n : null;
+}
+
+/**
+ * Parses the part of an `a=candidate:` line that the signal carries
+ * (`foundation component transport priority address port typ type [raddr a rport p] [ext value]...`)
+ * and serializes it again from the validated parts. Returns `undefined` for a
+ * well-formed candidate that is not UDP (skipped) and `null` for anything malformed.
+ */
+function normalizeCandidate(candidate: unknown): string | null | undefined {
+  if (typeof candidate !== "string" || candidate.length > 512) return null;
+  const parts = candidate.split(" ");
+  if (parts.length < 8 || parts[6] !== "typ") return null;
+  const [foundation, componentStr, transport, priorityStr, address, portStr, , type] = parts;
+  const component = uint(componentStr, 256);
+  const priority = uint(priorityStr, 0xffffffff);
+  const port = uint(portStr, 65535);
+  if (!ICE_FOUNDATION.test(foundation) || component === null || component < 1) return null;
+  if (!/^[A-Za-z]{1,8}$/.test(transport) || priority === null || port === null) return null;
+  if (!CANDIDATE_ADDRESS.test(address) || !CANDIDATE_TYPES.has(type)) return null;
+
+  let raddr: string | null = null;
+  let rport: number | null = null;
+  const rest = parts.slice(8);
+  if (rest.length % 2 !== 0) return null;
+  for (let i = 0; i < rest.length; i += 2) {
+    const [name, value] = [rest[i], rest[i + 1]];
+    if (!EXTENSION_TOKEN.test(name)) return null;
+    // raddr is an address, IPv6 too (`raddr ::`, as WebKit gives an IPv6 srflx): the address pattern, not the token one.
+    if (name === "raddr") {
+      if (!CANDIDATE_ADDRESS.test(value)) return null;
+      raddr = value;
+    } else if (name === "rport") {
+      rport = uint(value, 65535);
+      if (rport === null) return null;
+    } else if (!EXTENSION_TOKEN.test(value)) return null;
+    // Other extension attributes (generation, network-id, ufrag...) are dropped.
+  }
+
+  if (transport.toLowerCase() !== "udp") return undefined;
+  let line = `${foundation} ${component} udp ${priority} ${address} ${port} typ ${type}`;
+  if (raddr !== null && rport !== null) line += ` raddr ${raddr} rport ${rport}`;
+  return line;
+}
+
+/**
+ * Validates an untrusted `_call` signal (from the Pkarr record or a `call`
+ * frame). Every value that ends up in the rebuilt SDP is checked against an
+ * anchored pattern and candidates are re-serialized from their parts, so a peer
+ * cannot inject SDP lines. Signals outside {@link CALL_SIGNAL_MAX_AGE_MS} of
+ * `now` are rejected so that a stale packet does not ring.
+ */
+export function parseCallSignal(json: string, now = Date.now()): CallSignal | null {
+  let raw: Record<string, unknown>;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  if (raw.t !== "o" && raw.t !== "a" && raw.t !== "h" && raw.t !== "v" && raw.t !== "r") return null;
+  if (typeof raw.ts !== "number" || !Number.isFinite(raw.ts)) return null;
+  if (raw.ts > now + CALL_SIGNAL_FUTURE_MS) return null;
+  // How old it is, on this clock when the engine heard it come (`heardCallSignal`), by its own time otherwise.
+  const heard = typeof raw.at === "number" && Number.isFinite(raw.at) ? { at: raw.at } : {};
+  if (Math.abs(now - (heard.at ?? raw.ts)) > CALL_SIGNAL_MAX_AGE_MS) return null;
+  if (raw.t === "h") return raw.r === "u" ? { t: "h", ts: raw.ts, r: "u", ...heard } : { t: "h", ts: raw.ts, ...heard };
+
+  const picture = parsePicture(raw);
+  if (picture === null) return null;
+  // A media state carries no ICE: it only says whether a picture is on, and which.
+  if (raw.t === "v") return { t: "v", ts: raw.ts, ...picture, ...heard };
+
+  if (typeof raw.u !== "string" || !ICE_UFRAG.test(raw.u)) return null;
+  if (typeof raw.p !== "string" || !ICE_PWD.test(raw.p)) return null;
+  if (typeof raw.f !== "string" || !/^[0-9a-fA-F]{64}$/.test(raw.f)) return null;
+  if (raw.s !== "actpass" && raw.s !== "active" && raw.s !== "passive") return null;
+
+  let media: string[] | undefined;
+  if (raw.m !== undefined) {
+    if (!Array.isArray(raw.m) || raw.m.length < 1 || raw.m.length > 2) return null;
+    if (!raw.m.every((m) => m === "a" || m === "v") || new Set(raw.m).size !== raw.m.length) return null;
+    media = [...raw.m];
+  }
+
+  let ssrcs: number[] | undefined;
+  if (raw.ss !== undefined) {
+    if (!Array.isArray(raw.ss) || raw.ss.length > 2) return null;
+    if (!raw.ss.every((n) => Number.isInteger(n) && n >= 0 && n <= 0xffffffff)) return null;
+    ssrcs = [...raw.ss];
+  }
+
+  const candidates: string[] = [];
+  if (raw.c !== undefined) {
+    if (!Array.isArray(raw.c) || raw.c.length > MAX_CANDIDATES) return null;
+    for (const c of raw.c) {
+      const normalized = normalizeCandidate(c);
+      if (normalized === null) return null;
+      if (normalized !== undefined) candidates.push(normalized);
+    }
+  }
+
+  const payloadTypes: Pick<CallSignal, "ap" | "vp"> = {};
+  for (const key of ["ap", "vp"] as const) {
+    const value = raw[key];
+    if (value === undefined) continue;
+    if (!dynamicPayloadType(value)) return null;
+    payloadTypes[key] = value;
+  }
+  if (payloadTypes.ap !== undefined && payloadTypes.ap === payloadTypes.vp) return null;
+
+  // Any other value of `x` says nothing. `re` only means something on an answer.
+  const restart: Pick<CallSignal, "x" | "re"> = raw.x === 1 ? { x: 1 } : {};
+  if (raw.re !== undefined) {
+    if (raw.t !== "a" || typeof raw.re !== "number" || !Number.isFinite(raw.re)) return null;
+    restart.re = raw.re;
+  }
+
+  // Any other value of `vr` says nothing: the video section stays open, as without it.
+  const closed: Pick<CallSignal, "vr"> = raw.vr === 0 ? { vr: 0 } : {};
+
+  // `o` names the offer an answer is for; on anything else it says nothing.
+  if (raw.o !== undefined && (typeof raw.o !== "number" || !Number.isFinite(raw.o))) return null;
+  const answers = raw.t === "a" && raw.o !== undefined ? { o: raw.o } : {};
+
+  return { t: raw.t, ts: raw.ts, u: raw.u, p: raw.p, f: raw.f, s: raw.s, m: media, c: candidates, ss: ssrcs, ...picture, ...payloadTypes, ...restart, ...closed, ...answers, ...heard };
+}
+
+/**
+ * A contact's signal as the engine hands it on: `at` says when this device heard it, by its own clock (absent: nothing
+ * says, as for one found in a record). Whatever `at` the signal came with is dropped: it is never the sender's to say.
+ *
+ * A signal's `ts` is its sender's clock. It orders that sender's signals, and settles two calls made at once the same
+ * way on both sides. It cannot say how long ago the signal was made, nor whether it came before or after something this
+ * device did: two devices' clocks are often minutes apart. Held against this clock, a contact two minutes off never
+ * rang here, and an answer from a contact whose clock was behind by longer than it took to answer was dropped as
+ * "from before the offer", so the call never connected.
+ */
+export function heardCallSignal(json: string, at?: number): string {
+  let raw: unknown;
+  try { raw = JSON.parse(json); } catch { return json; }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return json;
+  const { at: _theirs, ...signal } = raw as Record<string, unknown>;
+  return JSON.stringify(at === undefined ? signal : { ...signal, at });
+}
+
+/**
+ * When a contact's signal came, to hold against something this device did (its own offer): on this clock when the
+ * engine said (`at`), by the signal's own time otherwise, as before.
+ */
+export const callSignalHeardAt = (signal: Pick<CallSignal, "ts" | "at">): number => signal.at ?? signal.ts;
+
+/**
+ * Whether a contact's answer is for the offer this side made at `offerTs` (its own clock). An answer that names its
+ * offer (`o`) says so itself. One that names none (an app up to 1.0.2) is taken when it came after this side offered.
+ */
+export function answersOffer(answer: Pick<CallSignal, "ts" | "at" | "o">, offerTs: number): boolean {
+  return answer.o !== undefined ? answer.o === offerTs : callSignalHeardAt(answer) > offerTs;
+}
+
+/** The `v`/`k` pair of any signal. Returns null for a malformed one, `{}` when it says nothing. */
+function parsePicture(raw: Record<string, unknown>): Pick<CallSignal, "v" | "k"> | null {
+  const picture: Pick<CallSignal, "v" | "k"> = {};
+  if (raw.v !== undefined) {
+    if (raw.v !== 0 && raw.v !== 1) return null;
+    picture.v = raw.v;
+  }
+  if (raw.k !== undefined) {
+    if (raw.k !== "c" && raw.k !== "s") return null;
+    picture.k = raw.k;
+  }
+  return picture;
+}
+
+/**
+ * Whether the peer that sent this offer or answer is sending a picture.
+ *
+ * Since v2 every call negotiates a video section, on or off, so the media list
+ * no longer answers this: `v` does. A v1 peer sends no `v`, and there the video
+ * section only carries an SSRC when it is really sending on it.
+ */
+export function signalHasVideo(signal: CallSignal | null): boolean {
+  if (!signal) return false;
+  if (signal.v !== undefined) return signal.v === 1;
+  return (signal.m?.includes("v") ?? false) && (signal.ss?.length ?? 0) > 1;
+}
+
+/**
+ * Rebuilds an SDP around a signal. Only pass signals returned by {@link parseCallSignal}.
+ *
+ * Offer and answer are built the same way: which of the two this is comes from
+ * the signal itself, as `a=setup:`, not from the caller.
+ */
+export function buildSdpFromSignal(signal: CallSignal): string {
+  const hexPairs = signal.f!.match(/.{2}/g)!;
+  const fingerprint = `sha-256 ${hexPairs.join(":")}`;
+  
+  const mediaOrder = signal.m ?? ["a"];
+  
+  // One session for every description of one connection (its fingerprint names it): a restart offer and its answer
+  // describe the session the call already has, a version later.
+  const sessionId = parseInt(signal.f!.slice(0, 12), 16);
+  const sessionVersion = signal.t === "r" || signal.re !== undefined ? Math.max(3, Math.floor(signal.ts)) : 2;
+  const audioSsrc = signal.ss?.[0] ?? Math.floor(Math.random() * 0xFFFFFFFF);
+  const videoSsrc = signal.ss?.[1] ?? Math.floor(Math.random() * 0xFFFFFFFF);
+  const opus = signal.ap ?? DEFAULT_OPUS_PT;
+  const vp8 = signal.vp ?? DEFAULT_VP8_PT;
+
+  const lines: string[] = [
+    "v=0",
+    `o=- ${sessionId} ${sessionVersion} IN IP4 127.0.0.1`,
+    "s=-",
+    "t=0 0",
+  ];
+
+  const mids = mediaOrder.map((_, i) => String(i));
+  lines.push(`a=group:BUNDLE ${mids.join(" ")}`);
+  lines.push("a=msid-semantic: WMS stream");
+
+  mediaOrder.forEach((mediaType, idx) => {
+    const mid = String(idx);
+    
+    if (mediaType === "a") {
+      lines.push(
+        `m=audio 9 UDP/TLS/RTP/SAVPF ${opus}`,
+        "c=IN IP4 0.0.0.0",
+        "a=rtcp:9 IN IP4 0.0.0.0",
+      );
+      for (const c of signal.c ?? []) {
+        lines.push(`a=candidate:${c}`);
+      }
+      lines.push(
+        "a=end-of-candidates",
+        `a=ice-ufrag:${signal.u}`,
+        `a=ice-pwd:${signal.p}`,
+        `a=fingerprint:${fingerprint}`,
+        `a=setup:${signal.s}`,
+        `a=mid:${mid}`,
+        "a=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level",
+        "a=sendrecv",
+        "a=msid:stream audio0",
+        "a=rtcp-mux",
+        `a=rtpmap:${opus} opus/48000/2`,
+        `a=fmtp:${opus} minptime=10;useinbandfec=1`,
+        `a=ssrc:${audioSsrc} cname:pkarr`,
+        `a=ssrc:${audioSsrc} msid:stream audio0`,
+      );
+    } else if (mediaType === "v") {
+      lines.push(
+        `m=video 9 UDP/TLS/RTP/SAVPF ${vp8}`,
+        "c=IN IP4 0.0.0.0",
+        "a=rtcp:9 IN IP4 0.0.0.0",
+      );
+      for (const c of signal.c ?? []) {
+        lines.push(`a=candidate:${c}`);
+      }
+      lines.push(
+        "a=end-of-candidates",
+        `a=ice-ufrag:${signal.u}`,
+        `a=ice-pwd:${signal.p}`,
+        `a=fingerprint:${fingerprint}`,
+        `a=setup:${signal.s}`,
+        `a=mid:${mid}`,
+        // No header extensions here: their ids differ between engines, and an
+        // answer that maps an id differently from the real offer is rejected
+        // by Chromium ("Failed to set recv parameters").
+        // `vr: 0`: the sender takes no picture and sends none, so the section is closed and names no stream.
+        ...(signal.vr === 0 ? ["a=inactive"] : ["a=sendrecv", "a=msid:stream video0"]),
+        "a=rtcp-mux",
+        "a=rtcp-rsize",
+        `a=rtpmap:${vp8} VP8/90000`,
+        `a=rtcp-fb:${vp8} ccm fir`,
+        `a=rtcp-fb:${vp8} nack`,
+        `a=rtcp-fb:${vp8} nack pli`,
+        `a=rtcp-fb:${vp8} goog-remb`,
+        ...(signal.vr === 0 ? [] : [`a=ssrc:${videoSsrc} cname:pkarr`, `a=ssrc:${videoSsrc} msid:stream video0`]),
+      );
+    }
+  });
+
+  return lines.join("\r\n") + "\r\n";
+}
+
+/** Whether a description carries any candidate: one without cannot be reached, nor reach anyone. */
+export function sdpHasCandidates(sdp: string | undefined | null): boolean {
+  return /^a=candidate:/m.test(sdp ?? "");
+}
+
+/**
+ * How long to keep collecting after the candidate we were waiting for showed up (a call's; a chat's data link sets its
+ * own, the same). The host candidates are in before it, and a call's signal keeps the first reflexive one only
+ * (`pickCallCandidates`): 400 ms held every call's offer, and its answer, back that long for nothing it carried.
+ */
+const ICE_SETTLE_MS = 150;
+
+/** IPv4 ranges that are not reachable from the internet: this network, private, shared (CGNAT), loopback, link-local, the documentation ones, benchmarking, multicast and up. */
+const NOT_GLOBAL_IPV4: readonly [number, number][] = [
+  [0x00000000, 8], [0x0a000000, 8], [0x64400000, 10], [0x7f000000, 8], [0xa9fe0000, 16], [0xac100000, 12],
+  [0xc0000000, 24], [0xc0000200, 24], [0xc0a80000, 16], [0xc6120000, 15], [0xc6336400, 24], [0xcb007100, 24], [0xe0000000, 3],
+];
+
+/**
+ * Whether an ICE candidate is a UDP host candidate on a globally routable IPv4 address. A device on such an address (no
+ * NAT) is told that very address and port by a STUN server, and Chromium drops a reflexive candidate equal to a host
+ * one: no `typ srflx` ever comes. It shows the host's address only when it does not hide it behind an mDNS name (once
+ * the origin may use the camera or the microphone), which is also when it drops that reflexive candidate. The host
+ * candidate then says what the reflexive one would have.
+ */
+export function isGlobalIpv4Host(candidate: string): boolean {
+  if (!/ udp /i.test(candidate) || !/ typ host( |$)/.test(candidate)) return false;
+  const text = candidate.split(" ")[4] ?? "";
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(text)) return false;
+  const octets = text.split(".").map(Number);
+  if (octets.some((octet) => octet > 255)) return false;
+  const address = octets.reduce((n, octet) => n * 256 + octet, 0);
+  return !NOT_GLOBAL_IPV4.some(([base, bits]) => Math.floor(address / 2 ** (32 - bits)) === Math.floor(base / 2 ** (32 - bits)));
+}
+
+/**
+ * Resolves when the local description is good enough to publish. Waiting for
+ * gathering to *complete* takes the full timeout whenever one STUN server or
+ * address family does not answer, which made every call ring ~10 s late. The
+ * signal only carries a host and a server reflexive candidate anyway (plus a
+ * relay one when TURN is configured), so that is what is waited for. Without
+ * TURN, a host candidate on a global IPv4 address counts as the reflexive one
+ * (`isGlobalIpv4Host`): a device with no NAT gets none, and its offers waited
+ * the whole timeout whenever gathering did not complete.
+ */
+export function waitForIceGathering(
+  pc: RTCPeerConnection,
+  timeoutMs = 10000,
+  /**
+   * Give up after this long when not a single candidate showed up. Host candidates come in a few milliseconds; a
+   * connection with none by then has stalled (Chromium, rarely, under load) and will not find any later.
+   */
+  {
+    stallMs,
+    /**
+     * The description was just set on a connection that gathered before (an ICE restart): "complete" may still be
+     * the last round's, so it only counts once the description has a candidate of this round.
+     */
+    fresh = false,
+    /** How long to keep collecting after the candidate waited for showed up (`ICE_SETTLE_MS` by default). */
+    settleMs = ICE_SETTLE_MS,
+    /**
+     * Give up waiting for that candidate after this long once the connection has any candidate (a host one comes in
+     * milliseconds): what was gathered by then goes. Unset: up to `timeoutMs`.
+     */
+    hostBoundMs,
+  }: { stallMs?: number; fresh?: boolean; settleMs?: number; hostBoundMs?: number } = {},
+): Promise<void> {
+  return new Promise((resolve) => {
+    if (pc.iceGatheringState === "complete" && (!fresh || sdpHasCandidates(pc.localDescription?.sdp))) {
+      resolve();
+      return;
+    }
+
+    const usesTurn = (pc.getConfiguration().iceServers ?? []).some((server) =>
+      [server.urls].flat().some((url) => url.startsWith("turn")),
+    );
+    const wanted = usesTurn ? " typ relay" : " typ srflx";
+    let settle: ReturnType<typeof setTimeout> | null = null;
+    let found = false;
+
+    const finish = () => {
+      clearTimeout(timeout);
+      if (stalled) clearTimeout(stalled);
+      if (bounded) clearTimeout(bounded);
+      if (settle) clearTimeout(settle);
+      pc.removeEventListener("icegatheringstatechange", onState);
+      pc.removeEventListener("icecandidate", onCandidate);
+      resolve();
+    };
+    const timeout = setTimeout(finish, timeoutMs);
+    const stalled = stallMs === undefined ? null : setTimeout(() => {
+      if (!found && !sdpHasCandidates(pc.localDescription?.sdp)) finish();
+    }, stallMs);
+    const bounded = hostBoundMs === undefined ? null : setTimeout(() => {
+      if (found || sdpHasCandidates(pc.localDescription?.sdp)) finish();
+    }, hostBoundMs);
+
+    const onState = () => {
+      if (pc.iceGatheringState === "complete" && (!fresh || sdpHasCandidates(pc.localDescription?.sdp))) finish();
+    };
+    const onCandidate = (event: RTCPeerConnectionIceEvent) => {
+      if (event.candidate) found = true;
+      const line = event.candidate?.candidate;
+      if (!settle && line && (line.includes(wanted) || (!usesTurn && isGlobalIpv4Host(line)))) settle = setTimeout(finish, settleMs);
+    };
+
+    pc.addEventListener("icegatheringstatechange", onState);
+    pc.addEventListener("icecandidate", onCandidate);
+  });
+}

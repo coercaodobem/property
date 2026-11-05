@@ -1,0 +1,17 @@
+{
+  "client_id": "https://coercaodobem.github.io/property/direct/oauth/client-metadata.json",
+  "client_name": "Property Direct",
+  "client_uri": "https://coercaodobem.github.io/property/direct/",
+  "logo_uri": "https://coercaodobem.github.io/property/direct/property-icon-192.png",
+  "application_type": "native",
+  "grant_types": ["authorization_code"],
+  "response_types": ["code"],
+  "scope": "atproto repo:tools.ghostly.proof?action=create&action=delete transition:generic",
+  "token_endpoint_auth_method": "none",
+  "dpop_bound_access_tokens": true,
+  "redirect_uris": [
+    "https://coercaodobem.github.io/property/direct/oidc-callback.html",
+    "https://nbedaagicniejlmfcncndfjcejaidbcf.chromiumapp.org/atproto",
+    "http://127.0.0.1/oidc-callback"
+  ]
+}

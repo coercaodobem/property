@@ -1,0 +1,9 @@
+{
+  "answer": "رد",
+  "answerPassword": "أدخل كلمة المرور للرد",
+  "enterPassword": "أدخل كلمة المرور لإلغاء القفل",
+  "incorrectPassword": "كلمة المرور غير صحيحة، حاول مرة أخرى",
+  "title": "Property مقفل",
+  "tooManyAttempts": "محاولات كثيرة جدًا. حاول مرة أخرى بعد {{seconds}} ث",
+  "unlock": "إلغاء القفل"
+}

@@ -1,0 +1,164 @@
+{
+  "board": {
+    "card": {
+      "botLabel": "From:",
+      "chatLabel": "Chat:",
+      "checks": {
+        "failing": "Checks failing",
+        "passing": "Checks passing",
+        "pending": "Checks pending"
+      },
+      "details": "Details",
+      "filesLabel": "Files:",
+      "from": "{{bot}} in {{chat}}",
+      "in": "in {{chat}}",
+      "openPr": "Open on {{host}}",
+      "parts": "{{done}} of {{total}} done",
+      "prLabel": "Pull request:",
+      "prState": {
+        "closed": "Closed",
+        "draft": "Draft",
+        "merged": "Merged",
+        "open": "Open"
+      },
+      "statusLabel": "Status:",
+      "steps": "{{done}} of {{total}}",
+      "tagsLabel": "Tags:",
+      "updatedLabel": "Updated:"
+    },
+    "clearFinished": "Clear finished",
+    "clearFinishedHint": "Hides done, failed and cancelled tasks on this device. A bot's next update brings one back.",
+    "column": {
+      "blocked": "Blocked",
+      "closed": "Stopped",
+      "done": "Done",
+      "queued": "Queued",
+      "review": "Review",
+      "running": "Running"
+    },
+    "columns": "Columns",
+    "empty": "No tasks yet",
+    "emptyHint": "Task cards from bots in your chats show up here.",
+    "filter": "Filter tasks",
+    "groupBy": {
+      "bot": "Bot",
+      "chat": "Chat",
+      "label": "Group by",
+      "status": "Status"
+    },
+    "hideOlder": "Hide older",
+    "info": "Bots' task cards from every chat. Done and stopped ones stay a day. A card only shows a task: its bot changes the status.",
+    "me": "You",
+    "noMatch": "No task matches",
+    "none": "None",
+    "showMore": "Show more ({{count}})",
+    "showOlder": "Show older ({{count}})",
+    "tagFilter": "Show only {{tag}}",
+    "tags": "Tags",
+    "tasksMany": "{{count}} tasks",
+    "tasksOne": "1 task",
+    "title": "Tasks",
+    "view": {
+      "label": "Show",
+      "routines": "Routines",
+      "tasks": "Tasks"
+    }
+  },
+  "buttons": {
+    "answers": "Answers",
+    "chosen": "Chosen",
+    "closed": "Closed",
+    "failed": "Couldn't send",
+    "jump": "Go to the question",
+    "sending": "Sending…"
+  },
+  "panel": {
+    "activeCount": "{{count}} active",
+    "allOk": "all OK",
+    "button": "Tasks",
+    "buttonCount": "Tasks, {{count}} active",
+    "close": "Close",
+    "empty": "No tasks running now",
+    "failedCount": "{{count}} failed",
+    "finishedCount": "Finished ({{count}})",
+    "idle": "Nothing running",
+    "info": "Bots post these cards and keep them up to date. Tap one to go to it in the chat.",
+    "nextRun": "next {{when}}",
+    "routinesMany": "{{count}} routines",
+    "routinesOne": "1 routine",
+    "title": "Tasks"
+  },
+  "routine": {
+    "cron": "Cron",
+    "label": "Routine: {{name}}, {{state}}",
+    "lastRun": "Last run: {{result}}",
+    "next": "Next {{when}}",
+    "noRuns": "No runs yet",
+    "result": {
+      "failed": "Failed",
+      "ok": "OK",
+      "skipped": "Skipped"
+    },
+    "runs": "Recent runs",
+    "schedule": "Schedule",
+    "state": {
+      "active": "Active",
+      "paused": "Paused"
+    }
+  },
+  "task": {
+    "branch": "Branch:",
+    "elapsed": {
+      "blocked": "blocked for {{duration}}",
+      "queued": "queued for {{duration}}",
+      "running": "running for {{duration}}",
+      "took": "took {{duration}}"
+    },
+    "item": {
+      "done": "Done",
+      "failed": "Failed",
+      "pending": "To do",
+      "running": "In progress",
+      "skipped": "Skipped"
+    },
+    "label": "Task: {{title}}, {{status}}",
+    "labelProgress": "Task: {{title}}, {{status}}, {{progress}}%",
+    "now": "Now:",
+    "pr": "PR #{{number}}",
+    "prNoNumber": "Pull request",
+    "progress": "Progress",
+    "started": "Started {{ago}}",
+    "status": {
+      "blocked": "Blocked",
+      "cancelled": "Cancelled",
+      "done": "Done",
+      "failed": "Failed",
+      "queued": "Queued",
+      "running": "Running"
+    },
+    "steps": "{{done}} of {{total}} steps",
+    "updated": "updated {{ago}}"
+  },
+  "usage": {
+    "accountLabel": "Account",
+    "info": "What the bot says it has left. Property doesn't check it.",
+    "label": "{{name}}: {{left}}% left",
+    "labelResets": "{{name}}: {{left}}% left, resets {{time}}",
+    "left": "{{left}}% left",
+    "leftLabel": "Left",
+    "resets": "resets {{time}}",
+    "resetsLabel": "Resets",
+    "stale": "not updated lately",
+    "staleHint": "Old numbers: the bot hasn't updated them lately, or the window has reset.",
+    "title": "Usage",
+    "updatedLabel": "Updated",
+    "used": "{{used}} of {{limit}} used",
+    "usedLabel": "Used",
+    "wasReset": "reset {{ago}}"
+  },
+  "working": {
+    "label": "Working",
+    "quiet": "Working? · last update {{ago}}",
+    "stale": "No update for {{duration}}"
+  }
+}

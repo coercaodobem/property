@@ -1,0 +1,773 @@
+import { act, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { MAX_GROUP_NAME_LENGTH, createIdentity, encodeCommunityLink, encodeGroupEntryLink } from "@ghostly/core";
+import type { GroupMemberView, GroupView, LinkView } from "@ghostly/browser/shared/types";
+import { GroupLinkPanel, GroupShareDialog } from "../../components/GroupLinkPanel";
+import { GroupMembersDialog } from "../../components/GroupMembersDialog";
+import { NewGroupDialog } from "../../components/NewGroupDialog";
+import { fakeEngine, groupView, linkView } from "../fakeEngine";
+import { renderApp } from "../render";
+import { compose } from "../ime";
+import { publicKeyLabel } from "../../lib/publicKeyLabel";
+
+// covers: groups.create, groups.invite, groups.remove-member, groups.admin-change, groups.link.enable, groups.link.replace, groups.hubs
+
+const ALICE = "alice".padEnd(52, "y"), BOB = "bob".padEnd(52, "y"), ME = "me".padEnd(52, "y");
+const member = (patch: Partial<GroupMemberView>): GroupMemberView => ({ key: ME, role: "member", me: false, online: false, missing: 0, ...patch });
+const members = [member({ key: ME, me: true, online: true, role: "admin" }), member({ key: ALICE, nick: "Alice", online: true }), member({ key: BOB, nick: "Bob", missing: 3 })];
+const paired = (patch: Partial<LinkView>) => linkView({ profile: "paired-chat/1", groups: true, ...patch });
+
+describe("GroupMembersDialog", () => {
+  function members_(group: GroupView, links: LinkView[] = []) {
+    const onClose = vi.fn();
+    fakeEngine.update({ groups: [group], links });
+    return { ...renderApp(<GroupMembersDialog group={group} onClose={onClose} />), onClose };
+  }
+  const rows = () => screen.getAllByTestId("group-member");
+  const row = (key: string) => rows().find(r => r.dataset.key === key)!;
+
+  it("lists the members with their role, whether they can be reached, and what they miss", () => {
+    members_(groupView({ status: "active", epoch: 4, isAdmin: false, members: [member({ key: ME, me: true, online: true }), member({ key: ALICE, nick: "Alice", role: "admin", online: true }), member({ key: BOB, missing: 3 })] }));
+    const dialog = screen.getByTestId("group-members-dialog");
+    expect(within(dialog).getByRole("heading", { name: "Friends" })).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("3 members · epoch 4");
+    expect(row(ME)).toHaveTextContent(/^You/);
+    expect(row(ALICE)).toHaveAttribute("data-role", "admin");
+    expect(within(row(ALICE)).getByText("admin")).toBeInTheDocument();
+    expect(within(row(ALICE)).getByRole("img", { name: "reachable" })).toBeInTheDocument();
+    expect(row(BOB)).toHaveTextContent(/^Member bobyyy/);
+    expect(within(row(BOB)).getByRole("img", { name: "not reachable" })).toBeInTheDocument();
+    expect(within(row(BOB)).getByText("3 of their messages have not arrived yet")).toBeInTheDocument();
+    expect(screen.getByTestId("group-read-note")).toHaveTextContent("Everyone in the group can read everything sent while they are a member.");
+  });
+
+  it("says an unnamed member's key once: in its name, not again beside it", () => {
+    members_(groupView({ status: "active", isAdmin: false, members: [member({ key: ME, me: true, online: true }), member({ key: ALICE, nick: "Alice", online: true }), member({ key: BOB, role: "admin" })] }));
+    const times = (key: string) => row(key).textContent!.split(publicKeyLabel(key)).length - 1;
+    expect(row(BOB)).toHaveTextContent(/^Member bobyyy/);
+    expect(times(BOB), "an unnamed member: its name is its key").toBe(1);
+    expect(times(ALICE), "a named one: the key beside the name").toBe(1);
+    expect(times(ME)).toBe(1);
+  });
+
+  it("gives a member no controls over others, and no invitations", () => {
+    members_(groupView({ status: "active", isAdmin: false, members }), [paired({})]);
+    expect(screen.queryByTestId("group-make-admin")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("group-remove-member")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("group-invite-list")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("group-link")).not.toBeInTheDocument();
+  });
+
+  // On a hovered or focused row (surface-hover), danger's own red read at 3.0-3.8:1 in the dark themes (agents#1155).
+  it("draws Remove in danger's ink, which reads on a hovered or focused row", () => {
+    members_(groupView({ status: "active", isAdmin: true, members }));
+    const remove = within(row(BOB)).getByTestId("group-remove-member");
+    expect(remove).toHaveClass("text-danger-ink");
+    expect(remove).not.toHaveClass("text-danger");
+  });
+
+  // They were 24 px tall, and the close button 30, under the link panel's 44 px buttons.
+  it("Hand over admin, Remove and the close button are a thumb's height on a phone, as the link panel's buttons are", () => {
+    members_(groupView({ status: "active", isAdmin: true, members }));
+    for (const id of ["group-make-admin", "group-remove-member"]) {
+      expect(within(row(BOB)).getByTestId(id)).toHaveClass("max-md:min-h-11", "max-md:px-3");
+    }
+    expect(within(row(BOB)).getByTestId("group-member-actions")).toHaveClass("max-md:gap-2");
+    expect(within(screen.getByTestId("group-members-dialog")).getByRole("button", { name: "Close" })).toHaveClass("max-md:h-11", "max-md:w-11", "place-items-center");
+  });
+
+  it("lets the admin promote or remove anyone but themselves", async () => {
+    const { user, engine } = members_(groupView({ status: "active", isAdmin: true, members }));
+    engine.on("makeGroupAdmin", () => undefined).on("removeGroupMember", () => undefined);
+    expect(within(row(ME)).queryByRole("button")).not.toBeInTheDocument();
+    await user.click(within(row(ALICE)).getByTestId("group-make-admin"));
+    await user.click(screen.getByTestId("group-make-admin-confirm"));
+    await user.click(within(row(BOB)).getByTestId("group-remove-member"));
+    await user.click(screen.getByTestId("group-remove-confirm"));
+    expect(engine.callsTo("makeGroupAdmin")).toEqual([{ groupId: "group-1", key: ALICE }]);
+    expect(engine.callsTo("removeGroupMember")).toEqual([{ groupId: "group-1", key: BOB }]);
+  });
+
+  it("asks before removing a member, naming them; Cancel and Escape remove nobody and keep the list open", async () => {
+    const { user, engine, onClose } = members_(groupView({ status: "active", isAdmin: true, members }));
+    engine.on("removeGroupMember", () => undefined);
+    await user.click(within(row(BOB)).getByTestId("group-remove-member"));
+    const ask = screen.getByTestId("group-remove-dialog");
+    expect(ask).toHaveAccessibleName("Remove Bob?");
+    expect(ask).toHaveAccessibleDescription("They won't get the group's new messages.");
+    expect(within(ask).getByRole("button", { name: "Cancel" })).toHaveFocus();
+    expect(engine.callsTo("removeGroupMember")).toEqual([]);
+    await user.click(within(ask).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByTestId("group-remove-dialog")).not.toBeInTheDocument();
+    await user.click(within(row(ALICE)).getByTestId("group-remove-member"));
+    expect(screen.getByTestId("group-remove-dialog")).toHaveAccessibleName("Remove Alice?");
+    // Escape, as the browser says it to the topmost dialog: only the question closes.
+    act(() => { screen.getByTestId("group-remove-dialog").dispatchEvent(new Event("cancel", { cancelable: true })); });
+    expect(screen.queryByTestId("group-remove-dialog")).not.toBeInTheDocument();
+    expect(screen.getByTestId("group-members-dialog")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(engine.callsTo("removeGroupMember")).toEqual([]);
+  });
+
+  it.each(["mesh", "community"] as const)("asks before handing the admin role over (%s), naming who gets it and what the admin gives up; Cancel and Escape change nothing", async profile => {
+    const { user, engine, onClose } = members_(groupView({ status: "active", isAdmin: true, profile, members }));
+    engine.on("makeGroupAdmin", () => undefined);
+    const button = within(row(BOB)).getByTestId("group-make-admin");
+    expect(button, "the label says the role moves, not that an admin is added").toHaveTextContent("Hand over admin");
+    await user.click(button);
+    const ask = screen.getByTestId("group-make-admin-dialog");
+    expect(ask).toHaveAccessibleName("Make Bob the admin?");
+    expect(ask).toHaveAccessibleDescription("You will no longer be the admin. Only Bob can then rename the group, change its picture and link, invite or remove members, and give the role back.");
+    expect(within(ask).getByRole("button", { name: "Cancel" })).toHaveFocus();
+    expect(engine.callsTo("makeGroupAdmin")).toEqual([]);
+    await user.click(within(ask).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByTestId("group-make-admin-dialog")).not.toBeInTheDocument();
+    await user.click(within(row(ALICE)).getByTestId("group-make-admin"));
+    expect(screen.getByTestId("group-make-admin-dialog")).toHaveAccessibleName("Make Alice the admin?");
+    // Escape, as the browser says it to the topmost dialog: only the question closes.
+    act(() => { screen.getByTestId("group-make-admin-dialog").dispatchEvent(new Event("cancel", { cancelable: true })); });
+    expect(screen.queryByTestId("group-make-admin-dialog")).not.toBeInTheDocument();
+    expect(screen.getByTestId("group-members-dialog")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(engine.callsTo("makeGroupAdmin")).toEqual([]);
+    await user.click(within(row(ALICE)).getByTestId("group-make-admin"));
+    await user.click(within(screen.getByTestId("group-make-admin-dialog")).getByRole("button", { name: "Hand over admin" }));
+    expect(engine.callsTo("makeGroupAdmin")).toEqual([{ groupId: "group-1", key: ALICE }]);
+  });
+
+  it("gives the focus back to the Remove or Hand over admin that asked, and to the list once a removed row is gone", async () => {
+    const { user, engine } = members_(groupView({ status: "active", isAdmin: true, members }));
+    let removed!: () => void;
+    engine.on("removeGroupMember", () => new Promise<void>(done => { removed = done; })).on("makeGroupAdmin", () => undefined);
+    const remove = within(row(BOB)).getByTestId("group-remove-member"), promote = within(row(BOB)).getByTestId("group-make-admin");
+    // It fell to the page each time: Escape, Cancel, and a confirmed Remove.
+    remove.focus();
+    await user.keyboard("{Enter}");
+    expect(within(screen.getByTestId("group-remove-dialog")).getByRole("button", { name: "Cancel" })).toHaveFocus();
+    act(() => { screen.getByTestId("group-remove-dialog").dispatchEvent(new Event("cancel", { cancelable: true })); });
+    expect(remove).toHaveFocus();
+    await user.keyboard("{Enter}");
+    await user.click(within(screen.getByTestId("group-remove-dialog")).getByRole("button", { name: "Cancel" }));
+    expect(remove).toHaveFocus();
+    promote.focus();
+    await user.keyboard("{Enter}");
+    act(() => { screen.getByTestId("group-make-admin-dialog").dispatchEvent(new Event("cancel", { cancelable: true })); });
+    expect(promote).toHaveFocus();
+    remove.focus();
+    await user.keyboard("{Enter}");
+    await user.click(within(screen.getByTestId("group-remove-dialog")).getByRole("button", { name: "Remove" }));
+    expect(screen.getByTestId("group-member-list")).toHaveFocus();
+    await act(async () => { removed(); });
+    act(() => engine.update({ groups: [groupView({ status: "active", isAdmin: true, members: members.filter(m => m.key !== BOB) })] }));
+    expect(screen.getByTestId("group-member-list")).toHaveFocus();
+  });
+
+  it("gives a community group's member the link's QR too, and none of the admin's controls", async () => {
+    const link = encodeCommunityLink({ g: "AbCdEfGhIjKlMnOpQrStUv", host: createIdentity().pubKeyZ32 });
+    const { user } = members_(groupView({ status: "active", isAdmin: false, profile: "community", entryLink: link, members: [member({ key: ME, me: true, online: true }), member({ key: ALICE, nick: "Alice", role: "admin" })] }));
+    const panel = screen.getByTestId("group-link");
+    expect(within(panel).getByTestId("group-link-share")).toBeVisible();
+    expect(within(panel).getByTestId("group-link-copy")).toBeVisible();
+    expect(within(panel).queryByTestId("group-link-qr")).not.toBeInTheDocument();
+    await user.click(within(panel).getByRole("button", { name: "Show QR" }));
+    expect(within(panel).getByTestId("group-link-qr")).toBeVisible();
+    expect(within(panel).queryByTestId("group-link-reset")).not.toBeInTheDocument();
+    expect(within(panel).queryByTestId("group-link-disable")).not.toBeInTheDocument();
+  });
+
+  it("gives a community member's focus to the list when the admin turns the link off under it, with the panel", () => {
+    const link = encodeCommunityLink({ g: "AbCdEfGhIjKlMnOpQrStUv", host: createIdentity().pubKeyZ32 });
+    const group = groupView({ status: "active", isAdmin: false, profile: "community", entryLink: link, members: [member({ key: ME, me: true, online: true }), member({ key: ALICE, nick: "Alice", role: "admin" })] });
+    members_(group);
+    screen.getByTestId("group-link-copy").focus();
+    act(() => fakeEngine.update({ groups: [{ ...group, entryLink: undefined }] }));
+    expect(screen.queryByTestId("group-link")).not.toBeInTheDocument();
+    // It fell to the page, out of the open dialog.
+    expect(screen.getByTestId("group-member-list")).toHaveFocus();
+  });
+
+  it("says, while the group's link works, that whoever is removed can join again with it until a new link", async () => {
+    for (const profile of ["mesh", "community"] as const) {
+      const { user, unmount } = members_(groupView({ status: "active", isAdmin: true, profile, members, entryLink: "https://app.ghostly.tools/#/join/group2/g/k" }));
+      await user.click(within(row(BOB)).getByTestId("group-remove-member"));
+      expect(screen.getByTestId("group-remove-dialog"), profile).toHaveAccessibleDescription("They won't get the group's new messages. They can still join again with the group's link: a new link keeps them out.");
+      unmount();
+    }
+  });
+
+  it("says, while a private group's link works, that handing the admin role over ends it; a community's link goes on", async () => {
+    for (const [profile, ends] of [["mesh", true], ["community", false]] as const) {
+      const { user, unmount } = members_(groupView({ status: "active", isAdmin: true, profile, members, entryLink: "https://app.ghostly.tools/#/join/group2/g/k" }));
+      await user.click(within(row(BOB)).getByTestId("group-make-admin"));
+      const body = "You will no longer be the admin. Only Bob can then rename the group, change its picture and link, invite or remove members, and give the role back.";
+      expect(screen.getByTestId("group-make-admin-dialog"), profile).toHaveAccessibleDescription(ends ? `${body} The link shared so far stops working. Bob can share a new one.` : body);
+      unmount();
+    }
+  });
+
+  it("past 16 members with hubs, marks the hubs, says who is reached through one, and lets the admin choose", async () => {
+    const many = Array.from({ length: 15 }, (_, i) => member({ key: `m${i}`.padEnd(52, "y"), viaHub: true, online: true }));
+    const hub = member({ key: ALICE, nick: "Alice", online: true, hub: true, hubRole: "pin", edge: { linkId: "e1", state: "open", lastSeenAt: 1 } });
+    const { user, engine } = members_(groupView({ status: "active", isAdmin: true, hubs: { hub: false }, members: [members[0], hub, member({ key: BOB, nick: "Bob", hubRole: "exclude" }), ...many] }));
+    engine.on("setGroupHub", () => undefined);
+    expect(within(row(ALICE)).getByTestId("group-member-hub")).toHaveTextContent("hub");
+    expect(within(row(BOB)).queryByTestId("group-member-hub")).not.toBeInTheDocument();
+    const reached = row(many[0].key);
+    expect(within(reached).getByTestId("group-member-status")).toHaveTextContent("Through a hub");
+    expect(within(reached).getByRole("img", { name: "reachable" })).toHaveClass("bg-accent");
+    expect(within(row(ALICE)).getByTestId("group-member-hub-role")).toHaveTextContent("Always a hub");
+    expect(within(row(BOB)).getByTestId("group-member-hub-role")).toHaveTextContent("Never a hub");
+    await user.click(within(reached).getByTestId("group-member-hub-role"));
+    await user.click(screen.getByRole("option", { name: "Always a hub" }));
+    await user.click(within(row(ALICE)).getByTestId("group-member-hub-role"));
+    await user.click(screen.getByRole("option", { name: "Hub if always on" }));
+    expect(engine.callsTo("setGroupHub")).toEqual([{ groupId: "group-1", key: many[0].key, role: "pin" }, { groupId: "group-1", key: ALICE, role: null }]);
+  });
+
+  it("offers no hub choice in a group of 16 or fewer", () => {
+    members_(groupView({ status: "active", isAdmin: true, members }));
+    expect(screen.queryByTestId("group-member-hub-role")).not.toBeInTheDocument();
+  });
+
+  it("shows what the engine refused", async () => {
+    const { user, engine } = members_(groupView({ status: "active", isAdmin: true, members }));
+    engine.on("removeGroupMember", () => { throw new Error("Bob is not reachable"); });
+    await user.click(within(row(BOB)).getByTestId("group-remove-member"));
+    await user.click(screen.getByTestId("group-remove-confirm"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Bob is not reachable");
+  });
+
+  it("follows the engine's roster while open", () => {
+    const group = groupView({ status: "active", isAdmin: true, members });
+    members_(group);
+    expect(rows()).toHaveLength(3);
+    act(() => fakeEngine.update({ groups: [{ ...group, members: members.slice(0, 2) }] }));
+    expect(rows()).toHaveLength(2);
+  });
+
+  it("invites contacts whose apps can do groups, and says why the others cannot be", async () => {
+    const group = groupView({ status: "active", isAdmin: true, members, invited: ["link-pending"], memberLinks: { "link-alice": ALICE } });
+    const { user, engine } = members_(group, [
+      paired({ id: "link-carol", label: "Carol" }),
+      paired({ id: "link-pending", peerNick: "Dan" }),
+      paired({ id: "link-old", peerNick: "Erin", groups: false, dataLink: "open" }),
+      paired({ id: "link-away", peerNick: "Frank", groups: false, dataLink: "idle" }),
+      paired({ id: "link-alice", peerNick: "Alice" }),
+      linkView({ id: "link-legacy", peerNick: "Legacy" }),
+    ]);
+    engine.on("inviteToGroup", () => undefined);
+    const contacts = screen.getAllByTestId("group-invite-contact");
+    // Members and chats without the paired profile are not offered.
+    expect(contacts.map(c => c.dataset.link)).toEqual(["link-carol", "link-pending", "link-old", "link-away"]);
+    expect(contacts[1]).toHaveTextContent("Invited…");
+    expect(contacts[2]).toHaveTextContent("Needs an updated Ghostly");
+    expect(contacts[3]).toHaveTextContent("Not connected");
+    expect(screen.getAllByTestId("group-invite")).toHaveLength(1);
+    // Why, in words on the page: a tooltip never shows on a phone, where the row read "Not connected" and nothing more.
+    expect(screen.getByTestId("group-invite-why")).toHaveTextContent("Groups need both apps connected and updated");
+    await user.click(within(contacts[0]).getByTestId("group-invite"));
+    expect(engine.callsTo("inviteToGroup")).toEqual([{ groupId: "group-1", linkId: "link-carol" }]);
+  });
+
+  // It was 24 px tall on a phone, under the members' 44 px Hand over admin and Remove.
+  it("Invite is a thumb's height on a phone, as a member's Remove is", () => {
+    members_(groupView({ status: "active", isAdmin: true, members }), [paired({ id: "link-carol", label: "Carol" })]);
+    expect(screen.getByTestId("group-invite")).toHaveClass("max-md:min-h-11", "max-md:px-3");
+  });
+
+  it("says nothing of why when every contact can be invited", () => {
+    members_(groupView({ status: "active", isAdmin: true, members, invited: ["link-pending"] }), [
+      paired({ id: "link-carol", label: "Carol" }),
+      paired({ id: "link-pending", peerNick: "Dan", groups: false, dataLink: "idle" }),
+    ]);
+    expect(screen.queryByTestId("group-invite-why")).not.toBeInTheDocument();
+  });
+
+  it("gives the group's, each member's and each contact's name its own direction, so in Arabic a Latin name is cut at its end", () => {
+    members_(groupView({ status: "active", isAdmin: true, name: "Neighbourhood book club", members }), [paired({ id: "link-carol", label: "Carol" })]);
+    expect(screen.getByTestId("group-members-name")).toHaveAttribute("dir", "auto");
+    expect(screen.getAllByTestId("group-member-name").map(name => [name.textContent, name.getAttribute("dir")])).toEqual([["You", "auto"], ["Alice", "auto"], ["Bob", "auto"]]);
+    expect(within(screen.getByTestId("group-invite-contact")).getByText("Carol")).toHaveAttribute("dir", "auto");
+  });
+
+  // On a phone the panel is the group's only info screen, and a member has no Rename field to read the name in: cut with
+  // "…" there, a long name was never read whole.
+  it("wraps a long group name in its title instead of cutting it, for a member too", () => {
+    members_(groupView({ status: "active", name: "Ghostly design reviewers of the northern hemisphere", members }));
+    const title = screen.getByTestId("group-members-name");
+    expect(title).toHaveTextContent("Ghostly design reviewers of the northern hemisphere");
+    expect(title).toHaveClass("break-words");
+    expect(title).not.toHaveClass("truncate");
+  });
+
+  it("Invite from the keyboard keeps the focus: on the button while it runs, then on the contact's row, which says Invited", async () => {
+    const group = groupView({ status: "active", isAdmin: true, members });
+    const { user, engine } = members_(group, [paired({ id: "link-carol", label: "Carol" })]);
+    let done = () => {};
+    engine.on("inviteToGroup", () => new Promise<void>(resolve => { done = resolve; }));
+    const invite = screen.getByTestId("group-invite");
+    invite.focus();
+    await user.keyboard("{Enter}");
+    // Not disabled while it runs: that drops a keyboard's focus to the page. A second press does nothing.
+    expect(invite).not.toBeDisabled();
+    expect(invite).toHaveAttribute("aria-disabled", "true");
+    expect(invite).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(engine.callsTo("inviteToGroup")).toHaveLength(1);
+    act(() => fakeEngine.update({ groups: [{ ...group, invited: ["link-carol"] }] }));
+    done();
+    const row = screen.getByTestId("group-invite-contact");
+    await vi.waitFor(() => expect(row).toHaveFocus());
+    expect(row).toHaveTextContent("CarolInvited…");
+  });
+
+  it("Remove picture from the keyboard leaves the focus on Change picture's control, which stays", async () => {
+    const group = groupView({ status: "active", isAdmin: true, members, picture: "data:image/jpeg;base64,AA" });
+    const { user, engine } = members_(group);
+    let done = () => {};
+    engine.on("setGroupPicture", () => new Promise<void>(resolve => { done = resolve; }));
+    const remove = screen.getByTestId("group-picture-remove");
+    remove.focus();
+    await user.keyboard("{Enter}");
+    expect(remove).not.toBeDisabled();
+    expect(remove).toHaveAttribute("aria-disabled", "true");
+    act(() => fakeEngine.update({ groups: [{ ...group, picture: undefined }] }));
+    done();
+    await vi.waitFor(() => expect(screen.getByTestId("group-picture-input")).toHaveFocus());
+    expect(screen.queryByTestId("group-picture-remove")).not.toBeInTheDocument();
+  });
+
+  it("names an unnamed contact by their key", () => {
+    members_(groupView({ status: "active", isAdmin: true, members }), [paired({ id: "link-x", peerPubKeyZ32: "k".repeat(52) })]);
+    expect(screen.getByTestId("group-invite-contact")).toHaveTextContent("Contact · kkkkkk");
+  });
+
+  it("invites nobody once members and invitations make 32", () => {
+    const most = Array.from({ length: 31 }, (_, i) => member({ key: String(i).padEnd(52, "y"), me: i === 0 }));
+    members_(groupView({ status: "active", isAdmin: true, members: most, invited: ["link-pending"] }), [paired({ id: "link-carol" }), paired({ id: "link-pending" })]);
+    expect(screen.getByTestId("group-invite")).toBeDisabled();
+    expect(screen.getByTestId("group-invite-full")).toHaveTextContent("The group is full (32 of 32), counting invitations not answered yet (1). Nobody else can be invited until someone leaves.");
+  });
+
+  it("says a group of 32 members is full, and nothing while there is room", () => {
+    const all = Array.from({ length: 32 }, (_, i) => member({ key: String(i).padEnd(52, "y"), me: i === 0 }));
+    const { unmount } = members_(groupView({ status: "active", isAdmin: true, members: all }), [paired({ id: "link-carol" })]);
+    expect(screen.getByTestId("group-invite-full")).toHaveTextContent("The group is full (32 of 32). Nobody joins until someone leaves.");
+    unmount();
+    members_(groupView({ status: "active", isAdmin: true, members: all.slice(0, 30), invited: ["link-pending"] }), [paired({ id: "link-carol" })]);
+    expect(screen.queryByTestId("group-invite-full")).not.toBeInTheDocument();
+    expect(screen.getByTestId("group-invite")).toBeEnabled();
+  });
+
+  it("says when there is nobody left to invite", () => {
+    members_(groupView({ status: "active", isAdmin: true, members }));
+    expect(screen.getByText("Every paired contact is already in, or you have none yet.")).toBeInTheDocument();
+  });
+
+  it("offers no invitations once the admin is out of the group", () => {
+    members_(groupView({ status: "removed", isAdmin: true, members }), [paired({})]);
+    expect(screen.getByTestId("group-members-dialog")).toHaveTextContent("3 members · removed");
+    expect(screen.queryByTestId("group-invite-list")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("group-link")).not.toBeInTheDocument();
+  });
+
+  it("promises no connection to the members of a group I am out of", () => {
+    const { unmount } = members_(groupView({ status: "active", members }));
+    expect(screen.getAllByTestId("group-member-status").map(s => s.textContent)).toEqual(["No connection yet", "No connection yet"]);
+    unmount();
+    for (const status of ["removed", "left", "forked"] as const) {
+      const { unmount } = members_(groupView({ status, members: [...members, member({ key: "c".repeat(52), nick: "Carol", edge: { linkId: "e1", state: "connecting", lastSeenAt: 1 } })] }));
+      expect(screen.getAllByTestId("group-member")).toHaveLength(4);
+      expect(screen.queryAllByTestId("group-member-status")).toEqual([]);
+      expect(within(screen.getByTestId("group-member-list")).queryAllByRole("img", { name: /reachable/i })).toEqual([]);
+      unmount();
+    }
+  });
+
+  it("closes from its button", async () => {
+    const { user, onClose } = members_(groupView({ status: "active", members }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("GroupLinkPanel", () => {
+  // A link decodes only with a real group id (22 characters) and a real entry key.
+  const id = "AbCdEfGhIjKlMnOpQrStUv";
+  const entryLink = encodeGroupEntryLink({ g: id, host: createIdentity().pubKeyZ32 });
+  const admin = (patch: Partial<GroupView> = {}) => groupView({ id, status: "active", isAdmin: true, members, ...patch });
+
+  it("creates the group's link", async () => {
+    const { user, engine } = renderApp(<GroupLinkPanel group={admin()} />);
+    engine.on("enableGroupLink", () => ({ link: entryLink }));
+    // Turning it on makes a new link: the words do not promise the old one works again.
+    expect(screen.getByTestId("group-link")).toHaveTextContent("The link is off: nobody can join with it, and the link shared before will not work again. Turning it on makes a new link to share.");
+    await user.click(screen.getByRole("button", { name: "Turn on the link" }));
+    expect(engine.callsTo("enableGroupLink")).toEqual([{ groupId: id }]);
+  });
+
+  it("tells a community member the admin turned the link off, with nothing to turn it on", () => {
+    // The member's Share dialog stays open while the admin turns the link off: turning it on is the admin's alone.
+    renderApp(<GroupLinkPanel group={groupView({ id, status: "active", profile: "community", isAdmin: false, members })} large />);
+    expect(screen.getByTestId("group-link")).toHaveAttribute("data-state", "off");
+    expect(screen.getByTestId("group-link")).toHaveTextContent("The admin turned the link off: nobody can join with it, and the link shared before will not work again. Only the admin can make a new one.");
+    expect(screen.queryByTestId("group-link-enable")).not.toBeInTheDocument();
+  });
+
+  it("cannot create a link for a full group", () => {
+    const full = Array.from({ length: 32 }, (_, i) => member({ key: String(i).padEnd(52, "y") }));
+    renderApp(<GroupLinkPanel group={admin({ members: full })} />);
+    expect(screen.getByTestId("group-link-enable")).toHaveTextContent("The group is full");
+    expect(screen.getByTestId("group-link-enable")).toBeDisabled();
+  });
+
+  it("shows the link as an address of this app, to copy", async () => {
+    const { user } = renderApp(<GroupLinkPanel group={admin({ entryLink })} />);
+    const url = screen.getByRole("textbox", { name: "Group link" });
+    expect(url).toHaveValue(`${window.location.origin}/#/join/${entryLink}`);
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    await user.click(screen.getByTestId("group-link-copy"));
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/#/join/${entryLink}`);
+    expect(screen.getByTestId("group-link-copy")).toHaveTextContent("Copied");
+  });
+
+  it("reads the link left to right from its start in a right-to-left language", () => {
+    renderApp(<GroupLinkPanel group={admin({ entryLink })} />, { language: "ar" });
+    // An Arabic page drew the field's end, the https:// and the site out of sight.
+    expect(screen.getByTestId("group-link-url")).toHaveAttribute("dir", "ltr");
+  });
+
+  it("says when copying did not work", async () => {
+    const { user } = renderApp(<GroupLinkPanel group={admin({ entryLink })} />);
+    vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("denied"));
+    await user.click(screen.getByTestId("group-link-copy"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Copy did not work. Select the link and copy it.");
+  });
+
+  it("warns that nobody gets in while the group is full", () => {
+    const full = Array.from({ length: 32 }, (_, i) => member({ key: String(i).padEnd(52, "y") }));
+    renderApp(<GroupLinkPanel group={admin({ entryLink, members: full })} />);
+    expect(screen.getByTestId("group-link-note")).toHaveTextContent("The group is full (32 of 32). Nobody joins until someone leaves.");
+  });
+
+  it.each([
+    { button: "group-link-reset", kind: "reset", title: "Make a new link?", confirm: "New link", method: "enableGroupLink" as const, params: { groupId: id, reset: true },
+      body: "The link shared so far stops working for good: whoever has it and has not joined yet cannot get in with it. Members stay in the group." },
+    { button: "group-link-disable", kind: "disable", title: "Turn the link off?", confirm: "Turn off", method: "disableGroupLink" as const, params: { groupId: id },
+      body: "The link shared so far stops working for good, and nobody can join by link until you turn it on, as a new link. Members stay in the group." },
+  ])("asks before $button ends the shared link; Cancel and Escape change nothing", async ({ button, kind, title, confirm, method, params, body }) => {
+    const { user, engine } = renderApp(<GroupLinkPanel group={admin({ entryLink })} />);
+    engine.on("enableGroupLink", () => ({ link: entryLink })).on("disableGroupLink", () => undefined);
+    await user.click(screen.getByTestId(button));
+    const ask = screen.getByTestId("group-link-ask-dialog");
+    expect(ask).toHaveAttribute("data-kind", kind);
+    expect(ask).toHaveAccessibleName(title);
+    expect(ask).toHaveAccessibleDescription(body);
+    expect(within(ask).getByRole("button", { name: "Cancel" })).toHaveFocus();
+    await user.click(within(ask).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByTestId("group-link-ask-dialog")).not.toBeInTheDocument();
+    // The button that asked has the focus back, so the keyboard goes on from there: it fell to the page.
+    expect(screen.getByTestId(button)).toHaveFocus();
+    // From the keyboard: Enter on the button asks, Escape (as the browser says it to the topmost dialog) calls it off.
+    await user.keyboard("{Enter}");
+    expect(within(screen.getByTestId("group-link-ask-dialog")).getByRole("button", { name: "Cancel" })).toHaveFocus();
+    act(() => { screen.getByTestId("group-link-ask-dialog").dispatchEvent(new Event("cancel", { cancelable: true })); });
+    expect(screen.queryByTestId("group-link-ask-dialog")).not.toBeInTheDocument();
+    expect(screen.getByTestId(button)).toHaveFocus();
+    expect(engine.callsTo("enableGroupLink")).toEqual([]);
+    expect(engine.callsTo("disableGroupLink")).toEqual([]);
+    await user.click(screen.getByTestId(button));
+    await user.click(within(screen.getByTestId("group-link-ask-dialog")).getByRole("button", { name: confirm }));
+    expect(screen.queryByTestId("group-link-ask-dialog")).not.toBeInTheDocument();
+    expect(engine.callsTo(method)).toEqual([params]);
+  });
+
+  it("leaves the share dialog open when Escape closes the question over it", async () => {
+    const onClose = vi.fn();
+    const { user, engine } = renderApp(<GroupShareDialog group={admin({ entryLink })} onClose={onClose} />);
+    await user.click(screen.getByTestId("group-link-reset"));
+    act(() => { screen.getByTestId("group-link-ask-dialog").dispatchEvent(new Event("cancel", { cancelable: true, bubbles: true })); });
+    expect(screen.queryByTestId("group-link-ask-dialog")).not.toBeInTheDocument();
+    expect(screen.getByTestId("group-share-dialog")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(engine.callsTo("enableGroupLink")).toEqual([]);
+  });
+
+  it("keeps the keyboard focus in the panel when the link is turned off, then on", async () => {
+    const view = renderApp(<GroupLinkPanel group={admin({ entryLink })} />);
+    const { user, engine } = view;
+    engine.on("enableGroupLink", () => ({ link: entryLink })).on("disableGroupLink", () => undefined);
+    await user.click(screen.getByTestId("group-link-disable"));
+    await user.click(screen.getByTestId("group-link-ask-confirm"));
+    // The engine's news: the group has no link, so the panel swaps and the button pressed is gone.
+    view.rerender(<GroupLinkPanel group={admin()} />);
+    expect(screen.getByTestId("group-link-enable")).toHaveFocus();
+    await user.click(screen.getByTestId("group-link-enable"));
+    view.rerender(<GroupLinkPanel group={admin({ entryLink })} />);
+    expect(screen.getByTestId("group-link-share")).toHaveFocus();
+  });
+
+  it("New link from the keyboard keeps the focus on New link while it runs and after", async () => {
+    const view = renderApp(<GroupLinkPanel group={admin({ entryLink })} />);
+    const { user, engine } = view;
+    let done = () => {};
+    engine.on("enableGroupLink", () => new Promise<{ link: string }>(resolve => { done = () => resolve({ link: entryLink }); }));
+    const reset = screen.getByTestId("group-link-reset");
+    reset.focus();
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(screen.getByTestId("group-link-ask-confirm")).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(engine.callsTo("enableGroupLink")).toEqual([{ groupId: id, reset: true }]);
+    // Not disabled while it runs: the question gives the focus back to it, and a disabled button drops it to the page.
+    expect(reset).not.toBeDisabled();
+    expect(reset).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByTestId("group-link-disable")).not.toBeDisabled();
+    expect(reset).toHaveFocus();
+    // A second press does not ask again.
+    await user.keyboard("{Enter}");
+    expect(screen.queryByTestId("group-link-ask-dialog")).not.toBeInTheDocument();
+    await act(async () => { done(); });
+    view.rerender(<GroupLinkPanel group={admin({ entryLink: encodeGroupEntryLink({ g: id, host: createIdentity().pubKeyZ32 }) })} />);
+    expect(reset).not.toHaveAttribute("aria-disabled");
+    expect(reset).toHaveFocus();
+  });
+
+  it("Turn on the link keeps the focus on it when the engine refused", async () => {
+    const { user, engine } = renderApp(<GroupLinkPanel group={admin()} />);
+    let fail = () => {};
+    engine.on("enableGroupLink", () => new Promise((_, reject) => { fail = () => reject(new Error("Only the admin can do that")); }));
+    const enable = screen.getByTestId("group-link-enable");
+    enable.focus();
+    await user.keyboard("{Enter}");
+    expect(enable).not.toBeDisabled();
+    expect(enable).toHaveAttribute("aria-disabled", "true");
+    await user.keyboard("{Enter}");
+    expect(engine.callsTo("enableGroupLink")).toHaveLength(1);
+    await act(async () => { fail(); });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only the admin can do that");
+    expect(enable).not.toHaveAttribute("aria-disabled");
+    expect(enable).toHaveFocus();
+  });
+
+  it("does not take the focus when the link goes off without a press here, or when the engine refused", async () => {
+    const view = renderApp(<><input data-testid="elsewhere" /><GroupLinkPanel group={admin({ entryLink })} /></>);
+    const { user, engine } = view;
+    const elsewhere = screen.getByTestId("elsewhere");
+    const rerender = (group: GroupView) => view.rerender(<><input data-testid="elsewhere" /><GroupLinkPanel group={group} /></>);
+    engine.on("disableGroupLink", () => { throw new Error("Only the admin can do that"); });
+    await user.click(screen.getByTestId("group-link-disable"));
+    await user.click(screen.getByTestId("group-link-ask-confirm"));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    await user.click(elsewhere);
+    // Turned off from another of my devices, later.
+    rerender(admin());
+    expect(elsewhere).toHaveFocus();
+    rerender(admin({ entryLink }));
+    expect(elsewhere).toHaveFocus();
+    // Turned off here, and the focus moved on before the panel swapped: it stays where it went.
+    engine.on("disableGroupLink", () => undefined);
+    await user.click(screen.getByTestId("group-link-disable"));
+    await user.click(screen.getByTestId("group-link-ask-confirm"));
+    await user.click(elsewhere);
+    rerender(admin());
+    expect(elsewhere).toHaveFocus();
+  });
+
+  it("shows and hides the QR", async () => {
+    const { user } = renderApp(<GroupLinkPanel group={admin({ entryLink })} />);
+    const toggle = screen.getByRole("button", { name: "Show QR" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await user.click(toggle);
+    expect(screen.getByRole("button", { name: "Hide QR" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("shows what the engine refused", async () => {
+    const { user, engine } = renderApp(<GroupLinkPanel group={admin({ entryLink })} />);
+    engine.on("disableGroupLink", () => { throw new Error("Only the admin can do that"); });
+    await user.click(screen.getByTestId("group-link-disable"));
+    await user.click(screen.getByTestId("group-link-ask-confirm"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only the admin can do that");
+  });
+
+  it("offers to create a link when the stored one does not read as a link", () => {
+    renderApp(<GroupLinkPanel group={admin({ entryLink: "group1/garbage" })} />);
+    expect(screen.getByTestId("group-link-enable")).toBeInTheDocument();
+    expect(screen.queryByTestId("group-link-url")).not.toBeInTheDocument();
+  });
+});
+
+describe("NewGroupDialog", () => {
+  function open() {
+    const onClose = vi.fn(), onCreated = vi.fn();
+    return { ...renderApp(<NewGroupDialog onClose={onClose} onCreated={onCreated} />), onClose, onCreated };
+  }
+
+  it("creates a group under the name typed, trimmed", async () => {
+    const { user, engine, onCreated } = open();
+    engine.on("createGroup", () => ({ groupId: "new-group" }));
+    const create = screen.getByTestId("new-group-create");
+    expect(screen.getByTestId("new-group-name")).toHaveFocus();
+    expect(create).toBeDisabled();
+    await user.type(screen.getByTestId("new-group-name"), "   ");
+    expect(create).toBeDisabled();
+    await user.type(screen.getByTestId("new-group-name"), "Climbing  {Enter}");
+    // A community is what a new group is unless the person picks Private.
+    expect(engine.callsTo("createGroup")).toEqual([{ name: "Climbing", profile: "community" }]);
+    expect(onCreated).toHaveBeenCalledWith("new-group");
+  });
+
+  it("takes a name as long as Rename does, and no longer", async () => {
+    const { user, engine } = open();
+    engine.on("createGroup", () => ({ groupId: "long" }));
+    await user.type(screen.getByTestId("new-group-name"), `${"x".repeat(MAX_GROUP_NAME_LENGTH)}yz{Enter}`);
+    expect(engine.callsTo("createGroup")).toEqual([{ name: "x".repeat(MAX_GROUP_NAME_LENGTH), profile: "community" }]);
+  });
+
+  // Counted in characters as the engine counts them, not in UTF-16 units: 40 emoji stopped at 32 (agents#1048).
+  it("takes a name of emoji as long as the group does, and cuts a longer one between whole emoji", async () => {
+    const { user, engine } = open();
+    engine.on("createGroup", () => ({ groupId: "party" }));
+    const input = screen.getByTestId("new-group-name");
+    await user.paste("🎉".repeat(40));
+    expect(input).toHaveValue("🎉".repeat(40));
+    await user.clear(input);
+    // A family emoji is 7 characters: nine fit in 64, and a tenth is not cut into pieces.
+    const family = "👨‍👩‍👧‍👦";
+    await user.paste(family.repeat(10));
+    expect(input).toHaveValue(family.repeat(9));
+    await user.type(input, "{Enter}");
+    expect(engine.callsTo("createGroup")).toEqual([{ name: family.repeat(9), profile: "community" }]);
+  });
+
+  // Cutting the new value's end dropped the name's last character, threw the caret to the end and cut the rest of what
+  // was typed there (agents#1097). A full name takes nothing more at the caret, and keeps its end and the caret.
+  it("typing into the middle of a full name adds nothing there and keeps its end and the caret; a paste keeps what fits", async () => {
+    const { user } = open();
+    const input = screen.getByTestId("new-group-name") as HTMLInputElement;
+    const full = "Weekend trip to the mountains with the whole family and friends!";
+    expect([...full]).toHaveLength(MAX_GROUP_NAME_LENGTH);
+    await user.paste(full);
+    await user.type(input, "long ", { initialSelectionStart: 8, initialSelectionEnd: 8 });
+    expect(input).toHaveValue(full);
+    expect(input.selectionStart).toBe(8);
+    // Room for four: a paste of more keeps its first four, at the caret.
+    await user.clear(input);
+    await user.paste(full.slice(4));
+    input.setSelectionRange(0, 0);
+    await user.paste("Our wonderful ");
+    expect(input).toHaveValue(`Our ${full.slice(4)}`);
+    expect(input.selectionStart).toBe(4);
+    // Over a selection, what fits takes its place.
+    input.setSelectionRange(0, 3);
+    await user.paste("Their");
+    expect(input).toHaveValue(`The ${full.slice(4)}`);
+  });
+
+  // A refused keystroke was let into the field and then taken out by script, which empties the browser's undo history:
+  // Ctrl+Z then undid nothing (agents#1154). Refused before it goes in, the field is never written and keeps it.
+  it("refuses a keystroke into a full name before it reaches the field, so the field is never rewritten", async () => {
+    const { user } = open();
+    const input = screen.getByTestId("new-group-name") as HTMLInputElement;
+    await user.paste("x".repeat(MAX_GROUP_NAME_LENGTH - 1));
+    await user.keyboard("A");
+    const inputs = vi.fn(), refused: boolean[] = [];
+    input.addEventListener("input", inputs);
+    input.addEventListener("beforeinput", e => refused.push(e.defaultPrevented));
+    await user.type(input, "B", { initialSelectionStart: 10, initialSelectionEnd: 10 });
+    await user.keyboard("C");
+    expect(refused).toEqual([true, true]);
+    expect(inputs).not.toHaveBeenCalled();
+    expect(input).toHaveValue(`${"x".repeat(MAX_GROUP_NAME_LENGTH - 1)}A`);
+    expect(input.selectionStart).toBe(10);
+    // Room made, a keystroke goes in as before.
+    await user.keyboard("{Backspace}D");
+    expect(input).toHaveValue(`${"x".repeat(9)}D${"x".repeat(MAX_GROUP_NAME_LENGTH - 11)}A`);
+  });
+
+  // A name with one character left took the reading's first kana and kept it: "に", not "日本" nor nothing (agents#1153).
+  it("leaves a word composed with an IME whole while it is composed, then takes it whole if it fits, else nothing", async () => {
+    const { user } = open();
+    const input = screen.getByTestId("new-group-name") as HTMLInputElement;
+    const seen: string[] = [];
+    await user.paste("x".repeat(MAX_GROUP_NAME_LENGTH - 1));
+    compose(input, ["に", "にほ", "日本"], value => seen.push(value.slice(MAX_GROUP_NAME_LENGTH - 1)));
+    expect(seen).toEqual(["に", "にほ", "日本"]);
+    expect(input).toHaveValue("x".repeat(MAX_GROUP_NAME_LENGTH - 1));
+    expect(input.selectionStart).toBe(MAX_GROUP_NAME_LENGTH - 1);
+    // Two left: the word goes in.
+    await user.keyboard("{Backspace}");
+    compose(input, ["に", "にほ", "日本"]);
+    expect(input).toHaveValue(`${"x".repeat(MAX_GROUP_NAME_LENGTH - 2)}日本`);
+  });
+
+  it("stops a name at the bytes the group takes too", async () => {
+    const { user } = open();
+    // 4 bytes each: 64 of them would be 256 bytes, then one more character is past either limit.
+    await user.paste("𝔸".repeat(70));
+    expect(screen.getByTestId("new-group-name")).toHaveValue("𝔸".repeat(64));
+  });
+
+  it("makes a private group (up to 32, contacts or a link) when that kind is picked", async () => {
+    const { user, engine, onCreated } = open();
+    engine.on("createGroup", () => ({ groupId: "small" }));
+    expect(screen.getByTestId("new-group-kind-community").querySelector("input")).toBeChecked();
+    await user.click(screen.getByTestId("new-group-kind-mesh"));
+    expect(screen.getByTestId("new-group-kind-mesh").querySelector("input")).toBeChecked();
+    await user.type(screen.getByTestId("new-group-name"), "Family{Enter}");
+    expect(engine.callsTo("createGroup")).toEqual([{ name: "Family", profile: "mesh" }]);
+    expect(onCreated).toHaveBeenCalledWith("small");
+  });
+
+  it("keeps Create off for a name with nothing visible in it, and says a refused name in the app's words", async () => {
+    const { user, engine } = open();
+    engine.on("createGroup", () => { throw new Error("A group's name is 1 to 64 characters on one line"); });
+    await user.type(screen.getByTestId("new-group-name"), "\u200B");
+    expect(screen.getByTestId("new-group-create")).toBeDisabled();
+    await user.type(screen.getByTestId("new-group-name"), "{Enter}");
+    expect(engine.callsTo("createGroup")).toEqual([]);
+    // One the engine still refuses (a race, another app's rule): said in words a person reads.
+    await user.type(screen.getByTestId("new-group-name"), "Climbing");
+    await user.click(screen.getByTestId("new-group-create"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Type a name with letters or emoji" + "Up to 64 characters, on one line.");
+  });
+
+  it("shows why a group could not be created, and lets the user try again", async () => {
+    const { user, engine, onCreated } = open();
+    engine.on("createGroup", () => { throw new Error("Ghostly is still starting"); });
+    await user.type(screen.getByTestId("new-group-name"), "Climbing");
+    await user.click(screen.getByTestId("new-group-create"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Ghostly is still starting");
+    expect(onCreated).not.toHaveBeenCalled();
+    expect(screen.getByTestId("new-group-create")).toBeEnabled();
+  });
+
+  it("on an app with no WebRTC, creates the group: its links go over Iroh or HyperDHT", async () => {
+    // Ghostly Desktop on Linux (WISP 902 § Transports): no WebRTC, but native transports carry its group links.
+    const { user, engine } = open();
+    act(() => engine.update({ transport: { protocol: "webrtc/1", relays: [], webrtc: false } }));
+    expect(screen.queryByTestId("new-group-no-webrtc")).not.toBeInTheDocument();
+    await user.type(screen.getByTestId("new-group-name"), "Climbing");
+    expect(screen.getByTestId("new-group-create")).toBeEnabled();
+  });
+
+  it("on an app with no transport for group links, says before creating that no member could be reached from here", async () => {
+    // No WebRTC and no native transport: a group made here gets a link whose knocks this app sees but can never let
+    // in (the joiner waits at "A member is letting you in" for good).
+    const { user, engine, onCreated } = open();
+    act(() => engine.update({ transport: { protocol: "webrtc/1", relays: [], webrtc: false, groupLinks: false } }));
+    expect(screen.getByTestId("new-group-no-webrtc")).toHaveTextContent("Open the group in the web app or on another device.");
+    await user.type(screen.getByTestId("new-group-name"), "Climbing");
+    expect(screen.getByTestId("new-group-create")).toBeDisabled();
+    await user.keyboard("{Enter}");
+    expect(engine.callsTo("createGroup")).toEqual([]);
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+
+  it("cancels", async () => {
+    const { user, engine, onClose } = open();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(engine.callsTo("createGroup")).toEqual([]);
+  });
+});

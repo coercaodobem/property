@@ -1,0 +1,1310 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ENDPOINT, ONCHAIN_PROVIDER, cashuRequestPayload, engineError, engineText, type GhostLink, type PaymentRequest, type PaymentReview, type PaymentTarget } from "@ghostly/core";
+import { PaymentDesk, type DeskBitcoin, type DeskLightning } from "../src/engine/payments";
+import { CashuAdapter } from "../src/engine/paymentAdapters/cashu";
+import { SwapUnsettledError, type CashuPrepared, type CashuWallet } from "../src/engine/wallet";
+import { MintOperationError } from "@cashu/cashu-ts";
+import type { ArkWallet } from "../src/engine/paymentAdapters/arkWallet";
+import type { BarkWallet } from "../src/engine/paymentAdapters/barkWallet";
+import type { BarkReceipts } from "../src/engine/paymentAdapters/bark";
+import type { UsdtWallet } from "../src/engine/paymentAdapters/usdtWallet";
+import { fakeAddress } from "../src/engine/paymentAdapters/providers/testing";
+import type { PendingSwap, StoredMessage, StoredPayment } from "../src/shared/types";
+import { resetDb, rows, seed } from "./fakes";
+import { paymentAlias, paymentWireId } from "../src/shared/paymentIds";
+import { replyRef } from "../src/shared/replies";
+import { invoiceFor } from "./helpers/invoice";
+// covers: payments.cashu.send, payments.cashu.request, payments.cashu.reclaim, payments.cashu.test-sats, payments.lightning.request, payments.chat.methods, payments.chat.refused, payments.external, payments.arkade.request, payments.bark.send, payments.bitcoin.send, payments.usdt.send, delivery.hold.request, chat.waiting
+
+vi.mock("../src/shared/idb", async () => (await import("./fakes")).idbModule);
+beforeEach(() => resetDb());
+
+/**
+ * The chat's payment desk, rail by rail: nothing is ever paid twice, a request is settled only by the
+ * payee's own wallet (or its word, for a request it sent us), and ecash a contact did not take stays ours.
+ */
+
+const MINT = "https://mint.example";
+const ARK = "https://mutinynet.arkade.sh";
+const BARK = "https://ark.signet.2nd.dev";
+const INVOICE = "lnbc-invoice";
+/** What a contact's 40-sat request carries: an invoice that asks exactly that. */
+const ASKED = invoiceFor(40);
+const CHECK = JSON.stringify({ check: true });
+const tx = (c: string) => c.repeat(64);
+
+const ark = (address = "tark1fresh", extra: Partial<PaymentTarget> = {}): PaymentTarget => ({ method: "arkade", network: "mutinynet", provider: ARK, asset: "BTC", unit: "sat", address, expiresAt: Date.now() + 3_600_000, ...extra });
+const bark = (address = "tark1bark", extra: Partial<PaymentTarget> = {}): PaymentTarget => ({ method: "bark", network: "signet", provider: BARK, asset: "BTC", unit: "sat", address, expiresAt: Date.now() + 3_600_000, ...extra });
+const btc = (extra: Partial<PaymentTarget> = {}): PaymentTarget => ({ method: "bitcoin", network: "regtest", provider: ONCHAIN_PROVIDER, asset: "BTC", unit: "sat", address: fakeAddress(), expiresAt: Date.now() + 3_600_000, ...extra });
+const usdt = (extra: Partial<PaymentTarget> = {}): PaymentTarget => ({ method: "usdt", network: "evm-local", chainId: 31337, asset: "TEST-USDT", unit: "token-base", decimals: 6, token: "0x" + "1".repeat(40), address: "0x" + "2".repeat(40), provider: "http://127.0.0.1:43210", issuedAt: Date.now(), expiresAt: Date.now() + 3_600_000, ...extra });
+const cashuTarget = (): PaymentTarget => ({ method: "cashu", network: "bitcoin", provider: MINT, asset: "BTC", unit: "sat", address: "peer", expiresAt: Date.now() + 60_000 });
+
+const record = (extra: Partial<StoredPayment> & { id: string }): StoredPayment => ({ linkId: "l", kind: "request", direction: "in", amount: 100, unit: "sat", state: "pending", createdAt: 1, ...extra });
+const review = (target: PaymentTarget, extra: Partial<PaymentReview> = {}): PaymentReview => ({ ...target, id: "rv", linkId: "l", payee: "bob", amount: 100, fee: 1, feeCap: 10, createdAt: 7, state: "settled", ...extra });
+
+type Frame = Record<string, unknown>;
+function setup(stored: StoredPayment[] = []) {
+  seed("payments", stored as unknown as Record<string, unknown>[]);
+  const sent: { kind: "req" | "pay" | "res" | "ask"; frame: Frame }[] = [];
+  const allowed: Record<string, boolean> = { cashu: true, lightning: true };
+  const enabled: Record<string, boolean> = { cashu: true, lightning: true };
+  const link = {
+    isDataLinkOpen: true, supportsPayments: true, supportsArkPayments: true, supportsBarkPayments: true, supportsBitcoinPayments: true, supportsUsdtPayments: true,
+    requirePaymentSupport: vi.fn(async () => {}),
+    allowsPayment: vi.fn((m: string) => allowed[m] ?? false),
+    paymentEnabled: vi.fn((m: string) => enabled[m] ?? false),
+    sendPaymentRequest: vi.fn(async (frame: Frame) => { sent.push({ kind: "req", frame }); }),
+    sendPaymentAsk: vi.fn(async (frame: Frame) => { sent.push({ kind: "ask", frame }); }),
+    sendPayment: vi.fn(async (frame: Frame) => { sent.push({ kind: "pay", frame }); }),
+    sendPaymentResult: vi.fn((frame: Frame) => { sent.push({ kind: "res", frame }); }),
+  };
+  const net = { online: true };
+  const host = {
+    getLink: vi.fn(() => (net.online ? (link as unknown as GhostLink) : null)),
+    storeMessage: vi.fn(async (_message: StoredMessage) => {}),
+    onChange: vi.fn(),
+    heldPaymentMethods: vi.fn((): ("cashu" | "lightning")[] | null => null),
+    waitingPaymentMethods: vi.fn((): ("cashu" | "lightning")[] | null => null),
+    holdRequest: vi.fn(async (_linkId: string, _request: PaymentRequest, _messageId: string) => {}),
+    onReviewedPaymentResult: vi.fn(async () => {}),
+    onReviewedPaymentRefused: vi.fn(async () => {}),
+  };
+  const wallet = {
+    receiveToken: vi.fn(async (): Promise<{ amount: number; mint: string; fee: number }> => ({ amount: 100, mint: MINT, fee: 0 })),
+    createToken: vi.fn(async (_amount: number, _mints: string[], _memo: string | undefined, outbox: (token: string, mint: string) => StoredPayment) => { outbox("cashuBtoken", MINT); return { token: "cashuBtoken", mint: MINT }; }),
+    view: vi.fn(async () => ({ mints: [{ url: MINT }] })),
+  };
+  const lightning = {
+    createInvoice: vi.fn(async () => ({ invoice: INVOICE })),
+    quote: vi.fn(async () => ({ quote: "q", mint: MINT, amount: 100, feeReserve: 1 })),
+    pay: vi.fn(async () => true),
+    check: vi.fn(async () => {}),
+  };
+  const arkWallet = { target: vi.fn(async () => ark()), adapter: { config: { provider: ARK, network: "mutinynet" }, received: vi.fn(async (): Promise<string | undefined> => undefined), verifyReceipt: vi.fn(async () => false) } };
+  const barkReceived = vi.fn((..._: Parameters<BarkReceipts>): string | undefined => undefined);
+  const barkWallet = { target: vi.fn(async () => bark()), adapter: { config: { provider: BARK, network: "signet" }, received: barkReceived, receipts: vi.fn(async () => barkReceived), sync: vi.fn(async () => {}) } };
+  const usdtWallet = { target: vi.fn(async () => usdt()), adapter: { receipt: vi.fn(async (): Promise<{ settled?: boolean; failed?: boolean; error?: string }> => ({ settled: false })) } };
+  const bitcoin = { requestTarget: vi.fn(async () => btc()), received: vi.fn<DeskBitcoin["received"]>(async () => undefined) };
+  const desk = new PaymentDesk(wallet as unknown as CashuWallet, host, arkWallet as unknown as ArkWallet, usdtWallet as unknown as UsdtWallet, barkWallet as unknown as BarkWallet, lightning as DeskLightning, bitcoin);
+  const state = (id: string) => rows<StoredPayment>("payments").find((p) => p.id === id);
+  const texts = () => host.storeMessage.mock.calls.map((c) => c[0].text);
+  return { desk, sent, link, allowed, enabled, net, host, wallet, lightning, arkWallet, barkWallet, usdtWallet, bitcoin, state, texts };
+}
+const cashuPayment = (id: string, extra: Record<string, unknown> = {}) => ({ id, timestamp: 9, amount: { value: "100", asset: "sat" }, endpoint: [ENDPOINT.cashu, "cashuBin"] as [string, string], ...extra });
+
+describe("paying a contact's request, never twice", () => {
+  it("refuses what is not an open request of this chat it may pay without a review", async () => {
+    const { desk, wallet, lightning } = setup([
+      record({ id: "r1", invoice: INVOICE, mints: [MINT] }), record({ id: "r2", direction: "out" }), record({ id: "r3", kind: "payment" }),
+      record({ id: "r4", target: ark() }), record({ id: "r5", state: "settled", invoice: INVOICE }),
+    ]);
+    await desk.start();
+    await expect(desk.payRequest({ linkId: "x", paymentId: "r1" }), "another chat").rejects.toThrow("Unknown payment request");
+    for (const id of ["r2", "r3", "nope"]) await expect(desk.payRequest({ linkId: "l", paymentId: id }), id).rejects.toThrow("Unknown payment request");
+    await expect(desk.payRequest({ linkId: "l", paymentId: "r4", confirmedReal: true })).rejects.toThrow("Review and explicitly approve");
+    await expect(desk.payRequest({ linkId: "l", paymentId: "r5", confirmedReal: true })).rejects.toThrow("no longer open");
+    expect(wallet.createToken).not.toHaveBeenCalled();
+    expect(lightning.pay).not.toHaveBeenCalled();
+  });
+
+  it("ecash that came back, or never went, does not count: the request can be paid again", async () => {
+    const { desk, wallet } = setup([
+      record({ id: "r1", mints: [MINT] }),
+      record({ id: "p0", kind: "payment", direction: "out", requestId: "r1", state: "reclaimed" }),
+      record({ id: "p1", kind: "payment", direction: "out", requestId: "r1", state: "failed" }),
+    ]);
+    await desk.start();
+    await desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true });
+    expect(wallet.createToken).toHaveBeenCalledWith(100, [MINT], undefined, expect.any(Function), "mainnet");
+  });
+
+  it("refused ecash not taken back yet still counts: the request is not paid again until it is back", async () => {
+    const { desk, wallet, state } = setup([record({ id: "r1", mints: [MINT] })]);
+    await desk.start();
+    await desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true });
+    const paid = desk.records().find((p) => p.kind === "payment" && p.requestId === "r1")!;
+    wallet.receiveToken.mockRejectedValueOnce(new Error("fetch failed"));
+    await desk.onPaymentResult("l", { id: paid.id, ok: false, error: "No thanks" });
+    expect(state(paid.id)).toMatchObject({ state: "failed", token: "cashuBtoken" });
+    await expect(desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true })).rejects.toThrow("You already paid this request");
+    expect(wallet.createToken).toHaveBeenCalledOnce();
+    // Taken back: the ecash is ours again, and the request can be paid.
+    await desk.reclaim(paid.id);
+    expect(state(paid.id)?.state).toBe("reclaimed");
+    await desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true });
+    expect(wallet.createToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("goes to Lightning only when no ecash was made and the request has an invoice", async () => {
+    const { desk, wallet, lightning, allowed } = setup([record({ id: "r1", mints: [MINT] })]);
+    await desk.start();
+    wallet.createToken.mockRejectedValue(new Error("You share no mint with this contact"));
+    await expect(desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true })).rejects.toThrow("You share no mint");
+    allowed.cashu = false;
+    await expect(desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true })).rejects.toThrow("No way of paying this request is allowed");
+    expect(lightning.quote).not.toHaveBeenCalled();
+  });
+
+  // A host (the CLI's error codes, the app's errorText) reads why by `engineCode`: no ecash made keeps the wallet's.
+  it("keeps the wallet's engineCode when no ecash could be made", async () => {
+    const { desk, wallet } = setup([record({ id: "r1", mints: [MINT] })]);
+    await desk.start();
+    wallet.createToken.mockRejectedValueOnce(engineError("notEnoughSats"));
+    await expect(desk.send({ linkId: "l", amount: 5, timestamp: 2, network: "testnet" })).rejects.toMatchObject({ engineCode: "notEnoughSats", message: engineText("notEnoughSats") });
+    wallet.createToken.mockRejectedValueOnce(engineError("notEnoughForFee", { amount: 3 }));
+    await expect(desk.send({ linkId: "l", amount: 5, timestamp: 3, network: "testnet" })).rejects.toMatchObject({ engineCode: "notEnoughForFee", values: { amount: 3 } });
+    wallet.createToken.mockRejectedValueOnce(engineError("noSharedMint"));
+    await expect(desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true })).rejects.toMatchObject({ engineCode: "noSharedMint" });
+  });
+
+  it("pays an invoice only for the amount asked, and for at most 3% in fees (10 sats at least)", async () => {
+    const { desk, lightning, allowed, state } = setup([record({ id: "r1", amount: 1_000, invoice: INVOICE })]);
+    await desk.start();
+    allowed.cashu = false;
+    lightning.quote.mockResolvedValueOnce({ quote: "q", mint: MINT, amount: 999, feeReserve: 1 });
+    await expect(desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true })).rejects.toThrow("does not match the requested amount");
+    lightning.quote.mockResolvedValueOnce({ quote: "q", mint: MINT, amount: 1_000, feeReserve: 31 });
+    await expect(desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true })).rejects.toThrow("fee (31 sats) is too high");
+    expect(lightning.pay).not.toHaveBeenCalled();
+    lightning.quote.mockResolvedValueOnce({ quote: "q", mint: MINT, amount: 1_000, feeReserve: 30 });
+    await desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true });
+    expect(lightning.pay).toHaveBeenCalledWith(expect.objectContaining({ quote: "q" }), "Paid a contact's request", "r1");
+    expect(state("r1")).toMatchObject({ state: "settled", mint: MINT });
+  });
+
+  it("a Lightning payment that did not go out opens the request again, and it can be paid", async () => {
+    const { desk, lightning, allowed, state } = setup([record({ id: "r1", invoice: INVOICE })]);
+    await desk.start();
+    allowed.cashu = false;
+    lightning.pay.mockRejectedValueOnce(new Error("No route"));
+    await expect(desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true })).rejects.toThrow("No route");
+    expect(state("r1")?.lightningPending).toBeUndefined();
+    await desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true });
+    expect(state("r1")?.state).toBe("settled");
+  });
+
+  // The request is marked before the source is asked to pay; closed before the source wrote anything down, only that
+  // run's answer would have cleared the mark: it read "still pending" for good, and the group was told it was sent.
+  describe("closed in the middle of a Lightning payment", () => {
+    async function cutOff() {
+      const before = setup([record({ id: "r1", invoice: INVOICE })]);
+      await before.desk.start();
+      before.allowed.cashu = false;
+      before.lightning.pay.mockReturnValue(new Promise<boolean>(() => {}));
+      void before.desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true });
+      await vi.waitFor(() => expect(before.lightning.pay).toHaveBeenCalled());
+      expect(before.state("r1")).toMatchObject({ state: "pending", lightningPending: true, paidHere: true });
+      // A new desk on the same database, as after a restart.
+      const after = setup();
+      after.allowed.cashu = false;
+      const interrupted = vi.fn(async (): Promise<"pending" | "paid" | undefined> => undefined);
+      Object.assign(after.lightning, { interrupted });
+      return { ...after, interrupted };
+    }
+
+    it("when nothing left the wallet, the request can be paid again", async () => {
+      const { desk, lightning, interrupted, state } = await cutOff();
+      await desk.start();
+      expect(interrupted).toHaveBeenCalledWith("r1");
+      expect(state("r1")).toMatchObject({ state: "pending", error: "The Lightning payment did not go through" });
+      expect(state("r1")?.lightningPending, "no longer counted as sent").toBeUndefined();
+      await desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true });
+      expect(lightning.pay).toHaveBeenCalledOnce();
+      expect(state("r1")?.state).toBe("settled");
+    });
+
+    it("when it went through, the request is paid, and never paid again", async () => {
+      const { desk, lightning, interrupted, state } = await cutOff();
+      interrupted.mockResolvedValue("paid");
+      await desk.start();
+      expect(state("r1")).toMatchObject({ state: "settled", paidHere: true });
+      expect(state("r1")?.lightningPending).toBeUndefined();
+      await expect(desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true })).rejects.toThrow("no longer open");
+      expect(lightning.pay).not.toHaveBeenCalled();
+    });
+
+    it("while the payment or its melt has not ended, it stays pending for the wallet to settle", async () => {
+      const pending = await cutOff();
+      pending.interrupted.mockResolvedValue("pending");
+      await pending.desk.start();
+      expect(pending.state("r1")).toMatchObject({ state: "pending", lightningPending: true });
+      await expect(pending.desk.payRequest({ linkId: "l", paymentId: "r1", confirmedReal: true })).rejects.toThrow("still pending");
+
+      resetDb();
+      const melting = await cutOff();
+      Object.assign(melting.wallet, { meltInFlight: vi.fn(async (invoice: string) => invoice === INVOICE) });
+      await melting.desk.start();
+      expect(melting.interrupted).not.toHaveBeenCalled();
+      expect(melting.state("r1")).toMatchObject({ state: "pending", lightningPending: true });
+    });
+
+    it("a source that keeps no record of its payments leaves it pending, as it cannot tell", async () => {
+      const { desk, lightning, state } = await cutOff();
+      delete (lightning as Partial<DeskLightning>).interrupted;
+      await desk.start();
+      expect(state("r1")).toMatchObject({ state: "pending", lightningPending: true });
+    });
+  });
+});
+
+describe("requests we send", () => {
+  it("none goes out when the chat allows neither Cashu nor Lightning", async () => {
+    const { desk, allowed, sent } = setup();
+    allowed.cashu = allowed.lightning = false;
+    await expect(desk.request({ linkId: "l", amount: 10, timestamp: 1 })).rejects.toThrow("Cashu and Lightning are off");
+    expect(sent).toEqual([]);
+    expect(rows("payments")).toEqual([]);
+  });
+
+  it("an away contact's request is held, carrying only what their app allowed, and needs no session", async () => {
+    const { desk, link, host, lightning, sent, texts, enabled } = setup();
+    link.isDataLinkOpen = false;
+    link.requirePaymentSupport.mockRejectedValue(new Error("You are offline"));
+    host.heldPaymentMethods.mockReturnValue(["cashu"]);
+    const { paymentId } = await desk.request({ linkId: "l", amount: 50, timestamp: 5, memo: "  pizza  " });
+    expect(lightning.createInvoice, "Lightning was not allowed by the contact").not.toHaveBeenCalled();
+    expect(sent).toEqual([]);
+    const [linkId, held, messageId] = host.holdRequest.mock.calls[0];
+    expect([linkId, messageId]).toEqual(["l", "me_5"]);
+    expect(held).toMatchObject({ id: paymentId, memo: "pizza", amount: { value: "50", asset: "sat" }, endpoints: [[ENDPOINT.cashu, cashuRequestPayload([MINT])]] });
+    expect(host.storeMessage).toHaveBeenCalledWith(expect.objectContaining({ via: "hold", delivery: "sending" }));
+    expect(desk.requestFor(paymentId), "the held copy can be rebuilt as it went").toEqual(held);
+    expect(texts()).toEqual(["⚡ Requested 50 sats"]);
+
+    host.heldPaymentMethods.mockReturnValue(["lightning"]);
+    enabled.lightning = false; // Allowed by the contact, but no longer on this device.
+    await expect(desk.request({ linkId: "l", amount: 50, timestamp: 6 })).rejects.toThrow("Your contact allowed neither");
+    await expect(desk.request({ linkId: "l", amount: 50, timestamp: 7, method: "arkade" }), "Ark needs the contact there").rejects.toThrow("You are offline");
+  });
+
+  it("a request while the chat is not live and nothing holds it waits here, goes with the replay when live, and a cancel withdraws it", async () => {
+    const { desk, link, host, sent, state } = setup();
+    link.isDataLinkOpen = false;
+    link.requirePaymentSupport.mockRejectedValue(new Error("dialled for 90 s"));
+    host.waitingPaymentMethods.mockReturnValue(["cashu", "lightning"]);
+    const { paymentId } = await desk.request({ linkId: "l", amount: 21, timestamp: 5 });
+    expect(link.requirePaymentSupport, "a waiting request dials nobody").not.toHaveBeenCalled();
+    expect(sent).toEqual([]);
+    expect(host.holdRequest).not.toHaveBeenCalled();
+    expect(host.storeMessage).toHaveBeenCalledWith(expect.objectContaining({ via: "datalink", delivery: "waiting", paymentId }));
+    expect(state(paymentId)).toMatchObject({ state: "pending", invoice: INVOICE, mints: [MINT] });
+    link.isDataLinkOpen = true;
+    await desk.replay("l");
+    expect(sent.map(s => s.frame.id)).toEqual([paymentId]);
+
+    // Cancelled before the chat was live: withdrawn, so no later session sends it.
+    link.isDataLinkOpen = false;
+    const second = (await desk.request({ linkId: "l", amount: 7, timestamp: 6 })).paymentId;
+    await desk.withdraw(second);
+    expect(state(second)?.state).toBe("failed");
+    link.isDataLinkOpen = true;
+    sent.length = 0;
+    await desk.replay("l");
+    expect(sent.map(s => s.frame.id)).not.toContain(second);
+    // Ark and the others need the contact there: they never wait.
+    link.isDataLinkOpen = false;
+    await expect(desk.request({ linkId: "l", amount: 5, timestamp: 8, method: "arkade" })).rejects.toThrow("dialled");
+  });
+
+  it("a contact with no wallet at the last session may have made one since: a request waits for live instead of failing", async () => {
+    const { desk, link, host, state } = setup();
+    link.isDataLinkOpen = false;
+    // What the last session said (no Mainnet Cashu or Lightning wallet) is old: only an open session's word counts.
+    Object.assign(link, { peerPaymentNetworks: () => [] });
+    host.waitingPaymentMethods.mockReturnValue(["cashu", "lightning"]);
+    const { paymentId } = await desk.request({ linkId: "l", amount: 21, timestamp: 5, network: "mainnet" });
+    expect(state(paymentId)).toMatchObject({ state: "pending", invoice: INVOICE });
+    expect(host.storeMessage).toHaveBeenCalledWith(expect.objectContaining({ delivery: "waiting", paymentId }));
+    // Live, the contact's word is fresh: no wallet there is said as such.
+    link.isDataLinkOpen = true;
+    await expect(desk.request({ linkId: "l", amount: 21, timestamp: 6, network: "mainnet" })).rejects.toThrow("Your contact has no Mainnet Cashu wallet");
+  });
+
+  it("a request refused by the contact's word at the last session says so, not that the chat has them off", async () => {
+    const { desk, link, host, enabled } = setup();
+    link.isDataLinkOpen = false;
+    host.waitingPaymentMethods.mockReturnValue([]);
+    await expect(desk.request({ linkId: "l", amount: 21, timestamp: 5 })).rejects.toThrow("Your contact took no Cashu or Lightning last time. Try again once the chat is live");
+    // The contact took Cashu, and Cashu is off here: not the contact's word that says no.
+    host.waitingPaymentMethods.mockReturnValue(["cashu"]);
+    enabled.cashu = false;
+    await expect(desk.request({ linkId: "l", amount: 21, timestamp: 6 })).rejects.toThrow("Cashu and Lightning are off in this chat");
+    // Off on this device: that is what it says.
+    host.waitingPaymentMethods.mockReturnValue([]);
+    enabled.cashu = enabled.lightning = false;
+    await expect(desk.request({ linkId: "l", amount: 21, timestamp: 6 })).rejects.toThrow("Cashu and Lightning are off in this chat");
+    expect(rows("payments")).toEqual([]);
+  });
+
+  it("rebuilds only our own Cashu or Lightning requests", async () => {
+    const { desk } = setup([record({ id: "in", invoice: INVOICE }), record({ id: "ark", direction: "out", target: ark() }), record({ id: "ln", direction: "out", invoice: INVOICE, mints: [] })]);
+    await desk.start();
+    expect([desk.requestFor("in"), desk.requestFor("ark"), desk.requestFor("nope")]).toEqual([null, null, null]);
+    expect(desk.requestFor("ln")?.endpoints).toEqual([[ENDPOINT.bolt11, INVOICE]]);
+  });
+
+  it("a USDT request carries the payee's address in token units, and needs USDT on both sides", async () => {
+    const { desk, link, sent, state, texts } = setup();
+    const { paymentId } = await desk.request({ linkId: "l", amount: 1_500_000, timestamp: 1, method: "usdt" });
+    expect(state(paymentId)).toMatchObject({ unit: "testusdt", target: { method: "usdt" }, state: "pending" });
+    expect(sent[0].frame).toMatchObject({ amount: { value: "1500000", asset: "testusdt" }, endpoints: [[ENDPOINT.usdt, JSON.stringify(state(paymentId)!.target)]] });
+    expect(texts()).toEqual(["Requested 1.5 TEST-USDT"]);
+    link.supportsUsdtPayments = false;
+    await expect(desk.request({ linkId: "l", amount: 1, timestamp: 2, method: "usdt" })).rejects.toThrow("Both peers need USDT");
+    link.supportsArkPayments = false;
+    await expect(desk.request({ linkId: "l", amount: 1, timestamp: 2, method: "arkade" })).rejects.toThrow("Both peers need the Ark payment capability");
+  });
+});
+
+describe("two contacts' requests under one id", () => {
+  // A group's members all see a request made to the group: one of them can send its own under the same id.
+  const request = (memo: string, amount = "100"): PaymentRequest => ({ id: "shared-id-1", timestamp: 5, amount: { value: amount, asset: "sat" }, memo, endpoints: [[ENDPOINT.cashu, cashuRequestPayload([MINT])]], network: "mainnet" });
+
+  it("the copy that came first neither replaces nor hides the real one; each is paid and answered on its own", async () => {
+    const { desk, sent, state, host } = setup();
+    await desk.start();
+    await desk.onPaymentRequest("edge-b", request("the copy", "500"));
+    await desk.onPaymentRequest("edge-a", request("the real one"));
+    // Sent again by its own contact: kept once.
+    await desk.onPaymentRequest("edge-a", request("the real one"));
+    expect(rows<StoredPayment>("payments").map((p) => [p.id, p.linkId, p.memo, p.amount])).toEqual([
+      ["shared-id-1", "edge-b", "the copy", 500], ["shared-id-1.edge-a", "edge-a", "the real one", 100]]);
+    expect(host.storeMessage.mock.calls.map(([m]) => [m.linkId, m.paymentId])).toEqual([["edge-b", "shared-id-1"], ["edge-a", "shared-id-1.edge-a"]]);
+    // The bubble replies by the id both sides know.
+    expect(replyRef({ id: "peer_5", linkId: "edge-a", paymentId: "shared-id-1.edge-a" })).toBe("shared-id-1");
+
+    // Paying the real one pays it, named on the wire as its contact named it.
+    await desk.payRequest({ linkId: "edge-a", paymentId: "shared-id-1.edge-a", confirmedReal: true });
+    expect(sent.filter((s) => s.kind === "pay").map((s) => [s.frame.requestId, s.frame.amount])).toEqual([["shared-id-1", { value: "100", asset: "sat" }]]);
+    expect(desk.records().find((p) => p.kind === "payment")).toMatchObject({ linkId: "edge-a", requestId: "shared-id-1.edge-a" });
+    // Each contact's word settles its own request only.
+    await desk.onPaymentResult("edge-a", { id: "shared-id-1", ok: true });
+    expect(state("shared-id-1.edge-a")?.state).toBe("settled");
+    expect(state("shared-id-1")?.state).toBe("pending");
+    await desk.onPaymentResult("edge-c", { id: "shared-id-1", ok: true });
+    expect(state("shared-id-1")?.state, "a third contact names neither").toBe("pending");
+  });
+
+  it("a payment id is never an alias: a contact cannot name another's record by its local key", () => {
+    expect(paymentAlias("shared-id-1", "edge-a")).not.toMatch(/^[A-Za-z0-9_-]{8,64}$/);
+    expect(paymentWireId(paymentAlias("shared-id-1", "cpay:g:k.x"))).toBe("shared-id-1");
+    expect(paymentWireId("plain-id-12")).toBe("plain-id-12");
+  });
+});
+
+describe("a contact's request arriving", () => {
+  const lnRequest = (id: string, extra: Partial<PaymentRequest> = {}): PaymentRequest => ({ id, timestamp: 3, amount: { value: "40", asset: "sat" }, endpoints: [[ENDPOINT.bolt11, ASKED], [ENDPOINT.cashu, cashuRequestPayload([MINT])]], ...extra });
+
+  it("is taken once, whatever a second copy says", async () => {
+    const { desk } = setup();
+    await desk.onPaymentRequest("l", lnRequest("r1"));
+    await desk.onPaymentRequest("l", lnRequest("r1", { amount: { value: "4000", asset: "sat" } }));
+    expect(desk.payment("r1")?.amount).toBe(40);
+  });
+
+  it("a held copy keeps only Cashu or Lightning, as this device allows them", async () => {
+    const { desk, allowed, host } = setup();
+    await desk.onPaymentRequest("l", { ...lnRequest("r-ark"), endpoints: [[ENDPOINT.arkade, JSON.stringify(ark())]] }, true);
+    await desk.onPaymentRequest("l", { ...lnRequest("r-mix"), endpoints: [[ENDPOINT.bolt11, INVOICE], [ENDPOINT.usdt, JSON.stringify(usdt())]] }, true);
+    expect([desk.payment("r-ark"), desk.payment("r-mix")]).toEqual([undefined, undefined]);
+    allowed.lightning = false; // Not on a live session: what counts is what this device enabled.
+    await desk.onPaymentRequest("l", lnRequest("r-held"), true);
+    expect(desk.payment("r-held")).toMatchObject({ invoice: ASKED, mints: [MINT] });
+    expect(host.storeMessage).toHaveBeenCalledWith(expect.objectContaining({ via: "hold", paymentId: "r-held" }));
+  });
+
+  it("keeps an invoice only when it asks the request's amount, and beside an address only of the address's network", async () => {
+    const { desk } = setup();
+    const asked = (id: string, endpoints: [string, string][], network: "mainnet" | "testnet" = "testnet") => desk.onPaymentRequest("l", { ...lnRequest(id), amount: { value: "1000", asset: "sat" }, endpoints, network });
+    const onchain = JSON.stringify(btc());
+    await asked("ln-more", [[ENDPOINT.bolt11, invoiceFor(100_000)]]);
+    await asked("ln-any", [[ENDPOINT.bolt11, "lnbc-invoice"]]);
+    await asked("btc-more", [[ENDPOINT.bitcoin, onchain], [ENDPOINT.bolt11, invoiceFor(100_000, "lnbcrt")]]);
+    await asked("btc-real", [[ENDPOINT.bitcoin, onchain], [ENDPOINT.bolt11, invoiceFor(1_000)]]);
+    expect([desk.payment("ln-more"), desk.payment("ln-any")]).toEqual([undefined, undefined]);
+    expect(desk.payment("btc-more")).toMatchObject({ target: { method: "bitcoin" }, invoice: undefined });
+    expect(desk.payment("btc-real")).toMatchObject({ target: { method: "bitcoin" }, invoice: undefined });
+    // The same amount, on the address's network (or a test mint's invoice beside no address), is kept.
+    const exact = invoiceFor(1_000, "lnbcrt"), testMint = invoiceFor(1_000);
+    await asked("btc-same", [[ENDPOINT.bitcoin, onchain], [ENDPOINT.bolt11, exact]]);
+    await asked("ln-same", [[ENDPOINT.bolt11, testMint]]);
+    expect([desk.payment("btc-same")?.invoice, desk.payment("ln-same")?.invoice]).toEqual([exact, testMint]);
+  });
+
+  it("only whole sats: anything else is answered as refused and not kept", async () => {
+    const { desk, sent } = setup();
+    await desk.onPaymentRequest("l", lnRequest("r1", { amount: { value: "1.5", asset: "sat" } }));
+    await desk.onPaymentRequest("l", lnRequest("r2", { amount: { value: "40", asset: "msat" } }));
+    expect(sent.map((s) => s.frame)).toEqual([{ id: "r1", ok: false, error: "Only whole amounts in sats are supported" }, { id: "r2", ok: false, error: "Only whole amounts in sats are supported" }]);
+    expect(rows("payments")).toEqual([]);
+  });
+
+  it("an Ark or on-chain request is dropped when the chat lacks that rail or its target is unreadable", async () => {
+    const { desk, link } = setup();
+    const at = (id: string, endpoint: string, payload: string) => desk.onPaymentRequest("l", { ...lnRequest(id), endpoints: [[endpoint, payload]] });
+    await at("a1", ENDPOINT.arkade, "{not json");
+    await at("a2", ENDPOINT.arkade, JSON.stringify(bark()));
+    await at("b1", ENDPOINT.bitcoin, "{not json");
+    await at("b2", ENDPOINT.bitcoin, JSON.stringify(ark()));
+    await at("k1", ENDPOINT.bark, "{not json");
+    link.supportsArkPayments = false;
+    await at("a3", ENDPOINT.arkade, JSON.stringify(ark()));
+    expect(rows("payments")).toEqual([]);
+    link.supportsArkPayments = true;
+    await at("a4", ENDPOINT.arkade, JSON.stringify(ark()));
+    expect(desk.payment("a4")).toMatchObject({ target: { method: "arkade" }, invoice: undefined, mints: [] });
+  });
+
+  it("a chat keeps fifty of a contact's requests waiting: the next is taken once one of them is paid or closed", async () => {
+    const { desk, host } = setup(Array.from({ length: 50 }, (_, i) => record({ id: `open${i}`, invoice: INVOICE })));
+    await desk.start();
+    await desk.onPaymentRequest("l", lnRequest("r51"));
+    await desk.onPaymentRequest("l", { ...lnRequest("u51"), amount: { value: "1000000", asset: "usdtbase" }, endpoints: [[ENDPOINT.usdt, JSON.stringify(usdt())]] });
+    expect([desk.payment("r51"), desk.payment("u51")]).toEqual([undefined, undefined]);
+    expect(host.storeMessage).not.toHaveBeenCalled();
+    // Another chat's requests are its own.
+    await desk.onPaymentRequest("l2", lnRequest("other"));
+    expect(desk.payment("other")).toMatchObject({ linkId: "l2", state: "pending" });
+    // The contact sends its open requests again on every session: the one left out comes in once there is room.
+    await desk.onPaymentResult("l", { id: "open0", ok: false, closed: true });
+    await desk.onPaymentRequest("l", lnRequest("r51"));
+    expect(desk.payment("r51")).toMatchObject({ state: "pending", amount: 40 });
+  });
+
+  it("a chat takes twenty new requests a minute: the rest are left out until they are sent again", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: 1_000_000 });
+    try {
+      const { desk } = setup();
+      for (let i = 0; i < 25; i++) await desk.onPaymentRequest("l", lnRequest(`r${i}`));
+      expect(rows<StoredPayment>("payments").map((p) => p.id)).toEqual(Array.from({ length: 20 }, (_, i) => `r${i}`));
+      // A copy of one already here is not a new request, and another chat has its own count.
+      await desk.onPaymentRequest("l", lnRequest("r0"));
+      await desk.onPaymentRequest("l2", lnRequest("other"));
+      expect(desk.payment("other")).toBeDefined();
+      vi.setSystemTime(1_000_000 + 60_000);
+      await desk.onPaymentRequest("l", lnRequest("r20"));
+      expect(desk.payment("r20")).toMatchObject({ state: "pending" });
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("after the device clock goes back an hour, a full minute of requests no longer leaves the next ones out for an hour", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: 10 * 3_600_000 });
+    try {
+      const { desk } = setup();
+      for (let i = 0; i < 21; i++) await desk.onPaymentRequest("l", lnRequest(`r${i}`));
+      expect(desk.payment("r20"), "the window is full").toBeUndefined();
+      vi.setSystemTime(9 * 3_600_000 + 2 * 60_000);
+      await desk.onPaymentRequest("l", lnRequest("r20"));
+      expect(desk.payment("r20")).toMatchObject({ state: "pending" });
+    } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("ecash arriving", () => {
+  it("a payment id of another chat, or of one of our own payments, is refused without a word about it", async () => {
+    const { desk, wallet, sent } = setup([
+      record({ id: "ours", kind: "payment", direction: "out", token: "cashuBours" }),
+      record({ id: "theirs", kind: "payment", linkId: "other", state: "settled" }),
+    ]);
+    await desk.start();
+    await desk.onPayment("l", cashuPayment("ours"));
+    await desk.onPayment("l", cashuPayment("theirs"));
+    expect(wallet.receiveToken).not.toHaveBeenCalled();
+    expect(sent.map((s) => s.frame)).toEqual([{ id: "ours", ok: false, error: "Unknown payment" }, { id: "theirs", ok: false, error: "Unknown payment" }]);
+  });
+
+  it("an unknown way of paying, or an amount that is not whole sats, is refused and said once in the chat", async () => {
+    const { desk, wallet, sent, host, texts } = setup();
+    await desk.onPayment("l", cashuPayment("p1", { endpoint: ["btc-offer/1", "x"] }));
+    await desk.onPayment("l", cashuPayment("p2", { amount: { value: "1e3", asset: "sat" } }));
+    host.storeMessage.mockRejectedValueOnce(new Error("disk full"));
+    await desk.onPayment("l", cashuPayment("p3", { endpoint: ["btc-offer/1", "x"] }));
+    expect(wallet.receiveToken).not.toHaveBeenCalled();
+    expect(sent.map((s) => s.frame)).toEqual([
+      { id: "p1", ok: false, error: "Unsupported payment method" },
+      { id: "p2", ok: false, error: "Unsupported amount" },
+      { id: "p3", ok: false, error: "Unsupported payment method" },
+    ]);
+    expect(texts().slice(0, 2)).toEqual(["Could not receive 100 sats: Unsupported payment method", "Could not receive a payment: Unsupported amount"]);
+  });
+
+  it("the same spent ecash sent again under new ids is refused each time, and said once in its chat", async () => {
+    const { desk, wallet, sent, host } = setup();
+    wallet.receiveToken.mockRejectedValue(engineError("ecashAlreadySpent"));
+    for (let i = 0; i < 5; i++) await desk.onPayment("l", cashuPayment(`p${i}`, { timestamp: 100 + i }));
+    await desk.onPayment("l", cashuPayment("q", { timestamp: 200, endpoint: [ENDPOINT.cashu, "cashuBother"] }));
+    await desk.onPayment("m", cashuPayment("r", { timestamp: 300 }));
+    expect(sent.filter((s) => s.kind === "res").map((s) => s.frame.ok), "the contact is told every time").toEqual(Array(7).fill(false));
+    const lines = host.storeMessage.mock.calls.map(([m]) => `${m.linkId}:${m.id}`);
+    expect(lines, "every line of one token in one chat has one id: stored once").toHaveLength(7);
+    expect(new Set(lines).size, "one per token and chat").toBe(3);
+  });
+
+  it("a refusal for anything but spent ecash keeps a line per payment", async () => {
+    const { desk, wallet, host } = setup();
+    wallet.receiveToken.mockRejectedValue(new Error("Ecash from mint.example is not accepted"));
+    await desk.onPayment("l", cashuPayment("p1", { timestamp: 1 }));
+    await desk.onPayment("l", cashuPayment("p2", { timestamp: 2 }));
+    expect(host.storeMessage.mock.calls.map(([m]) => m.id)).toEqual(["peer_1_refused", "peer_2_refused"]);
+  });
+
+  it("settles our request only in full, from a mint it named, and only when it came through this chat", async () => {
+    const { desk, wallet, state } = setup([record({ id: "r", direction: "out", mints: [MINT] })]);
+    await desk.start();
+    wallet.receiveToken.mockResolvedValueOnce({ amount: 60, mint: MINT });
+    await desk.onPayment("l", cashuPayment("p1", { requestId: "r" }));
+    wallet.receiveToken.mockResolvedValueOnce({ amount: 100, mint: "https://other.mint" });
+    await desk.onPayment("l", cashuPayment("p2", { requestId: "r" }));
+    await desk.onPayment("x", cashuPayment("p3", { requestId: "r" }));
+    expect(state("r")?.state).toBe("pending");
+    expect(["p1", "p2", "p3"].map((id) => state(id)?.state), "each is received all the same").toEqual(["settled", "settled", "settled"]);
+    await desk.onPayment("l", cashuPayment("p4", { requestId: "r" }));
+    expect(state("r")).toMatchObject({ state: "settled", mint: MINT });
+  });
+});
+
+describe("what the contact answers about our payments", () => {
+  it("our ecash is settled on the contact's word, with the request it paid; another chat's word counts for nothing", async () => {
+    const { desk, state } = setup([record({ id: "r" }), record({ id: "p", kind: "payment", direction: "out", requestId: "r", token: "cashuBp" })]);
+    await desk.start();
+    await desk.onPaymentResult("x", { id: "p", ok: true });
+    expect(state("p")?.state).toBe("pending");
+    await desk.onPaymentResult("l", { id: "p", ok: true });
+    expect(state("p")).toMatchObject({ state: "settled", token: undefined });
+    expect(state("r")?.state).toBe("settled");
+  });
+
+  it("refused ecash that cannot be taken back is failed, and stays reclaimable even when the chat is forgotten", async () => {
+    const { desk, wallet, state } = setup([record({ id: "p", kind: "payment", direction: "out", token: "cashuBp" })]);
+    await desk.start();
+    wallet.receiveToken.mockRejectedValue(new Error("mint offline"));
+    await desk.onPaymentResult("l", { id: "p", ok: false });
+    expect(state("p")).toMatchObject({ state: "failed", error: "The payment was refused", token: "cashuBp" });
+    await desk.forgetLink("l");
+    expect(state("p")?.token).toBe("cashuBp");
+  });
+
+  it("a payment with a target, one we received, or one already over is never changed by the contact's word", async () => {
+    const { desk, wallet, state } = setup([
+      record({ id: "a", kind: "payment", direction: "out", target: ark(), txid: tx("a") }),
+      record({ id: "i", kind: "payment", direction: "in" }),
+      record({ id: "s", kind: "payment", direction: "out", state: "settled" }),
+    ]);
+    await desk.start();
+    for (const id of ["a", "i"]) await desk.onPaymentResult("l", { id, ok: true });
+    await desk.onPaymentResult("l", { id: "s", ok: false, error: "no" });
+    expect(["a", "i", "s"].map((id) => state(id)?.state)).toEqual(["pending", "pending", "settled"]);
+    expect(wallet.receiveToken).not.toHaveBeenCalled();
+  });
+
+  it("a refused reviewed Cashu send is closed as refused only once its ecash is back", async () => {
+    const reviewed = record({ id: "rv", kind: "payment", direction: "out", token: "cashuBrv", target: cashuTarget() });
+    const { desk, wallet, host, state } = setup([reviewed, { ...reviewed, id: "rv2", token: "cashuBrv2" }]);
+    await desk.start();
+    wallet.receiveToken.mockRejectedValueOnce(new Error("mint offline"));
+    await desk.onPaymentResult("l", { id: "rv", ok: false, error: "No thanks" });
+    expect(state("rv")).toMatchObject({ state: "pending", error: "No thanks" });
+    expect(host.onReviewedPaymentRefused).not.toHaveBeenCalled();
+    await desk.onPaymentResult("l", { id: "rv2", ok: false });
+    expect(host.onReviewedPaymentRefused).toHaveBeenCalledWith("rv2", "The payment was refused", { amount: 100, fee: 0 });
+    await desk.onPaymentResult("x", { id: "rv", ok: true });
+    expect(host.onReviewedPaymentResult, "another chat cannot confirm it").not.toHaveBeenCalled();
+  });
+
+  it("only ecash we sent and still hold can be taken back, and a mint that cannot be reached is said so", async () => {
+    const { desk, wallet } = setup([record({ id: "in", kind: "payment" }), record({ id: "p", kind: "payment", direction: "out", token: "cashuBp" })]);
+    await desk.start();
+    await expect(desk.reclaim("in")).rejects.toThrow("Nothing to reclaim");
+    await expect(desk.reclaim("nope")).rejects.toThrow("Nothing to reclaim");
+    wallet.receiveToken.mockRejectedValueOnce(new Error("mint offline"));
+    await expect(desk.reclaim("p")).rejects.toThrow("mint offline");
+  });
+});
+
+describe("asks to pay without a request", () => {
+  it("a USDT ask is answered in token units only, and nothing answers an ask from a chat that is gone", async () => {
+    const { desk, sent, net } = setup();
+    await desk.onPaymentAsk("l", { id: "ask_000001", timestamp: 1, amount: { value: "1000000", asset: "sat" }, method: "usdt" });
+    await desk.onPaymentAsk("l2", { id: "ask_000002", timestamp: 1, amount: { value: "1000000", asset: "usdtbase" }, method: "usdt" });
+    expect(sent.map((s) => s.frame.ask)).toEqual(["ask_000002"]);
+    expect(sent[0].frame).toMatchObject({ amount: { value: "1000000", asset: "testusdt" } });
+    net.online = false;
+    await desk.onPaymentAsk("l3", { id: "ask_000003", timestamp: 1, amount: { value: "10", asset: "sat" }, method: "arkade" });
+    expect(sent).toHaveLength(1);
+  });
+
+  it("the payer ties a request to its ask only for the same way of paying, and only while it is fresh", async () => {
+    const { desk, sent } = setup();
+    await expect(desk.ask({ linkId: "l", amount: 1.5, method: "usdt", timestamp: 1 })).rejects.toThrow("positive amount");
+    const { askId: usdtAsk } = await desk.ask({ linkId: "l", amount: 2_000_000, method: "usdt", timestamp: 1, network: "testnet" });
+    expect(sent[0].frame.amount).toEqual({ value: "2000000", asset: "usdtbase" });
+    await desk.onPaymentRequest("l", { id: "u1", timestamp: 2, amount: { value: "2000000", asset: "testusdt" }, endpoints: [[ENDPOINT.usdt, JSON.stringify(usdt())]], ask: usdtAsk });
+    expect(desk.payment("u1")?.ask).toBe(usdtAsk);
+
+    const { askId } = await desk.ask({ linkId: "l", amount: 700, method: "arkade", timestamp: 1, network: "testnet" });
+    await desk.onPaymentRequest("l", { id: "b1", timestamp: 2, amount: { value: "700", asset: "sat" }, endpoints: [[ENDPOINT.bitcoin, JSON.stringify(btc())]], ask: askId });
+    expect(desk.payment("b1")?.ask, "an on-chain request does not answer an Ark ask").toBeUndefined();
+    const now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now + 3 * 60_000);
+    try {
+      await desk.onPaymentRequest("l", { id: "a1", timestamp: 2, amount: { value: "700", asset: "sat" }, endpoints: [[ENDPOINT.arkade, JSON.stringify(ark())]], ask: askId });
+    } finally { clock.mockRestore(); }
+    expect(desk.payment("a1")?.ask, "asked more than two minutes ago").toBeUndefined();
+  });
+});
+
+describe("paid from another wallet", () => {
+  it("the payer can say so only for a rail another wallet can pay, and only while the request is open", async () => {
+    const { desk, sent } = setup([record({ id: "u", target: usdt() }), record({ id: "c", target: cashuTarget() }), record({ id: "a", target: ark() }), record({ id: "s", state: "settled", invoice: INVOICE })]);
+    await desk.start();
+    for (const id of ["u", "c"]) await expect(desk.checkPayment({ linkId: "l", paymentId: id }), id).rejects.toThrow("cannot be paid from another wallet");
+    await desk.checkPayment({ linkId: "l", paymentId: "s" });
+    await desk.checkPayment({ linkId: "l", paymentId: "a" });
+    expect(sent.map((s) => s.frame.endpoint)).toEqual([[ENDPOINT.arkade, CHECK]]);
+  });
+
+  it("the payee looks at its Bark wallet when told, and a wallet that cannot be asked right now changes nothing", async () => {
+    const { desk, barkWallet, lightning, state } = setup([record({ id: "k", direction: "out", target: bark() }), record({ id: "n", direction: "out", invoice: INVOICE }), record({ id: "u", direction: "out", target: usdt(), unit: "testusdt" })]);
+    await desk.start();
+    const check = (requestId: string, endpoint: [string, string]) => desk.onPayment("l", { id: `c-${requestId}`, requestId, timestamp: 1, amount: { value: "100", asset: "sat" }, endpoint });
+    await check("k", [ENDPOINT.bark, CHECK]);
+    expect(barkWallet.adapter.sync).toHaveBeenCalledOnce();
+    expect(barkWallet.adapter.received).toHaveBeenCalledWith("tark1bark", 100, 1, expect.any(Set));
+    lightning.check.mockRejectedValueOnce(new Error("offline"));
+    await check("n", [ENDPOINT.bolt11, INVOICE]);
+    await check("u", [ENDPOINT.bolt11, INVOICE]);
+    expect(lightning.check).toHaveBeenCalledOnce();
+    expect(["k", "n", "u"].map((id) => state(id)?.state)).toEqual(["pending", "pending", "pending"]);
+  });
+});
+
+describe("what our own Lightning wallet says", () => {
+  it("an invoice paid settles only a request still open; a melt resolved touches only a request we were paying", async () => {
+    const { desk, sent, state } = setup([
+      record({ id: "mine", direction: "out", invoice: INVOICE }), record({ id: "done", direction: "out", state: "settled" }),
+      record({ id: "theirs", state: "settled", lightningPending: true }),
+    ]);
+    await desk.start();
+    await desk.onLightningPaid({ paymentId: "done" });
+    await desk.onLightningPaid({});
+    expect(sent).toEqual([]);
+    await desk.onQuotePaid({ paymentId: "mine", mint: MINT } as never);
+    expect(state("mine")).toMatchObject({ state: "settled", mint: MINT });
+    expect(sent).toEqual([{ kind: "res", frame: { id: "mine", ok: true } }]);
+    await desk.onLightningResolved({ paymentId: "done" }, false);
+    expect(state("done")?.error, "our own request is not ours to pay").toBeUndefined();
+    await desk.onLightningResolved({ paymentId: "theirs", mint: "https://late.mint" }, true);
+    expect(state("theirs")).toMatchObject({ state: "settled", lightningPending: undefined });
+    expect(state("theirs")?.mint, "already settled: nothing else changes").toBeUndefined();
+  });
+});
+
+describe("forgetting a chat", () => {
+  it("drops its records but keeps ecash the contact has not taken", async () => {
+    const { desk, state } = setup([
+      record({ id: "pending", kind: "payment", direction: "out", token: "t1" }),
+      record({ id: "failed", kind: "payment", direction: "out", state: "failed", token: "t2" }),
+      record({ id: "settled", kind: "payment", direction: "out", state: "settled" }),
+      record({ id: "reclaimed", kind: "payment", direction: "out", state: "reclaimed" }),
+      record({ id: "request" }),
+      record({ id: "elsewhere", linkId: "other" }),
+    ]);
+    await desk.start();
+    await desk.forgetLink("l");
+    expect(rows<StoredPayment>("payments").map((p) => p.id).sort()).toEqual(["elsewhere", "failed", "pending"]);
+    expect(Object.keys(desk.views()).sort()).toEqual(["elsewhere", "failed", "pending"]);
+    expect(desk.views().pending, "the token never reaches a page").not.toHaveProperty("token");
+    expect(state("pending")?.token).toBe("t1");
+  });
+});
+
+describe("replaying after a reconnect", () => {
+  const past = Date.now() - 1;
+  const stored = () => [
+    record({ id: "cashu-pay", kind: "payment", direction: "out", token: "cashuBsame", requestId: "r0" }),
+    record({ id: "cashu-req", direction: "out", invoice: INVOICE, mints: [MINT] }),
+    record({ id: "cashu-done", kind: "payment", direction: "out", state: "settled" }),
+    record({ id: "incoming", invoice: INVOICE }),
+    record({ id: "usdt-req", direction: "out", unit: "testusdt", target: usdt() }),
+    record({ id: "usdt-old", direction: "out", unit: "testusdt", target: usdt({ expiresAt: past }) }),
+    record({ id: "usdt-pay", kind: "payment", direction: "out", unit: "testusdt", target: usdt(), txid: "0x" + tx("a") }),
+    record({ id: "usdt-failed", kind: "payment", direction: "out", unit: "testusdt", target: usdt(), txid: "0x" + tx("b"), state: "failed" }),
+    record({ id: "bark-req", direction: "out", target: bark() }),
+    record({ id: "bark-old", direction: "out", target: bark("tark1old", { expiresAt: past }) }),
+    record({ id: "bark-pay", kind: "payment", direction: "out", target: bark(), state: "settled", txid: tx("c") }),
+    record({ id: "ark-req", direction: "out", target: ark() }),
+    record({ id: "ark-pay", kind: "payment", direction: "out", target: ark(), state: "settled", txid: tx("d") }),
+    record({ id: "ark-unsure", kind: "payment", direction: "out", target: ark(), txid: tx("e") }),
+  ];
+
+  it("says again, per rail, what is still open or already went out: the same token and ids, never a new spend", async () => {
+    const { desk, sent, wallet } = setup(stored());
+    await desk.start();
+    await desk.replay("l");
+    expect(sent.map((s) => [s.kind, s.frame.id])).toEqual([
+      ["pay", "cashu-pay"], ["req", "cashu-req"], ["req", "usdt-req"], ["pay", "usdt-pay"], ["req", "bark-req"], ["pay", "bark-pay"], ["req", "ark-req"], ["pay", "ark-pay"],
+    ]);
+    expect(sent[0].frame).toMatchObject({ requestId: "r0", endpoint: [ENDPOINT.cashu, "cashuBsame"] });
+    expect(sent[1].frame.endpoints).toEqual([[ENDPOINT.bolt11, INVOICE], [ENDPOINT.cashu, cashuRequestPayload([MINT])]]);
+    expect(wallet.createToken).not.toHaveBeenCalled();
+  });
+
+  it("says nothing on a rail the chat lost, nor about ecash being taken back, nor to a chat without payments", async () => {
+    const { desk, sent, link, wallet } = setup(stored());
+    await desk.start();
+    link.supportsUsdtPayments = link.supportsBarkPayments = link.supportsArkPayments = false;
+    wallet.receiveToken.mockReturnValue(new Promise(() => {}));
+    void desk.reclaim("cashu-pay");
+    await desk.replay("l");
+    expect(sent.map((s) => s.frame.id)).toEqual(["cashu-req"]);
+    link.supportsPayments = false;
+    await desk.replay("l");
+    expect(sent).toHaveLength(1);
+  });
+});
+
+describe("USDT receipts", () => {
+  const txid = "0x" + tx("a");
+  it("our send is said in the chat and to the contact while it is not failed, and settles the request once confirmed", async () => {
+    const { desk, sent, link, state } = setup([record({ id: "r", unit: "testusdt", target: usdt(), amount: 2_000_000 })]);
+    await desk.start();
+    const r = (extra: Partial<PaymentReview>) => review(usdt(), { amount: 2_000_000, requestId: "r", txid, ...extra });
+    await desk.recordUsdt(r({ method: "arkade" }));
+    await desk.recordUsdt(r({ txid: undefined }));
+    await desk.recordUsdt(r({ state: "pending" }));
+    expect(rows("payments")).toHaveLength(1);
+    await desk.recordUsdt(r({ state: "submitted" }));
+    expect(state("rv")).toMatchObject({ state: "pending", unit: "testusdt", txid });
+    expect(state("r")?.state).toBe("pending");
+    await desk.recordUsdt(r({ state: "settled" }));
+    expect(state("r")?.state).toBe("settled");
+    await desk.recordUsdt(r({ id: "rv2", state: "failed", error: "reverted" }));
+    link.supportsUsdtPayments = false;
+    await desk.recordUsdt(r({ id: "rv3", state: "unknown" }));
+    expect(state("rv2")).toMatchObject({ state: "failed", error: "reverted" });
+    expect(sent.map((s) => s.frame.id)).toEqual(["rv", "rv"]);
+  });
+
+  it("the payee checks a receipt on its own chain, and takes only a well-formed one for the exact request", async () => {
+    const { desk, usdtWallet, state } = setup([
+      record({ id: "r", direction: "out", unit: "testusdt", target: usdt(), amount: 2_000_000 }),
+      record({ id: "p-other", kind: "payment", linkId: "other", requestId: "r" }),
+    ]);
+    await desk.start();
+    const pay = (id: string, payload: string, value = "2000000") => desk.onPayment("l", { id, requestId: "r", timestamp: 1, amount: { value, asset: "testusdt" }, endpoint: [ENDPOINT.usdt, payload] });
+    await pay("p1", "{nope");
+    await pay("p2", JSON.stringify({ txid: "0x1234" }));
+    await pay("p3", JSON.stringify({ txid }), "1");
+    await pay("p-other", JSON.stringify({ txid }));
+    expect(["p1", "p2", "p3"].map((id) => state(id))).toEqual([undefined, undefined, undefined]);
+    expect(state("p-other")?.linkId, "another chat's record is not taken over").toBe("other");
+
+    usdtWallet.adapter.receipt.mockRejectedValueOnce(new Error("rpc down"));
+    await pay("p4", JSON.stringify({ txid }));
+    expect(state("p4")).toMatchObject({ state: "pending", txid });
+    usdtWallet.adapter.receipt.mockResolvedValueOnce({ failed: true, error: "reverted" });
+    await desk.reconcileUsdtReceipts();
+    expect(state("p4")).toMatchObject({ state: "failed", error: "reverted" });
+    expect(state("r")?.state).toBe("pending");
+  });
+
+  it("a USDT receipt sent again under its id with a new time is not said, stored or checked again; a settled one is answered", async () => {
+    const { desk, usdtWallet, state, texts, sent } = setup([record({ id: "r", direction: "out", unit: "testusdt", target: usdt(), amount: 2_000_000 })]);
+    await desk.start();
+    const pay = (timestamp: number, hash: string) => desk.onPayment("l", { id: "p", requestId: "r", timestamp, amount: { value: "2000000", asset: "testusdt" }, endpoint: [ENDPOINT.usdt, JSON.stringify({ txid: hash })] });
+    await pay(1, txid);
+    for (let i = 2; i <= 6; i++) await pay(i, `0x${String(i).repeat(64)}`);
+    expect(texts().filter((t) => t?.includes("checking chain"))).toHaveLength(1);
+    expect(usdtWallet.adapter.receipt).toHaveBeenCalledOnce();
+    expect(state("p"), "its first frame says its txid").toMatchObject({ state: "pending", txid, createdAt: 1 });
+
+    usdtWallet.adapter.receipt.mockResolvedValueOnce({ settled: true });
+    await desk.reconcileUsdtReceipts();
+    expect(sent).toEqual([]);
+    await pay(7, txid);
+    expect(sent).toEqual([{ kind: "res", frame: { id: "r", ok: true } }]);
+    expect(usdtWallet.adapter.receipt).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("Ark receipts", () => {
+  it("our settled Ark send is recorded, settles the request, and the contact is told when the chat has Ark", async () => {
+    const { desk, sent, link, state } = setup([record({ id: "r", target: ark() })]);
+    await desk.start();
+    await desk.recordArk(review(ark(), { state: "submitted", requestId: "r", txid: tx("a") }));
+    await desk.recordArk(review(ark(), { requestId: "r" }));
+    expect(rows("payments"), "nothing is said before it is settled, or without a txid").toHaveLength(1);
+    await desk.recordArk(review(ark(), { requestId: "r", txid: tx("a") }));
+    expect(state("rv")).toMatchObject({ kind: "payment", direction: "out", state: "settled", txid: tx("a") });
+    expect(state("r")?.state).toBe("settled");
+    link.supportsArkPayments = false;
+    await desk.recordArk(review(ark(), { id: "rv2", txid: tx("b") }));
+    expect(sent.map((s) => s.frame.id)).toEqual(["rv"]);
+  });
+
+  it("a receipt is checked against our Ark server; one for another amount, a bad txid, or money that paid another request is ignored", async () => {
+    const { desk, arkWallet, link, sent, state } = setup([
+      record({ id: "r", direction: "out", target: ark("tark1mine") }),
+      record({ id: "r-old", direction: "out", target: ark("tark1old"), state: "settled", txid: tx("f") }),
+    ]);
+    await desk.start();
+    const pay = (id: string, payload: string, value = "100") => desk.onPayment("l", { id, requestId: "r", timestamp: 1, amount: { value, asset: "sat" }, endpoint: [ENDPOINT.arkade, payload] });
+    await pay("p1", JSON.stringify({ txid: tx("a") }), "99");
+    await pay("p2", "{nope");
+    await pay("p3", JSON.stringify({ txid: "ab" }));
+    await pay("p4", JSON.stringify({ txid: tx("f") }));
+    link.supportsArkPayments = false;
+    await pay("p5", JSON.stringify({ txid: tx("a") }));
+    link.supportsArkPayments = true;
+    expect(["p1", "p2", "p3", "p4", "p5"].map((id) => state(id))).toEqual([undefined, undefined, undefined, undefined, undefined]);
+
+    arkWallet.adapter.verifyReceipt.mockResolvedValue(true);
+    await pay("p6", JSON.stringify({ txid: tx("a") }));
+    expect(arkWallet.adapter.verifyReceipt).toHaveBeenCalledWith(tx("a"), "tark1mine", 100);
+    expect(state("p6")?.state).toBe("settled");
+    expect(state("r")).toMatchObject({ state: "settled", txid: tx("a") });
+    expect(sent).toEqual([{ kind: "res", frame: { id: "r", ok: true } }]);
+    await pay("p6", JSON.stringify({ txid: tx("a") }));
+    expect(arkWallet.adapter.verifyReceipt, "a settled receipt is not checked again").toHaveBeenCalledOnce();
+    await pay("p7", JSON.stringify({ txid: tx("a") }));
+    expect(state("p7"), "the same receipt under a new payment id is not another payment").toBeUndefined();
+    expect(arkWallet.adapter.verifyReceipt).toHaveBeenCalledOnce();
+  });
+
+  it("one request keeps one pending Ark receipt: more under fresh ids are not stored, said, or checked", async () => {
+    const { desk, arkWallet, state, texts } = setup([record({ id: "r", direction: "out", target: ark("tark1mine") })]);
+    await desk.start();
+    const pay = (id: string, txid: string) => desk.onPayment("l", { id, requestId: "r", timestamp: 1, amount: { value: "100", asset: "sat" }, endpoint: [ENDPOINT.arkade, JSON.stringify({ txid })] });
+    for (const [i, c] of ["a", "b", "c", "d", "e"].entries()) await pay(`p${i}`, tx(c));
+    expect(["p0", "p1", "p2", "p3", "p4"].map((id) => state(id)?.state)).toEqual(["pending", undefined, undefined, undefined, undefined]);
+    expect(texts().filter((t) => t?.includes("on Ark"))).toHaveLength(1);
+    expect(arkWallet.adapter.verifyReceipt).toHaveBeenCalledOnce();
+    arkWallet.adapter.verifyReceipt.mockClear();
+    await desk.reconcileArkReceipts();
+    expect(arkWallet.adapter.verifyReceipt, "a pass asks about the one receipt").toHaveBeenCalledOnce();
+
+    // The address is what pays it: our server seeing the money settles the request and its receipt.
+    arkWallet.adapter.received.mockResolvedValue(tx("f"));
+    await desk.reconcileArkReceipts();
+    expect([state("r")?.state, state("p0")?.state]).toEqual(["settled", "settled"]);
+  });
+
+  it("an Ark receipt sent again under its id with a new time is not said, stored or checked again; a settled one is answered", async () => {
+    const { desk, arkWallet, state, texts, sent } = setup([record({ id: "r", direction: "out", target: ark("tark1mine") })]);
+    await desk.start();
+    const pay = (timestamp: number, txid: string) => desk.onPayment("l", { id: "p", requestId: "r", timestamp, amount: { value: "100", asset: "sat" }, endpoint: [ENDPOINT.arkade, JSON.stringify({ txid })] });
+    for (const [i, c] of ["a", "b", "c", "d", "e"].entries()) await pay(i + 1, tx(c));
+    expect(texts().filter((t) => t?.includes("on Ark"))).toHaveLength(1);
+    expect(arkWallet.adapter.received).toHaveBeenCalledOnce();
+    expect(arkWallet.adapter.verifyReceipt).toHaveBeenCalledOnce();
+    expect(state("p"), "its first frame says its txid").toMatchObject({ state: "pending", txid: tx("a"), createdAt: 1 });
+
+    arkWallet.adapter.verifyReceipt.mockResolvedValue(true);
+    await desk.reconcileArkReceipts();
+    expect(state("r")?.state).toBe("settled");
+    sent.length = 0;
+    await pay(6, tx("a"));
+    expect(sent).toEqual([{ kind: "res", frame: { id: "r", ok: true } }]);
+    expect(arkWallet.adapter.verifyReceipt).toHaveBeenCalledTimes(2);
+  });
+
+  it("requests and receipts of another Ark server or network are left for it", async () => {
+    const { desk, arkWallet, state } = setup([
+      record({ id: "r1", direction: "out", target: ark("tark1a", { provider: "https://other.ark" }) }),
+      record({ id: "r2", direction: "out", target: ark("tark1b", { network: "regtest" }) }),
+      record({ id: "p1", kind: "payment", requestId: "r1", target: ark("tark1a", { provider: "https://other.ark" }), txid: tx("a") }),
+    ]);
+    await desk.start();
+    arkWallet.adapter.received.mockResolvedValue(tx("b"));
+    arkWallet.adapter.verifyReceipt.mockResolvedValue(true);
+    await desk.reconcileArkReceipts();
+    expect(arkWallet.adapter.received).not.toHaveBeenCalled();
+    expect(arkWallet.adapter.verifyReceipt).not.toHaveBeenCalled();
+    expect(["r1", "r2", "p1"].map((id) => state(id)?.state)).toEqual(["pending", "pending", "pending"]);
+  });
+
+  it("a request our server saw paid settles the contact's pending receipt with it", async () => {
+    const { desk, arkWallet, state } = setup([record({ id: "r", direction: "out", target: ark() }), record({ id: "p", kind: "payment", requestId: "r", target: ark(), txid: tx("a") })]);
+    await desk.start();
+    arkWallet.adapter.received.mockResolvedValue(tx("a"));
+    await desk.reconcileArkReceipts();
+    expect([state("r")?.state, state("p")?.state]).toEqual(["settled", "settled"]);
+  });
+});
+
+describe("reviewed Cashu sends", () => {
+  it("publishes the token only for the reviewed payment its outbox recorded", async () => {
+    const outbox = record({ id: "rv", kind: "payment", direction: "out", token: "cashuBrv", requestId: "r", target: cashuTarget() });
+    const { desk, sent, texts } = setup([outbox]);
+    await expect(desk.recordCashu(review(ark()), "cashuBx")).rejects.toThrow("Cashu chat recipient missing");
+    await expect(desk.recordCashu(review(cashuTarget(), { linkId: undefined }), "cashuBx")).rejects.toThrow("Cashu chat recipient missing");
+    await expect(desk.recordCashu(review(cashuTarget(), { id: "nope", requestId: "r" }), "cashuBx")).rejects.toThrow("does not match");
+    await expect(desk.recordCashu(review(cashuTarget(), { requestId: "other" }), "cashuBx")).rejects.toThrow("does not match");
+    expect(sent).toEqual([]);
+    await desk.recordCashu(review(cashuTarget(), { requestId: "r", memo: "tea" }), "cashuBrv");
+    expect(sent[0].frame).toMatchObject({ id: "rv", requestId: "r", memo: "tea", endpoint: [ENDPOINT.cashu, "cashuBrv"] });
+    expect(texts()).toEqual(["100 sats via Cashu"]);
+    expect(desk.payment("rv")).toMatchObject({ state: "pending" });
+  });
+
+  it("a reviewed send the mint says is spent settles, with its request, only for its own chat", async () => {
+    const { desk, state } = setup([record({ id: "r" }), record({ id: "rv", kind: "payment", direction: "out", token: "cashuBrv", requestId: "r", target: cashuTarget() })]);
+    await desk.start();
+    await desk.confirmReviewedCashu(review(cashuTarget(), { state: "submitted" }));
+    await desk.confirmReviewedCashu(review(cashuTarget(), { linkId: "other" }));
+    expect(state("rv")?.state).toBe("pending");
+    await desk.confirmReviewedCashu(review(cashuTarget()));
+    expect(state("rv")).toMatchObject({ state: "settled", token: undefined });
+    expect(state("r")?.state).toBe("settled");
+  });
+});
+
+describe("the reviewed Cashu adapter", () => {
+  const prepared: CashuPrepared = { mint: MINT, swap: {} as CashuPrepared["swap"] };
+  function adapter() {
+    const wallet = {
+      prepareReviewedCashu: vi.fn(async () => ({ fee: 2, prepared })),
+      executeReviewedCashu: vi.fn(async () => "cashuBfresh"),
+      reviewedCashuSpent: vi.fn(async () => false),
+      reviewedCashuTakenBack: vi.fn(async () => false),
+      recoverReviewedCashu: vi.fn(async (): Promise<string | undefined> => "cashuBrecovered"),
+      // The mint has not proved the swap never happened: reconcile keeps waiting.
+      reviewedCashuNeverSwapped: vi.fn(async () => false),
+      reviewedCashuSpentElsewhere: vi.fn(async () => false),
+      dropReviewedCashu: vi.fn(async () => {}),
+      releaseReviewedCashu: vi.fn(async () => {}),
+    };
+    const order: string[] = [];
+    const publish = vi.fn(async (_review: PaymentReview, token: string) => { order.push(`publish ${token}`); });
+    return { wallet, publish, order, cashu: new CashuAdapter(wallet as unknown as CashuWallet, publish) };
+  }
+
+  it("prepares only a Cashu target on the network its mint belongs to, within the fee cap", async () => {
+    const { cashu, wallet } = adapter();
+    await expect(cashu.prepare(ark(), 100, 10)).rejects.toThrow("mint/network mismatch");
+    await expect(cashu.prepare({ ...cashuTarget(), network: "cashu-test" }, 100, 10), "a real mint is not test money").rejects.toThrow("mint/network mismatch");
+    await expect(cashu.prepare({ ...cashuTarget(), provider: "https://testnut.cashu.space" }, 100, 10), "the test mint is not real money").rejects.toThrow("mint/network mismatch");
+    await expect(cashu.prepare({ ...cashuTarget(), provider: "http://127.0.0.1:3338" }, 100, 10), "a mint on this machine is not real money").rejects.toThrow("mint/network mismatch");
+    expect(wallet.prepareReviewedCashu).not.toHaveBeenCalled();
+    await expect(cashu.prepare(cashuTarget(), 100, 1)).rejects.toThrow("fee exceeds your limit");
+    // A Testnet wallet's own mint on this machine pays in test sats, as its card says.
+    expect(await cashu.prepare({ ...cashuTarget(), provider: "http://127.0.0.1:3338", network: "cashu-test" }, 100, 2)).toEqual({ fee: 2, prepared });
+    expect(await cashu.prepare({ ...cashuTarget(), provider: "https://testnut.cashu.space", network: "cashu-test" }, 100, 2)).toEqual({ fee: 2, prepared });
+  });
+
+  it("sends only to a chat recipient, writes the token down before publishing it, and says whether it was taken", async () => {
+    const { cashu, wallet, publish, order } = adapter();
+    await expect(cashu.execute(review(cashuTarget(), { linkId: undefined }), prepared)).rejects.toThrow("authenticated chat recipient");
+    expect(wallet.executeReviewedCashu).not.toHaveBeenCalled();
+    wallet.reviewedCashuSpent.mockResolvedValue(true);
+    expect(await cashu.execute(review(cashuTarget()), prepared, async () => { order.push("persist"); })).toEqual({ settled: true });
+    expect(order).toEqual(["persist", "publish cashuBfresh"]);
+    expect(publish).toHaveBeenCalledOnce();
+  });
+
+  it("a payment whose ecash was spent somewhere else ends, at the refusal or when it is checked, and its ecash is let go", async () => {
+    const { cashu, wallet, publish } = adapter();
+    const persist = vi.fn(async () => {});
+    // Refused at approval, and the mint says why.
+    wallet.executeReviewedCashu.mockRejectedValueOnce(new MintOperationError(11001, "Token already spent"));
+    wallet.reviewedCashuSpentElsewhere.mockResolvedValue(true);
+    const ran = { ...prepared };
+    expect(await cashu.execute(review(cashuTarget()), ran, persist)).toEqual({ settled: false, failed: true, error: engineText("reviewedEcashSpent") });
+    expect(ran.spentElsewhere, "written down before anything is let go").toBe(true);
+    expect(persist).toHaveBeenCalledOnce();
+    expect(wallet.dropReviewedCashu).toHaveBeenCalledWith(ran);
+    expect(publish).not.toHaveBeenCalled();
+
+    // One already waiting on "Status unknown": checking it ends it the same way.
+    wallet.recoverReviewedCashu.mockResolvedValueOnce(undefined);
+    const waiting = { ...prepared };
+    expect(await cashu.reconcile(review(cashuTarget()), waiting, persist)).toMatchObject({ failed: true, error: engineText("reviewedEcashSpent") });
+    expect(waiting.spentElsewhere).toBe(true);
+    // A transport error is no refusal: nothing is decided at approval.
+    wallet.executeReviewedCashu.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await expect(cashu.execute(review(cashuTarget()), { ...prepared }, persist)).rejects.toThrow("Failed to fetch");
+  });
+
+  it("reconciling repeats the very same token, never a new one, and nothing once it was taken", async () => {
+    const { cashu, wallet, publish } = adapter();
+    const persist = vi.fn(async () => {});
+    expect(await cashu.reconcile(review(cashuTarget()), { ...prepared, token: "cashuBkept" }, persist)).toEqual({ settled: false });
+    expect(publish).toHaveBeenLastCalledWith(expect.anything(), "cashuBkept");
+    await cashu.reconcile(review(cashuTarget()), prepared, persist);
+    expect(publish).toHaveBeenLastCalledWith(expect.anything(), "cashuBrecovered");
+    wallet.recoverReviewedCashu.mockResolvedValueOnce(undefined);
+    await cashu.reconcile(review(cashuTarget()), prepared, persist);
+    wallet.reviewedCashuSpent.mockResolvedValue(true);
+    expect(await cashu.reconcile(review(cashuTarget()), { ...prepared, token: "cashuBkept" }, persist)).toEqual({ settled: true });
+    expect(publish).toHaveBeenCalledTimes(2);
+    expect(wallet.executeReviewedCashu).not.toHaveBeenCalled();
+  });
+});
+
+describe("on-chain and Bark receipts", () => {
+  it("a review whose id is someone else's record changes nothing; a chat without on-chain is not told", async () => {
+    const { desk, sent, link, state } = setup([record({ id: "rv", kind: "payment", direction: "in", target: btc(), txid: tx("0") })]);
+    await desk.start();
+    await desk.recordBitcoin(review(btc(), { state: "submitted", txid: tx("1") }));
+    expect(state("rv")).toMatchObject({ direction: "in", txid: tx("0") });
+    link.supportsBitcoinPayments = false;
+    await desk.recordBitcoin(review(btc(), { id: "rv2", state: "submitted", txid: tx("1") }));
+    expect(state("rv2")?.state).toBe("pending");
+    expect(sent).toEqual([]);
+  });
+
+  it("a receipt for an on-chain request already paid is recorded as paid, with the txid our wallet saw", async () => {
+    const { desk, texts, state } = setup([record({ id: "r", direction: "out", target: btc(), state: "settled", txid: tx("9") }), record({ id: "known", kind: "payment", requestId: "r", linkId: "other" })]);
+    await desk.start();
+    const pay = (id: string) => desk.onPayment("l", { id, requestId: "r", timestamp: 4, amount: { value: "100", asset: "sat" }, endpoint: [ENDPOINT.bitcoin, JSON.stringify({ txid: tx("1") })] });
+    await pay("known");
+    expect(state("known")?.linkId).toBe("other");
+    await pay("p");
+    expect(state("p")).toMatchObject({ state: "settled", txid: tx("9") });
+    expect(texts()).toEqual(["100 test sats on-chain"]);
+  });
+
+  it("a source that cannot be asked leaves an on-chain request open", async () => {
+    const { desk, bitcoin, state } = setup([record({ id: "r", direction: "out", target: btc() })]);
+    await desk.start();
+    bitcoin.received.mockRejectedValue(new Error("esplora down"));
+    await desk.reconcileBitcoinReceipts();
+    expect(state("r")?.state).toBe("pending");
+    const bare = new PaymentDesk({} as CashuWallet, { getLink: () => null, storeMessage: vi.fn(), onChange: vi.fn() });
+    await expect(bare.reconcileBitcoinReceipts()).resolves.toBeUndefined();
+  });
+
+  it("a Bark receipt for a request already paid is recorded as paid; one already known, or a request of another server, is left", async () => {
+    const { desk, barkWallet, texts, state } = setup([
+      record({ id: "r", direction: "out", target: bark(), state: "settled", txid: tx("7") }),
+      record({ id: "r2", direction: "out", target: bark("tark1else", { provider: "https://other.bark" }) }),
+    ]);
+    await desk.start();
+    const pay = (id: string, requestId = "r") => desk.onPayment("l", { id, requestId, timestamp: 4, amount: { value: "100", asset: "sat" }, endpoint: [ENDPOINT.bark, JSON.stringify({ txid: tx("1") })] });
+    await pay("p");
+    expect(state("p")).toMatchObject({ state: "settled", txid: tx("7") });
+    expect(texts()).toEqual(["100 test sats on Bark"]);
+    await pay("p");
+    expect(texts(), "said once").toHaveLength(1);
+    await pay("p2", "r2");
+    expect(barkWallet.adapter.received, "another Bark server's request is not asked about").not.toHaveBeenCalled();
+    expect(state("r2")?.state).toBe("pending");
+  });
+
+  it("with no open Bark request the wallet is not even synced", async () => {
+    const { desk, barkWallet } = setup([record({ id: "r", direction: "out", target: bark(), state: "settled" })]);
+    await desk.start();
+    await desk.reconcileBarkReceipts();
+    expect(barkWallet.adapter.sync).not.toHaveBeenCalled();
+  });
+});
+
+describe("sending ecash", () => {
+  it("is refused offline, or when Cashu is off in the chat, before any ecash is made", async () => {
+    const { desk, wallet, allowed, net } = setup();
+    allowed.cashu = false;
+    await expect(desk.send({ linkId: "l", amount: 10, timestamp: 1 })).rejects.toThrow("Cashu is off in this chat");
+    net.online = false;
+    await expect(desk.send({ linkId: "l", amount: 10, timestamp: 1 })).rejects.toThrow("You are offline");
+    expect(wallet.createToken).not.toHaveBeenCalled();
+  });
+
+  it("the token written down with the spend is the one the contact gets, and it stays ours until they answer", async () => {
+    const { desk, sent, state } = setup();
+    const { paymentId } = await desk.send({ linkId: "l", amount: 100, timestamp: 3, memo: " thanks ", confirmedReal: true });
+    expect(sent).toEqual([{ kind: "pay", frame: { id: paymentId, timestamp: 3, requestId: undefined, amount: { value: "100", asset: "sat" }, memo: "thanks", endpoint: [ENDPOINT.cashu, "cashuBtoken"] } }]);
+    expect(desk.payment(paymentId)).toMatchObject({ state: "pending", token: "cashuBtoken", mint: MINT });
+    expect(state(paymentId), "the wallet's outbox, not the desk, wrote it").toBeUndefined();
+  });
+});
+
+describe("receipts that do not add up", () => {
+  it("a receipt id already used in another chat, or a receipt on a rail the chat lacks, is ignored", async () => {
+    const { desk, link, arkWallet, state } = setup([
+      record({ id: "ra", direction: "out", target: ark() }), record({ id: "rk", direction: "out", target: bark() }), record({ id: "rb", direction: "out", target: btc() }),
+      record({ id: "taken", kind: "payment", linkId: "other" }),
+    ]);
+    await desk.start();
+    const pay = (id: string, requestId: string, endpoint: string, payload = JSON.stringify({ txid: tx("a") })) => desk.onPayment("l", { id, requestId, timestamp: 1, amount: { value: "100", asset: "sat" }, endpoint: [endpoint, payload] });
+    await pay("taken", "ra", ENDPOINT.arkade);
+    await pay("taken", "rk", ENDPOINT.bark);
+    await pay("taken", "rb", ENDPOINT.bitcoin);
+    await pay("p1", "rb", ENDPOINT.bitcoin, "{nope");
+    link.supportsBarkPayments = link.supportsBitcoinPayments = false;
+    await pay("p2", "rk", ENDPOINT.bark);
+    await pay("p3", "rb", ENDPOINT.bitcoin);
+    expect(state("taken")?.linkId).toBe("other");
+    expect(["p1", "p2", "p3"].map((id) => state(id))).toEqual([undefined, undefined, undefined]);
+    expect(arkWallet.adapter.verifyReceipt).not.toHaveBeenCalled();
+  });
+
+  it("an Ark or Bark wallet that cannot answer right now leaves everything open", async () => {
+    const { desk, arkWallet, barkWallet, state } = setup([
+      record({ id: "ra", direction: "out", target: ark() }), record({ id: "pa", kind: "payment", requestId: "ra", target: ark(), txid: tx("a") }),
+      record({ id: "rk", direction: "out", target: bark() }),
+    ]);
+    await desk.start();
+    arkWallet.adapter.received.mockRejectedValue(new Error("indexer down"));
+    arkWallet.adapter.verifyReceipt.mockRejectedValue(new Error("indexer down"));
+    barkWallet.adapter.receipts.mockRejectedValue(new Error("server down"));
+    barkWallet.adapter.sync.mockRejectedValue(new Error("server down"));
+    await desk.reconcileArkReceipts();
+    await desk.reconcileBarkReceipts();
+    expect(["ra", "pa", "rk"].map((id) => state(id)?.state)).toEqual(["pending", "pending", "pending"]);
+  });
+
+  it("a USDT request of an unreadable target or an impossible amount is not kept", async () => {
+    const { desk } = setup();
+    const request = (id: string, value: string, payload = JSON.stringify(usdt())) => desk.onPaymentRequest("l", { id, timestamp: 1, amount: { value, asset: "testusdt" }, endpoints: [[ENDPOINT.usdt, payload]] });
+    await request("u1", "10", "{nope");
+    await request("u2", "9999999999999999");
+    await request("u3", "10");
+    expect([desk.payment("u1"), desk.payment("u2"), desk.payment("u3")?.amount]).toEqual([undefined, undefined, 10]);
+  });
+
+  it("a replay on a chat that lost on-chain Bitcoin says nothing about it", async () => {
+    const { desk, sent, link } = setup([record({ id: "rb", direction: "out", target: btc() })]);
+    await desk.start();
+    link.supportsBitcoinPayments = false;
+    await desk.replay("l");
+    expect(sent).toEqual([]);
+  });
+});
+
+describe("a request closed because its wallet was removed", () => {
+  it("is never sent again, and the contact is told in its own words", async () => {
+    const { desk, sent, state } = setup([
+      record({ id: "ark", direction: "out", target: ark() }),
+      record({ id: "ln", direction: "out", invoice: INVOICE, mints: [MINT] }),
+      record({ id: "done", direction: "out", target: ark(), state: "settled" }),
+    ]);
+    await desk.start();
+    await desk.replay("l");
+    expect(sent.filter((s) => s.kind === "req").map((s) => s.frame.id).sort()).toEqual(["ark", "ln"]);
+
+    sent.length = 0;
+    expect(await desk.close("ark", "you removed the Mainnet Ark wallet it was paid to", "your contact removed the wallet it was paid to")).toBe(true);
+    expect(await desk.close("done", "x", "y"), "a paid request stays paid").toBe(false);
+    expect(state("ark")).toMatchObject({ state: "failed", closed: true, error: "you removed the Mainnet Ark wallet it was paid to" });
+    expect(state("done")?.state).toBe("settled");
+    expect(sent).toEqual([{ kind: "res", frame: { id: "ark", ok: false, error: "your contact removed the wallet it was paid to", closed: true } }]);
+
+    sent.length = 0;
+    await desk.replay("l");
+    expect(sent.filter((s) => s.kind === "req").map((s) => s.frame.id)).toEqual(["ln"]);
+  });
+
+  it("on the payer's side it closes too, unless a Lightning payment for it is already in flight; nobody else can close it", async () => {
+    const { desk, state } = setup([
+      record({ id: "open", invoice: INVOICE }),
+      record({ id: "flying", invoice: INVOICE, lightningPending: true }),
+      record({ id: "ours", direction: "out", invoice: INVOICE }),
+      record({ id: "other-chat", linkId: "m", invoice: INVOICE }),
+    ]);
+    await desk.start();
+    // A bare refusal about a request changes nothing: only "closed", said in as many words, does.
+    await desk.onPaymentResult("l", { id: "open", ok: false, error: "nope" });
+    expect(state("open")?.state).toBe("pending");
+    for (const id of ["open", "flying", "ours", "other-chat"]) await desk.onPaymentResult("l", { id, ok: false, error: "your contact removed the wallet it was paid to", closed: true });
+    expect(state("open")).toMatchObject({ state: "failed", closed: true, error: "your contact removed the wallet it was paid to" });
+    expect(state("flying")).toMatchObject({ state: "pending", lightningPending: true });
+    expect(state("ours")?.state, "a contact never closes a request of ours").toBe("pending");
+    expect(state("other-chat")?.state).toBe("pending");
+    await expect(desk.payRequest({ linkId: "l", paymentId: "open", via: "lightning" })).rejects.toThrow("no longer open");
+  });
+});
+
+describe("the line kept with a payment message (the CLI and older apps show it)", () => {
+  const TEST_MINT = "https://testnut.cashu.space";
+
+  it("a contact's Testnet request says test sats, and a Mainnet one sats", async () => {
+    const { desk, texts } = setup();
+    await desk.onPaymentRequest("l", { id: "rt", timestamp: 3, amount: { value: "1234", asset: "sat" }, endpoints: [[ENDPOINT.cashu, cashuRequestPayload([TEST_MINT])]], network: "testnet" });
+    await desk.onPaymentRequest("l", { id: "rm", timestamp: 4, amount: { value: "50", asset: "sat" }, endpoints: [[ENDPOINT.cashu, cashuRequestPayload([MINT])]], network: "mainnet" });
+    expect(texts()).toEqual(["⚡ Requested 1,234 test sats", "⚡ Requested 50 sats"]);
+  });
+
+  it("ecash sent from a test mint says test sats", async () => {
+    const { desk, wallet, texts } = setup();
+    wallet.createToken.mockImplementationOnce(async (_amount, _mints, _memo, outbox) => { outbox("cashuBtest", TEST_MINT); return { token: "cashuBtest", mint: TEST_MINT }; });
+    await desk.send({ linkId: "l", amount: 21, timestamp: 3, network: "testnet" });
+    await desk.send({ linkId: "l", amount: 5, timestamp: 4, confirmedReal: true });
+    expect(texts()).toEqual(["⚡ 21 test sats", "⚡ 5 sats"]);
+  });
+
+  it("a reviewed Cashu payment of test sats says so", async () => {
+    const testTarget = { ...cashuTarget(), network: "cashu-test", provider: TEST_MINT } as PaymentTarget;
+    const { desk, texts } = setup([record({ id: "rv", kind: "payment", direction: "out", token: "cashuBrv", requestId: "r", target: testTarget })]);
+    await desk.recordCashu(review(testTarget, { requestId: "r" }), "cashuBrv");
+    expect(texts()).toEqual(["100 test sats via Cashu"]);
+  });
+});
+
+describe("a redeem the mint has not answered yet", () => {
+  /** As the wallet writes it down: the swap, with the payment record it stores with the ecash. */
+  const swap = (payment?: StoredPayment): PendingSwap => ({ id: "swap-1", mint: MINT, kind: "receive", swap: {}, createdAt: 1, ...(payment ? { payment } : {}) });
+  const received = record({ id: "p1", kind: "payment", direction: "in", state: "settled", mint: MINT, requestId: "r", createdAt: 9 });
+
+  it("says nothing to the contact until the mint has spoken, then settles as if the answer had come in time", async () => {
+    const { desk, wallet, sent, state, texts } = setup([record({ id: "r", direction: "out", mints: [MINT] })]);
+    await desk.start();
+    wallet.receiveToken.mockRejectedValueOnce(new SwapUnsettledError(swap()));
+    await desk.onPayment("l", cashuPayment("p1", { requestId: "r" }));
+    expect(sent, "not known to have failed, so not said to have").toEqual([]);
+    expect(texts()).toEqual([]);
+    expect(state("r")?.state).toBe("pending");
+
+    // The mint had made the swap: the wallet stored the ecash with this record, and says so.
+    seed("payments", [received as unknown as Record<string, unknown>]);
+    await desk.onSwapSettled(swap(received), true);
+    expect(sent).toEqual([{ kind: "res", frame: { id: "p1", ok: true, credited: "100" } }]);
+    expect(state("r")).toMatchObject({ state: "settled", mint: MINT });
+    expect(texts()).toEqual(["⚡ 100 sats"]);
+    // The contact sends it again: answered from the record, nothing redeemed twice.
+    await desk.onPayment("l", cashuPayment("p1", { requestId: "r" }));
+    expect(wallet.receiveToken).toHaveBeenCalledOnce();
+    expect(sent.at(-1)).toMatchObject({ kind: "res", frame: { id: "p1", ok: true, credited: "100" } });
+  });
+
+  it("sent again while the wallet finishes the first redeem, it is answered as received and never as refused", async () => {
+    const { desk, wallet, sent, texts } = setup();
+    await desk.start();
+    // The second redeem waits for the wallet, which finishes the first one meanwhile; the mint then refuses the token.
+    wallet.receiveToken.mockImplementationOnce(async () => {
+      seed("payments", [received as unknown as Record<string, unknown>]);
+      await desk.onSwapSettled(swap(received), true);
+      throw new Error("Token already spent");
+    });
+    await desk.onPayment("l", cashuPayment("p1", { requestId: "r" }));
+    expect(sent.map((s) => s.frame)).toEqual([{ id: "p1", ok: true, credited: "100" }, { id: "p1", ok: true, credited: "100" }]);
+    expect(texts()).toEqual(["⚡ 100 sats"]);
+  });
+
+  it("a redeem the mint never made leaves the ecash the contact's, and the contact and the chat are told", async () => {
+    const { desk, sent, state, texts, host } = setup();
+    await desk.start();
+    await desk.onSwapSettled(swap(received), false);
+    expect(sent).toEqual([{ kind: "res", frame: { id: "p1", ok: false, error: "The mint did not confirm the ecash" } }]);
+    expect(state("p1")).toBeUndefined();
+    // The line a refusal on the spot writes, under the same id.
+    expect(texts()).toEqual(["Could not receive 100 sats: The mint did not confirm the ecash"]);
+    expect(host.storeMessage).toHaveBeenCalledWith(expect.objectContaining({ linkId: "l", id: "peer_9_refused", sender: "peer", timestamp: 9 }));
+  });
+
+  it("ecash of ours that came back after the fact is no longer a payment waiting on the contact", async () => {
+    const ours = record({ id: "p", kind: "payment", direction: "out", token: "cashuBp" });
+    const { desk, sent } = setup([ours]);
+    await desk.start();
+    await desk.onSwapSettled(swap({ ...ours, state: "reclaimed", token: undefined }), true);
+    expect(desk.views().p.state).toBe("reclaimed");
+    expect(sent).toEqual([]);
+  });
+
+  it("a redeem with no payment of a chat changes nothing here", async () => {
+    const { desk, sent, host } = setup();
+    await desk.start();
+    await desk.onSwapSettled(swap(), true);
+    expect(sent).toEqual([]);
+    expect(host.storeMessage).not.toHaveBeenCalled();
+  });
+});

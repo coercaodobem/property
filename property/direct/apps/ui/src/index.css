@@ -1,0 +1,1572 @@
+@import "tailwindcss";
+
+/* Ghostly Browser builds this UI from another package root; name the sources explicitly. */
+@source "./";
+/* Class names the tests mention are not the app's. One of them (`group-has-[:focus-visible]`, a class a test says a row
+   must not have) made a `:has()` rule anchored on every `.group`, and each message row is one: WebKit then paid for
+   every keystroke in proportion to the chat's length. */
+@source not "./test";
+
+@theme {
+  /* Tailwind's spinner and pulse, which never end by themselves: here they do. A dot that pulses while a contact is
+     being reached rests after half a minute, a spinner after two (whatever it waits for is not coming), so a chat
+     left open on a contact who is away does not keep the window drawing. They start again when their state does. */
+  --animate-spin: spin 1s linear 120;
+  --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 15;
+  --color-app-bg: var(--theme-app-bg);
+  --color-sidebar-bg: var(--theme-sidebar-bg);
+  --color-chat-bg: var(--theme-chat-bg);
+  --color-panel-header: var(--theme-panel-header);
+  --color-surface: var(--theme-surface);
+  --color-surface-alt: var(--theme-surface-alt);
+  --color-surface-hover: var(--theme-surface-hover);
+  --color-border: var(--theme-border);
+  --color-border-bright: var(--theme-border-bright);
+  --color-accent: var(--theme-accent);
+  --color-accent-dim: var(--theme-accent-dim);
+  --color-accent-hover: var(--theme-accent-hover);
+  /* The keyboard focus's ring around a field: the accent, 3:1 or more on what is around it (WCAG 2.4.13). */
+  --color-focus-ring: var(--theme-accent);
+  /* Danger's red: brighter on dark themes, darker on light ones, so its words read at 4.5:1 on either. */
+  --color-danger: var(--theme-danger);
+  /* Danger as a fill under white words (Delete, hang up): dark enough for 4.5:1 with white in every theme. */
+  --color-danger-fill: var(--theme-danger-fill);
+  /* Something finished well (a bot's task done), the same in every theme, as danger is. */
+  --color-success: #22a55a;
+  /* Test money's colour, the same in every theme (Real money takes the accent). */
+  --color-test-money: #e0a800;
+  /* Its words ("Test money"): that yellow on a dark page, a darker one on a light page, where the yellow reads at
+     about 2:1 (html[data-theme="light"] below). A wallet card is dark in every theme and keeps the yellow. */
+  --color-test-money-ink: var(--theme-test-money-ink, #e0a800);
+  /* Words that warn without alarm (a bot's quota running low, a blocked task): amber on a dark page, a darker amber on a light one. */
+  --color-warn-ink: var(--theme-warn-ink, #f5a524);
+  --color-text-primary: var(--theme-text-primary);
+  --color-text-secondary: var(--theme-text-secondary);
+  --color-text-muted: var(--theme-text-muted);
+  --color-sent-bg: var(--theme-sent-bg);
+  --color-received-bg: var(--theme-received-bg);
+  /* Ink that stays readable on the bubbles, the surfaces and the accent, in every colour theme. */
+  --color-link: var(--theme-link);
+  --color-danger-ink: var(--theme-danger-ink);
+  --color-on-accent: var(--theme-on-accent);
+  /* A group member's name, from their key (lib/memberColors.ts): twelve hues, each readable on every bubble and header. */
+  --color-member-0: var(--theme-member-0);
+  --color-member-1: var(--theme-member-1);
+  --color-member-2: var(--theme-member-2);
+  --color-member-3: var(--theme-member-3);
+  --color-member-4: var(--theme-member-4);
+  --color-member-5: var(--theme-member-5);
+  --color-member-6: var(--theme-member-6);
+  --color-member-7: var(--theme-member-7);
+  --color-member-8: var(--theme-member-8);
+  --color-member-9: var(--theme-member-9);
+  --color-member-10: var(--theme-member-10);
+  --color-member-11: var(--theme-member-11);
+  --color-input-bg: var(--theme-input-bg);
+  --color-search-bg: var(--theme-search-bg);
+  --color-unread: var(--theme-accent);
+  --color-chat-pattern: var(--theme-chat-pattern);
+}
+
+/* ============================================
+   CLASSIC THEME (Green) - Default
+   ============================================ */
+
+:root,
+:root[data-theme="dark"],
+:root[data-theme="dark"][data-color-theme="classic"] {
+  --theme-app-bg: #222e35;
+  --theme-sidebar-bg: #111b21;
+  --theme-chat-bg: #0b141a;
+  --theme-panel-header: #202c33;
+  --theme-surface: #111b21;
+  --theme-surface-alt: #202c33;
+  --theme-surface-hover: #2a3942;
+  --theme-border: #222d34;
+  --theme-border-bright: #334155;
+  --theme-text-primary: #e9edef;
+  --theme-text-secondary: #aebbc3;
+  /* At least 4.5:1 on the list, the panels and a chosen row, as the accent's words. */
+  --theme-text-muted: #94a3ad;
+  --theme-received-bg: #202c33;
+  --theme-input-bg: #2a3942;
+  --theme-search-bg: #202c33;
+  --theme-chat-pattern: #0d1418;
+  --theme-scrollbar: #374151;
+  --theme-scrollbar-hover: #4b5563;
+  /* Its words (Join, a link, a chosen tab) read at 4.5:1 on every surface, a chosen row and its own tints (a pill at 15 %). */
+  --theme-accent: #15c099;
+  --theme-accent-dim: #005c4b;
+  --theme-accent-hover: #06cf9c;
+  --theme-sent-bg: #005c4b;
+  /* Shared by every dark theme: at least 4.5:1 (link) and 3:1 (danger) on each one's bubbles. */
+  --theme-link: #8ad3f6;
+  --theme-danger-ink: #ff9a8f;
+  --theme-danger: #ea4335;
+  --theme-danger-fill: #d93025;
+  --theme-on-accent: #111b21;
+  /* Group members' names (lib/memberColors.ts), shared by every dark theme: at least 4.5:1 on each one's bubbles and header. */
+  --theme-member-0: #f2b7b7;
+  --theme-member-1: #eebaa0;
+  --theme-member-2: #e9be81;
+  --theme-member-3: #dec545;
+  --theme-member-4: #49df7b;
+  --theme-member-5: #38dcc0;
+  --theme-member-6: #83d0e9;
+  --theme-member-7: #aac7f0;
+  --theme-member-8: #c4c0f4;
+  --theme-member-9: #dbbaf3;
+  --theme-member-10: #f1b1ec;
+  --theme-member-11: #f2b3d2;
+}
+
+:root[data-theme="light"],
+:root[data-theme="light"][data-color-theme="classic"] {
+  --theme-app-bg: #f0f2f5;
+  --theme-sidebar-bg: #ffffff;
+  --theme-chat-bg: #efeae2;
+  --theme-panel-header: #f0f2f5;
+  --theme-surface: #ffffff;
+  --theme-surface-alt: #f5f6f6;
+  --theme-surface-hover: #e9edef;
+  --theme-border: #e9edef;
+  --theme-border-bright: #d1d5db;
+  --theme-text-primary: #111b21;
+  --theme-text-secondary: #3b4a54;
+  /* At least 4.5:1 on white, the greys and the chat's beige. */
+  --theme-text-muted: #5a6a74;
+  --theme-received-bg: #ffffff;
+  --theme-input-bg: #f0f2f5;
+  --theme-search-bg: #f0f2f5;
+  --theme-chat-pattern: #d9dbd5;
+  --theme-scrollbar: #c5c6c8;
+  --theme-scrollbar-hover: #9a9b9d;
+  /* Words in the accent (links, section titles, a chosen tab, Real money) read at 4.5:1 on white, the greys, the
+     chat's beige and the accent's own tints, and white words on it as well. */
+  --theme-accent: #006954;
+  --theme-accent-dim: #dcf8c6;
+  --theme-accent-hover: #005c4b;
+  --theme-sent-bg: #d9fdd3;
+  /* Shared by every light theme, as for dark. */
+  --theme-link: #026aa0;
+  --theme-danger-ink: #c5221f;
+  --theme-danger: #c5221f;
+  --theme-danger-fill: #c5221f;
+  --theme-on-accent: #ffffff;
+  /* Shared by every light theme, as for dark. */
+  --theme-member-0: #c82020;
+  --theme-member-1: #a94b1b;
+  --theme-member-2: #8c5b17;
+  --theme-member-3: #766613;
+  --theme-member-4: #137634;
+  --theme-member-5: #137464;
+  --theme-member-6: #176f8c;
+  --theme-member-7: #2064c3;
+  --theme-member-8: #5c50e2;
+  --theme-member-9: #942fdd;
+  --theme-member-10: #b41da7;
+  --theme-member-11: #c11f70;
+}
+
+:root[data-theme="dark"][data-color-theme="property"] {
+  --theme-app-bg: #17181a;
+  --theme-sidebar-bg: #090a0c;
+  --theme-chat-bg: #070809;
+  --theme-panel-header: #121315;
+  --theme-surface: #0c0d0f;
+  --theme-surface-alt: #151619;
+  --theme-surface-hover: #24262a;
+  --theme-border: #25272b;
+  --theme-border-bright: #3d4046;
+  --theme-text-primary: #f2f2ed;
+  --theme-text-secondary: #b4b6b2;
+  --theme-text-muted: #969994;
+  --theme-received-bg: #1a1b1e;
+  --theme-input-bg: #24262a;
+  --theme-search-bg: #151619;
+  --theme-chat-pattern: #101113;
+  --theme-scrollbar: #383a3e;
+  --theme-scrollbar-hover: #4b4e53;
+  --theme-accent: #ffd600;
+  --theme-accent-dim: #544500;
+  --theme-accent-hover: #ffe333;
+  --theme-sent-bg: #544500;
+  --theme-on-accent: #090a0c;
+}
+
+:root[data-theme="light"][data-color-theme="property"] {
+  --theme-app-bg: #f6f6f1;
+  --theme-sidebar-bg: #ffffff;
+  --theme-chat-bg: #efefe8;
+  --theme-panel-header: #f6f6f1;
+  --theme-surface: #ffffff;
+  --theme-surface-alt: #f1f1eb;
+  --theme-surface-hover: #e7e7df;
+  --theme-border: #deded5;
+  --theme-border-bright: #c7c7bd;
+  --theme-text-primary: #17181a;
+  --theme-text-secondary: #434640;
+  --theme-text-muted: #5d6058;
+  --theme-received-bg: #ffffff;
+  --theme-input-bg: #f6f6f1;
+  --theme-search-bg: #f1f1eb;
+  --theme-chat-pattern: #deded5;
+  --theme-scrollbar: #c7c7bd;
+  --theme-scrollbar-hover: #a6a79f;
+  --theme-accent: #665500;
+  --theme-accent-dim: #f7e993;
+  --theme-accent-hover: #544600;
+  --theme-sent-bg: #f0e6ad;
+  --theme-on-accent: #ffffff;
+}
+
+/* ============================================
+   MONOCHROME THEME (Black & White)
+   ============================================ */
+
+:root[data-theme="dark"][data-color-theme="monochrome"] {
+  --theme-app-bg: #1a1a1a;
+  --theme-sidebar-bg: #0f0f0f;
+  --theme-chat-bg: #0a0a0a;
+  --theme-panel-header: #1a1a1a;
+  --theme-surface: #0f0f0f;
+  --theme-surface-alt: #1a1a1a;
+  --theme-surface-hover: #2a2a2a;
+  --theme-border: #2a2a2a;
+  --theme-border-bright: #3a3a3a;
+  --theme-text-primary: #f5f5f5;
+  --theme-text-secondary: #a0a0a0;
+  /* At least 4.5:1 on the list, the panels, a field and a chosen row. */
+  --theme-text-muted: #949494;
+  --theme-received-bg: #1a1a1a;
+  --theme-input-bg: #2a2a2a;
+  --theme-search-bg: #1a1a1a;
+  --theme-chat-pattern: #121212;
+  --theme-scrollbar: #3a3a3a;
+  --theme-scrollbar-hover: #4a4a4a;
+  --theme-accent: #ffffff;
+  --theme-accent-dim: #404040;
+  --theme-accent-hover: #e0e0e0;
+  --theme-sent-bg: #333333;
+}
+
+:root[data-theme="light"][data-color-theme="monochrome"] {
+  --theme-app-bg: #f5f5f5;
+  --theme-sidebar-bg: #ffffff;
+  --theme-chat-bg: #fafafa;
+  --theme-panel-header: #f5f5f5;
+  --theme-surface: #ffffff;
+  --theme-surface-alt: #f5f5f5;
+  --theme-surface-hover: #ebebeb;
+  --theme-border: #e0e0e0;
+  --theme-border-bright: #d0d0d0;
+  --theme-text-primary: #0a0a0a;
+  --theme-text-secondary: #505050;
+  /* At least 4.5:1 on the list, the panels, a field and a chosen row. */
+  --theme-text-muted: #666666;
+  --theme-received-bg: #ffffff;
+  --theme-input-bg: #f5f5f5;
+  --theme-search-bg: #f5f5f5;
+  --theme-chat-pattern: #eeeeee;
+  --theme-scrollbar: #d0d0d0;
+  --theme-scrollbar-hover: #b0b0b0;
+  --theme-accent: #0a0a0a;
+  --theme-accent-dim: #e8e8e8;
+  --theme-accent-hover: #2a2a2a;
+  --theme-sent-bg: #e8e8e8;
+  --theme-on-accent: #ffffff;
+}
+
+/* ============================================
+   CYAN THEME (Ice Blue)
+   ============================================ */
+
+:root[data-theme="dark"][data-color-theme="cyan"] {
+  --theme-app-bg: #0c1929;
+  --theme-sidebar-bg: #071018;
+  --theme-chat-bg: #050d14;
+  --theme-panel-header: #0c1929;
+  --theme-surface: #071018;
+  --theme-surface-alt: #0c1929;
+  --theme-surface-hover: #142840;
+  --theme-border: #1a3050;
+  --theme-border-bright: #264060;
+  --theme-text-primary: #e0f4ff;
+  --theme-text-secondary: #7eb8d8;
+  /* At least 4.5:1 on the list, the panels and a chosen row. */
+  --theme-text-muted: #5c96b8;
+  --theme-received-bg: #0c1929;
+  --theme-input-bg: #142840;
+  --theme-search-bg: #0c1929;
+  --theme-chat-pattern: #08121c;
+  --theme-scrollbar: #1a3050;
+  --theme-scrollbar-hover: #264060;
+  --theme-accent: #22d3ee;
+  --theme-accent-dim: #0e5c6b;
+  --theme-accent-hover: #67e8f9;
+  --theme-sent-bg: #0e4d5a;
+}
+
+:root[data-theme="light"][data-color-theme="cyan"] {
+  --theme-app-bg: #ecfeff;
+  --theme-sidebar-bg: #ffffff;
+  --theme-chat-bg: #f0fdff;
+  --theme-panel-header: #ecfeff;
+  --theme-surface: #ffffff;
+  --theme-surface-alt: #ecfeff;
+  --theme-surface-hover: #cffafe;
+  --theme-border: #a5f3fc;
+  --theme-border-bright: #67e8f9;
+  --theme-text-primary: #083344;
+  --theme-text-secondary: #155e75;
+  --theme-text-muted: #0e7490;
+  --theme-received-bg: #ffffff;
+  --theme-input-bg: #ecfeff;
+  --theme-search-bg: #ecfeff;
+  --theme-chat-pattern: #d5f5f8;
+  --theme-scrollbar: #a5f3fc;
+  --theme-scrollbar-hover: #67e8f9;
+  /* Words in the accent (links, section titles, a chosen tab) read at 4.5:1 on white, on the cyan panels and on the
+     accent's own tints (a pill at 10-20 %), and white words on it as well. */
+  --theme-accent: #0b6680;
+  --theme-accent-dim: #cffafe;
+  --theme-accent-hover: #155e75;
+  --theme-sent-bg: #cffafe;
+  --theme-on-accent: #ffffff;
+}
+
+/* ============================================
+   PURPLE THEME (Lavender Mist)
+   ============================================ */
+
+:root[data-theme="dark"][data-color-theme="purple"] {
+  --theme-app-bg: #1a1625;
+  --theme-sidebar-bg: #100d18;
+  --theme-chat-bg: #0a0810;
+  --theme-panel-header: #1a1625;
+  --theme-surface: #100d18;
+  --theme-surface-alt: #1a1625;
+  --theme-surface-hover: #2a2438;
+  --theme-border: #2e2640;
+  --theme-border-bright: #3d3455;
+  --theme-text-primary: #f3e8ff;
+  --theme-text-secondary: #b8a5d0;
+  /* At least 4.5:1 on the list, the panels, a field and a chosen row. */
+  --theme-text-muted: #9a8ab6;
+  --theme-received-bg: #1a1625;
+  --theme-input-bg: #2a2438;
+  --theme-search-bg: #1a1625;
+  --theme-chat-pattern: #120f1a;
+  --theme-scrollbar: #3d3455;
+  --theme-scrollbar-hover: #4d4465;
+  --theme-accent: #a78bfa;
+  --theme-accent-dim: #4c3a70;
+  --theme-accent-hover: #c4b5fd;
+  --theme-sent-bg: #3b2d5c;
+}
+
+:root[data-theme="light"][data-color-theme="purple"] {
+  --theme-app-bg: #faf5ff;
+  --theme-sidebar-bg: #ffffff;
+  --theme-chat-bg: #fdf8ff;
+  --theme-panel-header: #faf5ff;
+  --theme-surface: #ffffff;
+  --theme-surface-alt: #faf5ff;
+  --theme-surface-hover: #f3e8ff;
+  --theme-border: #e9d5ff;
+  --theme-border-bright: #d8b4fe;
+  --theme-text-primary: #2e1065;
+  --theme-text-secondary: #6b21a8;
+  --theme-text-muted: #9333ea;
+  --theme-received-bg: #ffffff;
+  --theme-input-bg: #faf5ff;
+  --theme-search-bg: #faf5ff;
+  --theme-chat-pattern: #f0e5f8;
+  --theme-scrollbar: #e9d5ff;
+  --theme-scrollbar-hover: #d8b4fe;
+  /* 4.5:1 or more on its own tints too (a pill at 10-15 %). */
+  --theme-accent: #6d28d9;
+  --theme-accent-dim: #f3e8ff;
+  --theme-accent-hover: #5b21b6;
+  --theme-sent-bg: #f3e8ff;
+  --theme-on-accent: #ffffff;
+}
+
+html {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  /* 4.6:1 or more on every light theme's pages and rows (white, the greys, the chat's beige). */
+  --theme-test-money-ink: #856200;
+  /* 4.5:1 or more on the light pages and rows. */
+  --theme-warn-ink: #9a5800;
+}
+
+body {
+  @apply bg-app-bg text-text-primary antialiased m-0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+#root {
+  @apply h-screen flex overflow-hidden;
+  /* A phone on its side: the notch or Dynamic Island is at one end (viewport-fit=cover lets the page under it). */
+  box-sizing: border-box;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* An app opened from the iPhone home screen (iOS 26): with nothing in the page's flow (the body is fixed on
+   phones), WebKit sizes the viewport as the screen less the status bar, and draws nothing in a band as tall as
+   the status bar at the bottom, under the tab bar and the composer. A document as tall as the screen gets it all.
+   Installed apps only (hooks/useViewportHeight.ts): in a browser tab 100vh is taller than what its toolbars leave. */
+html[data-standalone="true"] {
+  height: 100vh;
+}
+
+/* The same from the first frame: `data-standalone` is set by the app once it runs (and not at all behind the lock
+   screen at start), and until then iOS laid the page out at the screen less the status bar. */
+@media (display-mode: standalone) {
+  html {
+    height: 100vh;
+  }
+}
+
+/* What the keyboard leaves of the screen (hooks/useViewportHeight.ts), written on each element that reads it
+   (`APP_HEIGHT_READERS` there): not inherited, so a new value restyles those few elements. Inherited from `<html>`,
+   each keyboard opening or closing and each turn restyled the whole document, about 60ms in WebKit with a long chat
+   open. A rule that reads it must match one of those elements. */
+@property --app-height {
+  syntax: "*";
+  inherits: false;
+}
+
+/* ── Phones: one screen at a time, sized to what is really visible ── */
+.app-shell {
+  height: 100vh;
+  height: var(--app-height, 100dvh);
+}
+
+/* Two panes (768px and wider): the window's height, what the browser's own bars leave of it (iPad Safari's 100vh
+   reached under its toolbar and cut the tab bar). On a touch screen with the keyboard up (an iPad, a phone on its
+   side) iOS leaves the page its height, so the panes take what the keyboard leaves (`--app-height`) and the message
+   field stays above it; Safari scrolled the whole page instead, and left it scrolled with a blank band once the
+   keyboard went. Only while it is up, or while a hardware keyboard's shortcut bar is (a field has the focus): the
+   visible height 68px short that an iPhone on its side reported was that bar over the message field. */
+.two-pane {
+  height: 100vh;
+  height: 100dvh;
+}
+@media (pointer: coarse) {
+  html[data-keyboard="true"] .two-pane {
+    height: var(--app-height, 100dvh);
+  }
+
+  /* A dialog too, as on a phone held upright (below): centred on the whole screen, an iPhone or iPad on its side
+     had New group's Create and Forward's Send under the keyboard. */
+  html[data-keyboard="true"] dialog:modal:not([data-testid="avatar-viewer"]) {
+    top: env(safe-area-inset-top);
+    bottom: calc(100% - var(--app-height, 100%));
+    max-height: calc(var(--app-height, 100dvh) - env(safe-area-inset-top) - 2rem);
+  }
+
+  /* As on a phone held upright (below): a field under 16px makes iOS zoom into it on focus, and the page stayed
+     zoomed and panned once the keyboard went, an iPhone on its side too (874px wide, two panes). */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* As on a phone held upright too: a list pulled down at its top would pull the page with it, and the browser's
+     pull-to-refresh reloaded the app (Chrome on an Android phone on its side, a tablet), dropping its chats and calls. */
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
+  /* A pinch on a touch screen zoomed the whole app (its bars, the composer, the list) and left it zoomed, while the
+     picture under the fingers could not be looked at closer. The page scrolls and pans as before, and never zooms:
+     a picture zooms in its viewer (components/AvatarViewer.tsx). A descendant's own `touch-action` narrows this
+     further (a floating call window, the viewer: `none`). Text still follows the system's text size. */
+  html {
+    touch-action: pan-x pan-y;
+  }
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.sheet-backdrop {
+  display: none;
+}
+
+/* ── Floating boxes (the small call window, your own picture): drag to move, corners to resize ── */
+.floating {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.floating:active {
+  cursor: grabbing;
+}
+
+.float-grip {
+  position: absolute;
+  /* Under the window's own buttons, which share a corner with one of them. */
+  z-index: 15;
+  width: 26px;
+  height: 26px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  touch-action: none;
+}
+
+.floating:hover > .float-grip,
+.float-grip:active {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .float-grip {
+    opacity: 0.85;
+  }
+}
+
+/* An L drawn in the corner it sits in. */
+.float-grip::after {
+  content: "";
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  border: 0 solid rgb(255 255 255 / 0.9);
+  filter: drop-shadow(0 0 2px rgb(0 0 0 / 0.9));
+}
+
+.float-grip-nw { top: 0; left: 0; cursor: nwse-resize; }
+.float-grip-nw::after { top: 5px; left: 5px; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 4px; }
+.float-grip-ne { top: 0; right: 0; cursor: nesw-resize; }
+.float-grip-ne::after { top: 5px; right: 5px; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 4px; }
+.float-grip-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.float-grip-sw::after { bottom: 5px; left: 5px; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 4px; }
+.float-grip-se { bottom: 0; right: 0; cursor: nwse-resize; }
+.float-grip-se::after { bottom: 5px; right: 5px; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 4px; }
+
+/* A size container: its middle (the avatars and names) lays itself out for the window's own height (see below). */
+.call-mini {
+  overflow: hidden;
+  container-type: size;
+}
+
+/* The whole-screen call's corner button (Small window / Back to chat): clear of the status bar an installed iPhone
+   app runs under, and of the notch or Dynamic Island when the phone is on its side. The small window keeps 8px. */
+.call-resize {
+  top: calc(1rem + env(safe-area-inset-top));
+  left: calc(1rem + env(safe-area-inset-left));
+}
+
+.call-mini .call-resize {
+  top: 8px;
+  left: 8px;
+  width: 30px;
+  height: 30px;
+}
+
+.call-mini .call-resize svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* The small window's state line ("Audio call" and the clock) starts after the corner button (30 px at 8 px) instead
+   of being centred over the whole width: at the window's narrowest (190 px, where a phone opens it) "Chamada de áudio
+   00:05" began behind the button. The line is one row of a wrapping flex box with the clock placed first, so when the
+   words do not fit beside it they go to a second row, which is cut off, and the clock stays; row-reverse puts the
+   words back before the clock for the eye. */
+.call-mini .call-top {
+  top: 12px;
+  left: 42px;
+  right: 6px;
+}
+
+/* In a video call the own camera's preview takes the top right corner (64 px at 8 px): the line ends 6 px before it.
+   Centred up to the window's edge, a phone's 190 px window had the clock's last digit and a half under the preview. */
+.call-mini:has(> .call-preview) .call-top {
+  right: 78px;
+}
+
+.call-mini .call-top p {
+  display: flex;
+  flex-flow: row-reverse wrap;
+  justify-content: center;
+  column-gap: 6px;
+  height: 20px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 20px;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.8);
+}
+
+.call-mini .call-top p > span {
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.call-mini .call-top p > span:last-child {
+  order: -1;
+}
+
+.call-mini .call-controls {
+  bottom: 10px;
+  gap: 10px;
+}
+
+.call-mini .call-controls button {
+  width: 38px;
+  height: 38px;
+  backdrop-filter: blur(6px);
+}
+
+.call-mini .call-controls svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* With Share screen the small window's row has five buttons: 230 px with these sizes, wider than the window at its
+   narrowest (190 px, where a phone-wide window opens it and where a pulled corner stops), so flex squeezed them into
+   ovals against both edges. Five are smaller and closer there (180 px), and none shrinks. The row sits a little
+   higher, so the end buttons' middles stay clear of the corner grips (26 px) above them. */
+.call-mini .call-controls > * {
+  flex-shrink: 0;
+}
+
+.call-mini .call-controls:has(> :nth-child(5)) {
+  bottom: 16px;
+  gap: 5px;
+}
+
+.call-mini .call-controls:has(> :nth-child(5)) button {
+  width: 32px;
+  height: 32px;
+}
+
+.call-mini .call-controls:has(> :nth-child(5)) svg {
+  width: 15px;
+  height: 15px;
+}
+
+/*
+ * A narrow screen's row keeps its buttons round, with less room between them. A phone's video call has four
+ * (microphone, camera, devices, hang up: 264 px), which the 32 px gaps pushed to 360 px, past a 320 px screen: the
+ * room between them follows the width, 12 to 32 px. Five (Share screen too, in a narrow browser window) were 328 px
+ * of buttons, wider than a 320 px window and edge to edge at 360: they are smaller (48 px, hang up 56 px: 248 px), and
+ * the room between them follows the width the same way, 8 to 32 px, so 16 px stay on each side down to 312 px.
+ * The small call window has buttons and gaps of its own.
+ */
+@media (max-width: 480px) {
+  :not(.call-mini) > .call-controls:has(> :nth-child(4)) {
+    gap: clamp(0.75rem, calc((100vw - 296px) / 3), 2rem);
+  }
+
+  :not(.call-mini) > .call-controls:has(> :nth-child(5)) {
+    gap: clamp(0.5rem, calc((100vw - 280px) / 4), 2rem);
+  }
+
+  :not(.call-mini) > .call-controls:has(> :nth-child(5)) > button,
+  :not(.call-mini) > .call-controls:has(> :nth-child(5)) > * > button {
+    width: 48px;
+    height: 48px;
+  }
+
+  :not(.call-mini) > .call-controls:has(> :nth-child(5)) > button:last-child {
+    width: 56px;
+    height: 56px;
+  }
+
+  :not(.call-mini) > .call-controls:has(> :nth-child(5)) svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+/* Who is sharing a screen, and why a share failed: above the controls, where the small window has room. */
+.call-mini .call-share-notice {
+  top: auto;
+  bottom: 54px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.call-mini .call-share-notice svg {
+  width: 12px;
+  height: 12px;
+}
+
+.call-mini .call-share-error {
+  bottom: 78px;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.call-mini .call-preview {
+  top: 8px;
+  right: 8px;
+  width: 64px;
+  height: 48px;
+  border-radius: 6px;
+}
+
+.call-mini .call-peer {
+  gap: 4px;
+}
+
+.call-mini .call-avatar {
+  width: 44px;
+  height: 44px;
+}
+
+.call-mini .call-avatar span {
+  font-size: 18px;
+}
+
+/* Who is speaking in a call (hooks/useVoiceRing.ts): a ring on the avatar, as wide as the voice is loud. With
+   motion reduced it is a steady ring while they speak. No transition: one on box-shadow restarts at every new
+   level and repaints the call window all the time someone speaks. */
+.call-avatar {
+  --voice-swing: 9px;
+}
+.call-mini .call-avatar { --voice-swing: 4px; }
+.call-avatar[data-speaking="true"] {
+  box-shadow: 0 0 0 calc(3px + var(--voice-level, 0) * var(--voice-swing)) var(--color-accent);
+}
+:root[data-reduce-motion="true"] .call-avatar { --voice-swing: 0px; }
+@media (prefers-reduced-motion: reduce) { .call-avatar, .call-mini .call-avatar { --voice-swing: 0px; } }
+
+.call-mini .call-name {
+  font-size: 13px;
+}
+
+/* Your own side of a voice call, beside the contact: smaller, so it is never taken for them. The two sides sit in
+   the band between the state line (it ends 32 px down) and the buttons (they start 48 px from the bottom, four or
+   five of them), centred in it. */
+.call-mini .call-sides {
+  position: absolute;
+  inset: 32px 0 48px;
+  align-items: center;
+  gap: 14px;
+  padding: 0 10px;
+}
+
+.call-mini .call-self .call-avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.call-mini .call-self .call-avatar span {
+  font-size: 13px;
+}
+
+/* A low small window (a phone opens it 136 px high, a pulled corner stops at 128): the band is 48 to 56 px, and an
+   avatar over its name with the ring around it (44 + 4 + 20 px, the ring 7 px out) covered the state line and ran
+   into the buttons. Each side is a row instead, its avatar smaller, ring and all inside the band. Your own name goes
+   to screen readers only: the smaller avatar beside the contact's is yours. */
+@container (max-height: 170px) {
+  .call-mini .call-sides {
+    gap: 12px;
+  }
+
+  .call-mini .call-peer {
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  .call-mini .call-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .call-mini .call-avatar span {
+    font-size: 14px;
+  }
+
+  .call-mini .call-self .call-avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .call-mini .call-self .call-avatar span {
+    font-size: 11px;
+  }
+
+  .call-mini .call-self .call-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* The header of a right-column page (components/layout/Page.tsx): one 3.5rem line, or two when its
+   controls wrap under the title in a narrow column. The inset is 0 everywhere but under a phone's notch. */
+.page-header {
+  min-height: calc(3.5rem + env(safe-area-inset-top));
+  padding-top: calc(0.5rem + env(safe-area-inset-top));
+  padding-bottom: 0.5rem;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@media (max-width: 767px) {
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
+  /* iOS would otherwise scroll the whole page when the keyboard opens. */
+  body {
+    position: fixed;
+    inset: 0;
+  }
+
+  #root {
+    height: 100%;
+  }
+
+  /* Anything smaller makes iOS zoom into the field on focus. */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* While typing (a search, a setting), the tab bar would stand on the keyboard in the middle of the screen,
+     taking a third of what it leaves: it goes behind it, as in a native app. */
+  html[data-keyboard="true"] .mobile-tabs {
+    display: none;
+  }
+
+  .header-safe {
+    height: calc(3.5rem + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* A voice message playing on from another chat: its bar at the top of this one (App.tsx) takes the notch's inset,
+     and the chat's header under it does not take it again. */
+  .now-playing-top {
+    padding-top: calc(0.375rem + env(safe-area-inset-top));
+  }
+  .now-playing-top + main .header-safe {
+    height: 3.5rem;
+    padding-top: 0;
+  }
+
+  .composer-safe {
+    padding-bottom: calc(0.625rem + env(safe-area-inset-bottom));
+  }
+
+  html[data-keyboard="true"] .composer-safe {
+    padding-bottom: 0.625rem;
+  }
+
+  /* A sheet with the keyboard up stands on the keyboard: no home indicator under it to keep clear of. */
+  html[data-keyboard="true"] .sheet {
+    padding-bottom: 0;
+  }
+
+  html[data-keyboard="true"] .sheet-padded {
+    padding-bottom: 16px;
+  }
+
+  .sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgb(0 0 0 / 0.55);
+    animation: fade-in 0.2s ease-out;
+  }
+
+  /* iOS keeps the page's height under the keyboard, and `--app-height` is what the keyboard leaves
+     (hooks/useViewportHeight.ts): a sheet stands on the keyboard and a dialog is centred above it, both clear of
+     the notch, instead of their fields and buttons sitting under the keyboard. */
+  .sheet {
+    position: fixed;
+    inset: auto 0 calc(100% - var(--app-height, 100%)) 0;
+    z-index: 60;
+    width: 100%;
+    max-height: min(82dvh, calc(var(--app-height, 100dvh) - env(safe-area-inset-top) - 1rem));
+    margin: 0;
+    overflow-y: auto;
+    border-width: 1px 0 0;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: sheet-up 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .sheet::before {
+    content: "";
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: 8px auto 4px;
+    border-radius: 2px;
+    background: var(--color-border, rgb(255 255 255 / 0.25));
+  }
+
+  dialog:modal:not([data-testid="avatar-viewer"]) {
+    top: env(safe-area-inset-top);
+    bottom: calc(100% - var(--app-height, 100%));
+    max-height: calc(var(--app-height, 100dvh) - env(safe-area-inset-top) - 2rem);
+  }
+
+  .sheet-padded {
+    padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .call-top {
+    top: calc(2rem + env(safe-area-inset-top));
+  }
+
+  .call-preview {
+    top: calc(1rem + env(safe-area-inset-top));
+  }
+
+  .call-controls {
+    bottom: calc(2.5rem + env(safe-area-inset-bottom));
+  }
+
+  /* An incoming call takes the whole screen, answer buttons within thumb reach. */
+  .incoming-call {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    margin: 0;
+    padding: calc(5rem + env(safe-area-inset-top)) 2rem calc(4rem + env(safe-area-inset-bottom));
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .wallet-screen [data-testid="wallet-balance"] > bdi:first-child {
+    font-size: 2rem;
+  }
+}
+
+/* An incoming call on a phone on its side (320-480px high): that padding left no room for End and answer's words under
+   its button. The screen scrolls if it still does not fit. */
+@media (max-width: 767px) and (max-height: 480px) {
+  .incoming-call {
+    padding-top: calc(1.5rem + env(safe-area-inset-top));
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+    overflow-y: auto;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+/* The floating card (components/ui/Toast.tsx): bottom centre over the content on a desktop; on a phone above the tab
+   bar, and above the keyboard while it is open (the tab bar is hidden then, and `--app-height` is what the keyboard
+   leaves). On a page (`toast-place-page`) it is centred over the page's column, whose bottom already sits above the
+   tab bar and the keyboard. Only the card takes clicks: the strip around it lets them through. */
+.toast-place {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  z-index: 70;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+
+@media (max-width: 767px) {
+  .toast-place {
+    bottom: calc(3.5rem + 0.75rem + env(safe-area-inset-bottom));
+  }
+
+  html[data-keyboard="true"] .toast-place {
+    bottom: calc(100% - var(--app-height, 100%) + 0.75rem);
+  }
+}
+
+.toast-place.toast-place-page {
+  position: absolute;
+  bottom: 1.5rem;
+}
+
+@media (max-width: 767px) {
+  .toast-place.toast-place-page,
+  html[data-keyboard="true"] .toast-place.toast-place-page {
+    bottom: 0.75rem;
+  }
+}
+
+/* A touch screen two panes wide (a phone on its side, a tablet) with the keyboard up: iOS leaves the window its
+   height, so a card over the whole window stands on what the keyboard leaves, as on a phone held upright. */
+@media (pointer: coarse) and (min-width: 768px) {
+  html[data-keyboard="true"] .toast-place {
+    bottom: calc(100% - var(--app-height, 100%) + 0.75rem);
+  }
+
+  html[data-keyboard="true"] .toast-place.toast-place-page {
+    bottom: 1.5rem;
+  }
+
+  /* A dialog that is not a <dialog> (Apps → Add, Add identity, New wallet): its layer over the whole window ends
+     where the keyboard starts, so the panel is centred in what is left and scrolls within it, instead of its field
+     and buttons sitting under the keyboard. */
+  html[data-keyboard="true"] .fixed.inset-0:has(> [aria-modal="true"]) {
+    bottom: calc(100% - var(--app-height, 100%));
+  }
+
+  html[data-keyboard="true"] .fixed.inset-0 > [aria-modal="true"] {
+    max-height: 100%;
+  }
+}
+
+/* Send files (components/composer/AttachmentSheet.tsx): a layer over the whole screen with its panel centred, which
+   opens with the focus in its caption, so on a phone the keyboard comes up at once. As the rule above, but on a phone
+   held upright too: centred on the whole screen, the caption and Cancel/Send were under the keyboard. The layer ends
+   where the keyboard starts, below the notch, and the picture is never taller than what is left once the caption and
+   the buttons (about 12rem with the panel's edges) have their room. `--keyboard-room` passes the visible height down
+   to the picture: `--app-height` itself is not inherited. */
+.fixed.inset-0.keyboard-layer {
+  --keyboard-room: var(--app-height, 100dvh);
+}
+
+.keyboard-layer-picture {
+  max-height: min(55vh, max(4rem, calc(var(--keyboard-room, 100dvh) - env(safe-area-inset-top) - 12rem)));
+}
+
+@media (pointer: coarse) {
+  html[data-keyboard="true"] .fixed.inset-0.keyboard-layer {
+    bottom: calc(100% - var(--app-height, 100%));
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+    padding-bottom: 0.5rem;
+  }
+}
+
+/* Where the card would cover the field it is about (a short screen with the keyboard up: a phone on its side shows
+   about 200px), it goes to the top instead (Toast.tsx measures both). After the rules above, as specific as they are. */
+html .toast-place[data-at="top"] {
+  bottom: auto;
+  top: calc(env(safe-area-inset-top) + 0.75rem);
+}
+
+html .toast-place.toast-place-page[data-at="top"] {
+  bottom: auto;
+  top: 0.75rem;
+}
+
+/* A notice at the top of the window (a call that waits for the contact, a link that could not be used): in the middle,
+   as wide as its words up to the window less 1rem a side (a fixed box at 50% with no width is laid out in the half
+   that is left to its right), and below the status bar an installed iPhone app draws under. */
+.top-notice {
+  position: fixed;
+  top: calc(0.75rem + env(safe-area-inset-top));
+  left: 50%;
+  translate: -50% 0;
+  z-index: 60;
+  width: max-content;
+  max-width: calc(100% - 2rem);
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/*
+ * A call ringing in: its avatar pulses a few times, then rests fully shown. A pulse for the whole ring redrew the
+ * window every frame (a core of the GPU process); the ring sound says it goes on.
+ */
+@keyframes ring-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-ring-pulse {
+  animation: ring-pulse 1.5s ease-in-out 3;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--theme-scrollbar);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-scrollbar-hover);
+}
+
+.chat-wallpaper {
+  background-color: var(--theme-chat-bg);
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23182229' fill-opacity='0.6'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+[data-theme="light"] .chat-wallpaper {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c5c6c8' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/*
+ * A chat's message list on a layer of its own. In WebKit (Desktop on the Mac), a long chat left open froze for 300 to
+ * 450 ms every half second or so with no script running (nothing drawn by React, nothing changed in the page), and the
+ * older rows of a long chat coming in cost more with each step; with the list on its own layer both are gone. Not while
+ * a video plays full screen in it: that one is `position: fixed`, and the layer would hold it inside the list.
+ */
+[data-message-list]:not(:has([data-theater])) {
+  will-change: transform;
+  container: message-list / inline-size;
+}
+
+/*
+ * The room on each side of a chat's rows: wide on a wide screen, narrow on a phone, and narrow too when the chat itself
+ * is narrow beside the chat list (a phone on its side, a small window, a wide list): 63px on each side of a 330px chat
+ * squeezed its bubbles to a third of it, and a video into a tall black box.
+ */
+.message-row-x { padding-inline: 63px; }
+@media (width < 48rem) { .message-row-x { padding-inline: 10px; } }
+@container message-list (width < 36rem) { .message-row-x { padding-inline: 10px; } }
+
+/*
+ * A group member's picture beside the last bubble of a run of theirs, or its empty place beside the others
+ * (chat/SenderAvatar.tsx): smaller on a phone, and gone in a very narrow chat (a 330px pane), where the bubbles need
+ * the room and the name's colour alone tells who wrote.
+ */
+.sender-avatar { width: 28px; height: 28px; flex-shrink: 0; align-self: flex-end; margin-inline-end: 2px; }
+@media (width < 48rem) { .sender-avatar { width: 24px; height: 24px; } }
+@container message-list (width < 36rem) { .sender-avatar { width: 24px; height: 24px; } }
+@media (width < 22rem) { .sender-avatar { display: none; } }
+@container message-list (width < 22rem) { .sender-avatar { display: none; } }
+
+/*
+ * The list's size comes from the chat's column (it is a flex item that scrolls), never from its rows. Said so, a
+ * keystroke that lays the composer out again no longer makes Chromium paint every row of a long chat once more.
+ */
+[data-message-list] {
+  contain: size;
+}
+
+/*
+ * The rows of a long chat off screen are left out of its layout and paint: each page of older rows coming in laid out
+ * and painted all the rows in the page (150), 50-90 ms on a mid phone, a freeze at every step of a wheel up the history.
+ * A row never drawn takes a typical row's height; one drawn keeps its last real one (`auto`), and the view stays on its
+ * message as a row comes on screen at its real height (useChatScroll's `settle`). Not the last rows: one arriving there
+ * would first take the typical height, and a chat at its bottom would go past its end and come back. Every row
+ * remembers its size, so the one that stops being among the last as another arrives keeps its own. Its bubble's
+ * shadow and outline pass the row's edge by a few pixels: still painted, so only where the clip can be widened (WebKit
+ * can't, and would cut them). Not a row playing its video full screen (`position: fixed`), which the containment would
+ * hold inside the row.
+ */
+@supports (overflow-clip-margin: 8px) {
+  [data-message-row] {
+    contain-intrinsic-block-size: auto 90px;
+    overflow-clip-margin: 8px;
+  }
+  [data-message-row]:nth-last-child(n + 11 of [data-message-row]):not(:has([data-theater])) {
+    content-visibility: auto;
+  }
+}
+
+/* On a touch screen a long press on a message opens its quick bar (Copy is there). iOS fires no `contextmenu` to cancel,
+   so it also selected a word and put its own Copy, Look Up, Translate menu over the bar. Links keep their own callout. */
+@media (pointer: coarse) {
+  [data-message-row] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* A field in a message (a card's) still takes its text: iOS would not type into one inside an unselectable box. */
+  [data-message-row] :is(input, textarea, [contenteditable]) {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* Inline timestamp float (WhatsApp-style) */
+.msg-meta {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.clearfix::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+/*
+ * Ghost "boo!": the syncing mark on a chat's row, and the ghost of the empty chat list. A few times, then it rests
+ * at the opacity it moves around: a loop that never ends keeps the window drawing 60 frames a second for as long as
+ * it is on screen, and on Linux (WebKitGTK) that is a core kept busy by an idle app.
+ */
+@keyframes ghost-boo {
+  0%, 100% {
+    transform: translateX(0) rotate(0deg);
+    opacity: 0.35;
+  }
+  25% {
+    transform: translateX(-1px) rotate(-3deg);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateX(1px) rotate(3deg);
+    opacity: 0.35;
+  }
+  75% {
+    transform: translateX(-0.5px) rotate(-2deg);
+    opacity: 0.4;
+  }
+}
+
+.animate-ghost-boo {
+  opacity: 0.35;
+  animation: ghost-boo 1s ease-in-out 3;
+}
+
+/*
+ * Motion that rests (lib/windowAway.ts). The loops below say something is under way; while the window is away
+ * (hidden, or not the focused one: behind others, on another workspace) nobody is looking, so they hold still and go
+ * on when it is back. Only loops are listed: a finite animation (a bubble coming in) must finish, or it would leave
+ * its element half shown. A new loop goes here too (test/idleMotion.test.ts checks the stylesheets).
+ */
+:root[data-away] :is(.animate-spin, .animate-pulse, .animate-pulse-dot, .typing-dots > span, .profile-switch-badge,
+  .voice-bar-dot, .voice-slide-arrow, .new-wallet-spinner, .pi-packet),
+:root[data-away] .new-wallet-shimmer::after { animation-play-state: paused !important; }
+
+/* RTL support for Arabic */
+[dir="rtl"] {
+  direction: rtl;
+}
+
+/* ============================================
+   Motion: things arriving, money moving
+   ============================================ */
+
+@keyframes bubble-in-left {
+  from { opacity: 0; transform: translate(-10px, 8px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes bubble-in-right {
+  from { opacity: 0; transform: translate(10px, 8px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+/* `backwards`, never `both`: an entry kept in effect once it ends stays alive on every row that came while the chat was
+   open, for as long as the row is in the page (one more animation per message in Chromium and WebKit, a transform per
+   row in Chromium). Ended, the row is as any other. */
+.animate-bubble-in-left { animation: bubble-in-left 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; transform-origin: bottom left; }
+.animate-bubble-in-right { animation: bubble-in-right 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; transform-origin: bottom right; }
+
+/* A band of light crossing a payment that just settled. */
+@keyframes sats-shine {
+  from { background-position: -150% 0; }
+  to { background-position: 250% 0; }
+}
+.animate-sats-shine {
+  background-image: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.22) 50%, transparent 65%);
+  background-size: 60% 100%;
+  background-repeat: no-repeat;
+  animation: sats-shine 0.9s ease-out 0.1s both;
+}
+
+@keyframes bolt-pop {
+  0% { transform: scale(0.4) rotate(-20deg); opacity: 0; }
+  60% { transform: scale(1.35) rotate(6deg); opacity: 1; }
+  100% { transform: none; }
+}
+.animate-bolt-pop { display: inline-block; animation: bolt-pop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both; }
+
+@keyframes nudge {
+  0%, 100% { transform: none; }
+  20% { transform: translateX(-5px) rotate(-1deg); }
+  40% { transform: translateX(5px) rotate(1deg); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+.animate-nudge { animation: nudge 0.5s ease-in-out 0.25s both; }
+
+@keyframes check-draw {
+  from { stroke-dashoffset: 48; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes check-ring {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.animate-check-ring { animation: check-ring 0.35s cubic-bezier(0.3, 1.4, 0.5, 1) both; }
+.animate-check-draw { stroke-dasharray: 48; animation: check-draw 0.4s ease-out 0.25s both; }
+
+@keyframes pop {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.2); }
+  100% { transform: none; }
+}
+.animate-pop { animation: pop 0.35s cubic-bezier(0.3, 1.5, 0.5, 1) both; }
+
+/* The typing indicator's dots (components/TypingIndicator.tsx): a soft wave, still and fully shown when motion is reduced. */
+.typing-dots { display: inline-flex; align-items: center; gap: 2px; }
+.typing-dots > span { width: 4px; height: 4px; border-radius: 999px; background: currentColor; animation: typing-dot 1.2s ease-in-out infinite; }
+.typing-dots > span:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots > span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing-dot { 0%, 60%, 100% { opacity: 1; transform: none; } 30% { opacity: 0.35; transform: translateY(-2px); } }
+:root[data-reduce-motion="true"] .typing-dots > span { animation: none; }
+@media (prefers-reduced-motion: reduce) { .typing-dots > span { animation: none; } }
+
+/* The message a reply's quote was tapped for, for a moment (apps/ui/src/lib/replies.ts): a tint, not a motion. */
+[data-message-row] { transition: background-color 0.4s ease-out; }
+[data-message-row][data-reply-flash] { background-color: color-mix(in srgb, var(--color-accent) 16%, transparent); }
+[data-message-row][data-reply-flash] :is([data-message-bubble], [data-message-card]) { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/*
+ * A bot's status card in the chat (chat/StatusCard.tsx, and the row folding its routines): a card of its own, not a
+ * bubble. No tail, round on every corner, the theme's surface with an edge and a lift, so it reads apart from the
+ * messages around it in every theme.
+ */
+/* A bot's card: a received bubble's colour (so it sits in every theme's palette), a hairline of the text's own colour
+   and a bubble's light shadow; no fill of its own. */
+.status-card-surface {
+  position: relative;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+  background-color: var(--color-received-bg);
+  box-shadow: 0 1px 0.5px rgb(11 20 26 / 0.13);
+}
+
+/* A bot's buttons under its message (chat/MessageButtons.tsx): the same surface as its card, a received bubble's colour
+   and a hairline. The primary one is marked by its accent edge and text over a light accent wash, never a solid fill; a
+   danger one by its danger text and edge. */
+.message-button {
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+  background-color: var(--color-received-bg);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 0.5px rgb(11 20 26 / 0.13);
+}
+.message-button[data-style="primary"] {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+  background-color: color-mix(in srgb, var(--color-accent) 12%, var(--color-received-bg));
+  color: var(--color-link);
+}
+.message-button[data-style="danger"] {
+  border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
+  color: var(--color-danger-ink);
+}
+.message-button[aria-disabled="true"]:not([data-chosen]) { opacity: 0.5; }
+.message-button:not([aria-disabled="true"]):hover { background-color: color-mix(in srgb, var(--color-text-primary) 6%, var(--color-received-bg)); }
+.message-button[data-style="primary"]:not([aria-disabled="true"]):hover { background-color: color-mix(in srgb, var(--color-accent) 20%, var(--color-received-bg)); }
+
+/* The user's choice in Settings, or the system's. */
+:root[data-reduce-motion="true"] *,
+:root[data-reduce-motion="true"] *::before,
+:root[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* AccountBar is desktop-only. Container rules follow the resizable sidebar. */
+.account-footer { container-type: inline-size; }
+/* One even column per place, however many this client shows (Services needs a platform, the wallet a wallet). */
+.account-actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; padding: 7px 8px; height: 64px; }
+.account-action { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; border-radius: 8px; cursor: pointer; color: var(--theme-text-secondary); }
+.account-action:hover, .account-action[aria-expanded="true"], .account-action[aria-current="page"] { background: var(--theme-surface-hover); color: var(--theme-accent); }
+.account-action:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: -2px; }
+.account-label { font-size: 0.625rem; line-height: 0.75rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A place's name that would be cut at this width hides with the others; the icon, its tooltip and its name stay. It
+   keeps its line, so the icons stay level. The profile's own name never decides it: a long one ends in "…". */
+.account-actions[data-compact] .account-label { visibility: hidden; }
+/* Under the chat list folded to a rail (ChatRail.tsx): the places stacked, by their icons; the switcher as wide as on the list. */
+.account-footer[data-rail] .account-actions { grid-auto-flow: row; grid-auto-rows: 44px; height: auto; }
+.account-footer[data-rail] .account-label { display: none; }
+.account-footer[data-rail] .profile-switcher-popover { right: auto; width: 20rem; }
+[dir="rtl"] .account-footer[data-rail] .profile-switcher-popover { left: auto; right: 0.5rem; }
+/* Something to look at behind an icon (Identities, sats that came in): a dot on its corner, ringed in the bar's color. */
+.nav-dot { --dot-ring: var(--theme-sidebar-bg); position: absolute; top: -2px; right: -3px; width: 9px; height: 9px; border-radius: 999px;
+  background: var(--theme-accent); box-shadow: 0 0 0 2px var(--dot-ring); animation: nav-dot-in 0.45s cubic-bezier(.2,1.6,.4,1) both; }
+.nav-dot-tab { --dot-ring: var(--theme-panel-header); }
+/* Test sats only: the same dot, hollow. */
+.nav-dot-test { background: var(--dot-ring); box-shadow: inset 0 0 0 1.5px var(--theme-accent), 0 0 0 2px var(--dot-ring); }
+.nav-dot-inline { display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: var(--theme-accent); flex-shrink: 0; }
+@keyframes nav-dot-in { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .nav-dot { animation: none; } }
+/* The same dot on the way down to what it is about (lib/needsYou): a network tab, beside its name; a wallet card, on
+   its chip's corner (shown on a small card too, where the chip is not), ringed in the card's own dark. */
+.wallet-network .needs-you-dot { margin-inline-start: 6px; }
+.needs-you-chip { position: relative; }
+.needs-you-chip .needs-you-dot { position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; box-shadow: 0 0 0 2px var(--to, #0b1f2a); }
+@container wallet-card (width < 154px) { .wallet-deck-card-chip.needs-you-chip { display: block; width: 10px; height: 10px; background: none; } }
+/* Another profile left something unread: a ring around the picture, in the accent. */
+.profile-others-ring { position: absolute; inset: -3px; border-radius: 999px; box-shadow: 0 0 0 2px var(--theme-accent); pointer-events: none;
+  animation: nav-dot-in 0.45s cubic-bezier(.2,1.6,.4,1) both; }
+/* Something new seen waiting for another profile (WISP 04 § Checking other profiles): a dot on the ring, not only the ring. */
+.profile-others-new { position: absolute; top: -4px; right: -4px; width: 9px; height: 9px; border-radius: 999px; background: var(--theme-accent);
+  box-shadow: 0 0 0 2px var(--theme-sidebar-bg, var(--theme-panel-header)); pointer-events: none; animation: nav-dot-in 0.45s cubic-bezier(.2,1.6,.4,1) both; }
+.profile-switcher-popover { animation: profile-switcher-in 140ms ease-out both; transform-origin: bottom left; }
+.profile-switcher-sheet { animation: profile-switcher-sheet-in 180ms ease-out both; max-height: 80vh; overflow-y: auto; }
+@keyframes profile-switcher-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } }
+/* A Select's list (components/ui/Select.tsx): opens toward where it sits, from its button's edge. */
+.select-list { animation: select-in 120ms ease-out both; transform-origin: top; }
+.select-list[data-placement="top"] { transform-origin: bottom; animation-name: select-in-up; }
+@keyframes select-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+@keyframes select-in-up { from { opacity: 0; transform: translateY(4px) scale(0.98); } }
+:root[data-reduce-motion="true"] .select-list { animation: none; }
+@media (prefers-reduced-motion: reduce) { .select-list { animation: none; } }
+@keyframes profile-switcher-sheet-in { from { transform: translateY(100%); } }
+/* The app restarting as another profile: that profile's picture and name over everything, then out. */
+.profile-switch-splash { animation: profile-switch-in 120ms ease-out both; }
+.profile-switch-splash[data-leaving] { animation: profile-switch-out 180ms ease-in both; }
+@keyframes profile-switch-in { from { opacity: 0; } }
+@keyframes profile-switch-out { to { opacity: 0; } }
+.profile-switch-badge { animation: profile-switch-pulse 1.2s ease-in-out infinite; }
+@keyframes profile-switch-pulse { 50% { transform: scale(0.94); } }
+@media (prefers-reduced-motion: reduce) { .profile-others-ring, .profile-others-new, .profile-switch-badge { animation: none; } }
+.account-action > svg, .account-action > span:first-child { flex-shrink: 0; }
+
+/* Action affordances, without changing text inputs or disabled controls. */
+button:not(:disabled):not([aria-disabled="true"]), summary,
+a[href]:not([aria-disabled="true"]),
+input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled), select:not(:disabled),
+[role="button"]:not(:disabled):not([aria-disabled="true"]), [role="switch"]:not(:disabled):not([aria-disabled="true"]) { cursor: pointer; }
+button:disabled, button[aria-disabled="true"], input[type="checkbox"]:disabled, input[type="radio"]:disabled, select:disabled,
+[role="button"][aria-disabled="true"], [role="switch"][aria-disabled="true"] { cursor: not-allowed; }
+
+/* Shared desktop baseline; the composer can still grow with multiline text. */
+@media (min-width: 768px) {
+  :root { --conversation-footer-height: 60px; --conversation-control-height: 40px; }
+  .account-actions { height: calc(var(--conversation-footer-height) - 1px); }
+  /* Two panes on a touch screen (an iPad, a phone on its side) have the home indicator under both bottom rows: the
+     composer and the account bar end above it, level with each other. The inset is 0 everywhere else. */
+  .composer-safe {
+    min-height: calc(var(--conversation-footer-height) + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--theme-border);
+    padding-block: calc((var(--conversation-footer-height) - var(--conversation-control-height) - 1px) / 2);
+    padding-bottom: calc((var(--conversation-footer-height) - var(--conversation-control-height) - 1px) / 2 + env(safe-area-inset-bottom));
+  }
+  .account-footer { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* With the keyboard up the home indicator is covered: the composer stands on the keyboard, as on a phone held upright. */
+@media (min-width: 768px) and (pointer: coarse) {
+  html[data-keyboard="true"] .composer-safe {
+    padding-bottom: calc((var(--conversation-footer-height) - var(--conversation-control-height) - 1px) / 2);
+    min-height: var(--conversation-footer-height);
+  }
+  html[data-keyboard="true"] .account-footer { padding-bottom: 0; }
+}
+/* A phone on its side: the keyboard leaves about 150px, and the list pane's header, its search field and the account bar
+   took all of it (a search showed no chat). The bar goes behind the keyboard, as the tab bar does upright. */
+@media (min-width: 768px) and (pointer: coarse) and (max-height: 500px) {
+  html[data-keyboard="true"] .account-footer { display: none; }
+}
+
+.conversation-pin { transform-origin: center; transition: transform 180ms ease-out; }
+
+/* The desktop header follows the resizable column, not the window width. The logo and the buttons keep at least 8px
+   between them there; wherever the row has room, it spreads them further apart. */
+.sidebar-desktop .sidebar-header { container: chat-sidebar / inline-size; gap: 8px; }
+.sidebar-desktop .sidebar-home { min-width: 40px; min-height: 40px; flex-shrink: 0; }
+/* Connection controls keep native checkbox behavior with an explicit WebKit-safe visual. */
+.connection-switch-row { cursor: pointer; }
+.connection-switch-row:has(input:disabled) { cursor: not-allowed; }
+.connection-switch { position: relative; display: inline-flex; flex-shrink: 0; align-items: center; width: 40px; height: 28px; }
+.connection-switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; z-index: 1; }
+.connection-switch-track { width: 40px; height: 24px; border: 1px solid var(--theme-text-secondary); border-radius: 999px; background: var(--theme-surface-hover); transition: background-color 160ms ease, border-color 160ms ease; }
+.connection-switch-track::after { content: ""; display: block; width: 16px; height: 16px; margin: 3px; border-radius: 50%; background: var(--theme-text-primary); transition: transform 160ms ease; }
+.connection-switch input:checked + .connection-switch-track { background: var(--theme-accent); border-color: var(--theme-accent); }
+.connection-switch input:checked + .connection-switch-track::after { transform: translateX(16px); background: var(--theme-panel-header); }
+/* Right to left the knob starts at the right end, so on it moves left: else it leaves its track (Arabic). */
+[dir="rtl"] .connection-switch input:checked + .connection-switch-track::after { transform: translateX(-16px); }
+.connection-switch input:focus-visible + .connection-switch-track { outline: 2px solid var(--theme-accent); outline-offset: 3px; }
+.connection-switch input:disabled + .connection-switch-track { opacity: 0.55; }
+@media (prefers-reduced-motion: reduce) {
+  .connection-switch-track, .connection-switch-track::after { transition: none; }
+}
+@container chat-sidebar (max-width: 340px) {
+  .sidebar-action-label { display: none; }
+  .sidebar-header-action { width: 40px; gap: 0; }
+  /* New and its arrow share one cell; Join fills the other, so both read the same size. */
+  .sidebar-new-split > .sidebar-header-action { width: auto; }
+  [data-testid="sidebar-chat-actions"] > .sidebar-header-action { width: 100%; }
+}
+/* The narrowest phones, the same: with their labels, the buttons leave no room for the logo. */
+@media (max-width: 343px) {
+  .sidebar-action-label { display: none; }
+  .sidebar-header-action { width: 40px; gap: 0; }
+  .sidebar-new-split > .sidebar-header-action { width: auto; }
+  [data-testid="sidebar-chat-actions"] > .sidebar-header-action { width: 100%; }
+}
+/* Wherever the words do not fit beside the logo in this language (hooks/useLabelsFit.ts): the same. */
+.sidebar-header[data-labels="off"] .sidebar-action-label { display: none; }
+.sidebar-header[data-labels="off"] .sidebar-header-action { width: 40px; gap: 0; }
+.sidebar-header[data-labels="off"] .sidebar-new-split > .sidebar-header-action { width: auto; }
+.sidebar-header[data-labels="off"] [data-testid="sidebar-chat-actions"] > .sidebar-header-action { width: 100%; }
+
+/* Which money: "Test money" or "Real money", wherever money moves. Words first; the colour only echoes them. */
+.network-tag{display:inline-block;padding:0 6px;border:1px solid currentColor;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;line-height:1.7;text-transform:uppercase;vertical-align:middle;white-space:nowrap}
+.network-tag[data-network="testnet"]{color:var(--color-test-money-ink)}
+.payment-back .network-tag[data-network="testnet"]{color:var(--color-test-money)}
+.network-tag[data-network="mainnet"]{color:var(--color-accent)}
+/* In a bubble, half of it is the bubble's own ink: the accent and the yellow alone fall under 3:1 on sent bubbles
+   (the accent on classic's green, the yellow on every light one). The mix keeps the hue and reads at 4:1 or more. */
+.money-ink-mainnet,[data-message-bubble] .network-tag[data-network="mainnet"]{color:color-mix(in oklab,var(--color-accent) 50%,var(--color-text-primary))}
+[data-message-bubble] .network-tag[data-network="testnet"]{color:color-mix(in oklab,var(--color-test-money) 50%,var(--color-text-primary))}
+.payment-back-network{margin-left:8px;font-size:9px}
+
+/* An app opened alone covers the whole screen: its bar keeps clear of a phone's status bar and notch (webOpener.ts). */
+.alone-bar {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+  padding-inline-start: max(0.75rem, env(safe-area-inset-left));
+  padding-inline-end: max(0.75rem, env(safe-area-inset-right));
+}
+
+/* Forced colors (Windows Contrast themes, Edge and Chrome's forced colors): the keyboard focus's mark. Most controls
+   show the focus with a Tailwind ring alone (`focus-visible:outline-none focus-visible:ring-2`), a box-shadow, which
+   forced colors drops, and Tailwind 4's `outline-none` is `outline-style: none`: nothing marked the focus there. A
+   system-colour outline instead, where the ring was (an inset ring's inside the control). Only the focus's mark here;
+   other forced-colors rules go in blocks of their own. Elements focused only by script (`tabindex="-1"`) keep none. */
+@media (forced-colors: active) {
+  :focus-visible:not([tabindex="-1"]) { outline: 2px solid Highlight !important; }
+  [class~="focus-visible:ring-inset"]:focus-visible { outline-offset: -2px; }
+  /* A field whose frame draws the focus (the chat list's search, `has-[input:focus-visible]:outline-2`): one mark, the frame's. */
+  :has(> input:focus-visible)[class~="has-[input:focus-visible]:outline-2"] { outline: 2px solid Highlight !important; }
+  [class~="has-[input:focus-visible]:outline-2"] > input:focus-visible { outline: none !important; }
+}

@@ -1,0 +1,303 @@
+import { parseCallSignal } from "@ghostly/core";
+import type { MessageChanges } from "../shared/messageChanges";
+import type { EngineEvent, RpcRequest, RpcResponse } from "../shared/rpc";
+import type { StoredMessage } from "../shared/types";
+import { errorLine, profileOpenFailure } from "../shared/idb";
+import type { PeerServer, PeerStopOptions } from "../devices/linkOnly";
+import { GhostlyNode, LIMITED_MODE_ERROR, LIMITED_MODE_METHODS, type NodeOptions } from "./node";
+
+/**
+ * The peer plus what it takes to serve UI clients: answer their calls, and
+ * tell every one of them what changes. How clients are attached (an extension
+ * port, a function call in the same page) is the host's business.
+ */
+export interface EngineClientSink {
+  post(message: EngineEvent | RpcResponse): void;
+}
+
+export class EngineServer implements PeerServer {
+  /** The whole engine: never made on a device that is not the active one (`devices/peer.ts` decides, WISP 06 § The gate). */
+  readonly gated = false;
+  readonly node: GhostlyNode;
+  readonly ready: Promise<void>;
+  private readonly clients = new Set<EngineClientSink>();
+  /**
+   * Per client, the chats and groups whose whole history it was sent. It hears only what changes in those; one it
+   * does not have yet is sent first (read once, when its first change comes), then what changes: whole, or as its newest
+   * page to a client that attached for those (`newest`).
+   */
+  private readonly histories = new WeakMap<EngineClientSink, Set<string>>();
+  /** The clients that attached with `newest`, and how many rows of a chat they get before they ask for the rest. */
+  private readonly newest = new WeakMap<EngineClientSink, number>();
+  /** Per chat or group, what is still being sent (a whole history being read): what comes next waits for it. */
+  private readonly sending = new Map<string, Promise<void>>();
+  /**
+   * Per chat, the contact's call offer that nothing here has answered yet. A client that attaches while it rings hears
+   * it too: the extension's peer runs with no tab open, and a tab opened during the ring used to show no call.
+   */
+  private readonly offers = new Map<string, string>();
+  /**
+   * The clients a call is on in (`setCallOn`): the engine hears whether any is, so a handoff waits for every page's
+   * call (WISP 06 § States and events). A client that goes away (a tab closed mid-call) is taken out with it.
+   */
+  private readonly onCall = new Set<EngineClientSink>();
+  /** How many history changes the engine told; per chat or group, the count at its last one (`historyMark`). */
+  private changes = 0;
+  private readonly changedAt = new Map<string, number>();
+
+  constructor(options: NodeOptions = {}) {
+    this.node = new GhostlyNode(
+      {
+        onAttention: (event) => this.broadcast({kind:"attention", event}),
+        onState: (state) => this.broadcast({ kind: "state", state }),
+        onMessages: (linkId, messages) => { this.changed(linkId); void this.inOrder(linkId, () => this.sendHistory(linkId, messages)).catch(() => {}); },
+        onMessageChanges: (linkId, changes) => { this.changed(linkId); void this.inOrder(linkId, () => this.sendChanges(linkId, changes)).catch(() => {}); },
+        onCallSignal: (linkId, signal) => {
+          if (signalKind(signal) === "o") this.offers.set(linkId, signal);
+          else this.offers.delete(linkId);
+          this.broadcast({ kind: "call-signal", linkId, signal });
+        },
+        // A contact's mini-app frame (WISP 1200 § In a chat): to the pages, where the app runs. Never stored.
+        onAppFrame: (linkId, event) => this.broadcast({ kind: "app-frame", linkId, event }),
+        // A range the contact's app asks of a served file: the page that served it reads it and answers.
+        onAppRange: (linkId, range) => this.broadcast({ kind: "app-range", linkId, range }),
+        // An update check of the installed apps ran: the pages read them again, and stop one it stopped.
+        onAppsChecked: () => this.broadcast({ kind: "apps-checked" }),
+        // Another device took the turn (WISP 06): the pages show the standby screen and start again into the gate.
+        onDeviceGate: (gate) => this.broadcast({ kind: "device-gate", gate }),
+      },
+      options,
+    );
+    this.ready = this.node.start();
+    // A start that fails is told to each client as it attaches; nothing else may be left to report it as unhandled.
+    this.ready.catch(() => {});
+  }
+
+  /** A point in the engine's history changes: a history read after it can be handed to `attach` as read. */
+  get historyMark(): number {
+    return this.changes;
+  }
+
+  /** Whether a chat's or group's history changed after `mark` (`historyMark`); with none, since this engine was made. */
+  historyChanged(id: string, mark = 0): boolean {
+    return (this.changedAt.get(id) ?? 0) > mark;
+  }
+
+  /**
+   * `read`: the chats and groups whose whole history the client read itself, after `mark` (`historyMark`). One that has
+   * not changed since is not read and sent again: the client hears only what changes in it from now on.
+   * `newest`: each chat's newest rows that many (`messagePage`), not its whole history, which the client asks for when
+   * it needs it (`HistoryRequest`). What changes in the chat goes to it on top of that page.
+   */
+  attach(client: EngineClientSink, read?: { mark: number; ids: Iterable<string> }, scope: { newest?: number } = {}): void {
+    this.clients.add(client);
+    const sent = new Set<string>();
+    if (read) for (const id of read.ids) if ((this.changedAt.get(id) ?? 0) <= read.mark) sent.add(id);
+    this.histories.set(client, sent);
+    if (scope.newest) this.newest.set(client, scope.newest);
+    else this.newest.delete(client);
+    void this.ready.then(async () => {
+      if (!this.clients.has(client)) return;
+      client.post({ kind: "state", state: this.node.getState() });
+      // A call still ringing; one too old to answer is forgotten (the client would refuse it too).
+      for (const [linkId, signal] of this.offers) {
+        if (parseCallSignal(signal)?.t === "o") client.post({ kind: "call-signal", linkId, signal });
+        else this.offers.delete(linkId);
+      }
+      for (const link of this.node.getState().links) {
+        if (sent.has(link.id)) continue;
+        await this.inOrder(link.id, async () => {
+          if (!this.clients.has(client)) return;
+          client.post(scope.newest ? await this.newestOf(link.id, scope.newest) : this.historyEvent(link.id, await this.node.getMessages(link.id)));
+          this.histories.get(client)?.add(link.id);
+        });
+      }
+    }, (error: unknown) => {
+      // The peer never started (the profile's database did not open): the client is told why, so the app says so
+      // instead of showing a chat list that looks alive. Before, this was dropped here and nothing was said.
+      this.post(client, { kind: "start-failed", failure: profileOpenFailure(error) });
+    }).catch(() => {
+      // The client went away mid-snapshot (dropped, as broadcast does).
+      this.clients.delete(client);
+    });
+  }
+
+  stop(options: PeerStopOptions = {}): Promise<void> {
+    return this.node.shutdown({ quitting: options.quitting === true });
+  }
+
+  detach(client: EngineClientSink): void {
+    this.clients.delete(client);
+    this.histories.delete(client);
+    if (this.clients.size === 0) {
+      this.node.setActiveLink({ linkId: null });
+      // Apps run in the pages: with none left, none runs, and the contacts hear so.
+      this.node.appsCloseAll();
+    }
+    if (this.onCall.delete(client)) this.node.setCallOn({ on: this.onCall.size > 0 });
+  }
+
+  async handle(client: EngineClientSink, request: RpcRequest): Promise<void> {
+    if (request?.kind !== "request") return;
+    const response: RpcResponse = { kind: "response", id: request.id };
+    // This app answered, declined or called in that chat: the contact's offer is not one to ring for any more.
+    if (request.method === "setCallSignal") this.callHandled(client, request.params);
+    let params: unknown = request.params;
+    // One page's call: the engine is told whether a call is on in any of them.
+    if (request.method === "setCallOn") {
+      if ((request.params as { on?: unknown } | undefined)?.on === true) this.onCall.add(client);
+      else this.onCall.delete(client);
+      params = { on: this.onCall.size > 0 };
+    }
+    try {
+      // A group's newest page and its history are reads of the store: they answer once the groups are loaded, not after
+      // every chat's whole history is read and every link started. A group shown at start stayed empty until then.
+      await (readsGroupHistory(request) ? Promise.race([this.ready, this.node.groupsRead]) : this.ready);
+      const method = this.node[request.method] as (params: unknown) => unknown;
+      if (typeof method !== "function") throw new Error(`Unknown method: ${request.method}`);
+      // Limited mode (WISP 06): only what reads history, writes messages and changes settings.
+      if (this.node.limited && !LIMITED_MODE_METHODS.has(String(request.method))) throw new Error(LIMITED_MODE_ERROR);
+      response.result = await method.call(this.node, params);
+    } catch (error) {
+      response.error = errorLine(error);
+    }
+    try {
+      client.post(response);
+    } catch {
+      // the client went away
+    }
+  }
+
+  /**
+   * Sends what one chat or group needs sent after what is still being sent for it, or at once when nothing is: its
+   * events reach each client in the order they happened. The step's failure is the caller's; the next step runs anyway.
+   */
+  private inOrder(linkId: string, step: () => void | Promise<void>): Promise<void> {
+    const before = this.sending.get(linkId);
+    if (before) return this.track(linkId, before.then(step));
+    try {
+      const result = step();
+      return result instanceof Promise ? this.track(linkId, result) : Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  /** A chat's newest page, as a `messages` event: `more` when older rows are left out. */
+  private async newestOf(linkId: string, limit: number): Promise<EngineEvent> {
+    const page = await this.node.messagePage({ linkId, limit });
+    return this.historyEvent(linkId, page.messages, page.more);
+  }
+
+  /**
+   * A chat's or group's whole history, to this client alone as a `messages` event, after what is still being sent for it
+   * (a `HistoryRequest`, which the host hands here): what changes while it is read follows it. A group's, once the groups
+   * are read, as `groupMessages` answers: a group that opens while the engine starts is not left on its newest page.
+   */
+  async history(client: EngineClientSink, linkId: unknown): Promise<void> {
+    if (typeof linkId !== "string" || !this.clients.has(client)) return;
+    try {
+      await (linkId.startsWith("group:") ? Promise.race([this.ready, this.node.groupsRead]) : this.ready);
+      await this.inOrder(linkId, async () => {
+        if (!this.clients.has(client)) return;
+        const messages = await this.node.getMessages(linkId);
+        if (this.clients.has(client) && this.post(client, this.historyEvent(linkId, messages))) this.histories.get(client)?.add(linkId);
+      });
+    } catch {
+      // The peer never started (the client was told at its attach), or the read failed: nothing is sent.
+    }
+  }
+
+  private changed(linkId: string): void {
+    this.changedAt.set(linkId, ++this.changes);
+  }
+
+  private track(linkId: string, running: Promise<void>): Promise<void> {
+    const settled = running.catch(() => {});
+    this.sending.set(linkId, settled);
+    void settled.then(() => { if (this.sending.get(linkId) === settled) this.sending.delete(linkId); });
+    return running;
+  }
+
+  /**
+   * A history (whole, or its newest page with `more`) as a client gets it: with the ids the engine deleted in it, which
+   * a list cannot show.
+   */
+  private historyEvent(linkId: string, messages: StoredMessage[], more?: boolean): EngineEvent {
+    const deleted = this.node.deletedIdsOf(linkId);
+    return { kind: "messages", linkId, messages, ...(more ? { more: true as const } : {}), ...(deleted.length > 0 && { deleted }) };
+  }
+
+  private sendHistory(linkId: string, messages: StoredMessage[]): void {
+    this.broadcast(this.historyEvent(linkId, messages));
+    for (const client of this.clients) this.histories.get(client)?.add(linkId);
+  }
+
+  private sendChanges(linkId: string, changes: MessageChanges): void | Promise<void> {
+    const behind: EngineClientSink[] = [];
+    for (const client of this.clients) {
+      if (!this.histories.get(client)?.has(linkId)) { behind.push(client); continue; }
+      this.post(client, { kind: "message-changes", linkId, ...changes });
+    }
+    if (!behind.length) return;
+    return this.catchUp(linkId, behind);
+  }
+
+  /**
+   * A chat or group these clients do not have, read now: it holds the changes that brought it here, and what changes next
+   * follows it. A client that attached with `newest` gets that page, and asks for the rest when it shows the chat: a group
+   * is in no attach, and the first message of each one went whole, as JSON, to every tab, whether or not one showed it.
+   */
+  private async catchUp(linkId: string, behind: EngineClientSink[]): Promise<void> {
+    let whole: StoredMessage[] | undefined;
+    for (const client of behind) {
+      const newest = this.newest.get(client);
+      const event = newest ? await this.newestOf(linkId, newest) : this.historyEvent(linkId, whole ??= await this.node.getMessages(linkId));
+      if (this.clients.has(client) && this.post(client, event)) this.histories.get(client)?.add(linkId);
+    }
+  }
+
+  private post(client: EngineClientSink, event: EngineEvent): boolean {
+    try {
+      client.post(event);
+      return true;
+    } catch {
+      this.clients.delete(client);
+      return false;
+    }
+  }
+
+  private broadcast(event: EngineEvent): void {
+    for (const client of [...this.clients]) this.post(client, event);
+  }
+
+  /**
+   * A page sent a call signal in a chat. While the contact's offer rang there, an answer or a hang-up is that page taking
+   * the call or declining it: the other pages (the extension's tabs share one engine) stop ringing. Before, they rang
+   * on to their timeout and then wrote "Missed call" into the history of a call that was on, and a Decline pressed in
+   * one of them ended it.
+   */
+  private callHandled(from: EngineClientSink, params: unknown): void {
+    const { linkId, signal } = (params ?? {}) as { linkId?: unknown; signal?: unknown };
+    if (typeof linkId !== "string" || !this.offers.delete(linkId)) return;
+    const kind = typeof signal === "string" ? signalKind(signal) : undefined;
+    if (kind !== "a" && kind !== "h") return;
+    for (const client of [...this.clients]) if (client !== from) this.post(client, { kind: "call-handled", linkId });
+  }
+}
+
+/** Whether a call only reads a group's stored history (`GhostlyNode.groupsRead`). */
+function readsGroupHistory(request: RpcRequest): boolean {
+  if (request.method === "groupMessages") return true;
+  const linkId = (request.params as { linkId?: unknown } | undefined)?.linkId;
+  return request.method === "messagePage" && typeof linkId === "string" && linkId.startsWith("group:");
+}
+
+/** A call signal's kind (`o` for an offer), read as the client reads it; checked in full before it is replayed. */
+function signalKind(signal: string): unknown {
+  try {
+    return (JSON.parse(signal) as { t?: unknown } | null)?.t;
+  } catch {
+    return undefined;
+  }
+}

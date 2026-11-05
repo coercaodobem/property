@@ -1,0 +1,229 @@
+import { RTC_CONFIG } from "@ghostly/core";
+import type { ClipboardFile } from "@ghostly/browser/host";
+import { isEmptyShare, receiveShare, type IncomingShare } from "../lib/incomingShare";
+import { PLATFORM_PASTE_MAX, readPlatformFiles } from "../lib/pastedFiles";
+
+/*
+ * What the page does only in the Android app (apps/desktop built for Android, src/android.rs): the system bars follow
+ * the theme, shares from other apps reach the Share to… picker, and a test start keeps WebRTC off public STUN.
+ */
+
+type Invoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
+type Listen = (event: string, handler: () => void) => Promise<unknown>;
+type ListenWith = <T>(event: string, handler: (event: { payload: T }) => void) => Promise<unknown>;
+
+/**
+ * Away and back. Android's WebView leaves `document.visibilityState` "visible" and `hasFocus()` true while the app is
+ * in the background (Home, another app, the screen off), so the page never knew it was away: a message that came then
+ * made no notification (AttentionFeedback, `windowAway`, the call notice all ask those two). The activity says when it
+ * stops and comes back (Rust's `app-visibility`, "hidden" or "visible"); the page's document then answers as a
+ * browser tab's does, and fires `visibilitychange`.
+ */
+export function followAppVisibility(listen: ListenWith, doc: Document = document): void {
+  let away = false;
+  const own = Object.getOwnPropertyDescriptor(Document.prototype, "visibilityState");
+  const ownHidden = Object.getOwnPropertyDescriptor(Document.prototype, "hidden");
+  const hasFocus = doc.hasFocus.bind(doc);
+  Object.defineProperty(doc, "visibilityState", { configurable: true, get: () => (away ? "hidden" : own?.get?.call(doc) ?? "visible") });
+  Object.defineProperty(doc, "hidden", { configurable: true, get: () => away || !!ownHidden?.get?.call(doc) });
+  doc.hasFocus = () => !away && hasFocus();
+  void listen<string>("app-visibility", ({ payload }) => {
+    const next = payload === "hidden";
+    if (next === away) return;
+    away = next;
+    doc.dispatchEvent(new Event("visibilitychange"));
+  }).catch(() => {});
+}
+
+/**
+ * A share from another app as Rust hands it over: its text, its files on the paste shelf, by token, and the names of
+ * those Android did not copy, too large to bring in (`leftOut`), not read (`unread`), with no room for them (`noRoom`)
+ * or past the most one share brings (`pastLimit`).
+ */
+interface Shared {
+  title: string;
+  text: string;
+  files: { token: string; name: string | null; size: number; mime: string | null }[];
+  leftOut?: string[];
+  unread?: string[];
+  noRoom?: string[];
+  pastLimit?: string[];
+}
+
+/** Where a share that waits in the picker is kept across a restart of the page (a profile switch), tokens and all. */
+const CARRIED_SHARE_KEY = "ghostly_carried_share";
+
+/** The share the page before this one kept for it, taken: it is handed over once. Null when none, or not one. */
+function takeCarriedShare(): Shared | null {
+  try {
+    const kept = sessionStorage.getItem(CARRIED_SHARE_KEY);
+    sessionStorage.removeItem(CARRIED_SHARE_KEY);
+    const shared = JSON.parse(kept ?? "null") as Shared | null;
+    const file = (f: Shared["files"][number] | null) => typeof f?.token === "string" && typeof f.size === "number";
+    const names = (left: unknown) => left === undefined || (Array.isArray(left) && left.every((name) => typeof name === "string"));
+    return shared && typeof shared.title === "string" && typeof shared.text === "string" && Array.isArray(shared.files) && shared.files.every(file)
+      && names(shared.leftOut)
+      ? shared
+      : null;
+  } catch { return null; }
+}
+
+/**
+ * An RTC configuration without the apps' public STUN servers (`RTC_CONFIG`, Google's); the profile's own ICE servers
+ * stay. A copy of the CLI's `withoutPublicStun` (packages/cli/src/runtime/engine.ts): keep the two alike.
+ */
+export function withoutPublicStun(config: RTCConfiguration | undefined): RTCConfiguration | undefined {
+  if (!config?.iceServers) return config;
+  const ours = new Set((RTC_CONFIG.iceServers ?? []).flatMap((server) => [server.urls].flat()));
+  const iceServers = config.iceServers
+    .map((server) => ({ ...server, urls: [server.urls].flat().filter((url) => !ours.has(url)) }))
+    .filter((server) => server.urls.length);
+  return { ...config, iceServers };
+}
+
+/**
+ * A debug e2e start keeps the page off the public STUN servers (`GHOSTLY_STUN=0`, MainActivity.kt): Rust's environment
+ * does not reach the WebView's WebRTC, so the page asks Rust once (`test_network`) and, when they are off, every
+ * RTCPeerConnection made from then on leaves them out, as the CLI's `leaveOutPublicStun` does. Call it before the engine
+ * makes a connection. True when it wrapped.
+ */
+export async function leaveOutPublicStun(invoke: Invoke, scope: { RTCPeerConnection?: typeof RTCPeerConnection } = window): Promise<boolean> {
+  const { stun } = await invoke<{ stun: boolean }>("test_network");
+  const Base = scope.RTCPeerConnection;
+  if (stun || !Base) return false;
+  scope.RTCPeerConnection = class extends Base {
+    constructor(config?: RTCConfiguration) { super(withoutPublicStun(config)); }
+  };
+  return true;
+}
+
+/** "rgb(11, 20, 26)" (what `getComputedStyle` gives) as "#0b141a"; undefined for a see-through colour or anything else. */
+export function cssColorHex(css: string): string | undefined {
+  const match = /^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})(?:\s*[,/]\s*([\d.]+)(%?))?\s*\)$/.exec(css.trim());
+  if (!match) return undefined;
+  if (match[4] !== undefined && Number(match[4]) === 0) return undefined;
+  return `#${[match[1], match[2], match[3]].map((n) => Math.min(255, Number(n)).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/**
+ * Android's status and navigation bars take the page's background, and icons that read on it (Rust's `system_bars`):
+ * now, and whenever the theme changes (Light or Dark, the colour theme), so no light strip sits over a dark app.
+ * Returns a stop.
+ */
+export function followSystemBars(invoke: Invoke, root: HTMLElement = document.documentElement): () => void {
+  let last = "";
+  const send = () => {
+    const color = cssColorHex(getComputedStyle(document.body).backgroundColor);
+    if (!color) return;
+    const dark = root.getAttribute("data-theme") !== "light";
+    const key = `${color} ${dark}`;
+    if (key === last) return;
+    last = key;
+    void invoke("system_bars", { color, dark }).catch(() => { last = ""; });
+  };
+  const observer = new MutationObserver(send);
+  observer.observe(root, { attributes: true, attributeFilter: ["data-theme", "data-color-theme"] });
+  send();
+  return () => observer.disconnect();
+}
+
+/**
+ * The files of a share the page takes: each in turn while all of them stay within what a paste brings in
+ * (`PLATFORM_PASTE_MAX`); one that would go past it is left out. Kotlin copies a share by the same rule
+ * (GhostlyHostPlugin.kt `shared`): keep the two alike.
+ */
+function withinPasteTotal<T extends { size: number }>(files: T[]): T[] {
+  let left = PLATFORM_PASTE_MAX;
+  return files.filter((file) => {
+    if (file.size > left) return false;
+    left -= file.size;
+    return true;
+  });
+}
+
+/**
+ * "Share to Ghostly" from another app: taken when the app starts (a share can be what started it) and whenever Rust
+ * says one arrived. The page shows the Share to… picker, as the web app's share target does, from the files' names
+ * and sizes; their bytes are read into the page, as a paste's, only when the chat picked takes them. At most a paste's
+ * size in all: a file that would pass it is left out, and named, as are those Android did not copy. A share taken
+ * later wins over one that waits. Once read (or none of it taken, or a later share took its place before it was
+ * read), the share's copies in the app's cache go (`incoming_share_done`): the page holds what it needs. Rust hands
+ * a share over once, so one that waits when the page restarts (a profile switch, `carryIncomingShare`) is kept for the
+ * next page in session storage, its tokens with it (the shelf lasts as long as the process); one not kept goes with
+ * the page, its copies too.
+ */
+export function takeIncomingShares(invoke: Invoke, listen: Listen): void {
+  /** Lets the copies of the share that waits to be read go. */
+  let letGo: (() => void) | null = null;
+  /** The share that waits was kept for the next page: its copies stay when this one goes. */
+  let carried = false;
+  const receive = (shared: Shared) => {
+    const taken = withinPasteTotal(shared.files);
+    const leftOut = [...shared.leftOut ?? [], ...shared.files.filter((file) => !taken.includes(file)).map((file) => file.name ?? "")];
+    const unread = shared.unread ?? [];
+    const noRoom = shared.noRoom ?? [];
+    const pastLimit = shared.pastLimit ?? [];
+    const clips: ClipboardFile[] = taken
+      .map(({ token, ...file }) => ({
+        ...file,
+        read: async (offset: number, length: number) => {
+          // Raw bytes, or a JSON array of them where the IPC goes through `postMessage` (Android).
+          const bytes = await invoke<ArrayBuffer | number[]>("read_pasted_bytes", { token, offset, length });
+          return bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : new Uint8Array(bytes);
+        },
+      }));
+    const files = clips.map((clip) => ({ name: clip.name ?? "", size: clip.size, type: clip.mime ?? "" }));
+    let held = true;
+    // Every token at once, the ones left out too: the share's copies go together.
+    const done = () => {
+      if (!held) return;
+      held = false;
+      void invoke("incoming_share_done", { tokens: shared.files.map((file) => file.token) }).catch(() => {});
+    };
+    const share: IncomingShare = {
+      title: shared.title,
+      text: shared.text,
+      url: "",
+      files,
+      ...(leftOut.length > 0 && { leftOut }),
+      ...(unread.length > 0 && { unread }),
+      ...(noRoom.length > 0 && { noRoom }),
+      ...(pastLimit.length > 0 && { pastLimit }),
+      read: async () => {
+        // Being read: a later share no longer lets these go under it; they go when the read ends.
+        if (letGo === done) letGo = null;
+        try {
+          return await readPlatformFiles(clips);
+        } finally {
+          done();
+        }
+      },
+      carry: () => {
+        // Its copies already let go: nothing of it would read on the next page.
+        if (clips.length && !held) return false;
+        sessionStorage.setItem(CARRIED_SHARE_KEY, JSON.stringify(shared));
+        carried = true;
+        return true;
+      },
+    };
+    if (!clips.length) done();
+    // An empty share is dropped, and never takes the place of the one that waits.
+    if (!isEmptyShare(share)) {
+      letGo?.();
+      letGo = clips.length ? done : null;
+    }
+    receiveShare(share);
+    if (location.hash !== "#/shared") location.hash = "#/shared";
+  };
+  const take = async () => {
+    const shared = await invoke<Shared | null>("incoming_share_take");
+    if (shared) receive(shared);
+  };
+  // The page goes (a reload, the app closing): a share it never read takes its copies with it, unless it was kept.
+  addEventListener("pagehide", () => { if (!carried) letGo?.(); });
+  void listen("incoming-share", () => void take().catch(() => {})).catch(() => {});
+  // The share the page before this one kept first: one Rust holds is newer, and takes its place.
+  const kept = takeCarriedShare();
+  if (kept) receive(kept);
+  void take().catch(() => {});
+}

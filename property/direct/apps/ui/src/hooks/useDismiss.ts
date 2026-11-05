@@ -1,0 +1,218 @@
+import {useEffect, useRef, useState, type RefObject, type PointerEvent as ReactPointerEvent} from "react";
+import { openLayer } from "../lib/layerHistory";
+
+const layers: RefObject<HTMLElement | null>[] = [];
+
+/** Require both ends of the gesture outside, so dragging out never dismisses. */
+export function useBackdropDismiss(onClose: () => void) {
+  const beganOutside = useRef(false);
+  const outside = (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.target !== e.currentTarget) return false;
+    if (e.currentTarget.tagName !== "DIALOG") return true;
+    const r = e.currentTarget.getBoundingClientRect();
+    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+  };
+  return {
+    onPointerDown: (e: ReactPointerEvent<HTMLElement>) => { beganOutside.current = outside(e); },
+    onPointerUp: (e: ReactPointerEvent<HTMLElement>) => {
+      if (beganOutside.current && outside(e)) { tapDismissed(e.nativeEvent); onClose(); }
+      beganOutside.current = false;
+    },
+    onPointerCancel: () => { beganOutside.current = false; },
+  };
+}
+
+/** How long a tap's click may trail its pointerup (a phone sends it right after touchend). */
+const TRAILING_CLICK_MS = 500;
+
+/**
+ * Every dismissible surface (a sheet, a menu drawn as a sheet on a phone, a dialog) closes on pointerup, and what the
+ * pointer was on often goes with it: a sheet's or a menu's backdrop, a dialog's dimmed area. A touch screen sends its
+ * mouse events and click after that, where the tap was, so they land on whatever was under it: a chat's Back button,
+ * a tab, New Chat, a field that pops the keyboard up. They belong to the tap that dismissed: when their target is not
+ * inside what the tap was on (gone, or closed), they are dropped. A tap outside a popover straight onto a button keeps
+ * its click, as a mouse does. Only the first click is waited for, and not past TRAILING_CLICK_MS. A mouse sends its
+ * click where it was pressed: its events are left alone.
+ */
+function tapDismissed(e: PointerEvent) {
+  if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+  const pressed = e.target instanceof Node ? e.target : null;
+  const types = ["mousedown", "mouseup", "click"];
+  const stop = () => { clearTimeout(timer); for (const type of types) window.removeEventListener(type, trailing, { capture: true }); };
+  const trailing = (event: Event) => {
+    if (event.type === "click") stop();
+    if (pressed?.isConnected && event.target instanceof Node && pressed.contains(event.target)) return;
+    event.preventDefault(); event.stopPropagation();
+  };
+  for (const type of types) window.addEventListener(type, trailing, { capture: true });
+  const timer = setTimeout(stop, TRAILING_CLICK_MS);
+}
+
+/**
+ * While `open`, the browser's Back (Android's back gesture) closes this layer with `onClose`, and only it: the page
+ * under it stays where it was (lib/layerHistory.ts). Every dialog, sheet and menu has it: `useOutsideDismiss` and
+ * `useDialogFocus` do it for theirs. One that stays open all the same (busy sending) takes an entry again.
+ */
+export function useBackCloses(onClose: () => void, open = true) {
+  const callback = useRef(onClose); callback.current = onClose;
+  const [round, setRound] = useState(0);
+  useEffect(() => (open ? openLayer(() => { callback.current(); setRound((n) => n + 1); }) : undefined), [open, round]);
+}
+
+export function useOutsideDismiss(ref: RefObject<HTMLElement | null>, open: boolean, onClose: () => void, anchorRef?: RefObject<HTMLElement | null>) {
+  const callback = useRef(onClose); callback.current = onClose;
+  useBackCloses(onClose, open);
+  useEffect(() => {
+    if (!open) return;
+    layers.push(ref);
+    const topLayer = () => {
+      const leaves=layers.filter(r=>r.current && !layers.some(other=>other!==r && other.current && r.current!.contains(other.current)));
+      return leaves[leaves.length - 1]===ref;
+    };
+    let beganOutside = false;
+    // By the event's path, not by what holds its target now: a click that swaps what it landed on (a card turning
+    // over, a step back to the deck) leaves that target detached before this runs, and it was still inside.
+    const outside = (e: PointerEvent) => { const path = e.composedPath(); return !!ref.current && !path.includes(ref.current) && !(anchorRef?.current && path.includes(anchorRef.current)); };
+    const blocked = () => !topLayer() || !!document.querySelector("dialog[open]");
+    const down = (e: PointerEvent) => { beganOutside = !blocked() && outside(e); };
+    const up = (e: PointerEvent) => {
+      if (beganOutside && !blocked() && outside(e)) {
+        tapDismissed(e);
+        callback.current();
+      }
+      beganOutside = false;
+    };
+    // The Escape that closes it is spent: a notice that also answers Escape stays.
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape" && !blocked() && !e.defaultPrevented) { e.preventDefault(); callback.current(); } };
+    document.addEventListener("pointerdown", down); document.addEventListener("pointerup", up); document.addEventListener("keydown", key);
+    return () => {const index=layers.indexOf(ref); if(index>=0) layers.splice(index,1);document.removeEventListener("pointerdown", down);document.removeEventListener("pointerup", up);document.removeEventListener("keydown", key);};
+  }, [open, ref, anchorRef]);
+}
+
+/** The open modals made of plain elements, the newest last: only the newest answers Escape and keeps Tab inside it. */
+const modals: RefObject<HTMLElement | null>[] = [];
+
+/** Whether a <dialog> (the app shows them modal only) is open over `panel` rather than holding it. */
+const dialogOver = (panel: HTMLElement | null) => [...document.querySelectorAll("dialog[open]")].some((dialog) => !dialog.contains(panel));
+
+/** What Tab can reach inside `root`, in order: enabled, shown, not taken out with tabindex="-1". */
+export function tabbables(root: HTMLElement): HTMLElement[] {
+  const all = root.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, summary, [tabindex], [contenteditable="true"]');
+  return [...all].filter((el) => !(el as HTMLButtonElement).disabled && el.tabIndex >= 0 && !el.closest("[inert], [hidden]") && (el.checkVisibility?.() ?? true));
+}
+
+/**
+ * A modal made of plain elements: focus moves into it when it opens (so keys reach it even when what
+ * opened it is gone), Tab and Shift+Tab go round its own controls and never to the page behind it, Escape anywhere
+ * closes it, and focus goes back where it was on close, unless `restore` says no (what it made takes the focus instead).
+ * Where it was is nothing to go back to (the page's body, or a row that is gone), `fallback` has it.
+ * A layer of its own that holds the focus (a select's list, a menu drawn over the page) keeps its Tab.
+ * While `beside` says so, it is not over the page but a pane beside it (a chat's identities on a wide screen): Tab goes
+ * on to the page, Escape closes it only from inside, F6 goes between it and where the focus was on the page, and on
+ * close the focus goes back only from inside (never pulled from where the person went meanwhile).
+ */
+export function useDialogFocus(ref: RefObject<HTMLElement | null>, onClose: () => void, restore: () => boolean = () => true, fallback?: RefObject<HTMLElement | null>, beside?: () => boolean) {
+  const callback = useRef(onClose); callback.current = onClose;
+  const restoring = useRef(restore); restoring.current = restore;
+  const back = useRef(fallback); back.current = fallback;
+  const aside = useRef(beside); aside.current = beside;
+  // Where the focus goes back to, read as the modal first renders: a field's autoFocus has moved the focus into the
+  // modal by the time the effect runs, and that field is gone once the modal closes.
+  const opener = useRef<Element | null | undefined>(undefined);
+  if (opener.current === undefined) opener.current = document.activeElement;
+  useBackCloses(onClose);
+  useEffect(() => {
+    // A menu's row that opened it is gone by now, and the menu gave the focus back to its button as it left (Menu.tsx):
+    // that button is where it goes back to.
+    const rendered = opener.current as HTMLElement | null;
+    const before = rendered?.isConnected ? rendered : document.activeElement as HTMLElement | null;
+    const panel = ref.current;
+    if (panel && !panel.contains(document.activeElement)) panel.focus();
+    modals.push(ref);
+    // Beside the page, where F6 goes back to: the last place the focus was outside it.
+    let away: HTMLElement | null = before;
+    const focusIn = (e: FocusEvent) => { if (e.target instanceof HTMLElement && !panel?.contains(e.target)) away = e.target; };
+    const key = (e: KeyboardEvent) => {
+      // Over another one, the newest answers: Escape closes it alone, Tab stays in it. A <dialog> over it (the lock
+      // screen) has the keys: an Escape typed there left it closed, and what was in it lost, under the lock.
+      if (modals[modals.length - 1] !== ref || dialogOver(panel)) return;
+      if (aside.current?.()) {
+        const inside = !!panel?.contains(document.activeElement);
+        if (e.defaultPrevented) return;
+        if (e.key === "Escape" && inside) { e.preventDefault(); callback.current(); }
+        else if (e.key === "F6") { e.preventDefault(); if (!inside) panel?.focus(); else if (away?.isConnected) away.focus(); }
+        return;
+      }
+      if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); callback.current(); return; }
+      keepTabInside(e, ref.current);
+    };
+    document.addEventListener("keydown", key);
+    document.addEventListener("focusin", focusIn);
+    return () => {
+      document.removeEventListener("keydown", key);
+      document.removeEventListener("focusin", focusIn);
+      const at = modals.lastIndexOf(ref);
+      if (at >= 0) modals.splice(at, 1);
+      const active = document.activeElement;
+      if (aside.current?.() && active && active !== document.body && !panel?.contains(active)) return;
+      if (!restoring.current()) return;
+      if (before?.isConnected && before !== document.body) before.focus();
+      else back.current?.current?.focus();
+    };
+  }, [ref]);
+}
+
+/**
+ * A question in a <dialog> (Remove Bob? Turn the link off?): it opens modal with the focus on `first` (its Cancel), and
+ * closed, gives the focus back to the control that asked. The browser's own return finds nothing: React has taken the
+ * dialog out by the time it is closed, and the focus fell to the page. When that control cannot take it any more (a
+ * confirmed Remove disables its row, then the row goes), `fallback` has it.
+ */
+export function useQuestionDialog(dialog: RefObject<HTMLDialogElement | null>, first: RefObject<HTMLElement | null>, fallback?: RefObject<HTMLElement | null>) {
+  const back = useRef(fallback); back.current = fallback;
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null;
+    const element = dialog.current!; element.showModal(); first.current?.focus();
+    return () => {
+      element.close();
+      if (before && before !== document.body && before.isConnected && !before.matches(":disabled")) before.focus();
+      else back.current?.current?.focus();
+    };
+  }, [dialog, first]);
+}
+
+/**
+ * Tab only, for a modal that moves the focus and answers Escape its own way (the message details panel): Tab and
+ * Shift+Tab go round its own controls and never to the page behind it. Over other open modals, the newest keeps Tab.
+ * `on` turns it off while what holds it is not over the page (a call in its small window).
+ */
+export function useTabTrap(ref: RefObject<HTMLElement | null>, on = true) {
+  useEffect(() => {
+    if (!on) return;
+    modals.push(ref);
+    const key = (e: KeyboardEvent) => { if (modals[modals.length - 1] === ref) keepTabInside(e, ref.current); };
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("keydown", key);
+      const at = modals.lastIndexOf(ref);
+      if (at >= 0) modals.splice(at, 1);
+    };
+  }, [ref, on]);
+}
+
+/**
+ * Tab and Shift+Tab go round `root`'s own controls, and a Tab from the page's body goes into it. Focus in a layer of
+ * its own (a select's list, a menu drawn over the page) keeps its Tab.
+ */
+export function keepTabInside(e: KeyboardEvent, root: HTMLElement | null) {
+  if (e.key !== "Tab" || e.defaultPrevented || !root) return;
+  const active = document.activeElement;
+  const inside = !!active && root.contains(active);
+  if (!inside && active && active !== document.body) return;
+  const stops = tabbables(root);
+  if (!stops.length) { e.preventDefault(); root.focus(); return; }
+  const first = stops[0], last = stops[stops.length - 1];
+  if (!inside || active === root) { e.preventDefault(); (e.shiftKey ? last : first).focus(); return; }
+  if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+}

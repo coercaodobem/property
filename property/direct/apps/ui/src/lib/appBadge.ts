@@ -1,0 +1,140 @@
+import { useEffect } from "react";
+import { useEngineValue } from "./engineState";
+import { getUnreadCount, listShownSessions } from "./storage";
+import { groupReadAt, groupUnreadAt } from "./groups";
+import { MUTE_EVENT, groupChat, mutedFor } from "./chatMute";
+import type { ChatSession } from "./types";
+
+/*
+ * The number on the app's icon (the Badging API: an installed web app's icon, where the system shows one; on
+ * Desktop, the Dock icon on macOS and the launcher's on Linux desktops that show one). It
+ * follows the chat mute (#250): a muted chat's messages make no sound and no notification, so they do not
+ * count here either, except a mention of me in a group that lets mentions through. Unread in the list stays
+ * as it is: the list shows a muted chat's count in grey.
+ */
+
+/** A group as the badge reads it (the engine's group view). */
+export interface BadgeGroup {
+  id: string;
+  lastMessageAt: number;
+  lastPeerMessageAt?: number;
+  lastMentionAt?: number;
+  invitation?: unknown;
+}
+
+/**
+ * The 1:1 chat open on a page that shows (`Chat`, as it marks read): what comes to it is read as it lands, so the icon
+ * leaves it out, as the chat list leaves out its row. Counted, a message there put 1 on the icon until the chat marked
+ * it read a moment later, and the Dock badge blinked for every message while the chat was being read.
+ */
+let chatOnScreen: string | null = null;
+
+/** `Chat`: session `id` is on screen until the returned function runs (another chat, the page hidden, unmounted). */
+export function showChatOnScreen(id: string): () => void {
+  chatOnScreen = id;
+  return () => { if (chatOnScreen === id) chatOnScreen = null; };
+}
+
+/** Unread messages the icon counts: every unmuted 1:1 chat's but the one on screen, and one for each unmuted group with something new. */
+export function badgeCount(sessions: readonly ChatSession[], groups: readonly BadgeGroup[], now = Date.now()): number {
+  let count = 0;
+  for (const session of sessions) {
+    if (session.id !== chatOnScreen && !mutedFor(session.id, false, now)) count += getUnreadCount(session);
+  }
+  for (const group of groups) {
+    const readAt = groupReadAt(group.id);
+    if (group.invitation || groupUnreadAt(group) <= readAt) continue;
+    const mention = (group.lastMentionAt ?? 0) > readAt;
+    if (!mutedFor(groupChat(group.id), mention, now)) count += 1;
+  }
+  return count;
+}
+
+/** What a folder's badge says: how many, and grey when all of it is in muted chats. Undefined: nothing unread. */
+export interface FolderUnread {
+  count: number;
+  muted: boolean;
+}
+
+/**
+ * A folder's unread, from its chats and groups (the one open is left out, as its row leaves it out). It counts what
+ * the app's icon counts (`badgeCount`): each unmuted chat's unread messages, and one for each unmuted group with
+ * something new, a mention getting through a group's mute. When only muted chats have something unread, their sum is
+ * shown instead, in grey, as a muted chat's own count is.
+ */
+export function folderUnread(sessions: readonly ChatSession[], groups: readonly BadgeGroup[], now = Date.now()): FolderUnread | undefined {
+  const loud = badgeCount(sessions, groups, now);
+  if (loud > 0) return { count: loud, muted: false };
+  let quiet = 0;
+  for (const session of sessions) quiet += getUnreadCount(session);
+  for (const group of groups) if (!group.invitation && groupUnreadAt(group) > groupReadAt(group.id)) quiet += 1;
+  return quiet > 0 ? { count: quiet, muted: true } : undefined;
+}
+
+export interface BadgeNavigator {
+  setAppBadge?: (count?: number) => Promise<void>;
+  clearAppBadge?: () => Promise<void>;
+}
+
+/**
+ * Where the number goes instead of `navigator`: Desktop's Dock or launcher icon, whose WebView has no Badging API.
+ * Its host sets it before the app is drawn, with the Badging API's two calls.
+ */
+let target: BadgeNavigator | null = null;
+let shown: number | null = null;
+
+/** Sends the number to `next` rather than to `navigator` (the Desktop host does); `null` goes back to the browser's. */
+export function setAppBadgeTarget(next: BadgeNavigator | null): void {
+  target = next;
+  shown = null;
+}
+
+const badgeNavigator = (): BadgeNavigator => target ?? (typeof navigator === "undefined" ? {} : navigator as BadgeNavigator);
+
+/** Whether this browser can put a number on the app's icon at all. */
+export function canBadge(nav: BadgeNavigator = badgeNavigator()): boolean {
+  return typeof nav.setAppBadge === "function";
+}
+
+/** Puts `count` on the icon, or clears it at 0. Quiet where there is no badge; only a change is sent. */
+export function showAppBadge(count: number, nav: BadgeNavigator = badgeNavigator()): void {
+  if (!canBadge(nav) || count === shown) return;
+  shown = count;
+  try {
+    const done = count > 0 ? nav.setAppBadge!(count) : (nav.clearAppBadge?.() ?? nav.setAppBadge!(0));
+    // Refused (a page that is not an installed app, a permission the system keeps): nothing to show then.
+    void done?.catch?.(() => {});
+  } catch { /* no badge here */ }
+}
+
+/** Tests only: forgets the last number sent. */
+export function resetAppBadge(): void {
+  shown = null;
+}
+
+/** Chats are re-read this often too: a message stored by the peer says nothing to this page. As the chat list does. */
+const REFRESH_MS = 3000;
+
+/** Keeps the icon's number in step with the chats: on every change the app hears of, and every few seconds. */
+export function useAppBadge(): void {
+  // What the badge reads of each group, compared by content: the engine sends its groups as a new list in every state,
+  // which drew the app's shell (and every chat it holds) and counted the badge again on each.
+  const groups = useEngineValue((state) => state?.groups?.map(({ id, lastMessageAt, lastPeerMessageAt, lastMentionAt, invitation }): BadgeGroup =>
+    ({ id, lastMessageAt, lastPeerMessageAt, lastMentionAt, invitation: invitation ? true : undefined })));
+  useEffect(() => {
+    if (!canBadge()) return;
+    // Through the page's one cache: a chat whose stored text changed is parsed once for every reader, and the badge never changes one.
+    const update = () => showAppBadge(badgeCount(listShownSessions(), groups ?? []));
+    update();
+    const timer = setInterval(update, REFRESH_MS);
+    window.addEventListener("session-updated", update);
+    window.addEventListener(MUTE_EVENT, update);
+    window.addEventListener("storage", update);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("session-updated", update);
+      window.removeEventListener(MUTE_EVENT, update);
+      window.removeEventListener("storage", update);
+    };
+  }, [groups]);
+}

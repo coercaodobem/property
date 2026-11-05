@@ -1,0 +1,81 @@
+import type { AttentionCue } from "../shared/rpc";
+import type { StoredMessage } from "../shared/types";
+import { groupCue } from "./cues";
+
+/*
+ * Which stored rows make the app say something (a sound, a system notification): a new message from the contact or a
+ * member, one that lands at the end of its chat, and what I sent. Everything else a chat's history gains is quiet:
+ * a line of a group's history (someone joined, left, is the admin, renamed it), a file (its own cue says it is here),
+ * a payment (the wallet's sounds say it), a join notice, a text with nothing to show, and a late catch-up of messages
+ * written well before the newest one here (#506: old news, though they are placed where they arrive), and a group's
+ * catch-up past its first message: a member back in a group is handed what it missed oldest first, each message newer
+ * than the last, and every one rang and notified, written up to hours before. The times
+ * compared are the ones the senders say, never a row's place; a 1:1 chat's contact's is read by how far its clock
+ * runs behind this one (`writtenAt`), and so is a group member's, told by what came straight from it (or, in a community,
+ * what a hub says it passed on as it came: WISP 903 § Relaying). What never becomes a row is quiet
+ * by construction: typing and a bot's status, edits, reactions, receipts, call signals, transport lines.
+ */
+
+/** A message written this long before the newest of its chat, and this old, is a catch-up, not news. Clocks disagree a little. */
+export const CATCH_UP_SLACK_MS = 60_000;
+
+/**
+ * A group's message written well before it came (`CATCH_UP_SLACK_MS`), within this long of the last such one: the same
+ * catch-up going on. Its messages come a slice at a time, well under a second apart (`CATCH_UP_SLICE`).
+ */
+export const CATCH_UP_GAP_MS = 5_000;
+
+/** How many of a contact's latest live messages its clock is told by (`writtenAt`). */
+export const CLOCK_SAMPLES = 5;
+
+/**
+ * When a contact's message was written, by this device's clock. The time it says is its sender's clock, and a clock
+ * behind this one makes everything it writes look old: a reply to what I just wrote read as written minutes before
+ * my message, a late catch-up, and nothing rang. `leads`: for the contact's latest messages on the live session, how
+ * far the time each said was from when it came (`sentAt - timestamp`). A message cannot come before it is written, so
+ * the one that came quickest says how far behind the contact's clock is, and every time it says is read that much
+ * later. A clock ahead needs nothing: a time still to come is taken as when the message came (as `shownTime` does).
+ * With no live message to tell the clock by, the time is taken as said.
+ */
+export function writtenAt(message: Pick<StoredMessage, "timestamp" | "sentAt">, leads?: readonly number[]): number {
+  if (message.sentAt === undefined) return message.timestamp;
+  const behind = leads?.length ? Math.min(0, Math.max(...leads)) : 0;
+  return Math.min(message.timestamp, message.sentAt - behind);
+}
+
+const JOIN_NOTICE = /^👋 (?:.+ )?joined$/;
+
+/**
+ * The quiet "joined" line: a 1:1 contact's only when the engine took it as the chat's joined line (`joinLine`), since
+ * any later row of theirs in those words is a message like the rest; mine and a group's by their words.
+ */
+const joinLine = (type: "message" | "sent", message: StoredMessage) =>
+  type === "message" && !message.linkId.startsWith("group:") ? !!message.joinLine : JOIN_NOTICE.test(message.text);
+
+export interface MessageAttention { type: "message" | "sent"; mention: boolean; cue?: AttentionCue }
+
+export interface AttentionContext {
+  /** When this engine started: what was sent before it is history, heard already or not. */
+  startedAt: number;
+  /** The newest time a message of the chat was written at, among those stored while this engine runs; undefined when none. */
+  newest?: number;
+  now: number;
+  /** In a group: when the last message written well before it came, came (a catch-up); undefined when none. */
+  lateAt?: number;
+}
+
+/** What a newly stored row says, or null when it is quiet. `type`: "message" for the contact's, "sent" for mine. */
+export function messageAttention(type: "message" | "sent", message: StoredMessage, { startedAt, newest, now, lateAt }: AttentionContext): MessageAttention | null {
+  if (message.timestamp < startedAt || message.file || message.paymentId || joinLine(type, message)) return null;
+  // A line of a group's history: only the one that says I made the group or joined it, as it always was.
+  if (message.event) {
+    const cue = groupCue(message);
+    return cue && type === "message" ? { type, mention: false, cue } : null;
+  }
+  if (type === "sent") return { type, mention: false };
+  if (!message.text.trim()) return null;
+  if (newest !== undefined && message.timestamp < newest - CATCH_UP_SLACK_MS && now - message.timestamp > CATCH_UP_SLACK_MS) return null;
+  // The rest of a catch-up: the first of it rang, the rest is quiet, mentions too (each row and the badge still say so).
+  if (lateAt !== undefined && now - lateAt < CATCH_UP_GAP_MS && now - message.timestamp > CATCH_UP_SLACK_MS) return null;
+  return { type, mention: !!message.mentioned };
+}

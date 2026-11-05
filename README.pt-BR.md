@@ -12,6 +12,8 @@ O Property é um projeto aberto de comunicação descentralizada e trocas volunt
 
 **Acesso pelo navegador:** abra o site no dispositivo compatível e, se quiser, adicione a PWA à tela inicial. Não é preciso distribuir o app pela Play Store ou App Store. A interface abre em inglês; selecione **Português (Brasil)** no cabeçalho para mudar o idioma neste aparelho. A seleção é salva localmente. Mensagens, publicações, nomes e ofertas nunca são traduzidos.
 
+**App peer-to-peer experimental:** [Abrir o Property Direct](https://coercaodobem.github.io/property/direct/), uma adaptação do Ghostly. É um cliente separado, com outra identidade e outro transporte; não usa relays Nostr nem compartilha conversas com a PWA principal do Property.
+
 **Trocas voluntárias:** o marketplace permite publicar e descobrir ofertas. Compra, checkout e custódia ainda não estão habilitados nesta versão.
 
 ## O que queremos construir

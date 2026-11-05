@@ -1,0 +1,101 @@
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
+import { setBrowserHost } from "@ghostly/browser/host";
+import { becomeThePeer } from "@ghostly/browser/inPageHost";
+import { startSessionSync } from "@ghostly/browser/platform/sync";
+import { openDeviceGate } from "@ghostly/browser/devices/gate";
+import { setDeviceMirror } from "@ghostly/browser/devices/store";
+import { setHandoffProfileHost } from "@ghostly/browser/devices/handoffHost";
+import { handoffProfileHost, recoverHandoffPointer } from "./lib/handoffProfile";
+import { desktopDeviceMirror } from "./desktop/deviceMirror";
+import { isDesktopApp } from "./lib/externalLink";
+import { Root } from "./Root";
+import { createDesktopHost } from "./desktop/host";
+import { nativeCallSupport } from "./desktop/nativeCalls";
+import { setProfileBase } from "./lib/profiles";
+import { restartWhenRestored } from "./lib/restoredPage";
+import { openProfile } from "./lib/profileStart";
+import { listen } from "@tauri-apps/api/event";
+import { setAppOpener, setLinkedFiles } from "./lib/apps/open";
+import { desktopOpener } from "./lib/apps/desktopOpener";
+import { desktopLinkedFiles } from "./lib/apps/desktopFiles";
+import { pickSheetText } from "./lib/apps/webFiles";
+import { fileSpace } from "@ghostly/browser/shared/fileBytes";
+import { nameInChat } from "./lib/apps/nameInChat";
+import { appWithContact } from "./lib/apps/running";
+import { loadSettings } from "./lib/settings";
+import { loadLocale, translatorFor } from "./locales";
+import { servicesPlatform } from "./lib/platform";
+import { androidApp } from "./lib/touchOnly";
+import { followAppVisibility, followSystemBars, leaveOutPublicStun, takeIncomingShares } from "./desktop/android";
+
+async function boot() {
+  // Asked first, so Rust starts GStreamer while the profile opens (see createDesktopHost below).
+  const calls = nativeCallSupport();
+  let profile = "";
+  try {
+    profile = await invoke<string>("get_profile");
+  } catch {
+    // running outside Tauri (browser dev) — no profile
+  }
+  // A debug e2e start of the Android app keeps WebRTC off the public STUN servers, before anything connects.
+  if (androidApp()) await leaveOutPublicStun(invoke).catch(() => false);
+  // GHOSTLY_PROFILE gives this process a space of its own; inside it, the profile chosen in the app (WISP 04).
+  setProfileBase(profile);
+  // A profile a handoff moved whose pointer was lost is pointed at its state again before anything opens storage. Each
+  // profile gets its own sessions, database and peer (they share the WebView's storage area), and its language on <html>.
+  profile = await openProfile(recoverHandoffPointer);
+  // Its words too: only English is in the entry, every other language is loaded when a profile reads in it.
+  await loadLocale(loadSettings().language);
+
+  const root = createRoot(document.getElementById("root")!);
+  await becomeThePeer(`ghostly-peer-${profile}`, () =>
+    root.render(<p lang="en" style={{ padding: 24, font: "15px system-ui" }}>Ghostly is already running with this profile.</p>),
+  );
+
+  // The device state, before anything of the profile starts (WISP 06 § The gate). Desktop keeps it twice, in the
+  // WebView's database and in a file Rust fsyncs, and takes the stricter of the two. A profile that never enrolled a
+  // device is `single` and goes on exactly as before; on a standby the host starts device-link-only mode.
+  if (isDesktopApp()) setDeviceMirror(desktopDeviceMirror(invoke));
+  const gate = await openDeviceGate();
+
+  const version = await getVersion().catch(() => "0.0.0");
+  // What a handoff reads and writes of a profile's storage (WISP 06 § The handoff), before the host starts the engine.
+  setHandoffProfileHost(handoffProfileHost(version, "desktop"));
+  // Whether calls work here is not waited for: on Linux the answer starts GStreamer (0.6 s on a first launch), and
+  // the page is drawn meanwhile. The engine starts once it has come.
+  const host = createDesktopHost(version, calls);
+  setBrowserHost(host);
+  // The Android app: its system bars follow the theme, shares from other apps open the Share to… picker, and the
+  // page knows when the app is in the background (its WebView never says so).
+  if (androidApp()) {
+    followSystemBars(invoke);
+    takeIncomingShares(invoke, listen);
+    followAppVisibility(listen);
+  }
+  // Mini-apps (WISP 1200) open in windows of their own, each with its broker here (lib/apps/desktopOpener.ts).
+  // Its window is named after the app and the contact ("Chess with Ana"), in the profile's language, and says while
+  // the app serves the contact a file ("Chess · sharing a file with Ana").
+  const windowTitle = (title: string, linkId: string | null, serving: boolean) => appWithContact(title, linkId, translatorFor(loadSettings().language), serving);
+  // Files the person picks for an app granted `files`: the client's sheet, then the system's dialog on its click, both in
+  // the profile's language, and links the host keeps per profile (apps/desktop/src/linked_files.rs).
+  const linkedFiles = desktopLinkedFiles(invoke, fileSpace, () => pickSheetText(translatorFor(loadSettings().language)));
+  setLinkedFiles(linkedFiles);
+  setAppOpener(desktopOpener({ apps: () => servicesPlatform?.apps, invoke, listen, nameIn: nameInChat, windowTitle, linkedFiles }));
+  if (gate.full) startSessionSync();
+  addEventListener("pagehide", () => host.announceDeparture());
+  // Shown again after that (Back, out of the back/forward cache), the page has no peer: it starts over.
+  restartWhenRestored();
+  // The app is exiting (apps/desktop's lib.rs `on_run_event`): contacts hear it now, in the moment it waits for this.
+  addEventListener("ghostly-departing", () => host.announceDeparture({ quitting: true }));
+
+  root.render(
+    <StrictMode>
+      <Root />
+    </StrictMode>,
+  );
+}
+
+boot();

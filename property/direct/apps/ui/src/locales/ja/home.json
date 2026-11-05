@@ -1,0 +1,12 @@
+{
+  "createChat": "新規チャットを作成",
+  "description": "プライベートな P2P メッセージ。",
+  "features": {
+    "decentralized": "中央サーバーなし",
+    "encrypted": "エンドツーエンド暗号化",
+    "onDevice": "メッセージはあなたのデバイスに残ります"
+  },
+  "unpublishedVersion": "ローカルバージョン — 公開リリースを見る",
+  "viewRelease": "このリリースを見る",
+  "welcome": "Propertyへようこそ"
+}

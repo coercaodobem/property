@@ -1,0 +1,119 @@
+import { useEffect, useSyncExternalStore } from "react";
+import { engine } from "@ghostly/browser/platform/engine";
+import type { BuiltInAppOffer, InstalledAppView } from "@ghostly/browser/engine/apps";
+import { appCardId, appCardUrl, statusCardText, type AppCard } from "@ghostly/core";
+import { appsRunning, openApp, stopTakenDown, type OpenAppOptions } from "./open";
+
+/*
+ * The apps installed in this profile, as the engine lists them (`appList`, no request), shared by every screen that
+ * shows them: the Apps page, the composer's Apps, the app cards in chats ("Play" once installed). Read when the first
+ * of them shows, and again after anything here changes them (install, update, uninstall) or the update check ran.
+ */
+
+let apps: readonly InstalledAppView[] | null = null;
+/** The built-in apps this profile is offered (`appBuiltIns`): read with the installed ones, each time. */
+let offers: readonly BuiltInAppOffer[] = [];
+let loading: Promise<void> | null = null;
+const listeners = new Set<() => void>();
+const tell = () => { for (const listener of [...listeners]) listener(); };
+const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
+
+// After any update check (the engine's scheduled one included), once a screen has read the list or an app runs: a
+// version found removed or revoked shows as stopped, and a running one is stopped (`stopTakenDown`). The engine says
+// the same after an uninstall, to every page: the app's frames stop wherever they run. A first read still on its way
+// may have started before the check ended: it is read again too.
+engine.onAppsChecked(() => { if (apps !== null || loading || appsRunning()) void refreshInstalledApps(); });
+
+/** How many reads were asked: of two on their way at once, the one asked last is what shows. */
+let asked = 0;
+
+/** Reads the list again. */
+export function refreshInstalledApps(): Promise<void> {
+  // An engine from before built-in apps (the extension's, another tab's) has no `appBuiltIns`: none offered.
+  const builtIns = engine.call("appBuiltIns").catch((): BuiltInAppOffer[] => []);
+  const mine = ++asked;
+  // One that a later read overtook waits for that one, so what is awaited is the list as it is now.
+  const read: Promise<void> = engine.call("appList").then(async (list) => {
+    const offered = await builtIns;
+    if (mine !== asked) return loading ?? undefined;
+    offers = offered; apps = list; tell(); stopTakenDown(list);
+  }, () => { if (mine !== asked) return loading ?? undefined; apps ??= []; tell(); }).finally(() => { if (loading === read) loading = null; });
+  loading = read;
+  return read;
+}
+
+/** For tests: forget what was read. */
+export function forgetInstalledApps(): void {
+  apps = null;
+  offers = [];
+  loading = null;
+  asked++;
+}
+
+/**
+ * The installed apps, or null until read. `enabled` false (Apps not shown here): nothing is asked of the engine, and the
+ * list read again draws nothing: every message and chat row calls this, and only the ones with an app card show the list.
+ */
+export function useInstalledApps(enabled: boolean): readonly InstalledAppView[] | null {
+  const snapshot = () => (enabled ? apps : null);
+  const list = useSyncExternalStore(subscribe, snapshot, snapshot);
+  useEffect(() => { if (enabled && apps === null && !loading) void refreshInstalledApps(); }, [enabled]);
+  return list;
+}
+
+/**
+ * The apps that come with Ghostly and are neither installed nor removed here (WISP 1200 § Built-in apps): shown with the
+ * installed ones, opened through the install screen. Empty until the installed apps are read.
+ */
+export function useBuiltInApps(enabled: boolean): readonly BuiltInAppOffer[] {
+  const installed = useInstalledApps(enabled);
+  const list = useSyncExternalStore(subscribe, () => offers, () => offers);
+  return enabled && installed !== null ? list : NONE;
+}
+const NONE: readonly BuiltInAppOffer[] = [];
+
+/**
+ * The app installed here under `ref`, if any: the one an app card with that ref opens (WISP 405 § An app). The card and
+ * its row both name it from here, so what is read out is what is shown. No `ref` (not an app card): nothing is asked.
+ */
+export function useInstalledApp(ref: string | undefined): InstalledAppView | undefined {
+  const installed = useInstalledApps(ref !== undefined);
+  return ref === undefined ? undefined : installed?.find((a) => a.ref === ref);
+}
+
+/** The installed apps as last read (null until a screen read them): for a line, not a hook. */
+export function installedApps(): readonly InstalledAppView[] | null {
+  return apps;
+}
+
+/**
+ * The app card a person's app sends when they open (or share) an installed app in a 1:1 chat (WISP 405 § An app):
+ * made from the app it installed and checked, never filled in by the person. Its `url` is where the installed version
+ * came from, so a contact fetches the same bytes, never with its query or fragment (`appCardUrl`): an app installed
+ * from a private file's link before such links were refused keeps its read token there.
+ */
+export function appCardFor(app: InstalledAppView, opened: boolean): AppCard {
+  const url = appCardUrl(app.from);
+  return {
+    kind: "app", id: appCardId(app.ref), ref: app.ref, digest: app.digest, sequence: app.sequence, title: app.title,
+    ...(app.version.length <= 32 && { version: app.version }), ...(url && { url }), ...(opened && { opened: true as const }),
+  };
+}
+
+/** Sends the card, with its text as the fallback an older app shows (a link to the bundle). */
+export async function sendAppCard(linkId: string, app: InstalledAppView, opened: boolean): Promise<string | null> {
+  const card = appCardFor(app, opened);
+  const result = await engine.call("sendMessage", { linkId, text: statusCardText(card), card, timestamp: Date.now() });
+  return result.error;
+}
+
+/**
+ * Opens `app` in the 1:1 chat `linkId` and tells the contact with the "opened" card: the chat's + → Apps, and the
+ * Apps page's chat picker for an app that runs in a chat. Opened first: an app that cannot start there sends no card,
+ * and one already running there, shown again, sends none either.
+ */
+export async function openAppInChat(app: InstalledAppView, linkId: string, options?: OpenAppOptions): Promise<void> {
+  if (await openApp(app.ref, linkId, options) === "shown") return;
+  const failed = await sendAppCard(linkId, app, true);
+  if (failed) throw new Error(failed);
+}

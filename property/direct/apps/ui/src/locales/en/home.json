@@ -1,0 +1,12 @@
+{
+  "createChat": "Create new chat",
+  "description": "Private, peer-to-peer messaging.",
+  "features": {
+    "decentralized": "No central server",
+    "encrypted": "End-to-end encrypted",
+    "onDevice": "Your messages stay on your devices"
+  },
+  "unpublishedVersion": "Local version — view published releases",
+  "viewRelease": "View this release",
+  "welcome": "Welcome to Property"
+}

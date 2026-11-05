@@ -1,0 +1,139 @@
+import { GhostlyHttpError, fromBase64, toBase64 } from "@ghostly/core";
+import type { EngineServer, EngineClientSink } from "@ghostly/browser/engine/server";
+import { createPeerServer } from "@ghostly/browser/devices/peer";
+import type { PeerServer } from "@ghostly/browser/devices/linkOnly";
+import type { ClientMessage } from "@ghostly/browser/shared/rpc";
+import { setDatabaseName } from "@ghostly/browser/shared/idb";
+import { defaultWalletsAllowed } from "@ghostly/browser/platform/walletSetupSwitch";
+import { UI_PORT, type EngineStatus, type HttpRequestReply, type RuntimeMessage } from "./messages";
+import { activeNamespace, databaseFor, peerLockFor } from "./profile";
+import { activeProfileId } from "../../ui/src/lib/profiles";
+import { fromOwnPage } from "./shared/sender";
+
+/**
+ * The offscreen document is the Ghostly peer. Service workers have no
+ * RTCPeerConnection and are shut down when idle; this page has WebRTC and
+ * lives for as long as the browser runs the extension.
+ */
+const VIEWER_MAX_RESPONSE_BYTES = 32 * 1024 * 1024;
+/** How long a peer being replaced gets to say goodbye to its contacts before its document closes. */
+const STOP_GRACE_MS = 3_000;
+/**
+ * Each chat's newest rows a page gets when it connects (`EngineServer.attach`'s `newest`), not its whole history: this
+ * port carries JSON, and every chat's whole history went across to each tab opened or reloaded (about 20 MiB for 50
+ * chats of 2,000 messages). Twice what a page keeps of a chat (`STORED_MESSAGES`, 200): a chat that got fewer than 200
+ * while no tab showed it needs nothing more. A page asks for the rest of a chat it shows whole.
+ */
+const ATTACH_NEWEST = 400;
+
+/**
+ * The local profile this document runs as, read once: a switch closes the document and starts another
+ * (background.ts), so one peer never sees two profiles' data. The first profile keeps the original names.
+ */
+const profile = activeNamespace();
+setDatabaseName(databaseFor(profile));
+
+/**
+ * The peer starts once it holds its profile's lock, released only when this document goes away: were a
+ * replaced document still closing, the new one waits for it rather than run beside it on the same data.
+ */
+let running: PeerServer | null = null;
+const server = new Promise<PeerServer>((resolve, reject) => {
+  void navigator.locks.request(peerLockFor(profile), () => {
+    // The device state is read first (WISP 06 § The gate), at browser start with no page open too: a device that is
+    // not the active one gets device-link-only mode, which opens no peer database and starts no wallet.
+    // Iroh through a relay (WISP 102), over WebSockets from this document; the wasm loads on first use.
+    // A new profile gets its default Mainnet wallets; never in a test build or an automated browser.
+    // No mini-app runner here yet (WISP 1200 § Per client: Extension, and the TODO below): the engine offers no apps/1
+    // and refuses the app calls, whatever the build's APPS_ENABLED says.
+    void createPeerServer({ platform: "extension", irohWeb: true, apps: false, defaultWallets: defaultWalletsAllowed(() => import.meta.env.MODE === "e2e") }).then((peer) => {
+      running = peer;
+      // Only in `vite build --mode e2e` (test/attacks.mjs plays a malicious peer through it); gone from real builds.
+      if (import.meta.env.MODE === "e2e") Object.assign(globalThis, { __ghostly: running });
+      resolve(peer);
+    }, reject);
+    return new Promise<never>(() => {});
+  });
+});
+// Nothing may be left to report a start that failed as unhandled: each caller below hears of it.
+server.catch(() => {});
+
+// Only the extension's own pages and its worker are heard, on a port or in a message (`fromOwnPage`).
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== UI_PORT) return;
+  if (!fromOwnPage(port.sender)) {
+    port.disconnect();
+    return;
+  }
+  // TODO(apps, WISP 1200 § Per client, Extension): this port carries JSON, so the app calls that answer bytes (`appFile`,
+  // `appPreview`'s `icon`) need another shape before the extension runs apps. The extension is out of phase 1.
+  const client: EngineClientSink = { post: (message) => port.postMessage(message) };
+  // Listeners go on at once, so nothing a page sends while the peer waits for its lock is lost.
+  withPeer((s) => {
+    const engine = engineOf(s);
+    if (engine) engine.attach(client, undefined, { newest: ATTACH_NEWEST });
+    else s.attach(client);
+  });
+  port.onDisconnect.addListener(() => withPeer((s) => s.detach(client)));
+  port.onMessage.addListener((request: ClientMessage) => withPeer((s) => {
+    // A chat's whole history the page asked for; a device that is not the active one has none.
+    if (request?.kind === "history") void engineOf(s)?.history(client, request.linkId);
+    else void s.handle(client, request);
+  }));
+});
+
+/** The engine, or null on a device that is not the active one for this profile: nothing there serves a contact's app. */
+const engineOf = (peer: PeerServer): EngineServer | null => (peer.gated ? null : (peer as EngineServer));
+
+/** Straight to the running peer; in order, once it starts, before that. */
+function withPeer(act: (peer: PeerServer) => void): void {
+  if (running) act(running);
+  else void server.then(act, () => {});
+}
+
+async function handleHttpRequest(message: Extract<RuntimeMessage, { type: "http-request" }>): Promise<HttpRequestReply> {
+  try {
+    const peer = engineOf(await server);
+    if (!peer) return { ok: false, code: "offline", message: "This profile is not active on this device" };
+    await peer.ready;
+    const response = await peer.node.request(message.peerPubKeyZ32, message.serviceId, {
+      method: message.method,
+      path: message.path,
+      headers: message.headers,
+      body: message.bodyB64 ? fromBase64(message.bodyB64) : null,
+      maxResponseBytes: VIEWER_MAX_RESPONSE_BYTES,
+    });
+    return { ok: true, status: response.status, headers: response.headers, bodyB64: toBase64(await response.bytes()) };
+  } catch (error) {
+    const code = error instanceof GhostlyHttpError ? error.code : "error";
+    return { ok: false, code, message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+let stopping: Promise<void> | null = null;
+/** Stops the peer, once: before the worker closes this document for a switch, or as the page goes away. */
+const stopPeer = () => (stopping ??= (running ? running.stop() : server.then((s) => s.stop())).catch(() => {}));
+
+chrome.runtime.onMessage.addListener((message: RuntimeMessage, sender, sendResponse) => {
+  if (message?.target !== "engine" || !fromOwnPage(sender)) return false;
+  if (message.type === "ping") {
+    // Which profile runs, and which one the registry names now: they differ once a page switched.
+    // Answered too when the peer did not start (its database did not open): the pages connect and are told why
+    // (`start-failed`). Before, no answer came and the page got "The Ghostly peer did not start" after five seconds.
+    void server.then((s) => s.ready.catch(() => {}), () => {}).then(() => sendResponse({ profile, active: activeNamespace(), activeId: activeProfileId() } satisfies EngineStatus));
+    return true;
+  }
+  if (message.type === "stop") {
+    // Its contacts see it leave, if that takes a moment; a peer that hangs does not hold up the switch.
+    void Promise.race([stopPeer(), new Promise((resolve) => setTimeout(resolve, STOP_GRACE_MS))]).then(() => sendResponse(true));
+    return true;
+  }
+  if (message.type === "http-request") {
+    void handleHttpRequest(message).then(sendResponse);
+    return true;
+  }
+  return false;
+});
+
+// Closing the browser tears this page down; say goodbye if there is time.
+addEventListener("pagehide", () => void stopPeer());

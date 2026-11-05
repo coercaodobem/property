@@ -1,0 +1,408 @@
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type * as Desktop from "../../../../apps/ui/src/hooks/useChat";
+import {
+  addMessage,
+  addMissedCall,
+  deleteMessage as deleteStoredMessage,
+  uncountMissedCall as uncountStoredMissedCall,
+  getInviteCode,
+  hasAnnouncedJoin,
+  loadSession,
+  loadShownSession,
+  markJoinAnnounced,
+  saveSession,
+  sessionLinkParams,
+} from "../../../../apps/ui/src/lib/storage";
+import { sameValue } from "../../../../apps/ui/src/lib/sameValue";
+import type { LinkParams, LinkPreview } from "@ghostly/core";
+import type { ChatMessage, ChatTechInfo, ConnectionStatus } from "../../../../apps/ui/src/lib/types";
+import type { LinkView } from "../shared/types";
+import { engine } from "./engine";
+import { notifySessionsChanged, startSessionSync } from "./sync";
+
+const NO_MESSAGES: ChatMessage[] = [];
+const subscribe = (listener: () => void) => engine.subscribe(listener);
+const NO_RELAYS: string[] = [];
+
+/** What a chat shows of the engine's state (`useChat`). */
+interface ChatEngineView {
+  link: LinkView | undefined;
+  offline: boolean;
+  protocol: string;
+  relays: string[];
+}
+const NONE_LANDED: ReadonlySet<ChatMessage> = new Set();
+
+/**
+ * Of the texts still sending, the ones the engine's history holds: a text of mine at the same timestamp. One pass over the
+ * history for all of them, from the newest, where they land: in a long chat sent to with no pause, a pass per text still
+ * sending, in two places per list, was the sender's largest read of the history.
+ */
+function landedRows(pending: ChatMessage[], history: ChatMessage[]): ReadonlySet<ChatMessage> {
+  if (!pending.length) return NONE_LANDED;
+  const sentAt = new Set(pending.map((row) => row.timestamp));
+  const found = new Set<number>();
+  for (let i = history.length - 1; i >= 0 && found.size < sentAt.size; i--) {
+    const m = history[i]!;
+    if (sentAt.has(m.timestamp) && m.id.startsWith("me_")) found.add(m.timestamp);
+  }
+  return found.size ? new Set(pending.filter((row) => found.has(row.timestamp))) : NONE_LANDED;
+}
+
+/**
+ * Stands in for Desktop's `useChat`. Same contract towards the Chat page, but
+ * the Pkarr loop it used to run lives in the peer (`LinkSession` in
+ * `@ghostly/core`, a port of that very loop), so it keeps running when no
+ * page is open. The session in localStorage is kept exactly as Desktop keeps it.
+ */
+export const useChat: typeof Desktop.useChat = (params) => {
+  const peerPubKey = params?.peerPubKeyB64;
+  // Only what the chat shows of the engine's state, compared by content: the engine sends its whole state anew on every
+  // change (up to 20 a second while a file moves), and the whole of it drew this chat on each, and every chat kept
+  // loaded off screen for its call or mini-app too.
+  const shown = useRef<ChatEngineView | null>(null);
+  const view = useSyncExternalStore(subscribe, () => {
+    const state = engine.state;
+    const next: ChatEngineView = {
+      link: peerPubKey ? state?.links.find((l) => l.peerPubKeyZ32 === peerPubKey) : undefined,
+      offline: state?.settings.online === false,
+      protocol: state?.transport.protocol ?? "",
+      relays: state?.transport.relays ?? NO_RELAYS,
+    };
+    if (!shown.current || !sameValue(next, shown.current)) shown.current = next;
+    return shown.current;
+  });
+  const [sessionMessages, setMessages] = useState<ChatMessage[]>([]);
+  /**
+   * A paired chat's texts sent from this page that the engine's history has not brought back yet: shown at once as
+   * sending, even while the engine is still reading every chat's history at start. The engine stores each under the
+   * timestamp it was given (its id is the engine's own), so its row takes this one's place.
+   */
+  const [pending, setPending] = useState<ChatMessage[]>([]);
+  const [isSending, setIsSending] = useState(false);
+  const [isBurned, setIsBurned] = useState(false);
+  const [incomingCallSignal, setIncomingCallSignal] = useState<string | null>(null);
+  /** Counts the calls another page answered or declined while they rang in this chat (`useWebRTC`'s `callHandledElsewhere`). */
+  const [callHandledElsewhere, setCallHandledElsewhere] = useState(0);
+
+  const profile = params?.profile;
+  const deliveryMode = params?.deliveryMode;
+  const seedB64 = params?.seedB64;
+  const encKeyB64 = params?.encKeyB64;
+  const sessionId = params?.sessionId ?? "";
+  const { link } = view;
+  const linkId = link?.id;
+
+  const nickRef = useRef(params?.nick);
+  nickRef.current = params?.nick;
+  const linkIdRef = useRef(linkId);
+  linkIdRef.current = linkId;
+  const createdAtRef = useRef(Date.now());
+
+  /** The stored session's keys, participation keys included, else the ones this chat was opened with. */
+  // The side that made the invite still holds it; the engine learns who invited whom from that (as sync's `ensureLink`),
+  // whichever of the two asks for the link first.
+  const linkParams = useCallback((): LinkParams & { inviteCode?: string } => {
+    const stored = sessionId ? loadSession(sessionId) : null;
+    const inviteCode = (sessionId && getInviteCode(sessionId)) || undefined;
+    return { ...(stored ? sessionLinkParams(stored) : { profile, deliveryMode, seedB64: seedB64!, peerPubKeyZ32: peerPubKey!, encKeyB64: encKeyB64! }), ...(inviteCode ? { inviteCode } : {}) };
+  }, [sessionId, profile, deliveryMode, seedB64, peerPubKey, encKeyB64]);
+
+  const reload = useCallback(() => {
+    // Read as the chat list and the sync read it: a chat that changed is parsed once for all of them. One that did not
+    // is the same list (the page's cache, never changed in place), so a change in another chat draws nothing here: a new
+    // copy on every `session-updated` drew the open chat and reran its whole-history work for each message elsewhere.
+    if (sessionId) setMessages(loadShownSession(sessionId)?.messages ?? NO_MESSAGES);
+  }, [sessionId]);
+
+  useEffect(() => setPending([]), [sessionId]);
+  const landed = useMemo(() => landedRows(pending, sessionMessages), [pending, sessionMessages]);
+  // One the engine's history brought back is its row from now on.
+  useEffect(() => {
+    if (landed.size) setPending((rows) => rows.filter((row) => !landed.has(row)));
+  }, [landed]);
+  const messages = useMemo(() => {
+    const waiting = landed.size ? pending.filter((row) => !landed.has(row)) : pending;
+    return waiting.length ? [...sessionMessages, ...waiting].sort((a, b) => a.timestamp - b.timestamp) : sessionMessages;
+  }, [sessionMessages, pending, landed]);
+
+  // The session exists from the moment the chat is opened, as on Desktop.
+  useEffect(() => {
+    if (!seedB64 || !peerPubKey || !encKeyB64) return;
+    startSessionSync();
+    const existing = loadSession(sessionId);
+    if (existing) {
+      createdAtRef.current = existing.createdAt;
+    } else {
+      createdAtRef.current = Date.now();
+      saveSession({
+        id: sessionId,
+        profile,
+        deliveryMode,
+        mySeedB64: seedB64,
+        peerPubKeyB64: peerPubKey,
+        encKeyB64,
+        messages: [],
+        createdAt: createdAtRef.current,
+      });
+      notifySessionsChanged();
+    }
+    setIsBurned(false);
+    setIncomingCallSignal(null);
+    reload();
+    void engine.call("ensureLink", linkParams()).catch(() => {});
+  }, [profile, deliveryMode, seedB64, peerPubKey, encKeyB64, sessionId, reload, linkParams]);
+
+  useEffect(() => {
+    window.addEventListener("session-updated", reload);
+    return () => window.removeEventListener("session-updated", reload);
+  }, [reload]);
+
+  useEffect(() => {
+    if (!linkId) return;
+    // An offer that arrived before this chat was open (it may be open because of it).
+    const pending = engine.takeCallOffer(linkId);
+    if (pending) setIncomingCallSignal(pending);
+    const off = engine.onCallSignal((id, signal) => {
+      if (id !== linkId) return;
+      engine.takeCallOffer(linkId);
+      setIncomingCallSignal(signal);
+    });
+    const handled = engine.onCallHandled((id) => {
+      if (id === linkId) setCallHandledElsewhere((count) => count + 1);
+    });
+    return () => { off(); handled(); };
+  }, [linkId]);
+
+  /**
+   * `replyTo`: the id of the message of this chat the text answers; the engine keeps the reply with it (WISP 400 § Replies).
+   * `onSent`: told the id the engine stored the message under, once it did.
+   */
+  const publish = useCallback(
+    async (message: ChatMessage, replyTo?: string, onSent?: (messageId: string) => void): Promise<string | null> => {
+      if (!profile) {
+        const updated = addMessage(sessionId, message);
+        if (updated) setMessages([...updated.messages]);
+        notifySessionsChanged();
+      } else {
+        // The engine's row comes only once it has started and stored it; this one shows until then.
+        setPending((rows) => [...rows, { ...message, delivery: "sending", meta: undefined }]);
+      }
+      // A send that stored nothing (refused, or failed before the engine kept it): its sending row goes.
+      const unsent = () => { if (profile) setPending((rows) => rows.filter((row) => row.id !== message.id)); };
+      let error: string | null, refused: boolean | undefined, messageId: string | undefined;
+      try {
+        // Typing can be faster than the peer taking the link on; `ensureLink` is idempotent.
+        const id =
+          linkIdRef.current ??
+          (seedB64 && peerPubKey && encKeyB64
+            ? (await engine.call("ensureLink", linkParams())).linkId
+            : undefined);
+        if (!id) {
+          unsent();
+          return "Property is still starting. Try again in a moment.";
+        }
+        ({ error, refused, messageId } = await engine.call("sendMessage", {
+          linkId: id,
+          text: message.text,
+          timestamp: message.timestamp,
+          ...(profile && message.preview && { preview: message.preview }),
+          ...(profile && replyTo && { replyTo }),
+        }));
+      } catch (failure) {
+        unsent();
+        throw failure;
+      }
+      if (error) unsent();
+      else if (onSent) onSent(messageId ?? message.id);
+      // Refused: the copy kept here for a legacy chat goes too, so it never shows as sent.
+      if (refused && !profile) {
+        const updated = deleteStoredMessage(sessionId, message.id);
+        if (updated) setMessages([...updated.messages]);
+        notifySessionsChanged();
+      }
+      return error;
+    },
+    [profile, sessionId, seedB64, peerPubKey, encKeyB64, linkParams],
+  );
+
+  // "👋 joined": the joiner announces itself once, the creator answers once.
+  const announce = useCallback(() => {
+    const timestamp = Date.now();
+    const nick = nickRef.current;
+    const myPubKey = engine.state?.links.find((l) => l.id === linkIdRef.current)?.myPubKeyZ32;
+    void publish({
+      id: `me_${timestamp}`,
+      text: nick ? `👋 ${nick} joined` : "👋 joined",
+      sender: "system",
+      timestamp,
+      nick,
+      systemEvent: { type: "join", pubKey: myPubKey },
+    });
+  }, [publish]);
+
+  // A paired chat cannot queue this in Pkarr the way a legacy one does, so it
+  // waits for the session to open instead of announcing on mount and losing it.
+  const canAnnounce = !profile || (link?.dataLink === "open" && link?.pairing?.status === "ready");
+
+  useEffect(() => {
+    if (!canAnnounce || !linkId || !sessionId || getInviteCode(sessionId)) return;
+    if (hasAnnouncedJoin(sessionId)) return;
+    markJoinAnnounced(sessionId);
+    announce();
+  }, [canAnnounce, linkId, sessionId, announce]);
+
+  useEffect(() => {
+    if (!canAnnounce || !linkId || !sessionId || !getInviteCode(sessionId)) return;
+    const peerJoined = messages.some((m) => m.id.startsWith("peer_") && m.systemEvent?.type === "join");
+    const welcomed = messages.some((m) => m.id.startsWith("me_") && m.systemEvent?.type === "join");
+    if (peerJoined && !welcomed) announce();
+  }, [canAnnounce, linkId, sessionId, messages, announce]);
+
+  const sendMessage = useCallback(
+    async (text: string, extra?: { preview?: LinkPreview; replyTo?: string; onSent?: (messageId: string) => void }): Promise<string | null> => {
+      if (isBurned) return "Chat has been burned";
+      const trimmed = text.trim();
+      if (!trimmed) return null;
+      setIsSending(true);
+      try {
+        const timestamp = Date.now();
+        const open = engine.state?.links.find((l) => l.id === linkIdRef.current)?.dataLink === "open";
+        return await publish({
+          id: `me_${timestamp}`,
+          text: trimmed,
+          sender: "me",
+          timestamp,
+          nick: nickRef.current,
+          // Only a paired chat carries a preview; a compatibility chat's text goes as it is.
+          ...(profile && extra?.preview && { preview: extra.preview }),
+          meta: {
+            dhtKey: engine.state?.links.find((l) => l.id === linkIdRef.current)?.myPubKeyZ32 ?? "",
+            encryptedPayloadLength: 0,
+            dnsRecords: open ? ["webrtc"] : ["_msgs", "_ts", "_ack", ...(nickRef.current ? ["_nick"] : [])],
+            packetTimestamp: timestamp,
+          },
+        }, profile ? extra?.replyTo : undefined, extra?.onSent);
+      } catch (error) {
+        return error instanceof Error ? error.message : "Failed to send message. Check your connection.";
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [isBurned, publish, profile],
+  );
+
+  const burn = useCallback(() => setIsBurned(true), []);
+
+  // The name this chat's own notices carry. The peer learns the profile's name from the app (`App.tsx`).
+  const setNick = useCallback((nick: string) => {
+    nickRef.current = nick || undefined;
+  }, []);
+
+  const setCallSignal = useCallback(async (signal: string | null) => {
+    if (linkIdRef.current) await engine.call("setCallSignal", { linkId: linkIdRef.current, signal }).catch(() => {});
+  }, []);
+
+  const setChatFastPoll = useCallback((fast: boolean) => {
+    if (linkIdRef.current) void engine.call("setFastPoll", { linkId: linkIdRef.current, fast }).catch(() => {});
+  }, []);
+
+  const forceRefresh = useCallback(() => {
+    if (linkIdRef.current) void engine.call("pollNow", { linkId: linkIdRef.current }).catch(() => {});
+  }, []);
+
+  const addSystemMessage = useCallback(
+    (message: ChatMessage) => {
+      const updated = addMessage(sessionId, message);
+      if (!updated) return;
+      setMessages([...updated.messages]);
+      // The chat list keeps its own copy of the last message: a call line, a file or a payment of this page's own
+      // moves it now, not on the list's 3 s tick. Same task as the line above, so this chat renders once.
+      notifySessionsChanged();
+    },
+    [sessionId],
+  );
+
+  /** A missed call's line, or one more call on the chat's last missed line (`addMissedCall`): the line's id. */
+  const addMissedCallMessage = useCallback(
+    (message: ChatMessage, options: { rang?: string; seen?: boolean }) => {
+      const updated = addMissedCall(sessionId, message, options);
+      if (!updated) return undefined;
+      setMessages([...updated.session.messages]);
+      notifySessionsChanged();
+      return updated.line;
+    },
+    [sessionId],
+  );
+
+  /** One call less on a line that counts several (`uncountMissedCall`). */
+  const uncountMissedCall = useCallback(
+    (line: string) => {
+      const updated = uncountStoredMissedCall(sessionId, line);
+      if (!updated) return;
+      setMessages([...updated.messages]);
+      notifySessionsChanged();
+    },
+    [sessionId],
+  );
+
+  const deleteMessage = useCallback(
+    (messageId: string) => {
+      const updated = deleteStoredMessage(sessionId, messageId);
+      if (!updated) return;
+      setMessages([...updated.messages]);
+      notifySessionsChanged();
+    },
+    [sessionId],
+  );
+
+  const poll = link?.poll;
+  const pollCountdown = {
+    remaining: poll ? Math.max(0, poll.nextAt - Date.now()) : 0,
+    total: poll?.interval || 1,
+    isPolling: poll?.polling ?? true,
+  };
+
+  let status: ConnectionStatus = "connecting";
+  if (isBurned || view.offline) status = "offline";
+  else if (link) status = link.status;
+
+  const techInfo: ChatTechInfo = {
+    sessionId,
+    myPubKey: link?.myPubKeyZ32 ?? "",
+    peerPubKey: peerPubKey ?? "",
+    encKeyPreview: encKeyB64 ? `${encKeyB64.slice(0, 8)}...${encKeyB64.slice(-4)}` : "",
+    currentPollInterval: poll?.interval ?? 0,
+    republishInterval: 4 * 60_000,
+    messageTtl: 300,
+    protocol: view.protocol,
+    peerToPeer: link?.dataLink === "open",
+    encryption: "NaCl secretbox (XSalsa20-Poly1305)",
+    relays: view.relays,
+    createdAt: createdAtRef.current,
+    peerAck: link?.peerAck ?? 0,
+  };
+
+  return {
+    messages,
+    status,
+    lastSync: link?.lastSyncAt || null,
+    isSending,
+    sendMessage,
+    burn,
+    setNick,
+    isBurned,
+    techInfo,
+    peerAck: link?.peerAck ?? 0,
+    forceRefresh,
+    incomingCallSignal,
+    callHandledElsewhere,
+    setCallSignal,
+    setChatFastPoll,
+    addSystemMessage,
+    addMissedCallMessage,
+    uncountMissedCall,
+    deleteMessage,
+    pollCountdown,
+  };
+};

@@ -1,0 +1,31 @@
+{
+  "name": "Property",
+  "pageNotLoaded": {
+    "hint": "Check your connection, then try again. If it still fails, reload Property.",
+    "title": "This page did not load.",
+    "tryAgain": "Try again"
+  },
+  "profileUnavailable": {
+    "detail": "What the system said:",
+    "info": "Nothing was changed or deleted. While closed, this profile connects to nobody and sends nothing. Property {{app}} reads profile data up to version {{supported}}.",
+    "newerHint": "Update the app to open it.",
+    "newerInfo": "Its data is version {{stored}}; Property {{app}} reads up to {{supported}}. Nothing was opened, sent or changed: your chats, keys and wallets are still there.",
+    "newerTitle": "This profile was last used by a newer version of Property.",
+    "noUpdate": "No newer version is out yet. Open this profile with the app that used it last.",
+    "reason": {
+      "blocked": "Another Property window or tab still has it open with an older version.",
+      "denied": "This browser gives Property no storage here: a private window, or storage blocked for this site.",
+      "failed": "The data did not open, and the system gave no clear reason.",
+      "full": "This device is out of storage space."
+    },
+    "title": "Property could not open this profile's data.",
+    "try": {
+      "blocked": "Close the other Property windows and tabs, then try again.",
+      "denied": "Use a normal window or allow storage for this site, then try again.",
+      "failed": "Restart the app or the device, then try again.",
+      "full": "Free some space, then try again."
+    },
+    "tryAgain": "Try again"
+  },
+  "tagline": "Encrypted peer-to-peer messaging over the DHT"
+}

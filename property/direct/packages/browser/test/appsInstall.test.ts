@@ -1,0 +1,1325 @@
+import "fake-indexeddb/auto";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { APP_BUNDLE_MAGIC, canonicalJsonBytes, toBase64Url, utf8Encode, type SignedAppRevocation } from "@ghostly/core";
+import { fileBytes } from "../src/shared/fileBytes";
+import { STORES, openDb, wrap } from "../src/shared/idb";
+import {
+  BUNDLE_URL, FakeNet, NOW_MS, PINNED_URL, PUBLISHER, REPO, STORE_KEY, STORE_URL, appRows, apps, bundle, bundleIds, emptyProfile, keyOf,
+  listing, revocation, signer, storeFiles,
+} from "./appsSupport";
+// covers: apps.engine.installed
+
+/*
+ * The engine's app store (WISP 1200 § Updates and rollback, § Takedowns, § Apps sent in a chat): install only after the
+ * person saw the checked bundle, the update rule from core (rollback refused, equivocation marked, new permissions asked
+ * again), revocations and removals checked before a run, and a restored profile's missing files fetched again by digest.
+ */
+
+let net: FakeNet;
+beforeEach(async () => {
+  await emptyProfile();
+  net = new FakeNet();
+});
+afterEach(() => { vi.restoreAllMocks(); });
+
+/**
+ * A browser that keeps no Blob in IndexedDB, as Safari's Private Browsing and WebKit's in-memory contexts: a piece of a
+ * file is refused with WebKit's own words, and every other record is stored.
+ */
+function privateBrowsing(): void {
+  const put = IDBObjectStore.prototype.put;
+  vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (this: IDBObjectStore, value: unknown, key?: IDBValidKey) {
+    if (!((value as { data?: unknown })?.data instanceof Blob)) return put.call(this, value, key);
+    // Refused as WebKit does: the transaction aborts with the browser's error.
+    const refused = new DOMException("Error preparing Blob/File data to be stored in object store", "UnknownError");
+    const tx = this.transaction;
+    Object.defineProperty(tx, "error", { get: () => refused, set: () => {}, configurable: true });
+    const request = put.call(this, value, key);
+    tx.abort();
+    return request;
+  });
+}
+
+describe("install", () => {
+  it("a pasted GitHub URL is read from raw.githubusercontent.com; nothing is kept before Install", async () => {
+    const v1 = await bundle();
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    const preview = await store.preview({ url: "https://github.com/ana/chess" });
+    expect(net.requests).toEqual([BUNDLE_URL, new URL("ghostly-revoke.json", BUNDLE_URL).href]);
+    expect(preview).toMatchObject({ digest: v1.digest, ref: v1.ref, install: "new", asks: ["chat"], run: { status: "ok" }, unknownPublisher: true, listedBy: [] });
+    expect(await appRows()).toEqual([]);
+    expect(await bundleIds()).toEqual([]);
+
+    const view = await store.install({ digest: v1.digest, grant: ["chat"] });
+    // No view in its manifest: it runs in a chat.
+    expect(view).toMatchObject({ ref: v1.ref, sequence: 1, digest: v1.digest, permissions: ["chat"], view: "chat", run: { status: "ok" } });
+    expect(await bundleIds()).toEqual([`app-${v1.digest}`]);
+    const entry = await store.entry({ ref: v1.ref });
+    expect(entry).toMatchObject({ digest: v1.digest, version: "1.0.1", permissions: ["chat"], view: "chat" });
+    expect(entry.entry).toContain("<p>v1");
+    expect(new TextDecoder().decode(await store.file({ ref: v1.ref, path: "data/openings.json" }))).toBe("[]");
+    await expect(store.file({ ref: v1.ref, path: "../secret" })).rejects.toThrow(/^no-file/);
+  });
+
+  it("a full-screen app says so in its view and its run entry", async () => {
+    const full = await bundle({ view: "full", permissions: [] });
+    net.put(BUNDLE_URL, full.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    expect(await store.install({ digest: full.digest, grant: [] })).toMatchObject({ view: "full" });
+    expect(await store.entry({ ref: full.ref })).toMatchObject({ view: "full" });
+    expect(await store.list()).toMatchObject([{ ref: full.ref, view: "full" }]);
+  });
+
+  it("refuses an install without every permission granted, and one never previewed", async () => {
+    const v1 = await bundle({ permissions: ["chat", "name"] });
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await expect(store.install({ digest: v1.digest, grant: ["chat"] })).rejects.toThrow(/^permissions/);
+    await expect(store.install({ digest: "x".repeat(43), grant: [] })).rejects.toThrow(/^expired/);
+    expect(await appRows()).toEqual([]);
+  });
+
+  it("refuses a bundle that does not verify, with the reader's refusal, and keeps nothing", async () => {
+    const v1 = await bundle();
+    const broken = v1.bytes.slice();
+    broken[broken.length - 1] ^= 1;
+    net.put(BUNDLE_URL, broken);
+    await expect(apps(net).preview({ url: BUNDLE_URL })).rejects.toThrow(/^file-hash/);
+    net.put(BUNDLE_URL, new Uint8Array([...v1.bytes, 0]));
+    await expect(apps(net).preview({ url: BUNDLE_URL })).rejects.toThrow(/^trailing-bytes/);
+    expect(await bundleIds()).toEqual([]);
+  });
+
+  it("a card's pointer is fetched only from the allowed hosts, and must hold its app at its number or newer", async () => {
+    const v2 = await bundle({ sequence: 2 });
+    net.put(PINNED_URL, v2.bytes);
+    const store = apps(net);
+    await expect(store.preview({ card: { ref: v2.ref, url: "https://evil.example/app.ghostlyapp" } })).rejects.toThrow(/^host/);
+    await expect(store.preview({ card: { ref: v2.ref, url: "https://cdn.jsdelivr.net/gh/ana/chess@main/app.ghostlyapp" } })).rejects.toThrow(/^host/);
+    expect(net.requests).toEqual([]);
+    await expect(store.preview({ card: { ref: v2.ref, url: PINNED_URL, sequence: 3 } })).rejects.toThrow(/^rollback/);
+    await expect(store.preview({ card: { ref: v2.ref, url: PINNED_URL, sequence: 2, digest: "A".repeat(43) } })).rejects.toThrow(/^equivocation/);
+    await expect(store.preview({ card: { ref: `${keyOf(signer("other"))}/chess`, url: PINNED_URL } })).rejects.toThrow(/^other-app/);
+    // An older card is fine: the bundle there is newer.
+    expect(await store.preview({ card: { ref: v2.ref, url: PINNED_URL, sequence: 1 } })).toMatchObject({ digest: v2.digest, install: "new" });
+  });
+
+  it("from a store's listing: its URLs in order, its digest held, and a curated store clears Unknown publisher", async () => {
+    const v1 = await bundle();
+    net.put(PINNED_URL, v1.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v1, ["https://raw.githubusercontent.com/ana/chess/HEAD/gone.ghostlyapp", PINNED_URL])] }));
+    const store = apps(net);
+    await store.addStore({ url: STORE_URL, key: keyOf(STORE_KEY) });
+    const preview = await store.preview({ store: keyOf(STORE_KEY), ref: v1.ref });
+    expect(preview).toMatchObject({ digest: v1.digest, from: PINNED_URL, unknownPublisher: false, listedBy: [{ key: keyOf(STORE_KEY), name: "Test store", kind: "curated" }] });
+    expect((await store.install({ digest: v1.digest, grant: ["chat"] })).unknownPublisher).toBe(false);
+    // An indexed store's listing leaves the warning in place.
+    await emptyProfile();
+    await net.putStore(await storeFiles({ kind: "indexed", apps: [listing(v1, [PINNED_URL])] }));
+    const again = apps(net);
+    await again.addStore({ url: STORE_URL });
+    expect(await again.preview({ store: keyOf(STORE_KEY), ref: v1.ref })).toMatchObject({ unknownPublisher: true });
+  });
+});
+
+describe("updates", () => {
+  async function installed(options: Parameters<typeof bundle>[0] = {}) {
+    const v1 = await bundle(options);
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: v1 && (options.permissions ?? ["chat"]) });
+    return { store, v1 };
+  }
+
+  it("a newer version a store lists installs by itself when it adds no permission; the old files go", async () => {
+    const { store, v1 } = await installed();
+    const v2 = await bundle({ sequence: 2, permissions: [] });
+    net.put(PINNED_URL, v2.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v2, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    expect(await store.checkUpdates()).toEqual([{ ref: v1.ref, outcome: "updated", run: { status: "ok" } }]);
+    // The URL it came from is what an app card sent in a chat names (WISP 405 § An app).
+    expect((await store.list())[0]).toMatchObject({ sequence: 2, digest: v2.digest, permissions: [], from: PINNED_URL, icon: false });
+    expect(await bundleIds()).toEqual([`app-${v2.digest}`]);
+  });
+
+  it("the newest version the stores list installs at once, whatever order the stores' keys come in", async () => {
+    const { store, v1 } = await installed();
+    const other = signer("other store");
+    const otherUrl = "https://raw.githubusercontent.com/other/store/HEAD/ghostly-store.json";
+    const v2 = await bundle({ sequence: 2 });
+    const v3 = await bundle({ sequence: 3 });
+    const pinned3 = `https://cdn.jsdelivr.net/gh/ana/chess@${"c".repeat(40)}/app.ghostlyapp`;
+    net.put(PINNED_URL, v2.bytes);
+    net.put(pinned3, v3.bytes);
+    // The store whose key comes first lists 2, the other 3.
+    const [first, second] = keyOf(STORE_KEY) < keyOf(other) ? [STORE_KEY, other] : [other, STORE_KEY];
+    await net.putStore(await storeFiles({ by: first, name: "First store", apps: [listing(v2, [PINNED_URL])] }), first === STORE_KEY ? STORE_URL : otherUrl);
+    await net.putStore(await storeFiles({ by: second, name: "Second store", apps: [listing(v3, [pinned3])] }), second === STORE_KEY ? STORE_URL : otherUrl);
+    await store.addStore({ url: STORE_URL });
+    await store.addStore({ url: otherUrl });
+    net.requests.length = 0;
+    expect(await store.checkUpdates()).toEqual([{ ref: v1.ref, outcome: "updated", run: { status: "ok" } }]);
+    expect((await store.list())[0]).toMatchObject({ sequence: 3, digest: v3.digest, from: pinned3 });
+    expect(net.requests, "2 is not even peeked").not.toContain(PINNED_URL);
+    expect(await bundleIds()).toEqual([`app-${v3.digest}`]);
+  });
+
+  it("when the newest version listed cannot be fetched, the next newest installs in the same check", async () => {
+    const { store } = await installed();
+    const other = signer("other store");
+    const otherUrl = "https://raw.githubusercontent.com/other/store/HEAD/ghostly-store.json";
+    const v2 = await bundle({ sequence: 2 });
+    const v3 = await bundle({ sequence: 3 });
+    const pinned3 = `https://cdn.jsdelivr.net/gh/ana/chess@${"c".repeat(40)}/app.ghostlyapp`;
+    net.put(PINNED_URL, v2.bytes);
+    // 3's URL holds nothing.
+    await net.putStore(await storeFiles({ apps: [listing(v2, [PINNED_URL])] }));
+    await net.putStore(await storeFiles({ by: other, name: "Other store", apps: [listing(v3, [pinned3])] }), otherUrl);
+    await store.addStore({ url: STORE_URL });
+    await store.addStore({ url: otherUrl });
+    expect((await store.checkUpdates())[0]!.outcome).toBe("updated");
+    expect((await store.list())[0]).toMatchObject({ sequence: 2, digest: v2.digest, from: PINNED_URL });
+  });
+
+  it("an update that adds a permission waits for the person, who sees only what is new", async () => {
+    const { store, v1 } = await installed();
+    const v2 = await bundle({ sequence: 2, permissions: ["chat", "name"] });
+    net.put(PINNED_URL, v2.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v2, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    const waiting = (await store.list())[0]!;
+    expect(waiting).toMatchObject({ sequence: 1, digest: v1.digest, permissions: ["chat"], pending: { sequence: 2, added: ["name"] } });
+    expect((await store.entry({ ref: v1.ref })).digest, "the installed one still runs").toBe(v1.digest);
+    const accepted = await store.acceptUpdate({ ref: v1.ref });
+    expect(accepted).toMatchObject({ sequence: 2, digest: v2.digest, permissions: ["chat", "name"] });
+    expect(accepted.pending).toBeUndefined();
+    expect(await bundleIds()).toEqual([`app-${v2.digest}`]);
+  });
+
+  it("a version installed while an update waits: the update adds, and Update grants, only what is new to that version", async () => {
+    const { store, v1 } = await installed({ permissions: ["internet"] });
+    const v3 = await bundle({ sequence: 3, permissions: ["internet", "chat"] });
+    net.put(PINNED_URL, v3.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v3, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    expect((await store.list())[0]).toMatchObject({ pending: { sequence: 3, added: ["chat"] } });
+    // A card of version 2, asking nothing, installed from its link: the install screen grants nothing.
+    const v2 = await bundle({ sequence: 2, permissions: [] });
+    net.put(BUNDLE_URL, v2.bytes);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v2.digest, grant: [] });
+    expect((await store.list())[0]).toMatchObject({ sequence: 2, permissions: [], pending: { sequence: 3, added: ["internet", "chat"] } });
+    expect(await store.acceptUpdate({ ref: v1.ref })).toMatchObject({ sequence: 3, permissions: ["internet", "chat"] });
+  });
+
+  it("Update refuses a waiting update whose added permissions are not the ones shown, and shows the new ones", async () => {
+    const { store, v1 } = await installed({ permissions: [] });
+    const v2 = await bundle({ sequence: 2, permissions: ["internet", "chat"] });
+    net.put(PINNED_URL, v2.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v2, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    // A record kept by an older version, whose list was worked out against another version installed before.
+    const [row] = await appRows() as { pending: { added: string[] } }[];
+    row!.pending.added = ["chat"];
+    await wrap((await openDb()).transaction(STORES.apps, "readwrite").objectStore(STORES.apps).put(row));
+    await expect(store.acceptUpdate({ ref: v1.ref })).rejects.toThrow(/^permissions-changed/);
+    expect((await store.list())[0]).toMatchObject({ sequence: 1, permissions: [], pending: { sequence: 2, added: ["internet", "chat"] } });
+    expect(await store.acceptUpdate({ ref: v1.ref })).toMatchObject({ sequence: 2, permissions: ["internet", "chat"] });
+  });
+
+  it("the install screen says equivocation for a bundle that clashes with the update waiting, as Install answers", async () => {
+    const { store, v1 } = await installed();
+    const v2 = await bundle({ sequence: 2, permissions: ["chat", "name"] });
+    net.put(PINNED_URL, v2.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v2, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    // Another bundle at the waiting update's number, with other bytes: it offered Update, and Install then refused it.
+    const twin = await bundle({ sequence: 2, permissions: ["chat", "name"], entry: "<p>another version 2" });
+    net.put(BUNDLE_URL, twin.bytes);
+    expect(await store.preview({ url: BUNDLE_URL })).toMatchObject({ install: "equivocation", asks: [] });
+    await expect(store.install({ digest: twin.digest, grant: ["chat", "name"] })).rejects.toThrow(/^equivocation/);
+    expect((await store.list())[0]).toMatchObject({ digest: v1.digest, pending: { sequence: 2, added: ["name"] }, equivocation: { sequence: 2 } });
+    // The waiting update itself, by its own link, is still an update.
+    expect(await store.preview({ url: PINNED_URL })).toMatchObject({ install: "update", asks: ["name"] });
+  });
+
+  it("an app uninstalled while its waiting update is being accepted stays uninstalled", async () => {
+    const { store, v1 } = await installed();
+    const v2 = await bundle({ sequence: 2, permissions: ["chat", "name"] });
+    net.put(PINNED_URL, v2.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v2, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    // Update pressed; Uninstall (another tab, or the same dialog while Update is busy) lands while it reads the files.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let reading!: () => void;
+    const started = new Promise<void>((resolve) => { reading = resolve; });
+    const engine = store as unknown as { readBundleBytes: (...args: unknown[]) => Promise<unknown> };
+    const read = engine.readBundleBytes.bind(store);
+    const spy = vi.spyOn(engine, "readBundleBytes").mockImplementation(async (...args: unknown[]) => { const bytes = await read(...args); reading(); await held; return bytes; });
+    const accept = store.acceptUpdate({ ref: v1.ref });
+    await started;
+    await store.uninstall({ ref: v1.ref });
+    release();
+    await expect(accept).rejects.toThrow(/^not-installed/);
+    spy.mockRestore();
+    expect(await store.list(), "not back on the new version, with its data gone").toEqual([]);
+    expect(await bundleIds()).toEqual([]);
+  });
+
+  it("an app uninstalled while Install of another version of it stores the files stays uninstalled", async () => {
+    const { store, v1 } = await installed();
+    const v2 = await bundle({ sequence: 2 });
+    net.put(PINNED_URL, v2.bytes);
+    await store.preview({ url: PINNED_URL });
+    // Install pressed (a link, a card in a chat); Uninstall (another tab, the Apps page) lands while it writes the files.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let writing!: () => void;
+    const started = new Promise<void>((resolve) => { writing = resolve; });
+    const engine = store as unknown as { writeBundle: (...args: unknown[]) => Promise<unknown> };
+    const write = engine.writeBundle.bind(store);
+    const spy = vi.spyOn(engine, "writeBundle").mockImplementation(async (...args: unknown[]) => { const kind = await write(...args); writing(); await held; return kind; });
+    const install = store.install({ digest: v2.digest, grant: ["chat"] });
+    await started;
+    await store.uninstall({ ref: v1.ref });
+    release();
+    await expect(install).rejects.toThrow(/^not-installed/);
+    spy.mockRestore();
+    expect(await store.list(), "not back on the new version, with its data gone").toEqual([]);
+    expect(await bundleIds()).toEqual([]);
+  });
+
+  it("an uninstall at any point of an Install of another version never brings the app back", async () => {
+    for (let offset = 0; offset < 40; offset++) {
+      await emptyProfile();
+      const { store, v1 } = await installed();
+      const v2 = await bundle({ sequence: 2 });
+      net.put(PINNED_URL, v2.bytes);
+      await store.preview({ url: PINNED_URL });
+      const install = store.install({ digest: v2.digest, grant: ["chat"] }).then(() => "ok", (e: Error) => e.message.split(":")[0]);
+      for (let i = 0; i < offset; i++) await new Promise((resolve) => setImmediate(resolve));
+      await store.uninstall({ ref: v1.ref }).catch(() => {});
+      const outcome = await install;
+      const left = await store.list();
+      // The install either finished before the uninstall (then removed with it) or stopped: never the app back, empty.
+      expect(left, `offset ${offset}: install ${outcome}`).toEqual([]);
+      if (outcome === "ok") continue;
+      // Stopped: the files it wrote go with it.
+      expect(outcome, `offset ${offset}`).toBe("not-installed");
+      expect(await bundleIds(), `offset ${offset}`).toEqual([]);
+    }
+  });
+
+  it("an app uninstalled while an update that adds a permission downloads leaves no files behind", async () => {
+    const { store, v1 } = await installed();
+    const v2 = await bundle({ sequence: 2, permissions: ["chat", "name"] });
+    net.put(PINNED_URL, v2.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v2, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    // The person uninstalls it while the check fetches the update.
+    const answer = net.fetch.getMockImplementation()!;
+    net.fetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === PINNED_URL) await store.uninstall({ ref: v1.ref });
+      return answer(input, init);
+    });
+    expect(await store.checkUpdates()).toEqual([]);
+    expect(await appRows()).toEqual([]);
+    expect(await bundleIds()).toEqual([]);
+  });
+
+  it("a newer version found at the app's own source, peeked first", async () => {
+    const v1 = await bundle({ sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    net.requests.length = 0;
+    net.fetch.mockClear();
+    expect((await store.checkUpdates())[0]!.outcome, "nothing newer: only the peek and the revocations are read").toBe("none");
+    expect(net.requests).toEqual([BUNDLE_URL, `${REPO}/ghostly-revoke.json`]);
+    expect(net.fetch.mock.calls[0]![1]).toMatchObject({ headers: { range: expect.stringMatching(/^bytes=0-\d+$/) } });
+    const v2 = await bundle({ sequence: 2, sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v2.bytes);
+    expect((await store.checkUpdates())[0]!.outcome).toBe("updated");
+  });
+
+  it("a peek reads the first 4 KiB, and only for a longer manifest the bytes up to its end, not the largest manifest the format allows", async () => {
+    const v1 = await bundle({ sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    const ranges = () => net.fetch.mock.calls.filter(([url]) => String(url) === BUNDLE_URL).map(([, init]) => ((init?.headers ?? {}) as Record<string, string>).range ?? "whole");
+    net.fetch.mockClear();
+    expect((await store.checkUpdates())[0]!.outcome).toBe("none");
+    expect(ranges(), "a usual manifest: one small read").toEqual(["bytes=0-4095"]);
+    // A manifest past 4 KiB (a long description): read again from the start, to exactly its end.
+    const v2 = await bundle({ sequence: 2, sources: [BUNDLE_URL], description: "♞".repeat(2000) });
+    const end = APP_BUNDLE_MAGIC.length + 4 + new DataView(v2.bytes.buffer, v2.bytes.byteOffset).getUint32(APP_BUNDLE_MAGIC.length);
+    expect(end).toBeGreaterThan(4096);
+    net.put(BUNDLE_URL, v2.bytes);
+    net.fetch.mockClear();
+    expect((await store.checkUpdates())[0]!.outcome).toBe("updated");
+    expect(ranges()).toEqual(["bytes=0-4095", `bytes=0-${end - 1}`, "whole"]);
+  });
+
+  it("a newer version its publisher revoked beside its source before the check is not installed; the one held keeps running", async () => {
+    const v1 = await bundle({ sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    // The repository's HEAD still holds v2 after its publisher revoked it there.
+    const v2 = await bundle({ sequence: 2, sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v2.bytes);
+    net.put(`${REPO}/ghostly-revoke.json`, canonicalJsonBytes([await revocation(v1.ref, [v2.digest], "Broken build")]));
+    expect(await store.checkUpdates()).toEqual([{ ref: v1.ref, outcome: "none", run: { status: "ok" } }]);
+    expect((await store.list())[0]).toMatchObject({ sequence: 1, digest: v1.digest, run: { status: "ok" } });
+    expect(await bundleIds()).toEqual([`app-${v1.digest}`]);
+  });
+
+  it("a newer version at the app's source that a store removed, or its publisher revoked, costs a peek at each check, never the whole bundle", async () => {
+    const v1 = await bundle({ sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    const v2 = await bundle({ sequence: 2, sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v2.bytes);
+    const reads = () => net.fetch.mock.calls.filter(([url]) => String(url) === BUNDLE_URL).map(([, init]) => ((init?.headers ?? {}) as Record<string, string>).range ? "peek" : "whole");
+    const visits = async () => {
+      net.fetch.mockClear();
+      for (let visit = 0; visit < 3; visit++) expect(await store.checkUpdates()).toEqual([{ ref: v1.ref, outcome: "none", run: { status: "ok" } }]);
+      return reads();
+    };
+    // A store the person added removed v2.
+    await net.putStore(await storeFiles({ removed: [{ ref: v1.ref, digest: v2.digest, reason: "Malware", at: NOW_MS / 1000 }] }));
+    await store.addStore({ url: STORE_URL });
+    expect(await visits(), "removed by a store").toEqual(["peek", "peek", "peek"]);
+    // The store's next index carries the publisher's revocation of v2 instead.
+    await net.putStore(await storeFiles({ sequence: 2, revoked: [await revocation(v1.ref, [v2.digest], "Broken build")] }));
+    expect(await visits(), "revoked, as a store copied it").toEqual(["peek", "peek", "peek"]);
+    // The store says nothing of it any more; its publisher revoked it beside its source.
+    await net.putStore(await storeFiles({ sequence: 3 }));
+    net.put(`${REPO}/ghostly-revoke.json`, canonicalJsonBytes([await revocation(v1.ref, [v2.digest], "Broken build")]));
+    expect(await visits(), "revoked beside its source").toEqual(["peek", "peek", "peek"]);
+    expect(await bundleIds()).toEqual([`app-${v1.digest}`]);
+    // The next version, which nobody refuses, is read whole and installs.
+    const v3 = await bundle({ sequence: 3, sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v3.bytes);
+    expect((await store.checkUpdates())[0]!.outcome).toBe("updated");
+    expect((await store.list())[0]).toMatchObject({ sequence: 3, digest: v3.digest });
+  });
+
+  it("a waiting update its publisher revoked, or a store of the person's removed, goes with its files; the next version is looked for", async () => {
+    const v1 = await bundle({ sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    const v2 = await bundle({ sequence: 2, permissions: ["chat", "name"], sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v2.bytes);
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    expect(await bundleIds()).toEqual([`app-${v1.digest}`, `app-${v2.digest}`].sort());
+    // Its publisher revokes 2 beside its source, which still holds it.
+    net.put(`${REPO}/ghostly-revoke.json`, canonicalJsonBytes([await revocation(v1.ref, [v2.digest], "Broken build")]));
+    for (let visit = 0; visit < 2; visit++) expect(await store.checkUpdates()).toEqual([{ ref: v1.ref, outcome: "none", run: { status: "ok" } }]);
+    expect((await store.list())[0]).toMatchObject({ sequence: 1, digest: v1.digest });
+    expect((await store.list())[0]!.pending).toBeUndefined();
+    expect(await bundleIds()).toEqual([`app-${v1.digest}`]);
+    await expect(store.acceptUpdate({ ref: v1.ref })).rejects.toThrow(/^no-update/);
+
+    // A 3 that adds a permission waits; a store the person adds removes it, and a 4 that adds none is at the source.
+    const v3 = await bundle({ sequence: 3, permissions: ["chat", "name"], sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v3.bytes);
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    await net.putStore(await storeFiles({ removed: [{ ref: v1.ref, digest: v3.digest, reason: "Malware", at: NOW_MS / 1000 }] }));
+    await store.addStore({ url: STORE_URL });
+    const v4 = await bundle({ sequence: 4, sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v4.bytes);
+    expect((await store.checkUpdates())[0]!.outcome, "the same check takes 4").toBe("updated");
+    const view = (await store.list())[0]!;
+    expect(view).toMatchObject({ sequence: 4, digest: v4.digest });
+    expect(view.pending).toBeUndefined();
+    expect(await bundleIds()).toEqual([`app-${v4.digest}`]);
+  });
+
+  it("an update the person accepts while a check reads its publisher's revocation of it keeps its files", async () => {
+    const v1 = await bundle({ sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    const v2 = await bundle({ sequence: 2, permissions: ["chat", "name"], sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v2.bytes);
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    // Its publisher revokes 2; the person presses Update while a check reads that.
+    net.put(`${REPO}/ghostly-revoke.json`, canonicalJsonBytes([await revocation(v1.ref, [v2.digest], "Broken build")]));
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let reading!: () => void;
+    const started = new Promise<void>((resolve) => { reading = resolve; });
+    const answer = net.fetch.getMockImplementation()!;
+    net.fetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/ghostly-revoke.json")) { reading(); await held; }
+      return answer(input, init);
+    });
+    const check = store.checkUpdates();
+    await started;
+    expect(await store.acceptUpdate({ ref: v1.ref })).toMatchObject({ sequence: 2, digest: v2.digest });
+    release();
+    await check;
+    net.fetch.mockImplementation(answer);
+    expect((await store.list())[0], "the version accepted is the one installed").toMatchObject({ sequence: 2, digest: v2.digest });
+    expect(await bundleIds(), "it keeps the files it runs from").toEqual([`app-${v2.digest}`]);
+  });
+
+  it("a lower sequence is never installed over a higher one", async () => {
+    const { store } = await installed({ sequence: 3 });
+    const old = await bundle({ sequence: 2 });
+    net.put(PINNED_URL, old.bytes);
+    expect(await store.preview({ url: PINNED_URL })).toMatchObject({ install: "rollback" });
+    await expect(store.install({ digest: old.digest, grant: ["chat"] })).rejects.toThrow(/^rollback/);
+    expect((await store.list())[0]!.sequence).toBe(3);
+  });
+
+  it("the same sequence with another digest is refused and the app marked; the one held is kept", async () => {
+    const { store, v1 } = await installed();
+    const twin = await bundle({ sequence: 1, entry: "<p>another version 1" });
+    net.put(PINNED_URL, twin.bytes);
+    expect(await store.preview({ url: PINNED_URL })).toMatchObject({ install: "equivocation" });
+    await expect(store.install({ digest: twin.digest, grant: ["chat"] })).rejects.toThrow(/^equivocation: Two different versions 1 exist/);
+    expect((await store.list())[0]).toMatchObject({ digest: v1.digest, equivocation: { sequence: 1 } });
+    // Found by the update check (a store lists the twin): marked the same way.
+    await emptyProfile();
+    const again = await installed();
+    await net.putStore(await storeFiles({ apps: [listing(twin, [PINNED_URL])] }));
+    await again.store.addStore({ url: STORE_URL });
+    expect((await again.store.checkUpdates())[0]!.outcome).toBe("equivocation");
+    expect((await again.store.list())[0]).toMatchObject({ digest: again.v1.digest, equivocation: { sequence: 1 } });
+    // A later version past that number ends the mark.
+    const v2 = await bundle({ sequence: 2 });
+    net.put(BUNDLE_URL, v2.bytes);
+    await again.store.preview({ url: BUNDLE_URL });
+    expect((await again.store.install({ digest: v2.digest, grant: ["chat"] })).equivocation).toBeUndefined();
+  });
+
+  it("an app uninstalled while its update downloads stays uninstalled, with neither version's files kept", async () => {
+    for (const permissions of [[], ["chat", "name"]] as const) {
+      await emptyProfile();
+      const { store, v1 } = await installed();
+      const v2 = await bundle({ sequence: 2, permissions: [...permissions] });
+      net.put(PINNED_URL, v2.bytes);
+      await net.putStore(await storeFiles({ apps: [listing(v2, [PINNED_URL])] }));
+      await store.addStore({ url: STORE_URL });
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => { release = resolve; });
+      let downloading!: () => void;
+      const started = new Promise<void>((resolve) => { downloading = resolve; });
+      const answer = net.fetch.getMockImplementation()!;
+      net.fetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === PINNED_URL) { downloading(); await held; }
+        return answer(input, init);
+      });
+      const check = store.checkUpdates();
+      await started;
+      await store.uninstall({ ref: v1.ref });
+      release();
+      expect(await check, permissions.length ? "the update that waits" : "the update that installs by itself").toEqual([]);
+      expect(await appRows()).toEqual([]);
+      expect(await bundleIds()).toEqual([]);
+      net.fetch.mockImplementation(answer);
+    }
+  });
+
+  it("an update the person accepts while a check reads the publisher's revocations stays accepted", async () => {
+    const { store, v1 } = await installed();
+    const v2 = await bundle({ sequence: 2, permissions: ["chat", "name"] });
+    net.put(PINNED_URL, v2.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v2, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    // The Apps page opens (a check starts) and the person presses Update while it reads ghostly-revoke.json.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let reading!: () => void;
+    const started = new Promise<void>((resolve) => { reading = resolve; });
+    const answer = net.fetch.getMockImplementation()!;
+    net.fetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/ghostly-revoke.json")) { reading(); await held; }
+      return answer(input, init);
+    });
+    const check = store.checkUpdates();
+    await started;
+    expect(await store.acceptUpdate({ ref: v1.ref })).toMatchObject({ sequence: 2, digest: v2.digest });
+    release();
+    await check;
+    const after = (await store.list())[0]!;
+    expect(after, "the check does not put back the version it read").toMatchObject({ sequence: 2, digest: v2.digest, permissions: ["chat", "name"], run: { status: "ok" } });
+    expect(after.pending).toBeUndefined();
+    expect(await bundleIds()).toEqual([`app-${v2.digest}`]);
+    net.fetch.mockImplementation(answer);
+  });
+
+  it("an update the person accepts while a check finds a newer one keeps its files", async () => {
+    const { store, v1 } = await installed();
+    const v2 = await bundle({ sequence: 2, permissions: ["chat", "name"] });
+    net.put(PINNED_URL, v2.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v2, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    // The store lists a newer version that asks for more again; the person presses Update while a check reads.
+    const v3 = await bundle({ sequence: 3, permissions: ["chat", "name", "files"] });
+    const v3Url = `https://cdn.jsdelivr.net/gh/ana/chess@${"b".repeat(40)}/app.ghostlyapp`;
+    net.put(v3Url, v3.bytes);
+    await net.putStore(await storeFiles({ sequence: 2, apps: [listing(v3, [v3Url])] }));
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let reading!: () => void;
+    const started = new Promise<void>((resolve) => { reading = resolve; });
+    const answer = net.fetch.getMockImplementation()!;
+    net.fetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/ghostly-revoke.json")) { reading(); await held; }
+      return answer(input, init);
+    });
+    const check = store.checkUpdates();
+    await started;
+    expect(await store.acceptUpdate({ ref: v1.ref })).toMatchObject({ sequence: 2, digest: v2.digest });
+    release();
+    await check;
+    net.fetch.mockImplementation(answer);
+    const after = (await store.list())[0]!;
+    expect(after, "the version accepted keeps the files it runs from").toMatchObject({ sequence: 2, digest: v2.digest, run: { status: "ok" } });
+    expect(await bundleIds()).toEqual([`app-${v2.digest}`]);
+    expect((await store.entry({ ref: v1.ref })).digest).toBe(v2.digest);
+  });
+
+  /** The engine's `step` waits, for the bundle `digest` only, until `release` is called; `started` once it is reached. */
+  function holdAt(store: object, step: "writeBundle" | "hasBundle", digest: string) {
+    const engine = store as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
+    const real = engine[step]!.bind(store);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let reached!: () => void;
+    const started = new Promise<void>((resolve) => { reached = resolve; });
+    vi.spyOn(engine, step).mockImplementation(async (...args: unknown[]) => {
+      if (args.includes(digest)) { reached(); await held; }
+      return real(...args);
+    });
+    return { started, release };
+  }
+
+  it("an install whose files are written while the check installs a newer version does not put the older one back", async () => {
+    const { store, v1 } = await installed();
+    const v2 = await bundle({ sequence: 2 });
+    net.put(BUNDLE_URL, v2.bytes);
+    expect(await store.preview({ url: BUNDLE_URL })).toMatchObject({ install: "update" });
+    const v3 = await bundle({ sequence: 3 });
+    net.put(PINNED_URL, v3.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v3, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    // The person presses Install on 2 while the update check takes 3 by itself.
+    const { started, release } = holdAt(store, "writeBundle", v2.digest);
+    const install = store.install({ digest: v2.digest, grant: ["chat"] });
+    await started;
+    expect((await store.checkUpdates())[0]!.outcome).toBe("updated");
+    release();
+    await expect(install).rejects.toThrow(/^rollback/);
+    expect((await store.list())[0], "the version does not go backwards").toMatchObject({ ref: v1.ref, sequence: 3, digest: v3.digest });
+    expect(await bundleIds()).toEqual([`app-${v3.digest}`]);
+  });
+
+  it("the same version pinned to a store while the person accepts the waiting update leaves the update installed", async () => {
+    const { store, v1 } = await installed({ sources: [BUNDLE_URL] });
+    const v3 = await bundle({ sequence: 3, permissions: ["chat", "name"], sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v3.bytes);
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    net.put(PINNED_URL, v1.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v1, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    expect(await store.preview({ store: keyOf(STORE_KEY), ref: v1.ref })).toMatchObject({ install: "same" });
+    const { started, release } = holdAt(store, "hasBundle", v1.digest);
+    const install = store.install({ digest: v1.digest, grant: ["chat"] });
+    await started;
+    expect(await store.acceptUpdate({ ref: v1.ref })).toMatchObject({ sequence: 3, digest: v3.digest });
+    release();
+    await expect(install).rejects.toThrow(/^rollback/);
+    expect((await store.list())[0], "the accepted update stays, its files too").toMatchObject({ sequence: 3, digest: v3.digest, run: { status: "ok" } });
+    expect(await bundleIds()).toEqual([`app-${v3.digest}`]);
+  });
+
+  it("with no app installed the check asks nothing", async () => {
+    await net.putStore(await storeFiles());
+    expect(await apps(net).checkUpdates()).toEqual([]);
+    expect(net.requests).toEqual([]);
+  });
+});
+
+describe("an app installed from a store updates only to the version that store lists", () => {
+  const OTHER_STORE = signer("other store");
+  const OTHER_STORE_URL = "https://raw.githubusercontent.com/other/store/HEAD/ghostly-store.json";
+  const HEAD = BUNDLE_URL;
+
+  /** v1 installed from the store's listing (read at its pinned URL), with the publisher's HEAD as its `sources`. */
+  async function fromStore(options: Parameters<typeof bundle>[0] = {}) {
+    const v1 = await bundle({ sources: [HEAD], ...options });
+    net.put(PINNED_URL, v1.bytes);
+    net.put(HEAD, v1.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v1, [PINNED_URL])] }));
+    const store = apps(net);
+    await store.addStore({ url: STORE_URL, key: keyOf(STORE_KEY) });
+    await store.preview({ store: keyOf(STORE_KEY), ref: v1.ref });
+    await store.install({ digest: v1.digest, grant: options.permissions ?? ["chat"] });
+    return { store, v1 };
+  }
+  const pinnedTo = async () => ((await appRows()) as { store?: string }[])[0]!.store;
+
+  it("a newer version at the publisher's sources waits until the store lists it, and is not even asked for", async () => {
+    const { store, v1 } = await fromStore();
+    expect(await pinnedTo()).toBe(keyOf(STORE_KEY));
+    const v2 = await bundle({ sequence: 2, sources: [HEAD] });
+    net.put(HEAD, v2.bytes);
+    net.requests.length = 0;
+    expect(await store.checkUpdates()).toEqual([{ ref: v1.ref, outcome: "none", run: { status: "ok" } }]);
+    expect((await store.list())[0]).toMatchObject({ sequence: 1, digest: v1.digest });
+    expect(net.requests, "no peek at the sources: only the store and the revocations").not.toContain(HEAD);
+    expect(await bundleIds()).toEqual([`app-${v1.digest}`]);
+
+    // The store lists it now: it installs by itself, and the next updates still come from that store.
+    const pinned2 = `https://cdn.jsdelivr.net/gh/ana/chess@${"b".repeat(40)}/app.ghostlyapp`;
+    net.put(pinned2, v2.bytes);
+    await net.putStore(await storeFiles({ sequence: 2, apps: [listing(v2, [pinned2])] }));
+    expect((await store.checkUpdates())[0]!.outcome).toBe("updated");
+    expect((await store.list())[0]).toMatchObject({ sequence: 2, digest: v2.digest, from: pinned2 });
+    expect(await pinnedTo()).toBe(keyOf(STORE_KEY));
+    expect(await bundleIds()).toEqual([`app-${v2.digest}`]);
+  });
+
+  it("a listing URL that moved on (the repository's HEAD) is skipped for the one holding the listed digest", async () => {
+    const { store, v1 } = await fromStore();
+    const v2 = await bundle({ sequence: 2, sources: [HEAD] });
+    const v3 = await bundle({ sequence: 3, sources: [HEAD] });
+    net.put(HEAD, v3.bytes);
+    const pinned2 = `https://cdn.jsdelivr.net/gh/ana/chess@${"b".repeat(40)}/app.ghostlyapp`;
+    // HEAD alone: it holds 3, the store lists 2, so nothing installs.
+    await net.putStore(await storeFiles({ sequence: 2, apps: [listing(v2, [HEAD])] }));
+    expect((await store.checkUpdates())[0]!.outcome).toBe("none");
+    expect((await store.list())[0]).toMatchObject({ sequence: 1, digest: v1.digest });
+    // HEAD listed first, then the commit the store reviewed: the commit is read first, 2 installs, never 3, and HEAD's
+    // bundle is not even downloaded.
+    net.put(pinned2, v2.bytes);
+    await net.putStore(await storeFiles({ sequence: 3, apps: [listing(v2, [HEAD, pinned2])] }));
+    net.requests.length = 0;
+    expect((await store.checkUpdates())[0]!.outcome).toBe("updated");
+    expect(net.requests).not.toContain(HEAD);
+    expect((await store.list())[0]).toMatchObject({ sequence: 2, digest: v2.digest, from: pinned2 });
+    expect(await bundleIds()).toEqual([`app-${v2.digest}`]);
+  });
+
+  it("a listing that names a version its URL does not hold costs one peek per index, never the whole bundle", async () => {
+    const { store, v1 } = await fromStore();
+    const lie = { ...listing(v1, [PINNED_URL]), sequence: 99, digest: toBase64Url(sha256(utf8Encode("no bundle has this"))) };
+    await net.putStore(await storeFiles({ sequence: 2, apps: [lie] }));
+    net.fetch.mockClear();
+    const reads = () => net.fetch.mock.calls.filter(([url]) => String(url) === PINNED_URL).map(([, init]) => ((init?.headers ?? {}) as Record<string, string>).range ? "peek" : "whole");
+    for (let visit = 0; visit < 3; visit++) expect((await store.checkUpdates())[0]!.outcome).toBe("none");
+    expect(reads(), "peeked once, never read whole").toEqual(["peek"]);
+    // The store's next index: peeked again once; then the version it lists at a URL that holds it installs.
+    await net.putStore(await storeFiles({ sequence: 3, apps: [lie] }));
+    for (let visit = 0; visit < 2; visit++) await store.checkUpdates();
+    expect(reads()).toEqual(["peek", "peek"]);
+    const v2 = await bundle({ sequence: 2, sources: [HEAD] });
+    net.put(PINNED_URL, v2.bytes);
+    await net.putStore(await storeFiles({ sequence: 4, apps: [listing(v2, [PINNED_URL])] }));
+    expect((await store.checkUpdates())[0]!.outcome).toBe("updated");
+    expect((await store.list())[0]).toMatchObject({ sequence: 2, digest: v2.digest });
+  });
+
+  it("another store's listing of a newer version is not taken; once the person removes the store, the sources count again", async () => {
+    const { store, v1 } = await fromStore();
+    const v2 = await bundle({ sequence: 2, sources: [HEAD] });
+    net.put(PINNED_URL, v1.bytes);
+    const pinned2 = `https://cdn.jsdelivr.net/gh/ana/chess@${"b".repeat(40)}/app.ghostlyapp`;
+    net.put(pinned2, v2.bytes);
+    await net.putStore(await storeFiles({ by: OTHER_STORE, name: "Other store", apps: [listing(v2, [pinned2])] }), OTHER_STORE_URL);
+    await store.addStore({ url: OTHER_STORE_URL });
+    expect((await store.checkUpdates())[0]!.outcome).toBe("none");
+    expect((await store.list())[0]).toMatchObject({ sequence: 1, digest: v1.digest });
+    // Its own store removed: the person no longer takes its curation, so the app is not pinned to it any more and takes
+    // a valid newer version from its sources and the other stores, as an app added by URL (its security fixes arrive).
+    const v3 = await bundle({ sequence: 3, sources: [HEAD] });
+    net.put(HEAD, v3.bytes);
+    await store.removeStore({ key: keyOf(STORE_KEY) });
+    expect(await pinnedTo()).toBeUndefined();
+    // The newest it knows of: HEAD's 3, over the other store's 2.
+    expect((await store.checkUpdates())[0]!.outcome).toBe("updated");
+    expect((await store.list())[0]).toMatchObject({ sequence: 3, digest: v3.digest, from: HEAD });
+    expect(await pinnedTo()).toBeUndefined();
+  });
+
+  /** `removeStore` waits once it has read the installed apps, until `release` is called; `started` once it is reached. */
+  function holdRemoveStore(store: object) {
+    const engine = store as unknown as { installed: () => Promise<unknown> };
+    const real = engine.installed.bind(store);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let reached!: () => void;
+    const started = new Promise<void>((resolve) => { reached = resolve; });
+    vi.spyOn(engine, "installed").mockImplementationOnce(async () => { const read = await real(); reached(); await held; return read; });
+    return { started, release };
+  }
+  /** The update check waits before it writes the bundle `digest`, until `release` is called; `started` once it is reached. */
+  function holdWrite(store: object, digest: string) {
+    const engine = store as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
+    const real = engine.writeBundle!.bind(store);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let reached!: () => void;
+    const started = new Promise<void>((resolve) => { reached = resolve; });
+    vi.spyOn(engine, "writeBundle").mockImplementation(async (...args: unknown[]) => {
+      if (args.includes(digest)) { reached(); await held; }
+      return real(...args);
+    });
+    return { started, release };
+  }
+
+  it("an app uninstalled while its store is removed stays uninstalled", async () => {
+    const { store, v1 } = await fromStore();
+    const { started, release } = holdRemoveStore(store);
+    const removing = store.removeStore({ key: keyOf(STORE_KEY) });
+    await started;
+    await store.uninstall({ ref: v1.ref });
+    release();
+    await removing;
+    expect(await appRows(), "not written back as an app with no files").toEqual([]);
+    expect(await store.list()).toEqual([]);
+    expect(await bundleIds()).toEqual([]);
+  });
+
+  it("an update the check installs while the store is removed stays, with its files, pinned to no store", async () => {
+    const { store, v1 } = await fromStore();
+    const v2 = await bundle({ sequence: 2, sources: [HEAD] });
+    const pinned2 = `https://cdn.jsdelivr.net/gh/ana/chess@${"b".repeat(40)}/app.ghostlyapp`;
+    net.put(pinned2, v2.bytes);
+    await net.putStore(await storeFiles({ sequence: 2, apps: [listing(v2, [pinned2])] }));
+    // The check read the stores and fetched 2; the removal read the apps (v1) before the check wrote 2: it does not
+    // write v1 back over it.
+    const write = holdWrite(store, v2.digest);
+    const check = store.checkUpdates();
+    await write.started;
+    const remove = holdRemoveStore(store);
+    const removing = store.removeStore({ key: keyOf(STORE_KEY) });
+    await remove.started;
+    write.release();
+    expect((await check)[0]!.outcome).toBe("updated");
+    remove.release();
+    await removing;
+    expect((await store.list())[0]).toMatchObject({ ref: v1.ref, sequence: 2, digest: v2.digest, run: { status: "ok" } });
+    expect(await bundleIds()).toEqual([`app-${v2.digest}`]);
+    expect(await pinnedTo()).toBeUndefined();
+  });
+
+  it("an update the check writes after its store was removed is not pinned to that store", async () => {
+    const { store, v1 } = await fromStore();
+    const v2 = await bundle({ sequence: 2, sources: [HEAD] });
+    const pinned2 = `https://cdn.jsdelivr.net/gh/ana/chess@${"b".repeat(40)}/app.ghostlyapp`;
+    net.put(pinned2, v2.bytes);
+    await net.putStore(await storeFiles({ sequence: 2, apps: [listing(v2, [pinned2])] }));
+    // The check read the stores and fetched 2; the person removes the store before it writes 2.
+    const { started, release } = holdWrite(store, v2.digest);
+    const check = store.checkUpdates();
+    await started;
+    await store.removeStore({ key: keyOf(STORE_KEY) });
+    release();
+    expect((await check)[0]!.outcome).toBe("updated");
+    expect((await store.list())[0]).toMatchObject({ ref: v1.ref, sequence: 2, digest: v2.digest, run: { status: "ok" } });
+    expect(await pinnedTo(), "the removed store pins nothing").toBeUndefined();
+  });
+
+  it("a waiting update the store no longer lists is not installed; the version it lists now is taken instead", async () => {
+    const { store, v1 } = await fromStore();
+    const v3 = await bundle({ sequence: 3, permissions: ["chat", "name"], sources: [HEAD] });
+    const pinned3 = `https://cdn.jsdelivr.net/gh/ana/chess@${"c".repeat(40)}/app.ghostlyapp`;
+    net.put(pinned3, v3.bytes);
+    await net.putStore(await storeFiles({ sequence: 2, apps: [listing(v3, [pinned3])] }));
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    expect((await store.list())[0]!.pending).toMatchObject({ sequence: 3 });
+
+    // The store lists 2 instead (no removal entry for 3): 3 is no longer what it reviewed.
+    const v2 = await bundle({ sequence: 2, sources: [HEAD] });
+    const pinned2 = `https://cdn.jsdelivr.net/gh/ana/chess@${"b".repeat(40)}/app.ghostlyapp`;
+    net.put(pinned2, v2.bytes);
+    await net.putStore(await storeFiles({ sequence: 3, apps: [listing(v2, [pinned2])] }));
+    await store.refreshStores();
+    await expect(store.acceptUpdate({ ref: v1.ref })).rejects.toThrow(/^unlisted/);
+    expect((await store.list())[0]).toMatchObject({ sequence: 1, digest: v1.digest });
+
+    // The next check drops 3 and installs 2, which adds no permission.
+    expect((await store.checkUpdates())[0]!.outcome).toBe("updated");
+    const view = (await store.list())[0]!;
+    expect(view).toMatchObject({ sequence: 2, digest: v2.digest, from: pinned2 });
+    expect(view.pending).toBeUndefined();
+    expect(await bundleIds()).toEqual([`app-${v2.digest}`]);
+    expect(await pinnedTo()).toBe(keyOf(STORE_KEY));
+  });
+
+  it("a restored app installed from a store fetches its files only from that store's listing, never its sources", async () => {
+    const { v1 } = await fromStore();
+    await (await fileBytes()).remove(`app-${v1.digest}`);
+    // The URL it came from is gone; its sources and another store's listing hold that very digest.
+    net.files.delete(PINNED_URL);
+    net.put(HEAD, v1.bytes);
+    const elsewhere = `https://cdn.jsdelivr.net/gh/other/chess@${"d".repeat(40)}/app.ghostlyapp`;
+    net.put(elsewhere, v1.bytes);
+    await net.putStore(await storeFiles({ by: OTHER_STORE, name: "Other store", apps: [listing(v1, [elsewhere])] }), OTHER_STORE_URL);
+    const store = apps(net);
+    await store.addStore({ url: OTHER_STORE_URL });
+    net.requests.length = 0;
+    expect(await store.fetchFiles({ ref: v1.ref })).toEqual({ status: "needs-files" });
+    expect(net.requests).toEqual([PINNED_URL]);
+    // Its own store lists that digest at another URL now: the files come from there.
+    const moved = `https://cdn.jsdelivr.net/gh/ana/chess@${"e".repeat(40)}/app.ghostlyapp`;
+    net.put(moved, v1.bytes);
+    await net.putStore(await storeFiles({ sequence: 2, apps: [listing(v1, [HEAD, moved])] }));
+    await store.refreshStores();
+    net.requests.length = 0;
+    expect(await store.fetchFiles({ ref: v1.ref })).toEqual({ status: "ok" });
+    expect(net.requests, "the commit-pinned copy first (peeked, then read whole), so HEAD is not read").toEqual([PINNED_URL, moved, moved]);
+  });
+
+  it("an update the store lists that adds a permission waits for the person, and stays pinned once accepted", async () => {
+    const { store, v1 } = await fromStore();
+    const v2 = await bundle({ sequence: 2, permissions: ["chat", "name"], sources: [HEAD] });
+    const pinned2 = `https://cdn.jsdelivr.net/gh/ana/chess@${"b".repeat(40)}/app.ghostlyapp`;
+    net.put(pinned2, v2.bytes);
+    await net.putStore(await storeFiles({ sequence: 2, apps: [listing(v2, [pinned2])] }));
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    expect(await store.acceptUpdate({ ref: v1.ref })).toMatchObject({ sequence: 2, permissions: ["chat", "name"] });
+    expect(await pinnedTo()).toBe(keyOf(STORE_KEY));
+  });
+
+  it("a store's listing that holds the same number under another digest is marked, as from anywhere", async () => {
+    const { store, v1 } = await fromStore();
+    const twin = await bundle({ sequence: 1, entry: "<p>another version 1", sources: [HEAD] });
+    const pinned2 = `https://cdn.jsdelivr.net/gh/ana/chess@${"b".repeat(40)}/app.ghostlyapp`;
+    net.put(pinned2, twin.bytes);
+    await net.putStore(await storeFiles({ sequence: 2, apps: [listing(twin, [pinned2])] }));
+    expect((await store.checkUpdates())[0]!.outcome).toBe("equivocation");
+    expect((await store.list())[0]).toMatchObject({ digest: v1.digest, equivocation: { sequence: 1 } });
+  });
+
+  it("installing from a store takes only the listed digest: a URL holding a newer one is skipped, none is `unlisted`", async () => {
+    const v1 = await bundle({ sources: [HEAD] });
+    const v2 = await bundle({ sequence: 2, sources: [HEAD] });
+    net.put(HEAD, v2.bytes);
+    net.put(PINNED_URL, v1.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v1, [HEAD, PINNED_URL])] }));
+    const store = apps(net);
+    await store.addStore({ url: STORE_URL });
+    expect(await store.preview({ store: keyOf(STORE_KEY), ref: v1.ref })).toMatchObject({ digest: v1.digest, from: PINNED_URL });
+    net.files.delete(PINNED_URL);
+    // The listed version just checked is taken again; one not read yet (another engine) finds none.
+    expect(await store.preview({ store: keyOf(STORE_KEY), ref: v1.ref })).toMatchObject({ digest: v1.digest, from: PINNED_URL });
+    await expect(apps(net).preview({ store: keyOf(STORE_KEY), ref: v1.ref })).rejects.toThrow(/^status|^unlisted/);
+    await net.putStore(await storeFiles({ sequence: 2, apps: [listing(v1, [HEAD])] }));
+    await store.refreshStores();
+    await expect(store.preview({ store: keyOf(STORE_KEY), ref: v1.ref })).rejects.toThrow(/^unlisted/);
+    expect(await appRows()).toEqual([]);
+  });
+
+  it("an app added by URL or card is not pinned and keeps taking a newer version from its sources", async () => {
+    const v1 = await bundle({ sources: [HEAD] });
+    net.put(HEAD, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: HEAD });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    expect(await pinnedTo()).toBeUndefined();
+    net.put(HEAD, (await bundle({ sequence: 2, sources: [HEAD] })).bytes);
+    expect((await store.checkUpdates())[0]!.outcome).toBe("updated");
+    expect(await pinnedTo()).toBeUndefined();
+  });
+
+  it("installed again by URL, the pin goes; installed from a store, a version waiting from the sources goes", async () => {
+    // From a store, then a newer version by URL: the person chose that source, so its sources count again.
+    const { store, v1 } = await fromStore();
+    const v2 = await bundle({ sequence: 2, sources: [HEAD] });
+    net.put(HEAD, v2.bytes);
+    await store.preview({ url: HEAD });
+    await store.install({ digest: v2.digest, grant: ["chat"] });
+    expect(await pinnedTo()).toBeUndefined();
+    net.put(HEAD, (await bundle({ sequence: 3, sources: [HEAD] })).bytes);
+    expect((await store.checkUpdates())[0]!.outcome).toBe("updated");
+    expect((await store.list())[0]!.sequence).toBe(3);
+    expect(v1.sequence).toBe(1);
+
+    // By URL with a newer version waiting (it adds a permission), then installed from a store: the waiting one goes.
+    await emptyProfile();
+    const u1 = await bundle({ sources: [HEAD] });
+    net.put(HEAD, u1.bytes);
+    const again = apps(net);
+    await again.preview({ url: HEAD });
+    await again.install({ digest: u1.digest, grant: ["chat"] });
+    const u3 = await bundle({ sequence: 3, permissions: ["chat", "name"], sources: [HEAD] });
+    net.put(HEAD, u3.bytes);
+    expect((await again.checkUpdates())[0]!.outcome).toBe("ask");
+    const u2 = await bundle({ sequence: 2, sources: [HEAD] });
+    net.put(PINNED_URL, u2.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(u2, [PINNED_URL])] }));
+    await again.addStore({ url: STORE_URL });
+    await again.preview({ store: keyOf(STORE_KEY), ref: u2.ref });
+    const view = await again.install({ digest: u2.digest, grant: ["chat"] });
+    expect(view).toMatchObject({ sequence: 2, digest: u2.digest });
+    expect(view.pending).toBeUndefined();
+    expect(await pinnedTo()).toBe(keyOf(STORE_KEY));
+    expect(await bundleIds()).toEqual([`app-${u2.digest}`]);
+    await expect(again.acceptUpdate({ ref: u2.ref })).rejects.toThrow(/^no-update/);
+  });
+
+  it("the version installed, taken again from a store's listing, pins it to that store", async () => {
+    const u1 = await bundle({ sources: [HEAD] });
+    net.put(HEAD, u1.bytes);
+    const store = apps(net);
+    await store.preview({ url: HEAD });
+    await store.install({ digest: u1.digest, grant: ["chat"] });
+    const u3 = await bundle({ sequence: 3, permissions: ["chat", "name"], sources: [HEAD] });
+    net.put(HEAD, u3.bytes);
+    expect((await store.checkUpdates())[0]!.outcome).toBe("ask");
+    net.put(PINNED_URL, u1.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(u1, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    expect(await store.preview({ store: keyOf(STORE_KEY), ref: u1.ref })).toMatchObject({ install: "same" });
+    const view = await store.install({ digest: u1.digest, grant: ["chat"] });
+    expect(view).toMatchObject({ sequence: 1, digest: u1.digest });
+    expect(view.pending, "the version waiting from the sources goes").toBeUndefined();
+    expect(await pinnedTo()).toBe(keyOf(STORE_KEY));
+    expect(await bundleIds()).toEqual([`app-${u1.digest}`]);
+    expect((await store.checkUpdates())[0]!.outcome, "HEAD's 3 is not listed").toBe("none");
+    // The same version by URL again leaves the pin.
+    net.put(HEAD, u1.bytes);
+    await store.preview({ url: HEAD });
+    await store.install({ digest: u1.digest, grant: ["chat"] });
+    expect(await pinnedTo()).toBe(keyOf(STORE_KEY));
+  });
+});
+
+describe("before a run", () => {
+  it("a publisher's revocation stops the app with no Run anyway, from a store or beside its source", async () => {
+    const v1 = await bundle({ sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    net.put(`${REPO}/ghostly-revoke.json`, canonicalJsonBytes([await revocation(v1.ref, [v1.digest])]));
+    await store.checkUpdates();
+    expect(await store.runCheck({ ref: v1.ref })).toEqual({ status: "revoked", reason: "Leaked key" });
+    await expect(store.entry({ ref: v1.ref, runAnyway: true })).rejects.toThrow(/^revoked/);
+    await expect(store.file({ ref: v1.ref, path: "index.html" })).rejects.toThrow(/^stopped/);
+  });
+
+  it("the app's record keeps only revocations that can still apply, so a publisher's changing file does not pile up", async () => {
+    const v1 = await bundle({ sources: [BUNDLE_URL] });
+    const v2 = await bundle({ sequence: 2, sources: [BUNDLE_URL] });
+    const v3 = await bundle({ sequence: 3, sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    const REVOKE = `${REPO}/ghostly-revoke.json`;
+    const kept = async () => ((await appRows()) as { revocations?: SignedAppRevocation[] }[])[0]!.revocations?.map((r) => r.statement) ?? [];
+    net.put(REVOKE, canonicalJsonBytes([await revocation(v1.ref, [v2.digest])]));
+    await store.checkUpdates();
+    expect(await kept()).toEqual([expect.objectContaining({ digests: [v2.digest] })]);
+    // The file changes: what it no longer serves and names no version here goes.
+    net.put(REVOKE, canonicalJsonBytes([await revocation(v1.ref, [v3.digest])]));
+    await store.checkUpdates();
+    expect(await kept()).toEqual([expect.objectContaining({ digests: [v3.digest] })]);
+    // No file answers: what is kept stays, and still stops the version it names.
+    net.files.delete(REVOKE);
+    net.put(BUNDLE_URL, v3.bytes);
+    expect((await store.checkUpdates())[0]!.outcome).toBe("none");
+    expect(await kept()).toEqual([expect.objectContaining({ digests: [v3.digest] })]);
+    // The installed version's stays when the file drops it.
+    net.put(BUNDLE_URL, v1.bytes);
+    net.put(REVOKE, canonicalJsonBytes([await revocation(v1.ref, [v1.digest])]));
+    await store.checkUpdates();
+    net.put(REVOKE, canonicalJsonBytes([]));
+    await store.checkUpdates();
+    expect(await kept()).toEqual([expect.objectContaining({ digests: [v1.digest] })]);
+    expect(await store.runCheck({ ref: v1.ref })).toEqual({ status: "revoked", reason: "Leaked key" });
+  });
+
+  it("a revocation by another key is not taken", async () => {
+    const v1 = await bundle();
+    const other = await bundle({ by: signer("other") });
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    // A store copies a revocation of another app verbatim: it names that app, so it does not touch this one.
+    await net.putStore(await storeFiles({ revoked: [await (await import("@ghostly/core")).signAppRevocation({ ghostlyRevoke: 1, app: other.ref, upTo: 9 }, signer("other"))] }));
+    await store.addStore({ url: STORE_URL });
+    expect(await store.runCheck({ ref: v1.ref })).toEqual({ status: "ok" });
+  });
+
+  it("a store's removal warns: the app runs only with Run anyway, and is not installable", async () => {
+    const v1 = await bundle();
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    await net.putStore(await storeFiles({ removed: [{ ref: v1.ref, digest: v1.digest, reason: "Malware", at: NOW_MS / 1000 }] }));
+    await store.addStore({ url: STORE_URL });
+    expect(await store.runCheck({ ref: v1.ref })).toMatchObject({ status: "removed", by: [{ name: "Test store", reason: "Malware" }] });
+    await expect(store.entry({ ref: v1.ref })).rejects.toThrow(/^removed: Removed by Test store: Malware/);
+    expect((await store.entry({ ref: v1.ref, runAnyway: true })).digest).toBe(v1.digest);
+    await store.uninstall({ ref: v1.ref });
+    await store.preview({ url: BUNDLE_URL });
+    await expect(store.install({ digest: v1.digest, grant: ["chat"] })).rejects.toThrow(/^removed/);
+  });
+
+  it("stored files that no longer match are not run", async () => {
+    const v1 = await bundle();
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    const files = await fileBytes();
+    const id = `app-${v1.digest}`;
+    const bytes = await files.read(id, 0, v1.bytes.length);
+    bytes[bytes.length - 1] ^= 1;
+    await files.remove(id);
+    await files.append(id, 0, bytes);
+    await files.flush(id);
+    await expect(apps(net).entry({ ref: v1.ref })).rejects.toThrow(/^damaged/);
+  });
+});
+
+describe("a browser that keeps no app files (Safari's Private Browsing)", () => {
+  it("install fails as `storage`, with the browser's words kept after it, and keeps nothing", async () => {
+    const v1 = await bundle();
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    privateBrowsing();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await expect(store.install({ digest: v1.digest, grant: ["chat"] })).rejects.toThrow(/^storage: .*UnknownError: Error preparing Blob\/File data/);
+    expect(warn).toHaveBeenCalledWith("[apps] storage:", expect.stringContaining("Error preparing Blob/File data"));
+    vi.restoreAllMocks();
+    expect(await appRows()).toEqual([]);
+    expect(await bundleIds()).toEqual([]);
+  });
+
+  it("fetching a restored app's files again fails as `storage` too, not as missing files", async () => {
+    const v1 = await bundle();
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    await (await fileBytes()).remove(`app-${v1.digest}`);
+    privateBrowsing();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await expect(apps(net).fetchFiles({ ref: v1.ref })).rejects.toThrow(/^storage: /);
+    await expect(apps(net).entry({ ref: v1.ref })).rejects.toThrow(/^storage: /);
+    vi.restoreAllMocks();
+    expect(await bundleIds()).toEqual([]);
+    expect(await apps(net).runCheck({ ref: v1.ref })).toEqual({ status: "needs-files" });
+  });
+});
+
+describe("a restored profile (installed list, no bundle)", () => {
+  async function restored() {
+    const v1 = await bundle();
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    await (await fileBytes()).remove(`app-${v1.digest}`);
+    net.requests.length = 0;
+    return { v1, store: apps(net) };
+  }
+
+  it("says the files are missing, and fetches them again by digest on the first open", async () => {
+    const { v1, store } = await restored();
+    expect(await store.runCheck({ ref: v1.ref })).toEqual({ status: "needs-files" });
+    expect((await store.list())[0]!.run).toEqual({ status: "needs-files" });
+    expect(net.requests, "listing and checking ask nothing").toEqual([]);
+    const entry = await store.entry({ ref: v1.ref });
+    expect(entry.digest).toBe(v1.digest);
+    expect(net.requests, "peeked, then read whole").toEqual([BUNDLE_URL, BUNDLE_URL]);
+    expect(await bundleIds()).toEqual([`app-${v1.digest}`]);
+  });
+
+  it("takes only the installed digest: another version at the URL leaves it needing its files, never run unchecked", async () => {
+    const { v1, store } = await restored();
+    net.put(BUNDLE_URL, (await bundle({ sequence: 2 })).bytes);
+    expect(await store.fetchFiles({ ref: v1.ref })).toEqual({ status: "needs-files" });
+    await expect(store.entry({ ref: v1.ref })).rejects.toThrow(/^needs-files/);
+    net.files.delete(BUNDLE_URL);
+    await expect(store.entry({ ref: v1.ref })).rejects.toThrow(/^needs-files/);
+    expect(await bundleIds()).toEqual([]);
+  });
+
+  it("a URL its publisher moved on from costs a peek, never the whole bundle, at each open and each check", async () => {
+    const mirror = "https://raw.githubusercontent.com/ana/chess-mirror/HEAD/app.ghostlyapp";
+    const sources = [BUNDLE_URL, mirror];
+    const v1 = await bundle({ sources });
+    net.put(BUNDLE_URL, v1.bytes);
+    const first = apps(net);
+    await first.preview({ url: BUNDLE_URL });
+    await first.install({ digest: v1.digest, grant: ["chat"] });
+    await (await fileBytes()).remove(`app-${v1.digest}`);
+    // Both URLs hold the next version now. It adds a permission, so it waits for the person and the installed one keeps needing its files.
+    const v2 = await bundle({ sequence: 2, permissions: ["chat", "name"], sources, data: new Uint8Array(1024 * 1024) });
+    for (const url of sources) net.put(url, v2.bytes);
+    const store = apps(net);
+    net.fetch.mockClear();
+    const whole = () => net.fetch.mock.calls.filter(([url, init]) => sources.includes(String(url)) && !((init?.headers ?? {}) as Record<string, string>).range).length;
+    for (let press = 0; press < 2; press++) await expect(store.entry({ ref: v1.ref })).rejects.toThrow(/^needs-files/);
+    expect(whole(), "Open, twice: the first bytes say it is another version").toBe(0);
+    expect((await store.checkUpdates())[0]).toMatchObject({ outcome: "ask", run: { status: "needs-files" } });
+    expect(whole(), "the check reads whole only the update it keeps").toBe(1);
+    expect((await store.checkUpdates())[0]!.outcome).toBe("none");
+    await expect(store.entry({ ref: v1.ref })).rejects.toThrow(/^needs-files/);
+    expect(whole()).toBe(1);
+    expect(await bundleIds()).toEqual([`app-${v2.digest}`]);
+  });
+
+  it("a store listing of that digest is a source too, and so is installing the same version again", async () => {
+    const { v1, store } = await restored();
+    net.files.delete(BUNDLE_URL);
+    net.put(PINNED_URL, v1.bytes);
+    await net.putStore(await storeFiles({ apps: [listing(v1, [PINNED_URL])] }));
+    await store.addStore({ url: STORE_URL });
+    expect(await store.fetchFiles({ ref: v1.ref })).toEqual({ status: "ok" });
+
+    await (await fileBytes()).remove(`app-${v1.digest}`);
+    await store.preview({ url: PINNED_URL });
+    expect(await store.install({ digest: v1.digest, grant: ["chat"] })).toMatchObject({ run: { status: "ok" } });
+  });
+});
+
+it("the publisher is shown by its fingerprint: 16 z-base32 characters in four groups", async () => {
+  const v1 = await bundle();
+  net.put(BUNDLE_URL, v1.bytes);
+  const preview = await apps(net).preview({ url: BUNDLE_URL });
+  expect(preview.fingerprint).toBe(keyOf(PUBLISHER).slice(0, 16).match(/.{4}/g)!.join(" "));
+});
+
+describe("while it runs (WISP 1200 § Takedowns: the app is stopped)", () => {
+  // The update check found a version removed or revoked while the app was already running: the page may never stop
+  // it (a frame left open, a check the page did not ask for), so the engine cuts it off. Before, a running app kept
+  // reading and writing its storage, and its files, after "Stopped" showed on the Apps page.
+  async function running() {
+    const v1 = await bundle({ sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    await store.entry({ ref: v1.ref });
+    await store.storageSet({ ref: v1.ref, scope: "chat-1", key: "game", value: [1] });
+    return { v1, store };
+  }
+  const cutOff = async (store: Awaited<ReturnType<typeof running>>["store"], ref: string) => {
+    await expect(store.storageGet({ ref, scope: "chat-1", key: "game" })).rejects.toThrow(/^stopped: /);
+    await expect(store.storageSet({ ref, scope: "chat-1", key: "game", value: [2] })).rejects.toThrow(/^stopped: /);
+    await expect(store.storageDelete({ ref, scope: "chat-1", key: "game" })).rejects.toThrow(/^stopped: /);
+    await expect(store.storageKeys({ ref, scope: "chat-1" })).rejects.toThrow(/^stopped: /);
+    await expect(store.file({ ref, path: "index.html" })).rejects.toThrow(/^stopped: /);
+    await expect(store.chatRunnable({ ref })).rejects.toThrow(/^stopped: /);
+  };
+
+  it("a store's removal cuts a running app off: storage, files and chat refuse with `stopped`; its data still exports", async () => {
+    const { v1, store } = await running();
+    await net.putStore(await storeFiles({ removed: [{ ref: v1.ref, digest: v1.digest, reason: "Malware", at: NOW_MS / 1000 }] }));
+    await store.addStore({ url: STORE_URL });
+    await cutOff(store, v1.ref);
+    // Its icon is still read for the Apps page (this bundle has none: "no-file", not "stopped").
+    await expect(store.file({ ref: v1.ref, path: "icon.png" })).rejects.toThrow(/^no-file/);
+    expect(await store.exportData({ ref: v1.ref })).toEqual([{ ghostlyAppData: 1, app: v1.ref, scope: "chat-1", entries: { game: [1] } }]);
+  });
+
+  it("a run the person started with Run anyway keeps going after the removal", async () => {
+    const { v1, store } = await running();
+    await net.putStore(await storeFiles({ removed: [{ ref: v1.ref, digest: v1.digest, reason: "Malware", at: NOW_MS / 1000 }] }));
+    await store.addStore({ url: STORE_URL });
+    await store.entry({ ref: v1.ref, runAnyway: true });
+    await store.storageSet({ ref: v1.ref, scope: "chat-1", key: "game", value: [2] });
+    expect(await store.storageGet({ ref: v1.ref, scope: "chat-1", key: "game" })).toEqual({ value: [2] });
+    await store.chatRunnable({ ref: v1.ref });
+  });
+
+  it("a publisher's revocation cuts it off, Run anyway or not", async () => {
+    const { v1, store } = await running();
+    await net.putStore(await storeFiles({ removed: [{ ref: v1.ref, digest: v1.digest, reason: "Malware", at: NOW_MS / 1000 }] }));
+    await store.addStore({ url: STORE_URL });
+    await store.entry({ ref: v1.ref, runAnyway: true });
+    net.put(`${REPO}/ghostly-revoke.json`, canonicalJsonBytes([await revocation(v1.ref, [v1.digest])]));
+    await store.checkUpdates();
+    await cutOff(store, v1.ref);
+  });
+
+  it("the stores are not read again at each call (an index may be 4 MiB), and a refresh's removal still stops the next one", async () => {
+    const { v1, store } = await running();
+    await net.putStore(await storeFiles());
+    await store.addStore({ url: STORE_URL });
+    const getAll = vi.spyOn(IDBObjectStore.prototype, "getAll");
+    const storeReads = () => getAll.mock.contexts.filter((s) => (s as IDBObjectStore).name === "appStores").length;
+    for (let i = 0; i < 20; i++) await store.storageGet({ ref: v1.ref, scope: "chat-1", key: "game" });
+    await store.chatRunnable({ ref: v1.ref });
+    expect(storeReads(), "held since the store was added").toBe(0);
+    await net.putStore(await storeFiles({ sequence: 2, removed: [{ ref: v1.ref, digest: v1.digest, reason: "Malware", at: NOW_MS / 1000 }] }));
+    await store.refreshStores();
+    await cutOff(store, v1.ref);
+  });
+
+  it("an app that is not installed here (a bot's reference) is not refused for chat", async () => {
+    const store = apps(net);
+    await store.chatRunnable({ ref: `${keyOf(PUBLISHER)}/other` });
+  });
+
+  it("an app that ran here and was uninstalled since is refused for chat, until it is installed again", async () => {
+    const { v1, store } = await running();
+    await store.chatRunnable({ ref: v1.ref });
+    await store.uninstall({ ref: v1.ref });
+    // Its frame may still be open: storage and files are refused as not installed, and so are its frames to the contact.
+    await expect(store.storageGet({ ref: v1.ref, scope: "chat-1", key: "game" })).rejects.toThrow(/^not-installed: /);
+    await expect(store.file({ ref: v1.ref, path: "index.html" })).rejects.toThrow(/^not-installed: /);
+    await expect(store.chatRunnable({ ref: v1.ref })).rejects.toThrow(/^not-installed: /);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    await store.chatRunnable({ ref: v1.ref });
+  });
+
+  it("an app uninstalled without having run here is a reference like any other for chat", async () => {
+    const v1 = await bundle();
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net);
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    await store.uninstall({ ref: v1.ref });
+    await store.chatRunnable({ ref: v1.ref });
+  });
+
+  it("every update check is told to the host, so the pages read the apps again", async () => {
+    const checked = vi.fn();
+    const v1 = await bundle();
+    net.put(BUNDLE_URL, v1.bytes);
+    const store = apps(net, { checked });
+    await store.preview({ url: BUNDLE_URL });
+    await store.install({ digest: v1.digest, grant: ["chat"] });
+    await store.checkUpdates();
+    expect(checked).toHaveBeenCalledTimes(1);
+  });
+});

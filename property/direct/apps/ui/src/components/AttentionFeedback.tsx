@@ -1,0 +1,63 @@
+import {useEffect} from "react";
+import {useNavigate} from "react-router-dom";
+import {engine} from "@ghostly/browser/platform/engine";
+import type {AttentionEvent} from "@ghostly/browser/shared/rpc";
+import {installAudioGestures,playSound} from "../lib/sounds";
+import {onNotificationOpen,showPrivateNotification} from "../lib/notifications";
+import {chatPath} from "../lib/url";
+import {groupPath} from "../lib/groups";
+import {loadSettings} from "../lib/settings";
+import {attentionOutcome,chatOfLink,mutedFor} from "../lib/chatMute";
+import {eventSound,firstMentionNoticeOfBurst,firstMentionOfBurst,firstNoticeOfBurst,firstOfBurst,firstReactionNoticeOfBurst,playCue} from "../lib/cues";
+import {setDeckSwitchSound} from "./deck/motion";
+import {useI18n} from "../contexts/I18nContext";
+import {switchProfile} from "../lib/profiles";
+import {PROFILE_NOTICE} from "../lib/profilePeek";
+import {claimFeedback} from "../lib/feedbackClaims";
+import {appAway} from "../lib/appInSight";
+
+const seen=new Set<string>();
+/** The engine sends live facts separately from replayed snapshots. */
+export function AttentionFeedback(){
+  const {t}=useI18n();
+  const navigate=useNavigate();
+  // A click on a notification opens its chat; one about another profile (WISP 04 § Checking other profiles) switches to it.
+  useEffect(()=>onNotificationOpen(chat=>{
+    if(chat.startsWith(PROFILE_NOTICE)){switchProfile(chat.slice(PROFILE_NOTICE.length));return;}
+    navigate(chat.startsWith("group:")?groupPath(chat.slice(6)):chatPath(chat));
+  }),[navigate]);
+  useEffect(()=>installAudioGestures(),[]);
+  useEffect(()=>{setDeckSwitchSound(()=>playCue("slide"));return ()=>setDeckSwitchSound(undefined);},[]);
+  useEffect(()=>engine.onAttention((event:AttentionEvent)=>{
+    if(Date.now()-event.at>5000 || seen.has(event.id)) return;
+    seen.add(event.id);
+    const run=async()=>{
+      // Extension pages may share one engine. Claim one presentation per event.
+      if(!claimFeedback(event.id,Date.now())) return;
+      // A muted chat's messages arrive as ever, without a sound or a notification (apps/ui/src/lib/chatMute.ts), unless
+      // one names me in a group that still notifies mentions.
+      const chat=chatOfLink(event.linkId,engine.state?.links);
+      const muted=mutedFor(chat,!!event.mention);
+      // Out of sight only when no page of the app is in sight: the page that claimed it may be a tab behind the one the
+      // person is reading.
+      const background=await appAway();
+      // A fact that had no sound before the categories: its cue alone, under the cue's own rules (apps/ui/src/lib/cues.ts).
+      if(event.type==="cue"){ if(event.cue) playCue(event.cue,{chat,key:event.id}); return; }
+      const notifications=loadSettings().notifications;
+      const outcome=attentionOutcome(event.type,muted,notifications,background);
+      // Messages that come together are one sound (MESSAGE_BURST_MS), a chat's and all chats' at once; what I send, and
+      // the wallet's, are not. A mention is heard even inside a burst, as it is through a mute; mentions that come together
+      // are one sound, in a burst of their own. Whatever else comes together is one sound too, the most important
+      // (apps/ui/src/lib/soundGate.ts).
+      if(outcome.sound && event.type!=="reaction" && (event.type!=="message" || (event.mention ? firstMentionOfBurst : firstOfBurst)(chat ?? event.linkId ?? ""))) playSound(eventSound({...event,type:event.type},notifications));
+      // So is a chat's system notification (another chat's still shows); a mention shows inside a burst, once a burst of
+      // mentions; reactions that come together, once a burst of reactions. Not awaited under the lock: a notification
+      // server that never answers would hold every later event's sound back.
+      const burst=event.type==="reaction" ? firstReactionNoticeOfBurst : event.type==="message" ? (event.mention ? firstMentionNoticeOfBurst : firstNoticeOfBurst) : undefined;
+      if(outcome.notice && (!burst || burst(chat ?? event.linkId ?? ""))) void showPrivateNotification(event.id,event.type==="reaction"?t("chat.reactions.notice"):t("settings.privateNotice"),chat,true);
+    };
+    if(navigator.locks) void navigator.locks.request("ghostly-feedback",run);
+    else void run();
+  }),[t]);
+  return null;
+}

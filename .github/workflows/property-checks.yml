@@ -1,4 +1,4 @@
-name: Validar Property
+name: Validate Property
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       run_deferred_platforms:
-        description: Executar agora a matriz nativa de Windows e macOS
+        description: Run the deferred Windows and macOS native matrix now
         required: false
         type: boolean
         default: false
@@ -32,15 +32,15 @@ jobs:
           sparse-checkout: |
             property
             .github
-      - name: Node.js 22
+      - name: Set up Node.js 22
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
-      - name: Validar produto com fixtures locais
+      - name: Validate product with local fixtures
         run: bash property/tests/run-smoke.sh
 
   native-relay:
-    name: Relay nativo (ubuntu-latest)
+    name: Native relay (ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -51,16 +51,16 @@ jobs:
           sparse-checkout: |
             property
             .github
-      - name: Node.js 22
+      - name: Set up Node.js 22
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
-      - name: Relay com runtime incluído e dados persistentes
+      - name: Relay with bundled runtime and persistent data
         run: node property/tests/native-relay-integration.mjs
 
   native-relay-deferred:
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_deferred_platforms == 'true' }}
-    name: Relay nativo (${{ matrix.os }})
+    name: Native relay (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -75,9 +75,9 @@ jobs:
           sparse-checkout: |
             property
             .github
-      - name: Node.js 22
+      - name: Set up Node.js 22
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
-      - name: Relay com runtime incluído e dados persistentes
+      - name: Relay with bundled runtime and persistent data
         run: node property/tests/native-relay-integration.mjs

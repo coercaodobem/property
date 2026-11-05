@@ -1,0 +1,626 @@
+import {
+  ChatFiles,
+  FILE_LIMITS,
+  claimedTime,
+  fileMessageText,
+  randomBytes,
+  sentWhole,
+  toBase64Url,
+  transferEnded,
+  transferStalled,
+  type FileInfo,
+  type FileTransferRecord,
+  type IncomingTarget,
+  type OfferDecision,
+  type OutgoingSource,
+  type WireReply,
+} from "@ghostly/core";
+import { blobDigest, fileBytes, fileBytesOf } from "../shared/fileBytes";
+import { fileStore, type StoredFile } from "../shared/idb";
+import { FileAppender, readStored } from "../shared/storedFiles";
+import type { FileTransferView, MessageFile, StoredMessage } from "../shared/types";
+import { receivedPairedReply } from "../shared/replies";
+import { fileWire } from "./messageDetails";
+
+/** What the desk needs from the peer: the chat's link and bookkeeping, its messages, and the views. */
+export interface FileDeskDeps {
+  /** Sends a files/3 frame on the chat's open session; false when there is none. */
+  send(linkId: string, frame: Record<string, unknown>): boolean;
+  /** Resolves once the chat's open session can take another data frame (its send budget has room). */
+  /** A file's bytes on the chat's session, in the form it agreed (`GhostLink.sendFileData`). Absent: `pf-data` frames through `send`. */
+  sendData?(linkId: string, id: string, offset: number, data: Uint8Array): boolean;
+  writable?(linkId: string): Promise<void> | undefined;
+  /** Bytes the contact sent that are stored here without asking (files/2 included): the budget files/3 fills. */
+  receivedBytes(linkId: string): number;
+  /** Wire ids this chat used already, in either direction. */
+  wireIds(linkId: string): Set<string> | undefined;
+  /** A message the person deleted here: a transfer for it is not taken. */
+  deleted(linkId: string, messageId: string): boolean;
+  /** A message the chat holds already (a new file must not take the id of the contact's text, say). */
+  messageExists?(linkId: string, messageId: string): Promise<boolean>;
+  storeMessage(message: StoredMessage): Promise<void>;
+  /** Changes a stored message in place (`db.patchMessage`); nothing happens to one that is not there. */
+  patchMessage?(linkId: string, messageId: string, change: (message: StoredMessage) => Partial<StoredMessage> | null): Promise<void>;
+  /**
+   * The place in the chat of something that arrives now (WISP 400, requirement 10), taken at once. An offer's message
+   * is stored a few steps of storage later (is there room, its record): without its place taken as the offer comes,
+   * a text that came after the offer was placed above the file.
+   */
+  place?(linkId: string): number;
+  transfers: Map<string, FileTransferView>;
+  changed(delayMs?: number): void;
+  /** The state to the app now, not after `changed`'s wait: for a transfer the app must have before its message. */
+  flush?(): void;
+  /** A transfer ended, either way: its local file id and how (for the message's details). */
+  /** `seen`: this desk saw the transfer under way before it ended (not a finished one shown again on a restart). */
+  settled?(linkId: string, fileId: string, record: FileTransferRecord, seen: boolean): void;
+}
+
+interface Chat {
+  files: ChatFiles;
+  /** Wire id of a received file → its local id. */
+  local: Map<string, string>;
+  /** Wire id of an offer not stored yet → the place taken for its message as it came (`place`). */
+  places: Map<string, number>;
+  /**
+   * Wire id of a file the contact said on the DHT floor whose offer has not come yet (WISP 403 § Files) → its local
+   * id and when it was said. Its message and bubble are there; the offer that comes live takes them over.
+   */
+  announced: Map<string, { local: string; at: number }>;
+  /**
+   * Wire id of a file said on the floor whose bubble ended here (refused here, or its week ran out) → its local id. Its
+   * sender still has it: an offer that comes for it later takes that bubble over, as one said on the floor would.
+   */
+  withdrawn: Map<string, string>;
+  /** Writes to the database, in order. */
+  saving: Promise<void>;
+  lastSaved: Map<string, number>;
+  /** By local id: the newest progress the 2 s held back, and the write waiting for them to be up. */
+  unsaved: Map<string, { record: FileTransferRecord; timer: ReturnType<typeof setTimeout> }>;
+}
+
+interface Speed { bytes: number; at: number; rate: number }
+
+/** Local id of a file sent: the same shape files/2 uses. */
+export const outgoingFileId = (linkId: string, wireId: string) => `${linkId}-out-${wireId}`;
+
+/** A file said on the DHT floor whose offer does not come within this long is shown as not coming (an offer's week). */
+const ANNOUNCED_FOR_MS = 7 * 24 * 60 * 60_000;
+
+/**
+ * Why this device refused the offer of a file said on the floor, as the bubble's error keeps it: no room, or too many
+ * files waiting for the person, each with its own next step in the app (errorText.ts); else that it was refused.
+ */
+const floorRefusal = (why: unknown): string =>
+  why === "no-room" ? "No room on this device for this file" : why === "too-many" ? "Too many files are waiting here" : "It was refused here";
+
+/** Progress is written to the database at most this often; every change of state is written at once. */
+const SAVE_EVERY_MS = 2_000;
+
+/** The views of finished transfers the states carry, the newest (`FileDesk.finished`). */
+const DONE_VIEWS_KEPT = 16;
+
+export type FileDeskAction = "accept" | "decline" | "pause" | "resume" | "cancel" | "retry" | "resend" | "request";
+
+/**
+ * files/3 for every chat of this profile (WISP 501 rev 0.3): each chat's `ChatFiles`, the bytes in file
+ * storage, the records in the files store (so a transfer resumes after a restart), the chat message a file
+ * shows as, and the transfer the UI reads.
+ */
+export class FileDesk {
+  private readonly chats = new Map<string, Chat>();
+  private readonly speeds = new Map<string, Speed>();
+  /** By local id: when its bytes last moved (for the stall rule). */
+  private readonly moved = new Map<string, { at: number }>();
+  /** Unfinished when the app started, and not moved since. */
+  private readonly restored = new Set<string>();
+  /** A look again when a transfer would count as stuck, by local id. */
+  private readonly stallChecks = new Map<string, ReturnType<typeof setTimeout>>();
+
+  constructor(private readonly deps: FileDeskDeps) {}
+
+  /** The chat's files, made the first time they are needed. */
+  private chat(linkId: string): Chat {
+    let chat = this.chats.get(linkId);
+    if (chat) return chat;
+    const made: Chat = { local: new Map(), places: new Map(), announced: new Map(), withdrawn: new Map(), saving: Promise.resolve(), lastSaved: new Map(), unsaved: new Map(), files: undefined as unknown as ChatFiles };
+    made.files = new ChatFiles({
+      send: (frame) => { this.refusedHere(made, frame); return this.deps.send(linkId, frame); },
+      decide: (file, again) => this.decide(linkId, file, again),
+      openTarget: (record) => this.openTarget(linkId, record),
+      openSource: (record) => this.openSource(linkId, record),
+      changed: (record, transferred, progress) => this.changed(linkId, record, transferred, progress),
+      // A change of state is written at once (`changed`): the chat's writes so far hold it.
+      kept: () => made.saving,
+      room: async () => (await fileBytes()).room(),
+      ...(this.deps.sendData && { sendData: (id: string, offset: number, data: Uint8Array) => this.deps.sendData!(linkId, id, offset, data) }),
+      writable: () => this.deps.writable?.(linkId),
+      batchConfirms: true,
+    });
+    this.chats.set(linkId, made);
+    chat = made;
+    return chat;
+  }
+
+  /**
+   * At start: the chat's unfinished and finished files/3 transfers, as they were kept. One that ended before this run is
+   * reported ended already (a session opening walks them all), unless it finished and `unsettled` names it: a sent file
+   * whose message never got its receipt, which its next session gives.
+   */
+  restore(linkId: string, files: StoredFile[], unsettled: ReadonlySet<string> = new Set()): void {
+    const records: FileTransferRecord[] = [];
+    const chat = this.chat(linkId);
+    for (const file of files) {
+      // Said on the floor, its offer not come yet: its bubble waits again (one withdrawn keeps the end it was given).
+      if (file.announced && !file.wire3 && file.direction === "in") {
+        if (!file.transfer) this.announcedHere(chat, file.announced, file.id, file.metadata?.size ?? 0, file.createdAt);
+        else { chat.local.set(file.announced, file.id); chat.withdrawn.set(file.announced, file.id); }
+        continue;
+      }
+      if (!file.wire3) continue;
+      records.push(file.wire3);
+      if (file.wire3.direction === "in") chat.local.set(file.wire3.id, file.id);
+      if (!transferEnded(file.wire3)) this.restored.add(file.id);
+      else if (file.wire3.state !== "done" || !unsettled.has(file.id)) this.ended.add(file.id);
+      // Finished: no transfer (a file with none reads as finished; its record says done). A view for each would go into
+      // every state the engine builds, so each state would cost more with every file the chat ever had.
+      if (file.wire3.state === "done") continue;
+      this.deps.transfers.set(file.id, this.view(chat, file.wire3, file.wire3.confirmed, transferStalled(file.wire3, Date.now(), this.restored.has(file.id), Date.now())));
+    }
+    chat.files.restore(records);
+  }
+
+  /** A session that agreed files/3 opened (again, after a switch), or closed. */
+  session(linkId: string, open: boolean): void {
+    const chat = this.chat(linkId);
+    if (open) chat.files.attach(); else chat.files.detach();
+    // Cut: what was confirmed last is kept now, before a restart can come, not up to 2 s of it lost.
+    if (!open) for (const [id, { record }] of [...chat.unsaved]) this.save(chat, id, record);
+    for (const record of chat.files.records()) this.show(linkId, chat, record, chat.files.transferred(record.direction, record.id));
+    this.deps.changed();
+  }
+
+  handle(linkId: string, frame: Record<string, unknown>): Promise<void> {
+    const chat = this.chat(linkId);
+    // A file said on the floor and deleted on the sender's side before it went live: its bubble says so here.
+    if (frame.t === "pf-abort" && typeof frame.id === "string" && chat.announced.has(frame.id) && !chat.files.get("in", frame.id)) {
+      this.withdrawn(chat, frame.id, "Cancelled by the sender");
+      return Promise.resolve();
+    }
+    // A new offer takes its message's place now, in the order frames come, before anything is awaited.
+    const id = frame.t === "pf-offer" && typeof frame.id === "string" ? frame.id : undefined;
+    // The offer of a file said on the floor whose bubble ended here: it waits for this offer again.
+    const ended = id !== undefined && !chat.files.get("in", id) ? chat.withdrawn.get(id) : undefined;
+    if (ended !== undefined) {
+      chat.withdrawn.delete(id!);
+      this.announcedHere(chat, id!, ended, this.deps.transfers.get(ended)?.size ?? 0, Date.now());
+    }
+    // The offer of a file said on the floor takes its bubble; one refused here leaves it saying so.
+    if (id !== undefined && chat.announced.has(id)) return chat.files.handle(frame).finally(() => { if (chat.announced.has(id) && !chat.files.get("in", id)) this.withdrawn(chat, id, "It was refused here"); });
+    if (id === undefined || !this.deps.place || chat.local.has(id) || chat.places.has(id)) return chat.files.handle(frame);
+    chat.places.set(id, this.deps.place(linkId));
+    // An offer that was refused has no message: its place is let go.
+    return chat.files.handle(frame).finally(() => { if (!chat.local.has(id)) chat.places.delete(id); });
+  }
+
+  /**
+   * A file the contact said on the DHT floor (WISP 403 § Files), whose message is stored under `peer_<wireId>` with
+   * this local id: its bubble waits for the offer, which takes it over when it comes live (no second message). False:
+   * this chat knows that wire id already (its offer came first, or another file has it), and nothing is to be stored.
+   */
+  announce(linkId: string, wireId: string, localId: string, size: number): boolean {
+    const chat = this.chat(linkId);
+    if (chat.local.has(wireId) || chat.places.has(wireId) || chat.files.get("in", wireId)) return false;
+    this.announcedHere(chat, wireId, localId, size, Date.now());
+    this.deps.changed();
+    return true;
+  }
+
+  /** The local id of a file said on the floor whose offer has not come, if this wire id is one; forgotten here. */
+  takeAnnounced(linkId: string, wireId: string): string | undefined {
+    const chat = this.chats.get(linkId), said = chat?.announced.get(wireId);
+    if (!chat || !said) return undefined;
+    chat.announced.delete(wireId);
+    chat.local.delete(wireId);
+    this.deps.transfers.delete(said.local);
+    return said.local;
+  }
+
+  private announcedHere(chat: Chat, wireId: string, localId: string, size: number, at: number): void {
+    chat.local.set(wireId, localId);
+    chat.announced.set(wireId, { local: localId, at });
+    // No direction: nothing to pause or cancel here before its offer comes.
+    this.deps.transfers.set(localId, { state: "transferring", stage: "waiting", transferred: 0, size });
+  }
+
+  /** This device refuses the offer of a file said on the floor: its bubble ends, saying why (`floorRefusal`). */
+  private refusedHere(chat: Chat, frame: Record<string, unknown>): void {
+    if (frame.t === "pf-refuse" && typeof frame.id === "string") this.withdrawn(chat, frame.id, floorRefusal(frame.why));
+  }
+
+  /** A file said on the floor will not come (cancelled by its sender, refused here, or never offered within a week). */
+  private withdrawn(chat: Chat, wireId: string, error: string): void {
+    const said = chat.announced.get(wireId);
+    if (!said) return;
+    chat.announced.delete(wireId);
+    chat.withdrawn.set(wireId, said.local);
+    const view = this.deps.transfers.get(said.local);
+    const transfer = { state: "failed" as const, transferred: 0, size: view?.size ?? 0, error };
+    this.deps.transfers.set(said.local, transfer);
+    chat.saving = chat.saving.then(() => fileStore.patch(said.local, { transfer })).catch(() => {});
+    this.deps.changed();
+  }
+
+  /** Whether files/3 is live in this chat, and what the contact said it can take. */
+  status(linkId: string): { live: boolean; peerRoom: number | null } {
+    const files = this.chats.get(linkId)?.files;
+    return { live: !!files?.live, peerRoom: files?.peerRoom ?? null };
+  }
+
+  /** A files/3 transfer of this chat's under way on its session: offered, moving, or being checked. */
+  moving(linkId: string): boolean {
+    const files = this.chats.get(linkId)?.files;
+    return !!files?.live && files.records().some((r) => r.state === "offered" || r.state === "active" || r.state === "verifying");
+  }
+
+  /**
+   * Offers a file whose record and bytes are stored under its local id (`outgoingFileId`). Offered before (Retry, a
+   * restart): an unfinished transfer is taken over and offered again, a failed one sent again; never a second one.
+   */
+  async offer(linkId: string, file: MessageFile, wireId: string, timestamp: number, reply?: WireReply, forwarded?: number): Promise<void> {
+    const chat = this.chat(linkId);
+    const stored = await fileStore.get(file.id);
+    if (!stored) throw new Error("The file is gone");
+    const existing = chat.files.get("out", wireId);
+    if (existing) {
+      if (existing.state === "done") return;
+      if (existing.state === "declined" || existing.state === "cancelled") throw new Error(existing.error ?? "It was cancelled");
+      // Not running (a restart, a link that went) or failed: sent again, from what the contact holds.
+      chat.files.resend(wireId);
+      const current = chat.files.get("out", wireId);
+      if (current) this.show(linkId, chat, current, chat.files.transferred("out", wireId));
+      this.deps.changed();
+      return;
+    }
+    chat.files.offer({ id: wireId, name: file.name, size: file.size, mime: file.mime, timestamp, ...(file.voice && { voice: file.voice }), ...(file.video && { video: file.video }), ...(file.image && { image: file.image }), ...(reply && { reply }), ...(forwarded && { forwarded }) }, stored.digest);
+  }
+
+  /**
+   * The person answers an offer, or pauses, resumes, cancels or sends again a transfer. `resend` (sending) and
+   * `request` (receiving) push one that stopped moving: false when no session is open, and it goes on the next one.
+   */
+  act(linkId: string, fileId: string, action: FileDeskAction): boolean {
+    const chat = this.chat(linkId);
+    const out = fileId.startsWith(`${linkId}-out-`);
+    const wireId = out ? fileId.slice(`${linkId}-out-`.length) : [...chat.local].find(([, local]) => local === fileId)?.[0];
+    const record = wireId && chat.files.get(out ? "out" : "in", wireId);
+    if (!wireId || !record) throw new Error("No such file transfer");
+    const direction = out ? "out" : "in";
+    switch (action) {
+      case "accept": if (!out) chat.files.accept(wireId); break;
+      case "decline": if (!out) chat.files.decline(wireId); break;
+      case "pause": chat.files.pause(direction, wireId); break;
+      case "resume": chat.files.resume(direction, wireId); break;
+      // Arrived whole: too late to cancel, it ends done on both sides (the bubble shows no Cancel then).
+      case "cancel": if (!sentWhole(record)) chat.files.cancel(direction, wireId); break;
+      case "retry": if (out) chat.files.retry(wireId); break;
+      case "resend": case "request": {
+        if ((action === "resend") !== out) throw new Error(out ? "A file you sent is sent again, not asked for" : "A file you receive is asked for again, not sent");
+        const now = out ? chat.files.resend(wireId) : chat.files.request(wireId);
+        // Pushed: it counts as stuck again only after another quiet spell.
+        this.restored.delete(fileId);
+        this.moved.set(fileId, { at: Date.now() });
+        const current = chat.files.get(direction, wireId);
+        if (current) this.show(linkId, chat, current, chat.files.transferred(direction, wireId));
+        this.deps.changed();
+        return now;
+      }
+    }
+    return chat.files.live;
+  }
+
+  /** Shows a files/3 transfer's own view again; false when this local file has none. */
+  reshow(linkId: string, fileId: string): boolean {
+    const chat = this.chats.get(linkId);
+    if (!chat) return false;
+    const out = fileId.startsWith(`${linkId}-out-`);
+    const wireId = out ? fileId.slice(`${linkId}-out-`.length) : [...chat.local].find(([, local]) => local === fileId)?.[0];
+    const record = wireId && chat.files.get(out ? "out" : "in", wireId);
+    if (!wireId || !record) return false;
+    this.show(linkId, chat, record, chat.files.transferred(record.direction, wireId));
+    this.deps.changed();
+    return true;
+  }
+
+  /** Whether this local file is a files/3 transfer, and not finished. */
+  active(linkId: string, fileId: string): boolean {
+    const chat = this.chats.get(linkId);
+    if (!chat) return false;
+    const out = fileId.startsWith(`${linkId}-out-`);
+    const wireId = out ? fileId.slice(`${linkId}-out-`.length) : [...chat.local].find(([, local]) => local === fileId)?.[0];
+    const record = wireId && chat.files.get(out ? "out" : "in", wireId);
+    return !!record && !transferEnded(record);
+  }
+
+  /** The message of a file was deleted here: an unfinished transfer ends on both sides, and is forgotten. */
+  forget(linkId: string, fileId: string): void {
+    const chat = this.chats.get(linkId);
+    if (!chat) return;
+    const out = fileId.startsWith(`${linkId}-out-`);
+    const wireId = out ? fileId.slice(`${linkId}-out-`.length) : [...chat.local].find(([, local]) => local === fileId)?.[0];
+    if (!wireId) return;
+    chat.files.forget(out ? "out" : "in", wireId);
+    clearTimeout(chat.unsaved.get(fileId)?.timer);
+    chat.unsaved.delete(fileId);
+    if (!out) { chat.local.delete(wireId); chat.announced.delete(wireId); chat.withdrawn.delete(wireId); }
+    this.speeds.delete(fileId);
+    this.unwatch(fileId);
+  }
+
+  /** Offers nobody answered in a week end; the peer calls this now and then. */
+  sweep(): void {
+    const now = Date.now();
+    for (const chat of this.chats.values()) {
+      chat.files.sweep();
+      // Said on the floor and never offered live within the week an offer waits: it is not coming.
+      for (const [wireId, said] of [...chat.announced]) if (now - said.at > ANNOUNCED_FOR_MS) this.withdrawn(chat, wireId, "It did not come within a week");
+    }
+  }
+
+  /** The chat went away: its transfers stop here. */
+  drop(linkId: string): void {
+    const chat = this.chats.get(linkId);
+    chat?.files.detach();
+    for (const { timer } of chat?.unsaved.values() ?? []) clearTimeout(timer);
+    this.chats.delete(linkId);
+    for (const id of [...this.moved.keys(), ...this.restored, ...this.stallChecks.keys()]) if (id.startsWith(`${linkId}-`)) this.unwatch(id);
+  }
+
+  /** Stops tracking whether a transfer is stuck. */
+  private unwatch(id: string): void {
+    clearTimeout(this.stallChecks.get(id));
+    this.stallChecks.delete(id);
+    this.moved.delete(id);
+    this.restored.delete(id);
+  }
+
+  // ─── The host of each ChatFiles ─────────────────────────────────────────
+
+  /**
+   * Small files are taken as before; above 25 MiB, or past the contact's 500 MiB taken without asking, the
+   * person decides. A file larger than the room this device has left is refused, and the sender told the room.
+   */
+  private async decide(linkId: string, file: FileInfo, again = false): Promise<OfferDecision> {
+    const used = this.deps.wireIds(linkId);
+    // Said on the DHT floor first: its message is there, waiting for this offer.
+    const said = this.chats.get(linkId)?.announced.has(file.id) ?? false;
+    // Offered again, the file is this chat's already (its id is in use by it); new, its id must be new.
+    if (!used || (!again && !said && used.has(file.id))) return { refuse: "invalid" };
+    if (this.deps.deleted(linkId, `peer_${file.id}`)) return { refuse: "declined" };
+    if (!again && !said && await this.deps.messageExists?.(linkId, `peer_${file.id}`)) return { refuse: "invalid" };
+    const room = await (await fileBytes()).room().catch(() => null);
+    if (room !== null && file.size > room) return { refuse: "no-room", room };
+    const taken = this.deps.receivedBytes(linkId) + this.autoTaken(linkId);
+    return file.size <= FILE_LIMITS.askAboveBytes && taken + file.size <= FILE_LIMITS.autoAcceptBytesPerPeer ? "accept" : "ask";
+  }
+
+  /** files/3 files this contact sent that were taken without asking and are kept (or on their way). */
+  autoTaken(linkId: string): number {
+    const chat = this.chats.get(linkId);
+    if (!chat) return 0;
+    return chat.files.records().filter((r) => r.direction === "in" && !r.consented && r.state !== "asking" && !["failed", "declined", "cancelled"].includes(r.state))
+      .reduce((sum, r) => sum + r.file.size, 0);
+  }
+
+  /** Where a received file is written: from what is durably there, cut back to that if more was written after. */
+  private async openTarget(linkId: string, record: FileTransferRecord): Promise<IncomingTarget> {
+    const chat = this.chat(linkId), id = chat.local.get(record.id);
+    if (!id) throw new Error("No such file");
+    // Its record is written first (a new offer's is on its way).
+    await chat.saving;
+    const stored = await fileStore.get(id);
+    const bytes = (stored?.bytes && await fileBytesOf(stored.bytes)) || await fileBytes();
+    const size = await bytes.size(id), have = size ?? 0;
+    const offset = Math.min(have, record.confirmed);
+    if (have > offset) await bytes.truncate(id, offset);
+    // A file of no bytes gets no append: it is made here, so there is a file to check and to save. Every backend
+    // but IndexedDB reads a file never written as missing, and its check said "arrived damaged".
+    if (size === null && record.file.size === 0) await bytes.append(id, 0, new Uint8Array());
+    if (stored && stored.bytes !== bytes.kind) await fileStore.patch(id, { bytes: bytes.kind });
+    const appender = new FileAppender(bytes, id, offset);
+    return {
+      offset,
+      append: (chunk) => appender.append(chunk),
+      flush: () => appender.flush(),
+      verify: async (digest) => { await appender.close(); return (await bytes.digest(id)) === digest; },
+      discard: async () => { await appender.close().catch(() => {}); await bytes.remove(id); },
+    };
+  }
+
+  private async openSource(linkId: string, record: FileTransferRecord): Promise<OutgoingSource> {
+    const id = outgoingFileId(linkId, record.id);
+    const stored = await fileStore.get(id);
+    if (!stored) throw new Error("The file is gone");
+    return {
+      read: (offset, length) => readStored(stored, offset, length),
+      digest: async () => {
+        if (stored.digest) return stored.digest;
+        const digest = stored.blob ? await blobDigest(stored.blob) : await (await fileBytesOf(stored.bytes!))!.digest(id);
+        await fileStore.patch(id, { digest });
+        return digest;
+      },
+    };
+  }
+
+  private changed(linkId: string, record: FileTransferRecord, transferred: number, progress: boolean): void {
+    const chat = this.chat(linkId);
+    const said = record.direction === "in" ? chat.announced.get(record.id) : undefined;
+    if (said) {
+      // The offer of a file said on the floor: it takes over the bubble that waited for it, in its place. What the
+      // offer says is what the file is.
+      chat.announced.delete(record.id);
+      this.deps.wireIds(linkId)?.add(record.id);
+      const { file } = record, id = said.local;
+      const message: MessageFile = { id, name: file.name, size: file.size, mime: file.mime, ...(file.voice && { voice: file.voice }), ...(file.video && { video: file.video }), ...(file.image && { image: file.image }) };
+      chat.saving = chat.saving.then(async () => {
+        await fileStore.put({ id, linkId, direction: "in", wireId: record.id, createdAt: Date.now(), bytes: (await fileBytes()).kind,
+          metadata: { name: file.name, size: file.size, mime: file.mime, timestamp: file.timestamp, voice: file.voice, video: file.video, image: file.image }, wire3: record });
+        await this.deps.patchMessage?.(linkId, `peer_${record.id}`, (current) => current.sender !== "peer" || current.file?.id !== id ? null
+          : { file: message, text: fileMessageText(message), via: "datalink", details: { ...current.details, wire: fileWire("files/3", file.size) } });
+      }).catch(() => {});
+    }
+    if (record.direction === "in" && !chat.local.has(record.id)) {
+      // A new offer: its file and its message, then its record.
+      const id = `${linkId}-in-${toBase64Url(randomBytes(12))}`;
+      chat.local.set(record.id, id);
+      this.deps.wireIds(linkId)?.add(record.id);
+      const { file } = record;
+      const message: MessageFile = { id, name: file.name, size: file.size, mime: file.mime, ...(file.voice && { voice: file.voice }), ...(file.video && { video: file.video }), ...(file.image && { image: file.image }) };
+      // Where its offer came, with the time its sender says kept beside it; without a place taken, where it is stored.
+      const place = chat.places.get(record.id), sentAt = claimedTime(file.timestamp);
+      chat.places.delete(record.id);
+      chat.saving = chat.saving.then(async () => {
+        await fileStore.put({ id, linkId, direction: "in", wireId: record.id, createdAt: Date.now(), bytes: (await fileBytes()).kind,
+          metadata: { name: file.name, size: file.size, mime: file.mime, timestamp: file.timestamp, voice: file.voice, video: file.video, image: file.image }, wire3: record });
+        await this.deps.storeMessage({ linkId, id: `peer_${record.id}`, text: fileMessageText(message), sender: "peer", via: "datalink", file: message,
+          ...(place !== undefined && sentAt !== undefined ? { timestamp: place, sentAt } : { timestamp: file.timestamp }),
+          ...(file.reply && { replyTo: receivedPairedReply(file.reply) }), ...(file.forwarded && { forwarded: file.forwarded }),
+          details: { wire: fileWire("files/3", file.size) } });
+      }).catch(() => {});
+    }
+    const offered = record.direction === "in" && !this.deps.transfers.has(chat.local.get(record.id)!);
+    this.show(linkId, chat, record, transferred, progress);
+    // The app has a new file's transfer before its message: a file shown with neither a transfer nor its bytes reads
+    // as gone, and one that arrived within `changed`'s wait (250 ms behind another's progress) said "No longer available".
+    if (offered) this.deps.flush?.();
+    const id = record.direction === "out" ? outgoingFileId(linkId, record.id) : chat.local.get(record.id)!;
+    const now = Date.now(), last = chat.lastSaved.get(id) ?? 0;
+    if (!progress || now - last >= SAVE_EVERY_MS) this.save(chat, id, record);
+    else {
+      // Held back: the newest is written once the 2 s are up. Only the first ack of each 2 s was, so a cut and a
+      // restart within them showed the progress of before (the whole stretch since a resume, on a fast link).
+      const held = chat.unsaved.get(id);
+      if (held) held.record = record;
+      else {
+        const timer = setTimeout(() => { const newest = chat.unsaved.get(id); if (newest) this.save(chat, id, newest.record); }, last + SAVE_EVERY_MS - now);
+        // A headless app (the CLI) is not kept running for it.
+        (timer as { unref?: () => void }).unref?.();
+        chat.unsaved.set(id, { record, timer });
+      }
+    }
+    if (record.state === "done" && record.direction === "in") this.deps.wireIds(linkId)?.add(record.id);
+    this.deps.changed(progress ? 250 : 50);
+  }
+
+  /** Writes a transfer's record and the view of it, after the chat's writes before it; what was held back goes with it. */
+  private save(chat: Chat, id: string, record: FileTransferRecord): void {
+    const held = chat.unsaved.get(id);
+    if (held) { clearTimeout(held.timer); chat.unsaved.delete(id); }
+    // Ended: no more progress to space out.
+    if (transferEnded(record)) chat.lastSaved.delete(id); else chat.lastSaved.set(id, Date.now());
+    const transfer = this.deps.transfers.get(id);
+    chat.saving = chat.saving.then(() => fileStore.patch(id, { wire3: record, ...(transfer && { transfer: { state: transfer.state, transferred: transfer.transferred, size: transfer.size, error: transfer.error } }) })).catch(() => {});
+  }
+
+  private show(linkId: string, chat: Chat, record: FileTransferRecord, transferred: number, progress = false): void {
+    const id = record.direction === "out" ? outgoingFileId(linkId, record.id) : chat.local.get(record.id);
+    if (!id) return;
+    const view = this.view(chat, record, transferred, this.stalled(linkId, id, record, progress));
+    if (view.state === "transferring" && !view.stage) {
+      const now = Date.now(), last = this.speeds.get(id);
+      if (!last) this.speeds.set(id, { bytes: transferred, at: now, rate: 0 });
+      else if (now - last.at >= 500) {
+        const rate = Math.max(0, (transferred - last.bytes) * 1000 / (now - last.at));
+        this.speeds.set(id, { bytes: transferred, at: now, rate: last.rate ? last.rate * 0.6 + rate * 0.4 : rate });
+      }
+      const rate = this.speeds.get(id)!.rate;
+      if (rate) view.rate = rate;
+    } else this.speeds.delete(id);
+    if (view.stage === "asking" && record.direction === "in") { view.room = this.deps.transfers.get(id)?.room; void this.room(id); }
+    // One that finished before this run (a session opening walks them all) gets no view back (`restore`).
+    if (record.state !== "done" || this.underway.has(id) || this.deps.transfers.has(id)) {
+      this.deps.transfers.set(id, view);
+      if (record.state === "done") this.finished(id);
+    }
+    // Ended, then going again (sent again, taken again): its next end is reported too.
+    if (!transferEnded(record)) { this.underway.add(id); this.ended.delete(id); }
+    else if (!this.ended.has(id)) { this.ended.add(id); this.deps.settled?.(linkId, id, record, this.underway.delete(id)); }
+  }
+
+  /**
+   * Whether a transfer is stuck (`transferStalled`): not moved for `FILE_LIMITS.stallMs`, or not since the app started.
+   * Only bytes moving count (`progress`: confirmed by the receiver, stored here), not a session saying again where it
+   * stands. A stall is nothing happening, so a timer looks again when it would be one.
+   */
+  private stalled(linkId: string, id: string, record: FileTransferRecord, progress: boolean): boolean {
+    if (transferEnded(record)) { this.unwatch(id); return false; }
+    const now = Date.now();
+    if (progress || !this.moved.has(id)) this.moved.set(id, { at: now });
+    if (progress) this.restored.delete(id);
+    const movedAt = this.moved.get(id)!.at;
+    const stalled = transferStalled(record, movedAt, this.restored.has(id), now);
+    // Only what can be stuck is looked at again (not an offer waiting for an answer, nor a pause).
+    if (!stalled && !this.stallChecks.has(id) && transferStalled(record, 0, true, now)) {
+      const check = setTimeout(() => {
+        this.stallChecks.delete(id);
+        const chat = this.chats.get(linkId), wireId = record.id;
+        const current = chat?.files.get(record.direction, wireId);
+        if (!chat || !current) return;
+        const before = this.deps.transfers.get(id)?.stalled;
+        this.show(linkId, chat, current, chat.files.transferred(record.direction, wireId));
+        if (this.deps.transfers.get(id)?.stalled !== before) this.deps.changed();
+      }, Math.max(1_000, movedAt + FILE_LIMITS.stallMs - now));
+      // A headless app (the CLI) is not kept running for it.
+      (check as { unref?: () => void }).unref?.();
+      this.stallChecks.set(id, check);
+    }
+    return stalled;
+  }
+  /** Transfers already reported as ended, by local id. */
+  private readonly ended = new Set<string>();
+  /** Transfers seen under way in this run, until they end. */
+  private readonly underway = new Set<string>();
+  /** The views of the transfers that finished last in this run, oldest first (`finished`). */
+  private readonly done = new Set<string>();
+
+  /**
+   * A transfer finished: its view stays for the next states (its bubble, the CLI's `file.done`), then leaves them once
+   * newer ones finished. A file with no transfer reads as finished, so the bubble needs none; a view kept for each would
+   * go into every state the engine builds, so each would cost more with every file the chat had in this run.
+   */
+  private finished(id: string): void {
+    this.done.delete(id);
+    this.done.add(id);
+    for (const oldest of this.done) {
+      if (this.done.size <= DONE_VIEWS_KEPT) break;
+      this.done.delete(oldest);
+      // Gone already (its message deleted), or going again: not this one's to drop.
+      if (this.deps.transfers.get(oldest)?.state === "done") this.deps.transfers.delete(oldest);
+    }
+  }
+
+  /** The free space an offer is decided against, shown with it. */
+  private async room(id: string): Promise<void> {
+    const room = await (await fileBytes()).room().catch(() => null);
+    const current = this.deps.transfers.get(id);
+    if (current?.stage !== "asking" || current.room === room) return;
+    this.deps.transfers.set(id, { ...current, room });
+    this.deps.changed();
+  }
+
+  private view(chat: Chat, record: FileTransferRecord, transferred: number, stalled = false): FileTransferView {
+    const base = { transferred, size: record.file.size, direction: record.direction, ...(stalled && { stalled: true }) };
+    switch (record.state) {
+      case "done": return { ...base, state: "done", transferred: record.file.size };
+      case "failed": return { ...base, state: "failed", error: record.error, retry: record.direction === "out" };
+      case "declined": case "cancelled": return { ...base, state: "failed", error: record.error };
+    }
+    const live = chat.files.live;
+    if (record.state === "asking") return { ...base, state: "transferring", stage: record.waitingFor === "busy" ? "queued" : "asking" };
+    if (record.state === "paused") return { ...base, state: "transferring", stage: "paused", pausedBy: record.pausedBy };
+    if (!live) return { ...base, state: "transferring", stage: "waiting" };
+    if (record.state === "queued" && record.direction === "in") return { ...base, state: "transferring", stage: "queued" };
+    if (record.state === "verifying") return { ...base, state: "transferring", stage: "verifying" };
+    return { ...base, state: "transferring" };
+  }
+}

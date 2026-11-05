@@ -1,0 +1,69 @@
+import { decodeBolt11, type Bolt11Invoice } from "@ghostly/core";
+import { findArkAddress, type ArkRequest } from "./money-ark";
+import { btcToSats, findBip21, findBitcoinAddress, hasLongBip21, onchainFromBip21, unknownRequired, type OnchainRequest } from "./money-bitcoin";
+import { decodeBolt12Offer, findBolt12Offer, type Bolt12Offer } from "./money-bolt12";
+import { findMoneroAddress, type MoneroRequest } from "./money-monero";
+import { cut } from "./money-text";
+import { findUsdtAddress, type UsdtRequest } from "./money-usdt";
+
+/** The money formats beyond Lightning invoices, ecash and LNURL: each has its own card (MoneyFormatsBubble). */
+export type MoreMoney =
+  | { type: "onchain"; request: OnchainRequest; rest: string }
+  | { type: "bolt12"; offer: Bolt12Offer; rest: string }
+  | { type: "ark"; request: ArkRequest; rest: string }
+  | { type: "usdt"; request: UsdtRequest; rest: string }
+  | { type: "monero"; request: MoneroRequest; rest: string };
+
+/**
+ * A `bitcoin:` link, read before anything inside it: its address wins over the Lightning invoice it may carry
+ * (which the card offers as the other way to pay). A link with no address is what its `lightning=`, `lno=` or
+ * `ark=` says. Null when there is no `bitcoin:` link this can read; `"refused"` when a link with no address must
+ * not be paid (BIP 21: a `req-` parameter this app does not understand, an amount it cannot read, an invoice for
+ * another amount), or when a link cannot be read at all (too long, an address this app does not know), so nothing
+ * inside it is offered as money either.
+ */
+export function findLinkMoney(text: string): MoreMoney | { type: "lightning"; invoice: Bolt11Invoice; rest: string } | "refused" | null {
+  let unread = hasLongBip21(text);
+  for (const link of findBip21(text)) {
+    const onchain = onchainFromBip21(link);
+    if (onchain) return { type: "onchain", request: onchain, rest: cut(text, link.index, link.uri.length) };
+    if (link.address) { unread = true; continue; }
+    const amount = link.params.get("amount");
+    if (unknownRequired(link).length || (amount !== undefined && btcToSats(amount) === null)) return "refused";
+    const offer = link.params.get("lno");
+    const decodedOffer = offer ? decodeBolt12Offer(offer) : null;
+    if (decodedOffer) return { type: "bolt12", offer: decodedOffer, rest: cut(text, link.index, link.uri.length) };
+    const ark = link.params.has("ark") ? findArkAddress(link.uri) : null;
+    if (ark) return { type: "ark", request: ark.request, rest: cut(text, link.index, link.uri.length) };
+    const invoice = link.params.get("lightning");
+    const decoded = invoice ? decodeBolt11(invoice) : null;
+    // Only the same payment as the link: when it names an amount, an invoice for another (or for any) amount is not.
+    if (decoded && amount !== undefined && decoded.amountSat !== btcToSats(amount)) return "refused";
+    if (decoded) return { type: "lightning", invoice: decoded, rest: cut(text, link.index, link.uri.length) };
+  }
+  return unread ? "refused" : null;
+}
+
+/**
+ * The formats read after invoices, ecash and LNURL: a BOLT 12 offer, an Ark address, a bare Bitcoin address
+ * (checksum-validated), a USDT address (an `ethereum:` link, or `0x…` with USDT named), a Monero address or
+ * `monero:` link (checksum-validated).
+ */
+export function findMoreMoney(text: string): MoreMoney | null {
+  const offer = findBolt12Offer(text);
+  if (offer) return { type: "bolt12", ...offer };
+  const ark = findArkAddress(text);
+  if (ark) return { type: "ark", ...ark };
+  const onchain = findBitcoinAddress(text);
+  if (onchain) return { type: "onchain", ...onchain };
+  const usdt = findUsdtAddress(text);
+  if (usdt) return { type: "usdt", ...usdt };
+  const monero = findMoneroAddress(text);
+  if (monero) return { type: "monero", ...monero };
+  return null;
+}
+
+/** The chat's switch for each format: the way of paying that pays it. None for Monero: the app has no wallet for it. */
+export function moreMoneyMethod(money: MoreMoney): "bitcoin" | "lightning" | "arkade" | "bark" | "usdt" | null {
+  return money.type === "onchain" ? "bitcoin" : money.type === "bolt12" ? "lightning" : money.type === "ark" ? money.request.kind : money.type === "usdt" ? "usdt" : null;
+}

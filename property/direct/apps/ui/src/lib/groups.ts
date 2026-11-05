@@ -1,0 +1,189 @@
+import { MAX_GROUP_NAME_BYTES, MAX_GROUP_NAME_LENGTH, decodeCommunityLink, decodeGroupEntryLink, groupEntryUrl, type PairedTransport } from "@ghostly/core";
+import { fitText, fitTextEdit, utf8Bytes } from "./fitText";
+import { getPrefix, setSessionDraft } from "./storage";
+import { appLinkOrigin, decodePart } from "./url";
+import { setChatFolder } from "./chatFolders";
+import { forgetChatLanguage } from "./chatLanguage";
+import { forgetChatMute, groupChat } from "./chatMute";
+import { forgetChatTranslate } from "./chatTranslate";
+import { forgetSentOriginals } from "./sentOriginals";
+import { forgetTranslateSend } from "./chatTranslateSend";
+import type { GroupEdgeView, GroupMemberView, GroupView, LinkView } from "@ghostly/browser/shared/types";
+import { publicKeyLabel } from "./publicKeyLabel";
+import { transportName } from "./connection";
+import { ago } from "./time";
+import { english } from "./english";
+import { relayCause } from "./problemText";
+import type { Translate } from "../contexts/I18nContext";
+
+/** Whether a group's name is one `groupName` takes whole: characters (`MAX_GROUP_NAME_LENGTH`) and bytes (`MAX_GROUP_NAME_BYTES`). */
+export const fitsGroupName = (s: string) => [...s].length <= MAX_GROUP_NAME_LENGTH && utf8Bytes(s) <= MAX_GROUP_NAME_BYTES;
+
+/**
+ * What a group's name field keeps of what was typed or pasted: as much as `groupName` takes, counted as it counts
+ * (`fitsGroupName`), cut between whole emoji. An input's `maxLength` counts UTF-16 units: a name of emoji stopped at
+ * 32 of them, a family at 5 (agents#1048).
+ */
+export const fitGroupName = (value: string): string => fitText(value, fitsGroupName);
+
+/** A change to a group's name field, kept to what `groupName` takes the way a text field with a limit does (`fitTextEdit`). */
+export const fitGroupNameEdit = (before: string, after: string, caret: number | null): { value: string; caret: number } =>
+  fitTextEdit(before, after, caret, fitsGroupName);
+
+export const memberName = (m: { key: string; me: boolean; nick?: string }, t: Translate = english) =>
+  m.me ? t("group.member.you") : m.nick || t("group.member.unnamed", { key: publicKeyLabel(m.key) });
+
+/**
+ * Who wrote (or reacted to) a group's message: a member by the roster's name; an author no longer in the roster
+ * (removed, or back with a new member key) by the name the group knew them by, else by their key.
+ */
+export const authorName = (group: { members: readonly Pick<GroupMemberView, "key" | "me" | "nick">[]; formerNames?: GroupView["formerNames"] }, key: string, t: Translate = english) => {
+  const member = group.members.find(m => m.key === key);
+  return member ? memberName(member, t) : group.formerNames?.[key] || t("group.member.unnamed", { key: key.slice(0, 8) });
+};
+
+/**
+ * A member's picture, when this app has one: mine, or what a member who is also a contact sent in our chat (the
+ * identity they are shown as wins, as in the chat). Community members are not contacts: they have none here.
+ */
+export function memberPhoto(
+  group: Pick<GroupView, "memberLinks">, member: { key: string; me: boolean }, links: readonly Pick<LinkView, "id" | "peerPubKeyZ32" | "peerAvatar">[] | undefined,
+  faceOf: (peerKey: string | undefined) => { photo?: string } | undefined, myAvatar?: string,
+): string | undefined {
+  if (member.me) return myAvatar || undefined;
+  const linkId = Object.keys(group.memberLinks).find(id => group.memberLinks[id] === member.key);
+  const link = linkId ? links?.find(l => l.id === linkId) : undefined;
+  return link ? faceOf(link.peerPubKeyZ32)?.photo ?? link.peerAvatar : undefined;
+}
+
+/** A group's state in a word, where it is not active: the header's line under the name, the members panel. */
+export function groupStatusText(status: NonNullable<GroupView["status"]>, t: Translate = english): string {
+  if (status === "left") return t("group.status.left");
+  if (status === "removed") return t("group.status.removed");
+  if (status === "forked") return t("group.status.forked");
+  if (status === "lost") return t("group.status.lost");
+  return t("group.status.active");
+}
+
+/** A member's edge in a few words: reachable over what, or since when not. `since` writes "3 min ago" in the interface's language. */
+export function edgeLabel(member: GroupMemberView, now = Date.now(), t: Translate = english, since: (seconds: number, now: number) => string = ago): string {
+  if (member.me) return t("group.member.you");
+  const edge = member.edge;
+  if (edge?.state === "open") return t("group.member.connected", { transport: transportName(edge.transport) });
+  // A group past 16 members that runs on hubs: most members are reached through one, not over an edge of mine.
+  if (member.viaHub) return t("group.member.viaHub");
+  if (!edge) return t("group.member.noConnection");
+  if (edge.noSlot) return t("group.member.noSlot");
+  // Live before and dropped: the app dials it again by itself (WISP 100 § Background retry), past its first attempt counted.
+  const attempt = edge.attempt ?? 0;
+  if (edgeReconnects(edge)) return attempt > 1 ? t("group.member.reconnectingAttempt", { attempt }) : t("group.member.reconnecting");
+  if (edge.state === "connecting") return t("group.member.connecting");
+  const seen = edge.lastSeenAt ? t("group.member.lastSeen", { time: since(edge.lastSeenAt / 1000, now / 1000) }) : t("group.member.notSeen");
+  return edge.state === "error" && !edgeWaits(edge) ? t("group.member.issue", { seen }) : t("group.member.unreachable", { seen });
+}
+
+/**
+ * What carries the group, in a few words: "2 of 3 live over WebRTC", or each transport counted when edges differ
+ * ("3 of 4 live · 2 WebRTC, 1 Iroh"). Undefined while nobody else is reachable. `transport`: the one they share.
+ */
+export function groupTransports(members: GroupMemberView[], t: Translate = english): { line: string; transport?: PairedTransport } | undefined {
+  const others = members.filter(m => !m.me), live = others.filter(m => m.edge?.state === "open");
+  if (!live.length) return undefined;
+  const counts = new Map<PairedTransport, number>();
+  for (const m of live) { const kind = m.edge!.transport ?? "webrtc/1"; counts.set(kind, (counts.get(kind) ?? 0) + 1); }
+  // With hubs, the members reached through them count as live; the transports are those of my own edges.
+  const hubbed = others.filter(m => m.viaHub && m.edge?.state !== "open").length;
+  const head = hubbed ? t("group.transports.liveHubs", { live: live.length + hubbed, total: others.length, hubs: hubbed })
+    : t("group.transports.live", { live: live.length, total: others.length });
+  if (counts.size === 1) { const [transport] = counts.keys(); return { line: t("group.transports.over", { head, transport: transportName(transport) }), transport }; }
+  return { line: t("group.transports.mixed", { head, list: [...counts].sort((a, b) => b[1] - a[1]).map(([kind, n]) => `${n} ${transportName(kind)}`).join(", ") }) };
+}
+
+/**
+ * An edge down for a reason the app gets past by itself: the relays holding back (their budget, one cooling down) or a
+ * session dropped (dialled again). Said as a wait, not red (lib/problemText.ts).
+ */
+export function edgeWaits(edge: GroupEdgeView | undefined): boolean {
+  if (edge?.state !== "error") return false;
+  return edge.cause === "session" || (edge.cause === "relays" && relayCause(edge.error ?? "")?.kind === "wait");
+}
+
+/** An edge that was live, dropped, and that the app is dialling again by itself (`GroupEdgeView.reconnecting`). */
+export function edgeReconnects(edge: GroupEdgeView | undefined): boolean {
+  return !!edge?.reconnecting && edge.state !== "open" && !edge.noSlot && (edge.state !== "error" || edgeWaits(edge));
+}
+
+/** The dot beside a member: reachable, on its way, failed, or away. */
+export const edgeDot = (member: GroupMemberView) => member.me || member.edge?.state === "open" || member.viaHub ? "bg-accent"
+  : edgeWaits(member.edge) || edgeReconnects(member.edge) ? "bg-text-muted motion-safe:animate-pulse"
+  : member.edge?.state === "error" ? "bg-danger" : member.edge?.state === "connecting" ? "bg-text-muted motion-safe:animate-pulse" : "bg-text-muted/50";
+
+/**
+ * An invitation, or a first join through a link, answered from its row: lifted out of folders to stay in sight. A group
+ * kept here and knocking to get back in (removed from a community, its link opened again) is the group, not that.
+ */
+export const invitationRow = (group: Pick<GroupView, "invitation" | "status">): boolean => !!group.invitation && !(group.invitation.viaLink && group.status);
+
+/**
+ * How many groups joined by a link may wait to be let in while a link in the app's address still joins one (WISP 902
+ * § The group's link): opening a link is not an act of the person's. Join's paste is not held back.
+ */
+export const LINK_GROUPS_WAITING = 3;
+
+/** The groups joined by a link that are not in yet: knocking, or given up on and kept until deleted. */
+export const linkGroupsWaiting = (groups: readonly Pick<GroupView, "id" | "invitation" | "status">[]): string[] =>
+  groups.filter(group => group.invitation?.viaLink && !group.status).map(group => group.id);
+
+/** The group a link names (`group1/…`, `group2/…`), or null when it is no group's link. */
+export const linkGroupId = (link: string): string | null => decodeGroupEntryLink(link)?.g ?? decodeCommunityLink(link)?.g ?? null;
+
+/** Where a private group lives in the app: by its id. */
+export function groupPath(groupId: string): string {
+  return `/group/${encodeURIComponent(groupId)}`;
+}
+
+/** The group a `/group/…` address points at, or null. */
+export function groupRouteId(pathname: string): string | null {
+  const match = pathname.match(/^\/group\/([^/]+)\/?$/);
+  return match ? decodePart(match[1]) : null;
+}
+
+/** When the group last had something unread come: another member's message (an engine without the field: any message). */
+export function groupUnreadAt(group: { lastMessageAt: number; lastPeerMessageAt?: number }): number {
+  return group.lastPeerMessageAt ?? group.lastMessageAt;
+}
+
+/** When this device last looked at the group: anything newer is unread. */
+export function groupReadAt(groupId: string): number {
+  try { return Number(localStorage.getItem(`${getPrefix()}group_read_${groupId}`) ?? 0) || 0; } catch { return 0; }
+}
+export function markGroupRead(groupId: string, at = Date.now()): void {
+  try { localStorage.setItem(`${getPrefix()}group_read_${groupId}`, String(at)); } catch { /* private mode: nothing is remembered */ }
+}
+
+/**
+ * What this device keeps of a group beside the engine goes with it (left, deleted here, a join called off): what was
+ * typed and not sent, the read mark, the mute, the translation choice, the language and the folder, as a chat's go with the chat (storage.ts deleteSession).
+ * A community keeps its id, so a draft left behind was in the field again after joining it again.
+ */
+export function forgetGroupLocal(groupId: string): void {
+  setSessionDraft(`group:${groupId}`, "");
+  try { localStorage.removeItem(`${getPrefix()}group_read_${groupId}`); } catch { /* storage unavailable */ }
+  forgetTranslateSend(groupChat(groupId));
+  forgetChatMute(groupChat(groupId));
+  forgetChatTranslate(groupChat(groupId));
+  forgetSentOriginals(groupChat(groupId));
+  forgetChatLanguage(groupChat(groupId));
+  setChatFolder(groupChat(groupId), undefined);
+}
+
+/**
+ * The address a group's link opens (`group1/…` for a private group, `group2/…` for a community), or "" while it is off.
+ * The web app hands out its own; the extension, desktop and Android the public app's (`appLinkOrigin`), which they also accept pasted.
+ */
+export function groupLinkUrl(group: { entryLink?: string }): string {
+  if (!group.entryLink) return "";
+  const mesh = decodeGroupEntryLink(group.entryLink);
+  if (mesh) return groupEntryUrl(appLinkOrigin(), mesh);
+  return decodeCommunityLink(group.entryLink) ? `${appLinkOrigin().replace(/\/+$/, "")}/#/join/${group.entryLink}` : "";
+}

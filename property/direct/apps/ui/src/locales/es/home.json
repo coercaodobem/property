@@ -1,0 +1,12 @@
+{
+  "createChat": "Crear nuevo chat",
+  "description": "Mensajería privada, de igual a igual.",
+  "features": {
+    "decentralized": "Sin servidor central",
+    "encrypted": "Cifrado de extremo a extremo",
+    "onDevice": "Tus mensajes se quedan en tus dispositivos"
+  },
+  "unpublishedVersion": "Versión local — ver versiones publicadas",
+  "viewRelease": "Ver esta versión",
+  "welcome": "Bienvenido a Property"
+}

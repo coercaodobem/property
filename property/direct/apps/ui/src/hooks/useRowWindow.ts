@@ -1,0 +1,219 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+
+/** Rows a timeline opens with: its last ones, several screens of them. */
+export const OPEN_ROWS = 100;
+/**
+ * Rows added at an edge of the window when the view nears it. A page is one commit (its rows in, as many out past
+ * `MAX_ROWS`, the view put back on its message): 100 froze a mid phone 150-175 ms a page while it scrolled.
+ */
+export const PAGE_ROWS = 25;
+/**
+ * Most rows in the page at once: past this, the rows at the far end of the window go. Every frame of a scroll and every
+ * page step lays out, paints and layers all of them: with 300 a slower processor took longer over its pages.
+ */
+export const MAX_ROWS = 150;
+/** Rows on each side of a message the window opens around (`reveal`, `opensOn`): within `MAX_ROWS`. */
+export const AROUND_ROWS = 50;
+
+const REVEAL = "ghostly:reveal-message";
+
+/**
+ * Brings a message of an open timeline into the page when it is not there (a quote's original, a search's match, a
+ * Tasks row, the pinned message), before this returns: a window of rows around it takes the place of the drawn ones.
+ * False when no open timeline has it.
+ */
+export function revealMessage(id: string): boolean {
+  const event = new CustomEvent<{ id: string; found: boolean }>(REVEAL, { detail: { id, found: false } });
+  window.dispatchEvent(event);
+  return event.detail.found;
+}
+
+/** Rows something opened from is open on (a picture open large, a message's details), each with how many hold it. */
+const holds = new Map<string, number>();
+
+/**
+ * Keeps a row in the page while something opened from it is open: rows coming or a page taken in never let it go, so
+ * what it opened (drawn by the row) stays open. `id` is its row's key (a message's id); none holds nothing. The hold
+ * ends when what this returns is called.
+ */
+export function holdRow(id: string | null | undefined): () => void {
+  if (!id) return () => {};
+  holds.set(id, (holds.get(id) ?? 0) + 1);
+  return () => {
+    const left = (holds.get(id) ?? 1) - 1;
+    if (left > 0) holds.set(id, left); else holds.delete(id);
+  };
+}
+
+/** Where a held row is among the rows `from` to `to` (exclusive), or -1. */
+function heldAt(ids: readonly string[], from: number, to: number): number {
+  for (const id of holds.keys()) {
+    const at = ids.indexOf(id);
+    if (at >= from && at < to) return at;
+  }
+  return -1;
+}
+
+/** What `useRowWindow` gives: the rows to draw and the ways to move them. */
+export interface RowWindow {
+  /** Index of the first row to draw. */
+  from: number;
+  /** Index after the last row to draw. */
+  to: number;
+  /** The last rows are not drawn: the window is somewhere up the history, and its end is not the timeline's. */
+  detached: boolean;
+  /** `PAGE_ROWS` more at that edge; the far edge gives up rows past `MAX_ROWS`. False when there are none. */
+  more(edge: "up" | "down"): boolean;
+  /** Back on the timeline's last rows (the ↓ button, a message I send). `sync`: in the page before this returns. */
+  attach(sync?: boolean): void;
+  /**
+   * The window around this row (see `revealMessage`). False when it is no row here. `sync`: in the page before this
+   * returns (not from a layout effect, where it comes with the next commit).
+   */
+  reveal(id: string, sync?: boolean): boolean;
+  /**
+   * How to tell whether the view rests at the timeline's bottom (`useChatScroll` gives it): rows coming at the end past
+   * `MAX_ROWS` take the place of the oldest there, and are left below the window when it is up the history. Without
+   * one, the view counts as at the bottom.
+   */
+  watch(atBottom: () => boolean): void;
+}
+
+interface State {
+  key: string;
+  /** Rows came and the window was decided: before that there is nothing to hold. */
+  decided: boolean;
+  /** The first row drawn, and where it was (a deleted row's place). */
+  first: string | null;
+  firstAt: number;
+  /** The last row drawn; null: every row to the end, new ones as they come. */
+  last: string | null;
+  lastAt: number;
+}
+
+const idle = (key: string): State => ({ key, decided: false, first: null, firstAt: 0, last: null, lastAt: 0 });
+
+/** Where a row is, by its id; a row gone (deleted) is found where it was. */
+function place(ids: readonly string[], id: string, at: number): number {
+  const i = ids[at] === id ? at : ids.indexOf(id);
+  return i >= 0 ? i : Math.max(0, Math.min(at, ids.length - 1));
+}
+
+/** The window of rows `from` to `to` (exclusive): held by its edge rows, the end left open when it reaches it. */
+function span(key: string, ids: readonly string[], from: number, to: number): State {
+  from = Math.max(0, from);
+  to = Math.min(ids.length, to);
+  const end = to >= ids.length;
+  return { key, decided: true, first: ids[from] ?? null, firstAt: from, last: end ? null : ids[to - 1], lastAt: end ? 0 : to - 1 };
+}
+
+/** The window around row `at`: `AROUND_ROWS` on each side, to the end when the end is that near. */
+function around(key: string, ids: readonly string[], at: number): State {
+  return span(key, ids, at - AROUND_ROWS, at + AROUND_ROWS + 1);
+}
+
+/**
+ * The rows of a long timeline in the page: a window of them, never the whole history. A chat opens on its last
+ * `OPEN_ROWS` (or around the message it was left on, `opensOn`); as the view nears an edge the window takes in
+ * `PAGE_ROWS` more there, and past `MAX_ROWS` the rows at the other end go. The page's size stays bounded however long
+ * the history is: a chat of 20,000 messages opens, scrolls and answers as one of 200 does, and so does one where thousands
+ * come at once.
+ *
+ * The window is held by its edge rows, not by positions: older history coming in above later (a group's newest page
+ * first, then the rest) stays out of the page until the view goes up to it (past the `OPEN_ROWS` the end always has),
+ * and messages coming at the end are drawn while the window reaches the end. Past `MAX_ROWS` (a bot's reports all day
+ * in a chat left open, a batch of thousands in one change, the engine's history after a stale copy), a view at the
+ * bottom (`watch`) gets the last `OPEN_ROWS` in the same commit, never the whole batch: every row that goes is above it.
+ * A view up from the bottom keeps its rows, and the window stops at the row it ended on: the ones below are not drawn
+ * (the ↓ pill counts them). `useChatScroll` keeps the view where it was when rows come or go above it. A row something
+ * is open from (`holdRow`) stays in the page whatever comes: the window keeps it, still within `MAX_ROWS`.
+ *
+ * `ids` are the rows' keys in order and `key` the timeline (another one starts over). `heads` maps a row folded into a
+ * run (a bot's stacked routines) to the run's first row: the window never starts inside a run.
+ */
+export function useRowWindow(ids: readonly string[], key: string, { opensOn, heads }: { opensOn?: string | null; heads?: ReadonlyMap<string, string> } = {}): RowWindow {
+  const [held, setHeld] = useState<State>(() => idle(key));
+  let state = held.key === key ? held : idle(key);
+  if (!state.decided && ids.length > 0) {
+    const on = opensOn ? ids.indexOf(opensOn) : -1;
+    state = on >= 0 ? around(key, ids, on) : span(key, ids, ids.length - OPEN_ROWS, ids.length);
+  }
+  const now = useRef({ ids, from: 0, to: 0, key });
+  const atBottom = useRef<() => boolean>(() => true);
+
+  let from = state.first === null ? 0 : place(ids, state.first, state.firstAt);
+  let to = state.last === null ? ids.length : Math.max(from, place(ids, state.last, state.lastAt)) + 1;
+  // At the end with more than the most rows (a batch that came in one change): never drawn whole, not even for one commit.
+  if (state.last === null && to - from > MAX_ROWS) {
+    const was = now.current;
+    const end = was.key === key && was.to > 0 && !atBottom.current() ? place(ids, was.ids[was.to - 1], was.to - 1) + 1 : ids.length;
+    // Up from the bottom: up to the row it ended on, the rows on screen kept. At the bottom: its last rows, or from a
+    // held row above them (a picture open large from it) up to the most rows, the ones past them below the window.
+    const kept = end < ids.length ? -1 : heldAt(ids, from, to);
+    state = end < ids.length ? span(key, ids, Math.max(from, end - MAX_ROWS), end)
+      : kept >= 0 && kept < ids.length - OPEN_ROWS ? span(key, ids, kept, kept + MAX_ROWS)
+      : span(key, ids, ids.length - OPEN_ROWS, ids.length);
+    from = state.firstAt;
+    to = state.last === null ? ids.length : state.lastAt + 1;
+  }
+  if (state !== held) setHeld(state);
+  // At the end, never fewer than a chat opens with: a first page shorter than that (a group's newest page, what the engine
+  // last sent) takes in the rows that come above it, up to `OPEN_ROWS`.
+  if (state.last === null && to - from < OPEN_ROWS) from = Math.max(0, to - OPEN_ROWS);
+  // Never inside a run of stacked rows: from its first row, which draws the whole run.
+  const head = heads?.get(ids[from]);
+  if (head !== undefined) { const at = ids.lastIndexOf(head, from); if (at >= 0) from = at; }
+
+  now.current = { ids, from, to, key };
+
+  // The ways to move it: made once, reading the latest rows.
+  const [moves] = useState((): Pick<RowWindow, "more" | "attach" | "reveal" | "watch"> => ({
+    more(edge) {
+      const { ids, from, to, key } = now.current;
+      if (edge === "up") {
+        if (from <= 0) return false;
+        const start = Math.max(0, from - PAGE_ROWS);
+        // Never letting a held row go at the far edge.
+        if (heldAt(ids, start + MAX_ROWS, to) >= 0) return false;
+        setHeld(span(key, ids, start, Math.min(to, start + MAX_ROWS)));
+        return true;
+      }
+      if (to >= ids.length) return false;
+      const end = Math.min(ids.length, to + PAGE_ROWS);
+      if (heldAt(ids, from, end - MAX_ROWS) >= 0) return false;
+      setHeld(span(key, ids, Math.max(from, end - MAX_ROWS), end));
+      return true;
+    },
+    attach(sync = false) {
+      const { ids, to, key } = now.current;
+      if (to >= ids.length) return;
+      const tail = () => setHeld(span(key, ids, ids.length - OPEN_ROWS, ids.length));
+      if (sync) flushSync(tail); else tail();
+    },
+    reveal(id, sync = true) {
+      const { ids, from, to, key } = now.current;
+      const at = ids.indexOf(id);
+      if (at < 0) return false;
+      if (at >= from && at < to) return true;
+      const near = () => setHeld(around(key, ids, at));
+      if (sync) flushSync(near); else near();
+      return true;
+    },
+    watch(view) {
+      atBottom.current = view;
+    },
+  }));
+
+  useEffect(() => {
+    const onReveal = (e: Event) => {
+      const detail = (e as CustomEvent<{ id: string; found: boolean }>).detail;
+      if (!detail.found && moves.reveal(detail.id)) detail.found = true;
+    };
+    window.addEventListener(REVEAL, onReveal);
+    return () => window.removeEventListener(REVEAL, onReveal);
+  }, [moves]);
+
+  const detached = to < ids.length;
+  return useMemo(() => ({ ...moves, from, to, detached }), [moves, from, to, detached]);
+}

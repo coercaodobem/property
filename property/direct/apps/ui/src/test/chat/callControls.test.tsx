@@ -1,0 +1,518 @@
+import { act, fireEvent, screen, within } from "@testing-library/react";
+import { useEffect, useState, type ComponentProps } from "react";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { CallButtons } from "../../components/CallButtons";
+import { CallOverlay } from "../../components/CallOverlay";
+import { IncomingCallNotification } from "../../components/IncomingCallNotification";
+import { FakeMediaStream, FakeTrack } from "../../../../../packages/react/test/fakes";
+import { renderApp } from "../render";
+
+// covers: calls.screen-share, calls.audio, calls.video, calls.mini-window, calls.end-and-answer, calls.reconnect
+
+/**
+ * The chat header starts a voice or a video call, and nothing else; the screen is shared from inside a call,
+ * voice or video, in the full call window and in the small one.
+ */
+
+describe("the chat header's call buttons", () => {
+  it("are a voice call and a video call, with no screen share among them", async () => {
+    const onCall = vi.fn();
+    const { user, container } = renderApp(<CallButtons blocked={null} busy={false} onCall={onCall} />);
+
+    expect([...container.querySelectorAll("button")].map((b) => b.dataset.testid)).toEqual(["call-audio", "call-video"]);
+    expect(screen.queryByTestId("call-screen")).toBeNull();
+    expect(screen.queryByRole("button", { name: /screen/i })).toBeNull();
+    expect(screen.getByTestId("call-audio")).toHaveAttribute("title", "Audio call");
+    expect(screen.getByTestId("call-video")).toHaveAttribute("title", "Video call");
+
+    await user.click(screen.getByTestId("call-audio"));
+    await user.click(screen.getByTestId("call-video"));
+    expect(onCall.mock.calls).toEqual([[false], [true]]);
+  });
+
+  it("are off with the reason when the chat cannot call, and off during a call", () => {
+    const { rerender } = renderApp(<CallButtons blocked="Calls need a live connection" busy={false} onCall={vi.fn()} />);
+    for (const id of ["call-audio", "call-video"]) {
+      expect(screen.getByTestId(id)).toHaveAttribute("aria-disabled", "true");
+      expect(screen.getByTestId(id)).toHaveAttribute("title", "Calls need a live connection");
+    }
+
+    rerender(<CallButtons blocked={null} busy onCall={vi.fn()} />);
+    for (const id of ["call-audio", "call-video"]) expect(screen.getByTestId(id)).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("when the chat cannot call, can still be reached and say why to a screen reader, and start nothing", async () => {
+    const onCall = vi.fn();
+    const { user } = renderApp(<CallButtons phone blocked="Calls need a live connection" busy={false} onCall={onCall} />);
+    const voice = screen.getByTestId("call-audio");
+    // A phone has no hover: a disabled button would be skipped, and its title never heard.
+    expect(voice).not.toBeDisabled();
+    expect(voice).toHaveAccessibleName("Audio call");
+    expect(voice).toHaveAccessibleDescription("Calls need a live connection");
+    await user.tab();
+    expect(voice).toHaveFocus();
+    await user.keyboard("{Enter}");
+    await user.click(voice);
+    expect(onCall).not.toHaveBeenCalled();
+  });
+
+  it("keep the keyboard focus during a call, and start no second one", async () => {
+    const onCall = vi.fn();
+    const { user, rerender } = renderApp(<CallButtons blocked={null} busy={false} onCall={onCall} />);
+    screen.getByTestId("call-audio").focus();
+    rerender(<CallButtons blocked={null} busy onCall={onCall} />);
+
+    // Off to a screen reader and to a press, yet still the focused button: a disabled one would drop the focus to the page.
+    expect(screen.getByTestId("call-audio")).toHaveFocus();
+    for (const id of ["call-audio", "call-video"]) expect(screen.getByTestId(id)).toHaveAttribute("aria-disabled", "true");
+    await user.keyboard("{Enter}");
+    await user.click(screen.getByTestId("call-video"));
+    expect(onCall).not.toHaveBeenCalled();
+  });
+});
+
+type OverlayProps = ComponentProps<typeof CallOverlay>;
+
+function overlay(props: Partial<OverlayProps> = {}, options?: Parameters<typeof renderApp>[1]) {
+  const onToggleScreenShare = vi.fn();
+  const view = renderApp(
+    <CallOverlay
+      callState="connected"
+      localStream={null}
+      remoteStream={null}
+      isMuted={false}
+      isVideoOff
+      canSendVideo
+      canShareScreen
+      remoteHasVideo={false}
+      callStartedAt={Date.now()}
+      peerName="Ana"
+      onHangUp={vi.fn()}
+      onToggleMute={vi.fn()}
+      onToggleVideo={vi.fn()}
+      onToggleScreenShare={onToggleScreenShare}
+      {...props}
+    />,
+    options,
+  );
+  return { ...view, onToggleScreenShare, window: () => screen.getByTestId("call-window") };
+}
+
+/** A chat as the keys see it: the header's call buttons, the message field, and the call over them once it is on. */
+function ChatWithCall() {
+  const [on, setOn] = useState(false);
+  return (
+    <>
+      <CallButtons blocked={null} busy={on} onCall={() => setOn(true)} />
+      <textarea aria-label="Message" />
+      {on && <CallOverlay callState="connected" localStream={null} remoteStream={null} isMuted={false} isVideoOff canSendVideo remoteHasVideo={false}
+        callStartedAt={Date.now()} peerName="Ana" onHangUp={() => setOn(false)} onToggleMute={vi.fn()} onToggleVideo={vi.fn()} />}
+    </>
+  );
+}
+
+describe("sharing the screen from inside a call", () => {
+  it("is offered in a voice call", async () => {
+    const { user, onToggleScreenShare } = overlay();
+    const share = screen.getByTestId("share-screen");
+
+    expect(share).toBeEnabled();
+    expect(share).toHaveAttribute("title", "Share screen");
+    expect(share).toHaveAccessibleName("Share screen");
+    expect(share).toHaveAttribute("aria-pressed", "false");
+    await user.click(share);
+    expect(onToggleScreenShare).toHaveBeenCalledOnce();
+  });
+
+  it("is offered in a video call", () => {
+    overlay({ isVideoOff: false });
+    expect(screen.getByTestId("share-screen")).toBeEnabled();
+    expect(screen.getByTitle("Turn camera off")).toBeInTheDocument();
+  });
+
+  it("while sharing, says Stop sharing, tells you so, and shows the camera as off", () => {
+    overlay({ isVideoOff: false, isScreenSharing: true });
+
+    const share = screen.getByTestId("share-screen");
+    expect(share).toHaveAttribute("title", "Stop sharing");
+    expect(share).toHaveAccessibleName("Stop sharing");
+    expect(share).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("call-sharing")).toHaveTextContent("You're sharing your screen");
+    // The screen took the camera's place: the camera button turns it back on.
+    expect(screen.getByTitle("Turn camera on")).toBeInTheDocument();
+  });
+
+  it("tells you when the other side is sharing theirs", () => {
+    overlay({ remoteHasVideo: true, remoteIsScreenSharing: true });
+    expect(screen.getByTestId("call-sharing")).toHaveTextContent("Ana is sharing their screen");
+    expect(screen.getByTestId("call-sharing")).toHaveAttribute("data-peer", "true");
+  });
+
+  // agents#1630: a phone's camera held upright gives a 3:4 picture, 160 px high from 64 px down: the notice at a fixed
+  // 10.5rem landed 48 px into it.
+  it("on a phone, sits below your own picture whatever its shape: a camera held sideways or upright", () => {
+    const width = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 375 });
+    onTestFinished(() => { Object.defineProperty(window, "innerWidth", { configurable: true, value: width }); });
+    overlay({ remoteHasVideo: true, remoteIsScreenSharing: true, isVideoOff: false, localStream: new FakeMediaStream([new FakeTrack("video")]) as unknown as MediaStream });
+    const notice = screen.getByTestId("call-sharing");
+    const video = screen.getByTestId("call-self-view").querySelector("video")!;
+    const shaped = (w: number, h: number) => {
+      Object.defineProperty(video, "videoWidth", { configurable: true, value: w });
+      Object.defineProperty(video, "videoHeight", { configurable: true, value: h });
+      fireEvent.loadedMetadata(video);
+    };
+    // Sideways (4:3): the picture ends at 154 px, the notice starts at 170.
+    shaped(320, 240);
+    expect(notice.style.top).toBe("calc(170px + env(safe-area-inset-top))");
+    // Upright (3:4): it ends at 224, the notice starts at 240.
+    shaped(240, 320);
+    expect(notice.style.top).toBe("calc(240px + env(safe-area-inset-top))");
+    expect(notice.className).not.toMatch(/max-md:top-/);
+  });
+
+  it("says nothing about sharing when nobody is", () => {
+    overlay({ remoteHasVideo: true, isVideoOff: false });
+    expect(screen.queryByTestId("call-sharing")).toBeNull();
+  });
+
+  it("is off, with the reason, when the call cannot carry a screen", async () => {
+    const { user, onToggleScreenShare } = overlay({ canShareScreen: false, screenShareUnavailable: "Your contact's app cannot show a screen in this call" });
+    const share = screen.getByTestId("share-screen");
+
+    expect(share).toBeDisabled();
+    expect(share).toHaveAttribute("title", "Your contact's app cannot show a screen in this call");
+    await user.click(share);
+    expect(onToggleScreenShare).not.toHaveBeenCalled();
+  });
+
+  it("is not there at all where no screen can be captured (phones)", () => {
+    overlay({ canShareScreen: false, screenShareUnavailable: null });
+    expect(screen.queryByTestId("share-screen")).toBeNull();
+    // The camera still is.
+    expect(screen.getByTitle("Turn camera on")).toBeInTheDocument();
+  });
+
+  it("explains why a share failed", () => {
+    overlay({ screenShareError: "Screen sharing is blocked. Allow screen recording for this app in your system's privacy settings." });
+    expect(screen.getByRole("alert")).toHaveTextContent("Allow screen recording");
+  });
+
+  // The call hook and the Desktop media layer say these in English; the alert and the button's title were English in
+  // every language.
+  it("says why a share failed, and why it is off, in the app's language", () => {
+    const { rerender } = overlay({ screenShareError: "Screen sharing is blocked. Allow screen recording for this app in your system's privacy settings." }, { language: "pt" });
+    expect(screen.getByRole("alert")).toHaveTextContent("O compartilhamento de tela está bloqueado. Permita a gravação de tela para este app nos ajustes de privacidade do sistema.");
+    rerender(<CallOverlay callState="connected" localStream={null} remoteStream={null} isMuted={false} isVideoOff canSendVideo canShareScreen={false} remoteHasVideo={false}
+      callStartedAt={Date.now()} peerName="Ana" onHangUp={vi.fn()} onToggleMute={vi.fn()} onToggleVideo={vi.fn()} onToggleScreenShare={vi.fn()}
+      screenShareUnavailable="Screen sharing is not available on Linux yet" />);
+    expect(screen.getByTestId("share-screen")).toHaveAttribute("title", "Compartilhar a tela ainda não está disponível no Linux");
+  });
+
+  it("is in the small window too, with the notice, when the call follows you out of its chat", async () => {
+    const onReturnToChat = vi.fn();
+    const { user, onToggleScreenShare, window } = overlay({ pinned: true, onReturnToChat, isScreenSharing: true, isVideoOff: false });
+
+    expect(window()).toHaveAttribute("data-mini", "true");
+    const share = within(window()).getByTestId("share-screen");
+    expect(share).toHaveAttribute("title", "Stop sharing");
+    expect(within(window()).getByTestId("call-sharing")).toHaveTextContent("You're sharing your screen");
+    await user.click(share);
+    expect(onToggleScreenShare).toHaveBeenCalledOnce();
+  });
+
+  it("waits for the call to connect", () => {
+    overlay({ callState: "offering", canShareScreen: false, isScreenSharing: false });
+    expect(screen.queryByTestId("share-screen")).toBeNull();
+    expect(screen.queryByTestId("call-sharing")).toBeNull();
+  });
+});
+
+describe("the contact's name on the call screens", () => {
+  // In the Arabic app a chat named "Ana!" rang as "!Ana" and read "!Ana" in the call window: the name took the page's
+  // direction. It reads in its own, as the chat header's <bdi> does.
+  it("reads in its own direction on the ringing card and in the call window", () => {
+    const { unmount } = renderApp(<IncomingCallNotification peerName="Ana!" hasVideo={false} onAcceptAudio={vi.fn()} onAcceptVideo={vi.fn()} onReject={vi.fn()} />);
+    expect(screen.getByText("Ana!")).toHaveAttribute("dir", "auto");
+    unmount();
+    overlay({ peerName: "Ana!" });
+    expect(screen.getByText("Ana!")).toHaveAttribute("dir", "auto");
+  });
+});
+
+describe("a call for a screen reader and the keys", () => {
+  it("rings as a dialog named for the caller: the focus in it, not on Accept, the keys kept in it, back where it was after", async () => {
+    const before = document.createElement("textarea");
+    document.body.append(before);
+    before.focus();
+    const onAcceptAudio = vi.fn();
+    const { user, unmount } = renderApp(<IncomingCallNotification peerName="Ana" hasVideo onAcceptAudio={onAcceptAudio} onAcceptVideo={vi.fn()} onReject={vi.fn()} />);
+    const ring = screen.getByRole("alertdialog", { name: "Ana" });
+    expect(ring).toHaveAccessibleDescription("Incoming video call...");
+    expect(ring).toHaveAttribute("aria-modal", "true");
+    expect(ring).toHaveFocus();
+    // An Enter meant for the message does not answer.
+    await user.keyboard("{Enter}");
+    expect(onAcceptAudio).not.toHaveBeenCalled();
+    const buttons = within(ring).getAllByRole("button");
+    expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual(["Decline", "Accept audio call", "Accept video call"]);
+    await user.tab();
+    await user.tab();
+    await user.tab();
+    expect(buttons[2]).toHaveFocus();
+    await user.tab();
+    expect(buttons[0]).toHaveFocus();
+    unmount();
+    expect(before).toHaveFocus();
+    before.remove();
+  });
+
+  it("started from the keyboard, takes the focus whole-screen, keeps Tab off the chat behind it, and gives the focus back to its button when it ends", async () => {
+    const { user } = renderApp(<ChatWithCall />);
+    await user.tab();
+    expect(screen.getByTestId("call-audio")).toHaveFocus();
+    await user.keyboard("{Enter}");
+
+    const call = screen.getByRole("dialog", { name: "Ana" });
+    expect(call).toBe(screen.getByTestId("call-window"));
+    expect(call).toHaveFocus();
+    // Round the call's own buttons, both ways, never to the message field under it.
+    const stops = ["call-minimize", "call-mute", "call-camera", "call-hang-up"];
+    for (const id of [...stops, stops[0]]) {
+      await user.tab();
+      expect(screen.getByTestId(id)).toHaveFocus();
+    }
+    await user.tab({ shift: true });
+    expect(screen.getByTestId("call-hang-up")).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    expect(screen.queryByTestId("call-window")).toBeNull();
+    expect(screen.getByTestId("call-audio")).toHaveFocus();
+  });
+
+  it("in its small window leaves the focus and Tab to the chat, and takes them when it goes whole-screen", async () => {
+    localStorage.setItem("ghostly_call_mini", "1");
+    const { user } = renderApp(<ChatWithCall />);
+    await user.tab();
+    await user.keyboard("{Enter}");
+
+    const call = screen.getByTestId("call-window");
+    expect(call).toHaveAttribute("data-mini", "true");
+    expect(call).not.toHaveAttribute("role");
+    expect(screen.getByTestId("call-audio")).toHaveFocus();
+    await user.tab();
+    await user.tab();
+    expect(screen.getByRole("textbox", { name: "Message" })).toHaveFocus();
+
+    // Whole-screen from its own button: the focus stays on that button, and the keys are the call's from there.
+    await user.click(screen.getByTestId("call-minimize"));
+    expect(call).toHaveAttribute("data-mini", "false");
+    expect(screen.getByTestId("call-minimize")).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByTestId("call-hang-up")).toHaveFocus();
+    localStorage.removeItem("ghostly_call_mini");
+  });
+
+  it("ended from its small window, gives the focus back to the call's button, not to the page", async () => {
+    const { user } = renderApp(<ChatWithCall />);
+    await user.tab();
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(screen.getByTestId("call-minimize")).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByTestId("call-window")).toHaveAttribute("data-mini", "true");
+
+    screen.getByTestId("call-hang-up").focus();
+    await user.keyboard("{Enter}");
+    expect(screen.queryByTestId("call-window")).toBeNull();
+    expect(screen.getByTestId("call-audio")).toHaveFocus();
+  });
+
+  it("started in its small window and ended by the contact with the focus in it, gives the focus back", async () => {
+    localStorage.setItem("ghostly_call_mini", "1");
+    const contact = { hangUp: () => {} };
+    function Call() {
+      const [on, setOn] = useState(false);
+      useEffect(() => { contact.hangUp = () => setOn(false); }, []);
+      return (
+        <>
+          <CallButtons blocked={null} busy={on} onCall={() => setOn(true)} />
+          {on && <CallOverlay callState="connected" localStream={null} remoteStream={null} isMuted={false} isVideoOff canSendVideo remoteHasVideo={false}
+            callStartedAt={Date.now()} peerName="Ana" onHangUp={() => setOn(false)} onToggleMute={vi.fn()} onToggleVideo={vi.fn()} />}
+        </>
+      );
+    }
+    const { user } = renderApp(<Call />);
+    await user.tab();
+    await user.keyboard("{Enter}");
+    expect(screen.getByTestId("call-window")).toHaveAttribute("data-mini", "true");
+    screen.getByTestId("call-mute").focus();
+
+    await act(async () => contact.hangUp());
+    expect(screen.queryByTestId("call-window")).toBeNull();
+    expect(screen.getByTestId("call-audio")).toHaveFocus();
+    localStorage.removeItem("ghostly_call_mini");
+  });
+
+  it("says the call's state in words as it moves on, never the running clock", () => {
+    const { rerender } = overlay({ callState: "offering" });
+    // Calling... is the state line itself, read out as it changes; nothing says it twice.
+    expect(screen.getByTestId("call-status")).toHaveAttribute("role", "status");
+    expect(screen.getByTestId("call-status")).toHaveTextContent("Calling...");
+    expect(screen.getAllByText("Calling...")).toHaveLength(1);
+    expect(screen.getByTestId("call-state-spoken")).toHaveTextContent(/^$/);
+    const props = { localStream: null, remoteStream: null, isMuted: false, isVideoOff: true, canSendVideo: true, remoteHasVideo: false, callStartedAt: Date.now() - 65_000,
+      peerName: "Ana", onHangUp: vi.fn(), onToggleMute: vi.fn(), onToggleVideo: vi.fn() };
+    rerender(<CallOverlay callState="connected" {...props} />);
+    // Connected: said once; the line becomes the clock and stops being read out.
+    expect(screen.getByTestId("call-state-spoken")).toHaveAttribute("role", "status");
+    expect(screen.getByTestId("call-state-spoken")).toHaveTextContent(/^Connected$/);
+    expect(screen.getByTestId("call-status")).not.toHaveAttribute("role");
+  });
+
+  it("says Reconnecting in place of the clock while a call gets its path back, and the clock goes on after", () => {
+    const { rerender } = overlay({ callStartedAt: Date.now() - 65_000, reconnecting: true });
+    const status = screen.getByTestId("call-status");
+    expect(status).toHaveTextContent("Reconnecting...");
+    expect(status).toHaveAttribute("data-state", "connected");
+    expect(status).toHaveAttribute("data-reconnecting", "true");
+    expect(status).not.toHaveTextContent(/\d\d:\d\d/);
+    // Read out once, by the line a screen reader hears.
+    expect(screen.getByTestId("call-state-spoken")).toHaveTextContent(/^Reconnecting\.\.\.$/);
+    // The call's controls stay: it can be hung up or muted meanwhile.
+    expect(screen.getByTitle("End call")).toBeEnabled();
+
+    const props = { localStream: null, remoteStream: null, isMuted: false, isVideoOff: true, canSendVideo: true, remoteHasVideo: false, callStartedAt: Date.now() - 65_000,
+      peerName: "Ana", onHangUp: vi.fn(), onToggleMute: vi.fn(), onToggleVideo: vi.fn() };
+    rerender(<CallOverlay callState="connected" {...props} />);
+    expect(screen.getByTestId("call-status")).not.toHaveAttribute("data-reconnecting");
+    expect(screen.getByTestId("call-status")).not.toHaveTextContent("Reconnecting...");
+    expect(screen.getByTestId("call-state-spoken")).toHaveTextContent(/^Connected$/);
+  });
+});
+
+describe("the call's clock", () => {
+  it("counts minutes and seconds, and hours too past the hour: never 65:00", () => {
+    vi.useFakeTimers();
+    try {
+      const second = 1000, minute = 60 * second, hour = 60 * minute;
+      const read = (since: number) => {
+        const { unmount } = overlay({ callStartedAt: Date.now() - since });
+        act(() => { vi.advanceTimersByTime(second); });
+        const text = screen.getByTestId("call-status").textContent;
+        unmount();
+        return text;
+      };
+      expect(read(4 * second)).toBe("Audio call00:05");
+      expect(read(59 * minute + 58 * second)).toBe("Audio call59:59");
+      expect(read(hour - second)).toBe("Audio call1:00:00");
+      expect(read(hour + 5 * minute - second)).toBe("Audio call1:05:00");
+      expect(read(2 * hour + 3 * minute + 8 * second)).toBe("Audio call2:03:09");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("a call ringing while you are on another (End and answer)", () => {
+  it("offers End and answer and Decline only, named for a screen reader and under each button, with the keys kept in it", async () => {
+    const onAcceptAudio = vi.fn(), onAcceptVideo = vi.fn(), onReject = vi.fn();
+    const { user } = renderApp(<IncomingCallNotification peerName="Ana" hasVideo={false} onCall onAcceptAudio={onAcceptAudio} onAcceptVideo={onAcceptVideo} onReject={onReject} />);
+    const ring = screen.getByRole("alertdialog", { name: "Ana" });
+    expect(ring).toHaveAccessibleDescription("Incoming audio call... Answering ends your current call");
+    expect(ring).toHaveFocus();
+    // An Enter meant for the message does not end the call that is on.
+    await user.keyboard("{Enter}");
+    expect(onAcceptAudio).not.toHaveBeenCalled();
+
+    const buttons = within(ring).getAllByRole("button");
+    expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual(["Decline", "End and answer"]);
+    expect(buttons.map((b) => b.getAttribute("title"))).toEqual(["Decline", "End and answer"]);
+    // The words are on screen too: no icon says "End and answer".
+    expect(within(ring).getAllByText("End and answer")).toHaveLength(1);
+    expect(within(ring).queryByRole("button", { name: /^Accept/ })).toBeNull();
+
+    await user.tab();
+    await user.tab();
+    expect(buttons[1]).toHaveFocus();
+    await user.tab();
+    expect(buttons[0]).toHaveFocus();
+    await user.tab();
+    await user.keyboard("{Enter}");
+    expect(onAcceptAudio).toHaveBeenCalledOnce();
+    expect(onAcceptVideo).not.toHaveBeenCalled();
+  });
+
+  it("answers a video call as it came, with the camera; Decline declines", async () => {
+    const onAcceptVideo = vi.fn(), onReject = vi.fn();
+    const { user } = renderApp(<IncomingCallNotification peerName="Ana" hasVideo onCall onAcceptAudio={vi.fn()} onAcceptVideo={onAcceptVideo} onReject={onReject} />);
+    expect(screen.getByRole("alertdialog")).toHaveAccessibleDescription("Incoming video call... Answering ends your current call");
+    await user.click(screen.getByRole("button", { name: "End and answer" }));
+    expect(onAcceptVideo).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole("button", { name: "Decline" }));
+    expect(onReject).toHaveBeenCalledOnce();
+  });
+
+  it("goes back to the plain Accept once the call that was on has ended", () => {
+    const props = { peerName: "Ana", hasVideo: true, onAcceptAudio: vi.fn(), onAcceptVideo: vi.fn(), onReject: vi.fn() };
+    const { rerender } = renderApp(<IncomingCallNotification {...props} onCall />);
+    rerender(<IncomingCallNotification {...props} onCall={false} />);
+    const ring = screen.getByRole("alertdialog", { name: "Ana" });
+    expect(ring).toHaveAccessibleDescription("Incoming video call...");
+    expect(within(ring).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual(["Decline", "Accept audio call", "Accept video call"]);
+  });
+
+  it("is said in every language", async () => {
+    for (const language of ["en", "pt", "es", "fr", "it", "ja", "zh", "ar"]) {
+      const calls = (await import(`../../locales/${language}/calls.json`)).default as Record<string, unknown>;
+      for (const key of ["endAndAnswer", "endsCurrent", "onAnother"]) expect(calls[key], `${language} ${key}`).toEqual(expect.any(String));
+    }
+  });
+});
+
+describe("your own camera in the corner", () => {
+  it("plays the camera's picture alone, never the microphone with it", () => {
+    // Linux's microphone is a silent stand-in track; in the self view's stream it kept WebKitGTK from loading the picture.
+    vi.stubGlobal("MediaStream", FakeMediaStream);
+    // happy-dom's srcObject takes its own MediaStream only: what the page gives it is kept here.
+    const given: unknown[] = [];
+    const srcObject = vi.spyOn(HTMLMediaElement.prototype, "srcObject", "set").mockImplementation((stream) => { given.push(stream); });
+    try {
+      const camera = new FakeTrack("video");
+      const microphone = new FakeTrack("audio");
+      overlay({ isVideoOff: false, localStream: new FakeMediaStream([camera, microphone]) as unknown as MediaStream });
+      expect(screen.getByTestId("call-self-view").querySelector("video")).not.toBeNull();
+      expect(given).toHaveLength(1);
+      expect((given[0] as FakeMediaStream).getTracks()).toEqual([camera]);
+    } finally {
+      srcObject.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe("the contact's sound", () => {
+  it("plays from one element only, on the chosen speaker: the picture is muted", () => {
+    vi.stubGlobal("MediaStream", FakeMediaStream);
+    // happy-dom's srcObject takes its own MediaStream only: what the page gives each element is kept here.
+    const given = new Map<HTMLMediaElement, unknown>();
+    const srcObject = vi.spyOn(HTMLMediaElement.prototype, "srcObject", "set").mockImplementation(function (this: HTMLMediaElement, stream) { given.set(this, stream); });
+    const sinks: string[] = [];
+    Object.defineProperty(HTMLMediaElement.prototype, "setSinkId", { configurable: true, value: async function (this: HTMLMediaElement) { sinks.push(this.tagName); } });
+    try {
+      const remote = new FakeMediaStream([new FakeTrack("audio"), new FakeTrack("video")]);
+      const devices = { list: { audioinput: [], videoinput: [], audiooutput: [], defaults: {}, named: true }, current: { audioinput: "", videoinput: "", audiooutput: "spk" },
+        speaker: "spk", speakers: true, choose: vi.fn(), notice: null, dismiss: vi.fn(), switchBack: vi.fn() };
+      overlay({ remoteStream: remote as unknown as MediaStream, remoteHasVideo: true, devices });
+      const showing = [...document.querySelectorAll<HTMLMediaElement>("audio, video")].filter((element) => given.get(element) === remote);
+      // The <audio> and the picture both show the contact's stream; only one may sound, or the voice comes out twice.
+      expect(showing.map((element) => element.tagName)).toEqual(["AUDIO", "VIDEO"]);
+      expect(showing.filter((element) => !element.muted).map((element) => element.tagName)).toEqual(["AUDIO"]);
+      expect(sinks).toEqual(["AUDIO"]);
+    } finally {
+      srcObject.mockRestore();
+      delete (HTMLMediaElement.prototype as { setSinkId?: unknown }).setSinkId;
+      vi.unstubAllGlobals();
+    }
+  });
+});

@@ -1,0 +1,166 @@
+import { sha256 } from "@noble/hashes/sha2.js";
+import { toBase64Url, utf8Encode } from "./bytes";
+import { LIMITS } from "./frames";
+import { parseLinkPreview, type LinkPreview } from "./linkPreview";
+import { STATUS_CARD_LIMITS, cardEditNumber, readStatusCard, type StatusCard } from "./statusCards";
+
+/**
+ * Editing a sent text in a 1:1 chat (WISP 401 § Edits). The sender says the whole new text of one of its own
+ * messages, with a sequence number of its own per message, and the contact confirms the number it now shows:
+ *
+ *     {"t":"paired-edit","id":"<the message's wire id>","e":3,"ts":1790000000000,"m":"Done: 12 of 12"}
+ *     {"t":"paired-edited","id":"<the message's wire id>","e":3}
+ *
+ * It needs `edit/1` in `paired-capabilities` on both sides. Only the contact's own messages can be edited from its
+ * side: the frame comes on the session authenticated with the pinned contact, and the receiver looks the id up among
+ * that contact's messages only. The highest `e` wins, whatever order frames arrive in; an edit that is not newer is
+ * confirmed and changes nothing. A preview (`pv`, WISP 401 § Link previews) may come with the new text, as with a
+ * message. A status card (`sc`, WISP 405 · Status Cards) may come with it too; a card message takes up to
+ * `STATUS_CARD_LIMITS.edits` edits, a number past `MAX_EDITS_PER_MESSAGE` holding only with a card. Older apps drop
+ * both frames: they have an id, but a `t` they do not know.
+ *
+ * A removal (WISP 400 § Delete for everyone) is the message's last edit, flagged `rm`, with a fallback text and
+ * nothing else beside it; an app from before removals shows that text as the edit:
+ *
+ *     {"t":"paired-edit","id":"<the message's wire id>","e":4,"ts":1790000000000,"m":"🗑 Message removed","rm":true}
+ */
+
+export const EDIT_FRAME = "paired-edit";
+export const EDITED_FRAME = "paired-edited";
+
+/** Edits one message takes; the sender refuses the next one and the receiver ignores a higher number. */
+export const MAX_EDITS_PER_MESSAGE = 100;
+
+/** A removal is numbered one past the message's last edit, so it may pass a card message's bound by one. */
+export const MAX_REMOVAL_NUMBER = STATUS_CARD_LIMITS.edits + 1;
+
+/** The text a removal carries: only what an app from before removals shows in the message's place. */
+export const REMOVED_TEXT = "🗑 Message removed";
+
+/** A sender says at most this many edits per `EDIT_RATE_WINDOW_MS` in one chat; the newest text of each message waits. */
+export const EDIT_SEND_LIMIT = 10;
+/** A receiver takes at most this many edit frames per window; the rest are dropped unconfirmed, so they come again. */
+export const EDIT_RECEIVE_LIMIT = 30;
+export const EDIT_RATE_WINDOW_MS = 10_000;
+
+/** An edit of a message not here yet waits this long for it, at most `EDIT_BUFFER_MAX` of them per chat. */
+export const EDIT_BUFFER_MS = 60_000;
+export const EDIT_BUFFER_MAX = 32;
+
+const ID = /^[A-Za-z0-9_-]{22}$/;
+/** A removal may name a file too (WISP 401 § Edits): its offer's id, as a file's id holds (`files.ts`). */
+const REMOVAL_ID = /^[A-Za-z0-9_-]{8,64}$/;
+
+/** One edit as it goes on the wire. */
+export interface WireEdit {
+  /** The edited message's wire id. */
+  id: string;
+  /** Its edit number, 1 for the first edit. */
+  e: number;
+  /** When the sender made the edit (milliseconds). */
+  ts: number;
+  /** The whole new text. */
+  m: string;
+  pv?: LinkPreview;
+  /** The status card of this version (WISP 405 · Status Cards): a message with a card takes an edit with one. */
+  sc?: StatusCard;
+  /** The author deleted the message for everyone (WISP 400 § Delete for everyone): `m` is only a fallback. */
+  rm?: true;
+}
+
+/** Largest edit frame sent with a preview: the preview is left out past it, as with a message. */
+const MAX_EDIT_FRAME = 56 * 1024;
+
+/**
+ * A `paired-edit` frame; the preview is left out when the frame would be too large with it. A card (`sc`) always
+ * goes: it is bounded well under what the frame has room for, and it is what a card message is.
+ */
+export function editFrame(edit: WireEdit): string {
+  if (edit.rm) return JSON.stringify({ t: EDIT_FRAME, id: edit.id, e: edit.e, ts: edit.ts, m: edit.m, rm: true });
+  const base = { t: EDIT_FRAME, id: edit.id, e: edit.e, ts: edit.ts, m: edit.m, ...(edit.sc && { sc: edit.sc }) };
+  const plain = JSON.stringify(base);
+  if (!edit.pv) return plain;
+  const withPreview = JSON.stringify({ ...base, pv: edit.pv });
+  return withPreview.length <= MAX_EDIT_FRAME ? withPreview : plain;
+}
+
+/** The frame that confirms edit `e` of message `id`. */
+export function editedFrame(id: string, e: number): string {
+  return JSON.stringify({ t: EDITED_FRAME, id, e });
+}
+
+/** An edit number a message can have. */
+export function validEditNumber(e: unknown): e is number {
+  return Number.isSafeInteger(e) && (e as number) >= 1 && (e as number) <= MAX_EDITS_PER_MESSAGE;
+}
+
+/** A removal's number: any up to one past a card message's bound, card or not. */
+export function validRemovalNumber(e: unknown): e is number {
+  return Number.isSafeInteger(e) && (e as number) >= 1 && (e as number) <= MAX_REMOVAL_NUMBER;
+}
+
+/** A message's new text: not empty, no space around it, within a chat message's bytes. The same on a session and on the DHT. */
+export function validEditMessage(m: unknown): m is string {
+  return typeof m === "string" && !!m.trim() && m === m.trim() && utf8Encode(m).length <= LIMITS.maxChatMessageBytes;
+}
+
+/**
+ * The edit a `paired-edit` frame says, or null when it is malformed (then it says nothing and is not confirmed). A
+ * preview or a card that does not hold is dropped, never the edit; an edit numbered past `MAX_EDITS_PER_MESSAGE`
+ * holds only with a card. A removal carries its fallback text alone, and a `rm` other than `true` is no edit.
+ */
+export function parseEditFrame(frame: Record<string, unknown>, now = Date.now()): WireEdit | null {
+  if (frame?.t !== EDIT_FRAME) return null;
+  const { id, e, ts, m, rm } = frame;
+  if (rm !== undefined && rm !== true) return null;
+  if (typeof id !== "string" || !(rm ? REMOVAL_ID : ID).test(id) || typeof e !== "number" || !(rm ? validRemovalNumber(e) : cardEditNumber(e))) return null;
+  if (typeof ts !== "number" || !Number.isSafeInteger(ts) || ts <= 0) return null;
+  if (!validEditMessage(m)) return null;
+  if (rm) return { id, e, ts, m, rm };
+  const sc = frame.sc === undefined ? undefined : readStatusCard(frame.sc, now);
+  if (!validEditNumber(e) && !sc) return null;
+  const pv = frame.pv === undefined ? undefined : parseLinkPreview(frame.pv, m);
+  return { id, e, ts, m, ...(pv && { pv }), ...(sc && { sc }) };
+}
+
+/** The confirmation a `paired-edited` frame says, or null when it is malformed. */
+export function parseEditedFrame(frame: Record<string, unknown>): { id: string; e: number } | null {
+  if (frame?.t !== EDITED_FRAME) return null;
+  return typeof frame.id === "string" && REMOVAL_ID.test(frame.id) && validRemovalNumber(frame.e) ? { id: frame.id, e: frame.e } : null;
+}
+
+/**
+ * The id an edit goes by on the DHT floor (WISP 403 § Edits): a text of its own there, with the edited message's id and
+ * the edit's number beside it. The same for every send of the same edit, so its retries and its receipt match.
+ */
+export function dhtEditId(id: string, e: number): string {
+  return toBase64Url(sha256(utf8Encode(`ghostly-edit/1:${id}:${e}`)).slice(0, 16));
+}
+
+/**
+ * A sliding window of `limit` events per `windowMs`: the sender's pace and the receiver's limit. A time later than now
+ * (the device clock went back) is long gone, or the window would stay full for as long as the clock went back.
+ */
+export class RateWindow {
+  private recent: number[] = [];
+
+  constructor(private readonly limit: number, private readonly windowMs: number, private readonly now: () => number = Date.now) {}
+
+  /** Counts one now; false (and not counted) when the window is full. */
+  take(): boolean {
+    const now = this.now();
+    this.recent = this.recent.filter(at => at <= now && now - at < this.windowMs);
+    if (this.recent.length >= this.limit) return false;
+    this.recent.push(now);
+    return true;
+  }
+
+  /** Milliseconds until the window has room again; 0 when it has room now. */
+  wait(): number {
+    const now = this.now();
+    this.recent = this.recent.filter(at => at <= now && now - at < this.windowMs);
+    return this.recent.length < this.limit ? 0 : this.recent[0] + this.windowMs - now;
+  }
+
+  reset(): void { this.recent = []; }
+}

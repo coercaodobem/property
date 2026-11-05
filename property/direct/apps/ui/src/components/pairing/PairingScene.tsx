@@ -1,0 +1,206 @@
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useI18n } from "../../contexts/I18nContext";
+import { CELEBRATE_MS, useNow, type PairingProgressState } from "../../hooks/usePairingProgress";
+import { PAIRING_STEPS, SLOW_AFTER_MS, failureReason, formatElapsed, pairingDetail, type FailureReason, type PairingStage } from "../../lib/pairingProgress";
+import { useMotionRest, useWindowAway } from "../../lib/windowAway";
+import { PairingDetail } from "./PairingDetail";
+import { usePairingWords } from "./words";
+import "./pairing-scene.css";
+
+/** The ghost of the app's icon (the website's GhostPet), in an 80×100 box. */
+export const GHOST_PATH = "M40 8 C18 8 8 22 8 40 L8 72 L16 64 L24 72 L32 64 L40 72 L48 64 L56 72 L64 64 L72 72 L72 40 C72 22 62 8 40 8Z";
+
+/**
+ * Failures whose own words say what comes next, so "Ask your contact for a new invite" is not said under them: offline
+ * goes on by itself, and a taken invite already asks for a new one.
+ */
+const SAYS_WHAT_NEXT = new Set<FailureReason>(["offline", "taken"]);
+
+/** How long the scene takes to fade and fold away at the end of its "connected" moment (pairing-scene.css). */
+const LEAVE_MS = 400;
+
+type Mood = "calm" | "glance" | "happy" | "sad";
+
+function Eyes({ mood }: { mood: Mood }) {
+  if (mood === "happy") return <g className="ps-eyes" fill="none" strokeWidth="4" strokeLinecap="round"><path d="M22 38 Q29 30 36 38" /><path d="M44 38 Q51 30 58 38" /></g>;
+  if (mood === "sad") return <g className="ps-eyes"><circle cx="29" cy="40" r="4.5" /><circle cx="51" cy="40" r="4.5" /><path d="M20 30 L33 27 M47 27 L60 30" fill="none" strokeWidth="3" strokeLinecap="round" /><path d="M32 55 Q40 49 48 55" fill="none" strokeWidth="3" strokeLinecap="round" /></g>;
+  const dx = mood === "glance" ? 3 : 0;
+  return <g className="ps-eyes ps-blink"><circle cx={29 + dx} cy="36" r="6" /><circle cx={51 + dx} cy="36" r="6" /><circle className="ps-shine" cx={31 + dx} cy="34" r="2" /><circle className="ps-shine" cx={53 + dx} cy="34" r="2" /></g>;
+}
+
+/** One ghost, centred on (x, y). The outer group places it; the inner one floats, so CSS never fights the attribute. */
+function Ghost({ x, y, mood, className }: { x: number; y: number; mood: Mood; className: string }) {
+  return <g className={className} transform={`translate(${x - 22} ${y - 24}) scale(0.55)`}>
+    <ellipse className="ps-shadow" cx="40" cy="92" rx="22" ry="4" />
+    <g className="ps-float">
+      <circle className="ps-halo" cx="40" cy="40" r="44" />
+      <path className="ps-body" d={GHOST_PATH} />
+      <path className="ps-outline" d={GHOST_PATH} />
+      <Eyes mood={mood} />
+    </g>
+  </g>;
+}
+
+// The network between the two ghosts: nodes, the mesh, and the two routes packets travel.
+const NODES = { n1: [104, 38], n3: [160, 52], n4: [216, 36], n2: [106, 122], n6: [160, 110], n5: [214, 124] } as const;
+const DOTS = [[136, 20], [186, 16], [138, 140], [188, 142], [80, 30], [242, 128]] as const;
+const MESH = "M104 38 L136 20 L160 52 L186 16 L216 36 M106 122 L138 140 L160 110 L188 142 L214 124 M104 38 L106 122 M216 36 L214 124 M80 30 L104 38 M242 128 L214 124";
+const ROUTE_UP = "M66 76 L104 38 L160 52 L216 36 L254 76";
+const ROUTE_LOW = "M66 84 L106 122 L160 110 L214 124 L254 84";
+const ROUTE_UP_IN = "M254 76 L216 36 L160 52 L104 38 L66 76";
+
+function moods(stage: PairingStage): [Mood, Mood] {
+  if (stage === "live") return ["happy", "happy"];
+  if (stage === "failed") return ["sad", "calm"];
+  if (stage === "waiting" || stage === "knocking") return ["glance", "calm"];
+  return ["calm", "calm"];
+}
+
+/**
+ * The first connection of a paired chat, told as a small scene: the invite goes out onto the network, a ghost
+ * waits for the other to pick it up, the knock and the answer travel, and the two link up. Every stage also has
+ * words, an elapsed time and a step list, so nothing is said by motion alone; with reduced motion the scene is
+ * a still picture of the stage. The animation is CSS on a few SVG shapes; it pauses while off screen and while the
+ * window is away, and a stage that has lasted a minute (waiting for a contact can take days) becomes the still
+ * picture too, until the stage changes: an open chat nobody is touching draws nothing but its clock.
+ */
+export function PairingScene({ progress, contact, retry, retrying, retryError, id }: {
+  progress: PairingProgressState;
+  contact?: string;
+  retry(): void;
+  retrying: boolean;
+  retryError: string;
+  id?: string;
+}) {
+  const { t } = useI18n();
+  const words = usePairingWords();
+  // What it shows is the view both it and the connection icon read: a step reached is never taken back.
+  const { role } = progress, { stage, step: current } = progress.view;
+  const root = useRef<HTMLElement>(null);
+  const [offScreen, setOffScreen] = useState(false);
+  const paused = useWindowAway() || offScreen;
+  const still = useMotionRest(`${stage} ${progress.attempt ?? 0}`);
+  useEffect(() => {
+    const element = root.current;
+    if (!element || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(entries => setOffScreen(!entries[0]?.isIntersecting));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  // The "connected" moment ends with the scene fading out and folding away from the height it has, so the chat under
+  // it moves up smoothly rather than all at once when the scene goes.
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    if (stage !== "live") { setLeaving(false); return; }
+    const timer = window.setTimeout(() => {
+      root.current?.style.setProperty("--ps-height", `${root.current.offsetHeight}px`);
+      setLeaving(true);
+    }, CELEBRATE_MS - LEAVE_MS);
+    return () => window.clearTimeout(timer);
+  }, [stage]);
+  const ticking = stage !== "live" && stage !== "failed";
+  const now = useNow(ticking && !paused);
+  // `now` only ticks; a stage that began after its last tick still reads from the clock. The clock on screen is the
+  // pairing's, from its start: it never goes back to 0:00 when a stage changes. How long a stage has lasted only
+  // decides when to say that it is slow.
+  const at = Math.max(now, Date.now());
+  const inStage = Math.max(0, at - progress.since);
+  const elapsed = Math.max(0, at - progress.startedAt);
+  const slow = ticking && inStage >= SLOW_AFTER_MS[stage];
+  const label = words.stage(stage, role, progress.peerSeen);
+  const slowWords = slow ? words.slow(stage, progress.peerSeen) : "";
+  const steps = PAIRING_STEPS[role];
+  const reason = stage === "failed" ? failureReason(progress.reason) : undefined;
+  // The engine's English is behind an ⓘ, after the words it explains: on the slow line while slow, on the failure's.
+  const detail = slow || reason ? pairingDetail(progress) : undefined;
+  const titleId = useId();
+  // A marker is referenced through url(#…), where the colons of a React id would not survive.
+  const arrow = `ps-arrow-${titleId.replace(/[^\w-]/g, "")}`;
+  const [me, peer] = moods(stage);
+  // The failure goes, Try again and all, once a retry moves the stage on: the keyboard focus that was in it goes to the
+  // stage's words, not to the page.
+  const labelRef = useRef<HTMLParagraphElement>(null);
+  const focusInFailure = useRef(false);
+  useLayoutEffect(() => {
+    if (reason || !focusInFailure.current) return;
+    focusInFailure.current = false;
+    if (!document.activeElement || document.activeElement === document.body) labelRef.current?.focus();
+  }, [reason]);
+
+  return <section ref={root} id={id} className="ps" data-testid="pairing-scene" data-stage={stage} data-role={role} data-paused={paused || undefined} data-still={still || undefined} data-step={current} data-leaving={leaving || undefined} aria-labelledby={titleId}>
+    <svg className="ps-svg" viewBox="0 0 320 150" aria-hidden="true" focusable="false">
+      <defs>
+        <marker id={arrow} className="ps-arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L8 4 L0 8 Z" /></marker>
+      </defs>
+      <g className="ps-net">
+        <path className="ps-mesh" d={MESH} />
+        <path className="ps-edge" d={ROUTE_UP} />
+        <path className="ps-edge" d={ROUTE_LOW} />
+        {DOTS.map(([x, y]) => <circle key={`${x}-${y}`} className="ps-dot" cx={x} cy={y} r="2" />)}
+        {Object.entries(NODES).map(([name, [x, y]]) => <circle key={name} className={`ps-node ps-${name}`} cx={x} cy={y} r="4.5" />)}
+      </g>
+      {/* The way this stage's packets go, drawn with arrowheads: all a still picture needs. */}
+      <path className="ps-route ps-route-up" d={ROUTE_UP} markerEnd={`url(#${arrow})`} />
+      <path className="ps-route ps-route-low" d={ROUTE_LOW} markerEnd={`url(#${arrow})`} />
+      <path className="ps-route ps-route-in" d={ROUTE_UP_IN} markerEnd={`url(#${arrow})`} />
+      <path className="ps-route ps-route-pub" d="M66 76 L104 38 L160 52 M66 84 L106 122 L160 110" markerEnd={`url(#${arrow})`} />
+      {/* The invite, resting where the network keeps it. */}
+      <g className="ps-invite" transform="translate(160 52)">
+        <circle className="ps-ping" r="7" />
+        <rect x="-7" y="-5" width="14" height="10" rx="2" />
+        <path d="M-6 -4 L0 1 L6 -4" />
+      </g>
+      <g className="ps-direct">
+        <path className="ps-direct-glow" d="M66 80 L254 80" />
+        <path className="ps-direct-line" d="M66 80 L254 80" />
+        <path className="ps-direct-broken" d="M66 80 L148 80 M172 80 L254 80" />
+        <path className="ps-cross" d="M154 74 L166 86 M166 74 L154 86" />
+      </g>
+      <g className="ps-packets">
+        <circle className="ps-pk ps-pk-pub-a" r="3" />
+        <circle className="ps-pk ps-pk-pub-b" r="3" />
+        <circle className="ps-pk ps-pk-pub-c" r="2.5" />
+        <circle className="ps-pk ps-pk-pub-d" r="2.5" />
+        <circle className="ps-pk ps-pk-up" r="3" />
+        <circle className="ps-pk ps-pk-low" r="3" />
+        <circle className="ps-pk ps-pk-direct-out" r="3" />
+        <circle className="ps-pk ps-pk-direct-in" r="3" />
+      </g>
+      <g className="ps-knock" transform="translate(274 80)"><circle r="20" /><circle r="20" /></g>
+      <g className="ps-burst"><circle cx="46" cy="80" r="24" /><circle cx="274" cy="80" r="24" /><circle cx="160" cy="80" r="10" /></g>
+      <Ghost x={46} y={80} mood={me} className="ps-ghost ps-me" />
+      <Ghost x={274} y={80} mood={peer} className="ps-ghost ps-peer" />
+    </svg>
+    <div className="ps-names" aria-hidden="true"><span>{t("pairing.you")}</span><span className="ps-contact" dir="auto">{contact || t("pairing.contact")}</span></div>
+    {/* The lines on screen are what is said aloud: the stage and, once, that it is taking long. No hidden copy, which
+        reading the page found again beside them; the failure has its own alert. The header's label stays quiet meanwhile. */}
+    <div className="ps-caption">
+      <p ref={labelRef} id={titleId} className="ps-label" data-testid="pairing-stage-label" tabIndex={-1} aria-live="polite">{label}</p>
+      {ticking && <p className="ps-time" data-testid="pairing-elapsed"><time dateTime={`PT${Math.floor(elapsed / 1000)}S`} aria-label={t("pairing.elapsed", { time: formatElapsed(elapsed) })}>{formatElapsed(elapsed)}</time>{progress.attempt > 1 && <span> · {t("pairing.attempt", { n: progress.attempt })}</span>}</p>}
+      <div aria-live="polite" data-testid="pairing-announcement">
+        {slowWords && <div className="ps-slow" data-testid="pairing-slow">{slowWords}<PairingDetail detail={detail} testId="pairing-detail" className="ps-detail" /></div>}
+      </div>
+      {stage === "live" && <p className="ps-slow">{t("pairing.sayHello")}</p>}
+      {reason && <div role="alert" className="ps-failure" data-testid="pairing-failure" onFocus={() => { focusInFailure.current = true; }}
+        onBlur={event => { if (event.relatedTarget) focusInFailure.current = false; }}>
+        <div>{words.reason(reason)}<PairingDetail detail={detail} testId="pairing-detail" className="ps-detail" /></div>
+        {/* `aria-disabled`, not `disabled`, while it runs: a disabled button drops the keyboard focus to the page. */}
+        {progress.retryable ? <button type="button" className="ps-retry" data-testid="pairing-retry" disabled={!progress.linkId} aria-disabled={retrying || undefined} aria-busy={retrying || undefined}
+          onClick={() => { if (!retrying) retry(); }}>{retrying ? t("pairing.retrying") : t("pairing.retry")}</button>
+          : !SAYS_WHAT_NEXT.has(reason) && <p className="ps-detail">{t("pairing.newInvite")}</p>}
+        {retryError && <p className="ps-detail">{retryError}</p>}
+      </div>}
+    </div>
+    <ol className="ps-steps" aria-label={t("pairing.steps")} data-testid="pairing-steps">
+      {steps.map((step, index) => {
+        // Failed: the steps done stay done, and none is under way.
+        const state = index < current || stage === "live" ? "done" : index === current && stage !== "failed" ? "current" : "todo";
+        return <li key={step} data-step={step} data-state={state} aria-current={state === "current" ? "step" : undefined}>
+          <span className="ps-step-dot" aria-hidden="true" />
+          <span className="ps-step-label">{words.step(step)}</span>
+          {state === "done" && <span className="sr-only"> ({t("pairing.done")})</span>}
+        </li>;
+      })}
+    </ol>
+  </section>;
+}

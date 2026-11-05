@@ -1,0 +1,31 @@
+{
+  "name": "Property",
+  "pageNotLoaded": {
+    "hint": "Comprueba tu conexión y vuelve a intentarlo. Si sigue fallando, recarga Property.",
+    "title": "Esta página no se cargó.",
+    "tryAgain": "Reintentar"
+  },
+  "profileUnavailable": {
+    "detail": "Lo que dijo el sistema:",
+    "info": "No se cambió ni se borró nada. Mientras esté cerrado, este perfil no se conecta con nadie ni envía nada. Property {{app}} lee datos de perfil hasta la versión {{supported}}.",
+    "newerHint": "Actualiza la app para abrirlo.",
+    "newerInfo": "Sus datos están en la versión {{stored}}; Property {{app}} lee hasta la {{supported}}. No se abrió, envió ni cambió nada: tus chats, claves y monederos siguen ahí.",
+    "newerTitle": "Este perfil se usó por última vez con una versión más nueva de Property.",
+    "noUpdate": "Todavía no hay una versión más nueva. Abre este perfil con la app que lo usó por última vez.",
+    "reason": {
+      "blocked": "Otra ventana o pestaña de Property aún lo tiene abierto con una versión más antigua.",
+      "denied": "Este navegador no da almacenamiento a Property aquí: una ventana privada, o el almacenamiento bloqueado para este sitio.",
+      "failed": "Los datos no se abrieron, y el sistema no dio un motivo claro.",
+      "full": "Este dispositivo no tiene espacio de almacenamiento."
+    },
+    "title": "Property no pudo abrir los datos de este perfil.",
+    "try": {
+      "blocked": "Cierra las otras ventanas y pestañas de Property y vuelve a intentarlo.",
+      "denied": "Usa una ventana normal o permite el almacenamiento para este sitio y vuelve a intentarlo.",
+      "failed": "Reinicia la app o el dispositivo y vuelve a intentarlo.",
+      "full": "Libera espacio y vuelve a intentarlo."
+    },
+    "tryAgain": "Reintentar"
+  },
+  "tagline": "Mensajería cifrada de igual a igual sobre DHT"
+}

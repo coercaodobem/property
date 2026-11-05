@@ -22,6 +22,7 @@ Inspect current source before making claims about behavior. Evidence and status 
 - Protect private keys, recovery phrases, passwords, tokens, and personal conversations. Never put real secrets in fixtures, logs, issues, or agent prompts.
 - Preserve upstream authorship notices and licenses when modifying reused code or dependencies.
 - English is the default for the app interface, GitHub entry points, and agent-facing documentation. Português (Brasil) remains an explicit user-selected option. Never translate user-generated names, posts, offers, or messages, including agent-to-agent message bodies.
+- `direct/` is the separate experimental peer-to-peer browser app adapted from Ghostly. It does not use Nostr relays or share identity/history with `web/`. Follow [`direct/AGENTS.md`](direct/AGENTS.md) when changing it.
 
 ## Validation and reporting
 

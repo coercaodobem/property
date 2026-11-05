@@ -1,0 +1,83 @@
+import { createIdentity, identityFromSeedB64 } from "../../src/identity";
+import { GroupSession, type GroupEdgeFrame, type GroupIncomingMessage, type GroupMessageFrame, type GroupState } from "../../src/groupSession";
+import type { GroupIncomingEdit } from "../../src/groupEdits";
+import type { CatchUpHandled } from "../../src/catchUp";
+
+export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+/** Members wired through in-memory edges that can be closed, as a member going offline closes them. */
+export class Mesh {
+  readonly sessions = new Map<string, GroupSession>();
+  readonly inbox = new Map<string, GroupIncomingMessage[]>();
+  readonly edits = new Map<string, GroupIncomingEdit[]>();
+  readonly saved = new Map<string, GroupState>();
+  /** How many times each member's state was saved. */
+  readonly saves = new Map<string, number>();
+  readonly sentFrames: { from: string; to: string; frame: GroupEdgeFrame }[] = [];
+  readonly changes = new Map<string, number>();
+  /** The sessions' clock (`hooks.clock`) when set; the wall clock otherwise. */
+  clock: number | null = null;
+  private closed = new Set<string>();
+  private pending: Promise<unknown>[] = [];
+  private edge(a: string, b: string): string { return [a, b].sort().join("|"); }
+  setEdge(a: string, b: string, open: boolean): void { if (open) this.closed.delete(this.edge(a, b)); else this.closed.add(this.edge(a, b)); }
+  isOpen(a: string, b: string): boolean { return !this.closed.has(this.edge(a, b)); }
+  /** Set: each member's app keeps the frames with its messages (`GroupSession`'s `onRows`), here in `frames`. */
+  rows = false;
+  /** What each member's app holds on its rows: message id → the frame it keeps, oldest first. */
+  readonly frames = new Map<string, Map<string, GroupMessageFrame>>();
+  /** Member key → the name its app says in its messages (`hooks.nick`); none for a member not in it. */
+  readonly names = new Map<string, string>();
+  /** Set before a member is added: its app's `hooks.handled`, so a catch-up answer goes a slice at a time. */
+  handled: ((from: string, to: string) => Promise<CatchUpHandled>) | null = null;
+  add(state: GroupState, name?: string): GroupSession {
+    const key = identityFromSeedB64(state.seedB64).pubKeyZ32;
+    if (!this.frames.has(key)) this.frames.set(key, new Map());
+    const rows = this.frames.get(key)!;
+    const session: GroupSession = new GroupSession(state, {
+      kept: (id, frame) => { if (this.rows) rows.set(id, frame); },
+      save: async s => { this.saved.set(session.myKey, s); this.saves.set(session.myKey, (this.saves.get(session.myKey) ?? 0) + 1); },
+      clock: () => this.clock ?? Date.now(),
+      nick: () => this.names.get(session.myKey),
+      send: (to, frame) => {
+        this.sentFrames.push({ from: session.myKey, to, frame: clone(frame) });
+        const target = this.sessions.get(to);
+        if (!target || !this.isOpen(session.myKey, to)) return false;
+        this.pending.push(target.handle(session.myKey, clone(frame)));
+        return true;
+      },
+      message: m => { if (this.rows && m.frame && !rows.has(m.id)) rows.set(m.id, m.frame); this.inbox.get(session.myKey)!.push(m); },
+      edit: e => { this.edits.get(session.myKey)!.push(e); },
+      changed: () => this.changes.set(session.myKey, (this.changes.get(session.myKey) ?? 0) + 1),
+      ...(this.handled && { handled: (to: string) => this.handled!(session.myKey, to) }),
+    },this.rows ? [...rows.values()] : undefined);
+    this.sessions.set(session.myKey, session);
+    this.inbox.set(session.myKey, []);
+    this.edits.set(session.myKey, []);
+    if (name) void session.setNick(session.myKey, name);
+    return session;
+  }
+  /** Both sides of an edge that just opened introduce themselves; `ask`: the members each side asks the other to hand on. */
+  async open(a: GroupSession, b: GroupSession, ask: { a?: string[]; b?: string[] } = {}): Promise<void> {
+    this.setEdge(a.myKey, b.myKey, true);
+    this.pending.push(b.handle(a.myKey, clone(a.syncFrame(ask.a, b.myKey))), a.handle(b.myKey, clone(b.syncFrame(ask.b, a.myKey))));
+    await this.settle();
+  }
+  async settle(): Promise<void> {
+    while (this.pending.length) { const batch = this.pending.splice(0); await Promise.all(batch); }
+  }
+  texts(session: GroupSession): string[] { return this.inbox.get(session.myKey)!.map(m => m.text); }
+}
+
+/** Admits `member` into `admin`'s group and opens its edges to everyone already in. */
+export async function admit(mesh: Mesh, admin: GroupSession, name: string, invite = admin.inviteFrame()): Promise<GroupSession> {
+  const seed = createIdentity().seedB64;
+  const key = identityFromSeedB64(seed).pubKeyZ32;
+  const welcome = await admin.admit(key);
+  const joined = GroupSession.join({ name: invite.name, admin: invite.admin }, welcome.slice(0, -1), welcome[welcome.length - 1], seed);
+  if ("error" in joined) throw new Error(joined.error);
+  const session = mesh.add(joined.state, name);
+  await mesh.settle();
+  for (const other of session.others) { const peer = mesh.sessions.get(other); if (peer) await mesh.open(session, peer); }
+  return session;
+}

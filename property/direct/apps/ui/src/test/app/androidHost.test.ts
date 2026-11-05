@@ -1,0 +1,442 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { RTC_CONFIG } from "@ghostly/core";
+import { cssColorHex, followAppVisibility, followSystemBars, leaveOutPublicStun, takeIncomingShares, withoutPublicStun } from "../../desktop/android";
+import { incomingShare, resetIncomingShare, shareFiles } from "../../lib/incomingShare";
+import { PLATFORM_PASTE_MAX } from "../../lib/pastedFiles";
+import { androidApp, touchOnly } from "../../lib/touchOnly";
+
+// covers: app.android.share-target, app.android.test-network
+
+/*
+ * The Android app's page side (apps/ui/src/desktop/android.ts): the system bars take the page's background and
+ * follow the theme; a share from another app reaches the Share to… picker, its files read only once a chat takes them; and the app is
+ * touch only whatever the pointer query says.
+ */
+
+const agent = navigator.userAgent;
+const setAgent = (value: string) => Object.defineProperty(navigator, "userAgent", { value, configurable: true });
+
+afterEach(() => {
+  resetIncomingShare();
+  setAgent(agent);
+  delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
+  document.documentElement.removeAttribute("data-theme");
+  document.body.style.backgroundColor = "";
+  location.hash = "";
+});
+
+describe("the system bars", () => {
+  it("read the page's background colour as #rrggbb, and nothing see-through", () => {
+    expect(cssColorHex("rgb(11, 20, 26)")).toBe("#0b141a");
+    expect(cssColorHex("rgba(255, 255, 255, 1)")).toBe("#ffffff");
+    expect(cssColorHex("rgb(0 128 105)")).toBe("#008069");
+    expect(cssColorHex("rgba(0, 0, 0, 0)")).toBeUndefined();
+    expect(cssColorHex("transparent")).toBeUndefined();
+    expect(cssColorHex("#0b141a")).toBeUndefined();
+  });
+
+  it("take the page's background now and each time the theme changes, once per change", async () => {
+    const invoke = vi.fn(async (_command: string, _args?: Record<string, unknown>) => undefined);
+    const lastCall = () => invoke.mock.calls[invoke.mock.calls.length - 1];
+    document.documentElement.setAttribute("data-theme", "dark");
+    document.body.style.backgroundColor = "rgb(11, 20, 26)";
+    const stop = followSystemBars(invoke as never);
+    expect(invoke.mock.calls).toEqual([["system_bars", { color: "#0b141a", dark: true }]]);
+
+    document.body.style.backgroundColor = "rgb(255, 255, 255)";
+    document.documentElement.setAttribute("data-theme", "light");
+    await vi.waitFor(() => expect(lastCall()).toEqual(["system_bars", { color: "#ffffff", dark: false }]));
+    // The same colours again: nothing new to send.
+    document.documentElement.setAttribute("data-color-theme", "classic");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(invoke).toHaveBeenCalledTimes(2);
+
+    stop();
+    document.documentElement.setAttribute("data-theme", "dark");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(invoke).toHaveBeenCalledTimes(2);
+    document.documentElement.removeAttribute("data-color-theme");
+  });
+});
+
+describe("a share from another app", () => {
+  it("is taken at start, its files read whole by token, and opens the Share to… picker", async () => {
+    const bytes = new TextEncoder().encode("hello from another app");
+    const shares = [{
+      title: "A note",
+      text: "Look https://example.com",
+      files: [
+        { token: "paste-1", name: "note.txt", size: bytes.length, mime: "text/plain" },
+        { token: "paste-2", name: "huge.bin", size: 2 ** 40, mime: null },
+      ],
+    }];
+    const reads: unknown[] = [];
+    const invoke = vi.fn(async (command: string, args?: Record<string, unknown>) => {
+      if (command === "incoming_share_take") return shares.shift() ?? null;
+      if (command === "read_pasted_bytes") {
+        reads.push(args);
+        const offset = args!.offset as number;
+        // As Android's IPC answers: a JSON array of the bytes.
+        return Array.from(bytes.slice(offset, offset + 8));
+      }
+      throw new Error(command);
+    });
+    let arrived: () => void = () => {};
+    const listen = vi.fn(async (_event: string, handler: () => void) => { arrived = handler; });
+    takeIncomingShares(invoke as never, listen);
+    await vi.waitFor(() => expect(incomingShare()).not.toBeNull());
+
+    const share = incomingShare()!;
+    expect([share.title, share.text, share.url]).toEqual(["A note", "Look https://example.com", ""]);
+    // The file too large to paste is left out, and never read.
+    expect(share.files.map((file) => [file.name, file.type, file.size])).toEqual([["note.txt", "text/plain", bytes.length]]);
+    expect(location.hash).toBe("#/shared");
+    // Read when a chat's composer takes the share, not before the picker.
+    expect(reads).toEqual([]);
+    const [file] = await shareFiles(share);
+    expect(new TextDecoder().decode(await file!.arrayBuffer())).toBe("hello from another app");
+    expect(reads.every((read) => (read as { token: string }).token === "paste-1")).toBe(true);
+    expect(listen).toHaveBeenCalledWith("incoming-share", expect.any(Function));
+
+    // Rust says another arrived while the app runs: it is taken then.
+    shares.push({ title: "", text: "second", files: [] });
+    arrived();
+    await vi.waitFor(() => expect(incomingShare()?.text).toBe("second"));
+  });
+
+  it("names what was too large to bring in, even when that was all of it, and reads at most 256 MiB in all", async () => {
+    const MiB = 2 ** 20;
+    const shares: unknown[] = [
+      // A video Android left out before copying it, and one the page leaves out.
+      { title: "", text: "", files: [{ token: "paste-1", name: "VID_2.mp4", size: 300 * MiB, mime: "video/mp4" }], leftOut: ["VID_1.mp4"] },
+      // Each fits; together they would be 350 MiB: the one that would pass the total is left out.
+      { title: "", text: "", files: [
+        { token: "paste-2", name: "a.mov", size: 200 * MiB, mime: null },
+        { token: "paste-3", name: "b.mov", size: 100 * MiB, mime: null },
+        { token: "paste-4", name: "c.jpg", size: 50 * MiB, mime: null },
+      ] },
+    ];
+    const read: string[] = [];
+    const invoke = vi.fn(async (command: string, args?: Record<string, unknown>) => {
+      if (command === "incoming_share_take") return shares.shift() ?? null;
+      if (command === "incoming_share_done") return undefined;
+      if (command === "read_pasted_bytes") { read.push(args!.token as string); return new ArrayBuffer(0); }
+      throw new Error(command);
+    });
+    let arrived: () => void = () => {};
+    takeIncomingShares(invoke as never, vi.fn(async (_event: string, handler: () => void) => { arrived = handler; }));
+    await vi.waitFor(() => expect(location.hash).toBe("#/shared"));
+    expect(incomingShare()).toMatchObject({ files: [], leftOut: ["VID_1.mp4", "VID_2.mp4"] });
+
+    arrived();
+    // The share with something takes the notice's place, and still names what the notice named.
+    await vi.waitFor(() => expect(incomingShare()?.files.map((file) => file.name)).toEqual(["a.mov", "c.jpg"]));
+    expect(incomingShare()?.leftOut).toEqual(["VID_1.mp4", "VID_2.mp4", "b.mov"]);
+
+    // A later share of only a video too large: named with the share that waits, which stays.
+    shares.push({ title: "", text: "", files: [], leftOut: ["VID_3.mp4"] });
+    arrived();
+    await vi.waitFor(() => expect(incomingShare()?.leftOut).toEqual(["VID_1.mp4", "VID_2.mp4", "b.mov", "VID_3.mp4"]));
+    expect(incomingShare()?.files.map((file) => file.name)).toEqual(["a.mov", "c.jpg"]);
+    await shareFiles(incomingShare()!);
+    expect(read).not.toContain("paste-3");
+  });
+
+  it("names what Android could not read, even when that was all of it", async () => {
+    const shares: unknown[] = [{ title: "", text: "", files: [], unread: ["IMG_1.jpg"] }];
+    const invoke = vi.fn(async (command: string) => {
+      if (command === "incoming_share_take") return shares.shift() ?? null;
+      throw new Error(command);
+    });
+    takeIncomingShares(invoke as never, vi.fn(async () => undefined));
+    await vi.waitFor(() => expect(location.hash).toBe("#/shared"));
+    expect(incomingShare()).toMatchObject({ files: [], unread: ["IMG_1.jpg"] });
+    expect(incomingShare()?.leftOut).toBeUndefined();
+  });
+
+  it("names what Android had no room to copy, apart from what it could not read", async () => {
+    const shares: unknown[] = [{ title: "", text: "", files: [], unread: [], noRoom: ["VID_1.mp4"] }];
+    const invoke = vi.fn(async (command: string) => {
+      if (command === "incoming_share_take") return shares.shift() ?? null;
+      throw new Error(command);
+    });
+    takeIncomingShares(invoke as never, vi.fn(async () => undefined));
+    await vi.waitFor(() => expect(location.hash).toBe("#/shared"));
+    expect(incomingShare()).toMatchObject({ files: [], noRoom: ["VID_1.mp4"] });
+    expect(incomingShare()?.unread).toBeUndefined();
+  });
+
+  it("names the files Android left out past the count cap, apart from those too large", async () => {
+    const shares: unknown[] = [
+      { title: "", text: "", files: [{ token: "paste-1", name: "IMG_1.jpg", size: 10, mime: "image/jpeg" }], leftOut: ["VID_1.mp4"], pastLimit: ["IMG_33.jpg", "IMG_34.jpg"] },
+    ];
+    const invoke = vi.fn(async (command: string) => {
+      if (command === "incoming_share_take") return shares.shift() ?? null;
+      if (command === "incoming_share_done") return undefined;
+      throw new Error(command);
+    });
+    takeIncomingShares(invoke as never, vi.fn(async () => {}));
+    await vi.waitFor(() => expect(incomingShare()).not.toBeNull());
+    expect(incomingShare()).toMatchObject({ leftOut: ["VID_1.mp4"], pastLimit: ["IMG_33.jpg", "IMG_34.jpg"] });
+  });
+
+  it("still names what a newer share left out when an older one still copying is handed over after it", async () => {
+    // The newer share ends first: its one video too large, only a notice. The older one ends after, with its video.
+    const shares: unknown[] = [{ title: "", text: "", files: [], leftOut: ["VID_B.mp4"], unread: [], noRoom: [] }];
+    const invoke = vi.fn(async (command: string) => {
+      if (command === "incoming_share_take") return shares.shift() ?? null;
+      if (command === "incoming_share_done") return undefined;
+      throw new Error(command);
+    });
+    let arrived: () => void = () => {};
+    takeIncomingShares(invoke as never, vi.fn(async (_event: string, handler: () => void) => { arrived = handler; }));
+    await vi.waitFor(() => expect(incomingShare()?.leftOut).toEqual(["VID_B.mp4"]));
+
+    shares.push({ title: "", text: "", files: [{ token: "a", name: "VID_A.mp4", size: 4, mime: "video/mp4" }], leftOut: [], unread: [], noRoom: [] });
+    arrived();
+    await vi.waitFor(() => expect(incomingShare()?.files.map((file) => file.name)).toEqual(["VID_A.mp4"]));
+    expect(incomingShare()?.leftOut).toEqual(["VID_B.mp4"]);
+  });
+
+  it("shows the picker from names and sizes, and reads only what a paste brings in all once a chat takes it", async () => {
+    const MiB = 1024 * 1024;
+    const files = [
+      ...Array.from({ length: 31 }, (_, i) => ({ token: `paste-${i + 1}`, name: `IMG_${i + 1}.jpg`, size: 60 * MiB, mime: "image/jpeg" })),
+      { token: "paste-32", name: "note.txt", size: 3, mime: "text/plain" },
+    ];
+    const shares = [{ title: "", text: "", files }];
+    const reads: string[] = [];
+    const invoke = vi.fn(async (command: string, args?: Record<string, unknown>) => {
+      if (command === "incoming_share_take") return shares.shift() ?? null;
+      if (command === "read_pasted_bytes") {
+        reads.push(args!.token as string);
+        return args!.offset ? new ArrayBuffer(0) : new Uint8Array([1, 2, 3]).buffer;
+      }
+      throw new Error(command);
+    });
+    takeIncomingShares(invoke as never, async () => undefined);
+    await vi.waitFor(() => expect(location.hash).toBe("#/shared"));
+
+    const share = incomingShare()!;
+    expect(reads).toEqual([]);
+    // Four photos fill what a paste brings in (240 of 256 MiB); the rest are left out, the small note still fits.
+    expect(share.files.map((file) => file.name)).toEqual(["IMG_1.jpg", "IMG_2.jpg", "IMG_3.jpg", "IMG_4.jpg", "note.txt"]);
+    expect(share.files.reduce((sum, file) => sum + file.size, 0)).toBeLessThanOrEqual(PLATFORM_PASTE_MAX);
+
+    const read = await shareFiles(share);
+    expect(read.map((file) => [file.name, file.type])).toEqual(share.files.map((file) => [file.name, file.type]));
+    expect([...new Set(reads)]).toEqual(["paste-1", "paste-2", "paste-3", "paste-4", "paste-32"]);
+  });
+
+  it("taken later wins over a big one a chat still reads, and an emptied late one clears nothing", async () => {
+    const shares: unknown[] = [{ title: "", text: "", files: [{ token: "video", name: "VID_1.mp4", size: 4, mime: "video/mp4" }] }];
+    let videoRead: (bytes: number[]) => void = () => {};
+    const done: unknown[] = [];
+    const invoke = vi.fn(async (command: string, args?: Record<string, unknown>) => {
+      if (command === "incoming_share_take") return shares.shift() ?? null;
+      if (command === "incoming_share_done") return void done.push(args!.tokens);
+      if (command === "read_pasted_bytes") {
+        if (args!.token === "video") return new Promise<number[]>((resolve) => { videoRead = resolve; });
+        return args!.offset === 0 ? [1, 2, 3] : [];
+      }
+      throw new Error(command);
+    });
+    let arrived: () => void = () => {};
+    takeIncomingShares(invoke as never, async (_event, handler) => { arrived = handler; });
+    await vi.waitFor(() => expect(incomingShare()?.files.map((file) => file.name)).toEqual(["VID_1.mp4"]));
+    // A chat takes the video: its read goes on.
+    const video = shareFiles(incomingShare()!);
+    await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith("read_pasted_bytes", expect.objectContaining({ token: "video" })));
+
+    // The person changed their mind: a photo, in the picker at once.
+    shares.push({ title: "", text: "", files: [{ token: "photo", name: "IMG_1.jpg", size: 3, mime: "image/jpeg" }] });
+    arrived();
+    await vi.waitFor(() => expect(incomingShare()?.files.map((file) => file.name)).toEqual(["IMG_1.jpg"]));
+    // Still being read: the video's copy stays.
+    expect(done).toEqual([]);
+
+    // The video's read ends after it: the photo stays, and the video's copy goes.
+    videoRead([1, 2, 3, 4]);
+    expect((await video).map((file) => file.name)).toEqual(["VID_1.mp4"]);
+    expect(incomingShare()?.files.map((file) => file.name)).toEqual(["IMG_1.jpg"]);
+    expect(done).toEqual([["video"]]);
+
+    // An older share that reached Rust last, its file gone: nothing in it, so the photo still waits, its copy kept.
+    shares.push({ title: "", text: "", files: [] });
+    arrived();
+    await vi.waitFor(() => expect(shares).toHaveLength(0));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(incomingShare()?.files.map((file) => file.name)).toEqual(["IMG_1.jpg"]);
+    expect(done).toEqual([["video"], []]);
+  });
+
+  it("lets its copies go once read, the ones too large to paste and an overtaken share's too", async () => {
+    const shares: unknown[] = [{ title: "", text: "", files: [{ token: "video", name: "VID_1.mp4", size: 4, mime: "video/mp4" }] }];
+    const done: unknown[] = [];
+    const invoke = vi.fn(async (command: string, args?: Record<string, unknown>) => {
+      if (command === "incoming_share_take") return shares.shift() ?? null;
+      if (command === "incoming_share_done") return void done.push(args!.tokens);
+      if (command === "read_pasted_bytes") return args!.offset === 0 ? [1, 2, 3] : [];
+      throw new Error(command);
+    });
+    let arrived: () => void = () => {};
+    takeIncomingShares(invoke as never, async (_event, handler) => { arrived = handler; });
+    await vi.waitFor(() => expect(incomingShare()?.files.map((file) => file.name)).toEqual(["VID_1.mp4"]));
+    // Not read yet: its copy stays.
+    expect(done).toEqual([]);
+
+    // A later share takes its place before any chat read it: the video's copy goes.
+    shares.push({
+      title: "",
+      text: "",
+      files: [{ token: "photo", name: "IMG_1.jpg", size: 3, mime: "image/jpeg" }, { token: "huge", name: "huge.bin", size: 2 ** 40, mime: null }],
+    });
+    arrived();
+    await vi.waitFor(() => expect(incomingShare()?.files.map((file) => file.name)).toEqual(["IMG_1.jpg"]));
+    expect(done).toEqual([["video"]]);
+
+    // Read by the chat picked: its copies go, the one left out with them, and only once.
+    await shareFiles(incomingShare()!);
+    expect(done).toEqual([["video"], ["photo", "huge"]]);
+
+    // Nothing of a share the page takes (too large to paste): its copy goes at once.
+    shares.push({ title: "", text: "see this", files: [{ token: "movie", name: "movie.mkv", size: 2 ** 40, mime: null }] });
+    arrived();
+    await vi.waitFor(() => expect(incomingShare()?.text).toBe("see this"));
+    expect(done).toEqual([["video"], ["photo", "huge"], ["movie"]]);
+  });
+
+  /**
+   * Kotlin's share intake (GhostlyHostPlugin.kt `shared`, `shareDone`) with Rust's slot and shelf, as far as copies
+   * go: a stream Kotlin does not copy (too large, unreadable) is no file of the share; a share with nothing in it is
+   * never handed over; a share's copies go only once the page says it is done with them. A copy gone reads as Rust's
+   * read error.
+   */
+  function androidHost() {
+    let token = 0;
+    const copies = new Map<string, { size: number }>();
+    const waiting: unknown[] = [];
+    let arrived: () => void = () => {};
+    const invoke = vi.fn(async (command: string, args?: Record<string, unknown>) => {
+      if (command === "incoming_share_take") return waiting.shift() ?? null;
+      if (command === "incoming_share_done") return void (args!.tokens as string[]).forEach((gone) => copies.delete(gone));
+      if (command === "read_pasted_bytes") {
+        const copy = copies.get(args!.token as string);
+        if (!copy) throw new Error("Could not read the file: No such file or directory (os error 2)");
+        // A byte a step, a few milliseconds each: a read spans several calls, as a big file's 16 MiB steps do.
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return (args!.offset as number) < copy.size ? [7] : [];
+      }
+      throw new Error(command);
+    });
+    takeIncomingShares(invoke as never, async (_event, handler) => { arrived = handler; });
+    const share = (streams: { name: string; size: number; mime: string; copied?: false }[]) => {
+      const files = streams.filter((stream) => stream.copied !== false).map(({ name, size, mime }) => {
+        const copy = `paste-${++token}`;
+        copies.set(copy, { size });
+        return { token: copy, name, size, mime };
+      });
+      if (!files.length) return;
+      waiting.splice(0, waiting.length, { title: "", text: "", files });
+      arrived();
+    };
+    return { share, copies };
+  }
+  const read = (share: Promise<File[]>) =>
+    share.then((files) => files.map((file) => `${file.name} ${file.size} B`), (error: Error) => error.message);
+
+  it("waiting in the picker, keeps its copies when a later share brings nothing, and is read whole once a chat takes it", async () => {
+    const host = androidHost();
+    host.share([{ name: "IMG_1.jpg", size: 3, mime: "image/jpeg" }]);
+    await vi.waitFor(() => expect(incomingShare()?.files.map((file) => file.name)).toEqual(["IMG_1.jpg"]));
+
+    // A video too large to paste: Kotlin copies none of it, so nothing comes of that share.
+    host.share([{ name: "VID_1.mp4", size: 300 * 1024 * 1024, mime: "video/mp4", copied: false }]);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(incomingShare()?.files.map((file) => file.name)).toEqual(["IMG_1.jpg"]);
+
+    expect(await read(shareFiles(incomingShare()!))).toEqual(["IMG_1.jpg 3 B"]);
+    expect([...host.copies.keys()]).toEqual([]);
+  });
+
+  it("being read by a chat, is read whole when a later share comes in meanwhile", async () => {
+    const host = androidHost();
+    host.share([{ name: "VID_1.mp4", size: 6, mime: "video/mp4" }]);
+    await vi.waitFor(() => expect(incomingShare()?.files.map((file) => file.name)).toEqual(["VID_1.mp4"]));
+    const video = read(shareFiles(incomingShare()!));
+    await new Promise((resolve) => setTimeout(resolve, 12));
+
+    host.share([{ name: "IMG_1.jpg", size: 3, mime: "image/jpeg" }]);
+    expect(await video).toEqual(["VID_1.mp4 6 B"]);
+    expect(incomingShare()?.files.map((file) => file.name)).toEqual(["IMG_1.jpg"]);
+    expect(await read(shareFiles(incomingShare()!))).toEqual(["IMG_1.jpg 3 B"]);
+  });
+
+  it("is nothing when none waits", async () => {
+    const invoke = vi.fn(async () => null);
+    takeIncomingShares(invoke as never, async () => undefined);
+    await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith("incoming_share_take"));
+    expect(incomingShare()).toBeNull();
+    expect(location.hash).toBe("");
+  });
+});
+
+describe("touch only", () => {
+  it("is always so in the Android app, and only there whatever the agent says", () => {
+    setAgent("Mozilla/5.0 (Linux; Android 15; sdk_gphone64_x86_64) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36");
+    expect(androidApp()).toBe(false);
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    expect(androidApp()).toBe(true);
+    expect(touchOnly()).toBe(true);
+    setAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15");
+    expect(androidApp()).toBe(false);
+  });
+});
+
+describe("the app in the background", () => {
+  it("reads as a hidden, unfocused page while the activity is stopped, and visible again when it comes back", async () => {
+    const doc = document.implementation.createHTMLDocument("app");
+    doc.hasFocus = () => true;
+    let heard: ((event: { payload: string }) => void) | undefined;
+    const listen = vi.fn(async (event: string, handler: (event: { payload: string }) => void) => { if (event === "app-visibility") heard = handler; return () => {}; });
+    const changes: string[] = [];
+    doc.addEventListener("visibilitychange", () => changes.push(doc.visibilityState));
+    followAppVisibility(listen as never, doc);
+    await vi.waitFor(() => expect(heard).toBeDefined());
+    expect([doc.visibilityState, doc.hidden, doc.hasFocus()]).toEqual(["visible", false, true]);
+    heard!({ payload: "hidden" });
+    expect([doc.visibilityState, doc.hidden, doc.hasFocus()]).toEqual(["hidden", true, false]);
+    heard!({ payload: "hidden" });
+    heard!({ payload: "visible" });
+    expect([doc.visibilityState, doc.hidden, doc.hasFocus()]).toEqual(["visible", false, true]);
+    expect(changes).toEqual(["hidden", "visible"]);
+  });
+});
+
+describe("a test start's WebRTC (GHOSTLY_STUN=0)", () => {
+  /** A stand-in RTCPeerConnection that keeps the configuration it was made with. */
+  class Recorded { constructor(readonly config?: RTCConfiguration) {} }
+  const profileTurn = { urls: ["turn:turn.lan:3478"], username: "u", credential: "p" };
+  const made = () => ({ iceServers: [...(RTC_CONFIG.iceServers ?? []), profileTurn] });
+  const urls = (config?: RTCConfiguration) => (config?.iceServers ?? []).flatMap((server) => [server.urls].flat());
+
+  it("leaves the apps' public STUN servers out of every new connection, and keeps the profile's TURN", async () => {
+    const scope = { RTCPeerConnection: Recorded as unknown as typeof RTCPeerConnection };
+    const invoke = vi.fn(async () => ({ stun: false })) as never;
+    expect(await leaveOutPublicStun(invoke, scope)).toBe(true);
+    const connection = new scope.RTCPeerConnection(made()) as unknown as Recorded;
+    expect(connection).toBeInstanceOf(Recorded);
+    expect(urls(connection.config).some((url) => /google\.com/.test(url))).toBe(false);
+    expect(connection.config?.iceServers).toEqual([profileTurn]);
+    expect(withoutPublicStun(undefined)).toBeUndefined();
+  });
+
+  it("wraps nothing when the public STUN servers are allowed", async () => {
+    const scope = { RTCPeerConnection: Recorded as unknown as typeof RTCPeerConnection };
+    const invoke = vi.fn(async (command: string) => (command === "test_network" ? { stun: true } : undefined)) as never;
+    expect(await leaveOutPublicStun(invoke, scope)).toBe(false);
+    expect(scope.RTCPeerConnection).toBe(Recorded);
+    const connection = new scope.RTCPeerConnection(made()) as unknown as Recorded;
+    expect(urls(connection.config)).toContain("stun:stun.l.google.com:19302");
+  });
+});

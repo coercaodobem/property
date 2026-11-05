@@ -1,0 +1,333 @@
+import { followSpeaker } from "./mediaDevices";
+import { loadSettings } from "./settings";
+import { SoundGate, type SoundKind } from "./soundGate";
+
+/**
+ * Original ElevenLabs effects are bundled locally. Synthesis is only a fallback
+ * for a missing/undecodable asset; no runtime generation or external service.
+ */
+type Note = { frequency: number; at: number; duration: number; gain?: number; type?: OscillatorType };
+
+export const SOUNDS = {
+  /** A message arrived. */
+  message: [
+    { frequency: 880, at: 0, duration: 0.09, gain: 0.13 },
+    { frequency: 1046, at: 0.08, duration: 0.17, gain: 0.13 },
+  ],
+  /** Sats came in: two bright notes, like a coin. */
+  coin: [
+    { frequency: 1319, at: 0, duration: 0.09, gain: 0.16, type: "triangle" },
+    { frequency: 1976, at: 0.08, duration: 0.42, gain: 0.16, type: "triangle" },
+  ],
+  /** Sats or a file went out. */
+  sent: [
+    { frequency: 523, at: 0, duration: 0.07, gain: 0.1 },
+    { frequency: 784, at: 0.06, duration: 0.14, gain: 0.1 },
+  ],
+  /** The other side confirmed. */
+  confirmed: [{ frequency: 1568, at: 0, duration: 0.22, gain: 0.08, type: "triangle" }],
+  /** Someone asks for sats: a light register ding. */
+  request: [{ frequency: 1108, at: 0, duration: 0.2, gain: 0.1, type: "triangle" }],
+  /** One ring of an incoming call; looped by `startRinging`. */
+  ring: [
+    { frequency: 784, at: 0, duration: 0.35, gain: 0.14 },
+    { frequency: 988, at: 0, duration: 0.35, gain: 0.1 },
+    { frequency: 784, at: 0.5, duration: 0.35, gain: 0.14 },
+    { frequency: 988, at: 0.5, duration: 0.35, gain: 0.1 },
+  ],
+  /** What the caller hears while it rings on the other side. */
+  ringback: [{ frequency: 440, at: 0, duration: 0.9, gain: 0.05 }],
+  hangup: [
+    { frequency: 440, at: 0, duration: 0.12, gain: 0.1 },
+    { frequency: 330, at: 0.12, duration: 0.2, gain: 0.1 },
+  ],
+  /** A chat's first pairing went live: two light taps, then the note they resolve to. */
+  connected: [
+    { frequency: 587, at: 0, duration: 0.05, gain: 0.05 },
+    { frequency: 784, at: 0.03, duration: 0.05, gain: 0.06 },
+    { frequency: 784, at: 0.12, duration: 0.5, gain: 0.12 },
+  ],
+  /*
+   * The finer cues (apps/ui/src/lib/cues.ts), each in a category of Settings. Every note below is played by that sound
+   * alone, and its first note once, so a test that hears the fallback counts a cue by its first note.
+   */
+  /** My payment went out and settled: a coin whooshing away. */
+  paid: [
+    { frequency: 1244, at: 0, duration: 0.08, gain: 0.08, type: "triangle" },
+    { frequency: 932, at: 0.06, duration: 0.16, gain: 0.08, type: "triangle" },
+  ],
+  /** "Send real money": a deeper, serious tick. */
+  realmoney: [{ frequency: 294, at: 0, duration: 0.09, gain: 0.12, type: "triangle" }],
+  /** Test coins arrived: a toy-coin jingle. */
+  testcoins: [
+    { frequency: 2093, at: 0, duration: 0.06, gain: 0.06, type: "triangle" },
+    { frequency: 2349, at: 0.07, duration: 0.06, gain: 0.06, type: "triangle" },
+    { frequency: 2637, at: 0.14, duration: 0.1, gain: 0.06, type: "triangle" },
+  ],
+  /** A payment failed or was refused: a soft bonk. */
+  failed: [{ frequency: 208, at: 0, duration: 0.16, gain: 0.12 }],
+  /** My identity was added, verified: a stamp. */
+  sealed: [{ frequency: 349, at: 0, duration: 0.12, gain: 0.12 }],
+  /** A contact shared an identity: a card turning over. */
+  shared: [
+    { frequency: 1397, at: 0, duration: 0.05, gain: 0.05, type: "triangle" },
+    { frequency: 1661, at: 0.04, duration: 0.08, gain: 0.05, type: "triangle" },
+  ],
+  /** A contact's identity is verified: a bright check. */
+  checked: [
+    { frequency: 1760, at: 0, duration: 0.05, gain: 0.06, type: "triangle" },
+    { frequency: 2217, at: 0.05, duration: 0.12, gain: 0.06, type: "triangle" },
+  ],
+  /** The contact came with my invite: knock-knock. */
+  knock: [
+    { frequency: 392, at: 0, duration: 0.06, gain: 0.12 },
+    { frequency: 415, at: 0.14, duration: 0.06, gain: 0.12 },
+  ],
+  /** A chat moved to another transport: a faint swoosh. */
+  switched: [{ frequency: 698, at: 0, duration: 0.14, gain: 0.04 }],
+  /** A chat is back after an outage: a soft blip. */
+  back: [
+    { frequency: 622, at: 0, duration: 0.06, gain: 0.08 },
+    { frequency: 831, at: 0.05, duration: 0.12, gain: 0.08 },
+  ],
+  /** Someone named me in a group: a bit more than a message. */
+  mention: [
+    { frequency: 1480, at: 0, duration: 0.07, gain: 0.14 },
+    { frequency: 1865, at: 0.07, duration: 0.16, gain: 0.14 },
+  ],
+  /** A spoiler was revealed: a pop. */
+  spoiler: [{ frequency: 1175, at: 0, duration: 0.05, gain: 0.08 }],
+  /** A file or voice message finished downloading: a plim. */
+  downloaded: [{ frequency: 2489, at: 0, duration: 0.12, gain: 0.05, type: "triangle" }],
+  /** A message was deleted: a ghostly fwip, fading down. */
+  deleted: [
+    { frequency: 740, at: 0, duration: 0.05, gain: 0.06 },
+    { frequency: 554, at: 0.04, duration: 0.2, gain: 0.05 },
+  ],
+  /** Another card of a deck: a quiet slide. */
+  slide: [{ frequency: 2960, at: 0, duration: 0.06, gain: 0.02 }],
+  /** A card turned over. */
+  flip: [{ frequency: 2794, at: 0, duration: 0.05, gain: 0.03 }],
+  /** A new wallet dealt into the deck: a small cha-ching. */
+  wallet: [
+    { frequency: 2000, at: 0, duration: 0.06, gain: 0.07, type: "triangle" },
+    { frequency: 2400, at: 0.07, duration: 0.14, gain: 0.07, type: "triangle" },
+  ],
+  /** A group made or joined: a quick ghostly chorus. */
+  group: [
+    { frequency: 466, at: 0, duration: 0.2, gain: 0.05 },
+    { frequency: 370, at: 0, duration: 0.2, gain: 0.05 },
+    { frequency: 277, at: 0.03, duration: 0.2, gain: 0.05 },
+  ],
+} satisfies Record<string, Note[]>;
+
+export type SoundName = keyof typeof SOUNDS;
+
+const assets = import.meta.glob<string>("../assets/sounds/*.mp3", {eager:true, query:"?url", import:"default"});
+/** Where a bundled sound's file is, for an element of its own (Settings plays one on the chosen speaker). */
+export const soundUrl = (name: SoundName): string | undefined => assets[`../assets/sounds/${name}.mp3`];
+const decoded = new Map<SoundName, Promise<AudioBuffer>>();
+let context: AudioContext | null = null;
+const playing = new Set<() => void>();
+let listening = false;
+/** Stops the sounds following the speaker chosen in Settings (where the engine can send Web Audio to one). */
+let unfollowSpeaker: (() => void) | null = null;
+/** A person's gesture has started the context once: from then on it may be resumed for a sound without one. */
+let unlocked = false;
+/** Calls ringing (`startRinging`): the output stays open between their rings. */
+let ringing = 0;
+let idleTimer: ReturnType<typeof setTimeout> | undefined;
+/** One sound at a time (soundGate.ts): what comes together is one sound, and nothing sounds over a ringing call. */
+const gate = new SoundGate();
+
+/**
+ * How long the sounds' audio output stays open after the last sound. A running AudioContext keeps the system's output
+ * stream open with nothing in it (WebKitGTK: its Web Audio threads and a PipeWire stream, about 4% of a laptop's CPU),
+ * so it is suspended between sounds and resumed for the next one, which costs that sound a few milliseconds.
+ */
+export const SOUNDS_IDLE_MS = 5_000;
+
+/**
+ * Whether the output is let go of between sounds. "suspend": suspended after `SOUNDS_IDLE_MS`, resumed for the next
+ * sound. "keep": left running. WebKitGTK before 2.52 holds the page inside a `resume()` that follows a `suspend()` (0.5
+ * s, then 5 to 16 s: the Linux app froze at a new chat's first sounds), so the Linux Desktop keeps the output running
+ * there (`setSoundsRelease`). Closing it instead is no way out: a new context does not start without a fresh gesture.
+ */
+export type SoundsRelease = "suspend" | "keep";
+let release: SoundsRelease = "suspend";
+export function setSoundsRelease(mode: SoundsRelease): void {
+  release = mode;
+  if (mode === "suspend") idleLater();
+  else { clearTimeout(idleTimer); idleTimer = undefined; }
+}
+
+/** Nothing plays and no call rings: the output is let go of after `SOUNDS_IDLE_MS`. */
+function idleLater(): void {
+  clearTimeout(idleTimer);
+  idleTimer = undefined;
+  if (!context || playing.size || ringing || release === "keep") return;
+  const ctx = context;
+  idleTimer = setTimeout(() => {
+    idleTimer = undefined;
+    if (ctx === context && !playing.size && !ringing && release === "suspend" && ctx.state === "running") void ctx.suspend?.().catch(() => {});
+  }, SOUNDS_IDLE_MS);
+}
+
+/** The context running for a sound: resumed if it was let go of; false where it cannot run (no gesture yet). */
+async function awake(ctx: AudioContext): Promise<boolean> {
+  clearTimeout(idleTimer);
+  idleTimer = undefined;
+  if (ctx.state !== "running") await ctx.resume().catch(() => {});
+  return ctx.state === "running";
+}
+
+function load(name: SoundName): Promise<AudioBuffer> | undefined {
+  const url = assets[`../assets/sounds/${name}.mp3`];
+  if (!context || !url) return;
+  if (!decoded.has(name)) {
+    const ctx=context;
+    decoded.set(name,fetch(url).then(response => {
+      if (!response.ok) throw new Error("Sound unavailable");
+      return response.arrayBuffer();
+    }).then(bytes=>ctx.decodeAudioData(bytes)));
+  }
+  return decoded.get(name);
+}
+
+/** The sounds the first gesture fetches ahead: a chat's own, which may come right after it. */
+const WARMED: readonly SoundName[] = ["message", "sent"];
+
+/**
+ * Fetches and decodes a sound that is about to be needed, so it starts the moment it is played: the first play of a
+ * sound waits for both (10 to 40 ms, and over 100 ms on a loaded machine). Nothing before a gesture has started audio.
+ */
+export function warmSound(name: SoundName): void {
+  void load(name)?.catch(()=>{});
+}
+
+/** Autoplay unlock is attempted only on an actual user gesture. */
+export function installAudioGestures(): () => void {
+  if (listening) return () => {};
+  listening = true;
+  const unlock = () => {
+    try {
+      context ??= new AudioContext();
+      unfollowSpeaker ??= followSpeaker(context).stop;
+      // Only the first gesture starts it; later ones leave a let-go output alone until a sound needs it.
+      if (!unlocked) {
+        const ctx = context;
+        const started = () => { if (ctx.state === "running") { unlocked = true; idleLater(); } };
+        if (ctx.state === "running") started();
+        else void ctx.resume().then(started).catch(()=>{});
+      }
+      // Only what a chat plays first is warmed: every other sound is fetched and decoded the first time it plays, not
+      // on a newcomer's first keystroke (all of them were 27 files and several MiB of decoded audio kept for the session).
+      for (const name of WARMED) void load(name)?.catch(()=>{});
+    } catch { /* no audio device */ }
+  };
+  const mute = () => { if (!loadSettings().notifications.soundEnabled) for (const stop of [...playing]) stop(); };
+  document.addEventListener("pointerdown",unlock,true);
+  document.addEventListener("keydown",unlock,true);
+  window.addEventListener("settings-updated",mute);
+  window.addEventListener("storage",mute);
+  return () => {
+    listening = false;
+    unfollowSpeaker?.();
+    unfollowSpeaker = null;
+    document.removeEventListener("pointerdown",unlock,true);
+    document.removeEventListener("keydown",unlock,true);
+    window.removeEventListener("settings-updated",mute);
+    window.removeEventListener("storage",mute);
+    for (const stop of [...playing]) stop();
+    clearTimeout(idleTimer);
+    idleTimer = undefined;
+  };
+}
+
+/**
+ * Plays a sound, if the gate lets it (soundGate.ts). `kind` overrides what its name makes it: a Settings ▶ is a
+ * "preview", whatever it previews.
+ */
+export function playSound(name: SoundName, { kind }: { kind?: SoundKind } = {}): () => void {
+  if (!loadSettings().notifications.soundEnabled || !context || !unlocked) return () => {};
+  const ctx=context, started=Date.now();
+  let cancelled=false;
+  const sources: (AudioBufferSourceNode | OscillatorNode)[]=[], gains: GainNode[]=[];
+  let expiry: ReturnType<typeof setTimeout> | undefined;
+  // Stopped early (another sound takes its place, mute, the end of a ring): faded out over a few milliseconds, not cut,
+  // which would click.
+  const stop=()=>{
+    cancelled=true;clearTimeout(expiry);gate.stopped(stop);
+    const at=ctx.currentTime;
+    for(const gain of gains){try{gain.gain.cancelScheduledValues?.(at);gain.gain.setTargetAtTime?.(0,at,0.005);}catch{/* already ended */}}
+    for(const source of sources){try{source.stop(at+0.03);}catch{/* already ended */}}
+    if(playing.delete(stop))idleLater();
+  };
+  const ended=()=>{if(playing.delete(stop))idleLater();};
+  if(!gate.admit(name,stop,{now:started,ringing:ringing>0,kind})) return ()=>{};
+  playing.add(stop);
+  void (async()=>{
+    let buffer: AudioBuffer | undefined;
+    // The output wakes while the sound's bytes are fetched and decoded (both are cached after the first time).
+    const [running] = await Promise.all([awake(ctx), load(name)?.then(b=>{buffer=b;},()=>{/* local synthesized fallback */})]);
+    if(cancelled || !running || !loadSettings().notifications.soundEnabled || ctx.state!=="running" || Date.now()-started>1000){stop();return;}
+    const start=ctx.currentTime+0.01;
+    if(buffer){
+      const source=ctx.createBufferSource(),gain=ctx.createGain();
+      source.buffer=buffer;gain.gain.value=0.2;
+      source.connect(gain).connect(ctx.destination);sources.push(source);gains.push(gain);source.start(start);
+      expiry=setTimeout(ended,buffer.duration*1000+100);
+    }else{
+      for(const note of SOUNDS[name] as Note[]){
+        const oscillator=ctx.createOscillator(),gain=ctx.createGain();
+        oscillator.type=note.type??"sine";oscillator.frequency.setValueAtTime(note.frequency,start+note.at);
+        gain.gain.setValueAtTime(0.0001,start+note.at);
+        gain.gain.exponentialRampToValueAtTime(note.gain??0.1,start+note.at+0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001,start+note.at+note.duration);
+        oscillator.connect(gain).connect(ctx.destination);sources.push(oscillator);gains.push(gain);
+        oscillator.start(start+note.at);oscillator.stop(start+note.at+note.duration+0.02);
+      }
+      expiry=setTimeout(ended,2000);
+    }
+  })();
+  return stop;
+}
+
+/** How often a ringing call's sound starts again. */
+const RING_EVERY_MS = 3500;
+
+/**
+ * Pages that ring at once ring as one: the extension's tabs share one engine, and a call rang in each of them, out of
+ * step. The page holding this lock (one per sound) plays it; the others wait, and the next takes over if that page goes.
+ * Only a page that can sound asks for it (its audio started by a gesture, sounds on): one that cannot would hold the ring
+ * silent. Without Web Locks, each page rings, as before.
+ */
+const RING_LOCK = "ghostly-ring:";
+
+export function startRinging(kind: "ring" | "ringback"): () => void {
+  ringing++;
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  let mine = !locks, asked = false, done = false;
+  let stop = () => {}, letGo = () => {};
+  let timer: ReturnType<typeof setInterval> | undefined;
+  const tick = () => {
+    stop();
+    stop = () => {};
+    if (mine) { stop = playSound(kind); return; }
+    // A page that could not sound yet asks again at its next ring: a gesture may have started its audio meanwhile.
+    if (asked || !locks || !context || !unlocked || !loadSettings().notifications.soundEnabled) return;
+    asked = true;
+    void locks.request(RING_LOCK + kind, () => {
+      if (done) return;
+      mine = true;
+      loop();
+      return new Promise<void>((resolve) => { letGo = resolve; });
+    }).catch(() => { if (!done) { mine = true; loop(); } });
+  };
+  // From the first ring on: a page that takes over mid-way starts its own, not one cut short by the next. The timer is
+  // set before the tick: a lock granted inside `request()` (Node's) loops again from it, and that loop's timer is the one
+  // the end clears, not one overwritten here and left ringing.
+  const loop = () => { clearInterval(timer); timer = setInterval(tick, RING_EVERY_MS); tick(); };
+  loop();
+  return ()=>{if(done)return;done=true;ringing--;clearInterval(timer);stop();letGo();idleLater();};
+}

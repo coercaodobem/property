@@ -1,0 +1,12 @@
+{
+  "createChat": "Crea nuova chat",
+  "description": "Messaggistica privata, peer-to-peer.",
+  "features": {
+    "decentralized": "Nessun server centrale",
+    "encrypted": "Crittografia end-to-end",
+    "onDevice": "I tuoi messaggi restano sui tuoi dispositivi"
+  },
+  "unpublishedVersion": "Versione locale — vedi le versioni pubblicate",
+  "viewRelease": "Visualizza questa versione",
+  "welcome": "Benvenuto su Property"
+}

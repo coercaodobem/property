@@ -1,0 +1,180 @@
+import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { PayExternally } from "../PayExternally";
+import { focusInPlace } from "../../lib/focus";
+import { radioGroupKeys, radioTabStop } from "../../lib/radioGroup";
+import { useOptionalI18n, useT } from "../../contexts/I18nContext";
+import { useAmountText } from "../../hooks/useAmountText";
+
+/** The same building blocks as Settings, so a wallet's options read like any other option. */
+export { Section, Row, Block } from "../layout/Section";
+// The app's one notice (components/ui/Notice.tsx): the wallet's panels were its first users.
+import { Notice } from "../ui/Notice";
+export { Notice };
+
+/**
+ * Forced colors (Windows high contrast) replace every background with the page's, so a track and knob drawn by colour
+ * alone vanish there. In that mode only, both are drawn in system colours: an outlined track with a ButtonText knob when
+ * off, a Highlight track with a HighlightText knob when on. The knob moves in by the border's pixel so it stays centred.
+ */
+const switchTrack = (checked: boolean) => `relative w-12 h-6 rounded-full transition-colors shrink-0 ${checked ? "bg-accent" : "bg-border-bright"} forced-colors:forced-color-adjust-none forced-colors:border forced-colors:border-[color:ButtonText] ${checked ? "forced-colors:bg-[color:Highlight]" : "forced-colors:bg-[color:Canvas]"}`;
+const SwitchKnob = ({ checked }: { checked: boolean }) => <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${checked ? "translate-x-6" : "translate-x-0"} forced-colors:top-[3px] forced-colors:left-[3px] ${checked ? "forced-colors:bg-[color:HighlightText]" : "forced-colors:bg-[color:ButtonText]"}`} />;
+
+/**
+ * The chosen option of a row of choices in forced colors, where its `bg-accent` is replaced by the page's background
+ * and it would look like the others: system Highlight behind HighlightText, as a list's selected item.
+ */
+export const chosenInForcedColors = "forced-colors:forced-color-adjust-none forced-colors:bg-[color:Highlight] forced-colors:text-[color:HighlightText]";
+
+/**
+ * An on/off switch. `unavailable`: it cannot be turned on here for now (`aria-disabled`, still reachable by the keys so
+ * its reason is read), with that reason in the element `describedBy` names.
+ */
+export function Switch({ checked, onChange, label, disabled, unavailable, describedBy, testId, ref }: { checked: boolean; onChange: (next: boolean) => void; label: string; disabled?: boolean; unavailable?: boolean; describedBy?: string; testId?: string; ref?: React.Ref<HTMLButtonElement> }) {
+  return (
+    <button ref={ref} type="button" role="switch" data-testid={testId} aria-checked={checked} aria-label={label} aria-disabled={unavailable || undefined} aria-describedby={describedBy} disabled={disabled}
+      onClick={() => { if (!unavailable) onChange(!checked); }}
+      className={`${switchTrack(checked)} cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed aria-disabled:opacity-40 aria-disabled:cursor-not-allowed before:absolute before:-inset-2 before:content-['']`}>
+      <SwitchKnob checked={checked} />
+    </button>
+  );
+}
+
+/**
+ * The Switch's look alone, inside something that is itself the switch (a chat's Accept card, whose whole card is a
+ * `role=switch` button: a button cannot hold another).
+ */
+export function SwitchLook({ checked, className = "", testId }: { checked: boolean; className?: string; testId?: string }) {
+  return (
+    <span aria-hidden="true" data-on={checked} data-testid={testId} className={`${switchTrack(checked)} block ${className}`}>
+      <SwitchKnob checked={checked} />
+    </span>
+  );
+}
+
+/**
+ * One choice among a few. `compact`: the smaller one for a page header. Wraps when the options do not fit. A radio
+ * group: one Tab stop (the chosen option), the arrows, Home and End move; Space or Enter chooses, since choosing may be
+ * an action (a wallet's network replaces the wallet).
+ */
+export function Segmented<T extends string>({ options, value, onChange, label, disabled, compact }: { options: { value: T; label: string }[]; value: T; onChange: (next: T) => void; label: string; disabled?: boolean; compact?: boolean }) {
+  const stop = radioTabStop(options.map(option => ({ checked: value === option.value, disabled: !!disabled && value !== option.value })));
+  return (
+    <div role="radiogroup" aria-label={label} onKeyDown={radioGroupKeys} className="flex flex-wrap gap-1 bg-surface-alt rounded-lg p-1 max-w-full">
+      {options.map((option, i) => (
+        <button key={option.value} type="button" role="radio" aria-checked={value === option.value} tabIndex={i === stop ? 0 : -1} disabled={disabled && value !== option.value} onClick={() => { if (option.value !== value) onChange(option.value); }}
+          className={`${compact ? "px-2.5 min-h-8 text-[13px]" : "px-3 min-h-8 text-sm"} whitespace-nowrap rounded-md transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${value === option.value ? `bg-accent text-on-accent font-medium ${chosenInForcedColors}` : "text-text-secondary hover:text-text-primary"}`}>
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const BUTTON = {
+  // A border in forced colors only: there the fill is gone, and the button would read as bare text beside the others.
+  primary: "bg-accent text-on-accent hover:bg-accent-hover font-semibold forced-colors:border forced-colors:border-[color:ButtonText]",
+  secondary: "bg-surface-alt text-text-primary hover:bg-surface-hover border border-border",
+  danger: "bg-transparent text-danger-ink hover:bg-danger/10 border border-border",
+} as const;
+/**
+ * `loading`: the click is being worked on. The button keeps its words, shows a turning ring before them, is busy for a
+ * screen reader and takes no second click, so a press that takes a while (an install, a refresh) is seen to be going.
+ * It is `aria-disabled`, not disabled (even when `disabled` is passed too): that would drop a keyboard's focus to the
+ * page, and leave it there when the work fails. A press while loading, or a form's Enter on it, does nothing.
+ */
+export function Button({ variant = "secondary", className = "", loading = false, disabled, onClick, children, ...props }: React.ComponentPropsWithRef<"button"> & { variant?: keyof typeof BUTTON; loading?: boolean }) {
+  return (
+    <button type="button" {...props} disabled={disabled && !loading} aria-disabled={loading || undefined} aria-busy={loading || undefined} data-loading={loading || undefined}
+      onClick={(e) => { if (loading) e.preventDefault(); else onClick?.(e); }}
+      className={`px-4 py-2 min-h-10 max-md:min-h-11 whitespace-nowrap rounded-lg text-sm transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed data-[loading]:opacity-80 data-[loading]:cursor-progress ${BUTTON[variant]} ${className}`}>
+      {loading ? <span className="inline-flex items-center gap-2"><Spinner />{children}</span> : children}
+    </button>
+  );
+}
+
+/** A small ring that turns (it stands still under reduced motion, still showing the button is busy). */
+export function Spinner({ size = 14 }: { size?: number }) {
+  return (
+    <svg data-testid="button-spinner" width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" className="shrink-0 motion-safe:animate-spin">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export const input = "w-full min-w-0 bg-surface-alt text-text-primary px-3 py-2 max-md:min-h-11 rounded-lg border border-border text-sm placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent";
+
+export type Action = "receive" | "send" | "history";
+const ACTION_ICON: Record<Action, ReactNode> = {
+  receive: <path d="M12 5v14M5 12l7 7 7-7" />,
+  send: <path d="M12 19V5M5 12l7-7 7 7" />,
+  history: <><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></>,
+};
+/** In English where no language is given (a component rendered on its own). */
+const ACTION_LABEL: Record<Action, string> = { receive: "Receive", send: "Send", history: "History" };
+const ACTION_KEY = { receive: "wallet.ui.receive", send: "wallet.ui.send", history: "wallet.ui.history" } as const;
+/**
+ * The two (or three) things a wallet is for, as big equal buttons. Three in a column under 28rem (a phone, a desktop's
+ * narrowest page) put the icon above the label: beside it, "Historique" and "Cronologia" did not fit a 375px phone.
+ */
+export function Actions({ value, onChange, actions = ["receive", "send"] }: { value: Action; onChange: (next: Action) => void; actions?: Action[] }) {
+  const i18n = useOptionalI18n();
+  const stack = actions.length > 2 ? "@max-md/actions:flex-col @max-md/actions:gap-1" : "";
+  return (
+    <div className="@container/actions grid gap-2" style={{ gridTemplateColumns: `repeat(${actions.length}, minmax(0, 1fr))` }} role="tablist">
+      {actions.map((action) => (
+        <button key={action} type="button" role="tab" aria-selected={value === action} data-testid={`wallet-${action === "send" ? "send" : action}`} onClick={() => onChange(action)}
+          className={`flex items-center justify-center gap-2 ${stack} min-w-0 px-2 py-2.5 min-h-10 max-md:min-h-11 rounded-xl text-sm font-semibold transition-colors cursor-pointer border ${value === action ? "bg-accent text-on-accent border-accent" : "bg-surface text-text-secondary border-border hover:text-text-primary hover:border-border-bright"}`}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">{ACTION_ICON[action]}</svg>
+          <span className="truncate max-w-full">{i18n ? i18n.t(ACTION_KEY[action]) : ACTION_LABEL[action]}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Where to be paid, the same on every card: a QR code, the text, Copy, and a link a wallet on this device
+ * opens (`uri`: `lightning:…`, `bitcoin:…`; `qr` when the code should show something else).
+ */
+export function Address({ value, qr, uri, testId, note, actions }: { value: string | undefined; qr?: string; uri?: string; testId: string; note?: ReactNode; actions?: ReactNode }) {
+  const i18n = useOptionalI18n();
+  // Never a QR code or a Copy button for an address that is not there yet: someone could share it.
+  if (!value) return <Notice testId={`${testId}-pending`}>{i18n ? i18n.t("wallet.ui.gettingAddress") : "Getting an address… It shows up here once the provider answers."}</Notice>;
+  return <PayExternally uri={uri ?? qr ?? value} value={value} testId={testId} note={note} actions={actions} label={i18n ? i18n.t("wallet.ui.receivingAddress") : "Receiving address"} />;
+}
+
+/** A large amount field: what matters most when paying is the number. */
+export function Amount({ value, onChange, unit, decimals = 0, testId, autoFocus }: { value: string; onChange: (next: string) => void; unit: string; decimals?: number; testId?: string; autoFocus?: boolean }) {
+  // Focused where it is, without scrolling to it (in WebKit too: focusInPlace), so the wallet's cards above it stay in
+  // view. Only when `autoFocus` says so: the Wallets page asks for it when a person chose the wallet, never when its
+  // card came up as the pointer passed over the deck or as the keys moved along it (pages/Wallet.tsx).
+  const i18n = useOptionalI18n();
+  const t = useT();
+  // `value` is the amount ("1000.5"); the field shows it the person's way, and says when what was typed is unclear.
+  const field = useAmountText(value, onChange, t.language ?? "en", decimals, t);
+  const input = useRef<HTMLInputElement>(null);
+  useLayoutEffect(() => { if (autoFocus) focusInPlace(input.current); }, [autoFocus]);
+  return (
+    <div className="space-y-1">
+      <label className="flex items-baseline gap-2 bg-surface-alt rounded-xl px-4 py-3 border border-border focus-within:ring-2 focus-within:ring-accent">
+        <input ref={input} data-testid={testId} inputMode={decimals ? "decimal" : "numeric"} placeholder="0" aria-label={i18n ? i18n.t("wallet.ui.amountIn", { unit }) : `Amount in ${unit}`}
+          aria-invalid={field.hint ? true : undefined}
+          className="min-w-0 flex-1 bg-transparent border-none outline-none text-3xl font-semibold text-text-primary placeholder-text-muted tabular-nums"
+          value={field.text} onChange={(e) => field.change(e.target.value)} />
+        <span className="text-text-muted text-sm shrink-0">{unit}</span>
+      </label>
+      {field.hint && <Notice tone="error" testId="amount-unclear">{field.hint}</Notice>}
+    </div>
+  );
+}
+
+/**
+ * A movement's amount with its sign ("+250", "−1,000"), read left to right in every language: the digits are Latin
+ * everywhere (lib/amount.ts), and a bare sign in a right-to-left line would go after them ("1,000−").
+ */
+export function Signed({ sign, amount }: { sign: "+" | "−"; amount: string }) {
+  return <span dir="ltr">{sign}{amount}</span>;
+}
+
+

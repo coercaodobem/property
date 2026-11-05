@@ -1,0 +1,29 @@
+import type { BackupDue } from "@ghostly/browser/shared/backupReminder";
+import { useI18n } from "../../contexts/I18nContext";
+import { Button, Row } from "./ui";
+import { WALLET_NAME } from "./names";
+import { useStorageProtected } from "../../lib/storagePersistence";
+import type { Problem } from "../../lib/problemText";
+import { Notice } from "../ui/Notice";
+
+/**
+ * The backup reminder (shared/backupReminder): a Mainnet wallet holds real money and no copy of it exists yet. One
+ * calm card above the deck, never a dialog: its button leads straight to the copy that wallet needs (its recovery
+ * phrase, or for Cashu a profile backup), and "Later" puts it off. Where the browser may clear the app's data
+ * (lib/storagePersistence), its one line says so: the same card, no second one. `problem`: Later was refused, and the
+ * card stays, saying so.
+ */
+export function BackupReminder({ due, busy, problem, onBackUp, onLater }: { due: BackupDue; busy?: boolean; problem?: Problem | null; onBackUp: () => void; onLater: () => void }) {
+  const { t } = useI18n();
+  const unprotected = useStorageProtected() === "unprotected";
+  return (
+    <div data-testid="backup-reminder" data-wallet={due.id} data-backup={due.backup} data-storage={unprotected ? "unprotected" : undefined} className="rounded-xl border border-accent/40 bg-accent/5">
+      <Row label={<span className="font-medium">{t("wallet.backupReminder.title", { wallet: WALLET_NAME[due.type] })}</span>}
+        hint={t(unprotected ? "wallet.backupReminder.bodyUnprotected" : "wallet.backupReminder.body")} info={t(`wallet.backupReminder.info.${due.backup}`)}>
+        <Button variant="primary" data-testid="backup-reminder-go" onClick={onBackUp}>{t(`wallet.backupReminder.go.${due.backup}`)}</Button>
+        <Button data-testid="backup-reminder-later" loading={busy} onClick={onLater}>{t("wallet.backupReminder.later")}</Button>
+      </Row>
+      {problem && <Notice problem={problem} testId="backup-reminder-error" className="text-xs px-4 pb-3" />}
+    </div>
+  );
+}

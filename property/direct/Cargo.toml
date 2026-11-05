@@ -1,0 +1,3 @@
+[workspace]
+members = ["apps/desktop", "native/transports"]
+resolver = "2"

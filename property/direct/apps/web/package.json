@@ -1,0 +1,33 @@
+{
+  "name": "@ghostly/web",
+  "private": true,
+  "version": "1.9.0",
+  "type": "module",
+  "description": "Property Direct: peer-to-peer conversations, calls and file sharing in a browser.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@emoji-mart/data": "^1.2.1",
+    "@ghostly/browser": "*",
+    "@ghostly/core": "*",
+    "@ghostly/react": "*",
+    "@tauri-apps/api": "^2.12.4",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tailwindcss": "^4.2.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4"
+  }
+}

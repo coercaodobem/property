@@ -1,0 +1,1053 @@
+# WISP 1200: Apps and Plugins: Packages, Stores and Apps Sent in a Chat
+
+| Field | Value |
+|---|---|
+| Candidate number | 1200; editorial family allocation (1200-1299, Apps and plugins), accepted by the owner on 2026-10-06 |
+| Status | Draft |
+| Editors | Ghostly contributors; maintainer review pending |
+| Dependencies | [02](02-peer-keys.md), [03](03-capabilities.md), [04](04-profiles.md), [05](05-backups.md), [06](06-devices.md), [200](200-payments.md), [300](300-peer-proofs.md), [310 did:dht](310-did-dht.md), [307 SSH](307-ssh.md), [400](400-chat.md), [401](401-paired-chat.md), [405 status cards](405-status-cards.md), [406 message buttons](406-message-buttons.md), [500](500-files.md), [501](501-paired-files.md), [700](700-local-services.md), [701](701-http-services.md), [800](800-invite-join.md), [1100](1100-headless.md) |
+| Implementation | Phase 1 is built, from release 1.2. The formats in `packages/core/src` (`appBundle.ts`, `appStatements.ts`, `appStore.ts`, `appUpdates.ts`, `miniApp.ts`, `pairedApps.ts`), with vectors in `packages/core/test/vectors/`. The engine in `packages/browser/src/engine` (`apps.ts`, `appFetch.ts`, `appDefaults.ts`), on when `APPS_ENABLED` is (`packages/browser/src/shared/features.ts`). The Apps page, the install screen, the card and the panel in a chat in `apps/ui/src/pages/Apps.tsx`, `apps/ui/src/components/apps/` and `apps/ui/src/lib/apps/`. The runner on the web (`apps/web/public/app-frame.html`, its header in `apps/web/nginx.conf`) and on Desktop (`apps/desktop/src/app_sandbox.rs`, `app_window.rs`). The publisher tools in the CLI (`packages/cli/src/apps.ts`: `ghostly app init`, `publish`, `verify`, `revoke`, `ghostly store sign`) and the app types in `@ghostlytools/sdk/app`. The official store is [ghostly-store](https://github.com/MiguelMedeiros/ghostly-store) ([APPS.md](../APPS.md)). Phases 2 and 3 are design only |
+| Summary | Install apps and games by others from a store, a pasted Git URL or a chat. Each is checked against its publisher's signature and runs in a sandbox. |
+| Availability | Available |
+| Notes | From release 1.2: free mini-apps played live in a 1:1 chat, on the web app and Desktop on macOS and Linux. Chess is the first app in the official store. Not on Desktop on Windows or in the extension yet. No payments; an app reaches the internet only with the internet permission, granted at install. |
+
+> This is a review draft. Candidate numbers and new record formats are not registered standards. Normative language describes a candidate requirement, not a shipped guarantee. See the [catalogue](README.md) and [implementation evidence](IMPLEMENTATION.md).
+
+Number note: the owner accepted the new family 1200-1299, "Apps and plugins", on 2026-10-06, and this contract took the family's x00 number, 1200, as 100, 200 and 1000 did. It was `12xx` (file `12xx-marketplace.md`, which forwards here). No existing family fitted a store: the closest, [700](700-local-services.md) (local services), is about a contact opening an app that runs on your computer, not about installing code ([NUMBERING](NUMBERING.md), [00](00-process.md#process)).
+
+## Purpose
+
+The owner wants a marketplace, and chose its first goods: **apps and plugins for Ghostly**, games among the first. Not services, not physical goods. This document is the design, written before the code. Release 1.2 ships its phase 1; what a later phase adds is marked as such and is not in the app.
+
+It answers, in order: what an app and a plugin are, and which kinds phase 1 carries; the package and its signatures; where an app runs on each client, and its sandbox; how apps are found without a central server; paying, later, without an account; reviews; the threats; the phases.
+
+The point of the design is that **no single source is required**. Ghostly's default store is one repository among many: a pasted Git URL, someone else's store and an app a friend sends in a chat install the same way, with the same checks.
+
+## Goals and non-goals
+
+In scope:
+
+- Free mini-apps (games, polls, shared tools), installed from a pasted Git URL, a store or a chat, in phase 1.
+- A package format, signatures and updates that do not trust the host the bytes came from (GitHub, a mirror, a contact).
+- Stores anyone can publish, several at once, chosen by the person.
+- A design for paid apps, licences, reviews and takedowns that needs no Ghostly server and no account.
+
+Out of scope, on purpose:
+
+- **Adapter plugins from a store.** A wallet source or an identity proof runs inside the engine with every key ([SDK.md](../SDK.md#trust-model-first)). Nothing that runs there is installed from a store until a permissioned plugin host exists (research, [Phases](#later-phases-and-research)).
+- **DRM.** A package published in a public Git repository can be copied. A licence gates what an honest client does, not what a determined person does ([Paying](#paying-phase-2)).
+- **Services and physical goods.** The roadmap's "Marketplaces / hosting example" row stays a later product question.
+- **A Ghostly account or a store server.** There is none today, and this design adds none. Phase 1 runs no service at all: stores are signed files.
+
+## Decisions taken by the owner (2026-10-03)
+
+| Question | Decision |
+|---|---|
+| Paid apps | Free only for now. [Paying](#paying-phase-2) stays a phase 2 design |
+| Default store | Apps are added by pull request to one repository. The owner holds its signing key, offline |
+| An app sent in a chat that no store lists | Installable, with "Not in any of your stores" on its card |
+| Extension | Build the extension path. If the Chrome Web Store objects, ship the extension without apps; web and Desktop keep them. Replaced on 2026-10-06: the extension comes after phase 1 |
+| Network access for apps | None in phase 1. Later, an exact list of sites shown at install. Replaced on 2026-10-06: the `internet` permission, in phase 1 |
+| Default index | A signed static file in the default store's repository, read directly by the client. No service to run. A self-hosted indexer stays optional, for people who want their own. On 2026-10-06 the crawler that builds it moved to release 1.3 |
+
+## Decisions taken by the owner (2026-10-06)
+
+Taken when the owner accepted this WISP for release 1.2. Where one changes an answer of 2026-10-03, the older row says so.
+
+| Question | Decision |
+|---|---|
+| Number | The new family 1200-1299, with this contract as 1200 |
+| The wire frame | `paired-app`, named like the session's other frames, on the session capability `apps/1`. Its data is at most **32 KiB** per frame. The session's limit for any control frame, 60 KiB (`LIMITS.maxControlFrameBytes`), still holds above it and does not change ([In a chat](#in-a-chat-apps1)) |
+| Playing while not both online | **Live only** in phase 1. Each side keeps the app's state per chat, and the app catches up when the session comes back. No moves as messages, nothing on the DHT, nothing held |
+| Names | The feature, its page and its button are **Apps**. The existing dialog where a contact's shared services open (`services/1`, [700](700-local-services.md)), once titled "Apps with <name>", is **Shared services**, with the apps flag off too |
+| Default store | A **repository of its own**, separate from Ghostly's, so its pull requests and takedowns stay apart from the app's. Its store key is held offline by the owner |
+| First-party mini-apps | Built in Ghostly's repository (Chess in `apps/mini/chess`) and signed by a **publisher key distinct from the store key**. The store key lists apps and never signs one |
+| jsDelivr | Allowed as a source, **only pinned to a commit** ([Stores](#stores)) |
+| Desktop | **In phase 1**: an `app-*` window per app on the `ghostly-app` scheme. If the Desktop spike finds a problem, the problem gets fixed; release 1.2 does not ship web-only |
+| Extension | **Later**, after a test submission passes the Chrome Web Store review. Until then the extension shows no Apps |
+| Discovery in release 1.2 | The default store, a store added by its URL and an app added by its URL or from a card. The crawler and the default index come in release 1.3 (the coordinator's default, not objected) |
+| Rollout | Behind a feature flag on `dev` until the web chess e2e passes. Done: the flag (`APPS_ENABLED`) is on from release 1.2, and no earlier version is released with it on |
+| Network access for apps | A permission of phase 1, **`internet`**: an app that declares it, and that the person approves at install, reaches HTTPS and WSS servers of its choosing; an app without it has no network, as before ([Permissions](#permissions)) |
+| Safari and the iPhone's web app | **Not restricted**: Apps work there as everywhere. Their install screen says that, in this browser, an app can contact other servers even without `internet` (`<link rel=preconnect>`, which no policy governs in WebKit; [Threats](#threats)) |
+
+## Decisions taken by the owner (2026-10-12)
+
+Taken for release 1.3, so that a person finds Ghostly's own apps without a trip to the store ([Built-in apps](#built-in-apps)).
+
+| Question | Decision |
+|---|---|
+| Ghostly's own apps | Chess, and each app Ghostly makes after it, **comes with the client** and shows under Installed |
+| Where the bytes come from | The app's signed bundle ships **inside the client**, pinned by its digest and checked like any install. It needs no network. A newer version reaches it the usual way, by a higher `sequence` |
+| Permissions | **Asked at the first open, never granted silently**: the install screen's permission sheet, once |
+| Which apps | A **short list in the client**: publisher key, name and pinned digest. Never "everything in the official store" |
+| Removing | **Sticks.** No start and no update brings a removed app back. Installing it again is the person's choice |
+| Existing profiles | Offered the built-in apps **once**, unless the app is installed already or was removed |
+
+## Decisions taken by the owner (2026-10-12, a person's files)
+
+Taken when Cinema, an app that streams a person's own films to a contact, showed what phase 1 lacks ([The person's files through an app](#the-persons-files-through-an-app-linked-files-a-read-lane-and-sending-ahead)). The direction is accepted; nothing of it is built, and each part comes as its own change.
+
+| Question | Decision |
+|---|---|
+| Keeping access to files the person picks | **Linked files**: the client keeps a reference, never a copy, under a new permission `files` |
+| Getting a big file to the contact | **A read lane**, `app-ranges/1`, carried by the client with `files/3`'s flow control, not through `apps/1` |
+| Watching while the other person is offline | **Sending ahead**: an app asks the client to send a linked file as a chat file; the contact's app reads it there |
+
+## Decisions taken by the owner (2026-10-13, mouse look)
+
+Taken when Arena, a deathmatch for two built on a Quake engine, showed that aiming without a pointer lock is not playable. It replaces the `fullscreen` permission the [shooter table](#what-a-shooter-needs-from-the-frame-measured) proposed for the pointer; full screen itself stays a question there.
+
+| Question | Decision |
+|---|---|
+| Who may hold the pointer | **Every app**, with no permission: the web frame's `sandbox` and both runner policies gain `allow-pointer-lock`. A browser lets a page take the pointer only on a click, shows that it did, and gives it back on Esc, whatever the page does |
+| Desktop | The same token in the app window's policy. On macOS WKWebView gives the lock only when its UI delegate answers, so the app window's delegate answers yes for the runner and no for any other page. On Linux WebKitGTK gives it when the request is left unanswered, as Desktop leaves it |
+| A self-hosted server that still sends the older runner policy | Still runs apps (the client takes either policy), with no pointer lock |
+
+## Decisions taken by the owner (2026-11-03, a hung app)
+
+Taken when a probe showed that on the web, in WebKit (Safari, the iPhone's web app) and in Chromium without site isolation (Android Chrome, WebViews), the runner's frame shares the page's one thread: an app's 3 s loop froze every chat for 3 s (WebKitGTK 2.52.6: the page's longest timer gap 3002 ms; Chromium's default launch: 3001 ms; Chromium with `--site-per-process`: 5 ms), and an endless loop hung the tab with no way to close the app.
+
+| Question | Decision |
+|---|---|
+| What the client does about an app that holds the thread | Option A, "Workers and a watchdog": an honest app keeps its heavy work off the page's thread, and the page stops an app that stops answering |
+| The watchdog | **Built.** On the web, once the app runs, the page sends its runner a ping on the port every second, which the runner answers at once; an app whose ping stays unanswered 10 s, or a page whose own timer comes 10 s late, while the page is shown, is stopped as unresponsive, and its place says so with Open again ([The runner and the broker](#the-runner-and-the-broker)) |
+| Workers for apps (question 7 of the phase 2 proposal) | **Accepted, not built yet**: its own change, with the runner policies, the Desktop window's policy and the client's runner check, measured in every engine first. Until then the apps documentation says to split heavy work into pieces under the bound |
+
+## What exists today (evidence)
+
+Each fact was checked against the file it names on `dev` on 2026-10-02, or measured in the reviews of 2026-10-03. Where one is wrong, the section that cites it must change.
+
+| Fact | Where |
+|---|---|
+| The SDK exists in the repository, not on npm. A plugin is a plain object naming adapters of three kinds: Lightning sources, on-chain sources and identity proofs. Transports have no registration | `packages/sdk`, `packages/browser/src/plugins/registry.ts` (`GhostlyAdapterPlugin`, `SDK_API = 1`), [SDK.md](../SDK.md#transports-and-a-minimal-client) |
+| An adapter runs with the app's privileges: it can read every key, sign anything, spend everything and reach any network the page can. No sandbox, no permission prompt, no signature check, no store | [SDK.md](../SDK.md#trust-model-first), `packages/browser/src/plugins/registry.ts` |
+| Plugins enter only at build time (`GHOSTLY_PLUGINS`, read by the Vite plugin) or from code already in the engine's realm (`registerAdapters`); "there is no way to load a plugin from a URL, a file or a store, on purpose" | `packages/browser/vite-plugin.ts`, `packages/browser/src/plugins/bundled.ts`, [SDK.md](../SDK.md#registration-a-plugin-not-a-registry-line) |
+| Release builds bundle no plugin, by omission: the release workflow never sets `GHOSTLY_PLUGINS`; only the e2e configurations do | `.github/workflows/release.yml`, `e2e/playwright.config.ts` |
+| Shared services (`services/1`) let a contact open an app running on your computer, proxied over the chat's live link. Desktop opens it in a window of its own on the `ghostly-svc` scheme (`<service>.<peer>.<tag>`, the tag a hash of this profile's key for the chat, so each profile's storage for the app is its own), maps the window's label to its state, blocks navigation (`on_navigation`) and denies new windows; the extension uses a tab on `https://<service>.<peer>.<tag>.invalid/` answered through `chrome.debugger`; the web app can do neither | [700](700-local-services.md), [701](701-http-services.md), `packages/core/src/pairedHttp.ts`, `apps/desktop/src/viewer.rs`, `apps/extension/src/background.ts`, [BROWSER.md](../BROWSER.md#opening-a-contacts-app) |
+| On Desktop only the `main` window may call commands; every other window is refused, whatever the capabilities say, and a test checks it. Tauri injects its IPC bridge into every window's main frame, so "no IPC" means "every command refused", not "no bridge" | `apps/desktop/src/main.rs` (`only_main`), `apps/desktop/capabilities/default.json` (`windows: ["main"]`); Tauri 2.12 `manager/webview.rs` (read in the product review) |
+| The app renders no iframe anywhere, and no element with `sandbox` | `apps/ui/src` (no match), `apps/ui/src/test/chat/linkPreview.test.tsx` asserts a preview makes none |
+| Every client's CSP: web `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https: wss: …; frame-ancestors 'none'`, included in every nginx location; extension pages `script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; img-src …`; Desktop like the web plus `ipc:` and loopback. None sets `frame-src` or `child-src` | `apps/web/nginx-headers.conf`, `apps/web/nginx.conf`, `apps/extension/public/manifest.json`, `apps/desktop/tauri.conf.json`, `apps/ui/src/test/security/contentSecurityPolicy.test.ts` |
+| The web app's service worker serves only its own build files and passes any other path, such as a new `/app-frame.html`, to the network, so a header the server sets on it holds | `apps/web/src/sw/policy.ts` (`classify`) |
+| The extension is Manifest V3 with no `sandbox` pages and holds the `debugger` permission; the engine runs in an offscreen document | `apps/extension/public/manifest.json`, `apps/extension/src/background.ts` |
+| Desktop updates are signed: the Tauri updater checks a minisign signature against a public key in the configuration | `apps/desktop/tauri.conf.json` (`plugins.updater`) |
+| Cards under a message (invite, group, Nostr, identity) come from a parser of the text; at most 3 per message. Sender-made link previews ride with the message so the receiver fetches nothing to show them | `apps/ui/src/lib/parse/entities.ts`, `apps/ui/src/components/chat/EntityCards.tsx`, `apps/ui/src/lib/parse/linkPreview.ts`, [401](401-paired-chat.md) |
+| A structured card (`sc`, at most 8 KiB, text as fallback) rides beside the text on every text path; today only bots send them | [405 status cards](405-status-cards.md), [406 message buttons](406-message-buttons.md), `packages/core/src/statusCards.ts` |
+| `files/3` carries a file of any size with consent and resume; the receiver takes up to 25 MiB by itself and checks the SHA-256 of what it stored | [501](501-paired-files.md#files3-files-of-any-size-revision-03), `packages/browser/src/shared/fileBytes.ts` |
+| A `ghostly1` invite pairs exactly one chat: after the first pin another key is ignored | [800](800-invite-join.md#baseline-and-purpose) |
+| The only profile-wide key is the DID key (did:dht), an Ed25519 key made from the DID seed. No chat uses it; it travels in backups. WISP 06 derives the first device-set secret from the same seed | [310 did:dht](310-did-dht.md), `packages/browser/src/engine/did.ts`, [06](06-devices.md#terms) |
+| The GitHub SSH proof checks a key against `api.github.com/users/<login>/keys` | `packages/browser/src/proofs/sshForges.ts`, [307 SSH](307-ssh.md) |
+| Payments in a chat: `pay-req`, `pay`, `pay-res` frames; Testnet has a faucet button; any Mainnet spend needs `confirmedReal` | [200](200-payments.md), `packages/core/src/frames.ts`, `packages/browser/src/engine/paymentAdapters/testCoins.ts`, `walletInstances.ts` (`assertConfirmedReal`) |
+| A control frame of the live session is at most 60 KiB; a larger one is dropped before it is read | `packages/core/src/frames.ts` (`LIMITS.maxControlFrameBytes`), `packages/core/src/ghostlink.ts` (`onApplication`) |
+| The headless CLI is on npm as `@ghostlytools/cli`; small self-hosted services live in `infra/services/` | `packages/cli`, `.github/workflows/npm-publish.yml`, `infra/services/` |
+| Nothing in the code is a store, a package or a mini-app. They exist only as roadmap rows | [ADAPTER-ROADMAP.md](ADAPTER-ROADMAP.md#plugins-apps-catalogs-and-ghostlyos) |
+
+**Measured in the product review (2026-10-03; Chromium 145, Playwright 1.58, curl 8.7):**
+
+| Test | Result |
+|---|---|
+| A frame `sandbox="allow-scripts"` with `connect-src 'none'`: fetch, beacon, WebSocket, EventSource, a worker's fetch, images, CSS, fonts, media, prefetch, preload, forms, popups, `top.location` | All blocked |
+| The same frame, WebRTC | **Got out**: STUN packets to a host and port the frame chose, on web and in the extension. CSP's `webrtc 'block'` was ignored |
+| Deleting `RTCPeerConnection` and its relatives in the frame before other code runs | Closed it; no fresh copy came back through an `about:blank` or `srcdoc` frame |
+| The frame navigating itself (`location=`, meta refresh, a link) | **Got out** when the parent page had no `frame-src`; closed by `frame-src 'self'` on the parent (extension tested) |
+| Relative imports inside a module loaded from a `blob:` URL; relative image and CSS URLs | Broken |
+| An extension sandbox page with `blob:` and `'wasm-unsafe-eval'` in its CSP | Loaded; WebAssembly ran; `eval` blocked; no `chrome.runtime`; storage APIs refused |
+| From another origin: `raw.githubusercontent.com` (commit or `HEAD`), jsDelivr `@commit`, `api.github.com` | Readable (CORS `*`); raw caches 5 minutes, jsDelivr is immutable, the API allows 60 an hour |
+| From another origin: `codeload.github.com`, release assets | Not readable (no CORS) |
+
+Measured since, by the Desktop spike (2026-10-06, WKWebView on macOS 15.6 and WebKitGTK on Linux, see [Per client](#per-client)): a CSP `sandbox` header sent by a Tauri custom scheme is honoured, every channel above is closed, and two are not closed by the policy in WebKit: `<link rel=preconnect>` opens a connection, and a `srcdoc` frame brings its own `RTCPeerConnection`. Measured again on the web (2026-10-06, the web runner and broker, `e2e/web/apps-sandbox.spec.ts`, Chromium 145, Firefox 155 and Playwright's WebKit 26): under the runner's header alone a `srcdoc` frame brings its own `RTCPeerConnection` in all three; the nonce lock ([The runner and the broker](#the-runner-and-the-broker)) closes it in all three; every other channel above is closed in all three; and in WebKit `<link rel=preconnect>` still opens a connection, which no header or policy a web server sends stops. Not measured yet: WebView2 (Windows), and DNS prefetch (no listener sees a DNS question).
+
+## What the outside world allows (sources)
+
+Read on 2026-10-02. Each line names the page it rests on.
+
+| Fact | Source |
+|---|---|
+| **Umbrel's store** is a Git repository with one folder per app holding `umbrel-app.yml` and `docker-compose.yml`. The manifest has `manifestVersion`, `id`, `category`, `name`, `version`, `tagline`, `description`, `releaseNotes`, `developer`, `website`, `dependencies`, `repo`, `support`, `port`, `gallery`, `submitter`, `submission` | [umbrel-apps packaging guide](https://github.com/getumbrel/umbrel-apps/blob/master/.agents/skills/umbrel-package-app/SKILL.md), [bitcoin/umbrel-app.yml](https://raw.githubusercontent.com/getumbrel/umbrel-apps/master/bitcoin/umbrel-app.yml) |
+| Umbrel's official store takes apps by pull request, linted and reviewed by its team | the same guide, "PR Readiness" |
+| A **Community App Store** is a Git repository with `umbrel-app-store.yml` (`id`, `name`), added by pasting its URL. Umbrel installs stores only, never a single app's URL | [umbrel-community-app-store](https://github.com/getumbrel/umbrel-community-app-store) |
+| Umbrel clones the default branch shallowly and re-clones when the remote head changes, every 5 minutes. **It checks no signature and pins no commit.** Its UI warns that community stores are not vetted | [app-repository.ts](https://github.com/getumbrel/umbrel/blob/master/packages/umbreld/source/modules/apps/app-repository.ts), [app-store.ts](https://github.com/getumbrel/umbrel/blob/master/packages/umbreld/source/modules/apps/app-store.ts), [en.json](https://github.com/getumbrel/umbrel/blob/master/packages/ui/public/locales/en.json) |
+| **Chrome Web Store, MV3:** remotely hosted code may not run in the extension; remote data may. Code run "in contexts that are isolated from extension APIs (such as iframes and sandboxed pages)" is exempt | [Remote hosted code](https://developer.chrome.com/docs/extensions/develop/migrate/remote-hosted-code), [MV3 requirements](https://developer.chrome.com/docs/webstore/program-policies/mv3-requirements) |
+| An extension's **sandbox pages** get no extension APIs, talk by `postMessage` only, run under their own CSP, which must keep `sandbox` and may not add `allow-same-origin` | [manifest sandbox](https://developer.chrome.com/docs/extensions/reference/manifest/sandbox) |
+| **Tauri 2:** the API is limited to bundled code by default. On Linux and Android Tauri cannot tell a request from an embedded iframe from one by its window. Custom schemes are `<scheme>://localhost/` on macOS and Linux, `http://<scheme>.localhost/` on Windows | [Capabilities](https://v2.tauri.app/security/capabilities/), [tauri::Builder](https://docs.rs/tauri/latest/tauri/struct.Builder.html) |
+| A sandboxed iframe without `allow-same-origin` has an opaque origin, reported as `"null"`: no cookies, no `localStorage`. The CSP `sandbox` directive works only as an HTTP header | [MDN iframe](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe), [HTML sandboxing](https://html.spec.whatwg.org/multipage/browsers.html#sandboxing), [MDN CSP sandbox](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/sandbox) |
+| **jsDelivr** keeps commit-pinned files even after the repository is deleted; single files over 20 MB are not served | [jsDelivr README](https://github.com/jsdelivr/jsdelivr) |
+| GitHub disables a repository about one business day after a DMCA notice that is not resolved; it has been blocked by governments at times | [DMCA takedown policy](https://docs.github.com/en/site-policy/content-removal-policies/dmca-takedown-policy), [Censorship of GitHub](https://en.wikipedia.org/wiki/Censorship_of_GitHub) (secondary) |
+| **TUF** has four roles (root, targets, snapshot, timestamp) and addresses rollback, indefinite freeze, mix-and-match, malicious mirrors and key compromise below a threshold | [TUF specification](https://theupdateframework.github.io/specification/latest/) |
+| **F-Droid** signs its index offline, with an expiry; a repository is defined by its signing key; third-party repositories are added by URL. **Zapstore** has each release signed by its developer's key | [F-Droid security model](https://f-droid.org/docs/Security_Model/), [zapstore.dev](https://zapstore.dev/) |
+| Offline licences: Keygen's signed licence files and L402's paid preimage. Neither binds a licence to the buyer's public key | [Keygen cryptography](https://keygen.sh/docs/api/cryptography/), [L402](https://docs.lightning.engineering/the-lightning-network/l402) |
+
+## Terms
+
+| Term | Meaning |
+|---|---|
+| **Publisher** | Whoever signs a package. Identified by an Ed25519 **publisher key**, nothing else |
+| **Package** | One version of one app, published as one file, the **bundle** (`.ghostlyapp`): a signed manifest and the files it lists |
+| **App reference** | `<publisher key>/<name>`. Two packages are versions of the same app only when both are signed by the same publisher key and carry the same name |
+| **Digest** | SHA-256 of a package's canonical manifest, which lists the SHA-256 of every file. One digest names every byte of a version |
+| **Source** | Anywhere a bundle can come from: a Git repository, a mirror, a store's copy, a file in a chat. Sources are not trusted: bytes are checked against the signature and the digest |
+| **Store** | What people see: a list of apps they chose to browse. Technically, a **signed store index** at an HTTPS URL. A **curated** store is a list someone chooses (a catalog, kept in a Git repository); an **indexed** store is the same file built by a crawler over many catalogs and repositories (an indexer's output). The client treats both alike and shows which is which |
+| **Runner** | The small trusted page that hosts one app in its sandbox |
+| **Broker** | The client code, outside the sandbox, that answers an app's requests within the permissions the person granted |
+
+**Names in the app.** The feature, its page and its button are called **Apps**. The dialog where a contact's shared services (`services/1`, [700](700-local-services.md)) open, once titled "Apps with <name>", is **Shared services**, so the two never share a word; it has that name with the apps flag off too, and so do Clear all data and the backup's contents line. Wire names do not change: `services/1` stays.
+
+**An app is never identified by a store.** Its reference is bound to its publisher key, so a lying store can hide an app or rank it, never swap code of an installed app.
+
+## What an app and a plugin are
+
+| Kind | What it is | Runs | Phase 1 | Why |
+|---|---|---|---|---|
+| **Mini-app** | A static web app in one self-contained HTML file (scripts, styles, images and WebAssembly inline). Alone, or in a chat with the same app on the contact's side | In the runner's sandbox, talking to the client only through the broker | **Yes** | It needs no key, no wallet and no engine object, and the browser's sandbox can hold it, with the fixes below |
+| **Theme** | Colours and design tokens as data | Read by the client | No: phase 2 | Publishing themes is a public promise about the app's design tokens, which still change. When it comes, a theme is typed values only (colours, sizes), never raw CSS, since a CSS `url()` would reach the hosts in the main page's `img-src` |
+| **Bot** | A program for the headless CLI ([1100](1100-headless.md)) | As a process on a server | No: phase 3 | Native code needs an operating-system sandbox |
+| **Adapter plugin** | A wallet source or an identity proof built with the SDK | In the engine, with every key | No: research | It has the app's privileges. Stays a build-time choice until a permissioned plugin host exists |
+| **Transport** | A new way to connect | In the engine | Never a store item | A transport is a WISP and an app change |
+
+So **phase 1 carries mini-apps**. "Plugin" in this document means an adapter plugin; the word stays in the family's name because adapter plugins join the same package and store format once they can run safely.
+
+### Games
+
+Games are among the first apps the owner wants. The design rules none out; each kind needs this:
+
+| Kind | Examples | Needs | Phase |
+|---|---|---|---|
+| Turn-based, open | Chess, checkers, go | `apps/1` in a 1:1 chat, as written ([In a chat](#in-a-chat-apps1)) | **1** |
+| Turn-based, hidden information | Battleship, card games | The same, plus **commit-reveal** in the app: each side sends the SHA-256 of its secret state with a random 32-byte salt first, and reveals state and salt only when the rules say, so the other side checks the reveal against the commitment. Neither side can read or change the other's hidden state unseen. The template ships a helper; the client enforces nothing here | **1** |
+| Light real-time, versus | Tetris versus (cleared lines sent to the opponent), Snake versus | Ordered `apps/1` as it is: each side runs its own game and sends little (a few events a second, well under the 50 a second limit) and tolerates tens of milliseconds. Tetris versus keeps two separate boards and sends only garbage lines and a periodic score. Snake on one shared board runs in lockstep with a short input delay, and is smooth when the chat link is direct and laggy on a relay; the app measures the round trip itself with its own ping frames | **1**: these can be the first real-time apps, before the unordered mode exists |
+| Real-time | Pong, Tron, a Quake-like | WebAssembly (`'wasm-unsafe-eval'` is in the runner's CSP on every client from phase 1); bundles up to 64 MiB, sent as files rather than in a card; an unordered, droppable message mode on `apps/1` over the live WebRTC data channel (never the DHT text floor), with higher receiver limits granted by the `realtime` permission shown at install | **2**: the unordered mode is new transport work (today's chat data channel is ordered and reliable, and the native transports are streams), so it is not cheap in phase 1. Designed in the [phase 2 proposal](#phase-2-proposal-real-time-apps-game-data-and-apps-in-groups), which is not accepted yet and would change this row: two Linux desktops have no WebRTC between them |
+| Group games | Party games, a shared board for many | Group frames, after `apps/1` in groups | Later, with groups ([proposal](#apps-in-groups)) |
+
+## The package
+
+### The bundle, the one published unit
+
+A package is published as **one file**, the bundle. The same file is what a store points at, what a contact sends in a chat and what a mirror keeps.
+
+Bytes: `GHOSTLYAPP1`, then the canonical manifest, then the signature statement, each preceded by its length (32-bit, big-endian), then every file's bytes in the order of the manifest's `files`. The sizes in the manifest delimit the files; there is no archive format to parse and no path the manifest did not name. **A bundle with any byte past the last file is refused**, as is one that ends early.
+
+| Bound | Phase 1 | Phase 2 (games) |
+|---|---|---|
+| Whole bundle | 16 MiB (under jsDelivr's 20 MB per file and the 25 MiB a chat takes without asking) | 64 MiB, with the `realtime` kind of app; fetched from raw GitHub (jsDelivr does not serve it) or sent as a file with consent |
+| Files | At most 64: the entry, `icon.png`, up to 8 screenshots, and data files the app reads through the broker | The same |
+| Manifest | At most 64 KiB | The same |
+| Paths | Relative, `/`-separated, `[A-Za-z0-9._-]` per segment, no `.` or `..`, at most 128 bytes; no two equal ignoring case | The same |
+| Icon | `icon.png`, square, at most 256 KiB and at most 1024 × 1024 pixels | The same |
+
+A client refuses a bundle that breaks any bound before it shows anything but the refusal.
+
+**The entry is one self-contained HTML file.** Relative imports and relative URLs do not work inside the sandbox (measured), so the SDK's template builds the app single-file: scripts and styles inline, images as `data:` URLs, WebAssembly decoded in script or read from the bundle through the broker (`ghostly.file(path)`). Other files in the bundle are data, never loaded by URL.
+
+**All of an app's code is in the entry's own `<script>` elements, and runs from there.** On the web the runner locks the page once the entry is written ([The runner and the broker](#the-runner-and-the-broker)), so:
+- inline event handlers (`onclick="…"` and every other `on…` attribute) never run: an app sets handlers from script (`addEventListener`, or the `onclick` property);
+- a script made after the start never runs: no `<script>` element added later, from markup or from script, and no `javascript:` URL;
+- WebAssembly compiles (`'wasm-unsafe-eval'`), and inline `<style>` and `style` attributes apply;
+- a `<script src>` never loads, wherever it is (`default-src 'none'`, and in the network runner too);
+- `document.write` is not available, and `<link>`, `iframe`, `frame`, `object` and `embed` elements are left out on the web (the runner's hint guard).
+
+A frame the app makes (`srcdoc`, `about:blank`) where one gets in runs no script at all.
+
+### Manifest
+
+UTF-8 JSON. **A reader ignores a key it does not know** (at the top of the manifest and in `runtime`), so a later version can add an optional key without every older client refusing the app; the signature and the digest still cover the manifest's bytes as they are, the unknown key included. Required keys, their types and bounds, `price` and `recovery`, and a file's exact `{path, size, sha256}` hold all the same, and a change an older client must not ignore raises `ghostlyApp`. `__proto__`, `constructor` and `prototype` are never keys, at any level, for a reader too (`unknown-key`): a reader keeps what it ignores, and those would name an object's prototype. **A writer is strict:** the publisher CLI and the library's builder refuse a key this table does not name (`unknown-key`), so a misspelt key never ships signed. **The manifest's bytes in the bundle must be exactly its canonical form** ([RFC 8785](https://www.rfc-editor.org/rfc/rfc8785), JCS): a client recomputes it and refuses a mismatch, so two parsers (JavaScript, Rust) can never read different values from one manifest, for example from a duplicated key.
+
+| Field | Required | Meaning |
+|---|---|---|
+| `ghostlyApp` | Yes | Format version: `1` |
+| `publisher` | Yes | The publisher key: Ed25519, 32 bytes, z-base32 |
+| `name` | Yes | `^[a-z][a-z0-9-]{0,31}$`, unique per publisher |
+| `version` | Yes | Semantic version ([SemVer 2.0.0](https://semver.org/)), at most 64 characters, shown to people |
+| `sequence` | Yes | An integer from 1 to 2^53 - 1 that rises with every version. Rollback protection compares it, never `version`. The CLI raises it by itself |
+| `kind` | Yes | `mini-app` in phase 1 |
+| `title`, `tagline`, `description` | Yes, yes, no | 40, 80 and 2000 characters at most (Unicode code points). Title and tagline are one line of at least one character; the description may hold line feeds. No other control character in any |
+| `entry` | Yes | The entry file, usually `index.html`: a path of `files` ending in `.html` |
+| `permissions` | Yes, may be empty | [Permissions](#permissions): in phase 1 only `chat`, `internet` and `name`, each at most once, in any order |
+| `view` | No | Where the app shows ([Per client](#per-client)): `chat`, the default when absent, runs only inside a 1:1 chat (a game such as Chess); `full` is a full-screen app, opened alone or from a chat. Any other value is refused (`bad-field`) |
+| `runtime` | Yes | `{"host": ">=1.2", "clients": ["web", "desktop"]}`, these two keys (a writer writes no other; a reader ignores another). `host` is `>=MAJOR.MINOR` or `>=MAJOR.MINOR.PATCH`. The clients, at least one and each once, are `web`, `desktop` and, once it runs apps, `extension`; a writer names only these, and **a reader accepts a client name it does not know** (a later client's, such as `android`: a lowercase name of at most 32 characters, at most 16 clients). **Both are advisory:** they are checked as the format says, and a store or the Apps page may show them, but no client refuses to install or run an app because of them (what an app may do is its permissions and the runner, never `runtime`) |
+| `license` | Yes | An SPDX expression (identifiers joined by `AND` and `OR`, `WITH` an exception, parentheses), or `proprietary`; at most 128 characters |
+| `sources` | No | At most 8 HTTPS URLs where newer bundles of this app are published, in order (for GitHub, the `raw.githubusercontent.com/<owner>/<repo>/HEAD/app.ghostlyapp` URL) |
+| `proofs` | No | Reserved for public proofs linking the publisher key to an identity people know ([Publisher identity](#publisher-identity)). **Phase 1 accepts it only absent or empty** (`[]`) and refuses any proof (`proofs-unsupported`) |
+| `homepage`, `support`, `releaseNotes` | No | Two HTTPS URLs and 500 characters of one line |
+| `files` | Yes | Every file: exactly `{"path", "size", "sha256"}`, sorted by path (byte order, no two equal), SHA-256 in base64url |
+
+Reserved and refused in phase 1: `price` (phase 2) and `recovery` ([Keys](#publisher-keys-no-rotation-in-phase-1)).
+
+**Every URL** of this WISP (`sources`, `homepage`, `support`, a store's `urls`, `repo` and `support`) is `https:`, at most 512 characters, with no user or password; on jsDelivr (`*.jsdelivr.net`) it is only `https://cdn.jsdelivr.net/gh/<owner>/<repo>@<commit>/<path>` with a full 40-character lowercase hex commit ([Stores](#stores)). **Paths:** a file under `screenshots/` is a screenshot (`.png`, `.jpg` or `.webp`, at most 8); `icon.png` is the icon (at most 256 KiB, a PNG whose header says it is square and at most 1024 pixels on a side: a client decodes the whole picture to draw it, so the pixels are bounded as well as the bytes). Other files are data. **Keys** are 52 z-base32 characters that decode to 32 bytes and encode back to the same text; **hashes** are 43 base64url characters without padding that decode to 32 bytes and encode back to the same text, and a signature 86 that decode to 64.
+
+### Signatures: one rule for every statement
+
+Every signed object in this document is signed the same way: Ed25519 over the bytes `<prefix>` + a zero byte + the SHA-256 of the object's canonical JSON. The prefix says what the object is, so no signature can be replayed as another kind:
+
+| Object | Prefix | Signed by | Phase |
+|---|---|---|---|
+| Package manifest | `ghostly-app/1` | Publisher | 1 |
+| Store index | `ghostly-store/1` | Store key | 1 |
+| Revocation | `ghostly-revoke/1` | Publisher | 1 |
+| Publisher proof statement | `ghostly-publisher/1` | Publisher | Later: publisher proofs are not in phase 1 (2026-10-06) |
+| Report | `ghostly-report/1` | Reporter | 2 |
+| Review | `ghostly-review/1` | Reviewer | 2 |
+| Licence | `ghostly-licence/1` | Publisher | 2 |
+| Key rotation, recovery key | `ghostly-rotate/1`, `ghostly-recovery/1` | Publisher, recovery key | Reserved |
+
+The signature statement in a bundle is `{"alg": "ed25519", "key": "<publisher key>", "sig": "<base64url>"}`: exactly these keys, its bytes canonical as the manifest's (at most 1 KiB), and `key` equal to the manifest's `publisher`. Signatures verify as RFC 8032 writes it (canonical encodings of the key, the point and the scalar), so two parsers accept exactly the same ones. A package is **valid** when the manifest is canonical and holds every bound, the signature verifies under `publisher`, and every file matches its size and hash. A client checks all of it before it stores a bundle, and the files again before it runs one. [Test vectors](#test-vectors) come before this draft is Proposed.
+
+**Reading a bundle, in this order.** Every parser checks in the same order, so a broken bundle gets the same refusal code from each; the code in parentheses is the one the [vectors](#test-vectors) pin.
+
+1. The whole is at most 16 MiB (`too-large`).
+2. The first 11 bytes are `GHOSTLYAPP1` (`magic`; fewer bytes that match are `truncated`).
+3. The manifest's length is at most 64 KiB (`manifest-too-large`), read before the manifest itself; then the manifest, the statement's length and the statement are there (`truncated`).
+4. The manifest is UTF-8 JSON (`not-json`) whose bytes are its canonical form (`not-canonical`: whitespace, keys out of order, a duplicated key, `1.0`, a byte order mark).
+5. Its fields: `ghostlyApp` is 1 (`unsupported-format`); no `price` or `recovery` (`reserved-key`), no `__proto__`, `constructor` or `prototype` (`unknown-key`), any other key outside the table ignored (a writer refuses it, `unknown-key`); every required key (`missing-key`); each field as the table says (`bad-field`), `proofs` empty (`proofs-unsupported`); at most 64 files (`too-many-files`); each path (`bad-path`, also a screenshot of another type), no two equal ignoring ASCII case (`path-collision`), sorted (`files-unsorted`); at most 8 screenshots (`too-many-screenshots`); the icon's size (`bad-icon`); the entry (`bad-entry`).
+6. The statement is canonical JSON with exactly `alg`, `key` and `sig` and `alg` `ed25519` (`bad-signature-statement`).
+7. The bytes after the statement are exactly the files' sizes added up: fewer is `truncated`, more is `trailing-bytes`.
+8. The statement's `key` is the manifest's `publisher` (`signature-key`), and the signature verifies under `ghostly-app/1` (`bad-signature`).
+9. Every file's SHA-256 (`file-hash`), in the manifest's order; then the icon's PNG header says it is square and at most 1024 pixels on a side (`bad-icon`).
+
+### Publisher identity
+
+- A publisher key is **not a profile key**. The CLI makes and keeps it ([Publishing](#publishing-the-publisher-cli)), so a developer's chat profile never signs packages and a signing key never sits in a browser.
+- **Later, not in phase 1** (the release 1.2 plan, 2026-10-06): publisher proofs and their `ghostly-publisher/1` statement are not built in phase 1, and a phase 1 client refuses a manifest whose `proofs` is not empty. Every phase 1 app shows its fingerprint, and "Unknown publisher" unless a curated store of the person's lists it. The design kept for then: `proofs` holds public proofs of [300](300-peer-proofs.md)'s kinds that work for anyone: the **GitHub SSH proof** (a `ghostly-publisher/1` statement signed with an SSH key GitHub publishes for the account, checked against `api.github.com/users/<login>/keys` as the existing proof does), and a domain proof. The CLI writes the GitHub one.
+- **What people see, in this order:** the verified proof ("github.com/ana ✓"), then the publisher fingerprint: the first 16 z-base32 characters of the key (80 bits), in four groups (`7f3k q9ax 81mz c4tp`). With no proof that verifies and no **curated** store of the person's listing the app, the card says **"Unknown publisher"** instead of any "Signed" badge: anyone can sign with a throwaway key, so a signature alone says nothing to a person. Only a curated store clears "Unknown publisher" and "Not in any of your stores": an **indexed** store's listing (the default index included, though the owner signs it, because a crawler chose its entries) shows "Found by <index>" and leaves both warnings in place.
+- A repository's URL alone proves nothing about the key.
+
+### Publisher keys: no rotation in phase 1
+
+Phase 1 has **one key per app and no rotation or recovery**. If a publisher key is lost or stolen, the publisher signs a revocation if it still can, starts a new app under a new key, and stores say so. Rotation is reserved (`recovery` and the `ghostly-rotate/1` and `ghostly-recovery/1` prefixes) for phase 2.
+
+Why not the recovery key now: in the first draft it sat in the manifest, which the publisher key signs, so a thief of that key could name a recovery key of its own. The fix, a recovery key pinned at first install and changed only by a statement the current recovery key signs, is right, and phase 2 adopts exactly that. But it adds a key people must keep offline, a chain to verify and a screen to explain, before any publisher has a key worth recovering. One key per app is easier to get right first. The cost, said plainly: **an app installed in phase 1 can never pin a recovery key later**, because pinning one at an update has the same thief problem. Its publisher moves to a new app under a new key when it wants rotation.
+
+**Revocation** (phase 1): a `ghostly-revoke/1` statement naming digests, or every version up to a `sequence`. The statement is `{"ghostlyRevoke": 1, "app": "<ref>", "digests": [...]}` (1 to 64 digests, each once) or `{"ghostlyRevoke": 1, "app": "<ref>", "upTo": <sequence>}` (every version with that `sequence` or a lower one), exactly one of `digests` and `upTo`, with an optional `"reason"` of one line of at most 200 characters, and no other key. A **signed revocation** is `{"statement": {...}, "signature": {"alg", "key", "sig"}}`, signed under `ghostly-revoke/1` by the key in the statement's `app`; a signature by any other key is refused (`signature-key`), as is a statement of another shape (`bad-revocation`). `ghostly-revoke.json` is a canonical JSON list of at most 4096 signed revocations, and one that does not verify refuses the file. **Published** in the app's repository as `ghostly-revoke.json` (a list of signed statements) next to `app.ghostlyapp`, and copied verbatim by stores into their index (`revoked`). **Read** at every update check from the app's `sources` and the person's stores; a client keeps every revocation it has verified. A client that sees one stops those versions with no "Run anyway".
+
+### Updates and rollback
+
+A client stores, per installed app, the publisher key, the highest `sequence` it has seen and the digest of that version, and, for an app installed from a store's listing, that store's key.
+
+- **An update is any valid package of the same app with a higher `sequence`.** Where it came from does not matter. The bytes are checked, not the messenger. **One exception, an app installed from a store** (the owner's decision, 2026-10-08): it updates only to the version that store's signed index lists, by `sequence` and digest. A newer version at the publisher's `sources`, or at a listing URL that moved on (a repository's `HEAD`), is not installed until the store lists it, so the store's review covers what installs by itself. The client then reads only that store's listing for it, takes from its `urls` only a bundle with the listed digest, and makes no request to the app's `sources` but for revocations (its files, fetched again for a restored profile, come from that store's listing too). Another store's listing does not update it. A version waiting for the person (it adds a permission) that the store no longer lists is dropped and never installed; the version the store lists now is looked at instead. The person installing another version by URL or from a card ends this (that source is their choice), and so does the person removing that store (they no longer take its curation, and the app's security fixes must still reach them): the app then updates as one added by URL. Installing from a store's listing starts it.
+- **Rollback:** a lower `sequence` is never installed over a higher one. The same `sequence` with a different digest is **equivocation**: the client keeps what it runs, refuses the other and marks the app ("Two different versions 7 exist. Ghostly kept the one you have.").
+- **Where the client looks:** the manifest's `sources` and the person's stores (for an app installed from a store, that store's listing only). Never at the contact who sent the app.
+- **When:** only once at least one app is installed: at start and every 24 hours, and when the person opens the Apps page. A person with no app installed makes no request to any store or source, so the preloaded store does not see every client's address each day. Browsing the store list is a request the person makes.
+- **Freeze** (every source serves an old version) is partly covered: a store index expires, so a frozen store is noticed; a frozen publisher repository is not, until a phase 2 publisher record (a Pkarr record under the publisher key naming each app's latest `sequence`).
+- **Uninstall** removes the files and the app's storage after offering an export of that storage. A [built-in app](#built-in-apps) is also marked removed, so it does not come back.
+
+**Where installed apps live (phase 1).** Bundles are kept by digest in the client's file-bytes storage, the same store as chat files ([501](501-paired-files.md)); the installed list (reference, `sequence`, digest, permissions, stores added) and each app's storage, keyed by (app reference, scope), go in the profile's database. **Export** is a JSON file `{"ghostlyAppData": 1, "app": "<ref>", "scope": "<local chat id, or alone>", "entries": {...}}`. A **backup** ([05](05-backups.md)) carries the installed list, the stores and the app storage, not the bundles: a restored profile fetches each bundle again by digest from its `sources` or stores, and shows "Needs its files" until one answers. A **device handoff** ([06](06-devices.md)) moves the same state, and the bundles as files by digest, which the handoff already skips when the taking device holds them.
+
+**TUF, evaluated:**
+
+| TUF piece | What it gives | Taken here |
+|---|---|---|
+| Root role, threshold of keys | Survives a compromise of some keys | Not in phase 1; phase 2's pinned recovery key is a threshold of one, offline |
+| Targets role | Which files, by hash | The manifest's `files` |
+| Snapshot role | Stops mix-and-match | One package has one manifest; a store has one index |
+| Timestamp role, short expiry | Detects freeze | Store index expiry; a publisher record in phase 2 |
+| Delegations | A repository delegates to developers | A store lists packages signed by their publishers |
+| Metadata format, client libraries | Interoperable, reviewed | No: it assumes one repository authority, and Ghostly has many publishers and stores. A smaller format of TUF's ideas, as F-Droid and Zapstore also chose |
+
+### Permissions
+
+A mini-app gets nothing by default but its frame and the broker. Phase 1:
+
+| Permission | What the app may do | Shown at install as |
+|---|---|---|
+| none | Draw in its frame; keep up to 5 MiB of its own data, **separately per chat** it is opened in, and separately when opened alone | "Keeps its own data on this device" |
+| `chat` | Exchange messages with the same app on the contact's side, in the chat where the person opened it, while the chat is live | "Talks to the same app on your contact's side" |
+| `name` | Read the person's display name in that chat | "Sees your name in this chat" |
+| `internet` | Reach any HTTPS or WSS server: `fetch`, `WebSocket`, `EventSource`, images, media and fonts from `https:`. Not plain HTTP, not WebRTC (still deleted: it would hand out the person's addresses beyond what the line says), not script, frames, workers, forms or navigation from anywhere | "Can use the internet: the app and the servers it talks to can learn your IP address and what you do in it" |
+
+**`internet` changes the runner, not the broker.** The client runs an app granted `internet` in a second runner, the same page under the network runner's policy ([The runner and the broker](#the-runner-and-the-broker)); every other app runs in the first. The client picks the runner from what the person granted, never from anything the app says or asks. An update that adds `internet` waits for the person like any added permission; an update that drops it applies by itself, and the app runs in the first runner from then on.
+
+**`name` is the name the contact already has, or nothing.** It is the name the person's profile tells the contact of that chat ([401](401-paired-chat.md), `paired-nick`), as the contact's app keeps it (the same cleaning, at most 64 characters), read when the app opens. `context()` has no `name` while the profile tells contacts no name (it has none, or its name and picture are not shared), before the contact was first heard from in that chat, and when the app is opened alone. It is always the profile's own name, never the name of an identity shared in the chat ([300](300-peer-proofs.md)): how a contact chooses to show the person (a nickname, one of their identities) stays on the contact's device, so the client cannot know it. An app therefore never learns a name the contact was not told.
+
+Storage is scoped per app and per chat so an app cannot carry data from one contact to another, or tie together the person's identities across chats.
+
+**Every install screen of an app without `internet` also says**: "No internet access. The publisher may still learn your IP address and when you open it." The sandbox closes every channel the reviews found but one: in WebKit on the web (Safari, and the installed web app on an iPhone) `<link rel=preconnect>` connects under every policy, so **there the screen adds**: "In this browser, an app can still contact other servers." The web runner's hint guard keeps such links out where it sees them (measured: none connected), but it runs in the app's own realm and is no stop ([Threats](#threats)). DNS prefetch and WebView2 are not measured yet, and a contact in a `chat` app always learns when the app is used.
+
+Later phases add, each with its own line: `files` (accepted 2026-10-12: [linked files](#linked-files-the-files-permission)), `network` (a narrower `internet`: an exact list of HTTPS origins, shown at install and re-asked when one is added), `realtime` (the unordered message mode and higher limits, for games), `cards` (read the task and routine cards the contact sent in this chat, for a bot's own app), `payment-request` (the client shows a payment the person approves; the app never sees a wallet), `clipboard-write`, `camera`, `microphone`, `notify`.
+
+**What re-asks:** an update that adds a permission waits for the person, who sees only what is new; one that removes a permission applies by itself. **What never happens:** an app that runs before the person pressed Install; a permission granted by a store or a contact; a permission granted for all apps at once.
+
+## Where it runs
+
+### The runner and the broker
+
+The runner is a small page **shipped inside the client**, never fetched. One runner hosts one app instance: two apps open at once are two runners.
+
+**Starting an app:**
+
+1. The client verifies the bundle and creates the frame (web, and later the extension) or window (Desktop).
+2. The runner checks that it is where it should be, and refuses to start otherwise: its origin is `"null"` and it has a parent (web, and later the extension), or its window label starts with `app-` (Desktop).
+3. The runner **deletes `RTCPeerConnection`, `webkitRTCPeerConnection`, `RTCDataChannel`, `RTCRtpSender`, `RTCRtpReceiver`, `RTCIceCandidate` and `RTCSessionDescription`** from its global object. This closes the WebRTC leak the review measured. `frame-src 'none'` blocks nested frames that have a URL, but not `about:blank` or `srcdoc` frames. Each of those gets an opaque origin of its own, so the runner's realm cannot reach their constructors (measured in Chromium and WebKit), but **the frame's own script has a fresh `RTCPeerConnection`**: in WebKit a `srcdoc` frame reached a STUN and a TURN server with the runner's policy in place (measured, Desktop spike). Deleting the constructors is therefore not the stop for nested frames. On Desktop the stops are `on_navigation`, which refuses `about:srcdoc` and `about:blank` frames, and WebKit's WebRTC switched off for the window; on the web (and later in the extension) the stop is the **nonce lock**, measured in Chromium, Firefox and WebKit:
+   - the runner adds a second policy for its page, `script-src 'nonce-N' 'wasm-unsafe-eval'`, with a `<meta>` it removes at once (the policy stays, the element does not);
+   - N is 24 random bytes, kept only in the runner's script, never in an attribute (it is set through the `nonce` property, whose accessors the runner then deletes, with `SecurityPolicyViolationEvent`'s `originalPolicy` and `ReportingObserver`, the places where a policy's text could be read back);
+   - every frame the app makes inherits the page's policies and cannot know N, so it runs no script, and with no script there is no `RTCPeerConnection`: a frame made by the parser from the entry's own markup is covered, and Chromium snapshots a frame's policy when the frame is inserted;
+   - before it takes the entry, the runner makes one `srcdoc` frame under the lock and refuses to start if that frame's script runs.
+   On the web the runner also **deletes `History`'s `pushState`, `replaceState`, `go`, `back` and `forward`, `window.navigation` and the Navigation API's methods**, and refuses to start where one stays: the frame shares the page's session history, so an app could otherwise add entries the person's Back walks through first, and in WebKit move the client's page back. A frame the app makes has an opaque origin of its own, so its `History` is out of reach. A fragment navigation (`location.hash`, a link to `#…`) cannot be refused, so the runner reloads on the first `hashchange`, and the load tears the app down.
+4. On the web (and later in the extension), after the frame's **first `load`**, the parent sends **one `MessageChannel` port** to it, once. The broker answers only on that port, never with `postMessage(…, "*")`. If the frame navigates, the port dies with the old document.
+5. The runner gets the verified entry: on the web (and later in the extension) over the port; on Desktop through `app_broker` (`start`), from the state Rust keeps for that window's label.
+6. The runner sends **`writing`** on the port and waits for the broker's answer. Then it writes the entry into itself (`document.open`, `document.write`, `document.close`). On the web the entry's `<script>` elements are taken out first, each left as a placeholder (the runner reads the entry with `DOMParser`, which runs nothing), and put back as scripts carrying the nonce; once the page is closed a last policy, `script-src 'wasm-unsafe-eval'`, allows no new script anywhere. The port, `window.ghostly` and the deleted constructors survive `document.open` (measured). From that moment **the runner is no longer a boundary**: the app runs in the same realm and can reach anything the runner left there. Every check belongs in the broker.
+7. `document.close` fires a second `load` of the frame. **The parent accepts exactly one `load` after `writing`, and tears the app down on any other `load`**: it closes the port, removes the frame and shows "<app> stopped". A frame that loads at any other time has navigated. (Measured order: load 1, port ready, `writing`, load 2, app running.) On Desktop, `on_navigation` refuses every navigation instead.
+
+**The broker** identifies an app by its port (web, and later the extension) or its window label (Desktop), never by origin, which is `"null"` for every sandboxed frame, and never by anything the app says. It answers only what the permissions allow. A **request** is at most 64 KiB, at most 50 a second per app; an app that sends ten times that rate (more than 500 messages within one second) is stopped, and on the web its port is closed and its frame removed. An answer can be larger (a file read through `ghostly.file`, up to the bundle's size). File reads are bounded in bytes too: one at a time, at most 16 MiB of answers a second per app (a whole bundle's worth); a read that starts under that is answered whole, and past it `file` is refused with `too-fast` until the second has gone.
+
+**The watchdog** (web; the owner's decision, 2026-11-03). Once the app runs (its second `load`), the page sends the event `{"event": "ping", "data": n}` on the port every second, a new `n` only once the last one was answered, and the runner answers `{"pong": n}` at once, before anything else it reads, with the `postMessage` it took before any app code ran. A pong is counted with the requests (a flood of them is stopped as any other), is never refused for the rate, and is never seen by the app. The page stops the app as **unresponsive**, closes its port and removes its frame, when, with the page shown:
+
+- its ping has waited 10 s for the answer: where the frame has a thread of its own (site isolation, as in desktop Chrome), an app that loops is stopped at the bound while the page runs on;
+- or a tick of the page's own timer comes 10 s after the last: where the frame shares the page's thread (WebKit, Chromium without site isolation), nothing of the page runs while the app loops, so the app is seen when it gives the thread back. The page cannot tell which frame held that thread, so every app running then is stopped.
+
+A tick while the page is hidden, and the first tick after it was, judge nothing: a frozen tab or a phone asleep is not the app's. Its place says "<app> stopped responding and was closed, so your chats keep working", with **Open again**. Desktop runs each app in a window of its own and has no watchdog.
+
+**The broker's messages (phase 1), the whole `ghostly.*` API.** On the port each request is `{"id", "type", "args"}`, each answer `{"id", "ok": true, "value"}` or `{"id", "ok": false, "error"}`, each event `{"event", "data"}`; an unknown `type` is refused with `unknown-type`. The broker reads `args` as `JSON.stringify` writes them: an object member that is `undefined` is left out, and `undefined` in an array becomes `null`; any other value that is not JSON (a function, a `Map`, a `Date`, a number that is not finite) refuses the request with `bad-request`. What is stored and what goes in a frame is therefore always plain JSON. `error` is a code the rows below name, `too-fast` past 50 requests a second or `too-large` past 64 KiB for any request; any other failure is `failed`. A later client may add a code, which an app reads as `failed`; the whole list is `MINI_APP_ERROR_CODES` in `@ghostlytools/sdk/app`. On Desktop the same objects travel as the argument and result of `app_broker`, the result and each event as their JSON text, which the runner parses (evaluated as a JavaScript literal, a `__proto__` member would set the object's prototype instead of being a key, as it stays on the web), and a `file` answer carries the bytes in base64 as `bytes`: the broker says where they lie in the client's file storage and Rust reads them there and checks their SHA-256, so they never cross the Ghostly window (where it cannot say, the broker carries them itself); events are emitted to that window only. In the sandbox a failed call rejects with an `Error` whose `message` is the code; the runner's own failures (no answer from the client) reject with `failed`, and arguments that are not JSON with `bad-request`, before they leave the runner.
+
+| `ghostly.*` | Message type | What it does |
+|---|---|---|
+| (runner only) | `start` (Desktop), `writing`, `activity`; on the web the event `ping` and its answer `{pong}` | The entry; the start of the write; the person tapped or typed in the app (a trusted `pointerdown` or `keydown`, at most one every 5 seconds), which the client's lock screen counts as activity only while the app's frame (web) or window (Desktop) has the focus. The app can send `activity` too. On the web it counts only while the client's page also has a transient activation (`navigator.userActivation.isActive`): the person's tap or key in the frame gives the page one (HTML § user activation), and no script can, so an app left in front with no one there cannot keep the lock away. On Desktop no activation reaches the client's window, so an app whose window has the focus can keep the lock away while it stays in front. One on screen beside a chat, or behind another window, cannot; the watchdog |
+| `ghostly.context()` | `context` | `{version, inChat, peer: {version} or null, name, theme, locale}` (`name` only with that permission; `theme` is `"light"` or `"dark"`, the client's; `locale` is the client's language as a BCP 47 tag, so the app can match both) |
+| `ghostly.file(path)` | `file` | The bytes of a file of the bundle, as an `ArrayBuffer`. Refused with `bad-path` when `path` is not a string of 1 to 1024 characters, with `no-file` when the bundle has no such file, with `too-fast` past 16 MiB of answers a second, and with `stopped` once the version running is removed or revoked |
+| `ghostly.storage.get(key)`, `.set(key, value)`, `.delete(key)`, `.keys()` | `storage.get`, `storage.set`, `storage.delete`, `storage.keys` | The app's storage in the current scope (this app, this chat or alone): keys up to 256 bytes, JSON values up to 64 KiB, 5 MiB in all, where each key counts 128 bytes, its own bytes eight times and its value's (what keeping a key costs the device: it keeps the key four times, mostly as UTF-16, so many keys, short or long, take about the room the 5 MiB says). Refused with `bad-key` or `too-large` past those bounds, with `full` when a write would pass 5 MiB, so the app can make room (a write that does not grow a scope already past it is taken), and with `stopped` once the version running is removed or revoked ([Takedowns](#takedowns-and-malware-reports-with-no-authority)) |
+| `ghostly.chat.send(value)` | `chat.send` | One `paired-app` data frame (`chat` permission, live chat, the peer open). Refused with `not-allowed` without the `chat` permission or with the app opened alone, with `not-open` before this side has opened it in the chat, with `offline` while the session is not live, with `too-large` when `value` passes 32 KiB as JSON, with `peer-closed` while the peer has not opened the app (or its client does not offer `apps/1`), with `too-fast` past 48 a second for this app ([In a chat](#in-a-chat-apps1)), and with `stopped` once the version running is removed or revoked |
+| `ghostly.chat.on("message" or "peer", f)` | events `chat.message`, `chat.peer` | A frame from the peer; the peer opened, closed or changed version, or the session went down or came back |
+| `ghostly.close()` | `close` | Ends the app |
+
+WebAssembly carried as a `data:` URL cannot be fetched (`connect-src 'none'` blocks `fetch` of `data:` too): the template decodes it in script, or reads it with `ghostly.file`, and compiles the bytes.
+
+**The runner's CSP**, sent as an HTTP header where the client can, so the `sandbox` directive holds even if the page is opened directly:
+
+```
+sandbox allow-scripts allow-pointer-lock; default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval';
+style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; font-src data:;
+connect-src 'none'; frame-src 'none'; worker-src 'none'; form-action 'none'; base-uri 'none';
+frame-ancestors 'self'
+```
+
+The runner's own script is inline, so `'unsafe-inline'` covers it and the app's inline scripts alike (a hash would turn `'unsafe-inline'` off). `'wasm-unsafe-eval'` lets games compile WebAssembly on every client. The runner's location must **not** carry the main page's policy: two policies intersect, and the main `script-src 'self'` would block the runner's inline code. It must still repeat the other headers every location sends (`X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Strict-Transport-Security`, `Permissions-Policy`), and sends `X-DNS-Prefetch-Control: off` (a header: the runner's own `<meta>` is gone once it writes the entry).
+
+**The network runner's CSP**, for an app granted `internet`: the same, with HTTPS and WSS added for fetches, sockets, images, media and fonts, and nothing else wider. It is the same runner page under another address (on the web `/app-frame-net.html`, its own nginx location; the service worker never answers it either):
+
+```
+sandbox allow-scripts allow-pointer-lock; default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval';
+style-src 'unsafe-inline'; img-src data: blob: https:; media-src data: blob: https:; font-src data: https:;
+connect-src https: wss:; frame-src 'none'; worker-src 'none'; form-action 'none'; base-uri 'none';
+frame-ancestors 'self'
+```
+
+Script stays the entry's only: code fetched from a server would run outside the bundle the person installed and its signature. The WebRTC constructors are deleted in both runners, and the nonce lock and the frame check are the same.
+
+**The web runner's hint guard** (defence in depth, both runners). In WebKit `<link rel=preconnect>` opens a connection under any policy, from the runner and from a `srcdoc` frame (measured), and a web server has nothing to stop it with. Before the entry is written the runner takes out every `<link>`, `iframe`, `frame`, `object` and `embed` in it, declarative shadow roots included, and `<script type=speculationrules>`; once it is written, the DOM's ways in (`appendChild` and its kin, `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `setHTMLUnsafe`, `Range`) leave them out of what goes in, an observer takes out any it sees, and `document.write` is not available. Measured in WebKit: of 19 ways to add a preconnect link, none connected with the guard, and 6 of 6 probed did without it. It runs in the app's realm, so it is a fence, not a stop: the threats table keeps the residual, and Safari's install screen says so. Apps therefore make no frames and no `<link>` elements.
+
+### Per client
+
+| Client | Phase 1 | Limits |
+|---|---|---|
+| **Web** (and the installed web app on phones) | An `<iframe sandbox="allow-scripts allow-pointer-lock">` of `/app-frame.html` from the app's own server. Opened in a 1:1 chat, it runs in a panel of that chat: beside the chat on a wide screen (the chat stays usable; the panel can take the chat's whole width), over it on a phone, where Back returns to the chat and the app keeps running. The panel's header, outside the frame, has the app's name, the contact and the chat's connection control. The frame is never moved in the page, since a moved frame reloads. Opened alone, it is full screen under the app's name. The manifest's `view` decides between them: a `chat` app runs only in a chat, so the Apps page asks which chat to open it in; a `full` app opens alone from the Apps page, and from a chat covers the whole chat at every width, with the contact, the connection and Back to the chat, never beside it. Its own nginx location, which does not include `nginx-headers.conf`, sends the runner CSP above with `frame-ancestors 'self'` (every other location keeps `frame-ancestors 'none'`). `/app-frame.html` is added to the service worker's `NEVER` list (`apps/web/src/sw/policy.ts`), so the page and its header always come from the server, never a cache. The main page's CSP gains an explicit `frame-src 'self'` | Same browser process as the app (no process isolation is assumed). In WebKit and in Chromium without site isolation, the same thread too: an app's work stops the page while it runs, and the watchdog stops one that holds it 10 s. **A self-hosted server that cannot send the header gets no apps:** the client fetches `/app-frame.html` once, and when the runner's header is missing it hides Apps (the owner's decision); the self-hosting notes name the header the location needs |
+| **Extension** | **Later, not in phase 1** (the owner's decision, 2026-10-06). The design stays: a **sandbox page** (`sandbox.pages`) as the runner, framed in the chat, with the runner CSP as `content_security_policy.sandbox` (keeps `sandbox`, no `allow-same-origin`; loading measured). `extension_pages` gains `frame-src 'self'`, which closed the self-navigation leak in the review | Built after a test submission passes the Chrome Web Store review (a second purpose next to chat, the extension's existing `debugger` permission). Until then the extension shows no Apps, and its engine offers no `apps/1` and refuses the app calls, even in a build with apps on. The extension's engine port carries JSON, so the engine calls that answer bytes (a bundle's file, an icon) need another shape there first |
+| **Desktop** | **In phase 1** (the owner's decision, 2026-10-06). A **window of its own** per app instance, label `app-<random>` (a `chat` app's is a small window beside the Ghostly one, a `full` app's the Ghostly window's own size), on a new scheme `ghostly-app` (`ghostly-app://localhost/` on macOS and Linux, `http://ghostly-app.localhost/` on Windows) whose handler serves the runner with its CSP header (Tauri's configured CSP is not injected into custom-scheme responses). One command, **`app_broker`**, is allowed only for `app-*` labels, in a capability of its own. `only_main` (`apps/desktop/src/main.rs`) gains one exception, `app_broker` from an `app-*` window, and keeps refusing every other command there; its test covers both. The runner's `connect-src 'none'` blocks Tauri's `ipc:` fetch, so its calls take Tauri's `postMessage` fallback, which reaches the same check. Tauri treats the `ghostly-app` scheme as local for its capability check, and `app_broker` reaches Rust through the `postMessage` fallback (measured, Desktop spike). A problem the spike finds gets fixed; Desktop is not dropped from release 1.2. The app's identity comes from a label-to-state map kept in Rust, as `viewer.rs` does for shared apps, never from the message. `on_navigation` allows the runner once and refuses every other navigation, a reload and every nested frame (`about:srcdoc`, `about:blank`) included. On macOS the window also gets a WebKit configuration of its own. **Required layers**, all public: the CSP header, the navigation lock, and a content rule list that blocks every load but `ghostly-app:`; an app window does not open without all three. The rule list closes `<link rel=preconnect>`, which the CSP does not, and the navigation lock closes WebRTC in nested frames (measured). **Defence in depth**, best effort: WebKit's `LinkPreconnect`, `LinkPreconnectEarlyHintsEnabled`, `DNSPrefetchingEnabled`, `LinkPrefetchEnabled` and `PeerConnectionEnabled` features off, through private API (`WKPreferences._features`). A WebKit that lacks one of these keys gets a line in the app's log and the window opens anyway; a unit test pins the list, so changing it is a reviewed change. A per-window proxy was measured and does nothing in WKWebView. On Linux (WebKitGTK) the same rule list is a user content filter (`WebKitUserContentFilterStore`, public API, required), added to the window just after it is made, and the broker holds the entry back (`start` answers "Not ready") until it is in; a filter that cannot be made closes the window. `WebKitSettings` turn DNS prefetch and WebRTC off, best effort. WebKitGTK has no public switch for preconnect, so the filter is its stop there. Windows equivalents are chosen from their own measurement; until then Desktop on Windows shows no Apps at all (the owner's decision, 2026-10-08): the client's one availability rule is off there, so no page, place in the bar, composer entry or app card shows, as with the feature off, and its engine offers no `apps/1` to contacts; `app_open` still refuses, saying so. A window for an app granted `internet` is served the network runner's CSP, and its rule list (or filter) also lets `https` and `wss` loads through, and nothing else: plain HTTP and WS stay blocked there as in the network runner's CSP; its WebRTC stays off. New windows are **denied without opening the system browser** (the shared-app viewer opens it; for an app that would be a way to send data out) | Not a frame in the main window: Tauri's bridge is in every frame, and on Linux Tauri cannot tell a frame's requests from its window's. WebKit honours the `sandbox` header from a custom scheme (measured on WKWebView and on WebKitGTK); under the header and the navigation lock alone, `<link rel=preconnect>` still connected on both, which the rule list or filter closes. On Linux, nested-frame WebRTC is closed by absence where WebKitGTK is built without WebRTC: the build measured (2.52.6, Arch) has no `RTCPeerConnection` even with `enable-webrtc` on, and Ubuntu, Debian and Fedora ship it the same way (why Linux calls run native). Where a WebKitGTK has WebRTC, it is closed by the navigation lock and `enable-webrtc` off, which is not proven; that stays a residual to re-check on such a build. WebView2 on Windows is measured before Apps is turned on there |
+| **Android app** (native, the Desktop code built for Android) | **Not in release 1.2** (the owner's decision, 2026-10-08). Apps is hidden there as on Desktop on Windows: the availability rule is off, and its engine offers no `apps/1`. Its app commands (`app_open`, `app_broker`) answer that they are not available on this platform | An in-window runner comes later, from its own measurement. The installed web app on Android (the PWA) and browsers on Android and Windows are the **Web** row and run apps there |
+| **CLI** | Publisher tools ([Publishing](#publishing-the-publisher-cli)), and the bot side of `apps/1` for the apps a profile serves ([A bot on the other side](#a-bot-on-the-other-side-and-the-agent-console)) | No apps run there, and it has no store: nothing is installed, no store or source is read, and no app storage is kept. A profile that serves no app offers no `apps/1` and refuses the app calls, even in a build with apps on. One that serves an app offers `apps/1` and answers the chat calls only; the bot side comes after release 1.2 and is in no release yet |
+
+### In a chat: `apps/1`
+
+A mini-app with the `chat` permission can talk to the same app on the contact's side.
+
+- `apps/1` is a session capability ([03](03-capabilities.md)) of the live chat session ([401](401-paired-chat.md)), listed in `paired-capabilities`. Its frame is **`paired-app`**, named like the session's other frames (`paired-message`, `paired-typing`). Three forms, all inside the session's encryption:
+  - `{"t": "paired-app", "a": "<chat app id>", "o": "open", "v": "<version>"}` when the person opens the app in this chat, again on an update, and again when the live session comes back while the app is open;
+  - `{"t": "paired-app", "a": "<chat app id>", "o": "close"}` when it ends;
+  - `{"t": "paired-app", "a": "<chat app id>", "d": <JSON value>}`, data, taken only while both sides have sent `open` and neither `close`.
+  - A frame has exactly one of `o` and `d`; one with both or neither is refused. `v` is required on `open`: a semantic version (as the manifest's `version`) of at most 64 characters, or the frame is refused. `a` is exactly 22 base64url characters. Other keys are ignored, so a later version can add some.
+- `<chat app id>` = the first 16 bytes of HMAC-SHA-256(key, message), base64url without padding (22 characters), where key = SHA-256 of the UTF-8 bytes `ghostly-apps/1`, a zero byte, then the two sides' participation public keys (32 bytes each, raw), the lower one first by byte order; and message = the UTF-8 bytes of the app reference `<publisher key in z-base32>/<name>`. Both sides keep those pinned keys for the life of the chat, including chats started from a group, whereas the invite secret is not kept by every chat ([800](800-invite-join.md)). The key is not secret and need not be: the id only travels inside the encrypted session; it keeps one app's id different in each chat, so ids cannot be matched across a person's chats.
+- **Size.** A data frame's `d`, as compact UTF-8 JSON, is at most **32 KiB**. `chat.send` refuses a larger value at the sender, so the app learns at once. The session's limit for any control frame, **60 KiB** (`LIMITS.maxControlFrameBytes` in `packages/core/src/frames.ts`), still holds above it and is not changed by this WISP: a frame over 60 KiB is dropped before it is read, as any other frame is. An app's frame therefore always fits, with room to spare for the frame's own fields.
+- **The receiver enforces the limits**, since the sender's client may be the attacker: it drops a data frame whose `d` passes 32 KiB, frames beyond 50 a second per app (counted by `a` before the rest of the frame is read, malformed ones included; a frame without a valid `a` names no app and is dropped unread), data for an app not open on both sides, an `open` for a 17th app while the peer has 16 open on this session (the ones held from its previous sessions counted, so quick re-dials cannot each open 16 more), and every `paired-app` frame unless both sides offer `apps/1`.
+- **The sender keeps under it.** A client sends at most **48** data frames a second per app, so an `open` or a `close` always fits under the receiver's 50; past that `chat.send` fails with `too-fast`. It also fails with `too-fast` while the session's channel already holds a quarter of what it may queue (a quarter of its send budget, or of `LIMITS.sendHighWaterMark` on a WebRTC channel, which has none), as files keep to one ([501](501-paired-files.md), Backpressure): on a link slower than the app sends, the chat's messages and pings still fit, and the app backs off and sends again. A transport holds what it sends in flight below that buffer (a UDX window, an SCTP congestion window), so the sender also counts what has not arrived: after an app's data it sends a `paired-ping` (when none of these is waiting for its pong, or once 16 KiB went since the last one), which the peer answers in the order frames come, and while 64 KiB of the apps' data on the session has no pong yet, `chat.send` fails with `too-fast`. Nothing new goes on the wire, and a peer that answers no ping is paced by the buffer alone. While a file goes on the session (files wrote on it or waited for room on it in the last 2 seconds), that quarter sits above what files may hold: a quarter of the send budget plus another quarter, or `LIMITS.sendHighWaterMark` plus a quarter of it on WebRTC. Files keep the channel at their own line for the whole transfer, so an app's small frame still goes beside them. While files wait for room, the app also gets no further than 16 KiB ahead of them: `chat.send` fails with `too-fast` once the app has sent that much more than the files since, and the files' bytes take it back as they go, so an app sending at its limit and a file each get about half the link. A shared service's body going on the session ([701](701-http-services.md)) counts as files here: its chunks and its waits for room hold the same line, so a page the contact loads from this side leaves an app the same room as a file does. `chat.send` names why a frame did not go: `not-open` (this side has not opened the app), `too-large`, `offline`, `peer-closed` (the peer has not opened it on this session, or does not offer `apps/1`) or `too-fast`.
+- **Live only (phase 1).** `paired-app` frames go on the live session only: never on the DHT text floor ([403](403-dht-text.md)), never held ([404](404-store-and-forward.md)), never queued for later. While the session is not live, `chat.send` fails with `offline`, the app shows that it waits ("Chess needs you both online"), and the client keeps no copy of app frames to send later.
+- **State per chat, and catch-up.** An app keeps its own state in its storage, which is per app and per chat ([Permissions](#permissions)), so a game survives a reload, a closed app or a lost session. When the session ends or a new one takes its place (a transport switch, a resume, a re-dial), each side's client **holds** the apps the peer had open for **10 seconds** from the end of the session they were open on: nothing is said to them and nothing is sent to them meanwhile (`chat.send` fails with `offline` or `peer-closed`). A new session within that time says `open` again for each, and the app hears only that `open`, never a close before it. One not said again by then, or when `apps/1` stops being agreed, is closed for its app, marked `offline` (no frame travels; the session is gone), and its broker emits `chat.peer` with the peer closed. When the session comes back and the app is open on a side, that side sends `open` again; once both have, each app gets `chat.peer` with the other's version and runs its own catch-up in data frames (Chess sends how many moves it has and the moves the other lacks). The client replays nothing: what to resend is the app's to decide.
+- **Nothing is advertised.** A client never lists its installed apps to a contact. The reference crosses only when the person opens an app in a chat: the client sends an app card, "Ana opened Chess". **A contact who does not have the app** sees the card with "Install to play"; installing it opens the app in that chat. The card is an `app` card of [405](405-status-cards.md#an-app) with `opened` set.
+- Two versions talk if the app says so: the broker hands each side the other's `version` from its `open` frame.
+- Not on the DHT text path, not in groups in phase 1.
+
+### A bot on the other side, and the agent console
+
+The other side of `apps/1` can be a bot on the headless CLI ([1100](1100-headless.md)) instead of a person's app. The bot runs no app code: it speaks the app's messages.
+
+- **Serving.** A bot serves an app from its signed bundle: `ghostly app serve <bundle file or https URL>`. The CLI reads the bundle with every check a client makes before it stores one ([Reading a bundle](#signatures-one-rule-for-every-statement)), and keeps the app's reference, version, `sequence`, digest, title and a URL of the bundle in the profile's folder (`apps.json`), nothing of its files. A newer version replaces the one served; a lower `sequence`, or another digest under the same one, is refused ([Updates and rollback](#updates-and-rollback)). `app served` lists them and `app unserve` removes one.
+- **Granting.** Each permission the manifest asks is answered on the command line, never by itself: `--grant chat` (talk to the same app on the contact's side) and `--grant name` (the profile's name in that chat, as [Permissions](#permissions) defines it). A permission asked and not granted refuses the command, naming it. `internet` is a page's and cannot be granted: no page runs here, and a bot reaches the network as its own program. An app that does not ask for `chat` is not served: a bot has nothing to speak for it. The person on the other side installs the app and grants its permissions as for any app.
+- **Offering.** The daemon of a profile that serves at least one app offers `apps/1`, and knows the chat app ids of those references only: a frame naming any other app names nothing to it and is dropped unreported. The engine reads the list when it starts, so the first app served takes effect at the daemon's next start.
+- **Opening.** Either side may open first. `ghostly app open <chat> <ref>` says `open` on the session, in the version served, and again on each session that comes back, as a person's client does; it also sends the app card of [405](405-status-cards.md#an-app) with `opened` set, made from the served bundle, unless the contact's app is open in that chat already. So a person a bot invites sees "opened Chess" and installs or opens the app from the card. When the person opens first, the daemon emits `app.opened {chat, app, version}`, and the bot answers with `app open`: a served app never opens by itself, so a contact cannot make a bot talk by opening an app. `app close` says `close`. What is open is held by the running daemon, not stored.
+- **Receiving.** For each frame of a served app open on both sides the daemon emits `app.message {chat, app, data}`, `data` being the app's JSON, and `app.closed {chat, app, offline?}` when the contact's side ends ([In a chat](#in-a-chat-apps1), with `offline` when the session went). `app` is the app reference. For an agent ([AI-AGENTS.md](../AI-AGENTS.md)) `data` arrives as the contact's untrusted data, never as instructions.
+- **Sending.** `ghostly app send <chat> <ref> '<json>'`, or the same call on the daemon's socket: one data frame, live only. A frame that does not go fails with the sender's reason of [In a chat](#in-a-chat-apps1) (`not-open`, `too-large`, `offline`, `peer-closed`, `too-fast`), and nothing is kept to send later.
+- **Limits.** The daemon's engine enforces the receiver's limits as any client does, and the sender's.
+- **State.** The CLI keeps no app storage. A bot that needs state between runs (a game) keeps it itself, per chat.
+
+Nothing here is new on the wire: the frames are `paired-app`'s three forms and the card is the `app` card, as between two people's clients.
+
+**The agent console**, a surface for talking to AI agents and bots with their status, thinking indicators, buttons and task and routine cards ([405 status cards](405-status-cards.md), [406 message buttons](406-message-buttons.md)): **chosen as a built-in screen, not an app.** Its data is the chat itself (the cards, the messages, the Tasks board), and an app that reads a chat's content would need the broadest permission this design could grant to third-party code. The pieces it shows are already built in, and a built-in screen needs no store, no permission and no sandbox. It belongs to the Tasks board's work, not to this WISP. What this WISP adds for bots is the path above: a bot can ship **its own specialised app** (a dashboard for one agent, a form, a game master), and such an app may ask for a narrow `cards` permission (phase 2): read the task and routine cards that this contact sent in this chat, nothing else.
+
+Phases: phase 1 (release 1.2) has person-to-person apps only. The bot side of `apps/1` (`app serve`, `app open`, the events, `app send`) was planned for phase 2 and is built after release 1.2, ahead of the rest of that phase, so that an agent can play Chess with a contact; the `cards` permission stays phase 2.
+
+## Discovery without a central server
+
+Three ways to an app, all equal and all checked the same way: **paste** a URL (in the Apps page or in a chat), browse a **store**, or install from a **card** someone sends in a chat.
+
+### Publishing: the publisher CLI
+
+A publisher needs four steps, about as many as Umbrel's template repository, two YAML files and a pull request:
+
+1. `ghostly app init <dir>` writes a small working app: `ghostly-app.json`, one `index.html` typed against the broker's typings, and a README with the steps below.
+2. Write the app. One that grows past a single page is built into one self-contained HTML file with the publisher's own tools.
+3. `ghostly app publish` makes the publisher key on first run (kept by the CLI, with a reminder to back it up), raises `sequence`, bundles, signs, writes the GitHub SSH proof into `proofs` (once publisher proofs exist, after phase 1), and writes **`app.ghostlyapp` at the repository root** (or on a `ghostly` branch). Committing the built bundle is required: a page cannot read GitHub release assets (no CORS).
+4. Optional: `ghostly catalog submit <store repository>` writes the listing and opens the pull request to a store.
+
+In release 1.2 the CLI has `ghostly app init` (writes the starting folder, and nothing over a file that is there unless `--force`), `ghostly app publish`, `ghostly app verify` (checks a bundle as a client would), `ghostly app revoke` (signs a `ghostly-revoke/1` statement with the app's publisher key and adds it to `ghostly-revoke.json` beside the bundle, [Revocation](#publisher-keys-no-rotation-in-phase-1)) and `ghostly store sign` (signs a store index with the store key). The broker's typings ship as `@ghostlytools/sdk/app`: the `window.ghostly` API, the messages, the refusal codes, the limits and the manifest's type, with nothing imported at run time, so an app bundles only the constants it uses. A single-file build in the template, the SDK's commit-reveal helper and `ghostly catalog submit` come later; until then a publisher builds a larger app with its own tools and writes the listing by hand.
+
+### Paste a URL
+
+The person pastes `https://github.com/<owner>/<repo>` (or a `/tree/<ref>` form) in the Apps page, or in a chat as a message. The client reads, **without `api.github.com`** (and without any request to `github.com`):
+
+- `raw.githubusercontent.com/<owner>/<repo>/<ref or HEAD>/app.ghostlyapp`, an app, or
+- `raw.githubusercontent.com/<owner>/<repo>/<ref or HEAD>/ghostly-store.json`, a store,
+
+or, for a file as GitHub shows it, `https://github.com/<owner>/<repo>/blob/<ref>/<path>` (or `/raw/<ref>/<path>`) naming a `.ghostlyapp` or `.json` file, that file at `raw.githubusercontent.com/<owner>/<repo>/<ref>/<path>`. Any other `github.com` page is answered as a GitHub page that holds no app, so the person pastes the repository or the file instead; it is never refused as a host off the list. The client then shows the app's card or the store's summary, and installs or adds only when the person confirms. `HEAD` is fine because the signed digest, not the commit, pins the bytes: the client keeps the `sequence` it saw and treats what comes later by the update rule. In phase 1 the Apps page reads only the hosts a card may name, `raw.githubusercontent.com` and `cdn.jsdelivr.net` pinned to a commit: a pasted URL of any other host is refused before any request. A pasted URL of those hosts with a query or a fragment is refused before any request too (revision 2026-11-03): a private repository's file link carries its read token in the query, and the URL an app is installed from is the one its card names to a contact ([405](405-status-cards.md#an-app)). A `github.com` link's query never reaches the file read, so it is not refused. Other HTTPS hosts come later, once the Apps page can say which host will learn the person's address before it asks.
+
+### Stores
+
+For people there is **one concept, "Stores"**: a list on the Apps page, the default one preloaded and removable, others added by paste or from a card. Each shows its name, its key's fingerprint, and whether it is curated or indexed.
+
+**The store index, `ghostly-store.json`**, signed (`ghostly-store/1`):
+
+```
+{"ghostlyStore": 1, "key": "<store key>", "name", "description", "kind": "curated" | "indexed",
+ "sequence", "expires",
+ "apps": [{"ref", "sequence", "digest", "urls": [...], "title", "tagline", "category",
+           "developer", "submitter", "repo", "support"}],
+ "removed": [{"ref", "digest", "reason", "at"}],
+ "revoked": [<publisher-signed ghostly-revoke/1 statements, verbatim>]}
+```
+
+- **Fields.** Times (`expires`, `at`) are Unix seconds. Required: `ghostlyStore` (1, else `unsupported-format`), `key`, `name` (one line, 1 to 40 characters), `kind`, `sequence` (1 to 2^53 - 1), `expires`, `apps`, `removed`, `revoked`; `description` (2000 characters, line feeds allowed) is optional. An `apps` entry requires `ref`, `sequence`, `digest`, `urls` (1 to 4), `title` (40) and `tagline` (80), and may have `category`, `developer` and `submitter` (one line of 40 characters each) and `repo` and `support` (URLs); one app is listed at most once (`duplicate-app`). A `removed` entry is `{ref, digest, reason, at}`, the reason one line of 1 to 200 characters. `apps`, `removed` and `revoked` hold at most 4096 entries each, and the index at most 16 MiB before compression. **A reader ignores a key it does not know** in the index, a listing or a removal (a later store's optional field), so one new key never makes a client refuse the whole signed index; the signature still covers it. A writer (`ghostly store sign`, the library's `signAppStore`) refuses one (`unknown-key`), so a misspelt key is never signed. `__proto__`, `constructor` and `prototype` are refused by a reader too (`unknown-key`), as in a manifest. A missing required key is refused (`missing-key`), a field out of bounds is `bad-field`, a `revoked` entry keeps the exact keys of a signed revocation, and a `revoked` entry that does not verify refuses the whole index (`bad-revocation`): the store copied it, so a broken one is the store's fault.
+- **Reading, in this order:** size (`too-large`), JSON (`not-json`), canonical bytes (`not-canonical`), the fields as above with the shape of each `revoked` entry (`bad-revocation`), the signature statement (`bad-signature-statement`), the store key the reader holds (`store-key`), the signature (`signature-key`, `bad-signature`), the signature of each `revoked` entry (`bad-revocation`), then `expires` (`expires-too-far`). The index's own signature comes before its revocations': a signature check is the costly step and an index holds up to 4096 revocations, so an index nobody signed, or one under another key than the reader holds, costs its reader at most one check. **A reader that shares its thread with a page** checks an index a few milliseconds at a time, and need not check again a revocation it has verified (kept by the SHA-256 of its canonical bytes, statement and signature), so an index that changes around its revocations costs the new ones.
+- **Signature:** `ghostly-store.sig` beside it, the same statement as a bundle's (`{"alg": "ed25519", "key", "sig"}`, prefix `ghostly-store/1`). The index's bytes must be its canonical form, as a manifest's. Keys are z-base32, hashes and signatures base64url.
+- `urls` point at the bundle: the publisher's raw URL, and a jsDelivr URL pinned to the commit the curator reviewed (immutable, and kept after a repository is deleted). **Every listing MUST carry at least one such immutable URL**, a jsDelivr URL at a full commit; for a bundle the store hosts itself, that is the store repository's own commit. A raw `HEAD` URL alone serves the listed version only until the repository moves on, and from then on no one can install it. A store's check refuses a listing without one. **Installing from a listing takes exactly the listed version:** the client tries the jsDelivr URLs first, then the others in order, so it does not download a bundle of up to 16 MiB only to skip it, and skips one whose bundle has another digest (a raw `HEAD` that moved on to a version the store has not reviewed), and refuses with `unlisted` when none holds it. The app then updates from that store's listing only ([Updates and rollback](#updates-and-rollback)). **A jsDelivr URL MUST name a full 40-character commit**, as `https://cdn.jsdelivr.net/gh/<owner>/<repo>@<commit>/app.ghostlyapp`; one naming a branch, a tag, a version range or `latest` is refused wherever it appears (an index, a card, the Apps page), since jsDelivr serves those from a copy that moves.
+- The listing fields are Umbrel's (`tagline`, `category`, `developer`, `submitter`, `repo`, `support`). The icon, the screenshots and the description come **from the bundle**, which the publisher signed, never from the store, so a store cannot dress an app in someone else's pictures.
+- `expires` is at most 90 days ahead of the reader's clock (`expires-too-far`); past it the store still installs, and the Apps page says "<store> was not updated since <date>". A lower `sequence` than the one held is refused (`rollback`), and the same `sequence` with other bytes (another SHA-256 of the index) is refused as equivocation, the held index kept, as for apps. A store is its key: an index under another key than the one the person added is another store (`store-key`).
+- A store's repository is a folder per app, as Umbrel's: `apps/<name>.<publisher prefix>/listing.json`, the prefix being the first 16 characters of the publisher key, where `listing.json` is exactly one entry of `apps` above (the same keys, nothing else: a store checks it as a writer, strictly), written by `ghostly catalog submit` (by hand in release 1.2). A store that hosts a bundle itself keeps it beside the listing, as `app.ghostlyapp`, with the publisher's `ghostly-revoke.json` when there is one. The signed `ghostly-store.json` is built from those files. The client reads only `ghostly-store.json`.
+
+**Ghostly's default store** is one repository of its own, [github.com/MiguelMedeiros/ghostly-store](https://github.com/MiguelMedeiros/ghostly-store), separate from Ghostly's repository, so its pull requests and takedowns stay apart from the app's (the owner's decision, 2026-10-06), curated by the maintainers. The client reads its index at `HEAD` from `raw.githubusercontent.com` and pins its key; while the key is not set in the client, the default store is off. The owner signs each index with `expires` at most 80 days ahead, so a client whose clock is late still reads it under the 90-day rule. Apps enter by **pull request**; CI checks each submission (the bundle at `urls` has the listed digest and verifies, the bounds hold, the listing is well formed); **the owner signs `ghostly-store.json` with the store key, held offline**, in batches. A key held by CI would make a GitHub account takeover a store takeover.
+
+**First-party mini-apps** (Chess, in `apps/mini/chess` of Ghostly's repository) are signed by a **publisher key of their own, distinct from the store key**. The store key lists apps and never signs a package, so a stolen store key cannot sign an app update, and a stolen publisher key cannot sign a store index. A first-party app enters the default store by the same pull request as anyone's.
+
+**The default index** (release 1.3, with its crawler; phase 1 has the default store, stores added by URL and apps added by URL or card) is a second signed file in the same repository, `index/ghostly-store.json` with `"kind": "indexed"`, built by a crawler script. The crawler's input is `index/sources.json` in that repository: a list of store URLs and app repository URLs, extended by pull request (no crawling of GitHub search in phase 1). **The owner's offline key signs both files for now** (the owner's decision); a separate index key, itself signed by the owner's key, only if signing by hand becomes the bottleneck. The client reads both directly; no service runs. Both are preloaded; either can be removed.
+
+**A custom store or index** is any HTTPS URL serving a signed store index: a Git repository, GitHub Pages, any static host. The crawler is in this repository (planned, `infra/services/indexer`), runnable by anyone as a script or a Docker image (an Umbrel package is a candidate). An indexer service with search, reviews and reports is phase 2 and optional.
+
+**Several stores at once.** Results are merged by app reference, and each shows "in <store>" for a curated store or "Found by <index>" for an indexed one. When stores disagree (versions, removals), the page shows both. A store lists and ranks; it cannot change what installs.
+
+**Privacy.** The client downloads whole store indexes and searches locally; a store host sees the address and time of each index download, not what the person looks for. A phase 1 client reads at most 4 MiB of an index and stops there, refusing it (`too-large`): counted on the response body as it arrives, after any compression is undone, since a page never sees the compressed size. The format's own bound stays 16 MiB.
+
+**Paid ranking**, for later: an entry may be marked `promoted`, shown "Promoted by <store>"; the merged list sorts by the client's own relevance, never by one store's order across others.
+
+**Umbrel and Ghostly, side by side:**
+
+| | Umbrel | Ghostly (this draft) |
+|---|---|---|
+| What is installed | Docker containers on a server the person owns | One signed HTML app in a sandbox on each device; no server |
+| Where the code lives | In the store repository | In the publisher's repository, as one committed bundle; the store points to it |
+| How it is fetched | `git clone` on the server | One HTTPS read of the bundle (raw GitHub or jsDelivr, both CORS-readable) |
+| Signatures | None | Publisher signature on every package, store key on every index |
+| Pinning | The default branch's tip, polled every 5 minutes | `sequence` and digest per app; the jsDelivr URL pinned to a commit |
+| Adding | A store by Git URL | A store or a single app by URL, or an app from a chat |
+| Default store | Cannot be removed | Preloaded, removable |
+
+**If GitHub takes a repository down, or is blocked:** installed apps keep working (the client runs its stored copy, nothing phones home); updates come from any other `urls` or `sources` entry (for an app installed from a store, its listing's other `urls`, such as the commit-pinned jsDelivr copy); new installs come from jsDelivr's commit-pinned copy, any other host, or a bundle a contact sends. The digest makes every source equal, and a chat needs no web host at all.
+
+### Built-in apps
+
+A built-in app is an app like any other: the bundle its publisher signed, checked the same way, run in the same sandbox, updated by the same rule. Two things differ: the first copy comes with the client, and the person does not have to look for it. Release 1.3 has one, Chess.
+
+**The list.** The client carries a short list (`BUILT_IN_APPS`). Each entry is the app's publisher key and name (its reference), the digest of the bundle this build carries, the public URL that bundle is published at, on a host of [Stores](#stores), and the bundle's own title and tagline, which its row shows before the file is read. The list is part of the client's source, so adding an app is a reviewed change of Ghostly. A store cannot add one, and being listed in the official store gives an app no such standing. An entry that is not whole (a bad key, name or digest, a URL off the hosts list, no title or tagline) is skipped.
+
+**The bundle.** The bundle is not kept in Ghostly's repository. When a build is made, it reads the file from the app's own repository at a pinned commit (jsDelivr, or the same commit on raw.githubusercontent.com), tells it by the pinned digest, and stops if it cannot have it. The build then carries the bundle as a file of the client: a file of the web app's build, kept by its worker with the rest of the app so it is there offline (262 KB for Chess, once per version), and a file of the Desktop application. The client reads it only when the person opens the app, never at start and not to list it, and checks it whole, as it checks a fetched one: the publisher's signature, every file's hash, a digest equal to the pinned one and a reference equal to the entry's. A file that fails any of these is not an app, and nothing of it is kept. Reading it asks no server anything beyond the client's own files. A build that carries no file for an entry does not offer that app.
+
+**Offered, not installed.** Until the person opens it, a built-in app has no record, no stored file and no permission. It is drawn with the installed apps from the list. The first time it is opened, from the Apps page, a chat's + menu or a contact's card, the person sees the install screen's permission sheet with what the app asks and one button, "Allow and open". The screen says the app comes with Ghostly and that nothing is downloaded, in place of the line that names the host a fetched app was read from. Allowing installs it, exactly as an install from a store does, and nothing is granted before that ([Permissions](#permissions)). The installed record names the entry's public URL as where the app came from: that is the URL a card sent to a contact names, and where its revocations are read. It is installed with no store pinned, so it updates as an app added by its URL does ([Updates and rollback](#updates-and-rollback)): to a valid version with a higher `sequence`, from its sources or any of the person's stores, even after the person removed the official store.
+
+**No stranger's warning.** The version an entry pins is one the client itself vouches for, as a curated store vouches for what it lists, and its list is read with no request, where a new profile has read no store at all. So that version shows its publisher's fingerprint without "Unknown publisher" and without "Not in any of your stores": on the install screen of its first open, and once installed, on its row and its screen, which says "Comes with Ghostly" where a store would be named. Only the pinned digest has this. Another version of the same app, a newer one the app updated to included, is judged by the person's stores as any app is ([Publisher identity](#publisher-identity)).
+
+**The same bytes elsewhere.** A contact's card that names the very version the build carries opens from the build too, with no request; a card of another version is fetched as any card's ([Apps sent in a chat](#apps-sent-in-a-chat)). A profile restored from a backup, whose apps wait for their files, takes a built-in app's files from the build when it has that version installed.
+
+**Removing sticks.** A built-in app never opened has a Remove button on its row. Uninstalling a built-in app, opened or not, marks its reference "removed by the person" in the profile's database, in the same step as the uninstall. A marked app is not offered again: not at a start, not by a later build that carries a newer bundle, not by an update. The mark goes when the person installs the app themselves, from a store, a link or a card, and comes back if they remove it again. A backup carries the marks. "Clear all data" drops them with the installed apps, and the profile is then offered the built-in apps as a new one is.
+
+**Existing profiles** need no step of their own: a profile is offered each built-in app it has neither installed nor removed, so a profile from before release 1.3 sees Chess once, and one that has Chess installed keeps its own.
+
+Built, for release 1.3: the list with Chess 2.3.0 (`sequence` 4, the version the official store lists), the offer rule, the marks and the read from the build, in the engine (`packages/browser/src/engine/apps.ts`, `appDefaults.ts`); the bundle as a file of the web app and Desktop, read at build time by `apps/ui/scripts/built-in-apps.mjs` from the pins in `apps/ui/src/assets/apps/built-in.json`; and the screens: a built-in app's row on the Apps page and in a chat's Apps ("Comes with Ghostly"), its first open through the install screen ("Allow and open", "Comes with Ghostly. Nothing is downloaded.", no stranger's warning), and Remove. The e2e suite's build has built-in apps off unless a spec turns them on.
+
+### Apps sent in a chat
+
+A chat is a source like any other, so installing never depends on one store.
+
+**Two forms, one file:**
+
+- **A pointer card.** The person shares an app (Apps page, "Share", or a pasted URL that holds an app). The sender's client attaches an `app` card in the message's `sc` field, as [405 status cards](405-status-cards.md#an-app) defines it: `{"kind": "app", "id", "ref", "digest", "sequence", "title", "version", "url", "opened"}`, `opened` only for the "Ana opened Chess" card. The message's text is the card's fallback, with the URL on a line of its own, so an older app shows a link.
+- **The bundle as a file** (after phase 1), with `files/3` ([501](501-paired-files.md)). The receiver's client recognizes the bundle by its first bytes and shows the same card on the file bubble. The files' consent rules hold: arriving is not installing.
+
+**The card is shown from its own data, and nothing is fetched to show it.** A pointer card's fields are the sender's, unsigned, so the card says so: title and version from the card, a generic icon, the publisher fingerprint from `ref`, and "Not checked yet". **The client fetches the bundle only when the person presses Install**, then checks it and shows the real install screen (icon, proof, permissions) before anything is stored. In phase 1 a card's `url` must be on `raw.githubusercontent.com` or on `cdn.jsdelivr.net` pinned to a commit ([Stores](#stores)); any other host is refused on a card (it still works pasted in the Apps page, where the person chose it). Later, a card may name another host, and the client then names that host and waits for the person before any request (the owner's decision). A bundle sent as a file is checked as soon as it arrives, since it is already on the device, and its card shows the checked data.
+
+**After the check, the card and the install screen say:** "github.com/ana ✓" or "Unknown publisher", the fingerprint, "Sent by <contact>", the permissions, the IP line, and one of "In <store>" (a curated store), "Not in any of your stores" (installable: the owner's decision; shown also when only an index lists it, with "Found by <index>") or "Removed by <store>: <reason>" (not installable).
+
+**When the card names a `sequence`** and the bundle fetched has a higher one of the same app, that is fine: it is newer. A lower one is refused.
+
+**The sender is not the publisher.** A card or a bundle is carried, not vouched for, and says "Sent by Ana", never "Ana's app". A forwarder cannot change a byte without breaking the signature.
+
+**Updates** of an app received in a chat come from its `sources` and the person's stores, never from the sender. A newer valid version that arrives later in any chat is taken as an update.
+
+**What keeps a chat from becoming a malware channel:** unsigned or broken bundles are refused ("Not signed. Ghostly won't install it."), with no "install anyway" (developers sign test builds with a throwaway key); nothing installs or runs from a card by itself; the same sandbox and broker; removals and revocations checked before Install is enabled; at most 3 cards per message.
+
+**Stores are shareable the same way, later:** a store's URL in a message will get a store card ("Store · <name> · 24 apps", "Add store"), shown from the sender's data and read only when the person presses Add. Its `store` kind is not defined in [405](405-status-cards.md) yet; until it is, a store's URL travels as a link, and the person adds the store by pasting it in the Apps page.
+
+This is what makes **the default store one source among many**: apps and stores spread from person to person, and the client gives the default no power the others lack.
+
+### Takedowns and malware reports, with no authority
+
+- **A store** removes an app with a `removed` entry and a reason.
+- **A publisher** revokes its own versions.
+- **The client** checks the stores the person added at every update check. When one marks an installed digest as removed for malware, the app is **stopped** and the person decides: "Remove", "Keep it stopped", or, behind "Details", "Run anyway". A publisher's revocation stops it with no "Run anyway". **An app already running is stopped too**, whatever its frame does: from the check on, the client refuses its storage, its files and its frames to the contact (`open` and data) with `stopped`, and every update check, the scheduled one included, is told to the pages so they read the apps again and close its frame. Where the app ran, the client says why until the person closes it ("Chess was stopped: its maker revoked this version", or that a store removed it); a Desktop app window closes. A run the person started with "Run anyway" goes on after a removal; nothing goes on after a revocation. Exporting the app's data stays possible.
+- **Reports** (phase 2) are signed (`ghostly-report/1`) statements sent to an indexer service; the client never sends one the person did not write.
+
+A store the person did not add has no effect on their device.
+
+## Paying (phase 2)
+
+The owner chose free apps only for now. This section keeps the design so the format leaves room for it.
+
+**Rails.** Chat payments ([200](200-payments.md)): Cashu first (every client, a test mint, the faucet button), then Lightning cards. Testnet first; every Mainnet purchase passes the `confirmedReal` gate.
+
+**A purchase.** `price` is `{"amount", "unit": "sat", "seller": "<HTTPS URL>"}`. The seller is a **sales bot**, the publisher's headless CLI ([1100](1100-headless.md)). A `ghostly1` code pairs exactly one chat ([800](800-invite-join.md#baseline-and-purpose)), so the `seller` URL answers each request with a fresh invite the bot made. "Buy" opens that chat; the bot sends a `pay-req`, the person pays in the sheet they know, and the bot answers with a licence and message buttons ([406](406-message-buttons.md)) for support or refunds.
+
+**The licence.** `{"ghostlyLicence": 1, "app", "holder", "versions", "issued", "payment"}`, signed `ghostly-licence/1`. The holder key is HKDF-SHA-256 with the DID seed as input, salt `ghostly-licence/1` and the publisher key as info: per profile (it follows backups and [06](06-devices.md) handoffs; a licence per device would break at every handoff) and per publisher (publishers cannot link one buyer's purchases). Limits, said plainly: a device removed under [06](06-devices.md) keeps the DID seed and so every licence key; and a review that showed "Bought it" would expose a holder key, so reviews never show it.
+
+**What a licence gates:** the honest client installs and updates a paid app only with a valid licence, checked offline. The files of a public bundle can still be copied. No DRM. Refunds are the publisher's policy, paid back in the same chat. Key loss: the licence is lost with the profile when there is no backup.
+
+**Every derivation from the DID seed,** kept in one list so labels never collide:
+
+| Key | Derivation | Where |
+|---|---|---|
+| DID key | The seed itself, as an Ed25519 seed | [310 did:dht](310-did-dht.md), `packages/browser/src/engine/did.ts` |
+| First device-set secret `D0` | HKDF-SHA-256, salt `ghostly-devices/1`, info `device-set` | [06](06-devices.md#terms) |
+| Licence holder key | HKDF-SHA-256, salt `ghostly-licence/1`, info = publisher key | This WISP, phase 2 |
+| Reviewer key | HKDF-SHA-256, salt `ghostly-review/1`, info `reviewer` | This WISP, phase 2 |
+
+A new derivation adds a row here, or to the WISP that owns it with a link here.
+
+## Reputation (phase 2)
+
+- **A review** is `{"ghostlyReview": 1, "app", "digest", "rating": 1-5, "text" (2000 characters), "at", "reviewer"}`, signed `ghostly-review/1` by the reviewer key: one pseudonym per profile, the same across the person's reviews.
+- Indexer services collect reviews; a person can share one in a chat as a card.
+- **The client shows** reviews from the person's contacts first (a review card received in a chat is that contact's), then each indexer's, labelled, with counts per indexer, never added into one number.
+- **Sybil resistance:** no global score, no follower counts, no weight for payment, and no "Bought it" mark (it would link licence keys across publishers).
+- **Conflicts are shown:** "In <store> · removed by <other store>".
+
+## The person's files through an app: linked files, a read lane and sending ahead
+
+**Accepted as the direction by the owner on 2026-10-12, and not built.** It answers what Cinema, the app that streams a person's own films and series to a contact ([ghostly-cinema](https://github.com/MiguelMedeiros/ghostly-cinema)), found missing in phase 1. Its three parts are built in the [order below](#order-of-work-files), each as its own change; the names of calls, frames and the permission are fixed when the first part is built, with vectors then ([00](00-process.md#revisions)).
+
+### What an app does with a person's files today (measured)
+
+Cinema 0.1.0 works with phase 1 alone, measured on 2026-10-12 (Playwright 1.63, Chromium and WebKit, each side in the web runner's frame under its header; and two web clients of `dev` paired over the e2e relay):
+
+| Need | Today | What it costs |
+|---|---|---|
+| Read a folder the person picks | `<input type=file webkitdirectory>` in the frame gives `File` objects, read in ranges with `slice`, nothing copied. Desktop's window uses the WebView's own open panel, which allows folders (wry 0.57, a hand check) | **Gone when the app closes.** The person picks the folder again at every open; the app keeps only what it read about each file in its 5 MiB |
+| Play video in the frame | Media Source plays and seeks in the sandbox: Chromium with `URL.createObjectURL(mediaSource)`, WebKit only with `video.srcObject = mediaSource` (it refuses the `blob:null/` URL); a plain `blob:` URL of a picked file plays on both | Nothing: no change needed |
+| Get a film to the contact | `apps/1` data frames: base64 in JSON, at most 32 KiB, 48 a second, on the chat's own ordered channel. Cinema keeps a window of chunks unacknowledged and sends again a frame refused while the contact is still open | **About 8.8 Mbit/s at best** (measured 8.1 to 8.4 with a 300 MB, 8 Mbit/s film, both ends on one machine). On Iroh and HyperDHT in a browser a full channel answers `offline`, the same code as a lost session, so the app cannot tell the two apart, and relayed paths are slower. A Blu-ray rip (15 to 30 Mbit/s) does not play, and a stream slows every other frame of the chat |
+| Watch without the person online | Nothing: `apps/1` is live only | The travel case (a film watched on a plane) has no answer |
+
+### Linked files (the `files` permission)
+
+A second kind of library entry beside the copied one of [phase 2](#bigger-bundles-and-the-persons-own-files): **linked**, the client keeps a reference to a file the person picked, never a copy. It fits a library of hundreds of gigabytes, which the 1 GiB copied library does not.
+
+- **Permission `files`.** Shown at install as "Reads the files and folders you pick, and can share them with your contact in the chat". Nothing below is answered without it (`not-allowed`). A client that does not know `files` refuses the manifest (`bad-field`), as it should: the app needs a newer Ghostly.
+- **Picking.** `ghostly.files.pick({folder, accept})`: `folder` true for a folder (with everything under it), false for files; `accept`, at most 32 extensions (`["mp4", "srt"]`). The client, not the frame, shows the request ("Cinema asks to read a folder") and its own picker, on a click the person makes in the client. It answers the entries picked: `{id, path, size, modified}`, where `path` is relative to what was picked, the picked folder's name first, never the absolute path, and `id` is 22 base64url characters the client chose at random. At most 100,000 entries per app; hidden files and folders are left out.
+- **Keeping.** Per app, not per chat, as the copied library. `ghostly.files.list()` gives the entries kept, each with `available`: whether the client can read it now; its answer counts in the app's file budget as `files.read` does, by at least its bytes as JSON. `ghostly.files.forget(id or "all")` drops links; uninstalling the app drops them all. A backup carries none.
+- **Reading.** `ghostly.files.read(id, {offset, length})`, at most 1 MiB a call, answers bytes, counted in the app's file budget (16 MiB a second, [The runner and the broker](#the-runner-and-the-broker)). A file whose size or date changed since it was picked is refused (`changed`) until it is picked again; a file gone, with `gone`. The app cannot name a path: it reads only ids the client gave it.
+- **Per client.**
+
+  | Client | How a link is kept | After a restart |
+  |---|---|---|
+  | Desktop (macOS, Linux) | The paths under the folder the person picked, in the app's record, read in ranges by the host (as the `ghostly-file` scheme reads a stored file) | Available |
+  | Web, Chromium | A `FileSystemDirectoryHandle` (or file handle) in the client's own IndexedDB, never in the frame | The browser asks again: the client shows "Allow Cinema to read Films again" with a button, whose click asks the browser; until then `available` is false |
+  | Web, Safari and Firefox | `File` objects held by the client's page | Gone with the tab: `available` is false and the app asks for a pick again |
+  | Desktop on Windows, Android | No apps yet | |
+
+### A read lane to the contact (`app-ranges/1`)
+
+The contact's app reads a file this side's app chose to share, in ranges, over the chat's session but not through `apps/1`: the client carries the bytes with `files/3`'s flow control, as binary messages where the session has them.
+
+- **Serving.** In a chat, `ghostly.files.serve(id)` (permissions `files` and `chat`) answers a `serveId`: 22 base64url characters at random, valid on this chat's session while the app is open on both sides. A file the app serves already answers the same `serveId`, so an app holds one serve per file however often it serves it. The app tells its contact the `serveId` in its own `apps/1` frames. `ghostly.files.unserve(serveId)` ends it once called as many times as the file was served; closing the app, the contact closing theirs, or the session ending ends every serve. While anything is served, the app's panel header shows it ("Sharing with Ana"); on Desktop, where the app has a window of its own, the window's title does ("Cinema · sharing a file with Ana"), set by the Ghostly window (`app_title`, refused to every other window).
+- **Reading.** On the other side, `ghostly.remote.read(serveId, {offset, length})` (permission `chat`), at most 1 MiB a call, answers bytes; `ghostly.remote.stat(serveId)` answers `{size}`. Refused with `not-served` for an id the contact does not serve now, `changed` or `gone` as above, `offline` while the session is down. Its answers count in the app's file budget as `files.read`'s do. Typed on 2026-10-19 (`@ghostlytools/sdk/app`): `ghostly.remote` is absent in a client without the read lane, so an app tests for it; `not-served` is a broker code; `files.serve` is refused with `peer-closed` while the contact's app is not open or its client does not offer `app-ranges/1`, and with `gone` for an id the client does not keep.
+- **On the wire.** A session capability `app-ranges/1` in `paired-capabilities`, beside `apps/1`. Frames, inside the session's encryption, `a` the chat app id of [In a chat](#in-a-chat-apps1):
+  - `{"t": "ar-get", "a", "s", "r", "o", "n"}`: request `r` (a number of the asker's) for `n` bytes (1 to 1 MiB) at offset `o` of serve `s`;
+  - the bytes in chunks of at most 16 KiB: a binary message of kind `0x05` where `files/4` is on ([100](100-transports.md#text-and-binary-messages-revision-2026-10-12): `0x05`, the 16 bytes of `a`, `r` as 4 bytes, `o` as 8, then the data), otherwise `{"t": "ar-data", "a", "r", "o", "d"}` with `d` in base64url;
+  - `{"t": "ar-end", "a", "r", "z"}` once every byte asked was sent, `z` the served file's size (so a read of one byte at 0 is `remote.stat`), `{"t": "ar-err", "a", "r", "e"}` instead of any (`not-served`, `changed`, `gone`, `busy`), and `{"t": "ar-cancel", "a", "r"}` from the asker.
+
+  Fixed on 2026-10-19 with vectors (`packages/core/test/vectors/app-ranges.json`, `pairedAppRanges.ts`): `a` and `s` are 22 base64url characters (16 bytes), `r` a whole number from 0 to 2^32 − 1, `o` a whole number from 0 to 2^53 − 1, and `o + n` at most 2^53 − 1. `d` is 1 to 16 KiB in canonical base64url without padding. `z` a whole number from 0 to 2^53 − 1. `e` is lower case letters and `-`, at most 32; a writer sends only the four codes above, and an asker reads one it does not know as a failure. A reader refuses any other frame of these types and ignores keys it does not know. The binary chunk is 29 bytes of head (`0x05`, `a`'s 16 bytes, `r` and `o` big endian) and 1 to 16 KiB of data; one whose offset passes 2^53 − 1 is dropped.
+- **Limits, counted by the side that serves**, since the asker may be the attacker: taken only for an app open on both sides, for a serve id this side gave out on this session; at most 4 requests in flight per app (a fifth is `busy`), where one the asker cancelled counts until this side has stopped reading and sending it; at most 32 MiB asked a second from one contact, its apps together, counted as each request is taken, so a cancelled one counts as the read it started (one past it is `busy`, and a session's end does not give it back), and one answered whole counts only the bytes the file held from its offset (revision 2026-10-20: small files read at a 1 MiB length were refused from the 33rd in a second); the asker cuts a read of a serve to the size its last `ar-end` said, and an app hears a `busy` as `too-fast`; chunks go only when the channel has room, sharing `files/3`'s quarter of a send budget with files under way, round robin. Nothing of it counts toward `apps/1`'s 50 frames a second, and it never goes on the DHT floor or into a hold.
+- **What the app gets.** The link's own speed: a direct WebRTC path carries a 1080p film at its bitrate with room to spare, and the chat's own frames still go between chunks. Relayed paths stay slower; the app still shows its rate.
+
+### Sending a film ahead
+
+For watching where the person who shares it is offline: the client sends the whole file over `files/3`, the contact's client keeps it, and the contact's app reads it there.
+
+- **Offering.** `ghostly.files.offer(id)` in a chat (permissions `files` and `chat`) sends a linked file as a chat file, a message the contact sees as any file, with the contact's consent as any file ([501](501-paired-files.md#rules): above 25 MiB the person decides, and sees the name, the size and their free space). Its `pf-offer` gains `"app": "<chat app id>"`; an older client ignores the key and keeps the file as any file. Fixed on 2026-10-19 (`chatFiles.ts`, [501](501-paired-files.md#rules)): `app` is a chat app id, 22 base64url characters, on `files/3`'s `pf-offer` only; a receiver drops a malformed one and takes the file as any file.
+- **Reading it on the other side.** Once stored and checked, the receiver's client links the file to that app for that chat: it shows in the app's `ghostly.files.list()` with `received: true`, and `files.read` reads it, from the client's file store, in ranges. Deleting the message deletes the file and the link. The app learns nothing of the file before the person accepted it.
+
+### What it adds to the threats
+
+| Threat | What limits it | What remains |
+|---|---|---|
+| An app reads files the person did not pick | It reads only ids the client gave out for picked entries; it can never name a path; a hidden file is never listed | Every file under a folder picked, by name and size, to an app the person gave the folder to |
+| An app sends picked files to a contact | `files` says so at install; serving and offering need a chat open on both sides; the header shows "Sharing with …"; an offer is a file message the contact accepts | The app decides which of the picked files to share with the contact of that chat |
+| A contact asks for more than was served | The serving side checks every request against the serve ids it gave on this session; ids are 128 bits at random | None known |
+| A contact floods requests | 4 in flight per app, 1 MiB each, 32 MiB asked a second (a cancelled one counted), sent only when the channel has room | A busy link while the app is open on both sides |
+| A file changes under a link | Size and date checked at every read: `changed` | A change that keeps both the size and the date |
+| The library links a person's chats | Links are per app and the app cannot write to them; serve ids are per session | Which files a person picked, to that app |
+
+### Order of work (files)
+
+1. **This text**, then the core: the `files` permission and manifest check, the `files.*` and `remote.*` types in `@ghostlytools/sdk/app`, the `app-ranges/1` frames and the binary kind `0x05` with vectors.
+2. **Linked files** on Desktop (macOS, Linux) and the web (Chromium handles; Safari and Firefox for the session), with the client's picker sheet and the "allow again" banner.
+3. **The read lane**: serving, its limits and the header line; `remote.read` through the broker (on Desktop as base64 inside `app_broker`, at most 1 MiB).
+4. **Sending ahead**: `files.offer`, `app` on `pf-offer`, received files listed to the app.
+5. **Cinema 0.2** uses all three, keeping today's `apps/1` path for a contact whose client has none of them.
+
+Measured first: a 1 MiB `files.read` answer through Desktop's `app_broker` (base64 inside one IPC message), and the read lane's rate on a direct WebRTC path and through a relay, beside `files/4` on the same path. What changes in other WISPs comes with each part: [401](401-paired-chat.md#capabilities-on-this-session) (`app-ranges/1`), [100](100-transports.md#text-and-binary-messages-revision-2026-10-12) (kind `0x05`), [501](501-paired-files.md#rules) (`app` on `pf-offer`).
+
+## Phase 2 proposal: real-time apps, game data and apps in groups
+
+**A proposal, written on 2026-10-10. Nothing in this section is accepted or built, and no code starts before the owner answers [the questions at its end](#questions-for-the-owner).** It designs what the [games table](#games) calls phase 2: a game where two or more people move at once (Pong, Tron, a Quake-like), with an open engine and data the person brings or free data. Where it lists options, the one marked **Proposed** is the editors' choice and the others stay open. Names of calls, frames and capabilities are sketches until an option is chosen; fixed encodings and vectors come then ([00](00-process.md#revisions)).
+
+### What exists for it today (evidence)
+
+Read on `dev` on 2026-10-10, each in the file it names.
+
+| Fact | Where |
+|---|---|
+| The session's WebRTC data link is one negotiated channel, `ghostly/1`, id 0, ordered and reliable. Nothing sets `maxRetransmits` or `maxPacketLifeTime`; no second channel exists | `packages/core/src/datalink.ts` (`createDataChannel`), `packages/core/src/signal.ts`, [101](101-webrtc.md) |
+| The session adds no cipher of its own. It signs a transcript bound to the transport's own handshake (the two DTLS fingerprints, Iroh's TLS exporter, HyperDHT's Noise handshake hash), and frames are plain JSON inside that transport. So no counter of the session breaks when a frame is lost or arrives out of order | `packages/core/src/pairedSession.ts`, `packages/core/src/pairedTransports.ts` |
+| The session reads frames one at a time, and fails when more than 1024 frames or 64 times 60 KiB wait to be read | `packages/core/src/pairedSession.ts` (`SESSION_RECEIVE_PENDING`) |
+| Iroh carries the session on one bidirectional QUIC stream. Iroh 1.3.0 has QUIC datagrams on the same connection (`Connection::send_datagram`, `read_datagram`, `max_datagram_size`); Ghostly calls none of them | `native/transports/src/iroh_transport.rs`, `apps/desktop/src/paired_transport.rs`, iroh 1.3.0 `endpoint/connection.rs` |
+| In a browser, the extension and the CLI, Iroh always goes through a relay over a WebSocket; Desktop keeps direct paths. Through the public relays a frame's round trip was 290 to 380 ms | `native/transports/iroh-web/src/lib.rs`, [102](102-iroh.md) |
+| HyperDHT carries the session on a Noise SecretStream over UDX. SecretStream also has unordered messages (`send`, `trySend`, each sealed under the handshake's keys); Ghostly calls neither. In a browser HyperDHT goes through a relay over one WebSocket, whose protocol carries a stream's data, its end and its destroy, and no unordered message | `native/transports/hyperdht/endpoint.mjs`, `@hyperswarm/secret-stream` 6.9.2 (`index.js`), `@hyperswarm/dht-relay` 0.4.3 (`lib/stream.js`), [103](103-hyperdht.md) |
+| Desktop on Linux has no WebRTC in its WebView: two Linux desktops are live over Iroh or HyperDHT | [101](101-webrtc.md), [401](401-paired-chat.md#capabilities-on-this-session) |
+| The client knows "relayed" for Iroh and HyperDHT only. A WebRTC pair that runs through a TURN server is not marked. The round trip it shows is one `paired-ping` every 15 seconds on the ordered channel | `packages/core/src/pairedTransports.ts`, `packages/core/src/ghostlink.ts` (`relayedPath`, `LIVENESS_PING_MS`) |
+| A session on a relayed transport moves once to a direct one when both apps say `upgrade/1` | [100](100-transports.md#relayed-transports-revision-03) |
+| Desktop's broker answers at most 50 requests a second per app window, checked in Rust, and its values travel as JSON | `apps/desktop/src/app_sandbox.rs`, [The runner and the broker](#the-runner-and-the-broker) |
+| The web frame is `sandbox="allow-scripts allow-pointer-lock"` with `allow=""`; the runner's header says `sandbox allow-scripts allow-pointer-lock` and `worker-src 'none'` (pointer lock since 2026-10-13) | `apps/ui/src/lib/apps/broker.ts` (`startApp`), `apps/web/runnerPolicy.ts` |
+| Desktop sets no permission handler on its windows, and turns the Fullscreen API off in the main window on Linux, where WebKitGTK 2.50 aborted the app when an element went full screen | `apps/desktop/src/app_sandbox.rs`, `apps/desktop/src/fullscreen.rs`, wry 0.57 `webkitgtk/mod.rs` |
+| A private group is a full mesh up to 16 members and runs on hubs past 16 (two hubs per member, up to 32 members); a community (up to 256) gives each member one hub. Hubs pass on stored frames. Typing reaches only the members a writer has an edge with, and a community carries nothing that is not a stored frame | [902](902-group-mesh.md#hubs), [903](903-group-community.md), `packages/core/src/groupHubs.ts` (`MESH_HUBS`) |
+| A session between two members who share no edge is specified for group files and not built: such a file waits for a holder the member has an edge with | [503](503-group-files.md#the-file-session), `packages/browser/src/engine/groupFiles.ts` |
+| An app card rides every group path already; a person's app sends one only in a 1:1 chat | [405](405-status-cards.md#an-app) |
+
+### Messages that may be lost
+
+A `paired-app` frame is ordered and reliable: one late frame holds every frame behind it. A real-time game wants the opposite: the newest position now, and an old one never.
+
+**What the app gets.** `ghostly.chat.lossy.send(bytes)` hands at most **1024 bytes** to the link, and `ghostly.chat.on("lossy", f)` receives them. A lossy message may be lost, arrive twice or arrive out of order; the app numbers what it sends. `send` answers `true` when the message was handed to the link and `false` when it was dropped at once (the link is busy, the app is past its rate, the peer does not take them); it never waits and never queues. Bytes, not JSON: at 60 messages a second the encoding is the cost.
+
+**On the wire.** One lossy message is: a byte `0x01`, the 16 bytes of the chat app id ([In a chat](#in-a-chat-apps1), the id before base64url), then the payload of 1 to 1024 bytes. A receiver drops any other first byte, so a later kind can be added. 1041 bytes fit one packet on every path below, so a message is never split and half lost.
+
+**Where it travels, per transport.**
+
+| Transport and path | The lossy path | What the app sees |
+|---|---|---|
+| WebRTC, direct | A second negotiated channel on the session's own peer connection: `ghostly-rt/1`, id 1, `ordered: false`, `maxRetransmits: 0`. Same DTLS connection and the same two fingerprints the session's transcript binds, so it needs no signaling and no new trust | Real loss, no waiting |
+| WebRTC through TURN | The same channel. Over a `turn:` server on UDP, as direct. Over `turns:` or `?transport=tcp`, nothing is lost and late messages arrive late | The client marks this pair as relayed (new: it reads the selected candidate pair) |
+| Iroh, direct (Desktop, native) | QUIC datagrams on the session's connection, at most `max_datagram_size()` | Real loss, no waiting |
+| Iroh through a relay (always in a browser, the extension and the CLI) | The same datagrams, inside a WebSocket to the relay: late, not lost. To be confirmed by the spike that the browser build gives datagrams at all | Relayed; hundreds of milliseconds |
+| HyperDHT, direct (Desktop and the CLI) | SecretStream's unordered messages (`trySend`) | Real loss, no waiting |
+| HyperDHT through a relay (browsers) | None: the relay carries the stream only | Not lossy |
+| The DHT text floor, a hold | Never | `send` answers `false` |
+
+Three ways to treat a path with no lossy mode:
+
+| Option | What it does | Cost |
+|---|---|---|
+| **A. Proposed: lossy where the path has it, the ordered frame elsewhere** | Where there is no lossy path, the message goes as a `paired-app` frame with `u` (the payload in base64url) in place of `d`, and the sender drops it instead of queueing when the channel already holds unsent bytes. The app is told which it has | One more form of `paired-app`. A game is smooth on a direct path and playable or not on a relay, and says so itself |
+| B. WebRTC only | As the games table said until now | Two Linux desktops (no WebRTC) get nothing, the owner's own case |
+| C. A connection of its own for the app | A second peer connection, signalled on the session as a call's is | Does nothing for Linux; a second ICE run per game; a second place where addresses are gathered |
+
+**A session capability of its own, `apps-rt/1`**, beside `apps/1`, which does not change (Proposed; the other way is `apps/2`, which would make every app client implement the lossy path to stay current). A side lists it in `paired-capabilities` only where its current transport and client can carry lossy messages or the `u` form. On top of that, per app: an `open` frame gains `"rt": 1` when this side's copy of the app holds the `realtime` permission. Lossy messages for an app are taken only while both sides said `open` with `rt` and neither closed, on the session they were said on. An older client ignores the key.
+
+**What the app is told about the link.** `ghostly.chat.link()` and a `chat.link` event when it changes, only for an app with `realtime`: `{"lossy": true or false, "path": "direct" or "relayed", "rttMs": <the client's last round trip, or absent>}`. `lossy: false` means messages go as ordered frames (option A). The client's round trip is a hint, one sample every 15 seconds on the ordered channel; a game measures its own with its own lossy pings. The transport's name, the relay's name and any address are not told.
+
+**Rules.** Lossy messages are live only, as every `paired-app` frame. They do not go through the session's read queue and never count toward its bounds: a slow app loses messages and never fails the chat. They are no sign of life for the session's liveness. On a transport switch they follow the session; some are lost while the old channel retires. On Desktop they do not count as broker requests (the 50 a second is for requests), and their path through the window is measured first ([Order of work](#order-of-work)).
+
+### The `realtime` permission
+
+| | Without it | With it |
+|---|---|---|
+| Ordered `paired-app` data | 32 KiB a frame, 50 a second taken per app | The same. Ordered frames share the chat's channel, so more of them would slow the chat itself |
+| Lossy messages | None: `ghostly.chat.lossy` and `ghostly.chat.link` answer `not-allowed` | 1024 bytes each. The receiver takes **128 a second per app** and **256 a second per session** over all apps; the sender's client keeps to 120 per app |
+| At most, from one contact | About 1.6 MiB a second of ordered frames per app (unchanged) | 256 KiB a second more per session, only while the app is open on both sides |
+
+**Shown at install as:** "Plays in real time: sends your contact many small messages a second while you both have it open. Uses more data and battery."
+
+**What stops an app from flooding a contact.** The same four things as for `apps/1`, counted by the receiver, since the sender's client may be the attacker: nothing is taken for an app the person has not opened in that chat; nothing is taken unless the person's own copy of the app holds `realtime` (the grant is the receiver's, never the sender's word); the per-app and per-session rates are counted on the first 17 bytes before anything else is read, and what passes them is dropped, not queued; and closing the app, or the chat going down, ends it. The numbers are the editors' first guess for a 60-a-second game with room to spare, and Pong sets them before they are fixed.
+
+`realtime` is about messages only. What a game needs from the screen is a second permission ([The frame](#what-a-shooter-needs-from-the-frame-measured)), so Pong asks for one line and a turn-based game that wants the whole screen for the other.
+
+### Bigger bundles and the person's own files
+
+**Size.** A bundle may be up to **64 MiB** from the release that ships this, for any app, not tied to a permission: the size is on the install screen, and a download past 25 MiB asks first, the number a chat file already uses. An older client refuses it as `too-large`, as it should. Two things change with it:
+
+- **Reading a file in pieces.** `ghostly.file(path)` answers a whole file. It gains `ghostly.file(path, {offset, length})`, at most 1 MiB a call: on Desktop a file travels as base64 inside one broker answer, and 64 MiB there is one message nobody wants.
+- **Where a store finds it.** Every listing must carry a jsDelivr URL at a full commit, and jsDelivr serves no file over 20 MB.
+
+| Option | What it does | Cost |
+|---|---|---|
+| **A. Proposed: raw GitHub at a full commit counts as the immutable URL for a bundle over 20 MB** | `https://raw.githubusercontent.com/<owner>/<repo>/<40 hex>/app.ghostlyapp`. One file, one digest, as today | It is gone when the repository is. A store that wants it kept hosts the bundle in its own repository, which then grows by the bundle at every version |
+| B. Data packs | The bundle stays under 16 MiB and its manifest lists further files by SHA-256, each under 20 MB, fetched by digest when the app first asks | A second fetch path, partial installs to explain, a new manifest key older clients would install without |
+| C. Sent as a file only | No store listing for big apps; a contact sends the bundle over `files/3` | Only friends of someone who has it can install |
+
+Not measured: one read of a 64 MiB file from `raw.githubusercontent.com` in a page (it needs a public repository holding one). Sending a bundle as a file is already planned for 1.2.x and takes any size with consent.
+
+**Files the person owns.** A Quake needs its `.pak`, and no bundle may carry data its publisher has no right to give out: a store refuses such a listing, and an engine ships with free data or none. So the person brings the file, once, and the client keeps it.
+
+- **Asking.** `ghostly.library.request({"name": "pak0.pak", "bytes": <most it accepts>, "sha256": [<digests it accepts, optional>]})`. The client, not the frame, shows the request ("Quake asks for a file: pak0.pak") and its own file picker, on a click the person makes. Measured: the platform's picker also opens from inside today's frame and the frame reads the file (Chromium), so an app can read a picked file into memory already; what it cannot do is keep it.
+- **Keeping.** The client stores the bytes in its file store by SHA-256, listed per app under the name the app asked for. `ghostly.library.list()` gives names, sizes and digests; `ghostly.library.read(name, {offset, length})` gives bytes, 1 MiB a call. **The library is per app, not per chat, and the app cannot write to it.** Only a file the person chose goes in, as it is. That keeps the rule that storage per chat protects: an app has no place of its own to leave a mark in one chat and read it in another.
+- **How much.** 1 GiB per app unless the person raises it, shown on the Apps page with each file, where the person removes one. Uninstall removes them. A backup carries the list, not the bytes, and the app shows "Needs its files" as for a bundle.
+- **The 5 MiB of storage per chat** stays as it is: saved games fit, and it is the part that follows a backup.
+- **Linked files**, a second kind of entry that keeps a reference rather than a copy, for libraries too big to copy (a person's films), are accepted on 2026-10-12: [The person's files through an app](#the-persons-files-through-an-app-linked-files-a-read-lane-and-sending-ahead).
+
+### What a shooter needs from the frame (measured)
+
+Measured on 2026-10-10 with a page served as the runner serves an app: the runner's header with the `sandbox` tokens varied, in a frame with the `sandbox` and `allow` attributes varied (the web), and as a top-level page (Desktop's app window). Chromium 153 (Playwright's, headless, site isolation on, real clicks) and WebKitGTK 2.52.6 (the Linux Desktop engine, under Xvfb, software rendering, gestures made by the host's own script call).
+
+| Need | Frame as it is today | What changes it |
+|---|---|---|
+| WebGL and WebGL 2 | **Work**, both engines, frame and top-level | Nothing |
+| WebAssembly, with 1 GiB of memory | **Works**, both engines | Nothing |
+| Sound | An `AudioContext` starts suspended and runs after the first click, both engines. An `AudioWorklet` module is refused (the policy allows no script from a `blob:`) | Nothing: an engine mixes on the main thread (`ScriptProcessor`), as single-thread builds do |
+| Threads | No worker starts (`worker-src 'none'`), and there is no `SharedArrayBuffer` | Nothing in this proposal: engines are built single-thread. Workers stay a question for the owner |
+| Keyboard | Keys reach the frame once it was clicked (Chromium) | Nothing |
+| Frames a second | 60 in Chromium and in a WebKitGTK top-level page. **21 to 23 in a WebKitGTK frame nobody clicked yet**; not measured after a click (the probe could not click inside a frame there) | To measure in Safari with a real click |
+| Pointer lock (mouse look) | **Refused**: "the frame is sandboxed and the 'allow-pointer-lock' permission is not set", both engines | `allow-pointer-lock` in the `sandbox` attribute **and** in the runner's header: either alone still refuses (Chromium). In a top-level page the header alone is enough (both engines). WebKitGTK also asks the host (a permission request); left unanswered, as Desktop leaves it today, the lock is given |
+| Full screen | **Refused** in the frame ("Disallowed by permissions policy"). Allowed in a top-level page in both engines | Two ways. The frame's own: `allow="fullscreen"` on the frame is enough in Chromium, and WebKitGTK needs `allow="fullscreen *"`. **Or the client's**: on a click made inside today's frame, the page around it may go full screen itself (Chromium: the click counts for the page too) |
+| Full screen on Linux Desktop | An element went full screen in a top-level page of 2.52.6 with no abort, on a gesture made by script. The abort that turned the API off in the main window was on 2.50 with a real click | Not cleared by this run: the window's own full screen, which the main window already uses there, is the safe path |
+| Gamepad | `navigator.getGamepads()` answers in today's frame in Chromium, and in WebKitGTK top-level. In a WebKitGTK frame it answers unless `allow` names `gamepad` without `*`, which refuses it | Nothing on the web as measured; `gamepad *` if `allow` ever names it. No pad was plugged in: the events are not measured |
+| The person's file picker | Opens from today's frame, and the frame reads the 8 MiB file picked (Chromium) | Nothing |
+
+Not measured here, each a run for the owner or a later round: Firefox and Safari (this host's Playwright has Chromium only), WKWebView (macOS), WebView2 (Windows), a real gamepad, a real GPU (both runs drew in software).
+
+**Proposed from it:**
+
+- **A second permission, `fullscreen`**: "Can fill the screen and hold the mouse pointer. Esc gives both back." It gives the two things below and nothing else.
+- **Pointer lock is the frame's own.** (Replaced on 2026-10-13: every app may hold the pointer, see [mouse look](#decisions-taken-by-the-owner-2026-10-13-mouse-look); what follows was the proposal.) The web frame of an app granted `fullscreen` gets `sandbox="allow-scripts allow-pointer-lock"`, and both runner headers gain `allow-pointer-lock` for every app: the header alone gives nothing (measured), so the attribute is the gate, and no third runner address is needed. On Desktop the app window's header gains the token for a granted app only, and Linux answers the pointer lock request itself: yes for a granted app, no for any other.
+- **Full screen is the client's, not the frame's.** `ghostly.view.fullscreen(true or false)`, asked on a click. On the web the client puts its own panel in full screen, with the frame in it, and the frame gets no `allow`; on Desktop the host puts the app window in full screen. One path for every engine, the one Linux needs anyway, and the client decides what stays on screen: a thin bar with the app's name and "Leave full screen" that hides after a moment and comes back when the pointer is freed. An app that draws a fake Ghostly screen to ask for a secret is the risk of full screen, and that bar is what answers it.
+- **Nothing for WebGL, WebAssembly, sound, keys and the gamepad**: they work in today's frame.
+
+### Apps in groups
+
+An app opened in a group is a **table**: one member opens it, the others see a card and join.
+
+- **The card.** The `app` card of [405](405-status-cards.md#an-app) with `opened`, as a group message: "Ana opened Quake", with **Join**. It already rides every group path. A member without the app sees "Install to play", as in a 1:1 chat; an older app shows the card's text.
+- **Who is in it.** The member who opened it is the **host**; a member who presses Join is a **player**. At most 8 players with the host (Proposed; the bound is the host's cost). Only members of the group at that moment: a removed member's edge closes, and the table drops them. The app knows a player by a number of the table, never by a member key, and by the name the group shows only with `name`.
+- **Nothing of a table is a group frame.** Only the card is. A community keeps 256 frames and 1 MiB for everyone's catch-up; a game's frames there would push the chat out.
+
+How frames reach the players:
+
+| Option | How | Addresses | Cost |
+|---|---|---|---|
+| **A. Proposed: a star to the host** | Each player keeps one session with the host: the edge the two have in a full mesh, or a session of that pair opened for the table where they share none ([503](503-group-files.md#the-file-session) derives it, pinned to the two member keys). `apps/1` and `apps-rt/1` run on it exactly as in a 1:1 chat. A player talks to the host; the host talks to each player. What goes from player to player, the host's app passes on | In a full mesh, nothing new. Elsewhere the host and each player learn each other's address, and players do not learn each other's | The host carries it all (a shooter's server does that anyway). The table ends when the host leaves |
+| B. A mesh among the players | Every two players keep a session | Every player learns every other's address | 28 sessions for 8 players; each can take 5 to 80 seconds to come up ([903](903-group-community.md#why-not-a-direct-session-for-the-payment)) |
+| C. Through the hubs | A new frame hubs pass on without storing | Nothing new | Two hops and a hub's bandwidth for every frame; hubs are ordered streams, so nothing lossy. Fine for a turn-based table, not for a shooter. It is the frame typing in large groups also waits for |
+
+**Host or lockstep** is the app's choice, not the client's: with a star, a shooter runs its server in the host's app, and a lockstep game sends its inputs through the host. The client checks no game rule.
+
+**Joining late.** Join opens the session and says `open` with the table's id; the host's app hears a new player and sends what it needs to catch up, as an app does after a lost session in a 1:1 chat. The client replays nothing. A full table answers `full`.
+
+**What this waits for.** Sessions between two members who share no edge are specified for files and not built, and whether members who only met through hubs should connect at all is not decided: a direct session shows each of the two the other's address. So:
+
+1. **Private groups in a full mesh (up to 16 members)** can have tables as soon as 1:1 real-time works: every pair has its edge, and nothing new is learned by anyone.
+2. **Private groups on hubs and communities** wait for that decision. If it is yes, Join says so before it connects: "Joining connects you to Ana's device directly. Ana's app learns your IP address, and yours learns hers."
+
+A capability of its own says an app takes tables: the next number in `paired-groups` ([902](902-group-mesh.md#compatibility)).
+
+### Order of work
+
+1. **Pong, 1:1.** `apps-rt/1`, the lossy path on WebRTC and on native Iroh, the `u` form elsewhere, `realtime` and its limits, `ghostly.chat.link`. Measured first: 120 small messages a second each way through Desktop's app window, and Iroh's datagrams in the browser build. Pong is the first-party app that sets the numbers.
+2. **Bundles and the frame.** 64 MiB, reading in pieces, the library, `fullscreen`. Measured first: the frame table again on Safari, Firefox, WKWebView and WebView2, and a 64 MiB read from raw GitHub.
+3. **Tables in a full mesh**, then, after the decision on sessions between members with no edge, in larger groups and communities.
+
+### What it adds to the threats
+
+| Threat | What limits it | What remains |
+|---|---|---|
+| A contact's client floods lossy messages | The receiver's rates, counted before reading; taken only for an app open on both sides whose local copy holds `realtime`; dropped, never queued | 256 KiB a second while the app stays open |
+| A lossy message replayed or reordered | It is inside the transport's own encryption, on the authenticated connection | Duplicates and reordering are part of the contract: the app numbers its messages |
+| An app in full screen imitates Ghostly or the system | Full screen is the client's own, with its bar; asked on a click; a permission the person granted | A person who types a secret into a game |
+| An app holds the pointer | The engine frees it on Esc; a permission | None known |
+| WebGL in the sandbox | Nothing new: it works in today's frame | The GPU's name where the engine tells it (Chromium did, WebKitGTK said "Apple GPU"), and the graphics stack as attack surface, both already there in phase 1 |
+| The library links a person's chats | The app cannot write to it; only whole files the person picked go in | Which files a person has, to an app they gave them to |
+| A table shows addresses | The star: only the host and each player; a line before Join; none in a full mesh | The host learns every player's address |
+
+### What changes in other WISPs once an option is chosen
+
+Written then, since each depends on the answer: [401](401-paired-chat.md#capabilities-on-this-session) (`apps-rt/1`, lossy messages outside the read queue and liveness), [101](101-webrtc.md) (the second channel), [102](102-iroh.md) and [103](103-hyperdht.md) (datagrams and unordered messages), [100](100-transports.md) (which transports say they carry lossy messages; a TURN pair marked relayed), [405](405-status-cards.md#an-app) (the card's Join in a group), [900](900-group-sessions.md), [902](902-group-mesh.md) and [903](903-group-community.md) (tables, their capability, sessions for a table), [503](503-group-files.md) (the session of two members shared with tables).
+
+### Questions for the owner
+
+| # | Question | Proposed |
+|---|---|---|
+| 1 | A path with no lossy mode (a relay, HyperDHT in a browser) | Option A: the ordered frame there, and the app is told |
+| 2 | `apps-rt/1` beside `apps/1`, or `apps/2` | `apps-rt/1` |
+| 3 | One permission or two | Two: `realtime` (messages) and `fullscreen` (screen and pointer), with the two lines above |
+| 4 | Bundles over 20 MB in a store | Option A: raw GitHub at a full commit |
+| 5 | The library: per app, read-only for the app, 1 GiB | As written. Linked files beside it are accepted (2026-10-12) |
+| 6 | Full screen by the client with its bar, or by the frame | By the client |
+| 7 | Workers for apps (threads, `AudioWorklet`) | Accepted by the owner (2026-11-03, a hung app): its own change, not built yet |
+| 8 | Tables: a star to the host, at most 8 | Option A |
+| 9 | Tables where members share no edge: connect directly, with the line before Join? | Yes, with the line. It is the same decision as for group files |
+| 10 | Who may open a table in a community | Any member, as any member may write |
+
+## Security and privacy
+
+### Threats
+
+| Threat | What limits it | What remains |
+|---|---|---|
+| A malicious app sends data out | Opaque origin, `connect-src 'none'` (an app without `internet`; with it, the app may send what it likes to the servers it chooses, which its install line says), WebRTC constructors deleted, `frame-src 'self'` on the parent, the port dying on navigation and teardown on any load but the one after `writing`, no Desktop command but `app_broker`, navigation and new windows blocked on Desktop | `<link rel=preconnect>` in WebKit on the web: a connection to any host the app names, whose DNS lookup can carry data (measured; the CSP does not govern it, and a web server has nothing else to stop it). The hint guard closed every way measured, but it runs in the app's realm: a documented residual for Safari and the iPhone's web app, said on their install screen (the owner's decision, 2026-10-06, not to restrict those browsers). Channels not measured yet (DNS prefetch, WebView2); nested-frame WebRTC on a WebKitGTK built with WebRTC (none of the measured or shipped builds has it); a browser or webview sandbox escape. Hence the IP line on every install screen |
+| A malicious app takes over the page's history (web) | `History`'s methods and the Navigation API deleted in the runner; a fragment navigation becomes a load, and the app is torn down | What an app's fragment navigations push before the first is heard (one synchronous burst, then the app is gone) stays in the history: the person's Back passes those entries before it leaves. The page itself never moves |
+| A malicious app abuses the broker | Identity from the port or window label, per-app and per-chat storage, bounded sizes and rates (an app at ten times the request rate is stopped, so the page stops receiving its messages), permissions | Misuse within granted permissions; phishing inside its own frame (the client frames apps in a visibly different container and never asks for secrets there) |
+| An app holds the page's thread (web): heavy work, a bug, an endless loop | Where the frame has a thread of its own (site isolation, desktop Chrome), the page runs on, and the watchdog stops an app that has not answered for 10 s. Where it shares the page's (WebKit, the iPhone's web app, Chromium without site isolation such as Android Chrome and WebViews), the watchdog stops it once it gives the thread back after holding it 10 s, with every other app running then (the page cannot tell which one held it). Its place says it stopped responding, with Open again | In those engines nothing of the page runs while an app loops: every chat and call stops for as long as it does, and an endless loop hangs the tab until the browser offers to close it. A page whose own work holds its thread 10 s stops the apps running then too. Workers (accepted, not built) are the way for an honest app to keep heavy work off that thread; a runner on a site of its own would give it a process of its own where the browser isolates sites |
+| A malicious app talks to another app outside the broker | On the web every running app is a frame of one page, so any app can post to any other (`parent.frames[i].postMessage`); neither the sandbox nor a policy governs that. The runner's first capture listener on its window, added before any app code, stops every `message` and `messageerror` there, so an app hears nothing on its window, its own listeners and `onmessage` included (an e2e test posts from one app to an app with `internet` and to the same app in another chat: nothing reached either). On Desktop each app has its own window | The sending side stays open: an app can post to the client's page, which takes nothing from an app frame but its own port. Channels not measured yet (WebView2) |
+| A Desktop app calls Tauri directly | Only `app_broker` is granted to `app-*` windows (`capabilities/app.json`), `only_main` refuses every other command there (its one exception is `app_broker` from an `app-*` window), and plugins answer only their own capabilities, of which app windows have none (measured: 106 app and 14 plugin commands refused; a test calls every other command from an app window). `app_broker` knows the app by its window's label, never by the request, and Rust checks 64 KiB and 50 requests a second itself before the broker sees a request | Tauri's IPC object (`__TAURI_INTERNALS__`) stays in app pages: Tauri defines it on `window` as a property that cannot be deleted or replaced, and answers every call by evaluating `window.__TAURI_INTERNALS__.runCallback`, so a page without it gets no answers (Tauri 2.12). An app can therefore call `app_broker` directly, which gives it nothing `ghostly.*` does not; the gates above are what hold |
+| A malicious update | Same key, rising `sequence`, new permissions re-asked, removals and revocations checked | Misbehaviour within permissions already granted |
+| A compromised publisher key | Revocation by the publisher if it still can; stores remove the app | No rotation in phase 1: holders trust the attacker's next version until a store they added removes it |
+| A malicious or lying store | It cannot change bytes; icons and descriptions come from bundles; every result names its store | Hiding apps, steering a title search to a look-alike app. The proof line and the 80-bit fingerprint are the defence |
+| A store that censors | Other stores, a pasted URL, a card in a chat | Discovery is harder |
+| GitHub removes or blocks a repository | Stored copies, jsDelivr by commit, other hosts, chat bundles | New installs need someone with the bytes |
+| A chat card as bait or as a tracker | Shown from its own data, fetched only on Install, phase 1 hosts allowlisted, "Unknown publisher", unsigned refused | A person who installs a signed harmful app from a stranger |
+| A contact's client floods `apps/1` | The receiver's own limits | None beyond the chat |
+| Rollback, freeze, equivocation | `sequence` per app, store `sequence` and `expires`; on equivocation the client keeps what it runs and refuses the other | A frozen publisher repository until phase 2 |
+| Parser disagreement | Canonical manifest bytes required, trailing bytes refused | None known |
+| A bug in the runner or the broker | Small trusted code, tests for every message type, bounded sizes | It is the boundary; it gets security review |
+
+### What each party learns
+
+| Party | Learns |
+|---|---|
+| GitHub, jsDelivr, any source | The address that fetched a bundle, when. Nothing before the person presses Install (cards fetch nothing) |
+| A store host | The address and time of each index download: only for people with an app installed, or who open a store |
+| A publisher | Possibly the person's address and when they open the app, through channels not yet measured |
+| A contact | Only the apps the person opens in a chat with them, or shares |
+| `api.github.com` | The publisher login whose proof is checked, from the person's address, at install, once publisher proofs exist (after phase 1). In phase 1 the client never asks it |
+| Ghostly's maintainers | What the default store's host (GitHub) would tell them: nothing, as they run no server |
+
+### Before phase 1 ships: the tests that must exist
+
+- Bundles that break each bound, a non-canonical manifest, a duplicated key, a bad signature, a wrong file hash, a truncated bundle, a byte past the last file: refused, nothing stored.
+- A lower `sequence`, an equal one with another digest: refused and marked.
+- The malicious mini-app suite, on each client: fetch and every resource type, WebRTC (including through a nested frame), the session history (`pushState`, `go`, `back`, the Navigation API: refused, the page stays put and one Back leaves it; a fragment navigation tears the app down), self-navigation by `location`, meta refresh and link (reaching nothing: torn down where the blocked navigation is a load, as in Chromium and WebKit, or refused before any load, as in Firefox), a load before `writing` or a third load (each tears down; the one load after `writing` does not), popups, `top.location`, reading storage, posting to `"*"` and to other windows, calling any Desktop command but `app_broker`, `app_broker` with another app's identity, opening a new window, extension APIs, flooding the broker, oversized messages. Every one fails.
+- `contentSecurityPolicy.test.ts` checks `frame-src 'self'` on the web page (and on the extension pages once the extension runs apps), the runner's header with `frame-ancestors 'self'`, and that every other web location keeps `frame-ancestors 'none'`.
+- The runner refuses to start with a non-null origin, without a parent, or under a label that is not `app-*`.
+- The service worker never answers `/app-frame.html` (`policy.ts` test); the runner's location repeats the common headers; `only_main`'s test allows `app_broker` from an `app-*` window and refuses every other command there.
+- An app sent as a crawled listing only (an indexed store) keeps "Unknown publisher" and "Not in any of your stores".
+- A card renders with no network request; Install fetches only from the allowlisted hosts.
+- A receiver drops a `paired-app` data frame whose `d` passes 32 KiB, frames beyond 50 a second, data for an app not open on both sides, and every `paired-app` frame without `apps/1` on both sides; a frame over 60 KiB is dropped before it is read. `chat.send` refuses a value over 32 KiB and, while the session is not live, fails with `offline`; nothing goes on the DHT or into a hold.
+- With no app installed, the client makes no request to any store.
+- An e2e: Ana installs Chess from a store and opens it in her chat with Bob; Bob sees the card, no request goes out until he presses Install, then they play over `apps/1`; Bob reloads, and the game comes back from his per-chat storage and the catch-up after the session returns. On web with web, and web with Desktop.
+- The vectors of [Test vectors](#test-vectors), read by every parser of these formats.
+
+## Compatibility and rollout
+
+All additive. An older app sees an app card as its text (a link: [405](405-status-cards.md#an-app)), a bundle as a file, and never offers `apps/1`, so no `paired-app` frame is sent to it; one that arrived anyway is an unknown frame, which it drops. The 60 KiB control-frame limit does not change. Nothing changes in records, invites, groups or payments. The web server gets one location with its own header and the main page an explicit `frame-src 'self'`; Desktop gets one scheme, one capability and one command; the extension's manifest gets a sandbox page and `frame-src 'self'` when the extension runs apps, after phase 1.
+
+## Phases
+
+### Phase 1 (release 1.2): the smallest useful store
+
+**Free mini-apps, turn-based games and light real-time versus games (Tetris, Snake) included, played live in a 1:1 chat, on the web app and Desktop, installed from a pasted URL, a store or a card in a chat. No network access for apps but with the `internet` permission. The default store is a signed file in a repository of its own, signed with the owner's offline key; custom stores are HTTPS URLs. Behind a feature flag on `dev` until the web chess e2e passes.** All seven pieces are built, and the flag is on from release 1.2. Release 1.2's official store lists one app, Chess; Tetris and Snake are what the format carries, and come later through the store, with no new release needed. The pieces, each of which was one or more pull requests:
+
+1. **Format and publisher tools.** Bundle, canonical manifest, digest, signatures with their prefixes, revocation, with the [test vectors](#test-vectors), in `packages/core`. `ghostly app publish`, `ghostly app verify`, `ghostly app revoke` and `ghostly store sign` in the CLI.
+2. **The package store.** Verified bundles kept per profile, with `sequence`, permissions and per-app, per-chat storage. Install, update, uninstall with export.
+3. **The runner and the broker.** `/app-frame.html` and its nginx location on web; the `ghostly-app` scheme, `app-*` windows and `app_broker` on Desktop, after a Desktop spike that measures them. The port, the teardown, the WebRTC deletion, `frame-src 'self'`. The malicious mini-app suite.
+4. **The Apps page.** Installed apps, paste, Stores, permissions with the IP line, updates, the removal screen.
+5. **Stores.** `ghostly-store.json`, its signature, `sequence`, `expires` and `removed`; reading from raw GitHub and jsDelivr; merging several.
+6. **In a chat.** The app card from its own data, Install fetching only then; `apps/1` and its `paired-app` frame with receiver limits, live only, and the "opened Chess" card.
+7. **Ghostly's default store.** The repository of its own, its pull request checks in CI, the owner's offline signing; Chess listed, signed by its own publisher key.
+
+Phase 1 has no payments, no reviews, no themes, no per-site network permission (only `internet`), no fast real-time games (the unordered mode), no play while one side is offline, no bots on `apps/1`, no groups, no key rotation, no adapter plugins, no apps in the extension, no bundle sent as a file, no store card, and no crawler or default index.
+
+### Later phases and research
+
+| Phase | What it gives |
+|---|---|
+| 1.2.x, 1.3 | The SDK's commit-reveal helper, and `ghostly catalog submit` (`ghostly app init` and the app types are in release 1.2). Apps in the extension, after a test submission passes the Chrome Web Store review. A bundle sent as a file over `files/3`. The `store` card. The crawler and the default index (1.3). [Built-in apps](#built-in-apps), Chess first (1.3) |
+| 2 | Real-time games: the `realtime` permission, the unordered mode on `apps/1` over WebRTC, 64 MiB bundles ([proposal](#phase-2-proposal-real-time-apps-game-data-and-apps-in-groups), with its order of work and its questions for the owner). Bots on the other side of `apps/1` (`ghostly app serve`, `app.message` events, `ghostly app send`) and the `cards` permission. Themes as typed values. Paid apps on Testnet, then Mainnet when the owner says. Licences, reviews and reports, and an optional indexer service with search. Key rotation with a pinned recovery key. The publisher's Pkarr record. The `network` permission as an exact list of sites. Apps in groups |
+| 3 | Bots for the CLI as signed packages under an operating-system sandbox. A frame in the chat on Desktop once tested. Package sources over peer-to-peer content addressing |
+| Research | A permissioned host for adapter plugins (WebAssembly components get only the capabilities the host gives them, [component model](https://component-model.bytecodealliance.org/)); process isolation for apps; a transparency log for publisher keys; reproducible-build checks by stores |
+
+If an iOS client appears, paid apps would meet Apple's in-app purchase rule; that is a phase 2 question, not a phase 1 one.
+
+## Decisions and open questions
+
+**Decided:** the six answers in [Decisions taken by the owner](#decisions-taken-by-the-owner-2026-10-03); the new family 1200-1299, with this contract as 1200 (accepted on 2026-10-06); the answers in [Decisions taken by the owner (2026-10-06)](#decisions-taken-by-the-owner-2026-10-06); mini-apps first, themes deferred; the agent console as a built-in screen, with bots able to serve their own apps over `apps/1` in phase 2; adapter plugins out of the store until a plugin host; one bundle as the published unit; a single self-contained HTML entry; no rotation in phase 1; one "Stores" concept; cards shown from their own data; storage per app and per chat; licences per profile, derived per publisher, in phase 2.
+
+**Decided for the owner by the coordinator (2026-10-03):** a self-hosted web server that cannot send the runner's header gets no apps, and the client hides Apps there, documented in the self-hosting notes; phase 1 chat cards fetch only from `raw.githubusercontent.com` and jsDelivr, other hosts later with a warning naming the host before any request; the owner's offline key signs both the default store and the default index, with a separate index key (signed by the owner's key) only if signing by hand becomes the bottleneck.
+
+**No question of phase 1 is open for the owner.** Phase 2 has ten, in [its proposal](#questions-for-the-owner). What is left of phase 1 belongs to the builders, each decided above or by the phase 1 piece named:
+
+| Builder decision | Where it is settled |
+|---|---|
+| The broker's message types and the `ghostly.*` API | [The runner and the broker](#the-runner-and-the-broker); a new type needs a change to this WISP |
+| The store index signature | [Stores](#stores): `ghostly-store.sig`, prefix `ghostly-store/1`, canonical bytes |
+| Where revocations are published and read | [Publisher keys](#publisher-keys-no-rotation-in-phase-1): `ghostly-revoke.json` beside the bundle, copied into store indexes |
+| How the entry reaches the runner on Desktop | `app_broker` `start`, from the state Rust keeps for the window's label |
+| `apps/1` open, close and version frames, the `paired-app` name and its 32 KiB data cap | [In a chat](#in-a-chat-apps1) |
+| `listing.json` and the crawler's input | [Stores](#stores): one index entry per file; `index/sources.json` |
+| Storage backend, export, backups, device handoff | [Where installed apps live](#updates-and-rollback) |
+| HMAC input bytes; z-base32 or base64url | [In a chat](#in-a-chat-apps1); keys and fingerprints are z-base32, hashes, signatures and chat app ids base64url without padding, Git commits hex |
+| Test vectors for every byte format above, and their files | [Test vectors](#test-vectors); phase 1 piece 1, before any client code reads a bundle |
+| Whether Tauri treats `ghostly-app` as local, and WebKit's `sandbox` header from a custom scheme | The Desktop spike, before phase 1 piece 3 lands on Desktop. A problem it finds gets fixed: Desktop is in release 1.2 (the owner's decision, 2026-10-06) |
+
+## Test vectors
+
+Every byte format of this WISP is pinned by vectors before any client reads a bundle (phase 1 piece 1), and before this draft can be Proposed ([00](00-process.md#process)). They follow the layout of the device vectors ([06](06-devices.md)):
+
+- **Where.** One JSON file per format in `packages/core/test/vectors/`, checked in.
+- **How they are made.** Each file is built by its test from fixed labels: every key and seed is the SHA-256 of `ghostly apps vectors: <label>`, a test value and never a real key. The test writes the file again when an environment variable says so (`APPS_VECTORS_WRITE=1`), and otherwise reads it and fails on any difference, so a change to a format shows in review as a changed vector.
+- **Shape.** Each file has `about` (what it pins, the section of this WISP and the test that builds it), the fixed inputs, `valid` (cases a reader must accept, each with what it must read) and `invalid` (cases a reader must refuse: `name`, `refusal`, the reader's reason, and the bytes or the JSON).
+- **Encodings.** Raw bytes are hex in the files; keys are z-base32, and hashes, signatures and chat app ids base64url without padding, as on the wire. A bundle's bytes are a list of segments to join in order, `{"hex": "..."}` as written or `{"fill": "<one byte in hex>", "size": <n>}` for that byte repeated, so the 16 MiB case stays a few lines; each valid bundle also gives its length and SHA-256. JSON that must be read as exact bytes (a store index, a statement) is given as its exact text.
+- **The reader's clock** is fixed at `now` = 1790000000 (Unix seconds) in every file.
+- **Refusals** are the codes of [Reading a bundle](#signatures-one-rule-for-every-statement) and [Stores](#stores). Two parsers that refuse one case with different codes have a bug, though only the refusal itself is the security property.
+- **Who reads them.** Every parser of these formats: the TypeScript one in `packages/core` in phase 1, and any other later (Rust on Desktop, another client). Two parsers that read one vector differently means a bug in one of them.
+
+| File | Pins | Valid cases | Refusals, at least |
+|---|---|---|---|
+| `app-bundle.json` | [The bundle](#the-bundle-the-one-published-unit), the canonical manifest, the digest and the `ghostly-app/1` signature | A bundle with the entry only; one with an icon, screenshots and data files; one that asks for `internet`; each bound at its limit, the icon's 1024 pixels included (but the manifest's 64 KiB, which a manifest within the field bounds cannot reach: it is pinned by its refusal only); a key from a later format, at the top and in `runtime`, ignored; a later client name in `runtime`, ignored | Each bound passed by one; a manifest that is not canonical; a duplicated key; a later key changed after signing; a later key beside a missing or out-of-bounds required one, or in a file entry; a client that is not a name, and 17 clients; `__proto__` at the top, `constructor` in `runtime`, `__proto__` and `constructor` two levels inside a later key; `price` or `recovery`; a bad signature; a signature by another key; a wrong file size or hash; a path with `..`, an empty segment, or two paths equal ignoring case; a wrong magic; a truncated bundle; a byte past the last file |
+| `app-statements.json` | `ghostly-revoke/1` (by digests, and up to a `sequence`), and one object signed under each phase 1 prefix of [Signatures](#signatures-one-rule-for-every-statement) (`ghostly-app/1`, `ghostly-store/1`, `ghostly-revoke/1`; `ghostly-publisher/1` comes with publisher proofs, later) | Each statement, with its signed bytes; signed revocations; a `ghostly-revoke.json` | A statement checked under another prefix or another key; one that is not canonical; each malformed revocation |
+| `app-store.json` | `ghostly-store.json` with `ghostly-store.sig` ([Stores](#stores)), a `listing.json` entry, and the update rule as decisions for indexes (`new`, `update`, `same`, `rollback`, `equivocation`, `other-key`) and apps (`update`, `same`, `rollback`, `equivocation`, `other-app`) | An index with apps, `removed` and `revoked`; each kind; `expires` exactly 90 days ahead, and past; keys from a later format in the index, a listing and a removal, ignored; a `listing.json` with one, read as a client reads an index entry | Bytes that are not canonical; a bad signature; `expires` more than 90 days ahead; a jsDelivr URL with a branch, a tag, a range, a short commit or `latest`; a later key changed after signing; a later key beside a missing or out-of-bounds required one; a later key in a copied revocation; a revocation that does not verify, alone (`bad-revocation`), in an index whose own signature does not verify (`bad-signature`), under another key than the reader holds (`store-key`), and with `expires` too far ahead (`bad-revocation`); a revocation of another shape in an index whose signature does not verify (`bad-revocation`); `__proto__` in the index, a listing or a `listing.json`, `constructor` in a removal, `__proto__` two levels inside a later key of the index or a `listing.json`, `constructor` two levels inside a later key of a listing; a `listing.json` with a later key, checked strictly as a store does; the reader's refusal of a lower `sequence` than one it holds |
+| `app-chat.json` | The chat app id and the `paired-app` frames ([In a chat](#in-a-chat-apps1)) | Ids for one pair of keys given in both orders (the same id) and for two apps; an `open`, a `close`, and data frames whose `d` is small and exactly 32 KiB | `d` one byte past 32 KiB; an unknown `o`; no `a`; an `a` that is not 22 characters |
+| `app-card.json` | The `app` card ([405](405-status-cards.md#an-app)) and its fallback text | A shared card and an opened card, with and without `url` | Each required field missing or invalid; a `ref` whose key is not 52 z-base32 characters; an `id` that does not match the `ref`; a `url` that is not https |
+
+## Conformance (candidate)
+
+A client that implements this WISP MUST:
+
+- install, update or run a bundle only when its manifest is canonical and holds every bound, its signature verifies under the publisher key, every file matches its size and hash, and no byte follows the last file;
+- identify an app by publisher key and name, never by a store or a URL;
+- never install a lower `sequence` over a higher one, and on two packages of one app with the same `sequence` and different digests keep the one it runs and refuse the other;
+- look for updates only in `sources` and the person's stores, and only while an app is installed; take a valid newer version from anywhere, except for an app installed from a store, which, while the person keeps that store, takes only the version (`sequence` and digest) that store's signed index lists now;
+- ignore a key it does not know in a manifest, a store index, a listing or a removal, while still refusing a missing or malformed required key, `price`, `recovery`, and `__proto__`, `constructor` and `prototype` at any level, inside an ignored value too; treat `runtime` as advisory, and accept a client name it does not know;
+- show the permissions and the IP line before installing, re-ask when an update adds a permission, and grant none on behalf of a store or a contact;
+- run a mini-app only in a runner that checked its origin or label, deleted the WebRTC constructors (and, on the web, the history methods) and sent the CSP above (the network runner's only for an app the person granted `internet`, chosen from that grant, never from the app); answer it only through the broker, on its own port or window label, within its permissions and bounds; accept exactly one frame `load` after the runner's `writing` and tear the app down on any other; keep its storage per app and per chat;
+- on Desktop, allow an app window no command but `app_broker`, take its identity from its label, block its navigation and deny new windows without opening the system browser;
+- enforce the `paired-app` limits as a receiver (32 KiB of data, 50 frames a second per app, both sides open, `apps/1` on both sides), and send `paired-app` frames on the live session only;
+- show a chat card from its own data, fetch nothing until Install, and in phase 1 fetch only from the allowlisted hosts, a jsDelivr URL only when it names a commit;
+- show "Unknown publisher" when no proof verifies and no curated store of the person's lists the app, and never let an indexed store clear that warning or "Not in any of your stores" (the one exception is the version of a [built-in app](#built-in-apps) the client's own list pins, which shows neither); show at least 80 bits of the publisher key;
+- never install or run anything from a card or a bundle by itself, and refuse unsigned packages;
+- never advertise installed apps to contacts;
+- check the removals and revocations of the person's stores before an install and at every update check, and stop an app its publisher revoked;
+- refuse a store index with a lower `sequence` than the one held, and say when one is past `expires`.
+
+## References
+
+[SDK](../SDK.md), [browser boundaries](../BROWSER.md), [roadmap](ADAPTER-ROADMAP.md#plugins-apps-catalogs-and-ghostlyos), [local services](700-local-services.md), [HTTP services](701-http-services.md), [chat session](401-paired-chat.md), [chat files](501-paired-files.md), [status cards](405-status-cards.md), [message buttons](406-message-buttons.md), [payments](200-payments.md), [identity proofs](300-peer-proofs.md), [SSH proofs](307-ssh.md), [invites](800-invite-join.md), [devices](06-devices.md), [headless](1100-headless.md). Outside sources are in [What the outside world allows](#what-the-outside-world-allows-sources); also [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) (JSON canonicalization) and [RFC 5869](https://www.rfc-editor.org/rfc/rfc5869) (HKDF).
+
+## Revision log
+
+One file per change in [changes/1200-marketplace/](changes/1200-marketplace/) ([how](00-process.md#revisions)). The site lists them here, newest first, and derives the Revision and Updated rows from them.

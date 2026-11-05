@@ -1,0 +1,384 @@
+/*
+ * The boot guard: what the page says when the app never gets to draw. It is a plain script, loaded before the app's
+ * bundle and written in the JavaScript of old browsers (no modules, no arrow functions, no let or const), because
+ * its job is the browsers the bundle cannot run in: an Android System WebView from years ago stops at the bundle's
+ * syntax, a browser without an API the app starts with throws before React renders, and both left the page blank.
+ *
+ * It shows itself when an error arrives and the page is empty a moment later, or when the page has loaded and stays
+ * empty. It leaves as soon as the app (or its "open in another tab" screen) draws into #root, so a slow start is
+ * never covered for long, and it keeps listening: a first screen is not the app yet (the "open in another tab"
+ * screen is drawn while the lock is slow, and the app that follows may still fail and leave the page empty). An
+ * error the app stays on screen through is the app's own error screen's, and is forgotten. "Copy details" holds the
+ * error, the browser's version and which APIs are there: no address fragment, no storage, nothing of a chat or a key.
+ * The "Starting Property…" first paint index.html puts in #root (#boot-shell) is not the app: with only it there the
+ * page counts as empty, and the guard gives it the language the app will draw in (the profile's, or the browser's for a
+ * new one). As it runs, before anything is drawn, it puts the person's theme on <html>, so the first paint is in their
+ * colours.
+ *
+ * A file of its own, not inline: the site's Content-Security-Policy allows scripts from this origin only.
+ */
+(function () {
+  "use strict";
+
+  /** How long after an error, and after the page's load, the app has to draw something. */
+  var AFTER_ERROR_MS = 1500;
+  var AFTER_LOAD_MS = 6000;
+  /** The oldest engines the bundle is built for (Vite's "baseline widely available"). */
+  var CHROME_FLOOR = 111;
+  var IOS_FLOOR = [16, 4];
+
+  var TEXT = {
+    en: { starting: "Starting Property…", title: "Property could not start", slow: "Property is taking long to start", why: "This browser may be too old, or it blocks something Property needs.", "try": "Update your browser, or open Property in another one.", android: "On Android, update Android System WebView and Chrome in Google Play.", ios: "On iPhone or iPad, update iOS.", reload: "Reload", copy: "Copy details", copied: "Copied" },
+    pt: { starting: "Iniciando o Property…", title: "O Property não conseguiu iniciar", slow: "O Property está demorando para iniciar", why: "Este navegador pode ser antigo demais, ou bloqueia algo de que o Property precisa.", "try": "Atualize o navegador, ou abra o Property em outro.", android: "No Android, atualize o Android System WebView e o Chrome no Google Play.", ios: "No iPhone ou iPad, atualize o iOS.", reload: "Recarregar", copy: "Copiar detalhes", copied: "Copiado" },
+    es: { starting: "Iniciando Property…", title: "Property no pudo iniciarse", slow: "Property está tardando en iniciarse", why: "Este navegador puede ser demasiado antiguo, o bloquea algo que Property necesita.", "try": "Actualiza el navegador, o abre Property en otro.", android: "En Android, actualiza Android System WebView y Chrome en Google Play.", ios: "En iPhone o iPad, actualiza iOS.", reload: "Recargar", copy: "Copiar detalles", copied: "Copiado" },
+    fr: { starting: "Démarrage de Property…", title: "Property n'a pas pu démarrer", slow: "Property met du temps à démarrer", why: "Ce navigateur est peut-être trop ancien, ou il bloque quelque chose dont Property a besoin.", "try": "Mettez le navigateur à jour, ou ouvrez Property dans un autre.", android: "Sur Android, mettez à jour Android System WebView et Chrome dans Google Play.", ios: "Sur iPhone ou iPad, mettez iOS à jour.", reload: "Recharger", copy: "Copier les détails", copied: "Copié" },
+    it: { starting: "Avvio di Property…", title: "Property non è riuscito ad avviarsi", slow: "Property ci sta mettendo molto ad avviarsi", why: "Questo browser potrebbe essere troppo vecchio, o blocca qualcosa che serve a Property.", "try": "Aggiorna il browser, o apri Property in un altro.", android: "Su Android, aggiorna Android System WebView e Chrome in Google Play.", ios: "Su iPhone o iPad, aggiorna iOS.", reload: "Ricarica", copy: "Copia dettagli", copied: "Copiato" },
+    zh: { starting: "正在启动 Property…", title: "Property 无法启动", slow: "Property 启动时间较长", why: "此浏览器可能版本过旧，或拦截了 Property 需要的功能。", "try": "请更新浏览器，或在其他浏览器中打开 Property。", android: "在 Android 上，请在 Google Play 中更新 Android System WebView 和 Chrome。", ios: "在 iPhone 或 iPad 上，请更新 iOS。", reload: "重新加载", copy: "复制详情", copied: "已复制" },
+    ja: { starting: "Property を起動しています…", title: "Property を起動できませんでした", slow: "Property の起動に時間がかかっています", why: "このブラウザは古すぎるか、Property に必要な機能をブロックしている可能性があります。", "try": "ブラウザを更新するか、別のブラウザで Property を開いてください。", android: "Android では、Google Play で Android System WebView と Chrome を更新してください。", ios: "iPhone または iPad では、iOS を更新してください。", reload: "再読み込み", copy: "詳細をコピー", copied: "コピーしました" },
+    ar: { starting: "جارٍ تشغيل Property…", title: "تعذّر تشغيل Property", slow: "Property يستغرق وقتًا طويلًا للبدء", why: "قد يكون هذا المتصفح قديمًا جدًا، أو يحظر شيئًا يحتاجه Property.", "try": "حدّث المتصفح، أو افتح Property في متصفح آخر.", android: "على Android، حدّث Android System WebView و Chrome من Google Play.", ios: "على iPhone أو iPad، حدّث iOS.", reload: "إعادة التحميل", copy: "نسخ التفاصيل", copied: "تم النسخ" }
+  };
+
+  var started = Date.now();
+  var errors = [];
+  var reason = "";
+  var panel = null;
+  var slow = null;
+  var poll = null;
+  var observer = null;
+
+  /** The guard's words in the language the app will draw in (`appLanguage`), English for one it has no words for. */
+  function language() {
+    var tag = appLanguage(TEXT);
+    return TEXT.hasOwnProperty(tag) ? tag : "en";
+  }
+
+  /** Text that may come from anywhere (an error's message): no invite, no long key-like run, no address fragment. */
+  function clean(text) {
+    return String(text == null ? "" : text)
+      .replace(/(https?:\/\/[^\s#?)]+)[#?][^\s)]*/g, "$1")
+      .replace(/ghostly1[0-9a-z]+/gi, "[removed]")
+      .replace(/[A-Za-z0-9_+\/=-]{40,}/g, "[removed]")
+      .slice(0, 600);
+  }
+
+  function has(check) {
+    try { return check() ? "yes" : "no"; } catch (e) { return "throws"; }
+  }
+
+  /** Which of the things the app starts with this browser has. Never reads what is stored. */
+  function features() {
+    var list = [
+      ["secureContext", function () { return window.isSecureContext; }],
+      ["locks", function () { return navigator.locks; }],
+      ["indexedDB", function () { return window.indexedDB; }],
+      ["localStorage", function () { return window.localStorage; }],
+      ["cryptoSubtle", function () { return window.crypto && window.crypto.subtle; }],
+      ["serviceWorker", function () { return navigator.serviceWorker; }],
+      ["storagePersist", function () { return navigator.storage && navigator.storage.persist; }],
+      ["opfs", function () { return navigator.storage && navigator.storage.getDirectory; }],
+      ["broadcastChannel", function () { return window.BroadcastChannel; }],
+      ["webAssembly", function () { return window.WebAssembly; }],
+      ["webRTC", function () { return window.RTCPeerConnection; }],
+      ["notification", function () { return window.Notification; }],
+      ["push", function () { return window.PushManager; }],
+      ["worker", function () { return window.Worker; }],
+      ["hasOwn", function () { return Object.hasOwn; }]
+    ];
+    var out = [];
+    for (var i = 0; i < list.length; i++) out.push(list[i][0] + "=" + has(list[i][1]));
+    return out.join(" ");
+  }
+
+  function build() {
+    try {
+      var meta = document.querySelector('meta[name="ghostly-build"]');
+      return meta ? meta.getAttribute("content") : "unknown";
+    } catch (e) { return "unknown"; }
+  }
+
+  /** What "Copy details" holds. */
+  function details() {
+    var lines = ["Property boot report", "reason: " + (reason || "none"), "build: " + build()];
+    for (var i = 0; i < errors.length && i < 5; i++) lines.push("error: " + errors[i].text);
+    try { lines.push("page: " + location.origin + location.pathname); } catch (e) { /* no address */ }
+    try { lines.push("browser: " + navigator.userAgent); } catch (e) { /* none */ }
+    try { lines.push("language: " + navigator.language); } catch (e) { /* none */ }
+    lines.push("features: " + features());
+    lines.push("after: " + (Date.now() - started) + " ms");
+    return lines.join("\n");
+  }
+
+  /** The first paint index.html carries in #root (#boot-shell): the page is still empty while only it is there. */
+  function painted() {
+    var root = document.getElementById("root");
+    if (!root || root.childElementCount === 0) return false;
+    return !(root.childElementCount === 1 && root.firstElementChild && root.firstElementChild.id === "boot-shell");
+  }
+
+  /** The first paint's words in the app's language, once the page has been read (before the bundle runs). */
+  function speakShell() {
+    var shell = document.getElementById("boot-shell");
+    var words = shell && shell.getElementsByTagName("p")[0];
+    if (!words) return;
+    var tag = language();
+    shell.setAttribute("lang", tag);
+    shell.setAttribute("dir", tag === "ar" ? "rtl" : "ltr");
+    words.textContent = TEXT[tag].starting;
+  }
+
+  /** The update that most likely helps, from the browser's own description of itself. */
+  function platformHint(text) {
+    var agent = "";
+    try { agent = navigator.userAgent || ""; } catch (e) { /* none */ }
+    if (/Android/.test(agent)) {
+      var chrome = /Chrome\/(\d+)/.exec(agent);
+      if (/; wv\)/.test(agent) || !chrome || Number(chrome[1]) < CHROME_FLOOR) return text.android;
+    }
+    var ios = /(?:iPhone|iPad|iPod).*? OS (\d+)_(\d+)/.exec(agent);
+    if (ios && (Number(ios[1]) < IOS_FLOOR[0] || (Number(ios[1]) === IOS_FLOOR[0] && Number(ios[2]) < IOS_FLOOR[1]))) return text.ios;
+    return "";
+  }
+
+  function element(tag, style, text) {
+    var node = document.createElement(tag);
+    if (style) node.setAttribute("style", style);
+    if (text) node.textContent = text;
+    return node;
+  }
+
+  function show(why) {
+    if (painted()) return;
+    reason = reason === "error" ? reason : why;
+    if (panel) return;
+    if (!document.body) return;
+    var tag = language();
+    var text = TEXT[tag];
+    panel = element("div", "position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483647;overflow:auto;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;background:#0b141a;color:#e9edef;font:15px/1.45 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center");
+    panel.id = "boot-fallback";
+    panel.setAttribute("role", "alert");
+    panel.setAttribute("data-testid", "boot-fallback");
+    panel.setAttribute("data-reason", reason);
+    panel.setAttribute("lang", tag);
+    panel.setAttribute("dir", tag === "ar" ? "rtl" : "ltr");
+    var box = element("div", "max-width:420px;width:100%");
+    box.appendChild(element("div", "font-size:48px", "👻"));
+    box.appendChild(element("h1", "font-size:18px;font-weight:600;margin:12px 0 8px", reason === "error" ? text.title : text.slow));
+    box.appendChild(element("p", "margin:0 0 8px;color:#aebac1", text.why));
+    box.appendChild(element("p", "margin:0 0 8px", text["try"]));
+    var hint = platformHint(text);
+    if (hint) {
+      var hintLine = element("p", "margin:0 0 8px", hint);
+      hintLine.setAttribute("data-testid", "boot-fallback-hint");
+      box.appendChild(hintLine);
+    }
+    var button = "margin:12px 6px 0;padding:9px 16px;border-radius:8px;border:1px solid #3b4a54;background:#202c33;color:#e9edef;font:inherit;font-weight:600;cursor:pointer";
+    var reload = element("button", button, text.reload);
+    reload.type = "button";
+    reload.onclick = function () { location.reload(); };
+    var copy = element("button", button, text.copy);
+    copy.type = "button";
+    copy.setAttribute("data-testid", "boot-fallback-copy");
+    var area = element("textarea", "display:block;width:100%;box-sizing:border-box;margin-top:16px;padding:8px;border-radius:8px;border:1px solid #3b4a54;background:#111b21;color:#aebac1;font:11px/1.4 ui-monospace,Menlo,Consolas,monospace;text-align:left;direction:ltr;resize:vertical");
+    area.readOnly = true;
+    area.rows = 7;
+    area.setAttribute("data-testid", "boot-fallback-details");
+    area.setAttribute("aria-label", text.copy);
+    area.value = details();
+    copy.onclick = function () {
+      var said = function () { copy.textContent = text.copied; };
+      // The field stays selected either way, so a browser that refuses both can still copy it by hand.
+      var byHand = function () { try { area.focus(); area.select(); if (document.execCommand("copy")) said(); } catch (e) { /* selected for a manual copy */ } };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(area.value).then(said, byHand);
+        else byHand();
+      } catch (e) { byHand(); }
+    };
+    box.appendChild(reload);
+    box.appendChild(copy);
+    box.appendChild(area);
+    panel.appendChild(box);
+    document.body.appendChild(panel);
+    // Without a MutationObserver, and as a second look with one: the app may draw after the guard showed.
+    if (poll === null) poll = setInterval(check, 500);
+  }
+
+  /** Something drew: the guard steps aside. It is not "taking long" any more; an error that empties the page still counts. */
+  function drew() {
+    if (slow !== null) clearTimeout(slow);
+    slow = null;
+    if (poll !== null) clearInterval(poll);
+    poll = null;
+    if (panel && panel.parentNode) panel.parentNode.removeChild(panel);
+    panel = null;
+    reason = "";
+  }
+
+  function check() { if (painted()) drew(); }
+
+  function forget(entry) {
+    for (var i = 0; i < errors.length; i++) if (errors[i] === entry) { errors.splice(i, 1); return; }
+  }
+
+  function failed(message) {
+    // An object, so that two errors with the same words are two entries.
+    var entry = { text: clean(message) };
+    errors.push(entry);
+    if (panel) {
+      // Already on screen (a slow start that then failed): the details follow.
+      var area = panel.querySelector("textarea");
+      if (area) area.value = details();
+      return;
+    }
+    // Looked at a moment later, never at once: the page may be about to draw, or about to be emptied by this error.
+    setTimeout(function () {
+      if (painted()) { forget(entry); drew(); return; }
+      if (panel) return;
+      reason = "error";
+      show("error");
+    }, AFTER_ERROR_MS);
+  }
+
+  function fileOf(address) {
+    return String(address || "").replace(/[#?].*$/, "").replace(/^.*\//, "");
+  }
+
+  function onError(event) {
+    var target = event && event.target;
+    if (target && target !== window && target.tagName) {
+      // A file that did not load. Only a script stops the app; a picture or an icon does not.
+      if (target.tagName === "SCRIPT") failed("script did not load: " + fileOf(target.src));
+      return;
+    }
+    var error = event && event.error;
+    var where = event && event.filename ? " (" + fileOf(event.filename) + ":" + event.lineno + ":" + event.colno + ")" : "";
+    failed((error && error.name ? error.name + ": " : "") + (error && error.message ? error.message : event && event.message) + where);
+  }
+
+  function onRejection(event) {
+    var cause = event && event.reason;
+    failed((cause && cause.name ? cause.name + ": " : "") + (cause && cause.message ? cause.message : String(cause)));
+  }
+
+  function watch() {
+    var root = document.getElementById("root");
+    if (root && window.MutationObserver) {
+      observer = new MutationObserver(check);
+      observer.observe(root, { childList: true });
+    }
+    check();
+  }
+
+  function loaded() {
+    watch();
+    // The app may have drawn before the page finished loading: then nothing is taking long.
+    if (painted()) return;
+    slow = setTimeout(function () { slow = null; show("timeout"); }, AFTER_LOAD_MS);
+    // Without a MutationObserver, and as a second look with one.
+    if (poll === null) poll = setInterval(check, 500);
+  }
+
+  /**
+   * The language the app will start in, as apps/ui/src/lib/settings.ts picks it: the one the profile the page starts as
+   * saved (`settingsKey`, a handoff's space included), or for a new profile the first of the browser's languages the app
+   * speaks. English is in the entry. Another profile chosen on the way in may read in another language: then this file
+   * was asked for in vain, and the app asks for its own.
+   */
+  function appLanguage(files) {
+    try {
+      var saved = JSON.parse(localStorage.getItem(settingsKey()) || "null");
+      if (saved && typeof saved.language === "string") return saved.language;
+    } catch (e) { /* no storage: a new profile */ }
+    // English is the project default; a previously selected locale is kept above.
+    return "en";
+  }
+
+  /**
+   * The app's language file, asked for now, beside the bundle's files: the app loads it (`loadLocale`) only once its
+   * whole entry has downloaded and run, a round trip later on a slow network, and draws nothing until then. The
+   * build names each language's file in the page (apps/web/localePreload.ts); the dev server names none.
+   */
+  function preloadLanguage() {
+    try {
+      var meta = document.querySelector('meta[name="ghostly-locales"]');
+      if (!meta || !document.head) return;
+      var files = JSON.parse(meta.getAttribute("content") || "{}");
+      var language = appLanguage(files);
+      if (!Object.prototype.hasOwnProperty.call(files, language)) return;
+      var link = document.createElement("link");
+      link.rel = "modulepreload";
+      link.crossOrigin = "";
+      link.href = files[language];
+      document.head.appendChild(link);
+    } catch (e) { /* the app loads it itself */ }
+  }
+
+  /** The header colour of each scheme and colour theme (index.css's --theme-panel-header): the browser's bar. */
+  var HEADER = {
+    dark: { property: "#121315", classic: "#202c33", monochrome: "#1a1a1a", cyan: "#0c1929", purple: "#1a1625" },
+    light: { property: "#f6f6f1", classic: "#f0f2f5", monochrome: "#f5f5f5", cyan: "#ecfeff", purple: "#faf5ff" }
+  };
+
+  /**
+   * Where the profile the page will start as keeps its settings, as apps/ui/src/lib/profiles.ts finds it: the one the
+   * registry chose, in the space a handoff moved it to, or the default profile's.
+   */
+  function settingsKey() {
+    var space = "";
+    try {
+      var registry = JSON.parse(localStorage.getItem("ghostly_profiles") || "null");
+      var profiles = registry && registry.profiles instanceof Array ? registry.profiles : [];
+      var active = registry && typeof registry.active === "string" && /^[a-z0-9]{10}$/.test(registry.active) ? registry.active : "";
+      var found = !active;
+      for (var i = 0; i < profiles.length; i++) if (profiles[i] && profiles[i].id === active) found = true;
+      if (!found) active = "";
+      space = active;
+      for (var j = 0; j < profiles.length; j++) {
+        var entry = profiles[j];
+        if (entry && entry.id === active && typeof entry.space === "string" && /^[A-Za-z0-9_.-]{1,100}$/.test(entry.space)) space = entry.space;
+      }
+    } catch (e) { /* the default profile */ }
+    return space ? "ghostly_" + space + "_app_settings" : "ghostly_app_settings";
+  }
+
+  /**
+   * The person's scheme and colour theme on <html> before the first paint, as ThemeContext sets them once React runs:
+   * without them index.css's bare :root (Classic dark) drew the page, and a light theme flashed dark on every load.
+   * A new profile, or settings it cannot read, gets the app's defaults (apps/ui/src/lib/settings.ts).
+   */
+  function paintTheme() {
+    var scheme = "dark";
+    var theme = "property";
+    try {
+      var saved = JSON.parse(localStorage.getItem(settingsKey()) || "null");
+      var chosen = saved && (saved.colorScheme || saved.theme);
+      if (chosen === "light" || chosen === "dark") scheme = chosen;
+      else if (chosen === "system") scheme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      if (saved && HEADER.dark.hasOwnProperty(saved.colorTheme)) theme = saved.colorTheme;
+    } catch (e) { /* the defaults */ }
+    try {
+      var root = document.documentElement;
+      root.setAttribute("data-theme", scheme);
+      root.setAttribute("data-color-theme", theme);
+      root.style.colorScheme = scheme;
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute("content", HEADER[scheme][theme]);
+    } catch (e) { /* the app sets them */ }
+  }
+
+  paintTheme();
+  preloadLanguage();
+
+  if (document.readyState === "loading") {
+    document.addEventListener("readystatechange", function onReady() {
+      document.removeEventListener("readystatechange", onReady);
+      speakShell();
+    });
+  } else speakShell();
+  window.addEventListener("error", onError, true);
+  window.addEventListener("unhandledrejection", onRejection);
+  if (document.readyState === "complete") loaded();
+  else window.addEventListener("load", loaded);
+
+  /** For the app's own "cannot run here" screen: the same details, and a way to say the app has drawn. */
+  window.__ghostlyBoot = { details: details, clean: clean };
+})();

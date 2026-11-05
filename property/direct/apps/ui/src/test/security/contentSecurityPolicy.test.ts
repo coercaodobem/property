@@ -1,0 +1,253 @@
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { IMAGE_HOSTS, IMAGE_REDIRECTS } from "@ghostly/browser/profiles/public";
+import { CALLBACK_PATH } from "@ghostly/browser/proofs/oidc/popup";
+import { NET_RUNNER_CSP, NET_RUNNER_HEADERS, OPENER_KEPT_PATH, OPENER_POLICY, RUNNER_CSP, RUNNER_HEADERS } from "../../../../web/runnerPolicy";
+
+// covers: files.voice.play
+
+/**
+ * Every shell that serves the UI has its own Content-Security-Policy, and the browser engine enforces each one
+ * on its own. A directive missing from one of them breaks only that shell: #194's voice messages played in the
+ * web app and the extension, and every one of them failed on Desktop with "Could not play this recording.",
+ * because Tauri's policy had no `media-src` and `<audio src="blob:…">` fell back to `default-src 'self'`.
+ * The e2e suite runs the web build, which has no policy at all, so only a test that reads the policies sees it.
+ */
+const read = (path: string) => readFileSync(join(import.meta.dirname, "../../../../..", path), "utf8");
+
+/** `directive → sources`, as a browser reads a policy. */
+function directives(policy: string): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const part of policy.split(";")) {
+    const [name, ...sources] = part.trim().split(/\s+/);
+    if (name && !out.has(name)) out.set(name.toLowerCase(), sources);
+  }
+  return out;
+}
+
+/** The sources a fetch of this kind is checked against: its own directive, else `default-src`, else anything. */
+function allowed(policy: string, directive: string): string[] | "anything" {
+  const parsed = directives(policy);
+  return parsed.get(directive) ?? parsed.get("default-src") ?? "anything";
+}
+
+const policies = {
+  desktop: () => (JSON.parse(read("apps/desktop/tauri.conf.json")) as { app: { security: { csp: string } } }).app.security.csp,
+  web: () => /Content-Security-Policy "([^"]+)"/.exec(read("apps/web/nginx-headers.conf"))![1]!,
+  extension: () => (JSON.parse(read("apps/extension/public/manifest.json")) as { content_security_policy: { extension_pages: string } }).content_security_policy.extension_pages,
+};
+
+describe("the Content-Security-Policy of every shell", () => {
+  it.each(Object.keys(policies) as (keyof typeof policies)[])("%s plays audio and video from blob: URLs (voice messages, received media)", (shell) => {
+    const media = allowed(policies[shell](), "media-src");
+    if (media !== "anything") expect(media).toContain("blob:");
+  });
+
+  // covers: chat.location.card, chat.link-preview.render
+  it.each(Object.keys(policies) as (keyof typeof policies)[])("%s shows link-preview thumbnails (data:) and OpenStreetMap tiles on tap", (shell) => {
+    const images = allowed(policies[shell](), "img-src");
+    if (images === "anything") return;
+    expect(images).toContain("data:");
+    expect(images).toContain("https://tile.openstreetmap.org");
+  });
+
+  // covers: proofs.public-profile.picture
+  it.each(Object.keys(policies) as (keyof typeof policies)[])("%s fetches profile pictures from the fixed hosts (connect-src) and shows them as data: (img-src)", (shell) => {
+    const connect = allowed(policies[shell](), "connect-src");
+    const images = allowed(policies[shell](), "img-src");
+    // The engine fetches the picture and re-encodes it: the page only ever shows a data: URL.
+    if (images !== "anything") expect(images).toContain("data:");
+    if (connect === "anything") return;
+    const hosts = [...IMAGE_HOSTS, ...Object.values(IMAGE_REDIRECTS).flatMap(s => [...s])];
+    for (const host of hosts) expect(connect.includes("https:") || connect.includes(`https://${host}`), `${shell} connect-src reaches ${host}`).toBe(true);
+  });
+
+  // covers: app.attention.sounds, app.attention.cues
+  it.each(Object.keys(policies) as (keyof typeof policies)[])("%s fetches the app's own sounds (Web Audio decodes what fetch brings, so connect-src, not media-src)", (shell) => {
+    const connect = allowed(policies[shell](), "connect-src");
+    if (connect !== "anything") expect(connect).toContain("'self'");
+  });
+
+  it("keeps every sound a file of its own: Vite inlines an asset under 4 KiB as a data: URL, which connect-src 'self' refuses", () => {
+    const folder = join(import.meta.dirname, "../../assets/sounds");
+    for (const name of readdirSync(folder).filter(f => f.endsWith(".mp3"))) expect(statSync(join(folder, name)).size, name).toBeGreaterThan(4096);
+  });
+
+  // covers: files.video.stream
+  it("names media-src on Desktop, rather than leaning on default-src: blobs and the stored-file scheme, nothing wider", () => {
+    // Rust serves a stored file in ranges (apps/desktop/src/file_stream.rs): `ghostly-file://localhost/…` on macOS,
+    // `http://ghostly-file.localhost/…` on Windows, where WebView2 takes no custom scheme, and HTTP on 127.0.0.1 on
+    // Linux, whose WebKitGTK plays media from no custom scheme (connect-src already reaches 127.0.0.1).
+    expect(directives(policies.desktop()).get("media-src")).toEqual(["'self'", "blob:", "ghostly-file:", "http://ghostly-file.localhost", "http://127.0.0.1:*"]);
+    expect(directives(policies.desktop()).get("connect-src")).toContain("http://127.0.0.1:*");
+  });
+
+  it("gives the stored-file scheme to no other kind of fetch, and to no other shell", () => {
+    const desktop = directives(policies.desktop());
+    for (const [name, sources] of desktop) if (name !== "media-src") expect(sources.join(" "), name).not.toContain("ghostly-file");
+    expect(policies.web()).not.toContain("ghostly-file");
+    expect(policies.extension()).not.toContain("ghostly-file");
+  });
+
+  it("the parser reads a policy as a browser does", () => {
+    expect(allowed("default-src 'self'; img-src blob:", "media-src")).toEqual(["'self'"]);
+    expect(allowed("img-src blob:", "media-src")).toBe("anything");
+    expect(allowed("default-src 'self'; media-src 'self' blob:; media-src 'none'", "media-src")).toEqual(["'self'", "blob:"]);
+  });
+});
+
+// covers: apps.web-sandbox
+describe("the mini-app runner (WISP 1200, \"The runner's CSP\")", () => {
+  const nginx = read("apps/web/nginx.conf");
+  /** nginx's `location` blocks: what each matches, and what is inside. */
+  const locations = [...nginx.matchAll(/location\s+([^{]+?)\s*\{([^}]*)\}/g)].map(([, match, body]) => ({ match: match!.trim(), body: body! }));
+  const runner = locations.find((l) => l.match === "= /app-frame.html");
+  const header = (body: string, name: string) => new RegExp(`add_header ${name} "([^"]+)" always;`).exec(body)?.[1];
+
+  it("the web page may frame only its own origin", () => {
+    expect(directives(policies.web()).get("frame-src")).toEqual(["'self'"]);
+    expect(directives(policies.web()).get("frame-ancestors")).toEqual(["'none'"]);
+  });
+
+  it("the runner's location sends the runner's policy, the same on the web, in Vite's servers and on Desktop", () => {
+    expect(runner, "a location for /app-frame.html").toBeDefined();
+    expect(header(runner!.body, "Content-Security-Policy")).toBe(RUNNER_CSP);
+    expect(RUNNER_HEADERS["Content-Security-Policy"]).toBe(RUNNER_CSP);
+    const desktop = /pub const RUNNER_CSP: &str = "([^"]*)";/.exec(read("apps/desktop/src/app_sandbox.rs"))![1]!.replace(/\\\n/g, "");
+    expect(desktop).toBe(RUNNER_CSP);
+    const d = directives(RUNNER_CSP);
+    expect(d.get("sandbox")).toEqual(["allow-scripts", "allow-pointer-lock"]);
+    expect(d.get("frame-ancestors")).toEqual(["'self'"]);
+    for (const name of ["default-src", "connect-src", "frame-src", "worker-src", "form-action", "base-uri"]) expect(d.get(name), name).toEqual(["'none'"]);
+    expect(d.get("script-src")).toEqual(["'unsafe-inline'", "'wasm-unsafe-eval'"]);
+  });
+
+  it("does not carry the page's policy (two policies intersect), and repeats every other header itself", () => {
+    expect(runner!.body).not.toContain("ghostly-headers.conf");
+    const common = read("apps/web/nginx-headers.conf");
+    for (const name of ["X-Content-Type-Options", "Referrer-Policy", "Strict-Transport-Security"]) {
+      expect(header(runner!.body, name), name).toBe(header(common, name));
+    }
+    expect(header(runner!.body, "Permissions-Policy")).toBe(RUNNER_HEADERS["Permissions-Policy"]);
+    for (const name of ["X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy", "X-DNS-Prefetch-Control"]) expect(RUNNER_HEADERS[name], name).toBe(header(runner!.body, name));
+  });
+
+  it("the network runner (apps granted internet) is the same file under a policy that adds HTTPS and WSS, and nothing else", () => {
+    const net = locations.find((l) => l.match === "= /app-frame-net.html");
+    expect(net, "a location for /app-frame-net.html").toBeDefined();
+    expect(net!.body).toContain("try_files /app-frame.html =404;");
+    expect(net!.body).not.toContain("ghostly-headers.conf");
+    expect(header(net!.body, "Content-Security-Policy")).toBe(NET_RUNNER_CSP);
+    expect(NET_RUNNER_HEADERS["Content-Security-Policy"]).toBe(NET_RUNNER_CSP);
+    // Desktop's `ghostly-app` scheme serves the same policy to an app window granted internet.
+    const desktop = /pub const NET_RUNNER_CSP: &str = "([^"]*)";/.exec(read("apps/desktop/src/app_sandbox.rs"))![1]!.replace(/\\\n/g, "");
+    expect(desktop).toBe(NET_RUNNER_CSP);
+    for (const name of ["X-Content-Type-Options", "Referrer-Policy", "Permissions-Policy", "X-DNS-Prefetch-Control", "Strict-Transport-Security"]) expect(header(net!.body, name), name).toBe(header(runner!.body, name));
+    const plain = directives(RUNNER_CSP);
+    const wide = directives(NET_RUNNER_CSP);
+    expect(wide.get("connect-src")).toEqual(["https:", "wss:"]);
+    for (const name of ["img-src", "media-src", "font-src"]) expect(wide.get(name), name).toEqual([...plain.get(name)!, "https:"]);
+    for (const [name, sources] of plain) if (!["connect-src", "img-src", "media-src", "font-src"].includes(name)) expect(wide.get(name), name).toEqual(sources);
+    expect([...wide.keys()].sort()).toEqual([...plain.keys()].sort());
+  });
+
+  it("every other location keeps the page's policy, and with it frame-ancestors 'none'", () => {
+    const net = locations.find((l) => l.match === "= /app-frame-net.html");
+    for (const location of locations.filter((l) => l !== runner && l !== net)) {
+      if (/^\s*return\s/.test(location.body.trim())) continue; // a redirect, no page
+      expect(location.body, location.match).toContain("include /etc/nginx/ghostly-headers.conf;");
+    }
+  });
+});
+
+// covers: app.web-opener
+describe("the web app's opener policy", () => {
+  // Without it, a page of another site that opened one of the app's addresses with window.open kept a handle on that
+  // window for as long as both stayed open: it could point the window at another address later, and post to its frames.
+  const nginx = read("apps/web/nginx.conf");
+  const locations = [...nginx.matchAll(/location\s+([^{]+?)\s*\{([^}]*)\}/g)].map(([, match, body]) => ({ match: match!.trim(), body: body! }));
+  const sent = (text: string) => [...text.matchAll(/^\s*add_header Cross-Origin-Opener-Policy "([^"]+)" always;$/gm)].map((m) => m[1]);
+  const pages = locations.filter((l) => !/^\s*return\s/.test(l.body.trim())); // a redirect, no page
+
+  it("every location that answers with a file sends it, once, but the sign-in's return page", () => {
+    expect(OPENER_POLICY).toBe("same-origin-allow-popups");
+    expect(pages.map((l) => l.match).sort()).toEqual(["/", "/assets/", "= /app-frame-net.html", "= /app-frame.html", "= /oidc-callback.html", "= /sw.js", "^~ /.well-known/"]);
+    for (const location of pages) expect(sent(location.body), location.match).toEqual(location.match === `= ${OPENER_KEPT_PATH}` ? [] : [OPENER_POLICY]);
+  });
+
+  it("is a line of each location: the shared file goes to the return page too, and nothing outside a location reaches one", () => {
+    expect(sent(read("apps/web/nginx-headers.conf"))).toEqual([]);
+    expect(nginx.replace(/location\s+[^{]+\{[^}]*\}/g, "")).not.toContain("add_header");
+  });
+
+  it("the page served without it is the one the sign-in returns to, and Vite's servers send the same on the runner", () => {
+    expect(OPENER_KEPT_PATH).toBe(CALLBACK_PATH);
+    expect(RUNNER_HEADERS["Cross-Origin-Opener-Policy"]).toBe(OPENER_POLICY);
+    expect(NET_RUNNER_HEADERS["Cross-Origin-Opener-Policy"]).toBe(OPENER_POLICY);
+  });
+});
+
+describe("HTTPS only", () => {
+  // Both sites are served over HTTPS by Cloudflare, which added no Strict-Transport-Security of its own, so a browser
+  // given the bare name could try plain HTTP first. The servers say it themselves.
+  it("the web app's server and the website send Strict-Transport-Security for a year", () => {
+    expect(read("apps/web/nginx-headers.conf")).toMatch(/^add_header Strict-Transport-Security "max-age=31536000" always;$/m);
+    expect(read("apps/website/next.config.ts")).toMatch(/key: "Strict-Transport-Security", value: "max-age=31536000"/);
+  });
+
+  // A browser ignores that header over plain http://, where the app can't run either (no secure context). Cloudflare
+  // reaches nginx through the tunnel whatever the visitor used, and says which in CF-Visitor. (The website's redirect
+  // is checked against `next start`: apps/website/e2e/https-redirect.spec.ts.)
+  it("the web app's server sends a visit over http:// to the same address over https://, in one hop", () => {
+    const nginx = read("apps/web/nginx.conf");
+    const server = /server \{([\s\S]*?)\n {2}location /.exec(nginx)![1]!;
+    const redirect = /\n {2}if \(\$(\w+)\) \{\s*return 301 https:\/\/\$host\$request_uri;\s*\}/.exec(server);
+    expect(redirect, "a redirect at the top of the app's server").not.toBeNull();
+    const map = new RegExp(`map \\$http_cf_visitor \\$${redirect![1]} \\{([^}]*)\\}`).exec(nginx);
+    expect(map, `the map of CF-Visitor that sets $${redirect![1]}`).not.toBeNull();
+    expect(map![1]).toMatch(/^\s*default 0;$/m);
+    const entries = [...map![1]!.matchAll(/^\s*(?:"~([^"]+)"|'~([^']+)')\s+1;$/gm)].map((m) => new RegExp(m[1] ?? m[2]!));
+    /** Whether nginx redirects a request with this CF-Visitor, as its map reads it. */
+    const plain = (visitor: string) => entries.some((re) => re.test(visitor));
+    expect(plain('{"scheme":"http"}')).toBe(true);
+    expect(plain('{"scheme":"https"}')).toBe(false);
+    expect(plain("")).toBe(false); // straight to the server (http://localhost, a proxy that is not Cloudflare): the page
+  });
+});
+
+describe("nothing written into a page on its way", () => {
+  // Cloudflare's Web Analytics setup wrote its beacon <script> into every page of both sites. The script policy refused
+  // it, but every visit logged a console error and a failed request. A proxy changes nothing in an answer that says
+  // no-transform (the website's own: apps/website/instrumentation.ts, e2e/csp.spec.ts).
+  it("every location of the web app's server that names a Cache-Control says no-transform in it, the services origin's too", () => {
+    for (const file of ["apps/web/nginx.conf", "apps/web/nginx-services.conf"]) {
+      const values = [...read(file).matchAll(/add_header Cache-Control "([^"]+)"/g)].map((m) => m[1]!);
+      expect(values.length, file).toBeGreaterThan(0);
+      for (const value of values) expect(value.split(",").map((d) => d.trim()), `${file}: ${value}`).toContain("no-transform");
+    }
+    // The app's pages, its sign-in return page and the runner's frames name one, so none answers without it.
+    const nginx = read("apps/web/nginx.conf");
+    const pages = [...nginx.matchAll(/location\s+([^{]+?)\s*\{([^}]*)\}/g)].filter(([, match]) => match!.trim() === "/" || /\.html$/.test(match!.trim()));
+    expect(pages.map(([, match]) => match!.trim()).sort()).toEqual(["/", "= /app-frame-net.html", "= /app-frame.html", "= /oidc-callback.html"]);
+    for (const [, match, body] of pages) expect(body, match).toMatch(/add_header Cache-Control "[^"]*no-transform[^"]*"/);
+  });
+});
+
+describe("the web app's window", () => {
+  // A page of another site that opened the app would keep a handle to its window, and could set its address again and
+  // again (an invite link each time) without a reload. The header cuts that handle; `-allow-popups` keeps the windows
+  // the app opens itself (a sign-in). The sign-in's return page is opened by the provider inside such a window, which
+  // the app closes afterwards, so it stays without the header.
+  const locations = [...read("apps/web/nginx.conf").matchAll(/location\s+([^{]+?)\s*\{([^}]*)\}/g)].map((m) => ({ match: m[1]!, body: m[2]! }));
+  const opener = (match: string) => /add_header Cross-Origin-Opener-Policy "([^"]+)" always;/.exec(locations.find((l) => l.match === match)!.body)?.[1];
+
+  it("the app's pages cut the handle of a site that opened them, and keep the app's own popups", () => {
+    expect(opener("/")).toBe("same-origin-allow-popups");
+  });
+
+  it("the sign-in's return page keeps the popup's ties and every other header", () => {
+    expect(opener("= /oidc-callback.html")).toBeUndefined();
+    expect(locations.find((l) => l.match === "= /oidc-callback.html")!.body).toContain("include /etc/nginx/ghostly-headers.conf;");
+  });
+});

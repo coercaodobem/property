@@ -1,0 +1,87 @@
+# WISP 103: HyperDHT
+
+| Field | Value |
+|---|---|
+| Candidate number | 103; pending catalogue acceptance, not an official assignment |
+| Status | Draft |
+| Editors | Ghostly contributors; maintainer review pending |
+| Dependencies | [100](100-transports.md) |
+| Implementation | Experimental: native adapter of the chat session (desktop, and the headless CLI in process); browsers through a HyperDHT relay (web app, extension; off until a relay is set); public key in the layer-0 capability record |
+| Summary | Use an authenticated Noise stream found through HyperDHT. |
+| Availability | Available |
+| Notes | Experimental. Between desktop apps and the CLI, tried from the first contact. The web app and extension reach it only through a relay you set: none runs by default. |
+
+> This is a review draft. Candidate numbers and new wire formats are not registered standards. Normative language describes a candidate requirement, not a shipped guarantee. See the [catalogue](README.md), [implementation evidence](IMPLEMENTATION.md), and [interoperability plan](INTEROP.md).
+
+## Place in the one chat (revision 0.2)
+
+HyperDHT is a native layer-1 candidate of the one chat ([400](400-chat.md), [100](100-transports.md#the-dht-floor-upgrade-and-downgrade-revision-02)). Its DHT is not the chat's layer 0: layer 0 is Pkarr on the Mainline DHT, and a HyperDHT lookup is part of dialling this transport. Its public key is published in the layer-0 capability record ([03](03-capabilities.md#layer-0-capability-record)), so it can be tried without a WebRTC session first. A failed attempt leaves the chat `on-dht`; a dropped session sends it there until a transport is back.
+
+## Frames (revision 2026-10-12)
+
+The session runs on one NoiseSecretStream as frames, each a 4-byte big-endian length word and that many bytes, at most 60 KiB and never empty. The first frame each way is the preface `ghostly/paired-chat/1`. A frame is UTF-8 text (a JSON frame of the session), unless the top bit of its length word is set: then it is a binary message ([100](100-transports.md#text-and-binary-messages-revision-2026-10-12)) of the length in the other 31 bits. A stream that brings an empty frame, one over 60 KiB, text that is not UTF-8 or a binary frame before the preface is closed.
+
+An app before this revision reads a marked frame as one over 60 KiB and closes the stream, so binary messages go only where the session agreed a capability that needs them, which such an app never lists. Where it carries them: the CLI's HyperDHT, a browser's through a HyperDHT relay, and the Desktop's (its sidecar hands a binary message to the app in base64 on its private pipe; the wire is the frame above).
+
+## Browser profile: through a HyperDHT relay (revision 0.3)
+
+A browser has no UDP, so it cannot run HyperDHT itself. It can reach it through a **HyperDHT relay**: a server that runs the UDP half of HyperDHT and talks to the browser over one WebSocket (Holepunch's `@hyperswarm/dht-relay` protocol, [implementation](../../infra/services/hyperdht-relay/)). The chat session and its wire are the Desktop's: the same preface, the same length-prefixed frames, the same binding. A browser and a Desktop talk HyperDHT to each other.
+
+With Hide my IP from contacts on (`relayOnly`, [100](100-transports.md)), a Desktop's chats with its contacts go through the HyperDHT relay as a browser's do, with the same `relayed: true` descriptor, and offer no `hyperdht/1` when no relay is set: its own HyperDHT connects directly and would give a contact its address. The links to the profile's own devices keep the Desktop's own.
+
+**Non-custodial only.** dht-relay's client can hand its secret key to the relay, which then runs the handshake and the stream for it ("custodial", the library's default). A Ghostly client MUST NOT do that. In the non-custodial mode:
+
+- the browser keeps its keypair and runs the Noise IK handshake; the relay forwards the handshake messages;
+- the browser runs the encrypted stream (SecretStream) over the bytes the relay carries; the relay forwards ciphertext;
+- the browser signs its own announcements; the relay asks for each signature;
+- the binding below (the handshake hash and both keys) is computed by the two endpoints, so pinning, the transcript and the rank sum work unchanged.
+
+**What the relay sees:** the browser's address; the HyperDHT keys it listens on and dials (per-chat transport keys, never the participation key); when and how much it sends; the holepunch secret and the stream id, which are hashes of the handshake and give no session key. It never sees a frame, a secret key or the handshake hash. For an incoming stream the relay also reports the dialling key; a relay that lies there makes the two transcripts differ, so the session fails ([401](401-paired-chat.md)): it cannot impersonate anyone, only drop the session, which it can do anyway.
+
+**Descriptor.** A browser's descriptor is `{ "publicKey": <64 hex>, "relayed": true }`. `relayed` marks an endpoint reached only through a relay; a session that uses it ranks after every direct transport ([100](100-transports.md#relayed-transports-revision-03)). A Desktop ignores the field when dialling.
+
+**Relay.** One WebSocket per relay per app, shared by the chats; each chat listens on its own transport key. The relay URL is a setting (`wss://`, or `ws://` to the device itself for development); none is set by default until a Ghostly relay is run. A browser offers `hyperdht/1` only once the relay answered and let it listen. When the relay goes away, the endpoints close, and the app listens again 30 s later or when a chat is opened. A relay limits each client (connections per address, listens, dials per minute, bytes per second) and refuses topic lookups and announcements, which Ghostly never uses.
+
+**Browser crypto.** HyperDHT's Noise curve needs libsodium's `crypto_scalarmult_ed25519_noclamp`, which the browser build of sodium-universal lacks. A browser client supplies the same function (a canonical point of the prime-order subgroup, never the identity, the scalar taken modulo the group order) and MUST refuse the inputs libsodium refuses.
+
+**First contact.** A browser learns a contact's HyperDHT key (and the relay a browser contact goes through) from the layer-0 capability record ([03](03-capabilities.md#layer-0-capability-record)), so a first pairing can dial it before WebRTC has failed.
+
+**Implementation found and fixed (dht-relay 0.4.3, its latest release).** Relayed listening could not sign announcements on hyperdht 6.x; a failed incoming stream made the relay throw out of an event handler (one client could stop the process); a relay closing a gone browser's server waited forever for its signature. Ghostly's relay fixes all three.
+
+## Local native implementation (2026-09-20)
+
+The [native transport increment](TRANSPORT-INCREMENT.md) documents the implemented wire profile, negotiation rule, platform evidence and remaining limitations. It does not make this Draft Final or establish independent implementation conformance. Baseline absence statements below describe the initial inspection before that increment.
+
+**A listener for a contact who is gone is let go (revision 2026-11-03).** An announced listener costs the network about 62 requests a minute (hyperdht pings the three DHT nodes that hold its record every 3 seconds) whether anyone dials it or not. A 1:1 chat whose contact has not been seen for 10 minutes (no packet read in this run that says it is online, since the chat started; no session; no text either way; not opened on screen) lets its HyperDHT listener go, as one whose slot another chat takes does: its capability record then lists `hyperdht/1` without a key, so the contact does not dial it meanwhile. It listens again, on the same transport key, as soon as the contact's packet says it is online (read every 30 seconds at most in the background), a text goes either way, or the chat is opened; the contact is then dialled from here at once, whichever side's turn it is (its own dials found no listener here meanwhile). A contact back after being gone that long therefore goes live up to about half a minute later than before (the next read of its packet, plus the listener's start). No wire change.
+
+**A dial that opens and carries nothing is made again.** The first connection a freshly started process makes sometimes opens (the handshake went through the DHT, the stream is connected to the contact's address) and then carries nothing: the contact never sees it, and UDX gives up only after 13 seconds, while the same dial made again goes through in milliseconds. The desktop's sidecar and the CLI therefore close a dial whose stream opened and brought no `ghostly/paired-chat/1` preface within 2 seconds and dial again, at most three dials in all (`native/transports/hyperdht/redial.mjs`). On a slow path the wait is longer, so a preface that is only slow is not dialled again for nothing: three times the stream's smoothed round trip (UDX's RTT), or, before the stream has its first RTT sample, the time the dial took to open (its lookup and handshake went to the contact and back), at most 8 seconds, the time a chat's move gives its dial. A dial that fails before it opens (the contact not found) still fails at once. Found as a chat moved to HyperDHT right after the contact's app restarted taking about 28 seconds (the move's 8 seconds, then its 20-second retry) in 36 of 270 CI runs, 32 of them in the 139 where the restart had gone live without HyperDHT; reproduced with hyperdht alone, several processes under load (bug hunt r11h).
+
+**The cause is patched until hyperdht releases its fix.** A fresh process dials before its DHT knows it is not firewalled; by its punch rounds its NAT is found open, and hyperdht sends no addresses for an open NAT, so the contact's side aborts the handshake and destroys the stream the dial has just connected to. `tools/patches/hyperdht+6.34.1.patch` advertises the sampled addresses for an open NAT as for a consistent one, the change of [holepunchto/hyperdht#308](https://github.com/holepunchto/hyperdht/pull/308) ([upstream issue](https://github.com/holepunchto/hyperdht/issues/304#issuecomment-6046682074)); the root's postinstall applies it, and `tools/scripts/prepare-native-runtime.mjs` applies it to the Desktop runtime's own copy. The redial above stays as a safety belt. Remove the patch when Holepunch releases the fix (hyperdht > 6.34.1 containing #308). The CLI installed from npm resolves an unpatched hyperdht and still relies on the redial. The HyperDHT relay (`infra/services/hyperdht-relay`) keeps an unpatched copy too; it is long-running, so its NAT state is known and it only meets this right after a restart. `tools/scripts/test/hyperdhtNatPatch.test.ts` runs upstream's test on the installed copy, so a dependency bump that drops the patch fails CI.
+
+**One DHT node per app, and a listener announced only while it waits (revision 2026-11-03).** The desktop's sidecar and the CLI run every chat's listener and dial on one HyperDHT node per process (one UDP socket and routing table), each chat with its own key pair as before. hyperdht keeps an announced listener reachable by pinging the three DHT nodes that hold its record every 3 seconds, about 62 requests a minute per listener whether anyone dials it or not: with a node and an announced listener per chat, eight live chats sent about 1,050 HyperDHT requests a minute from 16 UDP ports. A chat's listener now stops announcing (its records are withdrawn and the pings stop) while the chat has a live channel on it, whichever side dialled, and announces again as soon as the last channel closes; the session itself is untouched. A contact whose side lost the session first (its network changed, its app was killed without a goodbye) finds no listener until this side's session ends too, at its liveness (about a minute); this side dials it then as well. A contact that says goodbye (an app that quits or restarts) reconnects as before. No wire change.
+
+## Purpose and evidence
+
+Evaluate HyperDHT as another optional data adapter. No adapter was found locally. [Upstream HyperDHT](https://github.com/holepunchto/hyperdht) documents encrypted connections addressed by public key, remote key inspection and a session handshake hash. Its DHT is not interchangeable with Pkarr's Mainline DHT record layer.
+
+## Candidate contract
+
+Ghost rendezvous exchanges an authenticated, bounded endpoint descriptor. Bind the HyperDHT public key and resulting secure connection to the participation key and negotiation attempt. Validate the remote endpoint; possession of an unrelated transport key is not Ghost admission.
+
+Specify a framed byte-stream mapping with size limits, flow control, cancellation and bounded concurrent operations. Applying current JSON/chunk frames to a stream requires explicit length delimiting; a stream is not a DataChannel message boundary. Publish/listen lifetime must end according to local policy, without claiming remote caches are erased.
+
+## Compatibility, security and open decisions
+
+Pin the upstream version, bootstrap policy, firewall rules and endpoint-binding construction. Browser access goes through a HyperDHT relay (above); any other bridge needs its own feasibility evidence and threat analysis. Do not confuse a successful HyperDHT connection with Keet identity proof or Keet compatibility. Avoid global transport ranking; [100](100-transports.md) selects among permitted profiles.
+
+## Conformance
+
+Demonstrate chat over HyperDHT and another adapter without changing application semantics; reject substituted remote keys and truncated/oversized frames. Test bootstrap failure, prohibited connectivity paths, backpressure and reconnect. Results remain pending.
+
+## References
+
+[Transport negotiation](100-transports.md), [Keet feasibility](303-keet.md), [current frame definitions](../../packages/core/src/frames.ts).
+
+## Revision log
+
+One file per change in [changes/103-hyperdht/](changes/103-hyperdht/) ([how](00-process.md#revisions)). The site lists them here, newest first, and derives the Revision and Updated rows from them.

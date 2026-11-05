@@ -1,0 +1,49 @@
+node_modules
+dist
+# Builds kept beside dist (dista/distb for an A/B, dist-old, ...): never committed (tools/scripts/test/trackedBuildOutput.test.ts)
+dist*/
+*.local
+.DS_Store
+target
+apps/desktop/target
+
+.cursor
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+# End-to-end test output
+test-results
+playwright-report
+playwright-report-desktop
+playwright-report-desktop-macos
+playwright-report-compat
+blob-report
+all-blob-reports
+dist-e2e
+
+# Generated native HyperDHT runtime
+/apps/desktop/native-runtime/
+
+# The SDK example installs @ghostlytools/sdk from a tarball packed on the spot (tools/scripts/sdk-example.mjs)
+/packages/sdk/examples/*/vendor/
+/packages/sdk/examples/*/package-lock.json
+
+# Unit test coverage (npm run coverage)
+/coverage/
+
+# The ephemeral test environment (npm run e2e:infra:up) writes its addresses and keys here
+.env.e2e
+playwright-report-matrix
+blob-report-matrix
+
+# npm run test:map:write (the whole test map; generated, see docs/TESTING.md)
+/docs/test-map.md
+
+# TypeScript build info (tsc -b): never committed
+*.tsbuildinfo
+
+# The bundles of the built-in apps: read from each app's own repository by apps/ui/scripts/built-in-apps.mjs (npm run sync:apps)
+apps/ui/src/assets/apps/*.ghostlyapp
+apps/ui/src/assets/apps/*.part

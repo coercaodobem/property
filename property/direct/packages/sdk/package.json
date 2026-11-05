@@ -1,0 +1,72 @@
+{
+  "name": "@ghostlytools/sdk",
+  "version": "1.9.0",
+  "type": "module",
+  "description": "Build a wallet source, an identity proof, a mini-app or a client for Ghostly without reading its internals: the adapter contracts, their fakes and contract test suites, the plugin registry, and the mini-app API types (Apps run in Ghostly 1.2 and later).",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MiguelMedeiros/ghostly.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/MiguelMedeiros/ghostly/blob/dev/docs/SDK.md",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/types/sdk/src/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./fakes": {
+      "types": "./dist/types/sdk/src/fakes.d.ts",
+      "default": "./dist/fakes.js"
+    },
+    "./testing": {
+      "types": "./dist/types/sdk/src/testing.d.ts",
+      "default": "./dist/testing.js"
+    },
+    "./core": {
+      "types": "./dist/types/sdk/src/core.d.ts",
+      "default": "./dist/core.js"
+    },
+    "./app": {
+      "types": "./dist/types/sdk/src/app.d.ts",
+      "default": "./dist/app.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^2.4.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "2.4.0",
+    "@scure/base": "2.4.0",
+    "b4a": "1.9.0"
+  },
+  "peerDependencies": {
+    "vitest": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@ghostly/browser": "*",
+    "@ghostly/core": "*",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  }
+}

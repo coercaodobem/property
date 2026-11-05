@@ -1,0 +1,593 @@
+import "fake-indexeddb/auto";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { APP_CHECK_TIMINGS } from "../src/engine/apps";
+import { APP_FETCH_HOSTS, APP_FETCH_LIMITS, AppFetchError, appPasteUrl, besideUrl, boundedAppFetch, isAppFetchUrl } from "../src/engine/appFetch";
+import { DEFAULT_APP_STORES, DEFAULT_STORE_KEY, DEFAULT_STORE_URL } from "../src/engine/appDefaults";
+import { isAppKey, readAppStoreSteps } from "@ghostly/core";
+import {
+  BUNDLE_URL, FakeNet, NOW_MS, NOW_S, PINNED_URL, SIG_URL, STORE_KEY, STORE_URL, apps, bundle, emptyProfile, keyOf, listing, revocation, signer, storeFiles,
+} from "./appsSupport";
+// covers: apps.engine.stores, apps.engine.network
+
+/** The real reader, counted: a refresh of an index whose bytes have not changed does not run it. */
+vi.mock("@ghostly/core", async (importOriginal) => {
+  const core = await importOriginal<typeof import("@ghostly/core")>();
+  return { ...core, readAppStoreSteps: vi.fn(core.readAppStoreSteps) };
+});
+
+/*
+ * Stores (WISP 1200 § Stores) and the network rules of the engine's app store: reads only from raw.githubusercontent.com
+ * and from cdn.jsdelivr.net at a commit, HTTPS, no redirect, capped while streaming, and no request at all with no app
+ * installed.
+ */
+
+let net: FakeNet;
+beforeEach(async () => {
+  await emptyProfile();
+  net = new FakeNet();
+});
+afterEach(() => { vi.useRealTimers(); });
+
+/** Fake timeouts and clock only: IndexedDB (fake-indexeddb) runs on the real `setImmediate`. */
+const clock = () => vi.useFakeTimers({ now: Date.now(), toFake: ["setTimeout", "clearTimeout", "Date"] });
+/** Lets `ms` pass, then waits until the store's tick is over (it schedules the next one last). */
+async function pass(ms: number): Promise<void> {
+  await vi.advanceTimersByTimeAsync(ms);
+  await vi.waitFor(() => { expect(vi.getTimerCount()).toBe(1); }, { timeout: 5000, interval: 5 });
+}
+
+describe("the hosts", () => {
+  it("only raw.githubusercontent.com, and cdn.jsdelivr.net at a full commit, over HTTPS", () => {
+    expect(APP_FETCH_HOSTS).toEqual(["raw.githubusercontent.com", "cdn.jsdelivr.net"]);
+    for (const ok of [BUNDLE_URL, PINNED_URL, STORE_URL]) expect(isAppFetchUrl(ok), ok).toBe(true);
+    for (const bad of [
+      "http://raw.githubusercontent.com/ana/chess/HEAD/app.ghostlyapp",
+      "https://raw.githubusercontent.com:8443/ana/chess/HEAD/app.ghostlyapp",
+      "https://user:pw@raw.githubusercontent.com/ana/chess/HEAD/app.ghostlyapp",
+      "https://github.com/ana/chess/raw/HEAD/app.ghostlyapp",
+      "https://api.github.com/repos/ana/chess",
+      "https://codeload.github.com/ana/chess/zip/HEAD",
+      "https://cdn.jsdelivr.net/gh/ana/chess@main/app.ghostlyapp",
+      "https://cdn.jsdelivr.net/gh/ana/chess@latest/app.ghostlyapp",
+      "https://cdn.jsdelivr.net/gh/ana/chess@1.2/app.ghostlyapp",
+      `https://cdn.jsdelivr.net/gh/ana/chess@${"a".repeat(39)}/app.ghostlyapp`,
+      `https://fastly.jsdelivr.net/gh/ana/chess@${"a".repeat(40)}/app.ghostlyapp`,
+      "https://raw.githubusercontent.com.evil.example/ana/chess/HEAD/app.ghostlyapp",
+      "https://example.com/ghostly-store.json",
+    ]) expect(isAppFetchUrl(bad), bad).toBe(false);
+  });
+
+  it("a pasted address becomes a raw URL, with no request to github.com", () => {
+    expect(appPasteUrl("https://github.com/ana/chess", "app.ghostlyapp")).toBe(BUNDLE_URL);
+    expect(appPasteUrl(" https://github.com/ana/chess.git/ ", "app.ghostlyapp")).toBe(BUNDLE_URL);
+    expect(appPasteUrl("https://github.com/ana/chess/tree/v2", "app.ghostlyapp")).toBe("https://raw.githubusercontent.com/ana/chess/v2/app.ghostlyapp");
+    expect(appPasteUrl("https://github.com/ghostly/store", "ghostly-store.json")).toBe(STORE_URL);
+    expect(appPasteUrl("https://raw.githubusercontent.com/ana/chess/HEAD", "app.ghostlyapp")).toBe(BUNDLE_URL);
+    expect(appPasteUrl(PINNED_URL, "app.ghostlyapp")).toBe(PINNED_URL);
+    // A file as GitHub shows it (or its raw link there): the same file at that ref on raw.githubusercontent.com.
+    expect(appPasteUrl("https://github.com/ana/chess/blob/HEAD/app.ghostlyapp", "app.ghostlyapp")).toBe(BUNDLE_URL);
+    expect(appPasteUrl("https://github.com/ana/chess/blob/v2/dist/app.ghostlyapp", "app.ghostlyapp")).toBe("https://raw.githubusercontent.com/ana/chess/v2/dist/app.ghostlyapp");
+    expect(appPasteUrl("https://github.com/ana/chess/raw/main/app.ghostlyapp?download=1", "app.ghostlyapp")).toBe("https://raw.githubusercontent.com/ana/chess/main/app.ghostlyapp");
+    expect(appPasteUrl("https://github.com/ghostly/store/blob/HEAD/ghostly-store.json", "ghostly-store.json")).toBe(STORE_URL);
+    for (const bad of ["https://github.com/ana", "https://github.com/ana/chess/blob/HEAD/x", "https://github.com/ana/chess/blob/HEAD", "https://github.com/ana/chess/blob/HEAD/../app.ghostlyapp", "https://github.com/ana/chess/issues", "https://example.com/app.ghostlyapp", "not a url", "http://github.com/ana/chess"]) {
+      expect(appPasteUrl(bad, "app.ghostlyapp"), bad).toBeNull();
+    }
+    expect(besideUrl(STORE_URL, "ghostly-store.sig")).toBe(SIG_URL);
+    expect(besideUrl(`${BUNDLE_URL}?x=1`, "ghostly-revoke.json")).toBe("https://raw.githubusercontent.com/ana/chess/HEAD/ghostly-revoke.json");
+  });
+
+  it("a URL off the list is refused before any request; no cookies, no referrer, no redirect", async () => {
+    const fetcher = vi.fn(async () => new Response("x"));
+    const read = boundedAppFetch({ fetcher });
+    await expect(read("https://example.com/app.ghostlyapp", { maxBytes: 10 })).rejects.toMatchObject({ code: "host" });
+    expect(fetcher).not.toHaveBeenCalled();
+    await read(BUNDLE_URL, { maxBytes: 10 });
+    expect(fetcher).toHaveBeenCalledWith(BUNDLE_URL, expect.objectContaining({ credentials: "omit", referrerPolicy: "no-referrer", redirect: "error", cache: "no-store" }));
+  });
+
+  it("a response that lands on another host is refused", async () => {
+    const fetcher = vi.fn(async () => { const r = new Response("x"); Object.defineProperty(r, "url", { value: "https://evil.example/x" }); return r; });
+    await expect(boundedAppFetch({ fetcher })(BUNDLE_URL, { maxBytes: 10 })).rejects.toMatchObject({ code: "host" });
+  });
+
+  it("the size cap holds while the body streams, whatever Content-Length says; a peek reads only the first bytes", async () => {
+    let pulled = 0, cancelled = false;
+    const endless = () => new Response(new ReadableStream<Uint8Array>({
+      pull(controller) { pulled += 1; controller.enqueue(new Uint8Array(1000)); },
+      cancel() { cancelled = true; },
+    }));
+    const read = boundedAppFetch({ fetcher: vi.fn(async () => endless()) });
+    await expect(read(BUNDLE_URL, { maxBytes: 4500 })).rejects.toMatchObject({ code: "too-large" });
+    expect(cancelled, "the rest is never read").toBe(true);
+    expect(pulled).toBeLessThan(10);
+    expect((await read(BUNDLE_URL, { maxBytes: 4500, peek: true })).length).toBe(4500);
+    const declared = boundedAppFetch({ fetcher: vi.fn(async () => new Response("x", { headers: { "content-length": "999999" } })) });
+    await expect(declared(BUNDLE_URL, { maxBytes: 10 })).rejects.toMatchObject({ code: "too-large" });
+    const missing = boundedAppFetch({ fetcher: vi.fn(async () => new Response("no", { status: 404 })) });
+    await expect(missing(BUNDLE_URL, { maxBytes: 10 })).rejects.toMatchObject({ code: "status", status: 404 });
+  });
+
+  it("offline: nothing goes out", async () => {
+    const fetcher = vi.fn(async () => new Response("x"));
+    await expect(boundedAppFetch({ fetcher, online: () => false })(BUNDLE_URL, { maxBytes: 10 })).rejects.toBeInstanceOf(AppFetchError);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe("a slow link", () => {
+  const KiB = 1024;
+  /**
+   * A body sent `chunk` bytes every `everyMs`, `total` in all; `stallAfter` bytes in, it goes silent. Like a browser's,
+   * it errors when the request's signal aborts.
+   */
+  const paced = (total: number, chunk: number, everyMs: number, stallAfter = Infinity) => (signal: AbortSignal) => {
+    let sent = 0;
+    return new ReadableStream<Uint8Array>({
+      start(controller) { signal.addEventListener("abort", () => controller.error(signal.reason)); },
+      async pull(controller) {
+        if (sent >= stallAfter) return new Promise<void>(() => {});
+        await new Promise((resolve) => setTimeout(resolve, everyMs));
+        const n = Math.min(chunk, total - sent);
+        controller.enqueue(new Uint8Array(n));
+        sent += n;
+        if (sent >= total) controller.close();
+      },
+    });
+  };
+  /** A fetcher that, like a browser's, aborts the request when its signal does. */
+  const answering = (body: ((signal: AbortSignal) => ReadableStream<Uint8Array>) | null) => vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((resolve, reject) => {
+    const signal = init!.signal!;
+    signal.addEventListener("abort", () => reject(signal.reason));
+    if (body) resolve(new Response(body(signal)));
+  })) as unknown as typeof fetch;
+  /** Fake timeouts, `AbortSignal.timeout` among them (the platform's own timer is not one vitest fakes). */
+  let timeout: { mockRestore(): void } | undefined;
+  const slowClock = () => {
+    clock();
+    timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(new DOMException("The operation was aborted due to timeout", "TimeoutError")), ms);
+      return controller.signal;
+    });
+  };
+  afterEach(() => { timeout?.mockRestore(); timeout = undefined; });
+  /** Runs `read` to its end under fake timeouts, `ms` at most. */
+  async function settle<T>(read: Promise<T>, ms: number): Promise<{ ok: T } | { error: unknown }> {
+    let out: { ok: T } | { error: unknown } | undefined;
+    void read.then((ok) => { out = { ok }; }, (error: unknown) => { out = { error }; });
+    for (let t = 0; t < ms && !out; t += 1000) await vi.advanceTimersByTimeAsync(1000);
+    return out ?? { error: new Error("still reading") };
+  }
+
+  it("a read that keeps arriving finishes, however long it takes: 4 MiB at 100 KiB/s", async () => {
+    slowClock();
+    const read = boundedAppFetch({ fetcher: answering(paced(4 * 1024 * KiB, 100 * KiB, 1000)) });
+    const out = await settle(read(BUNDLE_URL, { maxBytes: 16 * 1024 * KiB }), 120_000);
+    expect("ok" in out && out.ok.length).toBe(4 * 1024 * KiB);
+  });
+
+  it("a host that goes silent, or never answers, is a read that took too long, not one that could not reach it", async () => {
+    slowClock();
+    const stalled = boundedAppFetch({ fetcher: answering(paced(4 * 1024 * KiB, 100 * KiB, 1000, 200 * KiB)) });
+    const silent = await settle(stalled(BUNDLE_URL, { maxBytes: 16 * 1024 * KiB }), 120_000);
+    expect("error" in silent && silent.error).toMatchObject({ code: "slow" });
+    const mute = boundedAppFetch({ fetcher: answering(null) });
+    const none = await settle(mute(BUNDLE_URL, { maxBytes: 10 }), 120_000);
+    expect("error" in none && none.error).toMatchObject({ code: "slow" });
+  });
+
+  it("a read that never ends is still cut: a total budget sized for the largest file at a slow pace", async () => {
+    slowClock();
+    // 1 KiB every 20 s: never silent long enough, never done.
+    const read = boundedAppFetch({ fetcher: answering(paced(16 * 1024 * KiB, KiB, 20_000)) });
+    const out = await settle(read(BUNDLE_URL, { maxBytes: 16 * 1024 * KiB }), APP_FETCH_LIMITS.totalMs + 60_000);
+    expect("error" in out && out.error).toMatchObject({ code: "slow" });
+  });
+});
+
+describe("no request with nothing installed", () => {
+  it("start, then days of update checks, with no app and no store: not one request", async () => {
+    clock();
+    const store = apps(net);
+    await store.start();
+    await pass(APP_CHECK_TIMINGS.afterStartMs);
+    for (let day = 0; day < 3; day++) await pass(APP_CHECK_TIMINGS.everyMs);
+    expect(await store.list()).toEqual([]);
+    expect(await store.listStores()).toEqual([]);
+    expect(net.fetch).not.toHaveBeenCalled();
+    store.stop();
+  });
+
+  it("a store added but no app installed: the scheduled checks still ask nothing", async () => {
+    await net.putStore(await storeFiles());
+    const store = apps(net);
+    await store.addStore({ url: STORE_URL });
+    net.fetch.mockClear();
+    clock();
+    await store.start();
+    await pass(APP_CHECK_TIMINGS.afterStartMs);
+    for (let day = 0; day < 3; day++) await pass(APP_CHECK_TIMINGS.everyMs);
+    expect(net.fetch).not.toHaveBeenCalled();
+    store.stop();
+  });
+
+  it("the official store is read from its repository at HEAD, and stays off while its key is empty", async () => {
+    expect(DEFAULT_STORE_URL).toBe("https://raw.githubusercontent.com/MiguelMedeiros/ghostly-store/HEAD/ghostly-store.json");
+    expect(isAppFetchUrl(DEFAULT_STORE_URL)).toBe(true);
+    if (DEFAULT_STORE_KEY) {
+      expect(isAppKey(DEFAULT_STORE_KEY), "the store's public key, 52 z-base32 characters").toBe(true);
+      expect(DEFAULT_APP_STORES).toEqual([{ url: DEFAULT_STORE_URL, key: DEFAULT_STORE_KEY }]);
+      return;
+    }
+    // No key yet (the owner makes it offline): no default store, and a profile starts with none.
+    expect(DEFAULT_APP_STORES).toEqual([]);
+    const store = apps(net);
+    await store.start();
+    store.stop();
+    expect(await store.listStores()).toEqual([]);
+    // A default whose key is empty is skipped, never added unpinned.
+    const unpinned = apps(net, { defaults: [{ url: DEFAULT_STORE_URL, key: "" }] });
+    await unpinned.start();
+    unpinned.stop();
+    expect(await unpinned.listStores()).toEqual([]);
+    expect(net.fetch).not.toHaveBeenCalled();
+  });
+
+  it("a preloaded default store is kept without a request, and once removed it stays removed", async () => {
+    const defaults = [{ url: STORE_URL, key: keyOf(STORE_KEY) }];
+    const store = apps(net, { defaults });
+    await store.start();
+    store.stop();
+    expect(await store.listStores()).toMatchObject([{ key: keyOf(STORE_KEY), url: STORE_URL, preloaded: true, apps: [] }]);
+    expect(net.fetch).not.toHaveBeenCalled();
+    await store.removeStore({ key: keyOf(STORE_KEY) });
+    const later = apps(net, { defaults });
+    await later.start();
+    later.stop();
+    expect(await later.listStores()).toEqual([]);
+  });
+
+  it("with an app installed, the check runs after start and every 24 hours", async () => {
+    const v1 = await bundle({ sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v1.bytes);
+    const first = apps(net);
+    await first.preview({ url: BUNDLE_URL });
+    await first.install({ digest: v1.digest, grant: ["chat"] });
+    net.fetch.mockClear();
+    clock();
+    const store = apps(net, { now: () => Date.now() });
+    await store.start();
+    await pass(APP_CHECK_TIMINGS.afterStartMs);
+    const afterStart = net.fetch.mock.calls.length;
+    expect(afterStart).toBeGreaterThan(0);
+    await pass(APP_CHECK_TIMINGS.everyMs - 1000);
+    expect(net.fetch.mock.calls.length, "not before the day is over").toBe(afterStart);
+    await pass(1000);
+    expect(net.fetch.mock.calls.length).toBeGreaterThan(afterStart);
+    store.stop();
+  });
+
+  it("a check marked ahead of the clock (the clock went back since) is not fresh: the check after start runs, and marks it now", async () => {
+    const v1 = await bundle({ sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v1.bytes);
+    // Checked while the device's clock ran a year ahead.
+    const ahead = Date.now() + 365 * 24 * 60 * 60 * 1000;
+    const first = apps(net, { now: () => ahead });
+    await first.preview({ url: BUNDLE_URL });
+    await first.install({ digest: v1.digest, grant: ["chat"] });
+    await first.checkUpdates();
+    expect(await first.list()).toMatchObject([{ checkedAt: ahead }]);
+    net.fetch.mockClear();
+    clock();
+    const store = apps(net, { now: () => Date.now() });
+    await store.start();
+    await pass(APP_CHECK_TIMINGS.afterStartMs);
+    expect(net.fetch, "the check after start").toHaveBeenCalled();
+    const [app] = await store.list();
+    expect(app!.checkedAt, "marked at the clock's time, so the next start judges it").toBeLessThanOrEqual(Date.now());
+    store.stop();
+  });
+
+  it("the scheduled check waits while the network is off", async () => {
+    const v1 = await bundle({ sources: [BUNDLE_URL] });
+    net.put(BUNDLE_URL, v1.bytes);
+    const first = apps(net);
+    await first.preview({ url: BUNDLE_URL });
+    await first.install({ digest: v1.digest, grant: ["chat"] });
+    net.fetch.mockClear();
+    clock();
+    const store = apps(net, { online: () => false });
+    await store.start();
+    await pass(APP_CHECK_TIMINGS.afterStartMs);
+    await pass(APP_CHECK_TIMINGS.everyMs);
+    expect(net.fetch).not.toHaveBeenCalled();
+    store.stop();
+  });
+});
+
+describe("stores", () => {
+  it("a store is read with its signature and pinned to its key; another key is refused", async () => {
+    await net.putStore(await storeFiles());
+    const store = apps(net);
+    const preview = await store.previewStore({ url: "https://github.com/ghostly/store" });
+    expect(preview).toMatchObject({ url: STORE_URL, key: keyOf(STORE_KEY), name: "Test store", kind: "curated", sequence: 1, apps: 0, expired: false });
+    expect(await store.listStores(), "a preview keeps nothing").toEqual([]);
+    await expect(store.addStore({ url: STORE_URL, key: keyOf(signer("someone else")) })).rejects.toThrow(/^store-key/);
+    const added = await store.addStore({ url: STORE_URL, key: keyOf(STORE_KEY) });
+    expect(added).toMatchObject({ key: keyOf(STORE_KEY), name: "Test store", sequence: 1, preloaded: false });
+    expect(net.requests.slice(-2).sort()).toEqual([SIG_URL, STORE_URL].sort());
+
+    // The URL now serves another key's index: that is another store, refused here.
+    await net.putStore(await storeFiles({ by: signer("someone else"), sequence: 9 }));
+    expect(await store.refreshStores()).toMatchObject([{ key: keyOf(STORE_KEY), sequence: 1, problem: "store-key" }]);
+  });
+
+  it("an index with a lower sequence is refused, the same sequence with other bytes is marked; the held one is kept", async () => {
+    const v1 = await bundle();
+    await net.putStore(await storeFiles({ sequence: 5 }));
+    const store = apps(net);
+    await store.addStore({ url: STORE_URL });
+    await net.putStore(await storeFiles({ sequence: 4, apps: [listing(v1)] }));
+    expect(await store.refreshStores({ key: keyOf(STORE_KEY) })).toMatchObject([{ sequence: 5, apps: [], problem: "rollback" }]);
+    await net.putStore(await storeFiles({ sequence: 5, apps: [listing(v1)] }));
+    expect(await store.refreshStores()).toMatchObject([{ sequence: 5, apps: [], problem: "equivocation", equivocation: { sequence: 5 } }]);
+    await net.putStore(await storeFiles({ sequence: 6, apps: [listing(v1)] }));
+    const [fresh] = await store.refreshStores();
+    expect(fresh).toMatchObject({ sequence: 6, apps: [{ ref: v1.ref }] });
+    expect(fresh!.problem).toBeUndefined();
+    expect(fresh!.equivocation).toBeUndefined();
+  });
+
+  it("adding a store already held, at another URL, keeps the URL it is read from: only a newer index is taken", async () => {
+    const COPY_URL = "https://raw.githubusercontent.com/someone/store/HEAD/ghostly-store.json";
+    const store = apps(net, { defaults: [{ url: STORE_URL, key: keyOf(STORE_KEY) }] });
+    await store.start();
+    store.stop();
+    const five = await storeFiles({ sequence: 5 });
+    await net.putStore(five);
+    await store.refreshStores();
+    // The same signed index, copied byte for byte, and an older one: neither moves the store, nor marks it.
+    await net.putStore(five, COPY_URL);
+    expect(await store.addStore({ url: COPY_URL })).toMatchObject({ url: STORE_URL, sequence: 5, preloaded: true });
+    await net.putStore(await storeFiles({ sequence: 4 }), COPY_URL);
+    await expect(store.addStore({ url: COPY_URL })).rejects.toThrow(/^rollback: This store's index is older than the one you have \(sequence 5\)/);
+    const [kept] = await store.listStores();
+    expect(kept).toMatchObject({ url: STORE_URL, sequence: 5 });
+    expect(kept!.problem, "a copy the person chose is not a read of the store").toBeUndefined();
+    // A newer one there is taken, and the store is still read at its own URL.
+    await net.putStore(await storeFiles({ sequence: 6 }), COPY_URL);
+    expect(await store.addStore({ url: COPY_URL })).toMatchObject({ url: STORE_URL, sequence: 6 });
+    const v1 = await bundle();
+    await net.putStore(await storeFiles({ sequence: 7, apps: [listing(v1)] }));
+    net.requests.length = 0;
+    expect(await store.refreshStores()).toMatchObject([{ url: STORE_URL, sequence: 7, apps: [{ ref: v1.ref }] }]);
+    expect(net.requests).toContain(STORE_URL);
+    expect(net.requests).not.toContain(COPY_URL);
+  });
+
+  it("a store updated from a newer copy at another URL, while its own URL is behind, is read there too: not a failed read", async () => {
+    const PINNED_STORE = `https://cdn.jsdelivr.net/gh/ghostly/store@${"0".repeat(40)}/ghostly-store.json`;
+    const store = apps(net);
+    await net.putStore(await storeFiles({ sequence: 5 }), PINNED_STORE);
+    await store.addStore({ url: PINNED_STORE });
+    // Its live URL holds a newer index: the person presses Update store there. The store keeps its own URL.
+    await net.putStore(await storeFiles({ sequence: 6 }));
+    expect(await store.previewStore({ url: STORE_URL })).toMatchObject({ sequence: 6, held: { sequence: 5 } });
+    expect(await store.addStore({ url: STORE_URL })).toMatchObject({ url: PINNED_STORE, sequence: 6 });
+    // Its own URL, fixed at a commit, still serves 5: the copy it was updated from holds the index.
+    const [read] = await store.refreshStores();
+    expect(read).toMatchObject({ url: PINNED_STORE, sequence: 6 });
+    expect(read!.problem, "a URL behind the copy the person took is not a failed read").toBeUndefined();
+    // Later indexes published there arrive.
+    const v1 = await bundle();
+    await net.putStore(await storeFiles({ sequence: 7, apps: [listing(v1)] }));
+    const [later] = await store.refreshStores();
+    expect(later).toMatchObject({ url: PINNED_STORE, sequence: 7, apps: [{ ref: v1.ref }] });
+    expect(later!.problem).toBeUndefined();
+    // An older index there is still refused, and marked: neither URL holds the index held.
+    await net.putStore(await storeFiles({ sequence: 6 }));
+    expect(await store.refreshStores()).toMatchObject([{ sequence: 7, apps: [{ ref: v1.ref }], problem: "rollback" }]);
+  });
+
+  it("a store's own URL behind the copy the person took is not checked again while its bytes stay the same", async () => {
+    const PINNED_STORE = `https://cdn.jsdelivr.net/gh/ghostly/store@${"0".repeat(40)}/ghostly-store.json`;
+    const store = apps(net);
+    await net.putStore(await storeFiles({ sequence: 5 }), PINNED_STORE);
+    await store.addStore({ url: PINNED_STORE });
+    await net.putStore(await storeFiles({ sequence: 6 }));
+    await store.previewStore({ url: STORE_URL });
+    await store.addStore({ url: STORE_URL });
+    await store.refreshStores();
+    // Each Apps page visit reads both URLs: the pinned one's index never changes, and was checked whole already.
+    vi.mocked(readAppStoreSteps).mockClear();
+    for (let i = 0; i < 3; i++) {
+      const [read] = await store.refreshStores();
+      expect(read).toMatchObject({ url: PINNED_STORE, sequence: 6 });
+      expect(read!.problem).toBeUndefined();
+    }
+    expect(readAppStoreSteps, "neither URL's bytes changed").not.toHaveBeenCalled();
+    // An index changed at the copy's URL is read whole, once.
+    await net.putStore(await storeFiles({ sequence: 7 }));
+    expect(await store.refreshStores()).toMatchObject([{ sequence: 7 }]);
+    expect(readAppStoreSteps).toHaveBeenCalledTimes(1);
+  });
+
+  it("a store's preview says whether the person has it already, and the held index's sequence; a removed one is new again", async () => {
+    const COPY_URL = "https://raw.githubusercontent.com/someone/store/HEAD/ghostly-store.json";
+    const store = apps(net, { defaults: [{ url: STORE_URL, key: keyOf(STORE_KEY) }] });
+    await store.start();
+    store.stop();
+    const five = await storeFiles({ sequence: 5 });
+    await net.putStore(five);
+    // A default store not read yet is held, with no index.
+    expect((await store.previewStore({ url: STORE_URL })).held).toEqual({});
+    await store.refreshStores();
+    expect(await store.previewStore({ url: STORE_URL })).toMatchObject({ sequence: 5, held: { sequence: 5 } });
+    await net.putStore(await storeFiles({ sequence: 4 }), COPY_URL);
+    expect(await store.previewStore({ url: COPY_URL })).toMatchObject({ sequence: 4, held: { sequence: 5 } });
+    await net.putStore(await storeFiles({ sequence: 6 }), COPY_URL);
+    expect(await store.previewStore({ url: COPY_URL })).toMatchObject({ sequence: 6, held: { sequence: 5 } });
+    // The same index again is nothing to do: the held record is not written.
+    const before = (await store.listStores())[0]!;
+    await store.previewStore({ url: STORE_URL });
+    expect(await store.addStore({ url: STORE_URL })).toEqual(before);
+    await store.removeStore({ key: keyOf(STORE_KEY) });
+    expect((await store.previewStore({ url: STORE_URL })).held, "a removed store is added as a new one").toBeUndefined();
+    expect(await store.addStore({ url: STORE_URL })).toMatchObject({ url: STORE_URL, sequence: 5 });
+  });
+
+  it("a copy with the held index's sequence and other content: the preview says so, and marks the store as a read would", async () => {
+    const COPY_URL = "https://raw.githubusercontent.com/someone/store/HEAD/ghostly-store.json";
+    const store = apps(net, { defaults: [{ url: STORE_URL, key: keyOf(STORE_KEY) }] });
+    await store.start();
+    store.stop();
+    await net.putStore(await storeFiles({ sequence: 5 }));
+    await store.refreshStores();
+    // The store signed a second index under 5, listing an app the held one does not.
+    await net.putStore(await storeFiles({ sequence: 5, apps: [listing(await bundle())] }), COPY_URL);
+    expect(await store.previewStore({ url: COPY_URL })).toMatchObject({ sequence: 5, apps: 1, held: { sequence: 5, equivocation: true } });
+    const [kept] = await store.listStores();
+    expect(kept).toMatchObject({ url: STORE_URL, sequence: 5, apps: [], problem: "equivocation", equivocation: { sequence: 5 } });
+    // The held index again is not another copy.
+    expect((await store.previewStore({ url: STORE_URL })).held).toEqual({ sequence: 5 });
+  });
+
+  it("a newer index added while the store is being read again stays: the read's older one does not replace it", async () => {
+    const COPY_URL = "https://raw.githubusercontent.com/someone/store/HEAD/ghostly-store.json";
+    const store = apps(net, { defaults: [{ url: STORE_URL, key: keyOf(STORE_KEY) }] });
+    await store.start();
+    store.stop();
+    await net.putStore(await storeFiles({ sequence: 5 }));
+    await store.refreshStores();
+    await net.putStore(await storeFiles({ sequence: 6 }));
+    await net.putStore(await storeFiles({ sequence: 8 }), COPY_URL);
+    // The Apps page reads the store again; its own URL answers slowly while the person adds the copy's newer index.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let reading!: () => void;
+    const started = new Promise<void>((resolve) => { reading = resolve; });
+    const answer = net.fetch.getMockImplementation()!;
+    net.fetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === STORE_URL) { reading(); await held; }
+      return answer(input, init);
+    });
+    const refresh = store.refreshStores();
+    await started;
+    expect(await store.addStore({ url: COPY_URL })).toMatchObject({ url: STORE_URL, sequence: 8 });
+    release();
+    expect(await refresh, "the read is judged against the index held now").toMatchObject([{ url: STORE_URL, sequence: 8, problem: "rollback" }]);
+    net.fetch.mockImplementation(answer);
+    expect(await store.listStores()).toMatchObject([{ url: STORE_URL, sequence: 8 }]);
+  });
+
+  it("a store removed and added back refuses an index older than the last one taken from it, a default store's too", async () => {
+    const v1 = await bundle();
+    const OLD_URL = `https://cdn.jsdelivr.net/gh/ghostly/store@${"0".repeat(40)}/ghostly-store.json`;
+    const taken = { sequence: 6, removed: [{ ref: v1.ref, digest: v1.digest, reason: "Malware", at: NOW_S }] };
+    for (const defaults of [[], [{ url: STORE_URL, key: keyOf(STORE_KEY) }]]) {
+      await emptyProfile();
+      await net.putStore(await storeFiles({ sequence: 5, apps: [listing(v1)] }), OLD_URL);
+      await net.putStore(await storeFiles(taken));
+      const store = apps(net, { defaults });
+      await store.start();
+      store.stop();
+      await store.addStore({ url: STORE_URL });
+      await store.removeStore({ key: keyOf(STORE_KEY) });
+      await expect(store.addStore({ url: OLD_URL }), `defaults: ${defaults.length}`).rejects.toThrow(/^rollback/);
+      expect(await store.listStores()).toEqual([]);
+      await net.putStore(await storeFiles({ ...taken, apps: [listing(v1)] }), OLD_URL);
+      await expect(store.addStore({ url: OLD_URL }), "another index under the same sequence").rejects.toThrow(/^equivocation/);
+      // The same index, or a newer one, comes back as it was added the first time; removed again, the newest one holds.
+      expect(await store.addStore({ url: STORE_URL })).toMatchObject({ sequence: 6, preloaded: defaults.length > 0 });
+      expect((await store.listStores())[0]).toMatchObject({ removed: [{ ref: v1.ref }] });
+      await store.removeStore({ key: keyOf(STORE_KEY) });
+      await net.putStore(await storeFiles({ sequence: 7 }), OLD_URL);
+      expect(await store.addStore({ url: OLD_URL })).toMatchObject({ sequence: 7 });
+      await store.removeStore({ key: keyOf(STORE_KEY) });
+      await store.removeStore({ key: keyOf(STORE_KEY) });
+      await expect(store.addStore({ url: STORE_URL })).rejects.toThrow(/^rollback/);
+    }
+  });
+
+  it("an index whose bytes have not changed is not checked again, only its expiry; a changed one is read whole", async () => {
+    const v1 = await bundle();
+    await net.putStore(await storeFiles({ apps: [listing(v1)], revoked: [await revocation(v1.ref, [v1.digest])], expires: NOW_S + 3600 }));
+    let now = NOW_MS;
+    const store = apps(net, { now: () => now });
+    await store.addStore({ url: STORE_URL });
+    vi.mocked(readAppStoreSteps).mockClear();
+    now += 2 * 3600 * 1000;
+    expect(await store.refreshStores()).toMatchObject([{ sequence: 1, apps: [{ ref: v1.ref }], expired: true, fetchedAt: now }]);
+    expect(readAppStoreSteps, "its signature and revocations were checked when it was read").not.toHaveBeenCalled();
+    await net.putStore(await storeFiles({ sequence: 2, expires: NOW_S + 3 * 3600 }));
+    expect(await store.refreshStores()).toMatchObject([{ sequence: 2, apps: [], expired: false }]);
+    expect(readAppStoreSteps).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses expires more than 90 days ahead, and says when one is past", async () => {
+    await net.putStore(await storeFiles({ expires: NOW_S + 91 * 24 * 3600 }));
+    await expect(apps(net).addStore({ url: STORE_URL })).rejects.toThrow(/^expires-too-far/);
+    await net.putStore(await storeFiles({ expires: NOW_S - 1 }));
+    expect(await apps(net).addStore({ url: STORE_URL })).toMatchObject({ expired: true });
+  });
+
+  it("reads at most 4 MiB of an index and stops there (WISP 1200 § Stores, Privacy), though the format allows 16 MiB", async () => {
+    expect(APP_FETCH_LIMITS.storeIndexBytes).toBe(4 * 1024 * 1024);
+    let read = 0, cancelled = false;
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === SIG_URL) return new Response("{}");
+      // An index that never ends, sent without a length: the cap holds on the bytes as they arrive.
+      return new Response(new ReadableStream<Uint8Array>({
+        pull(controller) { read += 256 * 1024; controller.enqueue(new Uint8Array(256 * 1024).fill(0x20)); },
+        cancel() { cancelled = true; },
+      }));
+    });
+    const store = apps(net, { fetch: boundedAppFetch({ fetcher: fetcher as unknown as typeof fetch }) });
+    await expect(store.addStore({ url: STORE_URL })).rejects.toThrow(/^too-large/);
+    expect(cancelled).toBe(true);
+    expect(read).toBeLessThanOrEqual(APP_FETCH_LIMITS.storeIndexBytes + 2 * 256 * 1024);
+    expect(await store.listStores()).toEqual([]);
+  });
+
+  it("a signature that does not verify is refused", async () => {
+    const good = await storeFiles();
+    const other = await storeFiles({ name: "Another" });
+    await net.putStore({ indexBytes: good.indexBytes, sigBytes: other.sigBytes });
+    await expect(apps(net).addStore({ url: STORE_URL })).rejects.toThrow(/^bad-signature/);
+  });
+
+  it("stores off the list are refused with no request", async () => {
+    await expect(apps(net).addStore({ url: "https://stores.example/ghostly-store.json" })).rejects.toThrow(/^host/);
+    await expect(apps(net).preview({ url: "https://apps.example/app.ghostlyapp" })).rejects.toThrow(/^host/);
+    // A github.com page that is not a repository or a file of one: the person is told to paste one, never that GitHub
+    // is not a host Ghostly reads (it is, through raw.githubusercontent.com). Nothing is asked.
+    for (const page of ["https://github.com/ana/chess/issues/3", "https://github.com/ana", "https://github.com/ana/chess/blob/HEAD/README.md", "http://github.com/ana/chess"]) {
+      await expect(apps(net).preview({ url: page }), page).rejects.toThrow(/^github-link: /);
+      await expect(apps(net).previewStore({ url: page }), page).rejects.toThrow(/^github-link: /);
+    }
+    expect(net.fetch).not.toHaveBeenCalled();
+  });
+
+  it("a pasted link with a query or fragment (a private file's read token) is refused with no request", async () => {
+    const token = "GHSAT0AAAAAACPRIVATEREADTOKEN";
+    for (const url of [`${BUNDLE_URL}?token=${token}`, `${BUNDLE_URL}#${token}`, `${PINNED_URL}?token=${token}`, `${BUNDLE_URL}?`]) {
+      await expect(apps(net).preview({ url }), url).rejects.toThrow(/^private-link: /);
+    }
+    await expect(apps(net).previewStore({ url: `${STORE_URL}?token=${token}` })).rejects.toThrow(/^private-link: /);
+    await expect(apps(net).addStore({ url: `${STORE_URL}?token=${token}` })).rejects.toThrow(/^private-link: /);
+    // A host off the list is still that, and a github.com page's query never reaches the file read.
+    await expect(apps(net).preview({ url: `https://apps.example/app.ghostlyapp?token=${token}` })).rejects.toThrow(/^host: /);
+    expect(net.fetch).not.toHaveBeenCalled();
+    expect(appPasteUrl("https://github.com/ana/chess/raw/main/app.ghostlyapp?token=x", "app.ghostlyapp")).toBe("https://raw.githubusercontent.com/ana/chess/main/app.ghostlyapp");
+  });
+
+  it("a store's listing URLs off the list are never asked", async () => {
+    const v1 = await bundle();
+    await net.putStore(await storeFiles({ apps: [{ ...listing(v1), urls: ["https://mirror.example/app.ghostlyapp"] }] }));
+    const store = apps(net);
+    await store.addStore({ url: STORE_URL });
+    net.fetch.mockClear();
+    await expect(store.preview({ store: keyOf(STORE_KEY), ref: v1.ref })).rejects.toThrow(/^host/);
+    expect(net.fetch).not.toHaveBeenCalled();
+  });
+});

@@ -1,0 +1,225 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import { Route, Routes } from "react-router-dom";
+import { describe, expect, it, vi } from "vitest";
+import type { GroupMemberView, GroupView, StoredMessage } from "@ghostly/browser/shared/types";
+import { GroupMembersDialog } from "../../components/GroupMembersDialog";
+import { Sidebar } from "../../components/Sidebar";
+import { UpdateProvider } from "../../contexts/UpdateContext";
+import { GroupChat } from "../../pages/GroupChat";
+import { fakeEngine, groupView } from "../fakeEngine";
+import { renderApp } from "../render";
+import { compose } from "../ime";
+
+// covers: groups.rename
+
+const ALICE = "alice".padEnd(52, "y"), ME = "me".padEnd(52, "y");
+const member = (patch: Partial<GroupMemberView>): GroupMemberView => ({ key: ME, role: "member", me: false, online: true, missing: 0, ...patch });
+const admin = (patch: Partial<GroupView> = {}) => groupView({ status: "active", epoch: 2, isAdmin: true, members: [member({ key: ME, me: true, role: "admin" }), member({ key: ALICE, nick: "Alice" })], ...patch });
+const notAdmin = (patch: Partial<GroupView> = {}) => groupView({ status: "active", epoch: 2, isAdmin: false, members: [member({ key: ME, me: true }), member({ key: ALICE, nick: "Alice", role: "admin" })], ...patch });
+
+describe("renaming a group in the app", () => {
+  it("the admin renames it from the members panel; the new name shows once the engine has it", async () => {
+    fakeEngine.update({ groups: [admin({ name: "Friends" })] });
+    const { user, engine } = renderApp(<GroupMembersDialog group={admin({ name: "Friends" })} onClose={() => {}} />);
+    engine.on("renameGroup", () => undefined);
+    await user.click(screen.getByTestId("group-rename"));
+    const input = screen.getByTestId("group-rename-input");
+    expect(input).toHaveValue("Friends");
+    expect(input).toHaveFocus();
+    await user.clear(input);
+    expect(screen.getByTestId("group-rename-save")).toBeDisabled();
+    await user.type(input, "Book club{Enter}");
+    await waitFor(() => expect(engine.callsTo("renameGroup")).toEqual([{ groupId: "group-1", name: "Book club" }]));
+    fakeEngine.update({ groups: [admin({ name: "Book club" })] });
+    expect(await screen.findByTestId("group-members-name")).toHaveTextContent("Book club");
+  });
+
+  it("the same name is no call; Escape and Cancel keep the name", async () => {
+    fakeEngine.update({ groups: [admin({ name: "Friends" })] });
+    const { user, engine } = renderApp(<GroupMembersDialog group={admin({ name: "Friends" })} onClose={() => {}} />);
+    engine.on("renameGroup", () => undefined);
+    await user.click(screen.getByTestId("group-rename"));
+    await user.click(screen.getByTestId("group-rename-save"));
+    expect(screen.getByTestId("group-members-name")).toHaveTextContent("Friends");
+    await user.click(screen.getByTestId("group-rename"));
+    await user.type(screen.getByTestId("group-rename-input"), " and more{Escape}");
+    expect(screen.getByTestId("group-members-name")).toHaveTextContent("Friends");
+    await user.click(screen.getByTestId("group-rename"));
+    await user.click(screen.getByTestId("group-rename-cancel"));
+    expect(engine.callsTo("renameGroup")).toEqual([]);
+  });
+
+  it("keeps the keyboard's focus: in the field while the engine renames, then on Rename, saved or cancelled", async () => {
+    fakeEngine.update({ groups: [admin({ name: "Friends" })] });
+    const { user, engine } = renderApp(<GroupMembersDialog group={admin({ name: "Friends" })} onClose={() => {}} />);
+    let done = () => {};
+    engine.on("renameGroup", () => new Promise<void>(resolve => { done = resolve; }));
+    screen.getByTestId("group-rename").focus();
+    await user.keyboard("{Enter}");
+    await user.keyboard(" and more{Enter}");
+    // While it runs: nothing to type or press again, and nothing disabled (a disabled field drops the focus to the page).
+    const input = screen.getByTestId("group-rename-input");
+    await waitFor(() => expect(engine.callsTo("renameGroup")).toHaveLength(1));
+    expect(input).toHaveAttribute("readonly");
+    expect(input).not.toBeDisabled();
+    expect(input).toHaveFocus();
+    expect(screen.getByTestId("group-rename-save")).not.toBeDisabled();
+    expect(screen.getByTestId("group-rename-save")).toHaveAttribute("aria-disabled", "true");
+    done();
+    await waitFor(() => expect(screen.getByTestId("group-rename")).toHaveFocus());
+    // Escape in the field, and Cancel, give it back to Rename too.
+    await user.keyboard("{Enter}");
+    expect(screen.getByTestId("group-rename-input")).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.getByTestId("group-rename")).toHaveFocus();
+    await user.keyboard("{Enter}");
+    await user.tab();
+    await user.tab();
+    expect(screen.getByTestId("group-rename-cancel")).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByTestId("group-rename")).toHaveFocus();
+  });
+
+  it("says what the engine refused, in the app's words, and keeps what was typed", async () => {
+    fakeEngine.update({ groups: [admin()] });
+    const { user, engine } = renderApp(<GroupMembersDialog group={admin()} onClose={() => {}} />);
+    engine.on("renameGroup", () => { throw new Error("A group's name is 1 to 64 characters"); });
+    await user.click(screen.getByTestId("group-rename"));
+    await user.clear(screen.getByTestId("group-rename-input"));
+    await user.type(screen.getByTestId("group-rename-input"), "Book club{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Type a name with letters or emoji" + "Up to 64 characters, on one line.");
+    expect(screen.getByTestId("group-rename-input")).toBeInTheDocument();
+    expect(screen.getByTestId("group-rename-input")).toHaveFocus();
+    expect(screen.getByTestId("group-rename-input")).not.toHaveAttribute("readonly");
+  });
+
+  it.each([["a zero-width space", "\u200B"], ["a direction mark", "\u202E"]])("keeps Save off for a name with nothing visible in it (%s)", async (_, name) => {
+    fakeEngine.update({ groups: [admin()] });
+    const { user, engine } = renderApp(<GroupMembersDialog group={admin()} onClose={() => {}} />);
+    engine.on("renameGroup", () => undefined);
+    await user.click(screen.getByTestId("group-rename"));
+    await user.clear(screen.getByTestId("group-rename-input"));
+    await user.type(screen.getByTestId("group-rename-input"), `${name}{Enter}`);
+    expect(screen.getByTestId("group-rename-save")).toBeDisabled();
+    expect(engine.callsTo("renameGroup")).toEqual([]);
+  });
+
+  // The field's maxLength counted UTF-16 units: a name of emoji stopped at 32 of them, though the group takes 64 (agents#1048).
+  it("takes a name as long as the group does, counted in characters, and cuts a longer one between whole emoji", async () => {
+    fakeEngine.update({ groups: [admin({ name: "Friends" })] });
+    const { user, engine } = renderApp(<GroupMembersDialog group={admin({ name: "Friends" })} onClose={() => {}} />);
+    engine.on("renameGroup", () => undefined);
+    await user.click(screen.getByTestId("group-rename"));
+    const input = screen.getByTestId("group-rename-input");
+    await user.clear(input);
+    await user.click(input);
+    await user.paste("🎉".repeat(40));
+    expect(input).toHaveValue("🎉".repeat(40));
+    await user.type(input, "{Enter}");
+    await waitFor(() => expect(engine.callsTo("renameGroup")).toEqual([{ groupId: "group-1", name: "🎉".repeat(40) }]));
+  });
+
+  // agents#1097: one letter went in, the name's "!" went, the caret jumped to the end and "ong " was cut there.
+  it("typing into the middle of a full name keeps the name and the caret as they were", async () => {
+    const full = "Weekend trip to the mountains with the whole family and friends!";
+    fakeEngine.update({ groups: [admin({ name: full })] });
+    const { user } = renderApp(<GroupMembersDialog group={admin({ name: full })} onClose={() => {}} />);
+    await user.click(screen.getByTestId("group-rename"));
+    const input = screen.getByTestId("group-rename-input") as HTMLInputElement;
+    await user.type(input, "long ", { initialSelectionStart: 8, initialSelectionEnd: 8 });
+    expect(input).toHaveValue(full);
+    expect(input.selectionStart).toBe(8);
+    // Room made, the next keystroke goes in where the caret is.
+    await user.keyboard("{Backspace}{Backspace}");
+    await user.keyboard("🎉");
+    expect(input).toHaveValue("Weeken🎉trip to the mountains with the whole family and friends!");
+  });
+
+  // agents#1154: a refused keystroke went in and was taken out by script, which empties the browser's undo history.
+  it("refuses a keystroke into a full name before it reaches the field, so the field is never rewritten", async () => {
+    const full = "Weekend trip to the mountains with the whole family and friends!";
+    fakeEngine.update({ groups: [admin({ name: full })] });
+    const { user } = renderApp(<GroupMembersDialog group={admin({ name: full })} onClose={() => {}} />);
+    await user.click(screen.getByTestId("group-rename"));
+    const input = screen.getByTestId("group-rename-input") as HTMLInputElement;
+    const inputs = vi.fn();
+    input.addEventListener("input", inputs);
+    await user.type(input, "B", { initialSelectionStart: 8, initialSelectionEnd: 8 });
+    expect(inputs).not.toHaveBeenCalled();
+    expect(input).toHaveValue(full);
+  });
+
+  // agents#1153: with one character left, the reading's first kana went in ("に"), not "日本" nor nothing.
+  it("a word composed with an IME at the end of a name with one character left goes in whole or not at all", async () => {
+    const name = "x".repeat(63);
+    fakeEngine.update({ groups: [admin({ name })] });
+    const { user } = renderApp(<GroupMembersDialog group={admin({ name })} onClose={() => {}} />);
+    await user.click(screen.getByTestId("group-rename"));
+    const input = screen.getByTestId("group-rename-input") as HTMLInputElement;
+    input.setSelectionRange(63, 63);
+    compose(input, ["に", "にほ", "日本"]);
+    expect(input).toHaveValue(name);
+    expect(input.selectionStart).toBe(63);
+    compose(input, ["ね"]);
+    expect(input).toHaveValue(`${name}ね`);
+  });
+
+  it("Rename, Change picture and Remove picture are a thumb's height on a phone, as the rest of the dialog is", () => {
+    // They were a line of 12 px text, 16 px high: the only way to rename the group or change its picture.
+    const group = admin({ picture: "data:image/webp;base64,AAAA" });
+    fakeEngine.update({ groups: [group] });
+    renderApp(<GroupMembersDialog group={group} onClose={() => {}} />);
+    for (const id of ["group-rename", "group-picture-pick", "group-picture-remove"]) {
+      expect(screen.getByTestId(id).className.split(/\s+/)).toContain("max-md:min-h-11");
+    }
+    // The label is an inline box until it is a flex one: a min-height would not hold on it.
+    expect(screen.getByTestId("group-picture-pick").className.split(/\s+/)).toEqual(expect.arrayContaining(["inline-flex", "items-center"]));
+  });
+
+  it("the Rename form's field, Save and Cancel are a thumb's height on a phone, apart", async () => {
+    // Cancel was 37 x 16 px, a line of 12 px text beside Save: a tap meant for it could land on Save.
+    const group = admin();
+    fakeEngine.update({ groups: [group] });
+    const { user } = renderApp(<GroupMembersDialog group={group} onClose={() => {}} />);
+    await user.click(screen.getByTestId("group-rename"));
+    for (const id of ["group-rename-input", "group-rename-save", "group-rename-cancel"]) {
+      expect(screen.getByTestId(id).className.split(/\s+/), id).toContain("max-md:min-h-11");
+    }
+    for (const id of ["group-rename-save", "group-rename-cancel"]) expect(screen.getByTestId(id).className.split(/\s+/), id).toContain("max-md:px-3");
+    expect(screen.getByTestId("group-rename-input").closest("form")!.className.split(/\s+/)).toContain("max-md:gap-3");
+  });
+
+  it("a member cannot rename it", () => {
+    fakeEngine.update({ groups: [notAdmin()] });
+    renderApp(<GroupMembersDialog group={notAdmin()} onClose={() => {}} />);
+    expect(screen.queryByTestId("group-rename")).not.toBeInTheDocument();
+  });
+
+  it("the new name in the chat list, and a line naming who renamed it as the roster knows them", async () => {
+    fakeEngine.update({ groups: [notAdmin({ name: "Book club" })] });
+    const { unmount } = renderApp(<UpdateProvider><Sidebar /></UpdateProvider>);
+    expect(within(screen.getAllByTestId("group-row").find(r => r.dataset.group === "group-1")!).getByText("Book club")).toBeInTheDocument();
+    unmount();
+
+    const history: StoredMessage[] = [
+      { linkId: "group:group-1", id: "e1", text: "Member aliceyyy renamed the group to “Book club”", sender: "peer", event: "renamed", member: ALICE, timestamp: 1, via: "datalink" },
+    ];
+    fakeEngine.on("groupMessages", () => history).on("updateSettings", () => undefined);
+    renderApp(<Routes><Route path="/group/:groupId" element={<GroupChat />} /></Routes>, { route: "/group/group-1" });
+    expect(screen.getByTestId("group-name")).toHaveTextContent("Book club");
+    const lines = await screen.findAllByTestId("group-event");
+    expect(lines.map(l => l.textContent)).toEqual(["Alice renamed the group to “Book club”"]);
+  });
+
+  it("a change the engine credits nobody with (a new admin signed again what the last one set) names nobody, in the app's language", async () => {
+    const history: StoredMessage[] = [
+      { linkId: "group:group-1", id: "e1", text: "The group is now called “Book club”", sender: "peer", event: "renamed", timestamp: 1, via: "datalink" },
+      { linkId: "group:group-1", id: "e2", text: "The group's picture was changed", sender: "peer", event: "picture", timestamp: 2, via: "datalink" },
+    ];
+    fakeEngine.update({ groups: [notAdmin({ name: "Book club" })] });
+    fakeEngine.on("groupMessages", () => history).on("updateSettings", () => undefined);
+    renderApp(<Routes><Route path="/group/:groupId" element={<GroupChat />} /></Routes>, { route: "/group/group-1", language: "pt" });
+    const lines = await screen.findAllByTestId("group-event");
+    expect(lines.map(l => l.textContent)).toEqual(["O grupo agora se chama “Book club”", "A foto do grupo foi alterada"]);
+  });
+});

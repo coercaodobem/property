@@ -1,0 +1,9 @@
+{
+  "answer": "Atender",
+  "answerPassword": "Digite sua senha para atender",
+  "enterPassword": "Digite sua senha para desbloquear",
+  "incorrectPassword": "Senha incorreta, tente novamente",
+  "title": "Property está bloqueado",
+  "tooManyAttempts": "Muitas tentativas. Tente de novo em {{seconds}} s",
+  "unlock": "Desbloquear"
+}

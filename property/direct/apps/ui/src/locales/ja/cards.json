@@ -1,0 +1,164 @@
+{
+  "board": {
+    "card": {
+      "botLabel": "送信者:",
+      "chatLabel": "チャット:",
+      "checks": {
+        "failing": "チェック失敗",
+        "passing": "チェック成功",
+        "pending": "チェック実行中"
+      },
+      "details": "詳細",
+      "filesLabel": "ファイル:",
+      "from": "{{chat}} の {{bot}}",
+      "in": "{{chat}} 内",
+      "openPr": "{{host}} で開く",
+      "parts": "{{total}} 件中 {{done}} 件完了",
+      "prLabel": "プルリクエスト:",
+      "prState": {
+        "closed": "クローズ",
+        "draft": "下書き",
+        "merged": "マージ済み",
+        "open": "オープン"
+      },
+      "statusLabel": "状態:",
+      "steps": "{{total}} 件中 {{done}} 件",
+      "tagsLabel": "タグ:",
+      "updatedLabel": "更新:"
+    },
+    "clearFinished": "完了分を消去",
+    "clearFinishedHint": "完了・失敗・キャンセルのタスクをこのデバイスで非表示にします。ボットが次に更新すると再び表示されます。",
+    "column": {
+      "blocked": "ブロック中",
+      "closed": "停止",
+      "done": "完了",
+      "queued": "待機中",
+      "review": "レビュー",
+      "running": "実行中"
+    },
+    "columns": "列",
+    "empty": "タスクはまだありません",
+    "emptyHint": "チャットのボットが送ったタスクカードがここに表示されます。",
+    "filter": "タスクを絞り込む",
+    "groupBy": {
+      "bot": "ボット",
+      "chat": "チャット",
+      "label": "グループ化",
+      "status": "状態"
+    },
+    "hideOlder": "古いものを隠す",
+    "info": "すべてのチャットのボットのタスクカードを集めます。完了と停止のタスクは 1 日残ります。カードはタスクを表示するだけで、状態を変えるのはボットです。",
+    "me": "自分",
+    "noMatch": "一致するタスクはありません",
+    "none": "なし",
+    "showMore": "さらに表示 ({{count}})",
+    "showOlder": "古いものを表示 ({{count}})",
+    "tagFilter": "{{tag}} のみ表示",
+    "tags": "タグ",
+    "tasksMany": "タスク {{count}} 件",
+    "tasksOne": "タスク 1 件",
+    "title": "タスク",
+    "view": {
+      "label": "表示",
+      "routines": "ルーティン",
+      "tasks": "タスク"
+    }
+  },
+  "buttons": {
+    "answers": "回答",
+    "chosen": "選択済み",
+    "closed": "締め切り",
+    "failed": "送信できませんでした",
+    "jump": "質問へ移動",
+    "sending": "送信中…"
+  },
+  "panel": {
+    "activeCount": "{{count}} 件進行中",
+    "allOk": "すべて OK",
+    "button": "タスク",
+    "buttonCount": "タスク、{{count}} 件が進行中",
+    "close": "閉じる",
+    "empty": "進行中のタスクはありません",
+    "failedCount": "{{count}} 件失敗",
+    "finishedCount": "完了済み ({{count}})",
+    "idle": "進行中なし",
+    "info": "ボットがこのカードを投稿し、最新の状態に保ちます。タップするとチャット内のカードに移動します。",
+    "nextRun": "次回 {{when}}",
+    "routinesMany": "ルーティン {{count}} 件",
+    "routinesOne": "ルーティン 1 件",
+    "title": "タスク"
+  },
+  "routine": {
+    "cron": "Cron",
+    "label": "ルーティン：{{name}}、{{state}}",
+    "lastRun": "前回の実行: {{result}}",
+    "next": "次回 {{when}}",
+    "noRuns": "まだ実行されていません",
+    "result": {
+      "failed": "失敗",
+      "ok": "OK",
+      "skipped": "スキップ"
+    },
+    "runs": "最近の実行",
+    "schedule": "スケジュール",
+    "state": {
+      "active": "有効",
+      "paused": "一時停止中"
+    }
+  },
+  "task": {
+    "branch": "ブランチ:",
+    "elapsed": {
+      "blocked": "ブロック中：{{duration}}",
+      "queued": "待機中：{{duration}}",
+      "running": "実行中：{{duration}}",
+      "took": "所要時間：{{duration}}"
+    },
+    "item": {
+      "done": "完了",
+      "failed": "失敗",
+      "pending": "未着手",
+      "running": "進行中",
+      "skipped": "スキップ"
+    },
+    "label": "タスク：{{title}}、{{status}}",
+    "labelProgress": "タスク：{{title}}、{{status}}、{{progress}}%",
+    "now": "現在:",
+    "pr": "PR #{{number}}",
+    "prNoNumber": "プルリクエスト",
+    "progress": "進捗",
+    "started": "開始：{{ago}}",
+    "status": {
+      "blocked": "ブロック中",
+      "cancelled": "キャンセル",
+      "done": "完了",
+      "failed": "失敗",
+      "queued": "待機中",
+      "running": "実行中"
+    },
+    "steps": "{{total}} 件中 {{done}} 件",
+    "updated": "更新：{{ago}}"
+  },
+  "usage": {
+    "accountLabel": "アカウント",
+    "info": "ボットが自己申告した残量です。Property は確認しません。",
+    "label": "{{name}}：残り {{left}}%",
+    "labelResets": "{{name}}：残り {{left}}%、{{time}} にリセット",
+    "left": "残り {{left}}%",
+    "leftLabel": "残り",
+    "resets": "{{time}} にリセット",
+    "resetsLabel": "リセット",
+    "stale": "最近更新なし",
+    "staleHint": "古い数値です。ボットが最近更新していないか、枠がリセットされました。",
+    "title": "使用量",
+    "updatedLabel": "更新",
+    "used": "{{limit}} 中 {{used}} 使用",
+    "usedLabel": "使用済み",
+    "wasReset": "{{ago}}にリセット済み"
+  },
+  "working": {
+    "label": "作業中",
+    "quiet": "作業中？ · 最終更新 {{ago}}",
+    "stale": "{{duration}}間更新なし"
+  }
+}

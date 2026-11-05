@@ -1,0 +1,517 @@
+import { ed25519, x25519 } from "@noble/curves/ed25519.js";
+import { hkdf } from "@noble/hashes/hkdf.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { fromBase64Url, isZ32Key, toBase64Url, utf8Encode } from "./bytes";
+import { encrypt, tryDecrypt } from "./crypto";
+import { identityFromSeed, identityFromSeedB64, publicKeyFromZ32, sign, verify, type Identity } from "./identity";
+import type { LinkParams } from "./invite";
+import type { PairingCredentials } from "./pairedSession";
+import { RELAY_URL, RELAY_WITH_SECRETS, relayUrl, type TransportDescriptors } from "./pairedTransports";
+import { measureRecords, MAX_DNS_PACKET_BYTES, type GhostRecord, type SignedPacket } from "./pkarr";
+import { sanitizeNick } from "./text";
+import { budgetRetryMs, isDiscoveryBudgetError, type PkarrTransport } from "./transport";
+
+/**
+ * The layer-0 capability record of a chat (WISP 03, revision 0.2): what each side accepts on the DHT
+ * (`dht-text/1`, `hold/1`), what its layer 1 would carry, the minimum to dial its native transports
+ * without a WebRTC session first, and the name it shares. One Pkarr key per direction, derived from the
+ * invite secret like the DHT mailboxes, so its size never competes with a text.
+ *
+ * Sealed with the invitation-derived key until the contact is pinned, and with a key only the two
+ * participation keys derive afterwards, so a copied invite stops reading it. Always signed by the
+ * author's participation key over both rendezvous keys.
+ */
+export const DHT_TEXT_CAPABILITY = "dht-text/1" as const;
+export const CAPS_LABEL = "_caps";
+export const CAPS_LIMITS = {
+  versions: 8,
+  transports: 8,
+  capabilities: 32,
+  extensions: 32,
+  /** One identifier, capability or extension. */
+  itemChars: 48,
+  nameBytes: 64,
+} as const;
+/**
+ * How far before its own clock an author dates a record (`issued`). No reader orders records by that time, `rev` does,
+ * and this one refuses none for it. Apps up to 1.0.2 refuse a record dated more than a minute past their clock: one
+ * dated by a clock two minutes ahead was never read by them, with nothing on screen, and the chat could not dial its
+ * contact's native transports before a session. Dated back, a record from a clock up to about eleven minutes ahead is
+ * taken by them too.
+ */
+export const CAPS_ISSUED_BACK_MS = 10 * 60_000;
+/** Published again this often while the chat exists, so it does not age out of the DHT. */
+export const CAPS_REFRESH_MS = 60 * 60_000;
+/** Reads of the contact's record closer together than this are merged into one. */
+const CAPS_READ_SPACING_MS = 15_000;
+/**
+ * An envelope named a revision of the contact's record and the read found an older one, or none: read again this long
+ * after each read, while still behind. A DHT read directly (Desktop, CLI, relay reads off) hands back the copy it
+ * already knows and looks the key up behind it, and a lookup that started before the publication landed finds the old
+ * one; a relay may serve an old copy for a while too. The envelope names each revision once, so one read was the last
+ * until the next envelope, minutes away, and the chat stayed on the DHT with no descriptors to dial.
+ *
+ * The first ones come soon: a contact's record that lists a native transport with no descriptor is the "Peer native
+ * address unavailable" a dial ends with, and its revision with the descriptors is usually out a second or two after the
+ * first (its endpoints were starting). Read 5 s, then 20 s after, two Desktops DHT direct with Iroh's relay out of reach
+ * went live 11 to 28 s after their chats opened (2026-10-07). One read more than before, three in the first 7 s.
+ */
+const CAPS_READ_RETRY_MS = [1_000, 2_000, 4_000, 15_000, 60_000] as const;
+const NATIVE = ["iroh/1", "hyperdht/1"] as const;
+/** The native transports a record says how to dial. */
+const described = (content: CapsContent) => NATIVE.filter(t => !!content.descriptors[t]);
+/**
+ * Changes closer together than this go out as one publication, the last: every publication spends one of the
+ * relays' requests per relay, a budget the chat's signaling needs more.
+ */
+export const CAPS_PUBLISH_SPACING_MS = 30_000;
+
+/**
+ * Per native transport, the minimum to dial it: no network address, ever. Keys travel as base64url (32
+ * bytes, 43 characters) to leave the packet room for capabilities.
+ */
+export interface CapsDescriptors {
+  "iroh/1"?: { id: string; relay?: string };
+  /** `relay`: a browser's HyperDHT is reached through a relay server, which it names (a public service, not its address). */
+  "hyperdht/1"?: { publicKey: string; relay?: string };
+}
+export interface CapsContent {
+  versions: number[];
+  /** Layer-1 transports this runtime has, in local preference order. Never the DHT. */
+  transports: string[];
+  capabilities: string[];
+  extensions: string[];
+  descriptors: CapsDescriptors;
+  /** The name this profile shares with contacts; empty when it shares none. */
+  name: string;
+  /**
+   * The layer-1 transport chosen for this chat in its Connection menu, absent on Automatic (WISP 100, "A choice made
+   * while not live"). It reaches a contact that has no session to hear a switch intent on. A trailing element: apps
+   * from before it ignore it.
+   */
+  choice?: string;
+}
+export interface CapsRecord extends CapsContent {
+  rev: number;
+  issued: number;
+  /** The participation key that signed it. */
+  author: string;
+}
+type Body = [version: 1, rev: number, issued: number, author: string, versions: number[], transports: string[], capabilities: string[],
+  extensions: string[], descriptors: CapsDescriptors, name: string, choice?: string];
+
+export type CapsRefusal = "address" | "size" | "sealed" | "format" | "signature" | "author" | "rev";
+/** Why a record was not used. A refused record leaves the last good one in force. */
+export class CapsRefusedError extends Error {
+  constructor(readonly reason: CapsRefusal, message: string) { super(message); }
+}
+
+const IDENT = /^[a-z0-9][a-z0-9._-]*\/[0-9]+$/;
+const HEX64 = /^[0-9a-f]{64}$/;
+const SIG = /^[A-Za-z0-9_-]{86}$/;
+const KEY = /^[A-Za-z0-9_-]{43}$/;
+const hexToKey = (hex: string) => toBase64Url(Uint8Array.from(hex.match(/../g)!, b => parseInt(b, 16)));
+const keyToHex = (key: string) => Array.from(fromBase64Url(key), b => b.toString(16).padStart(2, "0")).join("");
+
+/**
+ * The part of the native descriptors a capability record may carry: the Iroh endpoint id (and the relay
+ * it is reachable through, a public service rather than an address of this device), the HyperDHT key.
+ */
+export function capsDescriptors(descriptors: TransportDescriptors | undefined): CapsDescriptors {
+  const out: CapsDescriptors = {};
+  const iroh = descriptors?.["iroh/1"] as { id?: unknown; relay?: unknown } | undefined;
+  if (iroh && typeof iroh.id === "string" && HEX64.test(iroh.id))
+    out["iroh/1"] = { id: hexToKey(iroh.id), ...(relayUrl(iroh.relay) ? { relay: iroh.relay } : {}) };
+  const hyper = descriptors?.["hyperdht/1"] as { publicKey?: unknown; relay?: unknown } | undefined;
+  if (hyper && typeof hyper.publicKey === "string" && HEX64.test(hyper.publicKey))
+    out["hyperdht/1"] = { publicKey: hexToKey(hyper.publicKey), ...(relayUrl(hyper.relay) ? { relay: hyper.relay } : {}) };
+  return out;
+}
+
+/**
+ * A record's descriptors as the transport adapters dial them. With no address in the record, an Iroh path is
+ * relayed; a HyperDHT that names a relay (a browser's) is too: both rank after direct paths and before the DHT
+ * floor (WISP 100, "Relayed"), and a first contact can dial them before WebRTC has failed.
+ */
+export function dialDescriptors(descriptors: CapsDescriptors): TransportDescriptors {
+  const out: TransportDescriptors = {};
+  const iroh = descriptors["iroh/1"], hyper = descriptors["hyperdht/1"];
+  if (iroh) out["iroh/1"] = { id: keyToHex(iroh.id), relay: iroh.relay ?? null, addresses: [], relayed: true };
+  if (hyper) out["hyperdht/1"] = { publicKey: keyToHex(hyper.publicKey), ...(hyper.relay ? { relay: hyper.relay, relayed: true } : {}) };
+  return out;
+}
+
+const list = (value: unknown, max: number, item: (v: unknown) => boolean): boolean =>
+  Array.isArray(value) && value.length <= max && value.every(item);
+const ident = (v: unknown) => typeof v === "string" && v.length <= CAPS_LIMITS.itemChars && IDENT.test(v);
+
+function parseDescriptors(value: unknown): CapsDescriptors | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  // Descriptors of transports this reader does not know are skipped, not a reason to refuse the record.
+  const raw = value as Record<string, { id?: unknown; relay?: unknown; publicKey?: unknown } | undefined>;
+  const out: CapsDescriptors = {};
+  const iroh = raw["iroh/1"], hyper = raw["hyperdht/1"];
+  // A relay with a login, a query or a fragment (an older app's HyperDHT relay, as set): its descriptor is not kept,
+  // and the rest of the record still is.
+  const withSecrets = (relay: unknown) => typeof relay === "string" && RELAY_WITH_SECRETS.test(relay);
+  if (iroh !== undefined) {
+    if (!iroh || typeof iroh.id !== "string" || !KEY.test(iroh.id) || (iroh.relay !== undefined && (typeof iroh.relay !== "string" || !RELAY_URL.test(iroh.relay)))) return null;
+    if (!withSecrets(iroh.relay)) out["iroh/1"] = { id: iroh.id, ...(iroh.relay !== undefined ? { relay: iroh.relay as string } : {}) };
+  }
+  if (hyper !== undefined) {
+    if (!hyper || typeof hyper.publicKey !== "string" || !KEY.test(hyper.publicKey) || (hyper.relay !== undefined && (typeof hyper.relay !== "string" || !RELAY_URL.test(hyper.relay)))) return null;
+    if (!withSecrets(hyper.relay)) out["hyperdht/1"] = { publicKey: hyper.publicKey, ...(hyper.relay !== undefined ? { relay: hyper.relay as string } : {}) };
+  }
+  return out;
+}
+
+/**
+ * A group link's transports in its own packet (`_tr`, WISP 902 § Transports): a group's edge or entry session has no
+ * capability record, so an app with no WebRTC (the Linux Desktop) says there which layer-1 transports it runs and how to
+ * dial its native ones, and a member's app that has WebRTC answers in kind. The same minimum a record carries: keys and
+ * relays, never an address. Sealed with the link key like every other label of the packet.
+ */
+export interface PacketTransports {
+  transports: PairedTransportName[];
+  descriptors: CapsDescriptors;
+}
+type PairedTransportName = "iroh/1" | "hyperdht/1" | "webrtc/1";
+const PACKET_TRANSPORTS: readonly string[] = ["iroh/1", "hyperdht/1", "webrtc/1"];
+
+/** The `_tr` value: `{"t": transports, "d": descriptors}`, versionless and additive (an unknown field is ignored). */
+export function encodePacketTransports(transports: readonly string[], descriptors: TransportDescriptors | undefined): string {
+  return JSON.stringify({ t: transports.filter(t => PACKET_TRANSPORTS.includes(t)), d: capsDescriptors(descriptors) });
+}
+
+/** A `_tr` value read from a packet; null when it is not one (a reader drops it, as a record it cannot read). */
+export function parsePacketTransports(json: string | null): PacketTransports | null {
+  if (!json || json.length > 1_000) return null;
+  try {
+    const value = JSON.parse(json) as { t?: unknown; d?: unknown };
+    if (!value || typeof value !== "object" || !Array.isArray(value.t) || value.t.length > CAPS_LIMITS.transports) return null;
+    const transports = value.t.filter((t): t is PairedTransportName => typeof t === "string" && PACKET_TRANSPORTS.includes(t));
+    const descriptors = parseDescriptors(value.d ?? {});
+    if (!descriptors) return null;
+    return { transports: [...new Set(transports)], descriptors };
+  } catch { return null; }
+}
+
+/** Keys of the capability record of one link: my record's key and seals, the contact's address. */
+export class CapsKeys {
+  readonly from: string;
+  readonly to: string;
+  readonly me: string;
+  /** Publishes my record. */
+  readonly identity: Identity;
+  /** Where the contact publishes its record. */
+  readonly peerAddress: string;
+  private readonly seed: Uint8Array;
+  private readonly inviteKey: Uint8Array;
+
+  constructor(params: LinkParams, participationSeedB64: string) {
+    this.from = identityFromSeedB64(params.seedB64).pubKeyZ32;
+    this.to = params.peerPubKeyZ32;
+    const mine = identityFromSeedB64(participationSeedB64);
+    this.seed = mine.seed;
+    this.me = mine.pubKeyZ32;
+    const secret = fromBase64Url(params.encKeyB64);
+    const context = JSON.stringify(["ghostly-caps/1", [this.from, this.to].sort()]);
+    const derive = (label: string) => hkdf(sha256, secret, utf8Encode(context), utf8Encode(label), 32);
+    this.identity = identityFromSeed(derive(`caps:${this.from}`));
+    this.peerAddress = identityFromSeed(derive(`caps:${this.to}`)).pubKeyZ32;
+    this.inviteKey = derive("envelope");
+  }
+
+  /** The key sealed for each pinned contact: one X25519 per contact and link, not one per seal and open (agents#1087). */
+  private readonly pinned = new Map<string, Uint8Array>();
+
+  private pinnedKey(peer: string): Uint8Array {
+    let key = this.pinned.get(peer);
+    if (!key) {
+      const shared = x25519.getSharedSecret(ed25519.utils.toMontgomerySecret(this.seed), ed25519.utils.toMontgomery(publicKeyFromZ32(peer)));
+      key = hkdf(sha256, shared, this.inviteKey, utf8Encode("ghostly-caps-participation/1"), 32);
+      // A link pins one contact; a few more (a re-pin, a device change) stay bounded.
+      if (this.pinned.size >= 4) this.pinned.delete(this.pinned.keys().next().value!);
+      this.pinned.set(peer, key);
+    }
+    return key;
+  }
+  private signable(from: string, to: string, body: unknown[]): Uint8Array { return utf8Encode(JSON.stringify(["ghostly-caps", from, to, body])); }
+
+  /**
+   * My record as Pkarr records, sealed for the pinned contact (or with the invite key before the pin).
+   * Past 1,000 bytes the name goes first, then the extensions; capabilities and transports are never cut.
+   */
+  seal(content: CapsContent, rev: number, peerKey?: string, now = Date.now()): { records: GhostRecord[]; dropped: ("name" | "extensions")[] } {
+    const dropped: ("name" | "extensions")[] = [];
+    let name = content.name, extensions = content.extensions;
+    for (;;) {
+      const body: Body = [1, rev, now - CAPS_ISSUED_BACK_MS, this.me, content.versions, content.transports, content.capabilities, extensions, content.descriptors, name,
+        ...(content.choice ? [content.choice] : [])] as Body;
+      const signature = toBase64Url(sign(this.signable(this.from, this.to, body), this.seed));
+      const records = [{ label: CAPS_LABEL, value: encrypt(JSON.stringify([body, signature]), peerKey ? this.pinnedKey(peerKey) : this.inviteKey), ttl: 3600 }];
+      if (measureRecords(this.identity.pubKeyZ32, records) <= MAX_DNS_PACKET_BYTES) return { records, dropped };
+      if (name) { name = ""; dropped.push("name"); continue; }
+      if (extensions.length) { extensions = []; dropped.push("extensions"); continue; }
+      throw new CapsRefusedError("size", "The capability record does not fit a DHT packet even without its name and extensions.");
+    }
+  }
+
+  /**
+   * The contact's record, checked: its address, its seal, a well-formed body, a signature by the pinned
+   * participation key (before the pin, by `expected` when a first contact named one) and not older than `minRev`.
+   *
+   * Its `issued` is the author's word on its own clock and refuses nothing. A record is the author's alone (signed by
+   * its participation key, bound to both rendezvous keys), and an older one cannot take a newer one's place because of
+   * `rev`, which the reader keeps. Refusing a record dated over a minute ahead added nothing to that, and cost every
+   * contact whose clock runs a couple of minutes fast its record.
+   */
+  open(packet: SignedPacket, options: { pinned?: string; expected?: string; minRev?: number } = {}): CapsRecord {
+    if (packet.pubKeyZ32 !== this.peerAddress) throw new CapsRefusedError("address", "Not this contact's capability record.");
+    if (measureRecords(packet.pubKeyZ32, packet.records) > MAX_DNS_PACKET_BYTES) throw new CapsRefusedError("size", "Capability record over the DHT packet budget.");
+    const sealed = packet.records.filter(r => r.label === CAPS_LABEL);
+    if (sealed.length !== 1) throw new CapsRefusedError("format", "No single capability record.");
+    const plaintext = (options.pinned ? tryDecrypt(sealed[0].value, this.pinnedKey(options.pinned)) : null) ?? tryDecrypt(sealed[0].value, this.inviteKey);
+    if (!plaintext) throw new CapsRefusedError("sealed", "The capability record cannot be opened with this chat's keys.");
+    let envelope: unknown;
+    try { envelope = JSON.parse(plaintext); } catch { throw new CapsRefusedError("format", "Malformed capability record."); }
+    if (!Array.isArray(envelope) || envelope.length !== 2 || !Array.isArray(envelope[0]) || typeof envelope[1] !== "string" || !SIG.test(envelope[1]))
+      throw new CapsRefusedError("format", "Malformed capability record.");
+    const body = envelope[0] as unknown[], signature = envelope[1];
+    // Trailing elements a later revision may add are carried by the signature and otherwise ignored.
+    if (body.length < 10 || body.length > 16) throw new CapsRefusedError("format", "Malformed capability record.");
+    const [version, rev, issued, author, versions, transports, capabilities, extensions, rawDescriptors, name, choice] = body;
+    const descriptors = parseDescriptors(rawDescriptors);
+    if (version !== 1 || !Number.isSafeInteger(rev) || (rev as number) < 0 || !Number.isSafeInteger(issued) || (issued as number) <= 0 ||
+      !isZ32Key(author) ||
+      !list(versions, CAPS_LIMITS.versions, v => Number.isSafeInteger(v) && (v as number) > 0) ||
+      !list(transports, CAPS_LIMITS.transports, ident) || (transports as string[]).includes("dht/1") ||
+      !list(capabilities, CAPS_LIMITS.capabilities, ident) || !list(extensions, CAPS_LIMITS.extensions, ident) ||
+      !descriptors || typeof name !== "string" || utf8Encode(name).length > CAPS_LIMITS.nameBytes ||
+      (choice !== undefined && (!ident(choice) || choice === "dht/1")))
+      throw new CapsRefusedError("format", "Malformed capability record.");
+    const signer = options.pinned ?? options.expected;
+    if (signer && author !== signer) throw new CapsRefusedError("author", "The capability record is signed by another participation key than this contact's.");
+    try {
+      if (!verify(fromBase64Url(signature), this.signable(this.to, this.from, body), publicKeyFromZ32(author)))
+        throw new CapsRefusedError("signature", "The capability record's signature does not verify.");
+    } catch (error) {
+      if (error instanceof CapsRefusedError) throw error;
+      throw new CapsRefusedError("signature", "The capability record's signature does not verify.");
+    }
+    if (options.minRev !== undefined && (rev as number) < options.minRev) throw new CapsRefusedError("rev", "An older capability record than one already seen.");
+    // The name is the contact's text, shown as it is: cleaned as a nickname from any other source, empty when nothing
+    // visible is left.
+    return { rev: rev as number, issued: issued as number, author, versions: versions as number[], transports: transports as string[],
+      capabilities: capabilities as string[], extensions: extensions as string[], descriptors, name: sanitizeNick(name) ?? "", ...(choice !== undefined ? { choice: choice as string } : {}) };
+  }
+}
+
+export interface CapsState {
+  /** My record's revision: increases with every change of its content. */
+  rev: number;
+  /**
+   * A digest of the content of revision `rev`, and when it was last published, and whether sealed for the pinned
+   * contact. No `publishedAt`: that revision is not known to be out (a publication failed, or was cut short), and goes
+   * out at the next look.
+   */
+  digest?: string;
+  publishedAt?: number;
+  sealedFor?: string;
+  /** The contact's last good record. */
+  peer?: CapsRecord;
+}
+export const emptyCapsState = (): CapsState => ({ rev: 0 });
+
+const digestOf = (content: CapsContent) => toBase64Url(sha256(utf8Encode(JSON.stringify(content)))).slice(0, 22);
+
+/**
+ * Publishes this side's record (at first start, at every change, hourly) and reads the contact's (at
+ * pairing, when an envelope names a newer revision, when the chat drops to the DHT). Publications go one
+ * at a time, and reads one at a time beside them (a read never waits for a put); reads close together are merged.
+ */
+export class CapsExchange {
+  private state: CapsState;
+  private readonly keys: CapsKeys;
+  /** Publications, one at a time; reads of the contact's record (another key) have their own, so neither waits for the other. */
+  private chain: Promise<unknown> = Promise.resolve();
+  private readChain: Promise<unknown> = Promise.resolve();
+  private saveChain: Promise<unknown> = Promise.resolve();
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private running = false;
+  private lastRead = 0;
+  private readTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The newest revision of the contact's record an envelope named, and the reads made again since for it. */
+  private named = -1;
+  private retries = 0;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** What the last publication of this run carried. */
+  private lastOut?: CapsContent;
+  private dropped: ("name" | "extensions")[] = [];
+
+  constructor(private readonly options: {
+    params: LinkParams;
+    credentials: PairingCredentials;
+    transport: PkarrTransport;
+    local(): CapsContent;
+    state?: CapsState;
+    save(state: CapsState): Promise<void>;
+    /** The contact's record changed (a newer revision was read). */
+    changed?(record: CapsRecord): void;
+    /** A new revision of this side's record went out: the contact learns of it from an envelope that names it. */
+    published?(rev: number): void;
+    /** A record was refused; `author` is a security signal (another key signed under this chat's address). */
+    refused?(error: CapsRefusedError): void;
+  }) {
+    this.state = structuredClone(options.state ?? emptyCapsState());
+    this.keys = new CapsKeys(options.params, options.credentials.seedB64);
+  }
+
+  get rev(): number { return this.state.rev; }
+  get peer(): CapsRecord | undefined { return this.state.peer; }
+  /** What had to be left out to fit the packet at the last publication. */
+  get droppedFields(): readonly ("name" | "extensions")[] { return this.dropped; }
+  get address(): string { return this.keys.identity.pubKeyZ32; }
+
+  private serialize<T>(run: () => Promise<T>, chain: "chain" | "readChain" | "saveChain" = "chain"): Promise<T> {
+    const next = this[chain].then(run); this[chain] = next.catch(() => {}); return next;
+  }
+  /** Saves are one at a time, each over the state as it is then: a read and a publication change different fields. */
+  private persist(patch: Partial<CapsState>): Promise<void> {
+    return this.serialize(async () => { const next = { ...this.state, ...patch }; await this.options.save(structuredClone(next)); this.state = next; }, "saveChain");
+  }
+
+  start(): void {
+    if (this.running || this.ended) return;
+    this.running = true;
+    void this.update().catch(() => {});
+    // Paired, and the contact's record never read: once. After that, a newer revision named in an envelope,
+    // a drop or a new pin is what reads it again, not every start. One named before a late start is read now.
+    if (this.options.credentials.peerKey && (!this.state.peer || this.named > this.state.peer.rev)) this.refresh(true);
+  }
+  /** Stopped for good: a start still waiting (the engine starts it once the chat's endpoints are up) does nothing. */
+  private ended = false;
+  async stop(): Promise<void> {
+    this.ended = true;
+    this.running = false;
+    if (this.timer) clearTimeout(this.timer);
+    if (this.readTimer) clearTimeout(this.readTimer);
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.timer = this.readTimer = this.retryTimer = null;
+    await Promise.all([this.chain, this.readChain]);
+    await this.saveChain;
+  }
+
+  /**
+   * Publishes when the content changed, when the contact was pinned since the last publication (the
+   * record is sealed anew for it), or when the last one is an hour old. Otherwise nothing goes out.
+   */
+  update(): Promise<void> {
+    return this.serialize(async () => {
+      if (!this.running) return;
+      const content = this.options.local(), digest = digestOf(content), now = Date.now();
+      const peerKey = this.options.credentials.peerKey;
+      const changed = digest !== this.state.digest;
+      // A revision saved but not known to be out (its publication failed): it goes now, as it is.
+      const unpublished = this.state.digest !== undefined && !this.state.publishedAt;
+      const due = changed || peerKey !== this.state.sealedFor || !this.state.publishedAt || now - this.state.publishedAt >= CAPS_REFRESH_MS;
+      // A change right after a publication waits for the spacing; a new pin does not (the contact reads it next).
+      // Nor does a native transport that can be dialled now and could not at the last one (its endpoint came up after the
+      // record went out): the contact waits for it to go live. Once per transport and run, so the budget barely notices.
+      const dialable = !!this.lastOut && described(content).some(t => !described(this.lastOut!).includes(t));
+      const soon = changed && !dialable && peerKey === this.state.sealedFor && !!this.state.publishedAt && now - this.state.publishedAt < CAPS_PUBLISH_SPACING_MS;
+      if (due && soon) { this.schedule(this.state.publishedAt! + CAPS_PUBLISH_SPACING_MS - now); return; }
+      if (due) {
+        const options = changed || unpublished ? undefined : { background: true };
+        // No relay takes it now: refused before it is sealed and saved (`LinkSession.publishOnce`). With 500 contacts
+        // away, about 380 records a minute were sealed, and their rows saved, for none that went.
+        const held = this.options.transport.publishHeld?.(this.keys.identity.pubKeyZ32, options);
+        if (held) { this.schedule(budgetRetryMs(held, 1_000, 60_000)); throw held; }
+        const rev = changed ? this.state.rev + 1 : this.state.rev;
+        const { records, dropped } = this.keys.seal(content, rev, peerKey, now);
+        this.dropped = dropped;
+        // The revision is saved before it is published, so a crash never reuses it for other content; until it is
+        // out, it has no `publishedAt`, so a publication that fails (or a crash) does not lose it until the hourly one.
+        // Saved already as it is (a publication that failed before): not again.
+        const saved = rev === this.state.rev && digest === this.state.digest && peerKey === this.state.sealedFor && this.state.publishedAt === undefined;
+        if (!saved) await this.persist({ rev, digest, sealedFor: peerKey, publishedAt: undefined });
+        try { await this.options.transport.publish(this.keys.identity, records, options); }
+        catch (error) {
+          // Held back by the relays' request budget: again when the budget frees a request; any other failure, in a minute.
+          this.schedule(isDiscoveryBudgetError(error) ? budgetRetryMs(error, 1_000, 60_000) : 60_000);
+          throw error;
+        }
+        await this.persist({ publishedAt: now });
+        this.lastOut = content;
+        if (changed || unpublished) this.options.published?.(rev);
+        // This side can dial it now: a contact's record that listed it with no descriptor is worth a few reads again.
+        if (dialable) { this.retries = 0; this.readAgainIfBehind(); }
+      }
+      this.schedule();
+    });
+  }
+  private schedule(inMs?: number): void {
+    if (this.timer) clearTimeout(this.timer);
+    if (!this.running) return;
+    const age = Date.now() - (this.state.publishedAt ?? 0);
+    // A failed publication already scheduled its retry.
+    this.timer = setTimeout(() => void this.update().catch(() => {}), inMs ?? Math.max(60_000, CAPS_REFRESH_MS - age));
+  }
+
+  /** An envelope named this revision of the contact's record: read it when it is newer than the one known. */
+  peerRev(rev: number): void {
+    if (!Number.isSafeInteger(rev) || rev <= (this.state.peer?.rev ?? -1)) return;
+    if (rev > this.named) { this.named = rev; this.retries = 0; }
+    this.refresh(true);
+  }
+
+  /** Reads the contact's record now (or right after the last read, when that was a moment ago). */
+  refresh(force = false): void {
+    if (!this.running || this.readTimer) return;
+    const wait = force ? 0 : Math.max(0, this.lastRead + CAPS_READ_SPACING_MS - Date.now());
+    const run = () => { this.readTimer = null; void this.read().catch(() => {}); };
+    if (!wait) { this.readTimer = setTimeout(run, 0); return; }
+    this.readTimer = setTimeout(run, wait);
+  }
+
+  /** Reads and checks the contact's record; the last good one stays when this one is refused. */
+  read(): Promise<CapsRecord | undefined> {
+    const read = this.serialize(async () => {
+      if (!this.running) return this.state.peer;
+      this.lastRead = Date.now();
+      const packet = await this.options.transport.resolve(this.keys.peerAddress);
+      if (!packet || !this.running) return this.state.peer;
+      let record: CapsRecord;
+      try {
+        record = this.keys.open(packet, { pinned: this.options.credentials.peerKey, minRev: this.state.peer?.rev });
+      } catch (error) {
+        if (error instanceof CapsRefusedError && error.reason !== "rev") this.options.refused?.(error);
+        return this.state.peer;
+      }
+      if (this.state.peer && record.rev === this.state.peer.rev && record.author === this.state.peer.author) return this.state.peer;
+      await this.persist({ peer: record });
+      // A new revision: what it still lacks (a transport without its descriptor) is worth a few reads again.
+      this.retries = 0;
+      this.options.changed?.(record);
+      return record;
+    }, "readChain");
+    return read.finally(() => this.readAgainIfBehind());
+  }
+
+  /**
+   * Read again in a moment, a few times at most, while the record known is short of what the contact has: of the
+   * revision an envelope named, or of a descriptor for a native transport it lists (its endpoint was still starting)
+   * that this side runs too. Its next revision, with the descriptor, is named only once, by an envelope that may
+   * come before the record is out; without it neither side could dial the other.
+   */
+  private readAgainIfBehind(): void {
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    if (!this.running || this.retries >= CAPS_READ_RETRY_MS.length) return;
+    const peer = this.state.peer;
+    const behind = this.named > (peer?.rev ?? -1);
+    const starting = !!peer && described(this.options.local()).some(t => peer.transports.includes(t) && !peer.descriptors[t]);
+    if (!behind && !starting) return;
+    this.retryTimer = setTimeout(() => { this.retryTimer = null; void this.read().catch(() => {}); }, CAPS_READ_RETRY_MS[this.retries++]);
+  }
+}

@@ -1,0 +1,137 @@
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { GhostLink, SWITCH_RETIRE_MS } from "../src/ghostlink";
+import { identityFromSeedB64 } from "../src/identity";
+import { RELAY_POLL_INTERVALS } from "../src/link";
+import type { PairingState } from "../src/pairedSession";
+import type { PairedTransport } from "../src/pairedTransports";
+import { DESKTOP_NETWORK, MemoryPkarr, closeWorld, fakePeerConnection, invitationWhere, useFakeWorld, yieldToLoop, type Side } from "./support/pairingWorld";
+import { NativeWorld } from "./support/nativeWorld";
+
+// covers: transport.switch, transport.chat-switch
+
+/**
+ * A chat moved off WebRTC and back again within a few seconds (the person tried Iroh, then went back). The WebRTC
+ * session it left is closed only `SWITCH_RETIRE_MS` after the move, so the contact has time to move too; a plan back
+ * to WebRTC made meanwhile found that data link still open, offered nothing, and gave up after its 8 s, then waited
+ * the 20 s retry: 28.3-28.9 s on two CLIs (r9g, n=8) where a later switch takes 0.2-2.3 s.
+ */
+
+interface App { name: string; link: GhostLink; state: PairingState; moves: PairedTransport[] }
+let pkarr: MemoryPkarr, native: NativeWorld;
+const apps: App[] = [];
+
+function startApp(name: string, side: Side, contact: { side: Side; name: string }): App {
+  const app = { name, state: { status: "connecting" }, moves: [] as PairedTransport[] } as App;
+  app.link = new GhostLink({
+    params: side.params,
+    rtcAvailable: true,
+    pairing: { credentials: { seedB64: side.seedB64, peerKey: identityFromSeedB64(contact.side.seedB64).pubKeyZ32 }, pinPeer: async () => {}, trustOnFirstUse: true },
+    native: { peerDescriptors: { "iroh/1": { id: native.key("iroh/1", contact.name), relay: "https://relay.test./", addresses: [] } }, peerTransports: ["webrtc/1", "iroh/1"], peerFallback: true, automatic: true },
+    transport: pkarr.transport(),
+    pollIntervals: RELAY_POLL_INTERVALS,
+    autoConnect: true,
+    createPeerConnection: () => fakePeerConnection(name),
+    localFetch: vi.fn(), getServices: () => [{ id: "chat", type: "chat" }], getHostedHttpService: () => undefined,
+    events: { onPairingState: (state) => {
+      app.state = state;
+      // Each transport the chat is ready on, once per move.
+      if (state.status === "ready" && state.transport && app.moves.at(-1) !== state.transport) app.moves.push(state.transport);
+    } },
+  });
+  apps.push(app);
+  app.link.start();
+  app.link.registerEndpoint(native.endpoint("iroh/1", name));
+  if (app.link.myPubKeyZ32 < side.params.peerPubKeyZ32) void app.link.connect().catch(() => {});
+  return app;
+}
+
+async function run(ms: number): Promise<void> {
+  for (let t = 0; t < ms; t += 100) { await vi.advanceTimersByTimeAsync(100); await yieldToLoop(); }
+}
+async function until(check: () => boolean, limit: number): Promise<number> {
+  const start = Date.now();
+  while (!check()) {
+    if (Date.now() - start > limit) return Infinity;
+    await run(100);
+  }
+  return Date.now() - start;
+}
+const on = (transport: PairedTransport) => () => apps.every((app) => app.state.status === "ready" && app.state.transport === transport && app.link.isDataLinkOpen);
+
+beforeEach(() => { useFakeWorld(); pkarr = new MemoryPkarr(DESKTOP_NETWORK); native = new NativeWorld(); });
+afterEach(async () => { apps.splice(0); await closeWorld(); });
+
+for (const chooser of ["the dialling side", "the other side"] as const) it(`back to WebRTC a moment after leaving it goes at once, chosen by ${chooser}`, async () => {
+  const { inviter, joiner } = invitationWhere("inviter");
+  const a = startApp("a", inviter, { side: joiner, name: "b" }), b = startApp("b", joiner, { side: inviter, name: "a" });
+  expect(await until(on("webrtc/1"), 60_000)).toBeLessThan(60_000);
+  await run(5_000);
+  const who = chooser === "the dialling side" ? a : b;
+
+  await who.link.setTransportPreference("iroh/1", true);
+  expect(await until(on("iroh/1"), 30_000)).toBeLessThan(30_000);
+  // Back within the WebRTC session's retirement.
+  await run(500);
+  await who.link.setTransportPreference("webrtc/1", true);
+  const took = await until(on("webrtc/1"), 60_000);
+  console.log(`SWITCH_BACK ${chooser}: on WebRTC again ${took / 1000} s after choosing it (retire ${SWITCH_RETIRE_MS / 1000} s)`);
+  expect(took).toBeLessThan(8_000);
+}, 60_000);
+
+/**
+ * The same, when the contact moved a moment after this side (the move reached it a one-way trip later): its WebRTC
+ * session retires after this side's, and this side's new offer comes while that one still runs. Its end closed the
+ * data link it found, which by then was the answer to that new offer: the plan gave up after its 8 s and the chat
+ * waited the 20 s retry, 28.3-28.6 s in 8 of 210 moves between two CLIs (bh-zero43).
+ */
+for (const chooser of ["the dialling side", "the other side"] as const) it(`back to WebRTC while the contact's old session still retires goes at once, chosen by ${chooser}`, async () => {
+  const { inviter, joiner } = invitationWhere("inviter");
+  const a = startApp("a", inviter, { side: joiner, name: "b" }), b = startApp("b", joiner, { side: inviter, name: "a" });
+  expect(await until(on("webrtc/1"), 60_000)).toBeLessThan(60_000);
+  await run(5_000);
+  const [who, contact] = chooser === "the dialling side" ? [a, b] : [b, a];
+
+  await who.link.setTransportPreference("iroh/1", true);
+  expect(await until(on("iroh/1"), 30_000)).toBeLessThan(30_000);
+  // The contact's old session retires 300 ms after this side's: once this side's offer reached it, before it connects.
+  const retiring = (contact.link as unknown as { retiring: Map<unknown, { timer: ReturnType<typeof setTimeout>; close(): void }> }).retiring;
+  expect(retiring.size).toBe(1);
+  for (const entry of retiring.values()) { clearTimeout(entry.timer); entry.timer = setTimeout(entry.close, SWITCH_RETIRE_MS + 300); }
+  await who.link.setTransportPreference("webrtc/1", true);
+  const took = await until(on("webrtc/1"), 60_000);
+  console.log(`SWITCH_BACK_LATE ${chooser}: on WebRTC again ${took / 1000} s after choosing it (retire ${SWITCH_RETIRE_MS / 1000} s)`);
+  expect(took).toBeLessThan(8_000);
+}, 60_000);
+
+/**
+ * A choice made while a move back to WebRTC waits for the session it left to retire (`SWITCH_RETIRE_MS`): nothing has
+ * been dialled yet, so the newer choice replaces that move. Before, the move ran (to WebRTC) and the chat then moved
+ * again to the newer choice: two needless switches, each a moment off the chat (r11f, CLI twoPeers).
+ */
+for (const chooser of ["the dialling side", "the other side"] as const) it(`a choice made while a move back to WebRTC waits for the old session replaces that move, chosen by ${chooser}`, async () => {
+  const { inviter, joiner } = invitationWhere("inviter");
+  const a = startApp("a", inviter, { side: joiner, name: "b" }), b = startApp("b", joiner, { side: inviter, name: "a" });
+  expect(await until(on("webrtc/1"), 60_000)).toBeLessThan(60_000);
+  await run(5_000);
+  const who = chooser === "the dialling side" ? a : b;
+  await who.link.setTransportPreference("iroh/1", true);
+  expect(await until(on("iroh/1"), 30_000)).toBeLessThan(30_000);
+  for (const app of apps) app.moves.splice(0, app.moves.length - 1);
+
+  // Back to WebRTC: the move waits for the WebRTC session left behind to retire, a few seconds.
+  await who.link.setTransportPreference("webrtc/1", true);
+  await run(1_000);
+  expect(apps.every((app) => app.state.status === "ready" && app.state.transport === "iroh/1")).toBe(true);
+  // Iroh again, before that move dialled: the chat stays where it is.
+  await who.link.setTransportPreference("iroh/1", true);
+  await run(15_000);
+  console.log(`SUPERSEDE ${chooser}: a ${JSON.stringify(a.moves)}, b ${JSON.stringify(b.moves)}`);
+  expect(a.moves).toEqual(["iroh/1"]);
+  expect(b.moves).toEqual(["iroh/1"]);
+  expect(on("iroh/1")()).toBe(true);
+  for (const app of apps) expect(app.link.transportWait, app.name).toBeUndefined();
+
+  // The chat still moves when asked, at once.
+  await who.link.setTransportPreference("webrtc/1", true);
+  expect(await until(on("webrtc/1"), 8_000)).toBeLessThan(8_000);
+}, 90_000);

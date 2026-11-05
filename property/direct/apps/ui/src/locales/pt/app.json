@@ -1,0 +1,31 @@
+{
+  "name": "Property",
+  "pageNotLoaded": {
+    "hint": "Verifique sua conexão e tente de novo. Se continuar falhando, recarregue o Property.",
+    "title": "Esta página não carregou.",
+    "tryAgain": "Tentar de novo"
+  },
+  "profileUnavailable": {
+    "detail": "O que o sistema disse:",
+    "info": "Nada foi alterado nem apagado. Enquanto fechado, este perfil não se conecta a ninguém e não envia nada. O Property {{app}} lê dados de perfil até a versão {{supported}}.",
+    "newerHint": "Atualize o app para abri-lo.",
+    "newerInfo": "Os dados estão na versão {{stored}}; o Property {{app}} lê até a {{supported}}. Nada foi aberto, enviado nem alterado: suas conversas, chaves e carteiras continuam lá.",
+    "newerTitle": "Este perfil foi usado por último em uma versão mais nova do Property.",
+    "noUpdate": "Ainda não saiu uma versão mais nova. Abra este perfil com o app que o usou por último.",
+    "reason": {
+      "blocked": "Outra janela ou aba do Property ainda o mantém aberto com uma versão mais antiga.",
+      "denied": "Este navegador não dá armazenamento ao Property aqui: uma janela privada, ou armazenamento bloqueado para este site.",
+      "failed": "Os dados não abriram, e o sistema não deu um motivo claro.",
+      "full": "Este dispositivo está sem espaço de armazenamento."
+    },
+    "title": "O Property não conseguiu abrir os dados deste perfil.",
+    "try": {
+      "blocked": "Feche as outras janelas e abas do Property e tente de novo.",
+      "denied": "Use uma janela normal ou permita o armazenamento para este site e tente de novo.",
+      "failed": "Reinicie o app ou o dispositivo e tente de novo.",
+      "full": "Libere espaço e tente de novo."
+    },
+    "tryAgain": "Tentar de novo"
+  },
+  "tagline": "Mensagens criptografadas ponto a ponto via DHT"
+}

@@ -1,0 +1,625 @@
+import "fake-indexeddb/auto";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { LIMITS, NO_PICTURE_METADATA, NO_VIDEO_METADATA, isViewerTag, viewerTag } from "@ghostly/core";
+import { H264_MP4, PLACE, hasPlace, withMovie, xyzUdta } from "../../core/test/support/videoFixtures";
+import { setBrowserHost, type BrowserHost } from "../src/host";
+import { blobDigest, registerFileBytes, resetFileBytes, type FileBytes } from "../src/shared/fileBytes";
+import { fileStore } from "../src/shared/idb";
+import { TEST_MINT } from "../src/shared/mints";
+import type { EngineState, LinkView } from "../src/shared/types";
+// covers: services.add, services.share, files.size-limit, wallet.cashu.mint.manage, files.download
+
+/** What the shared UI calls, with the peer connection replaced by a recorder. */
+const fake = vi.hoisted(() => ({
+  engine: {
+    state: null as unknown,
+    calls: [] as [string, unknown][],
+    answers: {} as Record<string, unknown>,
+    subscribe: (_listener: () => void) => () => {},
+    appListeners: [] as ((linkId: string, frame: unknown) => void)[],
+    onAppFrame(listener: (linkId: string, frame: unknown) => void) { fake.engine.appListeners.push(listener); return () => {}; },
+    linkByPeer(peer: string) { return (fake.engine.state as { links: { peerPubKeyZ32: string }[] } | null)?.links.find((l) => l.peerPubKeyZ32 === peer); },
+    async call(method: string, params?: unknown) {
+      fake.engine.calls.push([method, params]);
+      const answer = fake.engine.answers[method];
+      if (answer instanceof Error) throw answer;
+      return answer;
+    },
+  },
+}));
+vi.mock("../src/platform/engine", () => ({ engine: fake.engine }));
+
+const { servicesPlatform } = await import("../src/platform/services");
+const services = servicesPlatform!;
+const engine = fake.engine;
+
+const chat = (over: Partial<LinkView> = {}) => ({ id: "link-1", peerPubKeyZ32: "peer-1", myPubKeyZ32: "me", deliveryMode: "stream", ...over }) as LinkView;
+const withLinks = (...links: LinkView[]) => {
+  engine.state = { links, settings: { online: true, relays: ["wss://r"], iceServers: [] }, transport: { protocol: "pkarr", relays: [] }, services: [], transfers: {}, payments: {}, wallet: { balance: 1 } } as unknown as EngineState;
+};
+
+const SECRET = "GHOSTLY-SECRET-GPS 52.37N 4.89E";
+const ascii = (value: string) => [...value].map((c) => c.charCodeAt(0));
+const text = (bytes: Uint8Array) => String.fromCharCode(...bytes.subarray(0, 4096)) + String.fromCharCode(...bytes.subarray(-4096));
+const segment = (marker: number, body: number[]) => [0xff, marker, (body.length + 2) >> 8, (body.length + 2) & 0xff, ...body];
+/** A 300 × 200 JPEG's segments, with an Exif holding `secret` when given; its scan `scan` bytes long. */
+function jpegWith(secret?: string, scan = 16): Uint8Array {
+  const exif = secret ? segment(0xe1, [...ascii("Exif\0\0"), 0x4d, 0x4d, 0, 42, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, ...ascii(secret)]) : [];
+  const head = [0xff, 0xd8, ...exif, ...segment(0xdb, [0, ...new Array(64).fill(1)]), ...segment(0xc0, [8, 0, 200, 1, 44, 1, 1, 0x11, 0]),
+    ...segment(0xc4, [0, ...new Array(16).fill(0)]), ...segment(0xda, [1, 1, 0, 0, 63, 0])];
+  const bytes = new Uint8Array(head.length + scan + 2);
+  bytes.set(head);
+  bytes.set([0xff, 0xd9], bytes.length - 2);
+  return bytes;
+}
+/** A PNG's signature, IHDR, IDAT and IEND. */
+const PNG = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, ...ascii("IHDR"), 0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0, 0x90, 0x77, 0x53, 0xde,
+  0, 0, 0, 12, ...ascii("IDAT"), 8, 0xd7, 0x63, 0xf8, 0xcf, 0xc0, 0, 0, 3, 1, 1, 0, 0x18, 0xdd, 0x8d, 0xb0, 0, 0, 0, 0, ...ascii("IEND"), 0xae, 0x42, 0x60, 0x82]);
+
+let access: string[];
+let asked: string[];
+let forgotten: string[];
+let host: BrowserHost;
+beforeEach(() => {
+  engine.state = null;
+  engine.calls.length = 0;
+  engine.answers = {};
+  access = [];
+  asked = [];
+  forgotten = [];
+  host = {
+    version: "t", features: { shareLocalServices: true, openServices: true },
+    connect: async () => ({ send: () => {} }),
+    requestLocalAccess: async (pattern, origin) => { access.push(pattern); asked.push(origin); return pattern.includes("127.0.0.1"); },
+    forgetLocalAccess: async (origin) => { forgotten.push(origin); },
+    openService: vi.fn(async () => {}),
+  };
+  setBrowserHost(host);
+});
+
+describe("sharing a local web app", () => {
+  it("asks for access to the loopback origin before telling the peer about it", async () => {
+    await services.shareService("Notes", "127.0.0.1:3400/app");
+    expect(access).toEqual(["http://127.0.0.1/*"]);
+    // The exact address with its port: what the desktop app's native dialog names.
+    expect(asked).toEqual(["http://127.0.0.1:3400"]);
+    expect(engine.calls).toEqual([["addService", { name: "Notes", target: "127.0.0.1:3400/app" }]]);
+  });
+
+  it("shares nothing when the user does not grant access", async () => {
+    await expect(services.shareService("Notes", "localhost:3400")).rejects.toThrow("needs your permission");
+    expect(engine.calls).toEqual([]);
+  });
+
+  it("refuses a target off this machine before asking for any access", async () => {
+    await expect(services.shareService("Bank", "https://bank.example")).rejects.toThrow("Only services on this machine");
+    await expect(services.shareService("Creds", "http://user:pw@localhost:1")).rejects.toThrow("Credentials");
+    expect(access).toEqual([]);
+    expect(engine.calls).toEqual([]);
+  });
+});
+
+describe("opening a contact's app", () => {
+  // covers: services.open
+  const ME = "ybndrfg8ejkmcpqxot1uwisza345h769ybndrfg8ejkmcpqxot1u";
+  const ME_ELSEWHERE = "h769ybndrfg8ejkmcpqxot1uwisza345h769ybndrfg8ejkmcpqx";
+
+  it("opens it in an origin of this profile's chat with the contact, never one every profile shares", async () => {
+    withLinks(chat({ myPubKeyZ32: ME }));
+    await services.openService("peer-1", "atlas");
+    expect(host.openService).toHaveBeenCalledWith("peer-1", "atlas", viewerTag(ME));
+    expect(isViewerTag(viewerTag(ME))).toBe(true);
+    // Another profile's chat with the same contact, or this one after "Clear all data", has another key of its own.
+    expect(viewerTag(ME_ELSEWHERE)).not.toBe(viewerTag(ME));
+  });
+
+  it("opens nothing for a contact the peer does not know yet", async () => {
+    withLinks();
+    await expect(services.openService("peer-1", "atlas")).rejects.toThrow("Ghostly is still starting");
+    expect(host.openService).not.toHaveBeenCalled();
+  });
+});
+
+describe("removing a shared app", () => {
+  const stored = (id: string, target: string) => ({ id, name: id, target, enabled: true, createdAt: 0 });
+
+  it("lets the host stop reaching an address once no app of the profile is at it", async () => {
+    engine.state = { services: [stored("notes", "http://localhost:3400/notes"), stored("wiki", "http://localhost:3400/wiki"), stored("db", "http://127.0.0.1:5432")] } as unknown as EngineState;
+    await services.removeService("notes");
+    expect(forgotten).toEqual([]);
+    await services.removeService("db");
+    expect(engine.calls).toEqual([["removeService", { serviceId: "notes" }], ["removeService", { serviceId: "db" }]]);
+    expect(forgotten).toEqual(["http://127.0.0.1:5432"]);
+  });
+
+  it("still removes the app where the host has nothing to forget", async () => {
+    engine.state = { services: [stored("notes", "http://localhost:3400")] } as unknown as EngineState;
+    host.forgetLocalAccess = undefined;
+    await services.removeService("notes");
+    host.forgetLocalAccess = async () => { throw new Error("gone"); };
+    engine.state = { services: [stored("wiki", "http://localhost:8080")] } as unknown as EngineState;
+    await services.removeService("wiki");
+    expect(engine.calls).toEqual([["removeService", { serviceId: "notes" }], ["removeService", { serviceId: "wiki" }]]);
+  });
+});
+
+describe("chat actions before the peer knows the chat", () => {
+  it("refuses them instead of sending a call for a chat that does not exist", async () => {
+    const attempts = [
+      services.setChatPaymentMethods("peer-1", {} as never),
+      services.setChatHold("peer-1", true),
+      services.sendFile("peer-1", new Blob(["x"]) as File),
+      services.wallet.checkPayment("peer-1", "p"),
+      services.wallet.send("peer-1", 10),
+      services.wallet.request("peer-1", 10),
+      services.wallet.payRequest("peer-1", "p", {} as never),
+      services.wallet.askToPay("peer-1", 10, "cashu" as never),
+    ];
+    for (const attempt of attempts) await expect(attempt).rejects.toThrow("still starting");
+    await services.deleteMessage("peer-1", "m");
+    services.connect("peer-1");
+    expect(services.getPeer("peer-1")).toBeNull();
+    expect(engine.calls).toEqual([]);
+  });
+
+  it("addresses them to the chat's link once it exists", async () => {
+    withLinks(chat());
+    engine.answers = { sendPayment: { paymentId: "pay-1" }, requestPayment: { paymentId: "req-1" } };
+    await services.setChatHold("peer-1", true);
+    await services.deleteMessage("peer-1", "m1");
+    const sent = await services.wallet.send("peer-1", 21, "coffee");
+    const asked = await services.wallet.request("peer-1", 5, undefined, "lightning" as never);
+    expect(sent.paymentId).toBe("pay-1");
+    expect(asked.paymentId).toBe("req-1");
+    expect(engine.calls.map(([m, p]) => [m, (p as { linkId: string }).linkId])).toEqual([
+      ["setChatHold", "link-1"], ["deleteMessage", "link-1"], ["sendPayment", "link-1"], ["requestPayment", "link-1"],
+    ]);
+  });
+
+  it("does not let a failed connection attempt escape", async () => {
+    withLinks(chat());
+    engine.answers = { connect: new Error("offline") };
+    services.connect("peer-1");
+    await Promise.resolve();
+    expect(engine.calls).toEqual([["connect", { linkId: "link-1" }]]);
+  });
+});
+
+describe("sending files", () => {
+  it("refuses a file over the size limit without storing it", async () => {
+    withLinks(chat({ id: "big" }));
+    const huge = { name: "a.bin", size: LIMITS.maxFileBytes + 1, type: "" } as File;
+    await expect(services.sendFile("peer-1", huge)).rejects.toThrow("too large");
+    expect(await fileStore.listForLink("big")).toEqual([]);
+    expect(engine.calls).toEqual([]);
+  });
+
+  it("refuses a paired chat whose live peer cannot take files; one not live yet keeps it for when it is", async () => {
+    withLinks(chat({ profile: "paired-chat/1", dataLink: "open", capabilities: { files: false, payments: true } }));
+    await expect(services.sendFile("peer-1", new Blob(["x"]) as File)).rejects.toThrow("updated peer");
+    expect(engine.calls).toEqual([]);
+    withLinks(chat({ profile: "paired-chat/1", dataLink: "idle", capabilities: { files: false, payments: true } }));
+    await services.sendFile("peer-1", new File(["x"], "x.txt"));
+    expect(engine.calls.map(([method]) => method)).toEqual(["sendFile"]);
+  });
+
+  it("a file the engine refuses before it starts (a stopped chat, offline) rejects with its reason and leaves nothing stored", async () => {
+    withLinks(chat({ id: "stopped", profile: "paired-chat/1", dataLink: "idle", capabilities: { files: true, payments: false } }));
+    engine.answers = { sendFile: new Error("This chat stopped: your contact's key changed.") };
+    await expect(services.sendFile("peer-1", new File(["x"], "x.txt"))).rejects.toThrow("This chat stopped");
+    expect(engine.calls.map(([method]) => method)).toEqual(["sendFile"]);
+    expect(await fileStore.listForLink("stopped")).toEqual([]);
+  });
+
+  it("with files/3 a file is checked against the room the contact said it has; files/2 stops at 100 MB", () => {
+    withLinks(chat({ profile: "paired-chat/1", dataLink: "open", capabilities: { files: true, payments: false, largeFiles: true }, peerFileRoom: 2 * 1024 ** 3 }));
+    expect(services.fileTooLarge!("peer-1", 3 * 1024 ** 3)).toBe("Not enough space on your contact's device for this file (2.0 GB free).");
+    expect(services.fileTooLarge!("peer-1", 1024 ** 3)).toBeNull();
+    withLinks(chat({ profile: "paired-chat/1", dataLink: "open", capabilities: { files: true, payments: false } }));
+    expect(services.fileTooLarge!("peer-1", LIMITS.maxFileBytes + 1)).toContain("updated Ghostly");
+    withLinks(chat({ profile: "paired-chat/1", dataLink: "idle", capabilities: { files: false, payments: false } }));
+    expect(services.fileTooLarge!("peer-1", 5 * 1024 ** 3), "not live: known when it goes").toBeNull();
+  });
+
+  it("stores the bytes under an id of its own and sends only a cleaned description of the file", async () => {
+    withLinks(chat({ id: "files-link" }));
+    const source = new File(["hello"], "../../.bashrc", { type: "Text/HTML; x" });
+    const { file, timestamp } = await services.sendFile("peer-1", source);
+    expect(file.id).toMatch(/^files-link-out-/);
+    expect(file.name).toBe("bashrc");
+    expect(file.mime).toBe("application/octet-stream");
+    const [[method, params]] = engine.calls as [string, { file: object; linkId: string; timestamp: number }][];
+    expect(method).toBe("sendFile");
+    expect(params).toEqual({ linkId: "files-link", file, timestamp });
+    const stored = await fileStore.get(file.id);
+    expect(stored?.direction).toBe("out");
+    expect(await stored?.blob.text()).toBe("hello");
+    expect(stored?.transfer).toEqual({ state: "transferring", transferred: 0, size: 5 });
+  });
+
+  it("shows a file just sent from the bytes handed over, at once, until the message is deleted", async () => {
+    withLinks(chat({ id: "pic-link" }));
+    const png = new File([PNG], "Pasted image.png", { type: "image/png" });
+    const { file } = await services.sendFile("peer-1", png);
+    // Even with the stored copy unreadable (WebKit lost an IndexedDB Blob), the sender's bubble has its picture.
+    const get = vi.spyOn(fileStore, "get").mockRejectedValue(new Error("The object can not be found here."));
+    const shown = await services.getFile(file.id);
+    expect(shown?.type).toBe("image/png");
+    expect(new Uint8Array(await shown!.arrayBuffer())).toEqual(PNG);
+    expect(get).not.toHaveBeenCalled();
+    get.mockRestore();
+    await services.deleteMessage("peer-1", "me_1");
+    await fileStore.delete(file.id);
+    expect(await services.getFile(file.id)).toBeNull();
+  });
+
+  // covers: files.image.metadata
+  it("a picture goes without its metadata, to a chat and to a group: what is stored and digested is the stripped copy", async () => {
+    withLinks(chat({ id: "exif-link" }));
+    engine.answers = { groupFileCheck: {}, sendGroupFile: { messageId: "m" } };
+    const photo = () => new File([jpegWith(SECRET)], "IMG_0001.jpg", { type: "image/jpeg" });
+    const chatPhoto = await services.sendFile("peer-1", photo());
+    const groupPhoto = await services.sendGroupFile!("g1", photo());
+    for (const { file } of [chatPhoto, groupPhoto]) {
+      const stored = await fileStore.get(file.id);
+      const bytes = new Uint8Array(await stored!.blob!.arrayBuffer());
+      expect(text(bytes)).not.toContain(SECRET);
+      expect(bytes).toEqual(jpegWith());
+      expect(file.size).toBe(bytes.length);
+      expect(stored!.metadata!.size).toBe(bytes.length);
+      expect(file.image).toEqual({ width: 300, height: 200 });
+      expect(stored!.digest).toBe(await blobDigest(new Blob([bytes])));
+      expect(text(new Uint8Array(await (await services.getFile(file.id))!.arrayBuffer()))).not.toContain(SECRET);
+    }
+    // The name and type it was picked with.
+    expect(chatPhoto.file).toMatchObject({ name: "IMG_0001.jpg", mime: "image/jpeg" });
+  });
+
+  it("a large picture is stripped before it is copied in a step at a time", async () => {
+    withLinks(chat({ id: "big-exif-link" }));
+    let staged: Blob | undefined;
+    const copies = { kind: "native", stage: vi.fn(async (_id: string, source: Blob) => { staged = source; return "digest"; }) } as unknown as FileBytes;
+    registerFileBytes("native", async () => copies, true);
+    try {
+      const { file } = await services.sendFile("peer-1", new File([jpegWith(SECRET, 17 * 1024 * 1024)], "pano.jpg", { type: "image/jpeg" }));
+      await vi.waitFor(() => expect(staged).toBeDefined());
+      expect(text(new Uint8Array(await staged!.arrayBuffer()))).not.toContain(SECRET);
+      expect(file.size).toBe(staged!.size);
+    } finally {
+      registerFileBytes("native", async () => null);
+      resetFileBytes();
+    }
+  });
+
+  it("a picture whose metadata cannot be removed is refused, to a chat and to a group, and nothing of it is stored or sent", async () => {
+    withLinks(chat({ id: "bad-pic-link" }));
+    engine.answers = { groupFileCheck: {}, sendGroupFile: { messageId: "m" } };
+    const cut = jpegWith(SECRET).slice(0, -2);
+    for (const bad of [new File([cut], "cut.jpg", { type: "image/jpeg" }), new File([new Uint8Array([137, 80, 78, 71])], "x.png", { type: "image/png" })]) {
+      await expect(services.sendFile("peer-1", bad)).rejects.toThrow(NO_PICTURE_METADATA);
+      await expect(services.sendGroupFile!("g1", bad)).rejects.toThrow(NO_PICTURE_METADATA);
+    }
+    expect(engine.calls.map(([method]) => method)).toEqual(["groupFileCheck", "groupFileCheck"]);
+    expect(await fileStore.listForLink("bad-pic-link")).toEqual([]);
+  });
+
+  // covers: files.video.metadata
+  it("a video goes without where it was recorded, to a chat and to a group, described or not: what is stored and digested is the stripped copy", async () => {
+    withLinks(chat({ id: "video-link" }));
+    engine.answers = { groupFileCheck: {}, sendGroupFile: { messageId: "m" } };
+    const recorded = withMovie(H264_MP4, [xyzUdta()], Buffer.from(`location ${PLACE}`, "latin1"));
+    const video = () => new File([recorded], "VID_20261103.mp4", { type: "video/mp4" });
+    // As the chat sends a video it could describe (Chat.tsx), and one it could not.
+    const described = { duration: 1000, width: 320, height: 240 };
+    const sent = [
+      await services.sendFile("peer-1", video(), { video: described }),
+      await services.sendFile("peer-1", video()),
+      await services.sendGroupFile!("g1", video(), { video: described }),
+      await services.sendGroupFile!("g1", video()),
+    ];
+    for (const { file } of sent) {
+      const stored = await fileStore.get(file.id);
+      const bytes = new Uint8Array(await stored!.blob!.arrayBuffer());
+      expect(hasPlace(bytes)).toBe(false);
+      expect(bytes.length).toBe(recorded.length);
+      expect(file.size).toBe(bytes.length);
+      expect(stored!.digest).toBe(await blobDigest(new Blob([bytes])));
+      expect(hasPlace(new Uint8Array(await (await services.getFile(file.id))!.arrayBuffer()))).toBe(false);
+      expect(file).toMatchObject({ name: "VID_20261103.mp4", mime: "video/mp4" });
+    }
+    expect(sent[0]!.file.video).toEqual(described);
+  });
+
+  it("a video whose metadata cannot be removed is refused, to a chat and to a group, and nothing of it is stored or sent", async () => {
+    withLinks(chat({ id: "bad-video-link" }));
+    engine.answers = { groupFileCheck: {}, sendGroupFile: { messageId: "m" } };
+    const cut = withMovie(H264_MP4, [xyzUdta()]).subarray(0, 500);
+    for (const options of [undefined, { video: { duration: 1000, width: 320, height: 240 } }]) {
+      const bad = new File([cut], "cut.mp4", { type: "video/mp4" });
+      await expect(services.sendFile("peer-1", bad, options)).rejects.toThrow(NO_VIDEO_METADATA);
+      await expect(services.sendGroupFile!("g1", bad, options)).rejects.toThrow(NO_VIDEO_METADATA);
+    }
+    expect(engine.calls.map(([method]) => method)).toEqual(["groupFileCheck", "groupFileCheck"]);
+    expect(await fileStore.listForLink("bad-video-link")).toEqual([]);
+  });
+
+  it("a file whose copy into this device fails says it in the app's words, the system's reason kept, to a chat and to a group", async () => {
+    withLinks(chat({ id: "copy-link" }));
+    engine.answers = { groupFileCheck: {}, sendGroupFile: { messageId: "m" } };
+    // Picked, then changed on disk before it was read: what Chromium answers, in English in every language.
+    const changed = new DOMException("The requested file could not be read, typically due to permission problems that have occurred after a reference to a file was acquired.", "NotReadableError");
+    // Read whole (a small file's digest) or a piece at a time, both reject as Chromium's do.
+    const picked = () => ({ name: "notes.txt", size: 5, type: "text/plain", arrayBuffer: () => Promise.reject(changed), slice: () => ({ arrayBuffer: () => Promise.reject(changed) }) }) as unknown as File;
+    await expect(services.sendFile("peer-1", picked())).rejects.toThrow(`Could not read the file: ${changed.message}`);
+    await expect(services.sendGroupFile!("g1", picked())).rejects.toThrow(`Could not read the file: ${changed.message}`);
+    // The origin's storage full.
+    const put = vi.spyOn(fileStore, "put").mockRejectedValue(new DOMException("The quota has been exceeded.", "QuotaExceededError"));
+    try {
+      await expect(services.sendFile("peer-1", new File(["hello"], "a.txt"))).rejects.toThrow(/^Not enough space on this device to send it$/);
+      await expect(services.sendGroupFile!("g1", new File(["hello"], "a.txt"))).rejects.toThrow(/^Not enough space on this device to send it$/);
+    } finally { put.mockRestore(); }
+    expect(engine.calls.map(([method]) => method)).toEqual(["groupFileCheck", "groupFileCheck"]);
+  });
+
+  it("retries only a file this device sent, on a chat that still takes files", async () => {
+    await fileStore.put({ id: "in-file", linkId: "link-1", blob: new Blob(["x"]), createdAt: 1, direction: "in", metadata: { name: "a", size: 1, mime: "text/plain", timestamp: 1 } });
+    await fileStore.put({ id: "out-file", linkId: "link-1", blob: new Blob(["x"]), createdAt: 1, direction: "out", metadata: { name: "a", size: 1, mime: "text/plain", timestamp: 3 } });
+    await expect(services.retryFile!("in-file")).rejects.toThrow("cannot be retried");
+    await expect(services.retryFile!("missing")).rejects.toThrow("cannot be retried");
+    await expect(services.retryFile!("out-file")).rejects.toThrow("updated peer");
+    withLinks(chat({ profile: "paired-chat/1", capabilities: { files: false, payments: true } }));
+    await expect(services.retryFile!("out-file")).rejects.toThrow("updated peer");
+    expect(engine.calls).toEqual([]);
+
+    withLinks(chat());
+    await services.retryFile!("out-file");
+    expect(engine.calls).toEqual([["sendFile", { linkId: "link-1", file: { id: "out-file", name: "a", size: 1, mime: "text/plain", timestamp: 3 }, timestamp: 3 }]]);
+  });
+
+  // A file over 16 MiB is copied in before it goes. A copy that fails (the file changed on disk, no room) leaves no
+  // record to send again: Retry, the bubble's only button, always answered "This file cannot be retried". Said as
+  // one not to retry (`retry: false`), the bubble offers none (`canRetryFile`). One the chat refused after the copy
+  // landed keeps it.
+  it("a large file whose copy into this device failed is not offered again; one refused after its copy is", async () => {
+    withLinks(chat({ id: "big-link" }));
+    const big = new File([new Uint8Array(17 * 1024 * 1024)], "big.bin");
+    let fail = true;
+    const copies = {
+      kind: "native",
+      stage: vi.fn(async () => { if (fail) throw new Error("The file changed while it was being copied"); return "digest"; }),
+    } as unknown as FileBytes;
+    registerFileBytes("native", async () => copies, true);
+    try {
+      const { file } = await services.sendFile("peer-1", big);
+      await vi.waitFor(() => expect(services.getTransfer(file.id)?.state).toBe("failed"));
+      // In the words core uses for a copy it could not read, which the app says in its language (errorText.ts).
+      expect(services.getTransfer(file.id)).toMatchObject({ direction: "out", retry: false, error: "Could not read the file: The file changed while it was being copied" });
+      await expect(services.retryFile!(file.id)).rejects.toThrow("cannot be retried");
+
+      fail = false;
+      engine.answers = { sendFile: new Error("This chat stopped: your contact's key changed.") };
+      const refused = await services.sendFile("peer-1", big);
+      await vi.waitFor(() => expect(services.getTransfer(refused.file.id)?.state).toBe("failed"));
+      expect(services.getTransfer(refused.file.id)?.retry).not.toBe(false);
+      expect((await fileStore.get(refused.file.id))?.direction).toBe("out");
+    } finally {
+      registerFileBytes("native", async () => null);
+      resetFileBytes();
+    }
+  });
+
+  // Nothing of it reached the engine: the chat's row of it is the page's own, and its failure lived only in this page.
+  // After a reload the bubble read "No longer available" with the Sent mark, though the file never left.
+  it("a large file whose copy into this device failed for lack of room is still not sent after a reload", async () => {
+    const kept = new Map<string, string>();
+    vi.stubGlobal("localStorage", { getItem: (key: string) => kept.get(key) ?? null, setItem: (key: string, value: string) => void kept.set(key, value), removeItem: (key: string) => void kept.delete(key) });
+    withLinks(chat({ id: "full-link" }));
+    const full = { kind: "native", stage: vi.fn(async () => { throw new DOMException("The quota has been exceeded.", "QuotaExceededError"); }) } as unknown as FileBytes;
+    registerFileBytes("native", async () => full, true);
+    try {
+      const { file } = await services.sendFile("peer-1", new File([new Uint8Array(17 * 1024 * 1024)], "big.bin"));
+      await vi.waitFor(() => expect(services.getTransfer(file.id)?.state).toBe("failed"));
+      vi.resetModules();
+      const reloaded = (await import("../src/platform/services")).servicesPlatform!;
+      expect(reloaded.getTransfer(file.id)).toMatchObject({ state: "failed", direction: "out", retry: false, error: "Not enough space on this device to send it" });
+      await expect(reloaded.retryFile!(file.id)).rejects.toThrow("cannot be retried");
+    } finally {
+      registerFileBytes("native", async () => null);
+      resetFileBytes();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("serves a received file as opaque bytes unless it is a previewable image", async () => {
+    await fileStore.put({ id: "page", linkId: "l", blob: new Blob(["<script>"], { type: "text/html" }), createdAt: 1 });
+    await fileStore.put({ id: "pic", linkId: "l", blob: new Blob(["png"], { type: "image/png" }), createdAt: 1 });
+    expect((await services.getFile("page"))?.type).toBe("application/octet-stream");
+    expect((await services.getFile("pic"))?.type).toBe("image/png");
+    expect(await services.getFile("nothing")).toBeNull();
+  });
+  it("saves a small file through the system's dialog where there is one (Desktop), from a copy it then removes", async () => {
+    const staged = new Map<string, Blob>();
+    const native = {
+      kind: "native",
+      stage: vi.fn(async (id: string, blob: Blob) => { staged.set(id, blob); return "digest"; }),
+      save: vi.fn(async (id: string, _name: string) => staged.has(id)),
+      remove: vi.fn(async (id: string) => { staged.delete(id); }),
+    } as unknown as FileBytes;
+    await fileStore.put({ id: "voice", linkId: "l", blob: new Blob(["opus"], { type: "audio/webm" }), createdAt: 1, metadata: { name: "Voice message.webm", size: 4, mime: "audio/webm", timestamp: 1 } });
+    // The web keeps no save dialog: the UI downloads the Blob itself.
+    expect(await services.saveFile!("voice", "Ghostly voice.webm")).toBeNull();
+    registerFileBytes("native", async () => native, true);
+    try {
+      expect(await services.saveFile!("voice", "Ghostly voice.webm")).toBe(true);
+      const [copy] = vi.mocked(native.stage).mock.calls[0]!;
+      expect(copy).toMatch(/^save-[0-9a-f-]+$/);
+      expect(native.save).toHaveBeenCalledWith(copy, "Ghostly voice.webm");
+      expect(native.remove).toHaveBeenCalledWith(copy);
+      expect(staged.size).toBe(0);
+      // Without a name, the file's own.
+      await services.saveFile!("voice");
+      expect(vi.mocked(native.save).mock.calls[1]![1]).toBe("Voice message.webm");
+    } finally {
+      registerFileBytes("native", async () => null);
+      resetFileBytes();
+    }
+  });
+});
+
+describe("wallet and settings", () => {
+  it("makes only the test mint primary when adding a mint", async () => {
+    await services.wallet.addMint(TEST_MINT);
+    await services.wallet.addMint("https://mint.example");
+    expect(engine.calls).toEqual([
+      ["walletAddMint", { url: TEST_MINT, primary: true }],
+      ["walletAddMint", { url: "https://mint.example", primary: false }],
+    ]);
+  });
+
+  it("adds a mint from a network's Cashu wallet with that network, for the engine to check", async () => {
+    await services.wallet.forNetwork("testnet").addMint("https://mint.example");
+    expect(engine.calls).toEqual([["walletAddMint", { url: "https://mint.example", primary: false, network: "testnet" }]]);
+  });
+
+  it("unwraps the peer's answers to what the UI expects", async () => {
+    engine.answers = { walletPayQuote: { paid: true }, walletReceiveToken: { amount: 42, fee: 2 }, walletInspectCashu: { inspection: { amount: 3 } } };
+    expect(await services.wallet.payQuote("q", "m")).toBe(true);
+    // What arrived and what the mint kept of the token as its fee (agents#2255).
+    expect(await services.wallet.receiveToken("cashuB...")).toEqual({ amount: 42, fee: 2 });
+    expect(await services.wallet.inspectCashu("cashuB...")).toEqual({ amount: 3 });
+  });
+
+  it("reads a redeem with no fee from an engine that does not say one as no fee", async () => {
+    engine.answers = { walletReceiveToken: { amount: 42 } };
+    expect(await services.wallet.receiveToken("cashuB...")).toEqual({ amount: 42, fee: 0 });
+  });
+
+  it("finds the answer to an ask only among incoming requests", () => {
+    withLinks();
+    (engine.state as EngineState).payments = {
+      mine: { ask: "ask-1", kind: "request", direction: "out" },
+      paid: { ask: "ask-1", kind: "send", direction: "in" },
+      theirs: { ask: "ask-1", kind: "request", direction: "in", id: "theirs" },
+    } as never;
+    expect(services.wallet.answerTo("ask-1")).toMatchObject({ id: "theirs" });
+    expect(services.wallet.answerTo("ask-2")).toBeNull();
+  });
+
+  it("reads nothing before the first state, and the peer's view after", () => {
+    expect(services.isOnline()).toBe(false);
+    expect(services.getNetwork()).toBeNull();
+    expect(services.wallet.getState()).toBeNull();
+    expect(services.getSharedServices()).toEqual([]);
+    expect(services.getTransfer("f")).toBeNull();
+    expect(services.wallet.getPayment("p")).toBeNull();
+    withLinks(chat({ peerOnline: true }));
+    expect(services.isOnline()).toBe(true);
+    expect(services.getNetwork()).toMatchObject({ protocol: "pkarr", kind: "relays", relays: ["wss://r"], turn: null });
+    // The Desktop's transport reaches the DHT itself: the page words that from `kind`, not from the English line.
+    engine.state = { ...engine.state!, transport: { ...engine.state!.transport, direct: true } };
+    expect(services.getNetwork()).toMatchObject({ protocol: "pkarr", kind: "direct" });
+    expect(services.getPeer("peer-1")).toMatchObject({ id: "link-1", online: true });
+  });
+
+  it("drops a TURN server without an address when saving the network", async () => {
+    await services.setNetwork({ relays: ["wss://a"], turn: { urls: "" } as never });
+    await services.setNetwork({ relays: ["wss://a"], turn: { urls: "turn:t", username: "u", credential: "c" } });
+    expect(engine.calls).toEqual([
+      ["updateSettings", { settings: { relays: ["wss://a"], iceServers: [] } }],
+      ["updateSettings", { settings: { relays: ["wss://a"], iceServers: [{ urls: "turn:t", username: "u", credential: "c" }] } }],
+    ]);
+  });
+
+  it("leaves the TURN server as it is when the save does not name one", async () => {
+    await services.setNetwork({ relays: ["wss://a"], readRelays: true });
+    expect(engine.calls).toEqual([["updateSettings", { settings: { relays: ["wss://a"], readRelays: true } }]]);
+  });
+
+  it("reads and saves the HyperDHT relay with the rest of the network", async () => {
+    withLinks(chat({ peerOnline: true }));
+    expect(services.getNetwork()).toMatchObject({ hyperdhtRelay: "" });
+    await services.setNetwork({ relays: ["wss://a"], turn: null, hyperdhtRelay: "wss://relay.example" });
+    expect(engine.calls.at(-1)).toEqual(["updateSettings", { settings: { relays: ["wss://a"], iceServers: [], hyperdhtRelay: "wss://relay.example" } }]);
+  });
+
+  it("leaves payment links to the page when the host cannot open them", async () => {
+    expect(services.openPaymentLink("lightning:lnbc1")).toBeNull();
+    const open = vi.fn(async () => {});
+    setBrowserHost({ ...host, openPaymentLink: open, notice: "Heads up" });
+    await services.openPaymentLink("bitcoin:bc1q");
+    expect(open).toHaveBeenCalledWith("bitcoin:bc1q");
+    expect(services.notice).toBe("Heads up");
+    expect(services.features.openServices).toBe(true);
+  });
+});
+
+describe("the RPC contract", () => {
+  it("only ever calls methods the peer implements", async () => {
+    const { GhostlyNode } = await import("../src/engine/node");
+    withLinks(chat({ capabilities: { files: true, payments: true } }));
+    engine.answers = { walletPayQuote: {}, walletReceiveToken: {}, walletInspectCashu: {}, sendPayment: {}, requestPayment: {} };
+    const everything = { ...services, ...services.wallet } as unknown as Record<string, unknown>;
+    for (const [name, value] of Object.entries(everything)) {
+      if (typeof value !== "function" || name === "subscribe") continue;
+      const args = name === "shareService" ? ["Notes", "127.0.0.1:1"] : name === "sendFile" ? ["peer-1", new File(["x"], "x")] : ["peer-1", "x", "y"];
+      try { await (value as (...a: unknown[]) => unknown)(...args); } catch { /* a refusal is fine here; the method name is what counts */ }
+    }
+    const called = [...new Set(engine.calls.map(([method]) => method))];
+    expect(called.length).toBeGreaterThan(50);
+    const missing = called.filter((method) => typeof (GhostlyNode.prototype as unknown as Record<string, unknown>)[method] !== "function");
+    expect(missing).toEqual([]);
+  });
+});
+
+// covers: apps.web-sandbox
+describe("mini-apps: the broker's way to the engine (WISP 1200)", () => {
+  it("maps each call to the engine's, with the app the broker names", async () => {
+    const { engineApps } = await import("../src/platform/apps");
+    const apps = engineApps("/app-frame.html");
+    fake.engine.calls.length = 0;
+    fake.engine.answers.appStorageGet = { value: { n: 1 } };
+    fake.engine.answers.appSend = { error: "offline" };
+    fake.engine.answers.appOpen = { app: "A".repeat(22) };
+    expect(apps.runnerUrl).toBe("/app-frame.html");
+    expect(await apps.storage.get("pub/chess", "link-1", "k")).toEqual({ value: { n: 1 } });
+    fake.engine.answers.appStorageGet = null;
+    expect(await apps.storage.get("pub/chess", "alone", "k")).toBeNull();
+    expect(await apps.chat.send("link-1", "pub/chess", { move: "e2e4" })).toBe("offline");
+    expect(await apps.chat.open("link-1", "pub/chess", "1.0.0")).toEqual({ app: "A".repeat(22) });
+    expect(fake.engine.calls).toEqual([
+      ["appStorageGet", { ref: "pub/chess", scope: "link-1", key: "k" }],
+      ["appStorageGet", { ref: "pub/chess", scope: "alone", key: "k" }],
+      ["appSend", { linkId: "link-1", ref: "pub/chess", data: { move: "e2e4" } }],
+      ["appOpen", { linkId: "link-1", ref: "pub/chess", version: "1.0.0" }],
+    ]);
+  });
+
+  it("a running app's calls name the version it runs", async () => {
+    const { engineApps } = await import("../src/platform/apps");
+    const apps = engineApps("/app-frame.html").running!("digest-1");
+    fake.engine.calls.length = 0;
+    fake.engine.answers.appStorageGet = null;
+    fake.engine.answers.appSend = { error: null };
+    fake.engine.answers.appOpen = { app: "A".repeat(22) };
+    await apps.storage.get("pub/chess", "link-1", "k");
+    await apps.storage.set("pub/chess", "link-1", "k", 1);
+    await apps.storage.delete("pub/chess", "link-1", "k");
+    await apps.storage.keys("pub/chess", "link-1");
+    await apps.file("pub/chess", "index.html");
+    await apps.chat.send("link-1", "pub/chess", 1);
+    await apps.chat.open("link-1", "pub/chess", "1.0.0");
+    expect(fake.engine.calls.map(([method, params]) => [method, (params as { digest?: string }).digest])).toEqual(
+      ["appStorageGet", "appStorageSet", "appStorageDelete", "appStorageKeys", "appFile", "appSend", "appOpen"].map((method) => [method, "digest-1"]));
+  });
+
+  it("remembers the contact's open apps from the start, until they close", async () => {
+    const { engineApps } = await import("../src/platform/apps");
+    const apps = engineApps("/app-frame.html");
+    const app = "B".repeat(22);
+    for (const listener of fake.engine.appListeners) listener("link-1", { app, o: "open", v: "2.0.0" });
+    expect(apps.chat.peer("link-1", app)).toEqual({ version: "2.0.0" });
+    expect(apps.chat.peer("link-2", app)).toBeNull();
+    for (const listener of fake.engine.appListeners) listener("link-1", { app, o: "close", offline: true });
+    expect(apps.chat.peer("link-1", app)).toBeNull();
+  });
+});

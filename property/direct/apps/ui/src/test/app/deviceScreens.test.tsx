@@ -1,0 +1,761 @@
+import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { BrowserHost } from "@ghostly/browser/host";
+import type { DeviceSetView } from "@ghostly/browser/devices/links";
+import type { HandoffView } from "@ghostly/browser/devices/handoff";
+import { Root } from "../../Root";
+import { AccountBar } from "../../components/AccountBar";
+import { DeviceStandby } from "../../components/DeviceStandby";
+import { DevicesSection } from "../../components/devices/DevicesSection";
+import { HandoffProgress } from "../../components/devices/Handoff";
+import { deviceLook } from "../../components/devices/DeviceGlyph";
+import { LimitedBanner, resetLimitedStart } from "../../components/devices/LimitedStart";
+import { TakeoverDialog } from "../../components/devices/TakeoverDialog";
+import { Settings } from "../../pages/Settings";
+import { LockScreenProvider } from "../../contexts/LockScreenContext";
+import { UpdateProvider } from "../../contexts/UpdateContext";
+import { createProfile, namespaceOf } from "../../lib/profiles";
+import { defaultDeviceName } from "../../lib/devices";
+import { loadLocale, translatorFor } from "../../locales";
+import { setPushPlatform, type PushPlatform } from "../../lib/wakePush";
+import { engineState, fakeEngine } from "../fakeEngine";
+import { renderApp } from "../render";
+
+// covers: devices.screens, devices.standby-screen, devices.turn.limited
+
+/*
+ * The device screens in their final form (WISP 06 § User experience): Profile, Devices with a row per device and its
+ * state, the actions on the row and in its menu; the handoff's steps; the takeover's two choices; the standby screen's
+ * parts; the question a limited start asks; Standby in the account switcher; and Settings when the push address is
+ * another device's.
+ */
+
+/** happy-dom has no <dialog> modal; the dialog only needs to open. */
+HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) { this.open = true; };
+
+// The device state of other profiles, by their database name, as `ghostly-devices` would hold it.
+const states = vi.hoisted(() => new Map<string, string>());
+vi.mock("@ghostly/browser/devices/store", async (original) => ({
+  ...(await original<typeof import("@ghostly/browser/devices/store")>()),
+  deviceStateOf: async (database: string) => states.get(database) ?? "single",
+}));
+
+const DESKTOP = "D".repeat(43), PHONE = "P".repeat(43), TABLET = "T".repeat(43);
+const set = (patch: Partial<DeviceSetView> = {}): DeviceSetView => ({
+  state: "active",
+  devices: [
+    { key: DESKTOP, name: "MacBook", slot: 0, self: true, active: true },
+    { key: PHONE, name: "iPhone", slot: 1, self: false, active: false, status: "live" },
+    { key: TABLET, name: "Firefox", slot: 2, self: false, active: false, status: "connecting" },
+  ],
+  ...patch,
+});
+
+afterEach(() => { states.clear(); vi.useRealTimers(); });
+
+/** Lets `ms` of the faked clock pass, and what it started settle. */
+const later = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+
+describe("Profile, Devices", () => {
+  it("lists each device with its kind, its state and its link, and says what the section is for behind the ⓘ", async () => {
+    const { user, engine } = renderApp(<DevicesSection />);
+    engine.on("deviceSet", () => set({ unfinishedGrants: [{ key: "U".repeat(43), name: "Pixel", at: 1 }] }));
+    engine.on("deviceHandoffView", () => null);
+    const rows = await screen.findAllByTestId("device-row");
+    expect(rows.map((row) => within(row).getByTestId("device-state").textContent)).toEqual(["This device · Active", "Standby", "Standby"]);
+    expect(rows[0]).toHaveTextContent("MacBook");
+    // This device has no link to itself; the others say whether theirs is connected.
+    expect(within(rows[0]).queryByTestId("device-link-status")).toBeNull();
+    expect(within(rows[1]).getByTestId("device-link-status")).toHaveTextContent("Connected");
+    expect(within(rows[2]).getByTestId("device-link-status")).toHaveAttribute("data-status", "connecting");
+    expect(within(rows[2]).getByTestId("device-link-status")).toHaveTextContent("Not connected");
+    // A device granted the set that never finished: Not finished, why behind its ⓘ.
+    expect(screen.getByTestId("device-row-unfinished")).toHaveTextContent("Not finished");
+    const section = screen.getByTestId("profile-devices");
+    expect(section).toHaveTextContent("Use this profile on another device");
+    expect(section).toHaveTextContent("One device is active at a time.");
+    expect(section).not.toHaveTextContent("Only the active device sends");
+    await user.click(within(section).getAllByTestId("row-info")[0]);
+    expect(section).toHaveTextContent("Only the active device sends, receives and pays");
+  });
+
+  it("offers Move to on the row of a connected device only, and Check connection and Remove in the row's menu", async () => {
+    const { user, engine } = renderApp(<DevicesSection />);
+    engine.on("deviceSet", () => set());
+    engine.on("deviceHandoffView", () => null);
+    engine.on("devicePing", () => ({ ms: 41.6 }));
+    const [self, phone, tablet] = await screen.findAllByTestId("device-row");
+    expect(within(self).queryByTestId("device-move")).toBeNull();
+    expect(within(self).queryByTestId("device-menu")).toBeNull();
+    expect(within(phone).getByTestId("device-move")).toHaveTextContent("Move to iPhone");
+    expect(within(tablet).queryByTestId("device-move")).toBeNull();
+
+    const opener = within(phone).getByTestId("device-menu");
+    expect(opener).toHaveAccessibleName("Options for iPhone");
+    expect(opener).toHaveAttribute("aria-expanded", "false");
+    await user.click(opener);
+    expect(opener).toHaveAttribute("aria-expanded", "true");
+    const menu = screen.getByTestId("device-menu-items");
+    expect(within(menu).getByTestId("device-check")).toHaveTextContent("Check connection");
+    expect(within(menu).getByTestId("device-remove-open")).toHaveTextContent("Remove");
+    // The first row has the focus, so the keys work at once.
+    expect(within(menu).getByTestId("device-check")).toHaveFocus();
+    await user.click(within(menu).getByTestId("device-check"));
+    expect(await within(phone).findByTestId("device-check-result")).toHaveTextContent("Answered in 42 ms");
+    expect(screen.queryByTestId("device-menu-items")).toBeNull();
+
+    // A device that is not connected cannot be checked, but can be removed.
+    await user.click(within(tablet).getByTestId("device-menu"));
+    expect(screen.queryByTestId("device-check")).toBeNull();
+    expect(screen.getByTestId("device-remove-open")).toBeInTheDocument();
+  });
+
+  it("the answer of Check connection goes when that device's link is no longer connected", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "setTimeout"] });
+    let status: "live" | "connecting" = "live";
+    fakeEngine.on("deviceSet", () => set({ devices: set().devices.map((device) => (device.key === PHONE ? { ...device, status } : device)) }));
+    fakeEngine.on("deviceHandoffView", () => null);
+    fakeEngine.on("devicePing", () => ({ ms: 12 }));
+    renderApp(<DevicesSection />);
+    await later(0);
+    const phone = screen.getAllByTestId("device-row")[1];
+    act(() => within(phone).getByTestId("device-menu").click());
+    act(() => screen.getByTestId("device-check").click());
+    await later(0);
+    expect(within(phone).getByTestId("device-check-result")).toHaveTextContent("Answered in 12 ms");
+    // The link drops: the next read of the set says so, and the old answer no longer stands under it.
+    status = "connecting";
+    await later(3_000);
+    expect(within(phone).getByTestId("device-link-status")).toHaveTextContent("Not connected");
+    expect(within(phone).queryByTestId("device-check-result")).toBeNull();
+  });
+
+  it("the answer of Check connection stays ten seconds under a device whose link holds", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "setTimeout"] });
+    fakeEngine.on("deviceSet", () => set());
+    fakeEngine.on("deviceHandoffView", () => null);
+    fakeEngine.on("devicePing", () => { throw new Error("timeout"); });
+    renderApp(<DevicesSection />);
+    await later(0);
+    const phone = screen.getAllByTestId("device-row")[1];
+    act(() => within(phone).getByTestId("device-menu").click());
+    act(() => screen.getByTestId("device-check").click());
+    await later(9_000);
+    expect(within(phone).getByTestId("device-check-result")).toHaveTextContent("No answer");
+    await later(1_000);
+    expect(within(phone).queryByTestId("device-check-result")).toBeNull();
+    expect(within(phone).getByTestId("device-link-status")).toHaveTextContent("Connected");
+  });
+
+  it("on a standby device's list nothing acts on another device", async () => {
+    const { engine } = renderApp(<DevicesSection />);
+    engine.on("deviceSet", () => set({ state: "standby", devices: set().devices.map((device) => ({ ...device, active: device.key === PHONE, self: device.key === TABLET })) }));
+    engine.on("deviceHandoffView", () => null);
+    const rows = await screen.findAllByTestId("device-row");
+    expect(rows.map((row) => within(row).getByTestId("device-state").textContent)).toEqual(["Standby", "Active", "This device · Standby"]);
+    expect(screen.queryByTestId("device-move")).toBeNull();
+    // Check connection stays (a link answers both ways); Remove is the active device's.
+    await act(async () => { within(rows[1]).getByTestId("device-menu").click(); });
+    expect(screen.getByTestId("device-check")).toBeInTheDocument();
+    expect(screen.queryByTestId("device-remove-open")).toBeNull();
+  });
+
+  it("a move whose copy stopped: says so on the row, and Try again moves the profile to that device", async () => {
+    const { user, engine } = renderApp(<DevicesSection />);
+    engine.on("deviceSet", () => set());
+    engine.on("deviceHandoffView", () => ({ role: "giver", device: "iPhone", key: PHONE, step: "failed", bytes: 0, total: 0, failure: "stalled" }) satisfies HandoffView);
+    engine.on("deviceHandoffPush", () => null);
+    const row = await screen.findByTestId("handoff-stopped");
+    expect(row).toHaveTextContent("The move stopped" + "iPhone didn't answer. Nothing changed; copied files are kept.");
+    await user.click(within(row).getByTestId("handoff-try-again"));
+    expect(await screen.findByTestId("handoff-move-dialog")).toBeInTheDocument();
+    await waitFor(() => expect(engine.callsTo("deviceHandoffPush")).toEqual([{ key: PHONE }]));
+  });
+
+  it("a wrong password's row says the device's name after it was renamed", async () => {
+    const { engine } = renderApp(<DevicesSection />);
+    // The handoff view keeps the name the device had when the move failed; the set has its new one.
+    engine.on("deviceSet", () => set({ devices: set().devices.map((device) => (device.key === PHONE ? { ...device, name: "Pixel" } : device)) }));
+    engine.on("deviceHandoffView", () => ({ role: "giver", device: "iPhone", key: PHONE, step: "failed", bytes: 0, total: 0, failure: "password" }) satisfies HandoffView);
+    const row = await screen.findByTestId("handoff-wrong-password");
+    await waitFor(() => expect(row).toHaveTextContent("Pixel tried to move this profile with a wrong password." + "Let Pixel try again"));
+  });
+
+  it("a move under way whose dialog was closed: its steps and Cancel stay in the section, and no second Move to is offered", async () => {
+    const { user, engine } = renderApp(<DevicesSection />);
+    engine.on("deviceSet", () => set());
+    let handoff: HandoffView | null = null;
+    engine.on("deviceHandoffView", () => handoff);
+    engine.on("deviceHandoffPush", () => (handoff = { role: "giver", device: "iPhone", key: PHONE, step: "copying", bytes: 120 * 1024 ** 2, total: 480 * 1024 ** 2 }));
+    engine.on("deviceHandoffCancel", () => { handoff = null; });
+    const [, phone] = await screen.findAllByTestId("device-row");
+    expect(screen.queryByTestId("handoff-running")).toBeNull();
+    await user.click(within(phone).getByTestId("device-move"));
+    const dialog = await screen.findByTestId("handoff-move-dialog");
+    expect(await within(dialog).findByTestId("handoff-line", {}, { timeout: 3_000 })).toHaveTextContent("Copying files");
+    expect(within(dialog).getByTestId("handoff-amount")).toHaveTextContent("120 MB of 480 MB");
+    // While the dialog shows the move, the section does not show it a second time.
+    expect(screen.queryByTestId("handoff-running")).toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    // "You can keep using Ghostly": the move goes on, and the section says where it stands.
+    const running = await screen.findByTestId("handoff-running", {}, { timeout: 3_000 });
+    expect(screen.queryByTestId("handoff-move-dialog")).toBeNull();
+    expect(running).toHaveTextContent("Moving your profile");
+    expect(within(running).getByTestId("handoff-line")).toHaveTextContent("Copying files");
+    expect(within(running).getByTestId("handoff-amount")).toHaveTextContent("120 MB of 480 MB");
+    // The engine refuses a second move as busy: none is offered while one runs.
+    expect(screen.queryByTestId("device-move")).toBeNull();
+    await user.click(within(running).getByTestId("handoff-cancel"));
+    expect(engine.callsTo("deviceHandoffCancel")).toHaveLength(1);
+    await waitFor(() => expect(screen.queryByTestId("handoff-running")).toBeNull(), { timeout: 3_000 });
+    expect(await screen.findByTestId("device-move")).toHaveTextContent("Move to iPhone");
+    expect(engine.callsTo("deviceHandoffPush")).toEqual([{ key: PHONE }]);
+  });
+
+  it("Cancel on the move's steps in the section: once they go, the keyboard focus is on that device's Move to, not on the page", async () => {
+    const { user, engine } = renderApp(<DevicesSection />);
+    engine.on("deviceSet", () => set());
+    let handoff: HandoffView | null = { role: "giver", device: "iPhone", key: PHONE, step: "copying", bytes: 1, total: 2 };
+    engine.on("deviceHandoffView", () => handoff);
+    engine.on("deviceHandoffCancel", () => { handoff = { role: "giver", device: "iPhone", key: PHONE, step: "failed", bytes: 0, total: 0, failure: "cancelled" }; });
+    const running = await screen.findByTestId("handoff-running");
+    within(running).getByTestId("handoff-cancel").focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(screen.queryByTestId("handoff-running")).toBeNull(), { timeout: 3_000 });
+    const move = await screen.findByTestId("device-move");
+    expect(move).toHaveTextContent("Move to iPhone");
+    await waitFor(() => expect(move).toHaveFocus());
+  });
+
+  it("the move's dialog closed while it runs: the keyboard focus goes to the move's steps in the section, not to the page", async () => {
+    const { user, engine } = renderApp(<DevicesSection />);
+    engine.on("deviceSet", () => set());
+    let handoff: HandoffView | null = null;
+    engine.on("deviceHandoffView", () => handoff);
+    engine.on("deviceHandoffPush", () => (handoff = { role: "giver", device: "iPhone", key: PHONE, step: "copying", bytes: 1, total: 2 }));
+    const [, phone] = await screen.findAllByTestId("device-row");
+    within(phone).getByTestId("device-move").focus();
+    await user.keyboard("{Enter}");
+    const dialog = await screen.findByTestId("handoff-move-dialog");
+    await within(dialog).findByTestId("handoff-line", {}, { timeout: 3_000 });
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    // Move to, which had the focus before the dialog, goes once the section shows the move.
+    const running = await screen.findByTestId("handoff-running", {}, { timeout: 3_000 });
+    expect(screen.queryByTestId("device-move")).toBeNull();
+    await waitFor(() => expect(running).toHaveFocus());
+  });
+
+  it("a move the other device started with Use here: the section shows it on the active device too", async () => {
+    const { engine } = renderApp(<DevicesSection />);
+    engine.on("deviceSet", () => set());
+    engine.on("deviceHandoffView", () => ({ role: "giver", device: "iPhone", key: PHONE, step: "authorizing", bytes: 0, total: 0 }) satisfies HandoffView);
+    const running = await screen.findByTestId("handoff-running");
+    expect(within(running).getByTestId("handoff-line")).toHaveTextContent("Checking the password");
+    expect(within(running).getByTestId("handoff-cancel")).toBeInTheDocument();
+    expect(screen.queryByTestId("device-move")).toBeNull();
+  });
+
+  it("a move under way: no row offers Remove, which the engine refuses as busy, until the move is cancelled", async () => {
+    const { user, engine } = renderApp(<DevicesSection />);
+    engine.on("deviceSet", () => set());
+    let handoff: HandoffView | null = { role: "giver", device: "iPhone", key: PHONE, step: "connecting", bytes: 0, total: 0 };
+    engine.on("deviceHandoffView", () => handoff);
+    engine.on("deviceHandoffCancel", () => { handoff = null; });
+    const running = await screen.findByTestId("handoff-running");
+    const [, phone, tablet] = screen.getAllByTestId("device-row");
+    // Check connection stays on the connected device; the one not connected has nothing left in its menu.
+    await user.click(within(phone).getByTestId("device-menu"));
+    expect(screen.getByTestId("device-check")).toBeInTheDocument();
+    expect(screen.queryByTestId("device-remove-open")).toBeNull();
+    await user.keyboard("{Escape}");
+    expect(within(tablet).queryByTestId("device-menu")).toBeNull();
+    await user.click(within(running).getByTestId("handoff-cancel"));
+    await waitFor(() => expect(screen.queryByTestId("handoff-running")).toBeNull(), { timeout: 3_000 });
+    await user.click(within(tablet).getByTestId("device-menu"));
+    expect(screen.getByTestId("device-remove-open")).toBeInTheDocument();
+  });
+
+  it("on a standby the section shows no move: its screen does", async () => {
+    const { engine } = renderApp(<DevicesSection />);
+    engine.on("deviceSet", () => set({ state: "standby", devices: set().devices.map((device) => ({ ...device, active: device.key === PHONE, self: device.key === TABLET })) }));
+    engine.on("deviceHandoffView", () => ({ role: "taker", device: "iPhone", key: PHONE, step: "copying", bytes: 1, total: 2 }) satisfies HandoffView);
+    await screen.findAllByTestId("device-row");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByTestId("handoff-running")).toBeNull();
+  });
+
+  it("draws each device's kind from its name", () => {
+    expect(["iPhone", "Phone", "Pixel 8", "iPad", "Tablet", "Chrome on Mac", "Firefox", "Mac app", "Desktop", "Linux"].map(deviceLook))
+      .toEqual(["phone", "phone", "phone", "tablet", "tablet", "browser", "browser", "computer", "computer", "computer"]);
+  });
+
+  it("draws the kind of a name in any app language, and of the name each language suggests", async () => {
+    expect(["هاتف (2)", "جوال أحمد", "手机", "スマホ", "Celular", "Téléphone", "Teléfono de Ana", "Telefono", "Tablette", "平板", "タブレット", "Navegador", "متصفح"].map(deviceLook))
+      .toEqual(["phone", "phone", "phone", "phone", "phone", "phone", "phone", "phone", "tablet", "tablet", "tablet", "browser", "browser"]);
+    const agents = {
+      phone: { userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile Safari/537.36 Chrome/131.0" },
+      tablet: { userAgent: "Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 Chrome/131.0 Safari/537.36" },
+      browser: { userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36" },
+      computer: { userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", desktop: true },
+    } as const;
+    for (const language of ["ar", "en", "es", "fr", "it", "ja", "pt", "zh"] as const) {
+      await loadLocale(language);
+      const t = translatorFor(language);
+      for (const [look, env] of Object.entries(agents)) expect([language, deviceLook(defaultDeviceName(env, t))]).toEqual([language, look]);
+    }
+  });
+});
+
+/** The live region an element sits in, itself aside: what is read again, whole, when the element's text changes. */
+const liveRegionAround = (element: HTMLElement) => element.parentElement?.closest("[role=status], [role=alert], [role=log], [aria-live]") ?? null;
+
+const view = (patch: Partial<HandoffView>): HandoffView => ({ role: "taker", device: "MacBook", key: DESKTOP, step: "connecting", bytes: 0, total: 0, ...patch });
+
+describe("the handoff's progress", () => {
+  it("lists the steps, the one running now in words, and the ones done before it", () => {
+    renderApp(<HandoffProgress view={view({ step: "copying", bytes: 120 * 1024 ** 2, total: 480 * 1024 ** 2 })} onCancel={() => {}} />);
+    const steps = [...document.querySelectorAll("[data-handoff-step]")];
+    expect(steps.map((step) => `${step.getAttribute("data-handoff-step")}:${step.getAttribute("data-state")}`)).toEqual([
+      "connecting:done", "copying:now", "ready:next", "rest:next", "checking:next", "switching:next", "settling:next",
+    ]);
+    expect(steps[1]).toHaveAttribute("aria-current", "step");
+    expect(steps[1]).toHaveTextContent("Copying files · 120 MB of 480 MB");
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "25");
+    expect(screen.getByTestId("handoff-cancel")).toHaveTextContent("Cancel");
+    expect(screen.getByTestId("handoff-progress")).toHaveTextContent("Nothing changes until the last step.");
+  });
+
+  it("reads the step aloud once while files are copied: the bytes are beside the live line and on the bar, not in it", () => {
+    const copying = (bytes: number) => <HandoffProgress view={view({ step: "copying", bytes, total: 480 * 1024 ** 2 })} onCancel={() => {}} />;
+    const { rerender } = renderApp(copying(120 * 1024 ** 2));
+    const line = screen.getByTestId("handoff-line");
+    expect(line).toHaveAttribute("role", "status");
+    expect(line.textContent).toBe("Copying files");
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "120 MB of 480 MB");
+    rerender(copying(240 * 1024 ** 2));
+    // The next read of the copy: the same element with the same words, so a screen reader has nothing new to say.
+    expect(screen.getByTestId("handoff-line")).toBe(line);
+    expect(line.textContent).toBe("Copying files");
+    expect(screen.getByTestId("handoff-amount")).toHaveTextContent("240 MB of 480 MB");
+    expect(liveRegionAround(screen.getByTestId("handoff-amount"))).toBeNull();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "240 MB of 480 MB");
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "50");
+  });
+
+  it("says where a dropped copy stopped, and that it goes on by itself", () => {
+    renderApp(<HandoffProgress view={view({ step: "paused", bytes: 60, total: 100 })} onCancel={() => {}} />);
+    expect(screen.getByTestId("handoff-line")).toHaveTextContent("Stopped at 60%. It resumes when both devices are online.");
+    expect(screen.getByTestId("handoff-cancel")).toBeInTheDocument();
+  });
+
+  it("keeps why the last step waits behind its ⓘ, and offers no Cancel there", async () => {
+    const { user } = renderApp(<HandoffProgress view={view({ step: "settling" })} onCancel={() => {}} />);
+    expect(screen.getByTestId("handoff-line")).toHaveTextContent("Checking which device is active · about 30 seconds");
+    expect(screen.queryByTestId("handoff-settle-text")).toBeNull();
+    await user.click(screen.getByTestId("handoff-settle-info"));
+    expect(screen.getByTestId("handoff-settle-text")).toHaveTextContent("Ghostly waits to be sure no other device took over at the same moment.");
+    expect(screen.queryByTestId("handoff-cancel")).toBeNull();
+  });
+
+  it("offers no Cancel at Checking: the other device may have let the profile go already", () => {
+    renderApp(<HandoffProgress view={view({ step: "checking" })} onCancel={() => {}} />);
+    expect(screen.queryByTestId("handoff-cancel")).toBeNull();
+  });
+
+  it("says a phone that was woken must open Ghostly, and on a phone to keep Ghostly open", () => {
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => ({ matches: true, media: query, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList);
+    renderApp(<HandoffProgress view={view({ step: "connecting", woken: true })} />);
+    expect(screen.getByTestId("handoff-line")).toHaveTextContent("Open Ghostly on MacBook and keep it open. A notice was sent to it.");
+    expect(screen.getByTestId("handoff-keep-open")).toHaveTextContent("Keep Ghostly open.");
+  });
+
+  it("Cancel keeps the keyboard focus while it runs; once the move stopped the focus goes to the move's words, not to the page", async () => {
+    let stop = () => {};
+    const onCancel = vi.fn(() => new Promise<void>((resolve) => { stop = resolve; }));
+    const { user, rerender } = renderApp(<HandoffProgress view={view({ step: "copying", bytes: 1, total: 2 })} onCancel={onCancel} />);
+    const cancel = screen.getByTestId("handoff-cancel");
+    cancel.focus();
+    await user.keyboard("{Enter}");
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    // While the engine stops the move the button stays where the focus is, and a second press asks nothing more.
+    expect(cancel).toHaveFocus();
+    expect(cancel).toHaveAttribute("aria-disabled", "true");
+    await user.keyboard("{Enter}");
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    await act(async () => { stop(); });
+    rerender(<HandoffProgress view={view({ step: "failed", failure: "cancelled" })} onCancel={onCancel} />);
+    expect(screen.queryByTestId("handoff-cancel")).toBeNull();
+    expect(screen.getByTestId("handoff-progress")).toHaveFocus();
+    expect(screen.getByTestId("handoff-progress")).toHaveTextContent("Stopped. Nothing changed.");
+  });
+
+  it("a Cancel the engine refused says why under it, and the next press clears it", async () => {
+    let fail = true;
+    const onCancel = vi.fn(async () => { if (fail) throw new Error("The device record could not be written"); });
+    const { user } = renderApp(<HandoffProgress view={view({ step: "copying", bytes: 1, total: 2 })} onCancel={onCancel} />);
+    await user.click(screen.getByTestId("handoff-cancel"));
+    expect(await screen.findByTestId("handoff-cancel-error")).toHaveTextContent("The device record could not be written");
+    expect(screen.getByTestId("handoff-cancel")).toHaveFocus();
+    fail = false;
+    await user.click(screen.getByTestId("handoff-cancel"));
+    await waitFor(() => expect(screen.queryByTestId("handoff-cancel-error")).toBeNull());
+  });
+
+  it("a failure is one line read out at once, with no steps", () => {
+    renderApp(<HandoffProgress view={view({ step: "failed", failure: "password" })} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Wrong password.");
+    expect(document.querySelector("[data-handoff-step]")).toBeNull();
+  });
+});
+
+describe("the forced takeover", () => {
+  it("asks Lost or stolen as two choices with a line each, and why behind the ⓘ", async () => {
+    const { user } = renderApp(<TakeoverDialog device="iPhone" password onClose={() => {}} />);
+    const group = screen.getByRole("group", { name: "Lost or stolen?" });
+    expect(within(group).getByRole("radio", { name: /Lost or stolen/ })).toBeInTheDocument();
+    expect(group).toHaveTextContent("After the takeover, a checklist helps protect your money and chats.");
+    expect(group).toHaveTextContent("It stops if it ever comes back.");
+    expect(screen.getByTestId("takeover-go")).toBeDisabled();
+    await user.click(screen.getByTestId("takeover-lost-no"));
+    await user.type(screen.getByTestId("takeover-password"), "a long lock password");
+    // The name to type is labelled, and the field shows what to type.
+    await user.type(screen.getByLabelText("Type iPhone to confirm"), "iPhone");
+    expect(screen.getByTestId("takeover-go")).toBeEnabled();
+    await user.click(screen.getByTestId("takeover-info"));
+    expect(screen.getByTestId("takeover-info-text")).toHaveTextContent("Messages and money that reached iPhone after that are not here.");
+  });
+
+  it("on a phone its × is 44 px, as the device dialogs' buttons are", () => {
+    renderApp(<TakeoverDialog device="iPhone" password onClose={() => {}} />);
+    expect(screen.getByRole("button", { name: "Close" })).toHaveClass("max-md:h-11", "max-md:w-11");
+  });
+});
+
+describe("the standby screen", () => {
+  it("lists the other devices with their links, and the other profiles under their own heading", async () => {
+    createProfile("Work");
+    fakeEngine.on("deviceSet", () => set({ state: "standby", devices: set().devices.map((device) => ({ ...device, self: device.key === PHONE, active: device.key === DESKTOP, status: device.key === PHONE ? undefined : device.status })) }));
+    fakeEngine.on("deviceHandoffView", () => null);
+    fakeEngine.on("deviceTakeoverInfo", () => ({ offered: false }));
+    renderApp(<DeviceStandby gate={{ state: "standby", activeDevice: "MacBook" }} />);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Active on MacBook");
+    const devices = await screen.findByRole("region", { name: "Your devices" });
+    const links = within(devices).getAllByTestId("device-standby-link");
+    expect(links).toHaveLength(2);
+    expect(links[0]).toHaveTextContent("MacBook");
+    expect(links[0]).toHaveTextContent("Active");
+    expect(screen.getByRole("navigation", { name: "Other profiles" })).toHaveTextContent("Switch to Work");
+    expect(screen.getByRole("button", { name: "Use here" })).toBeInTheDocument();
+  });
+
+  it("on a phone Check connection is 44 px tall, as the screen's other buttons are", async () => {
+    fakeEngine.on("deviceSet", () => set({ state: "standby", devices: set().devices.map((device) => ({ ...device, self: device.key === PHONE, active: device.key === DESKTOP, status: device.key === DESKTOP ? "live" as const : undefined })) }));
+    fakeEngine.on("deviceHandoffView", () => null);
+    fakeEngine.on("deviceTakeoverInfo", () => ({ offered: false }));
+    renderApp(<DeviceStandby gate={{ state: "standby", activeDevice: "MacBook" }} />);
+    expect(await screen.findByTestId("device-standby-check")).toHaveClass("max-md:min-h-11");
+  });
+
+  it("is a landmark, not a live region: only the state is read when it changes, and no live part sits in another", async () => {
+    fakeEngine.on("deviceSet", () => set({ state: "standby", devices: set().devices.map((device) => ({ ...device, self: device.key === PHONE, active: device.key === DESKTOP, status: device.key === DESKTOP ? "live" as const : undefined })) }));
+    fakeEngine.on("deviceHandoffView", () => ({ role: "taker", device: "MacBook", key: DESKTOP, step: "copying", bytes: 120 * 1024 ** 2, total: 480 * 1024 ** 2 }) satisfies HandoffView);
+    fakeEngine.on("deviceTakeoverInfo", () => ({ offered: false }));
+    fakeEngine.on("devicePing", () => ({ ms: 12 }));
+    const { user } = renderApp(<DeviceStandby gate={{ state: "standby", activeDevice: "MacBook" }} />);
+    const standby = screen.getByRole("main");
+    expect(standby).toBe(screen.getByTestId("device-standby"));
+    expect(standby).not.toHaveAttribute("role");
+    expect(standby).not.toHaveAttribute("aria-live");
+    // The state in words is what a change of state reads: the title and the hint, each alone.
+    expect(screen.getByTestId("device-standby-title")).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByTestId("device-standby-hint")).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByTestId("device-standby-hint").textContent).toBe("This device is on standby for this profile.");
+    await user.click(await screen.findByTestId("device-standby-check"));
+    const live = [screen.getByTestId("device-standby-title"), screen.getByTestId("device-standby-hint"), await screen.findByTestId("handoff-line"), await screen.findByTestId("device-standby-check-result")];
+    for (const part of live) expect(liveRegionAround(part)).toBeNull();
+    // Nothing a person presses is read again with them.
+    for (const part of [...standby.querySelectorAll<HTMLElement>("[role=status], [role=alert], [aria-live]")]) expect(part.querySelector("button")).toBeNull();
+  });
+
+  it("the answer of Check connection goes when that device's link is no longer connected", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "setTimeout"] });
+    let status: "live" | "connecting" = "live";
+    fakeEngine.on("deviceSet", () => set({ state: "standby", devices: set().devices.map((device) => ({ ...device, self: device.key === PHONE, active: device.key === DESKTOP, status: device.key === DESKTOP ? status : undefined })) }));
+    fakeEngine.on("deviceHandoffView", () => null);
+    fakeEngine.on("deviceTakeoverInfo", () => ({ offered: false }));
+    fakeEngine.on("devicePing", () => ({ ms: 12 }));
+    renderApp(<DeviceStandby gate={{ state: "standby", activeDevice: "MacBook" }} />);
+    await later(0);
+    const mac = screen.getAllByTestId("device-standby-link")[0];
+    act(() => within(mac).getByTestId("device-standby-check").click());
+    await later(0);
+    expect(within(mac).getByTestId("device-standby-check-result")).toHaveTextContent("Answered in 12 ms");
+    status = "connecting";
+    await later(3_000);
+    expect(mac).toHaveAttribute("data-status", "connecting");
+    expect(within(mac).queryByTestId("device-standby-check-result")).toBeNull();
+  });
+
+  it("a device that released the profile and has not heard back: the step it waits at, and Use here all the same", async () => {
+    fakeEngine.on("deviceSet", () => set({ state: "standby", devices: set().devices.map((device) => ({ ...device, self: device.key === DESKTOP, active: device.key === PHONE })) }));
+    fakeEngine.on("deviceHandoffView", () => ({ role: "giver", device: "iPhone", key: PHONE, step: "switching", bytes: 0, total: 0 }) satisfies HandoffView);
+    fakeEngine.on("deviceTakeoverInfo", () => ({ offered: false }));
+    const { user } = renderApp(<DeviceStandby gate={{ state: "standby", activeDevice: "iPhone" }} />);
+    expect(await screen.findByTestId("handoff-progress")).toHaveAttribute("data-step", "switching");
+    const useHere = await screen.findByTestId("handoff-use-here");
+    expect(useHere).toHaveTextContent("Use here");
+    await user.click(useHere);
+    expect(screen.getByTestId("handoff-use-here-dialog")).toBeInTheDocument();
+  });
+
+  it("a move whose copy stopped: the line read out at once, and Try again in place of Use here", async () => {
+    fakeEngine.on("deviceSet", () => set({ state: "standby", devices: set().devices.map((device) => ({ ...device, self: device.key === PHONE, active: device.key === DESKTOP })) }));
+    fakeEngine.on("deviceHandoffView", () => ({ role: "taker", device: "MacBook", key: DESKTOP, step: "failed", bytes: 0, total: 0, failure: "stalled" }) satisfies HandoffView);
+    fakeEngine.on("deviceTakeoverInfo", () => ({ offered: false }));
+    const { user } = renderApp(<DeviceStandby gate={{ state: "standby", activeDevice: "MacBook" }} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("The move stopped" + "MacBook didn't answer. Nothing changed; copied files are kept.");
+    const again = await screen.findByTestId("handoff-use-here");
+    expect(again).toHaveTextContent("Try again");
+    await user.click(again);
+    expect(screen.getByTestId("handoff-use-here-dialog")).toBeInTheDocument();
+  });
+
+  it("Use here started: its button leaves the screen while the move runs, and the keyboard focus goes to the move's Cancel, not to the page", async () => {
+    fakeEngine.on("deviceSet", () => set({ state: "standby", devices: set().devices.map((device) => ({ ...device, self: device.key === PHONE, active: device.key === DESKTOP })) }));
+    let handoff: HandoffView | null = null;
+    fakeEngine.on("deviceHandoffView", () => handoff);
+    fakeEngine.on("deviceHandoffPull", () => (handoff = { role: "taker", device: "MacBook", key: DESKTOP, step: "connecting", bytes: 0, total: 0 }));
+    fakeEngine.on("deviceTakeoverInfo", () => ({ offered: false }));
+    const { user } = renderApp(<DeviceStandby gate={{ state: "standby", activeDevice: "MacBook" }} />);
+    await user.click(await screen.findByTestId("handoff-use-here"));
+    await user.type(await screen.findByTestId("handoff-password"), "hunter22{Enter}");
+    const progress = await screen.findByTestId("handoff-progress", {}, { timeout: 3_000 });
+    expect(screen.queryByTestId("handoff-use-here")).toBeNull();
+    await waitFor(() => expect(within(progress).getByTestId("handoff-cancel")).toHaveFocus());
+  });
+
+  it("Use here that stops at once with a wrong password: the keyboard focus is on the move's words, which say so", async () => {
+    fakeEngine.on("deviceSet", () => set({ state: "standby", devices: set().devices.map((device) => ({ ...device, self: device.key === PHONE, active: device.key === DESKTOP })) }));
+    let handoff: HandoffView | null = null;
+    fakeEngine.on("deviceHandoffView", () => {
+      const now = handoff;
+      // The other device turns the password down right after the first read of the move.
+      if (handoff?.step === "authorizing") handoff = { ...handoff, step: "failed", failure: "password" };
+      return now;
+    });
+    fakeEngine.on("deviceHandoffPull", () => (handoff = { role: "taker", device: "MacBook", key: DESKTOP, step: "authorizing", bytes: 0, total: 0 }));
+    fakeEngine.on("deviceTakeoverInfo", () => ({ offered: false }));
+    const { user } = renderApp(<DeviceStandby gate={{ state: "standby", activeDevice: "MacBook" }} />);
+    await user.click(await screen.findByTestId("handoff-use-here"));
+    await user.type(await screen.findByTestId("handoff-password"), "wrong{Enter}");
+    await waitFor(() => expect(screen.getByTestId("handoff-progress")).toHaveAttribute("data-failure", "password"), { timeout: 3_000 });
+    await waitFor(() => expect(screen.getByTestId("handoff-progress")).toHaveFocus());
+    expect(await screen.findByTestId("handoff-use-here")).toHaveTextContent("Try again");
+  });
+
+  it("a device that took the profile and could not check which device is active: the line read out, and Try again checks again", async () => {
+    fakeEngine.on("deviceSet", () => set({ state: "standby", devices: set().devices.map((device) => ({ ...device, self: device.key === PHONE, active: device.key === DESKTOP })) }));
+    fakeEngine.on("deviceHandoffView", () => ({ role: "taker", device: "MacBook", key: DESKTOP, step: "failed", bytes: 0, total: 0, failure: "settle" }) satisfies HandoffView);
+    fakeEngine.on("deviceTakeoverInfo", () => ({ offered: false }));
+    const settle = vi.fn(() => null);
+    fakeEngine.on("deviceHandoffSettle", settle);
+    const { user } = renderApp(<DeviceStandby gate={{ state: "taking", activeDevice: "MacBook" }} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Can't check which device is active. Check your connection, then try again.");
+    // Not Use here: the profile is already this device's to take.
+    expect(screen.queryByTestId("handoff-use-here")).toBeNull();
+    await user.click(await screen.findByTestId("handoff-settle-retry"));
+    expect(settle).toHaveBeenCalledTimes(1);
+  });
+
+  it("fills the window, and offers no Use here while the new device list waits for an answer", async () => {
+    fakeEngine.on("deviceSet", () => set({ state: "standby" }));
+    fakeEngine.on("deviceHandoffView", () => null);
+    fakeEngine.on("deviceTakeoverInfo", () => ({ offered: false }));
+    renderApp(<DeviceStandby gate={{ state: "standby", activeDevice: "MacBook", notice: ["MacBook", "iPhone"] }} />);
+    // The app's root is a flex row: the screen takes all of it, not the width of its words.
+    expect(screen.getByTestId("device-standby").className).toMatch(/\bflex-1\b/);
+    expect(await screen.findByTestId("device-set-notice-title")).toHaveTextContent("Your devices are now: MacBook and iPhone");
+    expect(screen.queryByTestId("handoff-use-here")).toBeNull();
+  });
+
+  it("a state that cannot be read: Can't read this device's state, Nothing was started, and how to recover behind the ⓘ", async () => {
+    const { user } = renderApp(<DeviceStandby gate={{ state: "unreadable" }} />);
+    expect(screen.getByTestId("device-standby-title")).toHaveTextContent("Can't read this device's state");
+    expect(screen.getByTestId("device-standby")).toHaveTextContent("Nothing was started.");
+    await user.click(screen.getByTestId("device-standby-info"));
+    expect(screen.getByTestId("device-standby-text")).toHaveTextContent("Restart the app or device, then retry.");
+  });
+});
+
+describe("a limited start (WISP 06 § When a device checks)", () => {
+  beforeEach(() => resetLimitedStart());
+
+  it("asks first: Try again starts the app again, Start anyway opens it, and a line says why nothing goes out", async () => {
+    fakeEngine.setState({ limited: true });
+    const restart = vi.fn(async () => {});
+    const reload = vi.fn();
+    (fakeEngine as BrowserHost).restartEngine = restart;
+    try {
+      render(<Root />);
+      const ask = await screen.findByTestId("limited-start");
+      // The reload itself is left out: the test stays on this page.
+      const location = vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, reload } as Location);
+      expect(ask).toHaveAttribute("role", "alertdialog");
+      expect(screen.getByTestId("limited-start-title")).toHaveTextContent("Can't check which device is active");
+      expect(ask).toHaveTextContent("Check your connection.");
+      expect(screen.queryByTestId("sidebar")).toBeNull();
+      expect(screen.getByTestId("limited-start-retry")).toHaveFocus();
+      act(() => screen.getByTestId("limited-start-info").click());
+      expect(screen.getByTestId("limited-start-text")).toHaveTextContent("nothing is sent, paid or received until the check works");
+      act(() => screen.getByTestId("limited-start-retry").click());
+      await waitFor(() => expect(reload).toHaveBeenCalled());
+      expect(restart).toHaveBeenCalled();
+      location.mockRestore();
+
+      act(() => screen.getByTestId("limited-start-go-on").click());
+      expect(await screen.findByTestId("sidebar")).toBeInTheDocument();
+      expect(screen.queryByTestId("limited-start")).toBeNull();
+      expect(await screen.findByTestId("limited-banner", {}, { timeout: 3_000 })).toHaveTextContent("Offline until Ghostly can check which device is active");
+      // The first good read ends it: the line goes.
+      act(() => fakeEngine.setState({}));
+      await waitFor(() => expect(screen.queryByTestId("limited-banner")).toBeNull());
+    } finally { delete (fakeEngine as BrowserHost).restartEngine; }
+  });
+
+  it("a check while going online is not a limited start: no question, and the line only once it lasts", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    renderApp(<LimitedBanner />);
+    act(() => fakeEngine.setState({ limited: true }));
+    expect(screen.queryByTestId("limited-start")).toBeNull();
+    await act(async () => { vi.advanceTimersByTime(1_000); });
+    expect(screen.queryByTestId("limited-banner")).toBeNull();
+    // Over in a moment: nothing was shown.
+    act(() => fakeEngine.setState({}));
+    await act(async () => { vi.advanceTimersByTime(5_000); });
+    expect(screen.queryByTestId("limited-banner")).toBeNull();
+    act(() => fakeEngine.setState({ limited: true }));
+    await act(async () => { vi.advanceTimersByTime(2_500); });
+    expect(screen.getByTestId("limited-banner")).toHaveTextContent("Messages you write wait until then.");
+  });
+
+  it("while the read at start is out the app opens and asks nothing; if no source answered, the app stays, the line shows at once and the focus stays", async () => {
+    fakeEngine.setState({ limited: true, startCheck: true });
+    render(<Root />);
+    expect(await screen.findByTestId("sidebar")).toBeInTheDocument();
+    expect(screen.queryByTestId("limited-start")).toBeNull();
+    expect(screen.queryByTestId("limited-banner")).toBeNull();
+    const typing = screen.getAllByRole("textbox")[0];
+    act(() => typing.focus());
+    // No source answered: a limited start, but the person is already using the app, so it is not taken away.
+    act(() => fakeEngine.setState({ limited: true }));
+    expect(screen.getByTestId("limited-banner")).toHaveTextContent("Offline until Ghostly can check which device is active");
+    expect(screen.queryByTestId("limited-start")).toBeNull();
+    expect(screen.getByTestId("sidebar")).toBeInTheDocument();
+    expect(typing).toHaveFocus();
+    // The first good read ends it: the line goes.
+    act(() => fakeEngine.setState({}));
+    await waitFor(() => expect(screen.queryByTestId("limited-banner")).toBeNull());
+  });
+
+  it("a read at start that says this device is the active one leaves no question behind", async () => {
+    fakeEngine.setState({ limited: true, startCheck: true });
+    render(<Root />);
+    expect(await screen.findByTestId("sidebar")).toBeInTheDocument();
+    act(() => fakeEngine.setState({}));
+    // Going online later checks the turn for a moment: not a limited start, so no question then either.
+    act(() => fakeEngine.setState({ limited: true }));
+    expect(screen.queryByTestId("limited-start")).toBeNull();
+    expect(screen.getByTestId("sidebar")).toBeInTheDocument();
+  });
+
+  it("a restored copy checking its turn asks nothing: the app opens, a line says why it is offline, the reason behind the ⓘ", async () => {
+    fakeEngine.setState({ limited: true, restoreCheck: "checking" });
+    render(<Root />);
+    expect(await screen.findByTestId("sidebar")).toBeInTheDocument();
+    expect(screen.queryByTestId("limited-start")).toBeNull();
+    const line = screen.getByTestId("restore-limited-banner");
+    expect(line).toHaveTextContent("Restored copy, offline for now");
+    expect(line).toHaveTextContent("Checking whether your profile runs on another device.");
+    act(() => screen.getByTestId("restore-limited-info").click());
+    expect(screen.getByTestId("restore-limited-text")).toHaveTextContent("this copy goes on standby; if not, it starts");
+    // A tombstone: only the person starts it as a profile of its own, by typing its name.
+    act(() => fakeEngine.setState({ limited: true, restoreCheck: "removed" }));
+    expect(screen.getByTestId("restore-limited-banner")).toHaveTextContent("This backup is from before a device was removed.");
+    // The read says no device runs it: limited mode ends and the line goes.
+    act(() => fakeEngine.setState({}));
+    await waitFor(() => expect(screen.queryByTestId("restore-limited-banner")).toBeNull());
+  });
+});
+
+describe("the account switcher", () => {
+  beforeEach(() => { fakeEngine.features = { ...fakeEngine.features, profiles: true }; });
+  afterEach(() => { fakeEngine.features = { ...fakeEngine.features, profiles: false }; });
+
+  it("shows Standby in place of the counts for a profile on standby here, and its name says so", async () => {
+    const work = createProfile("Work");
+    const prefix = `ghostly_${namespaceOf(work.id)}_`;
+    localStorage.setItem(`${prefix}chat1`, JSON.stringify({ id: "chat1", mySeedB64: "s", peerPubKeyB64: "p", encKeyB64: "e", createdAt: 0, messages: [{ id: "m0" }, { id: "m1" }] }));
+    states.set(`ghostly_${namespaceOf(work.id)}`, "standby");
+    const { user } = renderApp(<AccountBar />);
+    await user.click(screen.getByTestId("account-profile"));
+    const item = await screen.findByRole("menuitemradio", { name: "Switch to Work, Standby" });
+    expect(within(item).getByTestId("profile-switcher-standby")).toHaveTextContent("Standby");
+    expect(within(item).queryByTestId("profile-switcher-unread")).toBeNull();
+  });
+});
+
+describe("Settings, when contacts hold another device's push address", () => {
+  afterEach(() => setPushPlatform(null));
+
+  it("says this device is not woken by it, and which device is", async () => {
+    setPushPlatform({ supported: () => true, subscribe: vi.fn(), current: vi.fn(async () => null), unsubscribe: vi.fn(), syncTable: vi.fn(async () => {}) } as unknown as PushPlatform);
+    fakeEngine.on("deviceSet", () => set({ devices: set().devices.map((device) => ({ ...device, self: device.key === DESKTOP })) }));
+    const wake = { endpoint: "https://fcm.googleapis.com/fcm/send/phone", p256dh: "p", auth: "a", vapid: { publicKey: "v", privateKey: "k" }, device: PHONE };
+    fakeEngine.setState({ ...engineState({ settings: { online: true, nick: "Ghost", relays: [], iceServers: [], mints: [], mintsInitialized: true, wake } as never }), wakeOwner: "away" });
+    renderApp(<LockScreenProvider><UpdateProvider><Settings /></UpdateProvider></LockScreenProvider>);
+    await waitFor(() => expect(screen.getByTestId("settings-wake-hint")).toHaveTextContent("Off here. Contacts wake iPhone for now."));
+    expect(screen.getByTestId("settings-wake")).toHaveAttribute("aria-checked", "false");
+  });
+});
+
+describe("a device's name in a right-to-left language", () => {
+  // A Latin name in an Arabic sentence, isolated: the punctuation at its edge stays on its side ("Pixel-", not "-Pixel").
+  const names = (element: HTMLElement) => [...element.querySelectorAll("bdi")].map((bdi) => bdi.textContent);
+
+  it("keeps its own direction in the standby screen's title and in the new device list", () => {
+    renderApp(<DeviceStandby gate={{ state: "standby", activeDevice: "Pixel-of-a-very-", notice: ["MacBook (Pro)", "2nd phone"] }} />, { language: "ar" });
+    expect(screen.getByTestId("device-standby-title")).toHaveTextContent("نشط على Pixel-of-a-very-");
+    expect(names(screen.getByTestId("device-standby-title"))).toEqual(["Pixel-of-a-very-"]);
+    expect(names(screen.getByTestId("device-set-notice-title"))).toEqual(["MacBook (Pro)", "2nd phone"]);
+    expect(screen.getByTestId("device-set-notice-title").textContent).not.toContain("{{");
+  });
+
+  it("keeps its own direction on its row and on Move to", async () => {
+    const { engine } = renderApp(<DevicesSection />, { language: "ar" });
+    engine.on("deviceSet", () => set({ devices: [set().devices[0]!, { key: PHONE, name: "Pixel-of-a-very-", slot: 1, self: false, active: false, status: "live" }] }));
+    engine.on("deviceHandoffView", () => null);
+    const rows = await screen.findAllByTestId("device-row");
+    expect(names(rows[0]!)).toEqual(["MacBook"]);
+    expect(names(rows[1]!)).toEqual(["Pixel-of-a-very-", "Pixel-of-a-very-"]);
+  });
+
+  it("keeps its own direction on the Removed row", async () => {
+    const { user, engine } = renderApp(<DevicesSection />, { language: "ar" });
+    const tablet = { key: TABLET, name: "Tablet (2)", slot: 1, self: false, active: false, status: "live" as const };
+    engine.on("deviceSet", () => set({ devices: [set().devices[0]!, tablet] }));
+    engine.on("deviceHandoffView", () => null);
+    engine.on("deviceRemove", () => set({ devices: [set().devices[0]!] }));
+    await user.click(await screen.findByTestId("device-menu"));
+    await user.click(screen.getByTestId("device-remove-open"));
+    await user.click(screen.getByTestId("device-remove-go"));
+    expect(names(await screen.findByTestId("device-removed"))).toEqual(["Tablet (2)"]);
+  });
+
+  it("keeps its own direction in the takeover's title, hint and the name to type", () => {
+    renderApp(<TakeoverDialog device="Pixel-of-a-very-" password onClose={() => {}} />, { language: "ar" });
+    const dialog = screen.getByTestId("takeover-dialog");
+    expect(names(dialog)).toEqual(["Pixel-of-a-very-", "Pixel-of-a-very-", "Pixel-of-a-very-"]);
+    expect(dialog.querySelector("h2")).toHaveTextContent("تتولى الأمر بدون Pixel-of-a-very-؟");
+    expect(screen.getByLabelText("اكتب Pixel-of-a-very- للتأكيد")).toBe(screen.getByTestId("takeover-name"));
+  });
+});

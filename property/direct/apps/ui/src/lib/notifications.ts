@@ -1,0 +1,295 @@
+import {invoke} from "@tauri-apps/api/core";
+import {androidApp} from "./touchOnly";
+import {getPrefix} from "./storage";
+/** "misplaced": the Desktop app runs from a temporary folder, where macOS gives it no notifications. */
+export type NoticePermission = NotificationPermission | "unavailable" | "misplaced";
+interface ExtensionNotifications {
+  runtime: {
+    id?:string;getURL(path:string):string;
+    onMessage?:{addListener(listener:(message:{target?:string;type?:string;id?:unknown}|undefined,sender:{id?:string},answer:(response:unknown)=>void)=>boolean):void};
+  };
+  storage?: {session?:{get(key:null):Promise<Record<string,unknown>>;set(items:Record<string,string>):Promise<void>;remove(key:string):Promise<void>}};
+  permissions: {contains(options:{permissions:string[]}):Promise<boolean>;request(options:{permissions:string[]}):Promise<boolean>};
+  /** Absent until the user grants the optional "notifications" permission. */
+  notifications?: {
+    create(id:string,options:{type:"basic";iconUrl:string;title:string;message:string;silent:boolean}):Promise<string>;
+    clear?(id:string):Promise<boolean>;
+  };
+  /** Present in extension pages (no permission needed for the page's own tab). */
+  tabs?: {getCurrent():Promise<{id?:number;windowId?:number}|undefined>;update(id:number,props:{active:boolean}):Promise<unknown>};
+  windows?: {update(id:number,props:{focused:boolean}):Promise<unknown>};
+}
+const extension=()=> {
+  const value=(globalThis as unknown as {chrome?:ExtensionNotifications}).chrome;
+  return value?.runtime?.id && value.permissions ? value : undefined;
+};
+const native=()=>"__TAURI_INTERNALS__" in window;
+const platform=()=>(navigator as Navigator&{userAgentData?:{platform?:string}}).userAgentData?.platform||navigator.platform||navigator.userAgent;
+/**
+ * The system settings where the native app's notifications are allowed again, when the app can open them: the Android
+ * app opens its own page in Android's settings (its `navigator.platform` reads as Linux, hence the agent first).
+ */
+export function noticeSettings():"macos"|"windows"|"android"|undefined{
+  if(!native()) return undefined;
+  if(/Android/i.test(navigator.userAgent)) return "android";
+  return /Mac/i.test(platform())?"macos":/Win/i.test(platform())?"windows":undefined;
+}
+/**
+ * Where notifications that were refused are allowed again, which the Settings hint names: the Desktop app's system
+ * settings (a pane of their own on macOS and Windows), the extension's own switch (Chrome asks again for an optional
+ * permission it was refused), or the browser's or device's settings for a web page.
+ */
+export function noticePlace():"macos"|"windows"|"android"|"system"|"extension"|"web"{
+  if(native()) return noticeSettings()??"system";
+  return extension()?"extension":"web";
+}
+export async function openNoticeSettings():Promise<void>{
+  try{await invoke("open_notification_settings");}catch{/* nothing to open here */}
+}
+
+/*
+ * A click on a notification opens its chat. Which chat is known only here, by the notification's id: the
+ * notification itself carries no chat data, its id neither. The page's id for one (the engine's names its chat:
+ * `message:group:<groupId>:…`) stays here, and the system gets a random one for it, which other apps can read (an
+ * Android notification's tag, which every notification listener sees; macOS's identifier; the extension's id).
+ */
+const chats=new Map<string,string>();
+const notices=new Map<string,string>();
+/** The system's id for the page's `id`: random, and the same for the same `id`, so it still replaces its notification. */
+function noticeId(id:string):string{
+  let notice=notices.get(id);
+  if(!notice){
+    notice=crypto.randomUUID();
+    notices.set(id,notice);
+    if(notices.size>64) notices.delete(notices.keys().next().value as string);
+  }
+  return notice;
+}
+/**
+ * What the notification of the page's `event` said is over (a ring that ended): it goes, where the app can take one
+ * back (the Android and Linux apps, the extension); elsewhere it closes by itself.
+ */
+export function clearNotification(event:string):void{
+  const id=notices.get(event);
+  if(!id) return;
+  notices.delete(event);
+  chats.delete(id);
+  keepNotice(id);
+  if(native()) void invoke("native_clear_notification",{id}).catch(()=>{/* gone already, or an older app */});
+  else void extension()?.notifications?.clear?.(id)?.catch(()=>{/* gone already */});
+}
+/**
+ * The extension's notification outlives its page (a closed or reloaded tab): the chat it opens is kept where the
+ * worker reads it, which opens the app there once no page knows it (apps/extension/src/background.ts). Without `chat`,
+ * that goes.
+ */
+function keepNotice(id:string,chat?:string){
+  const session=extension()?.storage?.session;
+  const key=`notice:${id}`;
+  void (chat===undefined?session?.remove(key):session?.set({[key]:chat}))?.catch(()=>{/* the app opens, only not on the chat */});
+}
+const openers=new Set<(chat:string)=>void>();
+let listening=false;
+/** Opens the chat of a notification shown from this page; false when it was not. */
+function opened(id:string):boolean{
+  const chat=chats.get(id);
+  if(!chat) return false;
+  chats.delete(id);
+  window.focus();
+  for(const open of openers) open(chat);
+  return true;
+}
+function listen(){
+  if(listening) return;
+  if(native()){
+    listening=true;
+    if(!androidApp()){
+      void sweepLeftOver();
+      void import("@tauri-apps/api/event").then(({listen})=>listen<string>("notification-open",({payload})=>opened(payload))).catch(()=>{listening=false;});
+      return;
+    }
+    // Android: Rust keeps the tap until the page takes it: the one that started the app came before anything listened.
+    // One heard here is taken there too, so a later page does not open it again (opened twice, it opens once).
+    const tapped=()=>invoke<string|null>("native_notification_tap").then(id=>{if(id) opened(id);}).catch(()=>{/* an older app */});
+    void sweepLeftOver();
+    void import("@tauri-apps/api/event")
+      .then(({listen})=>listen<string>("notification-open",({payload})=>{opened(payload);void tapped();}))
+      .then(tapped)
+      .catch(()=>{listening=false;});
+    return;
+  }
+  // The extension's worker hears the click, takes the notification away and asks the pages: the one that showed it
+  // opens its chat and answers, else the worker shows the app (apps/extension/src/background.ts).
+  const chrome=extension();
+  if(!chrome?.runtime.onMessage) return;
+  listening=true;
+  chrome.runtime.onMessage.addListener((message,sender,answer)=>{
+    if(sender.id!==chrome.runtime.id || message?.target!=="app" || message.type!=="notification-open" || typeof message.id!=="string" || !opened(message.id)) return false;
+    void showExtensionTab();
+    answer(true);
+    return false;
+  });
+}
+/**
+ * The extension's app page is a tab, and `window.focus()` does not bring a background tab forward: without this, a
+ * click on a notification opened its chat in a tab the person could not see.
+ */
+async function showExtensionTab(){
+  const chrome=extension();
+  try{
+    const tab=await chrome?.tabs?.getCurrent();
+    if(tab?.id===undefined) return;
+    await chrome?.tabs?.update(tab.id,{active:true});
+    if(tab.windowId!==undefined) await chrome?.windows?.update(tab.windowId,{focused:true});
+  }catch{/* the tab or its window went away */}
+}
+/** Called with the chat whose notification was clicked. */
+export function onNotificationOpen(open:(chat:string)=>void):()=>void{
+  openers.add(open);
+  listen();
+  return ()=>{openers.delete(open);};
+}
+export async function notificationPermission():Promise<NoticePermission>{
+  try {
+    if(native()) {
+      const permission=await invoke<NoticePermission|null>("native_notification_permission",{request:false});
+      if(permission) return permission;
+      return (await (await import("@tauri-apps/plugin-notification")).isPermissionGranted())?"granted":"default";
+    }
+    const chrome=extension();
+    if(chrome) return await chrome.permissions.contains({permissions:["notifications"]})?"granted":"default";
+    return typeof Notification==="undefined"?"unavailable":Notification.permission;
+  }catch{return "unavailable";}
+}
+/** Called only from the explicit Settings switch gesture. */
+export async function requestNotifications():Promise<NoticePermission>{
+  try {
+    if(native()) {
+      const permission=await invoke<NoticePermission|null>("native_notification_permission",{request:true});
+      return permission ?? await (await import("@tauri-apps/plugin-notification")).requestPermission();
+    }
+    const chrome=extension();
+    if(chrome) return await chrome.permissions.request({permissions:["notifications"]})?"granted":"denied";
+    return typeof Notification==="undefined"?"unavailable":await Notification.requestPermission();
+  }catch{return "unavailable";}
+}
+/*
+ * In the Android app a chat has one notification: its next message replaces it (with no new heads-up,
+ * GhostlyHostPlugin.kt `setOnlyAlertOnce`), and reading the chat takes it away. Android keeps an app's notifications
+ * until they are tapped or swiped, and shows none past 50. Its tag is random, kept here: it never names the chat.
+ * The Linux app does the same: a Linux desktop keeps a list of notifications too (GNOME, KDE, swaync), and the app
+ * replaces and closes its own there (apps/desktop notifications.rs).
+ */
+const oneNoticePerChat=()=>androidApp() || (native() && /Linux/i.test(platform()));
+/*
+ * Android keeps them past the page, too: the app's process ends (swiped from Recents, ended in the background, an
+ * update), and a tap on one is what starts the next page. So the Android app keeps its chats' tags, and which chat each
+ * opens, in the profile's storage (with its chats, never in a notification): the next page reads them, replaces, takes
+ * away and opens those as its own. The ones it cannot map (a call's, another profile's) go as it first uses
+ * notifications, once the profile is open, before it posts its own.
+ * The Linux app keeps them so too: its page loads again (a reload) while the app's process, which shows them, runs on.
+ * An app that exits takes its own back (apps/desktop notifications.rs `exit`).
+ */
+const chatTags=new Map<string,string>();
+const tagsKey=()=>`${getPrefix()}notification_tags`;
+let restored=false;
+/** This profile's chat tags, as the earlier page left them. */
+function restore(){
+  if(restored || !oneNoticePerChat()) return;
+  restored=true;
+  try{
+    const kept=JSON.parse(localStorage.getItem(tagsKey())??"[]") as unknown;
+    if(!Array.isArray(kept)) return;
+    for(const pair of kept.slice(-64)){
+      if(!Array.isArray(pair) || typeof pair[0]!=="string" || typeof pair[1]!=="string") continue;
+      chatTags.set(pair[0],pair[1]);
+      chats.set(pair[1],pair[0]);
+    }
+  }catch{/* unreadable: they go as any unknown one */}
+}
+function keepTags(){
+  if(!oneNoticePerChat()) return;
+  try{
+    if(chatTags.size) localStorage.setItem(tagsKey(),JSON.stringify([...chatTags]));
+    else localStorage.removeItem(tagsKey());
+  }catch{/* not kept: the next page takes them away */}
+}
+let leftOver:Promise<void>|undefined;
+function sweepLeftOver():Promise<void>{
+  restore();
+  leftOver??=oneNoticePerChat()?invoke<void>("native_clear_notifications",{keep:[...chatTags.values()]}).catch(()=>{/* an older app */}):Promise.resolve();
+  return leftOver;
+}
+function chatTag(chat:string):string{
+  restore();
+  let tag=chatTags.get(chat);
+  if(!tag){
+    tag=crypto.randomUUID();
+    chatTags.set(chat,tag);
+    if(chatTags.size>64) chatTags.delete(chatTags.keys().next().value as string);
+    keepTags();
+  }
+  return tag;
+}
+/** The chat was read in the app: its notification goes, in the Android and Linux apps (elsewhere they close by themselves). */
+export function clearChatNotification(chat:string):void{
+  restore();
+  const tag=chatTags.get(chat);
+  if(!tag) return;
+  chatTags.delete(chat);
+  chats.delete(tag);
+  keepTags();
+  void invoke("native_clear_notification",{id:tag}).catch(()=>{/* gone already, or an older app */});
+}
+/**
+ * Every extension notification that opens `chat` goes. Chrome keeps them in the system's list past the page that showed
+ * them (a reload), so the ones only session storage still knows of (`keepNotice`) go too: a deleted profile's
+ * "New messages in" would otherwise stay there, by name, for the rest of the browser's session.
+ */
+export async function clearExtensionNotices(chat:string):Promise<void>{
+  const chrome=extension();
+  if(!chrome) return;
+  const kept=await chrome.storage?.session?.get(null).catch(()=>({}))??{};
+  for(const [key,value] of Object.entries(kept)){
+    if(!key.startsWith("notice:") || value!==chat) continue;
+    const id=key.slice("notice:".length);
+    chats.delete(id);
+    keepNotice(id);
+    void chrome.notifications?.clear?.(id)?.catch(()=>{/* gone already */});
+  }
+}
+/**
+ * `chat`: the chat a click opens (a session id, or `group:<id>`); it and `event`, the page's id for the notification,
+ * stay in this page. `perChat`: a chat's messages, one notification for the chat in the Android and Linux apps.
+ */
+export async function showPrivateNotification(event:string,body:string,chat?:string,perChat=false):Promise<void>{
+  if(await notificationPermission()!=="granted") return;
+  const id=chat && perChat && oneNoticePerChat()?chatTag(chat):noticeId(event);
+  if(chat){
+    // Newest last, so a chat's notification, posted again, is not the first to be forgotten.
+    chats.delete(id);
+    chats.set(id,chat);
+    keepNotice(id,chat);
+    // The newest few: an old notification still opens the app, only not a chat.
+    if(chats.size>64){
+      const oldest=chats.keys().next().value as string;
+      chats.delete(oldest);
+      keepNotice(oldest);
+    }
+  }
+  try {
+    if(native()){
+      await sweepLeftOver();
+      if(await invoke<boolean>("native_private_notification",{id,body})) return;
+      (await import("@tauri-apps/plugin-notification")).sendNotification({title:"Property",body,silent:true});
+    }else{
+      const chrome=extension();
+      if(chrome) await chrome.notifications?.create(id,{type:"basic",iconUrl:chrome.runtime.getURL("icons/128.png"),title:"Property",message:body,silent:true});
+      else {
+        const notice=new Notification("Property",{body,tag:id,silent:true});
+        notice.onclick=()=>{window.focus();opened(id);notice.close();};
+        setTimeout(()=>notice.close(),8000);
+      }
+    }
+  }catch{/* Permission can change between checking and delivery. */}
+}

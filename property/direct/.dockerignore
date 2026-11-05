@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+target
+apps/desktop/target
+apps/website
+screenshots
+.git
+*.png
+.env
+.env.*
