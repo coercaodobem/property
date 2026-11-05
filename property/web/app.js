@@ -16,6 +16,7 @@
   const Campaigns = window.PropertyCampaigns;
   const Contact = window.PropertyContact;
   const AgentMessages = window.PropertyAgentMessages;
+  const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const eventSourceHints = new WeakMap();
   const state = {
     db: null, account: null, secret: null, pubkey: '', npub: '', relays: [],
@@ -326,11 +327,22 @@
   async function receiveGiftWrap(event) {
     if (!N.verifyEvent(event)) return;
     const rumor = N.nip17.unwrapEvent(event, state.secret);
-    if (!rumor || rumor.kind !== 14 || typeof rumor.content !== 'string' || rumor.content.length > 20000) return;
+    if (!rumor || ![7, 14].includes(rumor.kind) || typeof rumor.content !== 'string' || rumor.content.length > 20000) return;
     if (rumor.pubkey === state.pubkey) return;
     const peer = rumor.pubkey;
     const agentAccess = await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') return;
+    if (rumor.kind === 7) {
+      const targetTag = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'e' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) : null;
+      if (!targetTag || !rumor.content || rumor.content.length > 64) return;
+      const reactionId = rumor.id || event.id;
+      if (!reactionId) return;
+      const id = `reaction:${peer}:${reactionId}`;
+      if (await get('messages', id)) return;
+      await put('messages', { id, peer, kind: 7, targetEventId: targetTag[1], reaction: rumor.content, reactorPubkey: peer, createdAt: rumor.created_at * 1000, direction: 'received', status: 'delivered', nostrEventId: reactionId });
+      if (state.activePeer === peer) await renderMessages(peer);
+      return;
+    }
     const existingConversation = await get('conversations', peer);
     let text = rumor.content;
     let parsedAgentMessage = null;
@@ -525,6 +537,21 @@
   }
   async function renderMessages(peer) {
     const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
+    const messages = entries.filter(message => message.kind !== 7);
+    const latestReactions = new Map();
+    for (const reaction of entries.filter(message => message.kind === 7)) {
+      if (!/^[0-9a-f]{64}$/i.test(reaction.targetEventId || '')) continue;
+      const actor = reaction.reactorPubkey || (reaction.direction === 'sent' ? state.pubkey : peer);
+      const key = `${reaction.targetEventId}:${actor}`;
+      const previous = latestReactions.get(key);
+      if (!previous || reaction.createdAt > previous.createdAt || (reaction.createdAt === previous.createdAt && reaction.id > previous.id)) latestReactions.set(key, reaction);
+    }
+    const reactionsByTarget = new Map();
+    for (const reaction of latestReactions.values()) {
+      const counts = reactionsByTarget.get(reaction.targetEventId) || new Map();
+      counts.set(reaction.reaction, (counts.get(reaction.reaction) || 0) + 1);
+      reactionsByTarget.set(reaction.targetEventId, counts);
+    }
     const conversation = await get('conversations', peer);
     const container = $('messages');
     const samePeer = container.dataset.peer === peer;
@@ -532,12 +559,12 @@
     const bounds = container.getBoundingClientRect();
     const firstVisible = [...container.children].find(row => row.dataset.messageId && row.getBoundingClientRect().bottom > bounds.top);
     const anchor = samePeer && firstVisible ? { id: firstVisible.dataset.messageId, top: firstVisible.getBoundingClientRect().top } : null;
-    const byEventId = new Map(entries.map(message => [nostrEventId(message), message]).filter(([id]) => id));
+    const byEventId = new Map(messages.map(message => [nostrEventId(message), message]).filter(([id]) => id));
     container.replaceChildren();
-    if (!entries.length) {
+    if (!messages.length) {
       const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = 'Esta conversa é privada. Envie uma mensagem para começar.'; container.append(empty); container.dataset.peer = peer; return;
     }
-    for (const message of entries) {
+    for (const message of messages) {
       const row = document.createElement('div'); row.className = `message-row${message.direction === 'sent' ? ' mine' : ''}`;
       row.dataset.messageId = message.id;
       const eventId = nostrEventId(message);
@@ -560,6 +587,14 @@
         row.append(quote);
       }
       const bubble = document.createElement('div'); bubble.className = 'message-bubble'; bubble.textContent = message.text;
+      const counts = reactionsByTarget.get(eventId);
+      if (counts?.size) {
+        const summary = document.createElement('div'); summary.className = 'message-reactions'; summary.setAttribute('aria-label', 'Message reactions');
+        for (const [reaction, count] of counts) {
+          const pill = document.createElement('span'); pill.className = 'message-reaction-pill'; pill.textContent = `${reaction} ${count}`; summary.append(pill);
+        }
+        row.append(summary);
+      }
       const delivery = message.status === 'pending' ? ' · aguardando relay' : message.status === 'partial' ? ' · entrega parcial' : '';
       const meta = document.createElement('span'); meta.className = 'message-meta'; meta.textContent = `${new Date(message.createdAt).toLocaleString(window.PropertyI18n?.locale() || undefined)}${delivery}`;
       const actions = document.createElement('div'); actions.className = 'message-actions';
@@ -570,7 +605,20 @@
         updateReplyContext();
         $('message-input').focus();
       });
-      actions.append(reply); row.append(bubble, meta, actions); container.append(row);
+      const react = document.createElement('button'); react.type = 'button'; react.className = 'message-react'; react.textContent = 'React'; react.disabled = !eventId; react.setAttribute('aria-label', 'React to this message'); react.title = 'Choose a reaction';
+      const picker = document.createElement('div'); picker.className = 'message-reaction-picker'; picker.hidden = true; picker.setAttribute('role', 'group'); picker.setAttribute('aria-label', 'Choose a reaction');
+      for (const emoji of REACTION_OPTIONS) {
+        const choice = document.createElement('button'); choice.type = 'button'; choice.className = 'message-reaction-choice'; choice.textContent = emoji; choice.setAttribute('aria-label', window.PropertyI18n?.language === 'pt-BR' ? `Reação ${emoji}` : `${emoji} reaction`);
+        choice.addEventListener('click', async () => {
+          picker.querySelectorAll('button').forEach(button => { button.disabled = true; });
+          try { await sendPrivateReaction(peer, message, emoji); picker.hidden = true; }
+          catch (error) { showToast(error.message || 'Could not send reaction.'); }
+          finally { picker.querySelectorAll('button').forEach(button => { button.disabled = false; }); }
+        });
+        picker.append(choice);
+      }
+      react.addEventListener('click', () => { picker.hidden = !picker.hidden; });
+      actions.append(reply, react, picker); row.append(bubble, meta, actions); container.append(row);
     }
     container.dataset.peer = peer;
     if (!samePeer || wasAtBottom || !anchor) container.scrollTop = container.scrollHeight;
@@ -642,6 +690,50 @@
     await put('messages', message); await renderMessages(peer);
     if (!sent) showToast('Mensagem cifrada salva no aparelho; nenhum relay confirmou o envio.');
     else if (sent < 2) showToast('Apenas um dos dois envelopes NIP-17 foi confirmado pelos relays.');
+  }
+  async function sendPrivateReaction(peer, message, reaction) {
+    const agentAccess = await get('agentAccess', peer);
+    if (agentAccess?.status === 'blocked') throw new Error('This contact is blocked on this device.');
+    const targetId = nostrEventId(message);
+    if (!targetId || !REACTION_OPTIONS.includes(reaction)) throw new Error('This message cannot receive that reaction.');
+    const actor = state.pubkey;
+    const previous = (await all('messages'))
+      .filter(item => item.peer === peer && item.kind === 7 && item.targetEventId === targetId && (item.reactorPubkey || (item.direction === 'sent' ? state.pubkey : peer)) === actor)
+      .sort((a, b) => b.createdAt - a.createdAt)[0];
+    if (previous?.reaction === reaction) { showToast('You already sent this reaction.'); return; }
+    if (!state.inboxRelays.length) {
+      state.inboxRelays = await discoverInboxRelays(state.pubkey);
+      if (!state.inboxRelays.length) throw new Error('Configure and publish your NIP-17 inbox relays in settings.');
+    }
+    let peerRelays = state.peerInboxRelays.get(peer) || [];
+    if (!peerRelays.length) {
+      const savedHints = state.peerRelayHints.get(peer) || (await get('conversations', peer))?.relayHints || [];
+      if (savedHints.length) state.peerRelayHints.set(peer, savedHints);
+      peerRelays = await discoverInboxRelays(peer, savedHints);
+      if (!peerRelays.length) throw new Error('Could not find this person’s public kind 10050 list.');
+      state.peerInboxRelays.set(peer, peerRelays);
+      await put('settings', { id: `peer-inbox-${peer}`, values: peerRelays });
+      await connectAllRelays();
+    }
+    const targetAuthor = message.direction === 'sent' ? state.pubkey : peer;
+    const rumor = N.nip59.createRumor({
+      kind: 7,
+      tags: [['e', targetId, '', targetAuthor], ['p', targetAuthor], ['k', '14']],
+      content: reaction,
+    }, state.secret);
+    const wraps = [state.pubkey, peer].map(recipient => N.nip59.createWrap(N.nip59.createSeal(rumor, state.secret, recipient), recipient));
+    const routePlan = Routing.planGiftWraps(wraps, state.pubkey, peer, state.inboxRelays, peerRelays, N.verifyEvent);
+    if (!routePlan.ready || wraps.length !== 2 || wraps.some(event => event.kind !== 1059)) throw new Error('The NIP-17 reaction could not be prepared for both participants.');
+    const local = { id: `reaction:${peer}:${rumor.id}`, peer, kind: 7, targetEventId: targetId, reaction, reactorPubkey: state.pubkey, createdAt: rumor.created_at * 1000, direction: 'sent', status: 'pending', nostrEventId: rumor.id };
+    await put('messages', local);
+    await renderMessages(peer);
+    let sent = 0;
+    for (const delivery of routePlan.deliveries) if (await publishToRelays(delivery.event, delivery.relays)) sent += 1;
+    local.status = sent === 2 ? 'sent' : sent === 1 ? 'partial' : 'pending';
+    await put('messages', local);
+    await renderMessages(peer);
+    if (!sent) showToast('Reaction saved on this device; no relay confirmed sending.');
+    else if (sent < 2) showToast('Only one NIP-17 reaction envelope was confirmed by relays.');
   }
   async function addConversation(pubkey, title, relayHints = [], agent = false) {
     if (pubkey === state.pubkey) throw new Error('Não é possível iniciar uma conversa consigo mesmo.');
