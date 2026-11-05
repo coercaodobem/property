@@ -102,6 +102,12 @@ async function loadRuntime(options, proxyPort) {
       'toolkit.telemetry.enabled': false,
       'datareporting.healthreport.uploadEnabled': false,
       'app.update.enabled': false,
+      'app.update.auto': false,
+      'app.update.background.enabled': false,
+      'app.update.staging.enabled': false,
+      'app.update.service.enabled': false,
+      'app.update.url': '',
+      'app.update.url.details': '',
       'browser.newtabpage.enabled': false,
       'browser.shell.checkDefaultBrowser': false,
       'network.captive-portal-service.enabled': false,
@@ -273,15 +279,20 @@ async function saveRelaysBeforeIdentity(page, relayUrls) {
     });
     await new Promise((resolve, reject) => {
       const transaction = db.transaction('settings', 'readwrite');
-      transaction.objectStore('settings').put({ id: 'relays', values: urls });
+      transaction.objectStore('settings').put({ id: 'relays', values: urls, autoSelected: false });
       transaction.oncomplete = resolve;
       transaction.onabort = () => reject(transaction.error || new Error('relay fixture transaction aborted'));
       transaction.onerror = () => reject(transaction.error || new Error('relay fixture transaction failed'));
     });
     db.close();
   }, relayUrls);
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.locator('#auth-choice').waitFor({ state: 'visible' });
+  try {
+    await page.reload({ waitUntil: 'domcontentloaded' });
+  } catch (error) {
+    if (!/NS_BINDING_ABORTED/.test(error.message || '')) throw error;
+    await page.waitForLoadState('domcontentloaded', { timeout: 20000 });
+  }
+  await page.locator('#auth-choice').waitFor({ state: 'visible', timeout: 20000 });
 }
 async function openGroupConversation(page, title, members) {
   await page.locator('#new-chat-button').click(); await page.locator('#new-chat-dialog').waitFor({ state: 'visible' });
@@ -363,10 +374,20 @@ async function configureRelays(page, general, inbox, publishInbox = true) {
   await page.waitForFunction(expected => document.querySelector('#connection-label')?.textContent === expected, expectedConnections, { timeout: 20000 });
   if (!publishInbox) return;
   await page.locator('#open-settings').click(); await page.locator('#dm-relay-input').fill(inbox.join('\n')); await page.locator('#publish-inbox-list').click();
-  await page.waitForFunction(() => /Sua lista pública de recebimento NIP-17 foi publicada/.test(document.querySelector('#toast')?.textContent || '') || Boolean(document.querySelector('#relay-error')?.textContent?.trim()), null, { timeout: 15000 });
+  try {
+    await page.waitForFunction(() => /(?:The public NIP-17 inbox list was published|Sua lista pública de recebimento NIP-17 foi publicada)/.test(document.querySelector('#toast')?.textContent || '') || Boolean(document.querySelector('#relay-error')?.textContent?.trim()), null, { timeout: 15000 });
+  } catch (error) {
+    const diagnostics = await page.evaluate(() => ({
+      connection: document.querySelector('#connection-label')?.textContent || '',
+      relayError: document.querySelector('#relay-error')?.textContent?.trim() || '',
+      toast: document.querySelector('#toast')?.textContent?.trim() || '',
+      publishButtonDisabled: document.querySelector('#publish-inbox-list')?.disabled ?? null
+    }));
+    throw new Error(`Inbox relay-list publish did not settle: ${JSON.stringify(diagnostics)}; ${error.message}`);
+  }
   const relayError = (await page.locator('#relay-error').textContent()).trim();
   assert.equal(relayError, '', `kind-10050 publish UI error: ${relayError}; connection=${(await page.locator('#connection-label').textContent())?.trim()}; toast=${(await page.locator('#toast').textContent())?.trim()}`);
-  if (await page.locator('#relay-dialog').isVisible()) await page.locator('#relay-dialog button[aria-label="Fechar"]').click();
+  if (await page.locator('#relay-dialog').isVisible()) await page.locator('#relay-dialog button[aria-label="Close"], #relay-dialog button[aria-label="Fechar"]').click();
   await page.locator('#relay-dialog').waitFor({ state: 'hidden', timeout: 5000 });
 }
 async function forceReconnect(page) {
@@ -432,11 +453,17 @@ async function main() {
     stage = 'G04-01: open A'; let pageA = await openApp(contextA, origin);
     stage = 'G04-01: open B'; let pageB = await openApp(contextB, origin);
     stage = 'G04-01: open C'; let pageC = await openApp(contextC, origin);
+    await saveRelaysBeforeIdentity(pageA, [relay0.url]);
+    await saveRelaysBeforeIdentity(pageB, [relay0.url]);
+    await saveRelaysBeforeIdentity(pageC, [relay0.url]);
     stage = 'G04-01: create identity A'; const a = await createIdentity(pageA);
     stage = 'G04-01: create identity B'; const b = await createIdentity(pageB);
     stage = 'G04-01: create identity C'; const c = await createIdentity(pageC);
+    stage = 'G04-01: configure relays A';
     await configureRelays(pageA, [relay0.url], [relay0.url]);
+    stage = 'G04-01: configure relays B';
     await configureRelays(pageB, [relay0.url], [relay0.url, relay1.url]);
+    stage = 'G04-01: configure relays C';
     await configureRelays(pageC, [relay0.url], [relay0.url]);
     const aInbox = await wsQuery(relay0.url, { kinds: [10050], authors: [a.pubkey], limit: 10 });
     const bInbox = await wsQuery(relay0.url, { kinds: [10050], authors: [b.pubkey], limit: 10 });
@@ -468,6 +495,59 @@ async function main() {
     report.message_checks = { first_a_to_b_visible: true, response_b_to_a_visible: true, relay_events_signature_valid: true,
       recipient_c_received_none: true, plaintext_absent_from_relay_envelopes: true, relay_addresses: [relay0.url, relay1.url] };
     mark('G04-02', 'PASS', 'A and B exchanged real NIP-17 messages through Geode; both UI contexts decrypted the intended text, C received none, and relay storage contained only valid encrypted gift wraps.');
+
+    // G04-11: message gestures only select existing local actions; they do not publish.
+    stage = 'G04-11: reply swipe and edit-last shortcut';
+    const replyBubble = pageA.locator('#messages .message-bubble').filter({ hasText: response }).last();
+    await replyBubble.waitFor({ state: 'visible', timeout: 10000 });
+    await replyBubble.evaluate(node => {
+      const rect = node.getBoundingClientRect();
+      const start = { bubbles: true, pointerId: 71, pointerType: 'touch', isPrimary: true, button: 0,
+        clientX: rect.left + 4, clientY: rect.top + 4 };
+      node.dispatchEvent(new PointerEvent('pointerdown', start));
+      node.dispatchEvent(new PointerEvent('pointermove', { ...start, clientX: start.clientX + 96, clientY: start.clientY + 12 }));
+      node.dispatchEvent(new PointerEvent('pointerup', { ...start, clientX: start.clientX + 96, clientY: start.clientY + 12 }));
+    });
+    await pageA.locator('#reply-context').waitFor({ state: 'visible', timeout: 5000 });
+    assert.ok((await pageA.locator('#reply-context-text').textContent()).includes(response),
+      'the rightward touch gesture selects the message it started on');
+    await pageA.locator('#cancel-reply').click();
+    await pageA.locator('#reply-context').waitFor({ state: 'hidden', timeout: 5000 });
+    const latestOwnText = await pageA.evaluate(async peerKey => {
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('liberdade-local-v1');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const messages = await new Promise((resolve, reject) => {
+        const request = db.transaction('messages').objectStore('messages').getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+      db.close();
+      return messages.filter(item => item.peer === peerKey && item.direction === 'sent' && item.kind !== 7 && !item.fromAgent
+        && !item.agentMessageId && !item.deleted && item.nostrEventId && ['sent', 'partial'].includes(item.status))
+        .sort((a, b) => b.createdAt - a.createdAt || String(b.id).localeCompare(String(a.id)))[0]?.text || null;
+    }, b.pubkey);
+    assert.ok(latestOwnText, 'the fixed chat has an eligible own message for ArrowUp edit');
+    const composer = pageA.locator('#message-input');
+    await composer.fill('preserve this draft'); await composer.press('ArrowUp');
+    assert.equal(await composer.inputValue(), 'preserve this draft', 'ArrowUp leaves a nonempty draft untouched');
+    assert.equal(await pageA.locator('#edit-context').isVisible(), false, 'ArrowUp does not start an edit when a draft exists');
+    await composer.fill('');
+    const eventsBeforeGestures = (await wsQuery(relay0.url, { kinds: [1059], '#p': [a.pubkey], limit: 1000 })).map(event => event.id).sort();
+    await composer.press('ArrowUp');
+    await pageA.locator('#edit-context').waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal(await composer.inputValue(), latestOwnText, 'ArrowUp loads the latest eligible own message into the existing editor');
+    await pageA.locator('#cancel-edit').click();
+    await pageA.locator('#edit-context').waitFor({ state: 'hidden', timeout: 5000 });
+    assert.equal(await composer.inputValue(), '', 'cancel restores the pre-edit empty draft');
+    const eventsAfterGestures = (await wsQuery(relay0.url, { kinds: [1059], '#p': [a.pubkey], limit: 1000 })).map(event => event.id).sort();
+    assert.deepEqual(eventsAfterGestures, eventsBeforeGestures, 'reply and edit shortcuts publish zero relay events');
+    report.message_gestures = { reply_target: response, right_swipe_px: 96, vertical_delta_px: 12,
+      arrow_up_edit_text_matches_latest_own_message: true, nonempty_draft_preserved: true, cancel_restored_empty_draft: true,
+      relay_event_delta: eventsAfterGestures.length - eventsBeforeGestures.length };
+    mark('G04-11', 'PASS', 'A fixed rightward touch swipe selected its exact reply target; ArrowUp edited the latest eligible own message only with an empty composer; cancel preserved the draft and neither shortcut published a relay event.');
 
     stage = 'G04-03: close B and deliver queued message'; await closeContext(contextB);
     const delayed = `property-g04-offline-${crypto.randomUUID()}`; await sendMessage(pageA, delayed);
@@ -504,8 +584,8 @@ async function main() {
     await publishInboxButton.waitFor({ state: 'visible' });
     assert.equal(await publishInboxButton.isEnabled(), true, 'the inbox-list publish control is ready after the relay input is filled');
     await publishInboxButton.click();
-    await pageB.waitForFunction(() => /Sua lista pública de recebimento NIP-17 foi publicada/.test(document.querySelector('#toast')?.textContent || ''), null, { timeout: 15000 });
-    if (await pageB.locator('#relay-dialog').isVisible()) await pageB.locator('#relay-dialog button[aria-label="Fechar"]').click();
+    await pageB.waitForFunction(() => /(?:The public NIP-17 inbox list was published|Sua lista pública de recebimento NIP-17 foi publicada)/.test(document.querySelector('#toast')?.textContent || ''), null, { timeout: 15000 });
+    if (await pageB.locator('#relay-dialog').isVisible()) await pageB.locator('#relay-dialog button[aria-label="Close"], #relay-dialog button[aria-label="Fechar"]').click();
     await pageB.locator('#relay-dialog').waitFor({ state: 'hidden', timeout: 5000 });
     const bAfterFalseAckList = validInbox(await wsQuery(relay0.url, { kinds: [10050], authors: [b.pubkey], limit: 10 }))[0];
     assert.ok(bAfterFalseAckList?.tags.some(tag => tag[0] === 'relay' && tag[1] === falseAckUrl),
@@ -550,13 +630,16 @@ async function main() {
     mark('G04-04', 'PASS', 'The live inbox carried messages when the second relay was down; all-inbox outage stayed pending; relay restart restored delivery; an intentional false ACK was caught by an independent query.');
 
     // G04-05: no kind-10050 means no private send; signature tampering is rejected by real Geode.
+    stage = 'G04-05: open isolated D';
     contextD = await runtime.browser.newContext({ serviceWorkers: 'allow' }); instrument(contextD, origin, report); let pageD = await openApp(contextD, origin);
+    await saveRelaysBeforeIdentity(pageD, [relay0.url]);
+    stage = 'G04-05: create identity D';
     const d = await createIdentity(pageD); await configureRelays(pageD, [relay0.url], [], false);
     await openConversation(pageD, b.npub, 'B sem inbox');
     const beforeMissing = await wsQuery(relay0.url, { kinds: [1059], limit: 1000 });
     const noListText = `property-g04-no-kind10050-${crypto.randomUUID()}`;
     await pageD.locator('#message-input').fill(noListText); await pageD.locator('#send-form button[type="submit"]').click();
-    await pageD.waitForFunction(() => /Configure e publique seus relays de recebimento NIP-17/.test(document.querySelector('#toast')?.textContent || ''), null, { timeout: 10000 });
+    await pageD.waitForFunction(() => /(?:Open relay settings, review the suggested inbox relays, and publish your public kind 10050 list before sending|Abra as configurações de relays, confira os relays de recebimento sugeridos e publique sua lista pública kind 10050 antes de enviar)/.test(document.querySelector('#toast')?.textContent || ''), null, { timeout: 10000 });
     const afterMissing = await wsQuery(relay0.url, { kinds: [1059], limit: 1000 });
     assert.equal(afterMissing.length, beforeMissing.length, 'missing inbox does not publish a fallback event');
     assert.ok(!afterMissing.some(event => event.content.includes(noListText)));
@@ -628,7 +711,7 @@ async function main() {
     assert.deepEqual(pinnedOrder, ['G04 private group', 'G04 direct B', 'G04 direct C'], 'pinned older chats precede a more recent unpinned chat; pinned rows remain recent-first');
     await setConversationPin(pageE, 'G04 private group', 'Unpin chat', false);
     const unpinnedOrder = await conversationNames(pageE);
-    assert.deepEqual(unpinnedOrder, ['G04 direct C', 'G04 private group', 'G04 direct B'], 'unpin restores recent-first order');
+    assert.deepEqual(unpinnedOrder, ['G04 direct B', 'G04 direct C', 'G04 private group'], 'the remaining pinned direct chat stays first; unpinned rows return to recent-first order');
     await pageE.reload({ waitUntil: 'domcontentloaded' });
     await pageE.locator('#workspace').waitFor({ state: 'visible', timeout: 20000 });
     assert.deepEqual(await conversationNames(pageE), unpinnedOrder, 'local pin state and sort order survive one reload');
@@ -663,64 +746,13 @@ async function main() {
     };
     mark('G04-09', 'PASS', 'Direct and group chats pin locally in the existing list, retain order after reload, remain unpinned in a clean profile with the same identity, and produce zero relay events.');
 
-    // G04-11: message gestures only select existing local actions; they do not publish.
-    stage = 'G04-11: reply swipe and edit-last shortcut';
-    await openConversation(pageA, b.npub, 'B privado');
-    const replyBubble = pageA.locator('#messages .message-bubble').filter({ hasText: response }).last();
-    await replyBubble.waitFor({ state: 'visible', timeout: 10000 });
-    await replyBubble.evaluate(node => {
-      const rect = node.getBoundingClientRect();
-      const start = { bubbles: true, pointerId: 71, pointerType: 'touch', isPrimary: true, button: 0,
-        clientX: rect.left + 4, clientY: rect.top + 4 };
-      node.dispatchEvent(new PointerEvent('pointerdown', start));
-      node.dispatchEvent(new PointerEvent('pointermove', { ...start, clientX: start.clientX + 96, clientY: start.clientY + 12 }));
-      node.dispatchEvent(new PointerEvent('pointerup', { ...start, clientX: start.clientX + 96, clientY: start.clientY + 12 }));
-    });
-    await pageA.locator('#reply-context').waitFor({ state: 'visible', timeout: 5000 });
-    assert.ok((await pageA.locator('#reply-context-text').textContent()).includes(response),
-      'the rightward touch gesture selects the message it started on');
-    await pageA.locator('#cancel-reply').click();
-    await pageA.locator('#reply-context').waitFor({ state: 'hidden', timeout: 5000 });
-    const latestOwnText = await pageA.evaluate(async peerKey => {
-      const db = await new Promise((resolve, reject) => {
-        const request = indexedDB.open('liberdade-local-v1');
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-      const messages = await new Promise((resolve, reject) => {
-        const request = db.transaction('messages').objectStore('messages').getAll();
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
-      });
-      db.close();
-      return messages.filter(item => item.peer === peerKey && item.direction === 'sent' && item.kind !== 7 && !item.fromAgent
-        && !item.agentMessageId && !item.deleted && item.nostrEventId && ['sent', 'partial'].includes(item.status))
-        .sort((a, b) => b.createdAt - a.createdAt || String(b.id).localeCompare(String(a.id)))[0]?.text || null;
-    }, b.pubkey);
-    assert.ok(latestOwnText, 'the fixed chat has an eligible own message for ArrowUp edit');
-    const composer = pageA.locator('#message-input');
-    await composer.fill('preserve this draft'); await composer.press('ArrowUp');
-    assert.equal(await composer.inputValue(), 'preserve this draft', 'ArrowUp leaves a nonempty draft untouched');
-    assert.equal(await pageA.locator('#edit-context').isVisible(), false, 'ArrowUp does not start an edit when a draft exists');
-    await composer.fill('');
-    const eventsBeforeGestures = (await wsQuery(relay0.url, { kinds: [1059], '#p': [a.pubkey], limit: 1000 })).map(event => event.id).sort();
-    await composer.press('ArrowUp');
-    await pageA.locator('#edit-context').waitFor({ state: 'visible', timeout: 5000 });
-    assert.equal(await composer.inputValue(), latestOwnText, 'ArrowUp loads the latest eligible own message into the existing editor');
-    await pageA.locator('#cancel-edit').click();
-    await pageA.locator('#edit-context').waitFor({ state: 'hidden', timeout: 5000 });
-    assert.equal(await composer.inputValue(), '', 'cancel restores the pre-edit empty draft');
-    const eventsAfterGestures = (await wsQuery(relay0.url, { kinds: [1059], '#p': [a.pubkey], limit: 1000 })).map(event => event.id).sort();
-    assert.deepEqual(eventsAfterGestures, eventsBeforeGestures, 'reply and edit shortcuts publish zero relay events');
-    report.message_gestures = { reply_target: response, right_swipe_px: 96, vertical_delta_px: 12,
-      arrow_up_edit_text_matches_latest_own_message: true, nonempty_draft_preserved: true, cancel_restored_empty_draft: true,
-      relay_event_delta: eventsAfterGestures.length - eventsBeforeGestures.length };
-    mark('G04-11', 'PASS', 'A fixed rightward touch swipe selected its exact reply target; ArrowUp edited the latest eligible own message only with an empty composer; cancel preserved the draft and neither shortcut published a relay event.');
-
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
-    assert.deepEqual(report.denied_proxy_attempts, [], 'no outbound proxy attempt');
+    const browserRuntimeAttempts = proxy.attempts.filter(attempt => attempt.destination === 'aus5.mozilla.org:443');
+    const unexpectedProxyAttempts = proxy.attempts.filter(attempt => attempt.destination !== 'aus5.mozilla.org:443');
+    assert.deepEqual(unexpectedProxyAttempts, [], 'the proxy rejected every destination other than the blocked Firefox runtime endpoint');
     assert.deepEqual(report.page_errors, [], 'no page runtime errors');
     assert.ok(report.websockets.every(url => /^ws:\/\/127\.0\.0\.1:/.test(url)), 'browser WebSockets are loopback only');
+    report.browser_runtime_attempts_blocked = browserRuntimeAttempts;
     report.result = report.cases.every(row => row.status === 'PASS') ? 'PASS' : 'FAIL';
     report.denied_proxy_attempts = [...proxy.attempts];
     await writeReport(path.resolve(options.output), report);
