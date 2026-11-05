@@ -22,7 +22,7 @@
     db: null, account: null, secret: null, pubkey: '', npub: '', relays: [],
     inboxRelays: [], peerInboxRelays: new Map(), peerRelayHints: new Map(),
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
-    activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null,
+    activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, forwardingMessage: null,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
     storageReady: false
   };
@@ -619,7 +619,15 @@
         picker.append(choice);
       }
       react.addEventListener('click', () => { picker.hidden = !picker.hidden; });
-      actions.append(reply, react, picker); row.append(bubble); if (reactionSummary) row.append(reactionSummary); row.append(meta, actions); container.append(row);
+      const menu = document.createElement('details'); menu.className = 'message-menu';
+      const menuButton = document.createElement('summary'); menuButton.textContent = '⋮'; menuButton.setAttribute('aria-label', 'More message actions');
+      const menuItems = document.createElement('div'); menuItems.className = 'message-menu-items';
+      const save = document.createElement('button'); save.type = 'button'; save.textContent = message.saved ? 'Remove saved message' : 'Save message';
+      save.addEventListener('click', () => { menu.open = false; setMessageSaved(peer, message, !message.saved).catch(error => showToast(error.message || 'Could not update saved messages.')); });
+      const forward = document.createElement('button'); forward.type = 'button'; forward.textContent = 'Forward';
+      forward.addEventListener('click', () => { menu.open = false; openForwardDialog(message).catch(error => showToast(error.message || 'Could not open forwarding.')); });
+      menuItems.append(save, forward); menu.append(menuButton, menuItems);
+      actions.append(reply, react, picker, menu); row.append(bubble); if (reactionSummary) row.append(reactionSummary); row.append(meta, actions); container.append(row);
     }
     container.dataset.peer = peer;
     if (!samePeer || wasAtBottom || !anchor) container.scrollTop = container.scrollHeight;
@@ -644,7 +652,7 @@
       : (window.PropertyI18n?.language === 'pt-BR' ? `Respondendo a ${title}` : `Replying to ${title}`);
     $('reply-context-text').textContent = message.text.replace(/\s+/g, ' ').slice(0, 180);
   }
-  async function sendPrivateMessage(peer, text, replyTo = null) {
+  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false } = {}) {
     const agentAccess = await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') throw new Error('Este contato está bloqueado neste aparelho.');
     if (!state.inboxRelays.length) {
@@ -684,13 +692,20 @@
     const message = { id, peer, text, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
     await put('messages', message);
     await put('conversations', { ...previous, ...(agentConversation ? { agent: true } : {}), lastMessage: text, lastAt: message.createdAt });
-    await renderMessages(peer); await renderConversations();
+    if (state.activePeer === peer) await renderMessages(peer);
+    await renderConversations();
     let sent = 0;
-    for (const delivery of routePlan.deliveries) if (await publishToRelays(delivery.event, delivery.relays)) sent += 1;
-    message.status = sent === 2 ? 'sent' : sent === 1 ? 'partial' : 'pending';
-    await put('messages', message); await renderMessages(peer);
-    if (!sent) showToast('Mensagem cifrada salva no aparelho; nenhum relay confirmou o envio.');
-    else if (sent < 2) showToast('Apenas um dos dois envelopes NIP-17 foi confirmado pelos relays.');
+    const requiredEnvelopes = routePlan.deliveries.length;
+    for (const delivery of routePlan.deliveries) {
+      try { if (await publishToRelays(delivery.event, delivery.relays)) sent += 1; }
+      catch { /* Keep the encrypted local copy and attempt the remaining envelope. */ }
+    }
+    message.status = sent === requiredEnvelopes ? 'sent' : sent > 0 ? 'partial' : 'pending';
+    await put('messages', message);
+    if (state.activePeer === peer) await renderMessages(peer);
+    if (!quiet && !sent) showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Mensagem cifrada salva neste aparelho; nenhum relay confirmou o envio.' : 'Encrypted message saved on this device; no relay confirmed it.');
+    else if (!quiet && sent < requiredEnvelopes) showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Entrega parcial: alguns envelopes NIP-17 não foram confirmados pelos relays.' : 'Partial delivery: some NIP-17 envelopes were not confirmed by relays.');
+    return { savedLocally: true, confirmedEnvelopeCount: sent, requiredEnvelopeCount: requiredEnvelopes };
   }
   async function sendPrivateReaction(peer, message, reaction) {
     const agentAccess = await get('agentAccess', peer);
@@ -727,7 +742,7 @@
     if (!routePlan.ready || wraps.length !== 2 || wraps.some(event => event.kind !== 1059)) throw new Error('The NIP-17 reaction could not be prepared for both participants.');
     const local = { id: `reaction:${peer}:${rumor.id}`, peer, kind: 7, targetEventId: targetId, reaction, reactorPubkey: state.pubkey, createdAt: rumor.created_at * 1000, direction: 'sent', status: 'pending', nostrEventId: rumor.id };
     await put('messages', local);
-    await renderMessages(peer);
+    if (state.activePeer === peer) await renderMessages(peer);
     let sent = 0;
     for (const delivery of routePlan.deliveries) if (await publishToRelays(delivery.event, delivery.relays)) sent += 1;
     local.status = sent === 2 ? 'sent' : sent === 1 ? 'partial' : 'pending';
@@ -746,12 +761,108 @@
   }
   function setActiveView(view) {
     state.activeView = view;
-    for (const name of ['messages', 'hangout', 'marketplace', 'node']) {
+    for (const name of ['messages', 'hangout', 'marketplace', 'node', 'saved']) {
       $(`${name}-view`).classList.toggle('hidden', name !== view);
       document.querySelector(`.nav-button[data-view="${name}"]`).classList.toggle('active', name === view);
     }
     if (view === 'hangout') refreshHangout().catch(() => {});
     if (view === 'marketplace') refreshMarketplace().catch(() => {});
+    if (view === 'saved') renderSavedMessages().catch(() => {});
+  }
+  async function setMessageSaved(peer, message, saved) {
+    const updated = { ...message, saved, ...(saved ? { savedAt: Date.now() } : { savedAt: 0 }) };
+    await put('messages', updated);
+    if (state.activePeer === peer) await renderMessages(peer);
+    await renderSavedMessages();
+  }
+  async function renderSavedMessages() {
+    const list = $('saved-list');
+    if (!list || !state.db) return;
+    const saved = (await all('messages')).filter(message => message.kind !== 7 && message.saved === true).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+    list.replaceChildren();
+    if (!saved.length) {
+      const empty = document.createElement('div'); empty.className = 'empty-state compact';
+      const symbol = document.createElement('div'); symbol.className = 'empty-symbol'; symbol.textContent = '☆';
+      const title = document.createElement('h2'); title.textContent = 'No saved messages yet.';
+      const copy = document.createElement('p'); copy.textContent = 'Use a message’s actions to save it for later.';
+      empty.append(symbol, title, copy); list.append(empty); return;
+    }
+    for (const message of saved) {
+      const conversation = await get('conversations', message.peer);
+      const card = document.createElement('article'); card.className = 'saved-message-card';
+      const heading = document.createElement('div'); heading.className = 'saved-message-heading';
+      const name = document.createElement('strong'); name.textContent = displayName(message.peer, conversation?.title || '');
+      const date = document.createElement('small'); date.textContent = new Date(message.createdAt).toLocaleString(window.PropertyI18n?.locale() || undefined);
+      heading.append(name, date);
+      const excerpt = document.createElement('p'); excerpt.className = 'saved-message-text'; excerpt.textContent = message.text;
+      const actions = document.createElement('div'); actions.className = 'dialog-actions';
+      const open = document.createElement('button'); open.type = 'button'; open.className = 'button secondary'; open.textContent = 'Open message';
+      open.addEventListener('click', async () => {
+        setActiveView('messages');
+        await selectConversation(message.peer);
+        requestAnimationFrame(() => {
+          const row = [...$('messages').children].find(item => item.dataset.messageId === message.id);
+          if (row) { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); row.classList.add('message-highlight'); setTimeout(() => row.classList.remove('message-highlight'), 900); }
+        });
+      });
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'button text'; remove.textContent = 'Remove saved message';
+      remove.addEventListener('click', () => setMessageSaved(message.peer, message, false).catch(error => showToast(error.message || 'Could not update saved messages.')));
+      actions.append(open, remove); card.append(heading, excerpt, actions); list.append(card);
+    }
+  }
+  async function openForwardDialog(message) {
+    state.forwardingMessage = message;
+    $('forward-error').textContent = '';
+    const list = $('forward-list'); list.replaceChildren();
+    const conversations = (await all('conversations')).filter(item => item.pubkey !== message.peer && item.pubkey !== state.pubkey);
+    const available = [];
+    for (const conversation of conversations) if ((await get('agentAccess', conversation.pubkey))?.status !== 'blocked') available.push(conversation);
+    if (!available.length) {
+      const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = 'No conversations to forward to.'; list.append(empty);
+    } else {
+      for (const conversation of available) {
+        const label = document.createElement('label'); label.className = 'forward-option';
+        const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = conversation.pubkey;
+        const details = document.createElement('span'); details.className = 'forward-option-details';
+        const name = document.createElement('strong'); name.textContent = displayName(conversation.pubkey, conversation.title || '');
+        const preview = document.createElement('small'); preview.textContent = conversation.lastMessage || N.nip19.npubEncode(conversation.pubkey);
+        details.append(name, preview); label.append(checkbox, details); list.append(label);
+        checkbox.addEventListener('change', updateForwardSelection);
+      }
+    }
+    updateForwardSelection();
+    $('forward-dialog').showModal();
+  }
+  function updateForwardSelection() {
+    const list = $('forward-list');
+    if (!list) return;
+    const boxes = [...list.querySelectorAll('input[type="checkbox"]')];
+    const selected = boxes.filter(input => input.checked).length;
+    for (const input of boxes) input.disabled = !input.checked && selected >= 5;
+    $('forward-count').textContent = window.PropertyI18n?.language === 'pt-BR' ? `${selected}/5 selecionadas` : `${selected}/5 selected`;
+    $('forward-send').disabled = selected === 0 || selected > 5;
+  }
+  async function forwardMessage() {
+    const message = state.forwardingMessage;
+    const peers = [...$('forward-list').querySelectorAll('input[type="checkbox"]:checked')].map(input => input.value);
+    if (!message || peers.length < 1 || peers.length > 5) return;
+    const marker = window.PropertyI18n?.language === 'pt-BR' ? 'Encaminhada:' : 'Forwarded:';
+    const text = `${marker}\n${message.text}`;
+    $('forward-send').disabled = true;
+    let savedLocally = 0;
+    let relayConfirmed = 0;
+    for (const peer of peers) {
+      try {
+        const result = await sendPrivateMessage(peer, text, null, { quiet: true });
+        if (result.savedLocally) savedLocally += 1;
+        relayConfirmed += result.confirmedEnvelopeCount;
+      } catch { /* The final summary distinguishes local saves from relay confirmations. */ }
+    }
+    $('forward-dialog').close();
+    state.forwardingMessage = null;
+    showToast(window.PropertyI18n?.language === 'pt-BR'
+      ? `Cópias salvas neste aparelho: ${savedLocally}/${peers.length}; envelopes confirmados pelos relays: ${relayConfirmed}/${peers.length * 2}.`
+      : `Copies saved on this device: ${savedLocally}/${peers.length}; envelopes confirmed by relays: ${relayConfirmed}/${peers.length * 2}.`);
   }
   async function getCampaignSettings() {
     const saved = state.pubkey ? await get('settings', `campaigns-${state.pubkey}`) : null;
@@ -1048,7 +1159,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v25', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v26', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -1112,6 +1223,8 @@
       finally { submit.disabled = false; }
     });
     $('cancel-reply').addEventListener('click', () => { state.replyingTo = null; updateReplyContext(); });
+    $('forward-send').addEventListener('click', () => forwardMessage().catch(error => showError('forward-error', error.message || 'Could not forward this message.')));
+    $('forward-dialog').addEventListener('close', () => { state.forwardingMessage = null; $('forward-send').disabled = true; });
     $('language-picker').addEventListener('change', () => queueMicrotask(() => { updateReplyContext(); if (state.activePeer) renderMessages(state.activePeer); }));
     $('message-input').addEventListener('input', event => { event.target.style.height = 'auto'; event.target.style.height = `${Math.min(event.target.scrollHeight, 150)}px`; });
     $('conversation-search').addEventListener('input', renderConversations);

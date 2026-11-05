@@ -7,28 +7,28 @@
   <meta name="description" content="Property: Nostr communication with a locally controlled identity and relays you choose.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>Property</title>
-  <link rel="icon" href="./assets/property-icon-192.png?v=property-v25" type="image/png" sizes="192x192">
-  <link rel="icon" href="./assets/icon.svg?v=property-v25" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v25">
-  <link rel="manifest" href="./manifest.webmanifest?v=property-v25">
-  <link rel="stylesheet" href="./styles.css?v=property-v25">
-  <script defer src="./i18n.js?v=property-v25"></script>
-  <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v25"></script>
-  <script defer src="./vault.js?v=property-v25"></script>
-  <script defer src="./routing.js?v=property-v25"></script>
-  <script defer src="./forwarding.js?v=property-v25"></script>
-  <script defer src="./nano.js?v=property-v25"></script>
-  <script defer src="./money.js?v=property-v25"></script>
-  <script defer src="./marketplace.js?v=property-v25"></script>
-  <script defer src="./campaigns.js?v=property-v25"></script>
-  <script defer src="./contact.js?v=property-v25"></script>
-  <script defer src="./agent-messaging.js?v=property-v25"></script>
-  <script defer src="./app.js?v=property-v25"></script>
+  <link rel="icon" href="./assets/property-icon-192.png?v=property-v26" type="image/png" sizes="192x192">
+  <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
+  <link rel="manifest" href="./manifest.webmanifest?v=property-v26">
+  <link rel="stylesheet" href="./styles.css?v=property-v26">
+  <script defer src="./i18n.js?v=property-v26"></script>
+  <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v26"></script>
+  <script defer src="./vault.js?v=property-v26"></script>
+  <script defer src="./routing.js?v=property-v26"></script>
+  <script defer src="./forwarding.js?v=property-v26"></script>
+  <script defer src="./nano.js?v=property-v26"></script>
+  <script defer src="./money.js?v=property-v26"></script>
+  <script defer src="./marketplace.js?v=property-v26"></script>
+  <script defer src="./campaigns.js?v=property-v26"></script>
+  <script defer src="./contact.js?v=property-v26"></script>
+  <script defer src="./agent-messaging.js?v=property-v26"></script>
+  <script defer src="./app.js?v=property-v26"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
     <header class="topbar">
-      <a class="brand" href="#inicio" aria-label="Property home"><img class="brand-mark" src="./assets/property-icon-192.png?v=property-v25" alt=""><span>Property</span></a>
+      <a class="brand" href="#inicio" aria-label="Property home"><img class="brand-mark" src="./assets/property-icon-192.png?v=property-v26" alt=""><span>Property</span></a>
       <div class="connection"><span id="connection-dot" class="dot"></span><span id="connection-label">offline</span></div>
       <select id="language-picker" class="language-picker" aria-label="Application language"><option value="en">English</option><option value="pt-BR">Português (Brasil)</option></select>
       <button id="mobile-open-settings" class="icon-button mobile-relay-settings" aria-label="Configure relays" title="Configure relays">⚙</button>
@@ -95,6 +95,7 @@
           <button class="nav-button" data-view="hangout"><span>◌</span><span>Hangout</span></button>
           <button class="nav-button" data-view="marketplace"><span>◇</span><span>Marketplace</span></button>
           <button class="nav-button" data-view="node"><span>⌘</span><span>My node</span></button>
+          <button class="nav-button" data-view="saved"><span>☆</span><span>Saved</span></button>
         </nav>
         <div class="relay-summary"><span class="relay-icon">◉</span><span><strong id="relay-count">0 relays</strong><small id="relay-summary-text">Set up your connection</small></span><button id="open-settings" class="icon-button small" aria-label="Configure relays">⚙</button></div>
       </aside>
@@ -125,6 +126,10 @@
       <section id="node-view" class="content-view feature-view hidden">
         <div class="feature-header"><p class="eyebrow">INFRASTRUCTURE YOU CONTROL</p><h1>My node</h1><p>A computer can keep a relay online. A mobile browser can help while it is open, but the operating system may suspend it.</p><div class="node-card"><div class="node-status"><span class="dot idle"></span><div><strong>Local relay</strong><small>Windows x64 · macOS Apple Silicon · Linux x86_64</small></div></div><p class="fine-print">Linux/macOS: <code>./property/relay/start.sh</code><br>Windows PowerShell: <code>powershell -NoProfile -File .\property\relay\start.ps1</code></p><button id="use-local-relay" class="button secondary">Connect to this PC (ws://127.0.0.1:7447)</button><button id="copy-relay-command" class="button secondary">Copy instructions</button></div><div class="node-card"><h2>Relay bridge</h2><p class="muted">When enabled, this PWA forwards signed public events between the relays you chose. Private gift wraps are replicated only when addressed to you, and only to your NIP-17 inbox relays; the bridge never reads their text. Relays can still see your IP address, timing, and protocol metadata; this feature may use mobile data. Forwarding is limited to 60 events and 2 MB of outgoing data per minute, counting each destination. It works only while the app is open, and the operating system may suspend it. For continuous operation, run the PC relay.</p><label class="check-row"><input id="browser-node-toggle" type="checkbox"><span>Forward events between my relays while I use the app</span></label></div></div>
       </section>
+      <section id="saved-view" class="content-view feature-view hidden">
+        <div class="feature-header"><p class="eyebrow">PRIVATE · ON THIS DEVICE</p><h1>Saved messages</h1><p>Saved on this device. They are not published to relays.</p></div>
+        <div id="saved-list" class="feature-list"><div class="empty-state compact"><div class="empty-symbol">☆</div><h2>No saved messages yet.</h2><p>Use a message’s actions to save it for later.</p></div></div>
+      </section>
     </section>
   </div>
 
@@ -140,6 +145,7 @@
 
 <dialog id="agent-dialog" class="dialog-card" aria-labelledby="agent-dialog-title"><form method="dialog" class="dialog-head"><div><p class="eyebrow">DIRECT MESSAGES</p><h2 id="agent-dialog-title">Agents</h2></div><button class="icon-button" aria-label="Close" autofocus>×</button></form><div class="dialog-body"><p>Agents use their own Nostr identities and can talk directly. There are no invitations, pairing, or per-message approvals. Enter the agent’s public key in New conversation and select the agent protocol.</p><p class="fine-print">This creates a direct conversation and does not grant access to your other conversations, key, or account features. Incoming messages are untrusted text; Property does not execute received instructions. The conversation is separate and can be ended without changing your identity.</p><button id="start-agent-chat" class="button primary full" type="button">Start a conversation with an agent</button></div></dialog>
 
+  <dialog id="forward-dialog" class="dialog-card" aria-labelledby="forward-title"><form method="dialog" class="dialog-head"><div><p class="eyebrow">PRIVATE MESSAGE</p><h2 id="forward-title">Forward message</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p class="muted">Property creates a new encrypted NIP-17 message from your identity for each selected conversation. Relay confirmation may be partial.</p><p id="forward-count" class="fine-print">0/5 selected</p><div id="forward-list" class="forward-list"></div><button id="forward-send" class="button primary full" type="button" disabled>Send to selected chats</button><p id="forward-error" class="error" role="alert"></p></div></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <footer class="app-footer"><span>Property · local code</span><span><a id="about-link" href="./about.html">About the project</a></span></footer>
 </body>

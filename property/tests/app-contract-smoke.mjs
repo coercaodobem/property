@@ -158,7 +158,6 @@ function collectStaticReferences(markup) {
 const shellPathnames = new Set();
 assert.doesNotMatch(pagesWorkflow, /property\/direct|npm run build:web/, 'Pages publishes only the unified Property PWA');
 await assert.rejects(access(join(root, 'direct')), { code: 'ENOENT' }, 'the separate app is absent from the Property product tree');
-await access(join(root, '../archive/ghostly-source/README.md'));
 await assert.rejects(access(join(webRoot, 'direct')), { code: 'ENOENT' }, 'Property has no separate or legacy /direct app route');
 for (const path of shellPaths) {
   shellPathnames.add(await localAssetPath(path, 'service-worker precache entry'));

@@ -6,4 +6,4 @@ This directory preserves the Ghostly-derived source as an internal compatibility
 
 Property has one browser product: the Nostr PWA at <https://coercaodobem.github.io/property/>. Usable conversation interactions are adapted into that PWA and use its existing identity, local history, and user-selected Nostr relays. Do not add a second Property identity, transport, web app, or message store here.
 
-The archived source retains upstream licenses and notices. Its build scripts are not part of the Property release process. See [`property/docs/ghostly-integration.md`](../../property/docs/ghostly-integration.md) for the integration boundary and features currently adapted.
+The archived source retains upstream licenses and notices. Its root app build commands were removed to keep this reference from being mistaken for a second Property app. Do not build or publish it as Property. See [`property/docs/ghostly-integration.md`](../../property/docs/ghostly-integration.md) for the integration boundary and features currently adapted in the existing PWA.
