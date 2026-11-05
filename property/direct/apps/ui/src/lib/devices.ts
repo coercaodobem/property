@@ -307,7 +307,7 @@ export function openJoinAnother(): void {
 
 /*
  * A device code opened as a link (WISP 06 § Adding a device). The active device's QR code is the code's link on the
- * web app, `https://app.ghostly.tools/#ghostly1z…`, so a phone's own camera opens the installed web app with the code
+ * web app, `https://coercaodobem.github.io/property/direct/#ghostly1z…`, so a phone's own camera opens the web app with the code
  * in the fragment, which no request carries. The app takes it out of the address before anything else reads it and
  * keeps it here, in memory, until the join host takes it.
  */

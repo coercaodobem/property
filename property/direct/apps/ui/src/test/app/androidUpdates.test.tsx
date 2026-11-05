@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BrowserHost } from "@ghostly/browser/host";
 import { LockScreenProvider } from "../../contexts/LockScreenContext";
 import { UpdateProvider } from "../../contexts/UpdateContext";
-import { androidApkUrl, desktopUpdates } from "../../desktop/updates";
+import { desktopUpdates } from "../../desktop/updates";
 import { saveSettings, loadSettings } from "../../lib/settings";
 import { Settings } from "../../pages/Settings";
 import { fakeEngine } from "../fakeEngine";
@@ -14,8 +14,8 @@ import { renderApp } from "../render";
 
 /*
  * The Android app has no Tauri updater (it is granted on Desktop only), so a check there that asked for one failed
- * every time with "Command plugin:updater|check not allowed by ACL". It reads the newest version instead and offers
- * that release's APK.
+ * every time with "Command plugin:updater|check not allowed by ACL". Property has no Android release feed yet, so it
+ * must not ask the Tauri updater or query an upstream Ghostly URL.
  */
 
 // `@tauri-apps/api/core` and `/app` are one stub in this config: mocked once, with both.
@@ -62,30 +62,26 @@ afterEach(() => {
 });
 
 describe("the Android app's update check", () => {
-  it("offers the newer release's APK, without asking the updater", async () => {
+  it("reports that no Android feed is published without querying Ghostly", async () => {
     asAndroid();
-    const fetchMock = feed("1.6.0");
-    expect(await desktopUpdates.check()).toEqual({
-      version: "1.6.0",
-      apply: "manual",
-      downloadUrl: "https://github.com/MiguelMedeiros/ghostly/releases/download/v1.6.0/ghostly-1.6.0-android-arm64.apk",
-    });
-    expect(fetchMock).toHaveBeenCalledWith("https://ghostly.tools/latest.json", expect.anything());
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(desktopUpdates.check()).rejects.toThrow("Property has not published an Android update feed yet");
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(updater.check).not.toHaveBeenCalled();
     expect(tauri.invoke).not.toHaveBeenCalledWith("plugin:updater|check");
   });
 
-  it("finds nothing to offer when the newest release is the one running", async () => {
+  it("does not query a feed or claim the unpublished Android build is up to date", async () => {
     asAndroid();
-    feed("1.5.4");
-    expect(await desktopUpdates.check()).toBeNull();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(desktopUpdates.check()).rejects.toThrow("Property has not published an Android update feed yet");
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(updater.check).not.toHaveBeenCalled();
     expect(tauri.invoke).not.toHaveBeenCalled();
   });
 
-  it("names the APK as the release workflow does", () => {
-    expect(androidApkUrl("2.0.1")).toBe("https://github.com/MiguelMedeiros/ghostly/releases/download/v2.0.1/ghostly-2.0.1-android-arm64.apk");
-  });
 });
 
 describe("the Desktop app's update check", () => {
@@ -115,25 +111,11 @@ describe("Settings → Updates in the Android app", () => {
     );
   }
 
-  it("says the new version is out, with Download opening its APK", async () => {
+  it("reports that no Android update feed is published", async () => {
     asAndroid();
-    feed("1.6.0");
     const { user } = renderSettings();
     await user.click(screen.getByRole("button", { name: "Check now" }));
-    expect(await screen.findByText("Ghostly 1.6.0 is available")).toBeInTheDocument();
-    expect(screen.queryByText("Could not check for updates")).toBeNull();
-    expect(screen.getByRole("link", { name: "Download" })).toHaveAttribute(
-      "href",
-      "https://github.com/MiguelMedeiros/ghostly/releases/download/v1.6.0/ghostly-1.6.0-android-arm64.apk",
-    );
-  });
-
-  it("says it is up to date on the newest version", async () => {
-    asAndroid();
-    feed("1.5.4");
-    const { user } = renderSettings();
-    await user.click(screen.getByRole("button", { name: "Check now" }));
-    expect(await screen.findByText("Ghostly is up to date")).toBeInTheDocument();
-    expect(screen.queryByText("Could not check for updates")).toBeNull();
+    expect(await screen.findByText("Could not check for updates")).toBeInTheDocument();
+    expect(screen.queryByText("Property is up to date")).toBeNull();
   });
 });

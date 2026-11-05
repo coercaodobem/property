@@ -161,7 +161,7 @@ describe("AddIdentityDialog", () => {
 
     it("needs the subject before it continues, and asks the engine to begin with what was chosen", async () => {
       const { user, engine } = dialog();
-      engine.on("beginIdentityProof", () => { throw new Error("Ghostly is offline"); });
+      engine.on("beginIdentityProof", () => { throw new Error("Property is offline"); });
       await user.click(screen.getByTestId("add-identity-domain"));
       // The signers that work here; the NIP-07 one needs a browser extension this page does not have.
       expect((await optionsOf(user, screen.getByTestId("add-identity-signer"))).map((o) => o.label)).toEqual(["DNS TXT record", "File on your website", "NIP-05 with a remote signer"]);
@@ -172,11 +172,11 @@ describe("AddIdentityDialog", () => {
       await choose(user, screen.getByTestId("add-identity-validity"), "30");
       await user.click(start);
       expect(engine.callsTo("beginIdentityProof")).toEqual([{ provider: "domain", subject: "example.com", validityDays: 30 }]);
-      expect(await screen.findByTestId("add-identity-error")).toHaveTextContent("Ghostly is offline");
+      expect(await screen.findByTestId("add-identity-error")).toHaveTextContent("Property is offline");
     });
 
     it.each([
-      ["Sign-in timed out. Try again.", "O login expirou", "Comece de novo e volte ao Ghostly assim que entrar."],
+      ["Sign-in timed out. Try again.", "O login expirou", "Comece de novo e volte ao Property assim que entrar."],
       ["No app on this phone opens this link", "Nenhum app deste telefone consegue abrir isto", "Instale um app para isso, ou copie o link e abra em outro lugar."],
     ])("a sign-in that did not come back (%s) shows the app's notice in the person's language", async (reason, title, next) => {
       const { user, engine } = renderApp(<AddIdentityDialog onClose={() => {}} />, { language: "pt" });
@@ -297,7 +297,7 @@ describe("AddIdentityDialog", () => {
       const { user } = dialog();
       await openDid(user);
       await user.type(screen.getByTestId("add-identity-subject"), "did:plc:ewvi7nxzyoun6zhxrhs64oiz");
-      expect(await screen.findByTestId("add-identity-preview-error", {}, { timeout: 3000 })).toHaveTextContent("did:plc is not supported yet. Ghostly checks did:key, did:jwk, did:dht and did:web.");
+      expect(await screen.findByTestId("add-identity-preview-error", {}, { timeout: 3000 })).toHaveTextContent("did:plc is not supported yet. Property checks did:key, did:jwk, did:dht and did:web.");
       expect(screen.getByTestId("add-identity-start")).toBeDisabled();
     });
 
@@ -365,7 +365,7 @@ describe("AddIdentityDialog", () => {
       expect(engine.callsTo("beginIdentityProof")).toEqual([{ provider: "oidc", subject: "https://accounts.google.com", validityDays: 7 }]);
       // The popup opens from the next click, which keeps the browser's user activation.
       expect(await screen.findByTestId("add-identity-finish")).toHaveTextContent("Continue with Account at a provider");
-      expect(screen.getByText(/your password never reaches Ghostly/)).toBeInTheDocument();
+      expect(screen.getByText(/your password never reaches Property/)).toBeInTheDocument();
     });
   });
 

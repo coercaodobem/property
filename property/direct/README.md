@@ -25,6 +25,6 @@ The build writes the static web app to `../web/direct/`, which is included in th
 
 ## Upstream source and license
 
-This adaptation preserves the upstream source snapshot and history reference at commit `138d51872ce569f2f5b7ac68445d4ec59efe5d0d` from `MiguelMedeiros/ghostly`. The code is under the MIT license; see [LICENSE](LICENSE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Internal module identifiers and wire-format names remain where changing them would break compatibility.
+This adaptation began from upstream commit `138d51872ce569f2f5b7ac68445d4ec59efe5d0d` and incorporates compatible upstream fixes through `d49f31a3379fc661c1ff3b46815f33832776a150` from `MiguelMedeiros/ghostly`. The code is under the MIT license; see [LICENSE](LICENSE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Internal module identifiers and wire-format names remain where changing them would break compatibility. Signed identity-proof statements keep Ghostly's exact v1 wording so existing proofs remain verifiable; the app name, interface, and first-party marks use Property.
 
 For the primary project overview, agent instructions, and Nostr app, see the repository [README](../../README.md), [contribution guide](../../CONTRIBUTING.md), and [Property instructions](../AGENTS.md).

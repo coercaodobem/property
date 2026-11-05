@@ -57,14 +57,14 @@ describe("ghostly1 invite codes (WISP 801)", () => {
   });
 
   it("shares the link on ghostly.tools and puts the code in capitals for the QR's alphanumeric mode", () => {
-    expect(inviteLink(VECTOR)).toBe(`https://ghostly.tools/#${VECTOR}`);
+    expect(inviteLink(VECTOR)).toBe(`https://coercaodobem.github.io/property/direct/#${VECTOR}`);
     expect(inviteLink(VECTOR, "https://app.ghostly.tools/")).toBe(`https://app.ghostly.tools/#${VECTOR}`);
     const qr = inviteQrText(VECTOR);
     expect(qr).toBe(VECTOR.toUpperCase());
     expect(qr).toMatch(/^[0-9A-Z]+$/);
     expect(inviteQrText(`pair1/${"a".repeat(43)}`)).toBe(`pair1/${"a".repeat(43)}`);
     const segments = inviteQrSegments(VECTOR);
-    expect(segments).toEqual(["HTTPS://GHOSTLY.TOOLS/", "#", VECTOR.toUpperCase()]);
+    expect(segments).toEqual(["HTTPS://COERCAODOBEM.GITHUB.IO/PROPERTY/DIRECT/", "#", VECTOR.toUpperCase()]);
     // What a scanner hands back, the segments joined, reads as the invite.
     expect(decodeInviteCode(segments.join(""))).toEqual(VECTOR_PARAMS);
     expect(inviteQrSegments("pair1/x")).toEqual(["pair1/x"]);

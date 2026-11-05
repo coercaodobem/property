@@ -1,4 +1,4 @@
-# Chat
+# Property Direct chat
 
 What a chat is, what its header, menus and composer hold, and how messages render. Specs: [WISP 400 Chat Messaging](wisps/400-chat.md) and the WISPs linked below. Transports: [TRANSPORTS.md](TRANSPORTS.md). DHT text: [DHT-DELIVERY.md](DHT-DELIVERY.md).
 
@@ -8,16 +8,16 @@ What a chat is, what its header, menus and composer hold, and how messages rende
 - **Layer 0, the DHT**: rendezvous, then a floor of short text and held-item pointers ([WISP 403 DHT Text](wisps/403-dht-text.md)).
 - **Layer 1, a peer-to-peer stream** (WebRTC, Iroh or HyperDHT) for everything else ([WISP 401 Chat Session](wisps/401-paired-chat.md)).
 - A chat upgrades to live by itself and falls back to the DHT. Each chat can be set to DHT only.
-- Chats made by v0.4 apps open as a **compatibility chat** ([WISP 402](wisps/402-legacy-chat.md)), tagged "Compatibility chat · older Ghostly", with "Continue in a new chat" in the ⋮.
+- Chats made by v0.4 apps open as a **compatibility chat** ([WISP 402](wisps/402-legacy-chat.md)), tagged as an older peer format, with "Continue in a new chat" in the ⋮.
 - **Hold messages** ([WISP 404 Store-and-Forward](wisps/404-store-and-forward.md), experimental): what is sent while the contact is away waits sealed for them. One switch per chat, and both sides must allow it.
 
 ## Invites
 
 - One code: `ghostly1…`, bech32m, 1023 characters at most (#210, `packages/core/src/invite.ts`, [WISP 800](wisps/800-invite-join.md), [WISP 801](wisps/801-invitation-profiles.md)).
 - It carries the seed, the inviter's rendezvous key, the invite secret and the inviter's participation key. The joiner pins that key: another key cannot take the chat over.
-- Shared as `https://ghostly.tools/#ghostly1…` (the code stays in the fragment, so no server sees it) or as a QR (`apps/ui/src/components/InviteCard.tsx`).
-- **Join** (`apps/ui/src/components/JoinDialog.tsx`): paste, scan a QR, open an image, or type. It also takes group links. Bad codes get one of four messages: typo, needs an update, not a Ghostly code, damaged.
-- The ghostly.tools join page takes the code out of the address before anything else runs, and offers the web app, the desktop app or a download. The site loads no analytics.
+- New invites are shared as `https://coercaodobem.github.io/property/direct/#ghostly1…` (the code stays in the fragment, so the HTTP request does not send it to the server) or as a QR (`apps/ui/src/components/InviteCard.tsx`). Existing Ghostly invite links remain readable for compatibility.
+- **Join** (`apps/ui/src/components/JoinDialog.tsx`): paste, scan a QR, open an image, or type. It also takes group links. Bad codes get a specific reason such as typo, update required, unsupported format, or damaged code.
+- The GitHub Pages app reads the invite fragment in the browser. Property has no separate invite landing page or downloadable Property desktop release yet; see [Install Property Direct](INSTALLATION.md) for current options.
 
 ## Header
 
@@ -75,7 +75,7 @@ Connection, Payments, Services and Identities are no longer in the ⋮ (#264, #2
 - **+** (`apps/ui/src/components/MessageInput.tsx`, `apps/ui/src/components/composer/ComposerMenu.tsx`), each row when it applies:
   - **Payment**: pay, request, or choose what the chat accepts ([WALLETS.md](WALLETS.md#payments-in-a-chat))
   - **Identity**: share an identity (paired 1:1 chats)
-  - **Shared services** (#268): apps shared with this contact. Greyed on the web app: "Needs the Ghostly extension or desktop app".
+  - **Shared services** (#268): apps shared with this contact. Where the browser build cannot open a shared service, the UI says which compatible host is needed.
   - **Document**, **Photos & videos**, **Camera** (when the device has one)
 - **Emoji and GIFs**: one panel with two tabs. GIFs come from GifCities (Internet Archive) and are sent as a link.
 - **Voice messages** (#214, #355, #363): the mic takes the Send button's place while the text is empty, as in WhatsApp (`apps/ui/src/components/voice/`).
@@ -171,7 +171,7 @@ Ctrl+double click (⌘+double click on a Mac), or the message's ⋮ → **Detail
 
 - Audio and video calls from the header (`calls/1`, [WISP 600](wisps/600-media.md), [WISP 601](wisps/601-webrtc-media.md), #207). An audio call can turn its camera on.
 - **Devices** (#388, #400, #406): Settings → Audio & video picks the microphone, camera and speaker, per profile on this device, with **Test** (a level meter), **Preview** and **Test sound**. In a call, the device button beside mute and camera switches them live, without a new offer; a muted call stays muted. An unplugged device falls back to the system default, and the call offers **Switch back** when it returns. The chosen speaker also plays voice messages, audio, videos and app sounds (where the engine has `setSinkId`). On Linux the lists come from GStreamer ([INSTALLATION.md](INSTALLATION.md#desktop-app)).
-- **A closed web app** (#440): when the contact shared a wake-up ([WEB.md](WEB.md#install-it)), the call buttons stay on while they are away. A call wakes their app ("Waking … for the call", with Cancel), their device shows **Incoming call**, and the call rings as soon as they open Ghostly and the chat is live. After 60 s it gives up.
+- **A closed web app** (#440): when the contact shared a wake-up ([WEB.md](WEB.md#install-it)), the call buttons stay on while they are away. A call wakes their app ("Waking … for the call", with Cancel), their device shows **Incoming call**, and the call rings when they reopen Property Direct and the chat is live. After 60 s it gives up.
 - **Share screen** is a button inside the call (#253), where the screen can be captured.
 - **Shared services** (`services/1`, [WISP 700](wisps/700-local-services.md), [WISP 701](wisps/701-http-services.md)): local web apps shared with one contact over the chat. Chosen from + → Shared services; the contact's apps show in a strip under the header. Desktop reaches only the local addresses you allowed: sharing one asks in a system dialog that names it (like `localhost:3000`), and an app shared before that asks once, the first time a contact opens it (#525).
 

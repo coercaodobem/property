@@ -51,7 +51,7 @@ function read(input: string): ContactLinkReading {
 }
 
 /**
- * Reads a contact link, bare, in capitals from a QR code, or in a link (`https://ghostly.tools/#ghostly1r…`). Copied
+ * Reads a contact link, bare, in capitals from a QR code, or in a link (`https://coercaodobem.github.io/property/direct/#ghostly1r…`). Copied
  * from the end of a sentence, it is read once more without the punctuation, and taken only when that reads.
  */
 export function readContactLink(input: string): ContactLinkReading {

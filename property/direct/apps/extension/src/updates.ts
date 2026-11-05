@@ -1,13 +1,5 @@
-import { checkVersionFeed } from "@ghostly/browser/updateFeed";
 import type { UpdateSource } from "@ghostly/browser/host";
 import { RELEASES_URL } from "../../ui/src/lib/settings";
-
-/**
- * Where the newest release is published. It is Ghostly's own site, not a third
- * party: asking costs one request that says this browser runs Ghostly, and it
- * only goes out while the user allows the check at all.
- */
-const LATEST_URL = "https://ghostly.tools/latest.json";
 
 /** Set by the service worker when Chrome has a version ready. Gone when the browser closes. */
 const PENDING_KEY = "ghostly_pending_update";
@@ -15,14 +7,15 @@ const PENDING_KEY = "ghostly_pending_update";
 /**
  * Whether Chrome keeps this install up to date. It does for one from the Web
  * Store or a hosted `.crx`, and the manifest it hands back says so. An unpacked
- * folder is nobody's job but the user's: Chrome never updates it, and no API
- * here can, so the most Ghostly can do is say a new version exists.
+ * folder is nobody's job but the user's: Chrome never updates it. Property has
+ * not published an extension release feed, so an unpacked build does not
+ * query Ghostly's service or pretend a Property update is available.
  */
 function managedByChrome(): boolean {
   return !!chrome.runtime.getManifest().update_url;
 }
 
-/** The service worker heard Chrome hold an update back because Ghostly is running. */
+/** The service worker heard Chrome hold an update back because Property Direct is running. */
 export async function rememberPendingUpdate(version: string): Promise<void> {
   await chrome.storage.session.set({ [PENDING_KEY]: version });
 }
@@ -41,12 +34,8 @@ export const extensionUpdates: UpdateSource = {
 
   async check() {
     if (!managedByChrome()) {
-      // Unpacked: the user replaces the folder themselves, so only say that there is one.
-      return checkVersionFeed({
-        url: LATEST_URL,
-        currentVersion: chrome.runtime.getManifest().version,
-        apply: "manual",
-      });
+      // No Property extension feed exists yet. Never query the upstream Ghostly service or claim to be current.
+      throw new Error("Property has not published an extension update feed yet");
     }
 
     const held = await pendingUpdate();
@@ -61,7 +50,7 @@ export const extensionUpdates: UpdateSource = {
 
   /**
    * Chrome swaps the new version in when the extension stops running, which is
-   * what this does. Every Ghostly page goes with it, so it only ever runs
+   * what this does. Every Property Direct page goes with it, so it only ever runs
    * because the user pressed the button, and the new version opens those pages
    * again (`takePagesToReopen`): "restart" must not read as a crash.
    */

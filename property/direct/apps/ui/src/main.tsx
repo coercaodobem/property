@@ -52,7 +52,7 @@ async function boot() {
 
   const root = createRoot(document.getElementById("root")!);
   await becomeThePeer(`ghostly-peer-${profile}`, () =>
-    root.render(<p lang="en" style={{ padding: 24, font: "15px system-ui" }}>Ghostly is already running with this profile.</p>),
+    root.render(<p lang="en" style={{ padding: 24, font: "15px system-ui" }}>Property is already running with this profile.</p>),
   );
 
   // The device state, before anything of the profile starts (WISP 06 § The gate). Desktop keeps it twice, in the

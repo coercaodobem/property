@@ -40,8 +40,8 @@ export const INVITE_VERSION = 1;
 export const DEVICE_INVITE_VERSION = 2;
 /** Decoders refuse anything longer before computing a checksum (WISP 801 lifts bech32's 90). */
 export const INVITE_MAX_LENGTH = 1023;
-/** The canonical link host (Q11): the code travels in the fragment, never sent to a server. */
-export const INVITE_LINK_ORIGIN = "https://ghostly.tools";
+/** The Property Direct GitHub Pages host (Q11): the code travels in the fragment, never sent to a server. */
+export const INVITE_LINK_ORIGIN = "https://coercaodobem.github.io/property/direct";
 const V1_BYTES = 128;
 
 /**
@@ -77,7 +77,7 @@ export function encodeInviteCode(params: LinkParams): string {
   return `${params.profile ? (params.deliveryMode === "dht" ? "pair2d/" : "pair1/") : ""}${params.seedB64}/${params.peerPubKeyZ32}/${params.encKeyB64}`;
 }
 
-/** `https://ghostly.tools/#ghostly1…`: the form an invite is shared in. */
+/** `https://coercaodobem.github.io/property/direct/#ghostly1…`: the form a new invite is shared in. */
 export function inviteLink(code: string, origin = INVITE_LINK_ORIGIN): string {
   return `${trimEndOf(origin, "/")}/#${code}`;
 }
@@ -88,7 +88,7 @@ export function inviteQrText(code: string): string {
 }
 
 /**
- * The QR segments of an invite's link, in capitals: `HTTPS://GHOSTLY.TOOLS/`
+ * The QR segments of an invite's link, in capitals: the Property Direct Pages URL
  * and the code in alphanumeric mode, the `#` between them in byte mode (QR
  * version 9 at level M). An encoder that takes a list of strings picks each
  * one's mode; one string with the `#` in it would be all bytes. Older codes

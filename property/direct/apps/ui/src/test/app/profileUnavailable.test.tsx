@@ -34,7 +34,7 @@ const fail = (failure: ProfileOpenFailure) => act(() => fakeEngine.emit({ kind: 
 describe("a profile that cannot be opened", () => {
   afterEach(() => { delete (fakeEngine as BrowserHost).updates; });
 
-  it("last used by a newer Ghostly: one short line in place of the app, the versions behind its ⓘ, and nothing to type into or delete", async () => {
+  it("last used by a newer Property build: one short line in place of the app, the versions behind its ⓘ, and nothing to type into or delete", async () => {
     saveSettings({ ...loadSettings(), checkForUpdates: false });
     const view = renderGate();
     expect(screen.getByTestId("the-app")).toBeInTheDocument();
@@ -43,7 +43,7 @@ describe("a profile that cannot be opened", () => {
     fail(NEWER);
     const notice = screen.getByRole("alert");
     expect(notice).toHaveAttribute("data-testid", "profile-unavailable");
-    expect(notice).toHaveTextContent("This profile was last used by a newer version of Ghostly.");
+    expect(notice).toHaveTextContent("This profile was last used by a newer version of Property.");
     expect(notice).toHaveTextContent("Update the app to open it.");
     // The app is not there at all: no list to open, no composer whose message would go nowhere.
     expect(screen.queryByTestId("the-app")).toBeNull();
@@ -60,7 +60,7 @@ describe("a profile that cannot be opened", () => {
     await view.user.click(more);
     expect(more).toHaveAttribute("aria-expanded", "true");
     const story = screen.getByTestId("profile-unavailable-text");
-    expect(story).toHaveTextContent("Its data is version 12; Ghostly 0.0.0-test reads up to 11.");
+    expect(story).toHaveTextContent("Its data is version 12; Property 0.0.0-test reads up to 11.");
     expect(story).toHaveTextContent("Nothing was opened, sent or changed: your chats, keys and wallets are still there");
 
     // Looking for the newer version is one press away; a client with none out yet says what else opens the profile.
@@ -90,16 +90,16 @@ describe("a profile that cannot be opened", () => {
   it("any other failure: that the data did not open, the reason and what to try, the system's words behind the ⓘ, and Try again", async () => {
     const view = renderGate();
     const cases: [ProfileOpenFailure["reason"], string, string][] = [
-      ["blocked", "Another Ghostly window or tab still has it open with an older version.", "Close the other Ghostly windows and tabs, then try again."],
+      ["blocked", "Another Property window or tab still has it open with an older version.", "Close the other Property windows and tabs, then try again."],
       ["full", "This device is out of storage space.", "Free some space, then try again."],
-      ["denied", "This browser gives Ghostly no storage here: a private window, or storage blocked for this site.", "Use a normal window or allow storage for this site, then try again."],
+      ["denied", "This browser gives Property no storage here: a private window, or storage blocked for this site.", "Use a normal window or allow storage for this site, then try again."],
       ["failed", "The data did not open, and the system gave no clear reason.", "Restart the app or the device, then try again."],
     ];
     for (const [reason, why, what] of cases) {
       fail({ reason, supportedVersion: 11, detail: "UnknownError: Internal error opening backing store" });
       const notice = screen.getByTestId("profile-unavailable");
       expect(notice).toHaveAttribute("data-reason", reason);
-      expect(notice).toHaveTextContent("Ghostly could not open this profile's data.");
+      expect(notice).toHaveTextContent("Property could not open this profile's data.");
       expect(screen.getByTestId("profile-unavailable-reason")).toHaveTextContent(why);
       expect(notice).toHaveTextContent(what);
       expect(notice).not.toHaveTextContent("newer version");
@@ -116,7 +116,7 @@ describe("a profile that cannot be opened", () => {
   it("is said in the app's language", () => {
     renderGate("pt");
     fail(NEWER);
-    expect(screen.getByTestId("profile-unavailable")).toHaveTextContent("Este perfil foi usado por último em uma versão mais nova do Ghostly.");
+    expect(screen.getByTestId("profile-unavailable")).toHaveTextContent("Este perfil foi usado por último em uma versão mais nova do Property.");
     expect(screen.getByTestId("profile-unavailable")).toHaveTextContent("Atualize o app para abri-lo.");
   });
 

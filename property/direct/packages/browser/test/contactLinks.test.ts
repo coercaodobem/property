@@ -47,7 +47,7 @@ describe("the profile's contact link (WISP 8xx)", () => {
     expect(links.view()).toBeUndefined();
     const view = await links.create();
     expect(view.code).toMatch(/^ghostly1r[a-z0-9]{58}$/);
-    expect(view.link).toBe(`https://ghostly.tools/#${view.code}`);
+    expect(view.link).toBe(`https://coercaodobem.github.io/property/direct/#${view.code}`);
     expect(view.state).toBe("open");
     expect(state.puts).toEqual([{ key: keyOf(view.code), state: "open" }]);
     expect(links.view()?.publishedAt).toBe(NOW);

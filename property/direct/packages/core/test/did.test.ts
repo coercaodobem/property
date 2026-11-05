@@ -133,8 +133,8 @@ describe("did:key and did:jwk documents", () => {
   it("refuses an X25519 did:key (encryption only) and unknown codecs", () => {
     const x = `did:key:z${base58.encode(Uint8Array.from([0xec, 0x01, ...new Uint8Array(32).fill(9)]))}`;
     expect(() => parseDid(x)).toThrow(/X25519 encryption key/);
-    expect(() => parseDid(`did:key:z${base58.encode(Uint8Array.from([0x12, 0x00, 1, 2, 3]))}`)).toThrow(/Ghostly can read/);
-    expect(() => parseDid("did:key:m1234")).toThrow(/Ghostly can read/);
+    expect(() => parseDid(`did:key:z${base58.encode(Uint8Array.from([0x12, 0x00, 1, 2, 3]))}`)).toThrow(/Property can read/);
+    expect(() => parseDid("did:key:m1234")).toThrow(/Property can read/);
   });
 });
 
@@ -294,8 +294,8 @@ describe("DID signatures", () => {
     const k = keyOn("Ed25519");
     const sig = b64u(new Uint8Array(64));
     for (const [header, why] of [
-      [{ alg: "HS256" }, /Ghostly checks EdDSA, ES256K and ES256/],
-      [{ alg: "none" }, /Ghostly checks/],
+      [{ alg: "HS256" }, /Property checks EdDSA, ES256K and ES256/],
+      [{ alg: "none" }, /Property checks/],
       [{ alg: "EdDSA", crit: ["exp"] }, /crit/],
       [{ alg: "EdDSA", b64: false }, /crit/],
       [{ alg: "EdDSA", b64: "no" }, /b64/],

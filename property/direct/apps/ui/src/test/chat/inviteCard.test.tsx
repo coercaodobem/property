@@ -22,13 +22,13 @@ describe("InviteCard", () => {
     expect(writeText).toHaveBeenCalledWith(older);
   });
 
-  it("shares a ghostly1 invite as its link on ghostly.tools, shown and copied", async () => {
+  it("shares a ghostly1 invite as its Property link, shown and copied", async () => {
     const { inviteCode } = createChatInvite();
     const { user } = renderApp(<InviteCard code={inviteCode} />);
-    expect(screen.getByTestId("invite-link")).toHaveTextContent(`ghostly.tools/#${inviteCode}`);
+    expect(screen.getByTestId("invite-link")).toHaveTextContent(`coercaodobem.github.io/property/direct/#${inviteCode}`);
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
     await user.click(screen.getByRole("button", { name: "Copy invite" }));
-    expect(writeText).toHaveBeenCalledWith(`https://ghostly.tools/#${inviteCode}`);
+    expect(writeText).toHaveBeenCalledWith(`https://coercaodobem.github.io/property/direct/#${inviteCode}`);
   });
 
   it("shows an older invite as it is", () => {

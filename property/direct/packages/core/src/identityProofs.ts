@@ -20,8 +20,8 @@ import { hasVisible, stripHidden } from "./text";
  */
 
 export const IDENTITY_PROOF_CAPABILITY = "identity-proof/1";
-/** Domain separation: the first words of every statement. */
-export const IDENTITY_STATEMENT_PREFIX = "Property identity proof v1";
+/** Domain separation: this signed prefix is shared with Ghostly clients; keep it stable for verification. */
+export const IDENTITY_STATEMENT_PREFIX = "Ghostly identity proof v1";
 /** No binding is valid for longer than this, whatever the provider allows. */
 export const IDENTITY_MAX_VALIDITY = 400 * 86_400;
 /** A binding issued this far in the future is refused (seconds of clock disagreement tolerated). */
@@ -134,7 +134,7 @@ export function isIdentityBinding(value: unknown): value is IdentityBinding {
  */
 export function identityStatementText(b: IdentityBinding): string {
   if (!isIdentityBinding(b)) throw new Error("Invalid identity binding");
-  return `${IDENTITY_STATEMENT_PREFIX}: I control ${b.provider}:${b.subject} and authorize the Property key ${b.key} ` +
+  return `${IDENTITY_STATEMENT_PREFIX}: I control ${b.provider}:${b.subject} and authorize the Ghostly key ${b.key} ` +
     `to present it to contacts I choose, from ${iso(b.issuedAt)} until ${iso(b.expiresAt)}. Nonce: ${b.nonce}`;
 }
 

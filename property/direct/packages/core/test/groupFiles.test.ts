@@ -36,8 +36,8 @@ describe("a file's description as a reader takes it", () => {
 
 describe("what an older app shows, and what downloads by itself", () => {
   it("says the file and that it needs an update", () => {
-    expect(groupFileFallback(pdf)).toBe("📎 report.pdf (2.3 MB): update Ghostly to get files in groups");
-    expect(groupFileFallback(voice)).toBe("🎤 Voice message (0:42): update Ghostly to hear it");
+    expect(groupFileFallback(pdf)).toBe("📎 report.pdf (2.3 MB): update Property to get files in groups");
+    expect(groupFileFallback(voice)).toBe("🎤 Voice message (0:42): update Property to hear it");
   });
 
   it("voice always; other files up to 8 MiB while the group's automatic files stay within 256 MiB", () => {

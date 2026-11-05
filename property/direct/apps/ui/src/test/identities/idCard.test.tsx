@@ -81,13 +81,13 @@ describe("what an ID card says", () => {
   it("writes a machine-readable line of 44 characters in its alphabet", () => {
     const line = machineLine("Nostr", NOSTR);
     expect(line).toHaveLength(44);
-    expect(line).toMatch(/^ID<GHOSTLY<<NOSTR<<NPUB1[A-Z0-9<]+$/);
-    expect(machineLine("Domain", "a.io")).toBe("ID<GHOSTLY<<DOMAIN<<A<IO".padEnd(44, "<"));
+    expect(line).toMatch(/^ID<PROPERTY<<NOSTR<<NPUB1[A-Z0-9<]+$/);
+    expect(machineLine("Domain", "a.io")).toBe("ID<PROPERTY<<DOMAIN<<A<IO".padEnd(44, "<"));
   });
 
   it("writes accented letters without their marks on the machine-readable line", () => {
-    expect(machineLine("Ghostly", "João Müller")).toBe("ID<GHOSTLY<<GHOSTLY<<JOAO<MULLER".padEnd(44, "<"));
-    expect(machineLine("Identité", "Ünïcode")).toBe("ID<GHOSTLY<<IDENTITE<<UNICODE".padEnd(44, "<"));
+    expect(machineLine("Property", "João Müller")).toBe("ID<PROPERTY<<PROPERTY<<JOAO<MULLER".padEnd(44, "<"));
+    expect(machineLine("Identité", "Ünïcode")).toBe("ID<PROPERTY<<IDENTITE<<UNICODE".padEnd(44, "<"));
   });
 });
 
@@ -140,17 +140,17 @@ describe("the ID card's face", () => {
     expect(screen.queryByTestId("id-card-monogram")).not.toBeInTheDocument();
     expect(document.querySelector(".id-card-photo img")).toHaveAttribute("src", "data:image/jpeg;base64,AAAA");
     // Its machine line names the profile, not the provider twice.
-    expect(document.querySelector(".id-card-mrz")).toHaveTextContent("ID<GHOSTLY<<GHOSTLY<<GHOST<<");
+    expect(document.querySelector(".id-card-mrz")).toHaveTextContent("ID<PROPERTY<<PROPERTY<<GHOST<<");
   });
 });
 
 describe("the Ghostly card", () => {
   it("is the profile's name and picture, Default, with one key per chat and how many chats use it", () => {
     const card = ghostlyCard(t, { nick: "Ghost", avatar: "data:image/jpeg;base64,AAAA", shareProfile: true }, { chats: 3, since: Date.UTC(2026, 0, 2) });
-    expect(card).toMatchObject({ id: "ghostly", provider: "ghostly", label: "Ghostly", name: "Ghost", photo: "data:image/jpeg;base64,AAAA", monogram: undefined,
+    expect(card).toMatchObject({ id: "ghostly", provider: "ghostly", label: "Property", name: "Ghost", photo: "data:image/jpeg;base64,AAAA", monogram: undefined,
       subject: "One key per chat", short: "One key per chat", category: "Your own keys", attested: false, status: "default", statusLabel: "Default", shared: "Used in 3 chats", refusedBy: [] });
     expect(card.validity).toBe(`Since ${date(Date.UTC(2026, 0, 2) / 1000)}`);
-    expect(card.mrz).toBe("ID<GHOSTLY<<GHOSTLY<<GHOST".padEnd(44, "<"));
+    expect(card.mrz).toBe("ID<PROPERTY<<PROPERTY<<GHOST".padEnd(44, "<"));
     expect(ghostlyCard(t, { nick: "Ghost", shareProfile: true }, { chats: 1 }).shared).toBe("Used in 1 chat");
     expect(ghostlyCard(t, { nick: "Ghost", shareProfile: true }, {})).toMatchObject({ shared: "No chats yet", validity: "What contacts see by default", issued: "", monogram: "G" });
     expect(idCardTone(card)).toBe("id-card-ghostly");
@@ -176,10 +176,10 @@ describe("the Ghostly card", () => {
     const card = contactGhostlyCard(t, { peerNick: "Alice", peerAvatar: "data:image/jpeg;base64,BBBB", peerPubKeyZ32: KEY, peerVerified: true, createdAt: since }, "Contact · yzk3gq");
     expect(card).toMatchObject({ id: "ghostly", provider: "ghostly", name: "Alice", photo: "data:image/jpeg;base64,BBBB", subject: KEY, short: shortKey(KEY),
       category: "Their key in this chat", status: "default", statusLabel: "Verified", validity: `Chat since ${date(since / 1000)}` });
-    expect(card.mrz).toBe("ID<GHOSTLY<<GHOSTLY<<ALICE".padEnd(44, "<"));
+    expect(card.mrz).toBe("ID<PROPERTY<<PROPERTY<<ALICE".padEnd(44, "<"));
     // No name sent: the fallback names them, and the machine line carries the key instead.
     const unnamed = contactGhostlyCard(t, { peerNick: "", peerPubKeyZ32: KEY, peerVerified: false, createdAt: 0 }, "Contact · yzk3gq");
     expect(unnamed).toMatchObject({ name: "Contact · yzk3gq", monogram: undefined, statusLabel: "Not verified", validity: "What they show you by default", issued: "" });
-    expect(unnamed.mrz).toMatch(/^ID<GHOSTLY<<GHOSTLY<<YZK3GQ8Q<1MIO<+$/);
+    expect(unnamed.mrz).toMatch(/^ID<PROPERTY<<PROPERTY<<YZK3GQ8Q<1MIO<+$/);
   });
 });

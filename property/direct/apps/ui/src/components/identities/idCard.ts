@@ -201,7 +201,7 @@ export const idCardTone = (card: { provider: string; subject: string; attested?:
  * Accented letters lose their marks first, as a passport writes them ("João" is JOAO, not JO<O).
  */
 export const machineLine = (label: string, subject: string) =>
-  `ID<GHOSTLY<<${label}<<${subject}`.normalize("NFD").replace(/\p{M}/gu, "").toUpperCase()
+  `ID<PROPERTY<<${label}<<${subject}`.normalize("NFD").replace(/\p{M}/gu, "").toUpperCase()
     .replace(/[^A-Z0-9<]+/g, "<").padEnd(44, "<").slice(0, 44);
 
 /** The id, provider and tone key of the Ghostly card: the profile's own identity, the first card of every deck. */

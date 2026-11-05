@@ -7,20 +7,13 @@ import { openProblem } from "../lib/openFailure";
 import type { Problem } from "../lib/problemText";
 import { Notice } from "./ui/Notice";
 
-// Published release verified through GitHub's releases API. Unknown future
-// versions link to the index until their corresponding release is verified.
-const publishedReleases: Record<string, string> = {
-  "0.4.0": "https://github.com/MiguelMedeiros/ghostly/releases/tag/v0.4.0",
-  "1.0.0": "https://github.com/MiguelMedeiros/ghostly/releases/tag/v1.0.0",
-};
-
 export function HomeProjectLinks() {
   const { t } = useI18n();
   const [version, setVersion] = useState<string>();
   const [failed, setFailed] = useState<Problem | null>(null);
   useEffect(() => { let active = true; getVersion().then(v => { if (active) setVersion(v); }).catch(() => {}); return () => { active = false; }; }, []);
-  const release = version ? publishedReleases[version] : undefined;
-  /** Desktop opens only Ghostly's own pages from here (`open_project_link`), and says when it could not. */
+  const releaseUrl = `${APP_WEBSITE}/releases`;
+  /** Desktop opens Property's own pages from here (`open_project_link`), and says when it could not. */
   const link = (href: string) => {
     const props = externalLinkProps(href, { command: "open_project_link", onError: (error) => setFailed(openProblem(error, t)) });
     return { ...props, onClick: (event: MouseEvent<HTMLAnchorElement>) => { setFailed(null); props.onClick?.(event); } };
@@ -34,8 +27,8 @@ export function HomeProjectLinks() {
         GitHub
       </a>
       {/* Named by what it shows ("v1.4.5"), so a voice saying it finds it; the tooltip, where it goes, is its description. */}
-      {version && <a {...link(release ?? `${APP_WEBSITE}/releases`)}
-        title={release ? t("home.viewRelease") : t("home.unpublishedVersion")}
+      {version && <a {...link(releaseUrl)}
+        title={t("home.unpublishedVersion")}
         className={`${linkStyle} font-mono`}>v{version}</a>}
     </footer>
   );

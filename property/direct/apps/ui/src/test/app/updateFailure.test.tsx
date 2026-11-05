@@ -20,7 +20,7 @@ import { renderApp } from "../render";
 describe("why a check failed", () => {
   it("names what the updater's message means", () => {
     const cases: [string, ReturnType<typeof updateFailure>][] = [
-      ["error sending request for url (https://github.com/MiguelMedeiros/ghostly/releases/latest/download/latest.json)", "unreachable"],
+      ["error sending request for url (https://github.com/coercaodobem/property/releases/latest/download/latest.json)", "unreachable"],
       ["TypeError: Failed to fetch", "unreachable"],
       ["Load failed", "unreachable"],
       ["error sending request for url (https://github.com/x/latest.json): operation timed out", "timeout"],
@@ -46,7 +46,7 @@ describe("Settings → Updates after a failed check", () => {
 
   function renderSettings(error: string) {
     (fakeEngine as BrowserHost).updates = {
-      downloadUrl: "https://github.com/MiguelMedeiros/ghostly/releases",
+      downloadUrl: "https://github.com/coercaodobem/property/releases",
       check: () => Promise.reject(new Error(error)),
       install: () => Promise.resolve(),
     };
@@ -63,7 +63,7 @@ describe("Settings → Updates after a failed check", () => {
   }
 
   it("says it could not check, with the reason and the updater's words behind the ⓘ", async () => {
-    const raw = "error sending request for url (https://github.com/MiguelMedeiros/ghostly/releases/latest/download/latest.json)";
+    const raw = "error sending request for url (https://github.com/coercaodobem/property/releases/latest/download/latest.json)";
     const { user } = renderSettings(raw);
     await user.click(screen.getByRole("button", { name: "Check now" }));
     const status = await screen.findByText("Could not check for updates");

@@ -34,7 +34,7 @@ function handFocusOn(card: HTMLElement | null) {
 
 /**
  * The QR and the copied link are the same capability. A `ghostly1` code is shared as its link
- * (`https://ghostly.tools/#ghostly1…`) and its QR is that link in capitals; a code saved before
+ * (the Property Direct GitHub Pages URL plus `#ghostly1…`) and its QR is that link in capitals; a code saved before
  * this format stays as it was. There is one kind of chat (WISP 400): nothing to choose here. A chat
  * starts on the DHT, goes live by itself, and DHT only is a choice in its Connection menu.
  *

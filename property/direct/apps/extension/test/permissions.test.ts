@@ -167,12 +167,12 @@ describe("sign-in for an identity proof", () => {
 describe("updates", () => {
   const load = async () => (await world.load("page", () => import("../src/updates.ts"))).extensionUpdates;
 
-  it("an unpacked install only reads the feed and says the person must replace it", async () => {
-    const fetch = vi.fn(async () => new Response(JSON.stringify({ version: "9.0.0" })));
+  it("an unpacked install does not query an upstream release feed", async () => {
+    const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
     const updates = await load();
-    expect(await updates.check()).toMatchObject({ version: "9.0.0", apply: "manual" });
-    expect(fetch).toHaveBeenCalledWith("https://ghostly.tools/latest.json", expect.objectContaining({ credentials: "omit", referrerPolicy: "no-referrer" }));
+    await expect(updates.check()).rejects.toThrow("Property has not published an extension update feed yet");
+    expect(fetch).not.toHaveBeenCalled();
     expect(world.callsTo("runtime.requestUpdateCheck")).toEqual([]);
   });
 

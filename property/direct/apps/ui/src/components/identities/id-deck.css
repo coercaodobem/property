@@ -29,8 +29,8 @@
 .id-card-did{--card-rgb:77,166,224}
 .id-card-atproto{--card-rgb:64,150,255}
 .id-card-add{--card-rgb:0,196,154}
-/* The profile's own Ghostly identity, the first card of every deck: the ghost's cyan. */
-.id-card-ghostly{--card-rgb:34,211,238}
+/* The profile's own Property identity, the first card of every deck: its yellow brand mark. */
+.id-card-ghostly{--card-rgb:255,214,0}
 
 .id-card-band{grid-area:band;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 calc(var(--pad) * -1);padding:clamp(6px,calc(var(--card-w) * .026),10px) var(--pad);min-width:0;
  background:linear-gradient(90deg,rgba(var(--card-rgb),.34),rgba(var(--card-rgb),.12));border-bottom:1px solid rgba(var(--card-rgb),.3)}

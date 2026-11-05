@@ -244,8 +244,8 @@ describe("ComposerIdentityPicker", () => {
     expect(screen.getByTestId("composer-identities-add")).toHaveTextContent("Add another identity");
     await user.keyboard("{Home}");
     expect(chosen()).toBe(ghostly());
-    expect(hint()).toBe("Alice sees your Ghostly identity, Ghost, and this chat's key me.");
-    expect(use()).toHaveTextContent("Use Ghostly");
+    expect(hint()).toBe("Alice sees your Property identity, Ghost, and this chat's key me.");
+    expect(use()).toHaveTextContent("Use Property");
   });
 
   it("does not turn an expired identity over but leads to Manage, and warns on the back about one expiring soon", async () => {
@@ -406,7 +406,7 @@ describe("MessageInput: the + menu's Identity row", () => {
       const card = ghostly();
       expect(screen.getAllByRole("radio")[0]).toBe(card);
       expect(card).toHaveClass("id-card-ghostly");
-      expect(card).toHaveTextContent("Ghostly");
+      expect(card).toHaveTextContent("Property");
       expect(within(card).getByTestId("id-card-name")).toHaveTextContent("Ghost");
       expect(card.querySelector(".id-card-photo img")).toHaveAttribute("src", "data:image/jpeg;base64,AAAA");
       expect(within(card).getByTestId("identity-proof-subject")).toHaveTextContent("yzk3gq8q…1mio");
@@ -416,8 +416,8 @@ describe("MessageInput: the + menu's Identity row", () => {
       expect(card).toHaveTextContent("Shared with Alice");
       expect(within(card).getByTestId("id-card-shared")).toBeInTheDocument();
       expect(card).not.toHaveAttribute("aria-disabled");
-      expect(hint()).toBe("Alice sees your Ghostly identity, Ghost, and this chat's key yzk3gq8q…1mio.");
-      expect(use()).toHaveTextContent("Use Ghostly");
+      expect(hint()).toBe("Alice sees your Property identity, Ghost, and this chat's key yzk3gq8q…1mio.");
+      expect(use()).toHaveTextContent("Use Property");
       expect(use()).toBeEnabled();
     });
 
@@ -443,7 +443,7 @@ describe("MessageInput: the + menu's Identity row", () => {
     it("is never blocked, even before the contact's app is known", () => {
       open({ links: [linkView({ myPubKeyZ32: KEY })], identityProofs: [] });
       expect(ghostly()).not.toHaveAttribute("aria-disabled");
-      expect(hint()).toMatch(/^Alice sees your Ghostly identity/);
+      expect(hint()).toMatch(/^Alice sees your Property identity/);
     });
 
     it("turns over to the key in full, to copy, and says Alice sees only this when nothing else is shared", async () => {
@@ -453,7 +453,7 @@ describe("MessageInput: the + menu's Identity row", () => {
       expect(sheet()).toHaveAttribute("data-side", "back");
       expect(back()).toHaveAttribute("data-ghostly", "true");
       expect(back()).toHaveTextContent("What Alice sees");
-      expect(within(back()).getByTestId("composer-identity-sees")).toHaveTextContent("Ghostly · Ghost");
+      expect(within(back()).getByTestId("composer-identity-sees")).toHaveTextContent("Property · Ghost");
       expect(within(back()).getByTestId("composer-identity-key")).toHaveTextContent(KEY);
       expect(within(back()).getByTestId("composer-identity-key")).toHaveAttribute("dir", "ltr");
       expect(status()).toBe("Alice sees only this identity");
@@ -480,7 +480,7 @@ describe("MessageInput: the + menu's Identity row", () => {
       expect(action()).toHaveTextContent("Share only this");
       await user.click(action());
       expect(engine.callsTo("withdrawIdentityProof")).toEqual([{ linkId: "link-1", id: "a" }, { linkId: "link-1", id: "b" }]);
-      expect(await within(back()).findByTestId("composer-identity-done")).toHaveTextContent("Only your Ghostly identity is shared");
+      expect(await within(back()).findByTestId("composer-identity-done")).toHaveTextContent("Only your Property identity is shared");
       act(() => engine.update({ links: [withKey({ identities: identitiesView({ shared: [sharedView({ id: "a", status: "withdrawn" }), sharedView({ id: "b", status: "withdrawn" }), sharedView({ id: "c", status: "withdrawn" })] }) })] }));
       await deckAgain();
       expect(chosen()).toBe(ghostly());

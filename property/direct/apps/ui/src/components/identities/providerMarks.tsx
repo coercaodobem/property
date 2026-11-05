@@ -54,8 +54,8 @@ const NOSTR = "M210.8 199.4c0 3.1-2.5 5.7-5.7 5.7h-68c-3.1 0-5.7-2.5-5.7-5.7v-15
 /** The Pubky brand mark (apps/ui/src/assets/identities/pubky.svg), in its own 23.58 × 36 box. */
 const PUBKY = "M11.7881 10.7363C16.7749 10.7363 20.8184 14.7761 20.8184 19.7598C20.8183 21.9163 20.06 23.8939 18.8008 25.4434L22.2559 36H1.32129L4.77539 25.4434C3.51626 23.8939 2.75889 21.9161 2.75879 19.7598C2.75879 14.7762 6.80135 10.7365 11.7881 10.7363ZM11.7881 14.9863C9.14981 14.9865 7.01172 17.1237 7.01172 19.7598C7.01184 21.5865 8.03833 23.174 9.54785 23.9766L9.70312 24.0586L7.18652 31.75H16.3906L13.873 24.0586L14.0283 23.9766C15.538 23.1741 16.5653 21.5866 16.5654 19.7598C16.5654 17.1236 14.4265 14.9863 11.7881 14.9863ZM11.791 0.00390625L11.792 0.00488281L14.6377 3.7334L18.3076 1.42383L19.3174 5.31348L23.5771 4.41992L19.7031 10.7432C17.5912 8.88986 14.8222 7.76655 11.792 7.76562H11.7852C8.75499 7.76654 5.986 8.88989 3.87402 10.7432L0 4.41992L4.25879 5.31348L5.26953 1.42383L8.93848 3.7334L11.7881 0L11.791 0.00390625Z";
 
-/** The Ghostly ghost (apps/ui/src/assets/identities/ghostly.svg, drawn in a 24-unit box), eyes cut out of its tile. */
-const GHOST = "M12 2C7.582 2 4 5.582 4 10v8c0 .75.6 1 1 .6l2-1.6 2 1.6c.4.3.8.3 1.2 0L12 17l1.8 1.6c.4.3.8.3 1.2 0l2-1.6 2 1.6c.4.4 1 .15 1-.6v-8c0-4.418-3.582-8-8-8z";
+/** Property's first-party identity mark, cropped to its optical bounds from `property-mark.svg`. */
+const PROPERTY = "M210 91H286C352 91 406 145 406 207V223C406 289 360 342 300 342H239.52L216.18 361.2V419C216.18 440 200 456 180 456H134C114 456 98 440 98 419V203C98 141.15 148.15 91 210 91ZM170 306L213 270H279C310 270 334 245 334 214V203C334 181 316 163 294 163H210C188 163 170 181 170 203Z";
 
 const white = "text-white";
 /** A white tile for the full-colour marks: a hairline keeps it from glowing on a dark theme. */
@@ -107,5 +107,6 @@ export const PROVIDER_ICONS: Record<string, ProviderIcon> = {
     mark: size => svg(size, "0 0 24 24", <g {...stroke}><circle cx="12" cy="12.5" r="2.6" /><circle cx="12" cy="4" r="1.8" /><circle cx="4.8" cy="18" r="1.8" /><circle cx="19.2" cy="18" r="1.8" /><path d="M12 9.9V5.8M9.8 13.9l-3.5 2.9M14.2 13.9l3.5 2.9" /></g>),
   },
   atproto: { tile: `bg-[#1185fe] ${white}`, fill: 0.62, mark: simple(BLUESKY) },
-  ghostly: { tile: "bg-[#0f172a] text-[#22d3ee]", fill: 0.72, mark: size => svg(size, "0 0 24 24", <><path fill="currentColor" d={GHOST} /><circle cx="9" cy="9" r="1.5" fill="#0f172a" /><circle cx="15" cy="9" r="1.5" fill="#0f172a" /></>) },
+  // Keep the internal provider id for existing identity cards; the visible first-party mark is Property's.
+  ghostly: { tile: "bg-[#090a0c] text-[#ffd600]", fill: 0.88, mark: size => svg(size, "80 75 344 397", <path fill="currentColor" d={PROPERTY} />) },
 };

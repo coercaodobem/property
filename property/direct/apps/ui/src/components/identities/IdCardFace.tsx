@@ -7,13 +7,13 @@ import { ProviderMark } from "./ProviderMark";
 import { machineLine, type IdCardContent } from "./idCard";
 import "./id-deck.css";
 
-const GHOST = <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C7.582 2 4 5.582 4 10v8c0 .75.6 1 1 .6l2-1.6 2 1.6c.4.3.8.3 1.2 0L12 17l1.8 1.6c.4.3.8.3 1.2 0l2-1.6 2 1.6c.4.4 1 .15 1-.6v-8c0-4.418-3.582-8-8-8z" /><circle cx="9" cy="9" r="1.5" fill="var(--seal-eye)" /><circle cx="15" cy="9" r="1.5" fill="var(--seal-eye)" /></svg>;
+const PROPERTY_MARK = <svg viewBox="80 75 344 397" fill="currentColor"><path d="M210 91H286C352 91 406 145 406 207V223C406 289 360 342 300 342H239.52L216.18 361.2V419C216.18 440 200 456 180 456H134C114 456 98 440 98 419V203C98 141.15 148.15 91 210 91ZM170 306L213 270H279C310 270 334 245 334 214V203C334 181 316 163 294 163H210C188 163 170 181 170 203Z" /></svg>;
 
 const CHECK = <svg viewBox="0 0 16 16" fill="none"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
 function StatusIcon({ status }: { status: IdCardContent["status"] }) {
-  // The Ghostly card's "Default" (and a contact's Verified / Not verified): a small ghost, the card's own mark.
-  if (status === "default") return <svg aria-hidden="true" width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2a4.5 4.5 0 0 0-4.5 4.5V13c0 .5.4.7.7.4L5.75 12l1.5 1.4c.2.2.5.2.75 0L8 13l.75.4c.25.2.55.2.75 0l1.5-1.4 1.55 1.4c.3.3.7.1.7-.4V6.5A4.5 4.5 0 0 0 8 2z" /></svg>;
+  // The Property card's "Default" (and a contact's Verified / Not verified): its own mark.
+  if (status === "default") return <svg aria-hidden="true" width="10" height="10" viewBox="80 75 344 397" fill="currentColor"><path d="M210 91H286C352 91 406 145 406 207V223C406 289 360 342 300 342H239.52L216.18 361.2V419C216.18 440 200 456 180 456H134C114 456 98 440 98 419V203C98 141.15 148.15 91 210 91ZM170 306L213 270H279C310 270 334 245 334 214V203C334 181 316 163 294 163H210C188 163 170 181 170 203Z" /></svg>;
   // Being checked (a share in a chat's timeline): three dots, still. Nothing on a card loops.
   if (status === "checking") return <svg aria-hidden="true" width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.6" /><circle cx="8" cy="8" r="1.6" /><circle cx="13" cy="8" r="1.6" /></svg>;
   const d = status === "verified" ? "m3 8 3 3 7-7" : status === "expiring" ? "M8 4v4.5l3 2" : status === "revoking" || status === "withdrawn" ? "M4 8h8" : status === "revoked" ? "M4 12 12 4" : "M8 4v5M8 11.5v.5";
@@ -47,7 +47,7 @@ export function IdCardFace({ card, after, shared }: { card: IdCardContent; after
   return (
     <span ref={ref} className="id-card-face" data-deck="face" data-profile={card.profile?.found ? "found" : undefined} data-after={after || undefined} data-status={card.status} data-shared={shared || undefined}>
       <span className="id-card-band">
-        <span className="id-card-issuer">Ghostly<span className="id-card-issuer-kind"> · {t("identities.card.kind")}</span></span>
+        <span className="id-card-issuer">Property<span className="id-card-issuer-kind"> · {t("identities.card.kind")}</span></span>
         <span className="id-card-status" data-testid={card.status === "expiring" ? "identity-proof-expiring" : undefined}><StatusIcon status={card.status} /><span className="id-card-status-text">{card.statusLabel}</span></span>
         <span className="id-card-mark-end" aria-hidden="true">{shared && <span className="id-card-check id-card-check-small">{CHECK}</span>}<ProviderMark provider={card.provider} subject={card.bound} small /></span>
       </span>
@@ -67,7 +67,7 @@ export function IdCardFace({ card, after, shared }: { card: IdCardContent; after
         <span className="id-card-field id-card-field-shared">{card.shared}</span>
       </span>
       <span className="id-card-mrz" aria-hidden="true">{card.mrz ?? machineLine(card.label, card.subject)}</span>
-      <span className="id-card-seal" data-deck="ghost" aria-hidden="true">{GHOST}</span>
+      <span className="id-card-seal" data-deck="ghost" aria-hidden="true">{PROPERTY_MARK}</span>
       <span className="id-card-sheen" data-deck="sheen" aria-hidden="true" />
     </span>
   );
@@ -82,15 +82,15 @@ export function AddIdCardFace({ first, providers = [] }: { first: boolean; provi
   const { t } = useI18n();
   return (
     <span className="id-card-face id-card-blank" data-deck="face">
-      <span className="id-card-band"><span className="id-card-issuer">Ghostly<span className="id-card-issuer-kind"> · {t("identities.card.kind")}</span></span></span>
+      <span className="id-card-band"><span className="id-card-issuer">Property<span className="id-card-issuer-kind"> · {t("identities.card.kind")}</span></span></span>
       <span className="id-card-photo" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></span>
       <span className="id-card-fields">
         <span className="id-card-provider">{first ? t("identities.ghostly.addOne") : t("identities.ghostly.addAnother")}</span>
         {providers.length > 0 && <span className="id-card-providers" aria-hidden="true" data-testid="id-card-providers">{providers.map(p => <IdCardMark key={p} provider={p} />)}</span>}
         <span className="id-card-field id-card-field-shared">{t("identities.ghostly.chosenChats")}</span>
       </span>
-      <span className="id-card-mrz" aria-hidden="true">{"ID<GHOSTLY<<".padEnd(44, "<")}</span>
-      <span className="id-card-seal" data-deck="ghost" aria-hidden="true">{GHOST}</span>
+      <span className="id-card-mrz" aria-hidden="true">{"ID<PROPERTY<<".padEnd(44, "<")}</span>
+      <span className="id-card-seal" data-deck="ghost" aria-hidden="true">{PROPERTY_MARK}</span>
       <span className="id-card-sheen" data-deck="sheen" aria-hidden="true" />
     </span>
   );

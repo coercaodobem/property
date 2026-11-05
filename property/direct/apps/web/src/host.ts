@@ -82,7 +82,7 @@ setServiceWindowsCloser(closeServiceView);
 setServiceViewCloser(closeServiceView);
 
 /**
- * Ghostly on the web: the peer runs in this page and lives as long as the tab.
+ * Property Direct on the web: the peer runs in this page and lives as long as the tab.
  * One thing a web page cannot do stays with the extension and the desktop app:
  * reaching web apps on the user's machine (no way to be granted access, only
  * CORS). A contact's web app opens here when the build has a services host.
@@ -98,12 +98,12 @@ export const webHost = createInPageHost({
   // A new profile gets its default Mainnet wallets, never under test (see defaultWalletsAllowed).
   // Mini-apps by the build's flag (APPS_ENABLED); on whatever it says in the e2e suite's build (VITE_APPS_TEST, fixed at build time),
   // and held items read from its local S3 server there.
-  // The apps that come with Ghostly are read from this build's own files (`builtInAppOption`), never from a server of theirs.
+  // The built-in app assets come from this build's own files (`builtInAppOption`), never from an external server.
   node: { ...testPace(), ...testReactions(), irohWeb: testIroh(), servicesSupport: openServices, defaultWallets: defaultWalletsAllowed(), ...builtInAppOption(), ...(import.meta.env.VITE_APPS_TEST === "1" ? { apps: true, holdLoopback: true } : {}) },
 
   /**
    * The deployed build says what it is in `/version.json`, on this origin and
-   * nowhere else: nothing third-party learns that this tab is running Ghostly.
+   * nowhere else: nothing third-party learns that this tab is running Property Direct.
    * Applying it is a reload, which ends the peer and every call it holds, so
    * it only ever happens because the user pressed the button. The app's files
    * come from the service worker's cache, so the reload first lets the new

@@ -35,7 +35,7 @@ describe("the host says a file of this build is gone", () => {
       return told ? found : null;
     });
     (fakeEngine as BrowserHost).updates = {
-      downloadUrl: "https://github.com/MiguelMedeiros/ghostly/releases",
+      downloadUrl: "https://github.com/coercaodobem/property/releases",
       check,
       install: () => Promise.resolve(),
       onBuildGone: (listener) => { tell = listener; return () => { tell = null; }; },
@@ -54,7 +54,7 @@ describe("the host says a file of this build is gone", () => {
 
     gone();
     await waitFor(() => expect(check).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText("A new build of Ghostly 1.1.4 is available")).toBeInTheDocument();
+    expect(await screen.findByText("A new build of Property 1.1.4 is available")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reload" })).toBeInTheDocument();
 
     // Gone with the provider: nothing listens after it.
@@ -78,7 +78,7 @@ describe("the host says a file of this build is gone", () => {
 
     answer();
     await waitFor(() => expect(check).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText("A new build of Ghostly 1.1.4 is available")).toBeInTheDocument();
+    expect(await screen.findByText("A new build of Property 1.1.4 is available")).toBeInTheDocument();
   });
 
   it("a newer version found this way is named as before", async () => {
@@ -86,7 +86,7 @@ describe("the host says a file of this build is gone", () => {
     renderApp(<UpdateProvider><UpdateBanner /></UpdateProvider>);
     await waitFor(() => expect(listening()).toBe(true));
     gone();
-    expect(await screen.findByText("Ghostly 1.1.5 is available")).toBeInTheDocument();
+    expect(await screen.findByText("Property 1.1.5 is available")).toBeInTheDocument();
   });
 
   it("does nothing while automatic checks are off: the setting is kept, the next Check now still finds it", async () => {

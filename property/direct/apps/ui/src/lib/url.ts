@@ -70,8 +70,8 @@ export function inviteRouteCode(pathname: string): string | null {
 export type InviteInput = { ok: true; keys: SessionKeys } | { ok: false; reason: InviteRefusal };
 
 /**
- * What someone may paste to join: an invite link (`https://ghostly.tools/#ghostly1…`,
- * `app.ghostly.tools/#…`, an older `#/chat/…` link), a `/chat/…` path or the bare code.
+ * What someone may paste to join: a Property invite link, a legacy Ghostly link (`ghostly.tools/#…` or
+ * `app.ghostly.tools/#…`), an older `#/chat/…` link, a `/chat/…` path or the bare code.
  */
 export function readInvite(input: string): InviteInput {
   const trimmed = input.trim();

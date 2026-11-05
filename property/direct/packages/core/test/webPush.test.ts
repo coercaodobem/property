@@ -73,7 +73,7 @@ describe("where a push may go", () => {
     const secret = p256.utils.randomSecretKey();
     const auth = crypto.getRandomValues(new Uint8Array(16));
     const request = pushRequest({ endpoint: "https://fcm.googleapis.com/fcm/send/abc", p256dh: toBase64Url(p256.getPublicKey(secret, false)), auth: toBase64Url(auth) },
-      generateVapidKeys(), utf8Encode("token"), { subject: "https://ghostly.tools" });
+      generateVapidKeys(), utf8Encode("token"), { subject: "https://coercaodobem.github.io/property/direct/" });
     expect(request.url).toBe("https://fcm.googleapis.com/fcm/send/abc");
     expect(request.headers).toMatchObject({ "Content-Encoding": "aes128gcm", TTL: "3600", Urgency: "high" });
     expect(request.headers.Authorization).toMatch(/^vapid t=/);

@@ -123,7 +123,7 @@ assert.doesNotMatch(html, /<link[^>]+href=["']https?:[^"']+\.css/i, 'runtime CSS
 for (const action of ['actions/checkout', 'actions/configure-pages', 'actions/upload-pages-artifact', 'actions/deploy-pages']) {
   assert.ok(pagesWorkflow.includes(action), `Pages workflow includes ${action}`);
 }
-assert.equal([...pagesWorkflow.matchAll(/uses:\s*[\w-]+\/[\w-]+@[0-9a-f]{40}/g)].length, 4, 'workflow actions are pinned to commit SHAs');
+assert.equal([...pagesWorkflow.matchAll(/uses:\s*[\w-]+\/[\w-]+@[0-9a-f]{40}/g)].length, 5, 'every workflow action is pinned to a commit SHA');
 const pagesBase = new URL('https://coercaodobem.github.io/property/');
 const shellMatch = sw.match(/const SHELL = \[(.*?)\];/s);
 assert.ok(shellMatch, 'service worker declares its offline shell');

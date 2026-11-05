@@ -210,7 +210,7 @@ function Header() {
 }
 
 describe("IdentityStack for a contact who shared no proof", () => {
-  const NOTHING = "Their Ghostly identity. Nothing else shared by Alice yet.";
+  const NOTHING = "Their Property identity. Nothing else shared by Alice yet.";
 
   it("still has a mark, their Ghostly identity: quiet, no check, no +N, named for what it opens", () => {
     const { engine } = renderApp(<IdentityStack peerKey="peer" name="Alice" onOpen={() => {}} />);

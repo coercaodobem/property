@@ -25,6 +25,6 @@ O build grava a versão estática em `../web/direct/`, incluída na publicação
 
 ## Origem e licença
 
-Esta adaptação preserva o snapshot upstream no commit `138d51872ce569f2f5b7ac68445d4ec59efe5d0d` de `MiguelMedeiros/ghostly`. O código usa a licença MIT; consulte [LICENSE](LICENSE) e [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Identificadores internos de módulos e formatos de protocolo são preservados quando mudá-los quebraria compatibilidade.
+Esta adaptação começou no commit upstream `138d51872ce569f2f5b7ac68445d4ec59efe5d0d` e inclui correções compatíveis até `d49f31a3379fc661c1ff3b46815f33832776a150` de `MiguelMedeiros/ghostly`. O código usa a licença MIT; consulte [LICENSE](LICENSE) e [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Identificadores internos de módulos e formatos de protocolo são preservados quando mudá-los quebraria compatibilidade. As declarações assinadas de prova de identidade mantêm exatamente o texto v1 do Ghostly para que provas existentes continuem verificáveis; nome, interface e marcas do Property foram adaptados.
 
 Para conhecer o projeto principal, as instruções para agentes e o app Nostr, veja o [README do repositório](../../README.md), o [guia de contribuição](../../CONTRIBUTING.md) e as [instruções do Property](../AGENTS.md).

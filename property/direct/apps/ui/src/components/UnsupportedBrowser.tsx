@@ -10,7 +10,7 @@ const MISSING: Record<Essential, TranslationKey> = {
 };
 
 /**
- * "Ghostly can't run in this browser": what it lacks of what the app cannot do without (lib/bootCheck), and what
+ * "Property Direct can't run in this browser": what it lacks of what the app cannot do without (lib/bootCheck), and what
  * to try. Drawn by the web entry instead of the app, before any provider exists: it is handed its translator, and
  * its styles are its own (the app's stylesheet may be what the browser cannot read). With `lockdown` (what is missing
  * looks like Apple's Lockdown Mode, lib/bootCheck lockdownLikely) it says so and how to exclude the site, the steps

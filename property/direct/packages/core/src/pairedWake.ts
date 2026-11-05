@@ -29,7 +29,7 @@ export const WAKE_INTERVAL_MS = 5 * 60_000;
 /** A wake-up that has not reached the phone within this is no use: the push service may drop it. */
 export const WAKE_TTL_SECONDS = 60 * 60;
 /** The VAPID subject push services ask for: who to contact about abuse. The project, never a person. */
-export const WAKE_SUBJECT = "https://ghostly.tools";
+export const WAKE_SUBJECT = "https://coercaodobem.github.io/property/direct/";
 
 /** What a contact shares: its push subscription, the key pair it was made with, and its token for this chat. */
 export interface WakeTarget extends PushTarget {
@@ -161,4 +161,3 @@ export class WakeLimiter {
 export function relayRequest(request: PushRequest): { endpoint: string; headers: Record<string, string>; body: string } {
   return { endpoint: request.url, headers: request.headers, body: toBase64Url(request.body) };
 }
-
