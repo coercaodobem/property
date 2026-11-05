@@ -53,11 +53,20 @@
     }
   }
 
+  function latestRecord(events, expectedPubkey, verifyEvent) {
+    const ordered = (Array.isArray(events) ? events : []).filter(event => event && Number.isSafeInteger(event.created_at) && typeof event.id === 'string')
+      .sort((left, right) => right.created_at - left.created_at || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
+    for (const event of ordered) {
+      const profile = parseEvent(event, expectedPubkey, verifyEvent);
+      if (!profile) continue;
+      try { return { profile, event, metadata: JSON.parse(event.content) }; }
+      catch { continue; }
+    }
+    return null;
+  }
+
   function latest(events, expectedPubkey, verifyEvent) {
-    return (Array.isArray(events) ? events : [])
-      .map(event => parseEvent(event, expectedPubkey, verifyEvent))
-      .filter(Boolean)
-      .sort((left, right) => right.createdAt - left.createdAt || (left.eventId < right.eventId ? 1 : left.eventId > right.eventId ? -1 : 0))[0] || null;
+    return latestRecord(events, expectedPubkey, verifyEvent)?.profile || null;
   }
 
   function fromCache(record, expectedPubkey) {
@@ -78,5 +87,5 @@
     };
   }
 
-  globalThis.PropertyPublicProfile = Object.freeze({ parseEvent, latest, fromCache, safeWebsite });
+  globalThis.PropertyPublicProfile = Object.freeze({ parseEvent, latest, latestRecord, fromCache, safeWebsite });
 })();

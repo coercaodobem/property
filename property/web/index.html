@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
   <link rel="stylesheet" href="./styles.css?v=property-v43">
-  <script defer src="./i18n.js?v=property-v43"></script>
+  <script defer src="./i18n.js?v=property-v44"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -33,8 +33,8 @@
   <script defer src="./rich-text.js?v=property-v37"></script>
   <script defer src="./message-edits.js?v=property-v1"></script>
   <script defer src="./secret-guard.js?v=property-v1"></script>
-  <script defer src="./public-profile.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v44"></script>
+  <script defer src="./public-profile.js?v=property-v2"></script>
+  <script defer src="./app.js?v=property-v45"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -173,7 +173,7 @@
 
   <dialog id="delete-product-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">NOSTR WITHDRAWAL</p><h2>Withdraw this offer?</h2></div><button class="icon-button" aria-label="Cancel">×</button></form><div class="dialog-body"><p id="delete-product-label" class="muted"></p><button id="confirm-delete-product" class="button danger full" type="button">Sign and publish request</button><p id="delete-product-error" class="error" role="alert"></p></div></dialog>
 
-  <dialog id="profile-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">LOCAL IDENTITY</p><h2>Profile and security</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p><strong>npub</strong></p><code id="profile-npub" class="break-code"></code><label class="field"><span>Public name</span><input id="profile-name" maxlength="80" placeholder="How should you appear?"></label><button id="save-profile" class="button secondary full" type="button">Save profile</button><button id="share-contact" class="button primary full" type="button">Share contact</button><button id="export-backup" class="button secondary full" type="button">Download encrypted backup</button><button id="copy-npub" class="button text full" type="button">Copy npub</button><button class="button text full" type="button" data-install-property>Install Property</button><button id="open-agent-manager" class="button secondary full" type="button">Agents</button><button id="lock-account" class="button danger full" type="button">Lock and clear session</button><p id="profile-error" class="error" role="alert"></p></div></dialog>
+  <dialog id="profile-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">LOCAL IDENTITY</p><h2>Profile and security</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p><strong>npub</strong></p><code id="profile-npub" class="break-code"></code><p class="fine-print">Profile details are public Nostr metadata. Property reads and writes them through your saved relays; it never fetches a profile image. NIP-05 is displayed without verification.</p><button id="load-public-profile" class="button text full" type="button">Load current public profile</button><label class="field"><span>Public name</span><input id="profile-name" maxlength="80" placeholder="How should you appear?"></label><label class="field"><span>About</span><textarea id="profile-about" rows="3" maxlength="1000"></textarea></label><label class="field"><span>Website URL (optional)</span><input id="profile-website" type="url" maxlength="2048" placeholder="https://example.com"></label><label class="field"><span>Profile picture URL (optional)</span><input id="profile-picture" type="url" maxlength="2048" placeholder="https://example.com/image.jpg"></label><label class="field"><span>NIP-05 (not verified)</span><input id="profile-nip05" maxlength="160" placeholder="name@example.com"></label><p id="profile-save-status" class="fine-print" role="status" aria-live="polite">Your profile is public only after you choose Save and publish.</p><button id="save-profile" class="button secondary full" type="button">Save and publish profile</button><button id="share-contact" class="button primary full" type="button">Share contact</button><button id="export-backup" class="button secondary full" type="button">Download encrypted backup</button><button id="copy-npub" class="button text full" type="button">Copy npub</button><button class="button text full" type="button" data-install-property>Install Property</button><button id="open-agent-manager" class="button secondary full" type="button">Agents</button><button id="lock-account" class="button danger full" type="button">Lock and clear session</button><p id="profile-error" class="error" role="alert"></p></div></dialog>
 
   <dialog id="chat-details-dialog" class="dialog-card" aria-labelledby="chat-details-title">
     <form method="dialog" class="dialog-head"><div><p class="eyebrow">LOCAL CONTACT</p><h2 id="chat-details-title">Conversation details</h2></div><button class="icon-button" aria-label="Close">×</button></form>

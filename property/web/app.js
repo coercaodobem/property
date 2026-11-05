@@ -539,6 +539,10 @@
   async function refreshLocalProfile() {
     const profile = await get('settings', `profile-${state.pubkey}`) || { id: `profile-${state.pubkey}`, name: '' };
     $('profile-name').value = profile.name || '';
+    $('profile-about').value = profile.about || '';
+    $('profile-website').value = profile.website || '';
+    $('profile-picture').value = profile.picture || '';
+    $('profile-nip05').value = profile.nip05 || '';
     $('profile-initial').textContent = profile.name?.slice(0, 1)?.toUpperCase() || 'L';
   }
   function openContactIntent(value) {
@@ -1953,14 +1957,87 @@
     setTimeout(() => URL.revokeObjectURL(link.href), 1000); showToast('Backup criptografado baixado. Guarde-o junto com a senha.');
   }
   async function savePublicProfile() {
-    const name = $('profile-name').value.trim().slice(0, 80);
-    const profile = { id: `profile-${state.pubkey}`, name };
+    const name = $('profile-name').value.trim();
+    const about = $('profile-about').value.trim();
+    const nip05 = $('profile-nip05').value.trim();
+    if (name.length > 80) throw new Error(localized('Name must be 80 characters or fewer.', 'O nome deve ter no máximo 80 caracteres.'));
+    if (about.length > 1_000) throw new Error(localized('About must be 1,000 characters or fewer.', 'O campo Sobre deve ter no máximo 1.000 caracteres.'));
+    if (nip05.length > 160) throw new Error(localized('NIP-05 must be 160 characters or fewer.', 'O NIP-05 deve ter no máximo 160 caracteres.'));
+    const websiteInput = $('profile-website').value.trim();
+    const pictureInput = $('profile-picture').value.trim();
+    const website = websiteInput ? PublicProfile.safeWebsite(websiteInput) : '';
+    const picture = pictureInput ? PublicProfile.safeWebsite(pictureInput) : '';
+    if (websiteInput && !website) throw new Error(localized('Website must be a valid HTTPS URL without credentials.', 'O site deve ser uma URL HTTPS válida, sem credenciais.'));
+    if (pictureInput && !picture) throw new Error(localized('Picture must be a valid HTTPS URL without credentials.', 'A imagem deve ser uma URL HTTPS válida, sem credenciais.'));
+
+    const profile = { id: `profile-${state.pubkey}`, name, about, website, picture, nip05 };
     await put('settings', profile);
     $('profile-initial').textContent = name.slice(0, 1).toUpperCase() || 'L';
-    const event = finalize(0, JSON.stringify({ name, display_name: name }));
+    const current = await readOwnPublicProfile();
+    if (!current.reachable) {
+      $('profile-save-status').textContent = localized('Profile saved on this device; saved relays could not be reached, so nothing was published.', 'Perfil salvo neste aparelho; não foi possível acessar os relays salvos, então nada foi publicado.');
+      showToast(localized('Profile saved on this device; saved relays could not be reached, so nothing was published.', 'Perfil salvo neste aparelho; não foi possível acessar os relays salvos, então nada foi publicado.'));
+      return;
+    }
+    const metadata = current.record ? { ...current.record.metadata } : {};
+    for (const [key, value] of Object.entries({ name, display_name: name, about, website, picture, nip05 })) {
+      if (value) metadata[key] = value;
+      else delete metadata[key];
+    }
+    const content = JSON.stringify(metadata);
+    if (enc.encode(content).byteLength > 16_384) {
+      $('profile-save-status').textContent = localized('Profile saved on this device; public metadata is too large to publish safely.', 'Perfil salvo neste aparelho; os metadados públicos são grandes demais para publicar com segurança.');
+      showToast(localized('Profile saved on this device; public metadata is too large to publish safely.', 'Perfil salvo neste aparelho; os metadados públicos são grandes demais para publicar com segurança.'));
+      return;
+    }
+    const event = finalize(0, content);
     const sent = await publishToRelays(event);
-    if (!sent) showToast('Nome salvo neste aparelho; relay ainda não confirmou o perfil.');
-    else showToast('Perfil salvo localmente e publicado nos relays.');
+    $('profile-save-status').textContent = sent
+      ? localized('Profile published to connected relays.', 'Perfil publicado nos relays conectados.')
+      : localized('Profile saved on this device; no relay confirmed publication.', 'Perfil salvo neste aparelho; nenhum relay confirmou a publicação.');
+    showToast(sent
+      ? localized('Profile saved locally and published to relays.', 'Perfil salvo localmente e publicado nos relays.')
+      : localized('Profile saved on this device; no relay confirmed the profile.', 'Perfil salvo neste aparelho; nenhum relay confirmou o perfil.'));
+  }
+  async function readOwnPublicProfile() {
+    const relays = [...new Set(state.relays.map(normalizeRelay))];
+    for (const url of relays) connectRelay(url);
+    const reachable = (await Promise.all(relays.map(async url => await waitForOpen(url) ? url : null))).filter(Boolean);
+    if (!reachable.length) return { reachable: false, record: null };
+    const events = await fetchEvents({ kinds: [0], authors: [state.pubkey], limit: 20 }, 7000, reachable);
+    return { reachable: true, record: PublicProfile.latestRecord(events, state.pubkey, N.verifyEvent) };
+  }
+  async function loadOwnPublicProfile() {
+    const button = $('load-public-profile');
+    const status = $('profile-save-status');
+    button.disabled = true;
+    showError('profile-error');
+    status.textContent = localized('Loading the latest profile from your saved relays…', 'Carregando o perfil mais recente dos relays salvos…');
+    try {
+      const result = await readOwnPublicProfile();
+      if (!result.reachable) {
+        status.textContent = localized('Could not reach your saved relays. Nothing was loaded.', 'Não foi possível acessar seus relays salvos. Nada foi carregado.');
+        return;
+      }
+      if (!result.record) {
+        $('profile-name').value = '';
+        $('profile-about').value = '';
+        $('profile-website').value = '';
+        $('profile-picture').value = '';
+        $('profile-nip05').value = '';
+        status.textContent = localized('No signed public profile was found on your saved relays.', 'Nenhum perfil público assinado foi encontrado nos seus relays salvos.');
+        return;
+      }
+      const { profile, metadata } = result.record;
+      $('profile-name').value = profile.displayName || profile.name;
+      $('profile-about').value = profile.about;
+      $('profile-website').value = profile.website;
+      $('profile-picture').value = PublicProfile.safeWebsite(metadata.picture);
+      $('profile-nip05').value = profile.nip05;
+      status.textContent = localized('Profile loaded from a saved relay. Review it before saving.', 'Perfil carregado de um relay salvo. Confira antes de salvar.');
+    } finally {
+      button.disabled = false;
+    }
   }
   async function closeIdentityRelaySubscriptions() {
     for (const [subId] of state.fetchSubs) finishFetchSub(subId, true);
@@ -2062,7 +2139,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v44', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v45', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -2304,7 +2381,11 @@
     $('refresh-marketplace').addEventListener('click', () => refreshMarketplace().catch(error => showToast(error.message || 'Falha ao atualizar ofertas.')));
     $('publish-product').addEventListener('click', publishProduct);
     $('confirm-delete-product').addEventListener('click', () => deleteProduct(state.deletingProduct).catch(error => showError('delete-product-error', error.message || 'Falha ao retirar oferta.')));
-    $('save-profile').addEventListener('click', () => savePublicProfile().catch(error => showError('profile-error', error.message)));
+    $('load-public-profile').addEventListener('click', () => loadOwnPublicProfile().catch(error => showError('profile-error', error.message || localized('Could not load the public profile.', 'Não foi possível carregar o perfil público.'))));
+    $('save-profile').addEventListener('click', () => {
+      showError('profile-error');
+      savePublicProfile().catch(error => showError('profile-error', error.message || localized('Could not save the profile.', 'Não foi possível salvar o perfil.')));
+    });
     $('export-backup').addEventListener('click', exportBackupWithPassword);
     $('copy-npub').addEventListener('click', async () => { try { await navigator.clipboard.writeText(state.npub); showToast('npub copiado.'); } catch { showError('profile-error', state.npub); } });
     $('share-contact').addEventListener('click', () => {
@@ -2403,7 +2484,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();
