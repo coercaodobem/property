@@ -4,6 +4,7 @@
   const enc = new TextEncoder();
   const dec = new TextDecoder();
   const RelayDefaults = window.PropertyRelayDefaults;
+  const Pwa = window.PropertyPwa;
   // Stable legacy database ID: preserve existing identities and sessions on this origin.
   const DB_NAME = 'liberdade-local-v1';
   const DB_VERSION = 2;
@@ -28,7 +29,7 @@
     activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false
+    storageReady: false, pendingLaunchAction: ''
   };
   const N = window.NostrTools;
   const bridge = Bridge?.createBridge(event => N.verifyEvent(event));
@@ -211,6 +212,12 @@
         await connectAllRelays();
       }
     }).catch(() => {});
+    if (state.pendingLaunchAction) {
+      const action = state.pendingLaunchAction;
+      state.pendingLaunchAction = '';
+      if (action === 'new-chat') $('new-chat-dialog').showModal();
+      else setActiveView(action);
+    }
   }
   async function refreshLocalProfile() {
     const profile = await get('settings', `profile-${state.pubkey}`) || { id: `profile-${state.pubkey}`, name: '' };
@@ -1423,11 +1430,12 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v27', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v28', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
   function wireEvents() {
+    Pwa.bindInstallControls(document.querySelectorAll('[data-install-property]'), $('install-app-dialog'), () => showToast('Property installed.'));
     $('create-account-button').addEventListener('click', () => showAuthPane('auth-setup'));
     $('import-account-button').addEventListener('click', () => showAuthPane('auth-import'));
     document.querySelectorAll('.back-auth').forEach(button => button.addEventListener('click', () => showAuthPane('auth-choice')));
@@ -1589,8 +1597,9 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !Pwa || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
+    state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.bridgeRefreshTimer = window.setInterval(refreshBridgeSubscriptions, 60_000);
     registerOfflineShell();
     try {

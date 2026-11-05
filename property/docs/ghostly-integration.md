@@ -22,6 +22,7 @@
 - These interactions use the existing black-and-yellow Property brand and English/Português (Brasil) language choice.
 - On a fresh install, the same PWA randomly selects two relay URLs from a small list bundled with the app and saves them locally. It connects after identity activation; people can replace the pair in settings. This avoids requiring relay knowledge before a first conversation. Public relays can see the user's IP address and public event metadata, so the onboarding copy discloses this.
 - On mobile, the existing conversation list opens as a drawer inside the same PWA. The current Property conversation store and relay connections remain the only source of chat state.
+- The sign-in and profile screens expose an Install Property action. Browsers with a native install prompt ask only after the person taps it; other browsers show local instructions, including Safari's Add to Home Screen steps. The installed app exposes shortcuts for New conversation, Hangout, and Marketplace, which reopen the same Property PWA and wait for identity activation before opening a screen.
 - GitHub Pages builds and publishes only the Property PWA from `property/web`.
 
 Reply tags and Chat Rooms follow the current [NIP-17 definition](https://github.com/nostr-protocol/nips/blob/master/17.md), including its guidance to use a more suitable protocol for rooms larger than 10 people. Message bodies and local quote previews remain encrypted or local; relays do not receive their plaintext.

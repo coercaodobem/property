@@ -4,6 +4,11 @@
   const PT_TO_EN = new Map();
   const pairs = [
     ['Application language', 'Idioma do aplicativo'],
+    ['Install Property', 'Instalar o Property'], ['Install Property to your home screen or desktop.', 'Instale o Property na tela inicial ou no computador.'],
+    ['If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser.', 'Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador.'],
+    ['On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen.', 'No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início.'],
+    ['Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed.', 'O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos.'],
+    ['Done', 'Concluído'], ['Property installed.', 'Property instalado.'],
     ['English', 'English'],
     ['Português (Brasil)', 'Português (Brasil)'],
     ['Property home', 'Início do Property'],
