@@ -4,6 +4,11 @@
   const PT_TO_EN = new Map();
   const pairs = [
     ['Application language', 'Idioma do aplicativo'],
+    ['LOCAL CONTACT', 'CONTATO LOCAL'], ['Conversation details', 'Detalhes da conversa'],
+    ['Local name on this device', 'Nome local neste aparelho'], ['Add an optional local name', 'Adicione um nome local opcional'], ['Save local name', 'Salvar nome local'],
+    ['PUBLIC NOSTR PROFILE', 'PERFIL PÚBLICO NOSTR'], ['No public profile has been loaded on this device yet.', 'Nenhum perfil público foi carregado neste aparelho ainda.'],
+    ['Load latest public profile', 'Carregar perfil público mais recente'], ['Name', 'Nome'], ['About', 'Sobre'], ['NIP-05 · not verified', 'NIP-05 · não verificado'], ['Website', 'Site'],
+    ['Property reads signed kind 0 profile events only from your saved relays and the relay hints for this conversation. Profile names and descriptions are self-described; a Nostr signature ties the event to this public key, not to a verified real-world identity. NIP-05 is shown without verification. Property does not load remote profile images.', 'O Property lê eventos kind 0 assinados apenas dos relays salvos e das dicas de relay desta conversa. Nomes e descrições são autodeclarados; a assinatura Nostr vincula o evento a esta chave pública, mas não comprova uma identidade no mundo real. O NIP-05 aparece sem verificação. O Property não carrega imagens de perfil remotas.'],
     ['Share contact', 'Compartilhar contato'], ['Share your Property contact', 'Compartilhe seu contato Property'],
     ['Scan the QR code or share the link to open this identity in Property.', 'Leia o QR code ou compartilhe o link para abrir esta identidade no Property.'],
     ['Property contact link', 'Link de contato Property'], ['Copy Property link', 'Copiar link Property'], ['Share…', 'Compartilhar…'],

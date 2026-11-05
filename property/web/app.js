@@ -17,6 +17,7 @@
   const Marketplace = window.PropertyMarketplace;
   const Campaigns = window.PropertyCampaigns;
   const Contact = window.PropertyContact;
+  const PublicProfile = window.PropertyPublicProfile;
   const AgentMessages = window.PropertyAgentMessages;
   const MessageSearch = window.PropertyMessageSearch;
   const FolderStore = window.PropertyConversationFolders;
@@ -34,6 +35,7 @@
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     currentConversation: null,
     activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
+    peerProfiles: new Map(), chatDetailsPeer: '',
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
@@ -51,11 +53,11 @@
   function conversationLabel(conversation) {
     if (typeof conversation === 'string') {
       if (conversation.startsWith('group:')) return window.PropertyI18n?.language === 'pt-BR' ? 'Grupo privado' : 'Private group';
-      return displayName(conversation, '');
+      return displayName(conversation, state.peerProfiles.get(conversation)?.displayName || '');
     }
     return conversation?.group === true
       ? (conversation.title || (window.PropertyI18n?.language === 'pt-BR' ? 'Grupo privado' : 'Private group'))
-      : displayName(conversation?.pubkey || '', conversation?.title || '');
+      : displayName(conversation?.pubkey || '', conversation?.title || state.peerProfiles.get(conversation?.pubkey || '')?.displayName || '');
   }
   function conversationSubtitle(conversation, agentAccess) {
     if (conversation?.group === true) {
@@ -85,6 +87,114 @@
       : (state.inboxRelays.length
         ? localized('NIP-17 · both people need a public inbox relay list (kind 10050)', 'NIP-17 · as duas pessoas precisam publicar uma lista de relays de recebimento (kind 10050)')
         : localized('Publish your suggested inbox relays in settings to start; the other person must publish theirs too.', 'Publique os relays de recebimento sugeridos nas configurações para começar; a outra pessoa também precisa publicar os dela.'));
+  }
+
+  function publicProfileSettingId(pubkey) { return `public-profile-${pubkey}`; }
+  function setOptionalProfileField(container, label, value, options = {}) {
+    if (!value) { container.replaceChildren(); container.hidden = true; return; }
+    const term = document.createElement('dt'); term.textContent = label;
+    const description = document.createElement('dd');
+    description.dataset.userContent = '';
+    if (options.href) {
+      const link = document.createElement('a');
+      link.dataset.userContent = '';
+      link.href = options.href; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = value;
+      description.append(link);
+    } else description.textContent = value;
+    container.replaceChildren(term, description); container.hidden = false;
+  }
+  function renderPeerPublicProfile(profile) {
+    const status = $('chat-profile-status');
+    const fields = $('chat-public-profile-fields');
+    if (!profile) {
+      fields.hidden = true;
+      status.textContent = localized('No public profile has been loaded on this device yet.', 'Nenhum perfil público foi carregado neste aparelho ainda.');
+      return;
+    }
+    const fetched = profile.checkedAt ? new Date(profile.checkedAt).toLocaleString(window.PropertyI18n?.locale() || undefined) : '';
+    status.textContent = fetched
+      ? localized(`Saved on this device · checked ${fetched}`, `Salvo neste aparelho · consultado em ${fetched}`)
+      : localized('Saved on this device', 'Salvo neste aparelho');
+    setOptionalProfileField($('chat-profile-name-field'), localized('Name', 'Nome'), profile.displayName || profile.name);
+    setOptionalProfileField($('chat-profile-about-field'), localized('About', 'Sobre'), profile.about);
+    setOptionalProfileField($('chat-profile-nip05-field'), localized('NIP-05 · not verified', 'NIP-05 · não verificado'), profile.nip05);
+    setOptionalProfileField($('chat-profile-website-field'), localized('Website', 'Site'), profile.website, { href: PublicProfile.safeWebsite(profile.website) });
+    fields.hidden = ![profile.displayName, profile.name, profile.about, profile.nip05, profile.website].some(Boolean);
+  }
+  async function openChatDetails() {
+    const peer = state.activePeer;
+    if (!peer) return;
+    const conversation = await get('conversations', peer);
+    if (!conversation) return;
+    state.chatDetailsPeer = peer;
+    $('chat-details-title').dataset.userContent = '';
+    $('chat-details-title').textContent = conversationLabel(conversation);
+    $('chat-local-name').value = conversation.title || '';
+    $('chat-group-details').hidden = conversation.group !== true;
+    $('chat-public-profile-section').hidden = conversation.group === true;
+    $('load-chat-public-profile').disabled = conversation.group === true;
+    if (conversation.group === true) {
+      const count = conversation.members?.length || 0;
+      $('chat-group-details').textContent = localized(
+        `Private NIP-17 group · ${count} members. Group membership and removal controls are not available in this app.`,
+        `Grupo privado NIP-17 · ${count} participantes. Este app não oferece controles de associação ou remoção de membros.`
+      );
+    } else {
+      let profile = state.peerProfiles.get(peer);
+      if (!profile) {
+        const cached = PublicProfile.fromCache(await get('settings', publicProfileSettingId(peer)), peer);
+        if (cached) { profile = cached; state.peerProfiles.set(peer, cached); }
+      }
+      renderPeerPublicProfile(profile);
+    }
+    $('chat-details-dialog').showModal();
+  }
+  async function loadChatPublicProfile() {
+    const peer = state.chatDetailsPeer;
+    if (!peer || !$('chat-details-dialog').open) return;
+    const button = $('load-chat-public-profile');
+    const status = $('chat-profile-status');
+    button.disabled = true;
+    button.textContent = localized('Loading profile…', 'Carregando perfil…');
+    status.textContent = localized('Checking the relays saved in this conversation and on this device…', 'Consultando os relays salvos nesta conversa e neste aparelho…');
+    try {
+      const conversation = await get('conversations', peer);
+      const hints = state.peerRelayHints.get(peer) || conversation?.relayHints || [];
+      const urls = [...new Set([...state.relays, ...hints.map(normalizeRelay)])];
+      const events = await fetchEvents({ kinds: [0], authors: [peer], limit: 20 }, 7000, urls);
+      const profile = PublicProfile.latest(events, peer, event => N.verifyEvent(event));
+      if (!profile) {
+        renderPeerPublicProfile(state.peerProfiles.get(peer));
+        status.textContent = state.peerProfiles.has(peer)
+          ? localized('No newer valid profile was found. The saved profile is still shown.', 'Nenhum perfil válido mais recente foi encontrado. O perfil salvo continua exibido.')
+          : localized('No valid public profile was found on these relays.', 'Nenhum perfil público válido foi encontrado nestes relays.');
+        return;
+      }
+      profile.checkedAt = Date.now();
+      state.peerProfiles.set(peer, profile);
+      await put('settings', { id: publicProfileSettingId(peer), ...profile });
+      renderPeerPublicProfile(profile);
+      if (state.activePeer === peer) await updateConversationHeader(await get('conversations', peer));
+      await renderConversations();
+    } catch (error) {
+      renderPeerPublicProfile(state.peerProfiles.get(peer));
+      status.textContent = localized(`Could not load a profile: ${error.message || 'relay error'}`, `Não foi possível carregar o perfil: ${error.message || 'erro de relay'}`);
+    } finally {
+      button.disabled = false;
+      button.textContent = localized('Load latest public profile', 'Carregar perfil público mais recente');
+    }
+  }
+  async function saveConversationLocalName() {
+    const peer = state.chatDetailsPeer;
+    if (!peer) return;
+    const conversation = await get('conversations', peer);
+    if (!conversation) return;
+    const updated = { ...conversation, title: $('chat-local-name').value.trim().slice(0, 80) };
+    await put('conversations', updated);
+    $('chat-details-title').textContent = conversationLabel(updated);
+    if (state.activePeer === peer) await updateConversationHeader(updated);
+    await renderConversations();
+    showToast(localized('Local name saved on this device.', 'Nome local salvo neste aparelho.'));
   }
 
   function showToast(message) {
@@ -391,10 +501,17 @@
     const inboxSettings = await get('settings', `inbox-${state.pubkey}`);
     state.inboxRelays = (inboxSettings?.values || []).map(normalizeRelay).slice(0, 3);
     const knownConversations = (await all('conversations')).slice(0, 100);
-    for (const conversation of knownConversations) {
-      const peerSettings = await get('settings', `peer-inbox-${conversation.pubkey}`);
+    await Promise.all(knownConversations.map(async conversation => {
+      const [peerSettings, profileCache] = await Promise.all([
+        get('settings', `peer-inbox-${conversation.pubkey}`),
+        conversation.group === true ? Promise.resolve(null) : get('settings', publicProfileSettingId(conversation.pubkey))
+      ]);
       if (peerSettings?.values?.length) state.peerInboxRelays.set(conversation.pubkey, peerSettings.values.map(normalizeRelay).slice(0, 3));
-    }
+      if (conversation.group !== true) {
+        const cached = PublicProfile.fromCache(profileCache, conversation.pubkey);
+        if (cached) state.peerProfiles.set(conversation.pubkey, cached);
+      }
+    }));
     await connectAllRelays();
     await renderConversations();
     await renderShareInbox().catch(() => {});
@@ -1945,7 +2062,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v43', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v44', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -1995,6 +2112,9 @@
     $('unlock-button').addEventListener('click', tryUnlock);
     $('password').addEventListener('keydown', event => { if (event.key === 'Enter') tryUnlock(); });
     $('profile-button').addEventListener('click', () => $('profile-dialog').showModal());
+    $('chat-details-button').addEventListener('click', () => openChatDetails().catch(error => showToast(error.message || localized('Could not open conversation details.', 'Não foi possível abrir os detalhes da conversa.'))));
+    $('load-chat-public-profile').addEventListener('click', () => loadChatPublicProfile());
+    $('save-chat-local-name').addEventListener('click', () => saveConversationLocalName().catch(error => showToast(error.message || localized('Could not save the local name.', 'Não foi possível salvar o nome local.'))));
     $('agent-block-button').addEventListener('click', () => toggleAgentBlock().catch(error => showToast(error.message || 'Não foi possível atualizar o bloqueio.')));
     $('open-agent-manager').addEventListener('click', () => {
       $('profile-dialog').close(); $('agent-dialog').showModal();
@@ -2283,7 +2403,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();

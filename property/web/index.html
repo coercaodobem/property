@@ -11,8 +11,8 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v42">
-  <script defer src="./i18n.js?v=property-v42"></script>
+  <link rel="stylesheet" href="./styles.css?v=property-v43">
+  <script defer src="./i18n.js?v=property-v43"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -33,7 +33,8 @@
   <script defer src="./rich-text.js?v=property-v37"></script>
   <script defer src="./message-edits.js?v=property-v1"></script>
   <script defer src="./secret-guard.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v43"></script>
+  <script defer src="./public-profile.js?v=property-v1"></script>
+  <script defer src="./app.js?v=property-v44"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -173,6 +174,25 @@
   <dialog id="delete-product-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">NOSTR WITHDRAWAL</p><h2>Withdraw this offer?</h2></div><button class="icon-button" aria-label="Cancel">×</button></form><div class="dialog-body"><p id="delete-product-label" class="muted"></p><button id="confirm-delete-product" class="button danger full" type="button">Sign and publish request</button><p id="delete-product-error" class="error" role="alert"></p></div></dialog>
 
   <dialog id="profile-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">LOCAL IDENTITY</p><h2>Profile and security</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p><strong>npub</strong></p><code id="profile-npub" class="break-code"></code><label class="field"><span>Public name</span><input id="profile-name" maxlength="80" placeholder="How should you appear?"></label><button id="save-profile" class="button secondary full" type="button">Save profile</button><button id="share-contact" class="button primary full" type="button">Share contact</button><button id="export-backup" class="button secondary full" type="button">Download encrypted backup</button><button id="copy-npub" class="button text full" type="button">Copy npub</button><button class="button text full" type="button" data-install-property>Install Property</button><button id="open-agent-manager" class="button secondary full" type="button">Agents</button><button id="lock-account" class="button danger full" type="button">Lock and clear session</button><p id="profile-error" class="error" role="alert"></p></div></dialog>
+
+  <dialog id="chat-details-dialog" class="dialog-card" aria-labelledby="chat-details-title">
+    <form method="dialog" class="dialog-head"><div><p class="eyebrow">LOCAL CONTACT</p><h2 id="chat-details-title">Conversation details</h2></div><button class="icon-button" aria-label="Close">×</button></form>
+    <div class="dialog-body">
+      <label class="field"><span>Local name on this device</span><input id="chat-local-name" maxlength="80" autocomplete="off" placeholder="Add an optional local name"></label>
+      <button id="save-chat-local-name" class="button secondary full" type="button">Save local name</button>
+      <p id="chat-group-details" class="fine-print" hidden></p>
+      <section id="chat-public-profile-section" class="chat-public-profile" aria-labelledby="chat-public-profile-heading">
+        <p id="chat-public-profile-heading" class="eyebrow">PUBLIC NOSTR PROFILE</p>
+        <p id="chat-profile-status" class="muted" role="status" aria-live="polite">No public profile has been loaded on this device yet.</p>
+        <dl id="chat-public-profile-fields" class="public-profile-fields" hidden>
+          <div id="chat-profile-name-field" hidden></div><div id="chat-profile-about-field" hidden></div>
+          <div id="chat-profile-nip05-field" hidden></div><div id="chat-profile-website-field" hidden></div>
+        </dl>
+        <button id="load-chat-public-profile" class="button primary full" type="button">Load latest public profile</button>
+        <p class="fine-print">Property reads signed kind 0 profile events only from your saved relays and the relay hints for this conversation. Profile names and descriptions are self-described; a Nostr signature ties the event to this public key, not to a verified real-world identity. NIP-05 is shown without verification. Property does not load remote profile images.</p>
+      </section>
+    </div>
+  </dialog>
 
   <dialog id="contact-share-dialog" class="dialog-card" aria-labelledby="contact-share-title"><form method="dialog" class="dialog-head"><div><p class="eyebrow">PROPERTY · NOSTR CONTACT</p><h2 id="contact-share-title">Share your Property contact</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p class="muted">Scan the QR code or share the link to open this identity in Property.</p><div id="contact-share-qr" class="contact-share-qr"></div><p class="contact-share-label">Property contact link</p><code id="contact-share-link" class="contact-share-link" dir="ltr"></code><div class="dialog-actions"><button id="copy-contact-link" class="button primary" type="button">Copy Property link</button><button id="share-contact-native" class="button secondary" type="button" hidden>Share…</button></div><textarea id="contact-share-fallback" class="contact-share-fallback" rows="3" readonly hidden aria-label="Contact link to copy manually"></textarea><p class="contact-share-label">Nostr profile code</p><code id="contact-share-nprofile" class="contact-share-link" dir="ltr"></code><button id="copy-contact-nprofile" class="button text full" type="button">Copy nprofile</button><p class="fine-print">The code contains your public key and up to three selected secure relay hints. It never contains your private key or messages. Sharing reveals those relay addresses to the recipient.</p><p id="contact-share-relays" class="contact-share-relays"></p><p id="contact-share-error" class="error" role="alert"></p></div></dialog>
 
