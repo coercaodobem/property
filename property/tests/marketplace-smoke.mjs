@@ -57,6 +57,14 @@ const updated = product(now + 1, 'Oferta editada');
 assert.equal(market.productAddress(updated), `30018:${sellerPub}:${d}`, 'edit keeps the addressable product ID stable');
 assert.equal(market.selectActiveProducts([original, updated], N.verifyEvent).length, 1);
 assert.equal(market.selectActiveProducts([original, updated], N.verifyEvent)[0].data.name, 'Oferta editada');
+const simultaneousLeft = product(now, 'Edição simultânea A');
+const simultaneousRight = product(now, 'Edição simultânea B');
+const simultaneousWinner = [simultaneousLeft, simultaneousRight].sort((a, b) => a.id.localeCompare(b.id))[0];
+for (const versions of [[simultaneousLeft, simultaneousRight], [simultaneousRight, simultaneousLeft]]) {
+  const selected = market.selectActiveProducts(versions, N.verifyEvent, now);
+  assert.equal(selected.length, 1, 'concurrent edits of one addressable offer render as one item');
+  assert.equal(selected[0].id, simultaneousWinner.id, 'equal-time conflict resolution follows the lowest event ID in either input order');
+}
 const deletionTemplate = market.makeProductDeletion(updated);
 assert.deepEqual(JSON.parse(JSON.stringify(deletionTemplate.tags)), [
   ['a', `30018:${sellerPub}:${d}`], ['e', updated.id], ['k', '30018']
@@ -105,4 +113,4 @@ const activeAfterTargetedDeletion = market.selectActiveProducts([targetedProduct
 assert.deepEqual(JSON.parse(JSON.stringify(activeAfterTargetedDeletion.map(event => event.data.id))), [otherD],
   'withdrawing one addressable product preserves other offers by the same author');
 
-console.log('PASS: marketplace BTC/XMR/XNO exatos, edição addressable, exclusão NIP-09, expiração e validação de listagens');
+console.log('PASS: marketplace BTC/XMR/XNO exatos, edições addressable e conflito simultâneo, exclusão NIP-09, expiração e validação de listagens');

@@ -20,7 +20,7 @@ const PASSWORD = 'Property-offline-g05-test!';
 const ABSENCE_QUERY_REPETITIONS = 3;
 const NEGATIVE_BOUNDARY_REPETITIONS = 3;
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
-const CASES = ['G05-01', 'G05-02', 'G05-03', 'G05-04', 'G05-05', 'G05-06', 'G05-07'];
+const CASES = ['G05-01', 'G05-02', 'G05-03', 'G05-04', 'G05-05', 'G05-06', 'G05-07', 'G05-08'];
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -330,6 +330,15 @@ async function waitUntil(predicate, timeoutMs, message) {
   do { if (await predicate()) return; await sleep(100); } while (Date.now() < deadline);
   throw new Error(message);
 }
+async function activeProductIds(page, events, nowSeconds) {
+  return page.evaluate(({ candidates, now }) => window.PropertyMarketplace
+    .selectActiveProducts(candidates, event => window.NostrTools.verifyEvent(event), now)
+    .map(product => product.id), { candidates: events, now: nowSeconds });
+}
+async function currentProductIds(page, relayUrl, pubkey, d, nowSeconds) {
+  const events = await wsQuery(relayUrl, { kinds: [30018], authors: [pubkey], '#d': [d], limit: 20 });
+  return activeProductIds(page, events, nowSeconds);
+}
 async function assertNoExternal(report) {
   assert.deepEqual(report.external_requests, [], 'browser HTTP requests remain on localhost');
   assert.deepEqual(report.denied_proxy_attempts, [], 'no outgoing proxy attempts');
@@ -420,10 +429,13 @@ async function main() {
     mark('G05-03', 'PASS', 'Diamond, cycle and star topologies delivered through independent real browser bridges; relay ID queries showed one stored copy, and stopping one diamond path preserved delivery over the other.');
 
     activeCase = 'G05-04'; await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
-    nodes.set('Q12', await startNode(runtime, origin, report, 'Q12', [r1, r2]));
-    nodes.set('Q34', await startNode(runtime, origin, report, 'Q34', [r3, r4]));
-    const preReplay1 = runtime.sign(1, `property-g05-partition-a-${crypto.randomUUID()}`);
-    const preReplay2 = runtime.sign(1, `property-g05-partition-b-${crypto.randomUUID()}`);
+    const partitionNow = 1_800_000_000;
+    const partitionClock = { epochMs: partitionNow * 1000, idleDelayMs: 30 * 60 * 1000 };
+    const conflictSecret = Array.from({ length: 32 }, (_, index) => index + 1);
+    nodes.set('Q12', await startNode(runtime, origin, report, 'Q12', [r1, r2], { logicalClock: partitionClock }));
+    nodes.set('Q34', await startNode(runtime, origin, report, 'Q34', [r3, r4], { logicalClock: partitionClock }));
+    const preReplay1 = runtime.sign(1, 'property-g05-partition-replay-a', partitionNow, conflictSecret);
+    const preReplay2 = runtime.sign(1, 'property-g05-partition-replay-b', partitionNow, conflictSecret);
     assert.equal((await publishEvent(r1, preReplay2)).accepted, true); assert.equal((await publishEvent(r1, preReplay1)).accepted, true);
     await waitStored(r2, preReplay1.id, true); await waitStored(r2, preReplay2.id, true);
     await waitStored(r3, preReplay1.id, false); await waitStored(r4, preReplay2.id, false);
@@ -433,6 +445,91 @@ async function main() {
     assert.deepEqual(Object.values(replayCounts), [1, 1]);
     report.topologies.partition_rejoin = { out_of_order_source_publications: [preReplay2.id, preReplay1.id], reconciled_at_R4: replayCounts, no_duplicate_ids: true };
     mark('G05-04', 'PASS', 'Relay groups remained partitioned, then rejoined through a restarted P23. Two events published out of order reconciled once at R4 without duplicate IDs.');
+
+    activeCase = 'G05-08'; await closeNode(nodes.get('Q23')); nodes.delete('Q23');
+    const conflictD = 'property-g05-partition-conflict';
+    const makeConflictVersion = name => runtime.sign(30018, JSON.stringify({
+      id: conflictD, stall_id: 'property-g05-partition-fixture', name,
+      description: 'Offline conflict-resolution fixture', price: 0.00000001, currency: 'BTC', price_atomic: '1'
+    }), partitionNow, conflictSecret, [['d', conflictD]]);
+    const versionLeft = makeConflictVersion('Partition update from R1');
+    const versionRight = makeConflictVersion('Partition update from R3');
+    const noteLeft = runtime.sign(1, 'property-g05-partition-note-left', partitionNow, conflictSecret);
+    const noteRight = runtime.sign(1, 'property-g05-partition-note-right', partitionNow, conflictSecret);
+    assert.equal(runtime.verifyEvent(versionLeft), true); assert.equal(runtime.verifyEvent(versionRight), true);
+    assert.notEqual(versionLeft.id, versionRight.id);
+    assert.equal((await publishEvent(r1, versionLeft)).accepted, true);
+    assert.equal((await publishEvent(r1, noteLeft)).accepted, true);
+    assert.equal((await publishEvent(r3, versionRight)).accepted, true);
+    assert.equal((await publishEvent(r3, noteRight)).accepted, true);
+    await waitStored(r2, versionLeft.id, true); await waitStored(r4, versionRight.id, true);
+    await waitStored(r2, noteLeft.id, true); await waitStored(r4, noteRight.id, true);
+    for (const [event, destinations] of [
+      [versionLeft, [r3, r4]], [noteLeft, [r3, r4]], [versionRight, [r1, r2]], [noteRight, [r1, r2]]
+    ]) for (const target of destinations) for (let repetition = 0; repetition < ABSENCE_QUERY_REPETITIONS; repetition++) {
+      assert.equal((await wsQuery(target, { ids: [event.id], limit: 1 })).length, 0,
+        'partitioned relay groups do not leak events across a missing bridge path');
+    }
+    const tieWinner = [versionLeft, versionRight].sort((a, b) => a.id.localeCompare(b.id))[0];
+    const tieInputs = await Promise.all([
+      activeProductIds(nodes.get('Q12').page, [versionLeft, versionRight], partitionNow),
+      activeProductIds(nodes.get('Q12').page, [versionRight, versionLeft], partitionNow)
+    ]);
+    assert.deepEqual(tieInputs, [[tieWinner.id], [tieWinner.id]], 'equal-time product conflicts resolve identically in either event order');
+    nodes.set('Q23', await startNode(runtime, origin, report, 'Q23-conflict-rejoined', [r2, r3], { logicalClock: partitionClock }));
+    for (const event of [noteLeft, noteRight]) for (const relay of relays) await waitStored(relay.url, event.id, true);
+    await waitUntil(async () => {
+      const selections = await Promise.all(relays.map(relay => currentProductIds(nodes.get('Q12').page, relay.url, versionLeft.pubkey, conflictD, partitionNow)));
+      return selections.every(ids => ids.length === 1 && ids[0] === tieWinner.id);
+    }, 12000, 'relays did not converge on the deterministic equal-time addressable product version');
+    for (const event of [noteLeft, noteRight]) for (const relay of relays) {
+      assert.equal((await wsQuery(relay.url, { ids: [event.id], limit: 10 })).length, 1, 'both append-only notes remain available exactly once');
+    }
+    const marketPage = nodes.get('Q12').page;
+    await marketPage.locator('button[data-view="marketplace"]').click();
+    await marketPage.locator('#refresh-marketplace').click();
+    await marketPage.waitForFunction(() => document.querySelectorAll('#marketplace-list .product-card').length === 1, null, { timeout: 12000 });
+    const tieCardTitle = (await marketPage.locator('#marketplace-list .product-card h3').textContent()).trim();
+    assert.equal(tieCardTitle, tieWinner === versionLeft ? 'Partition update from R1' : 'Partition update from R3');
+
+    await closeNode(nodes.get('Q23')); nodes.delete('Q23');
+    const newerVersion = runtime.sign(30018, JSON.stringify({
+      id: conflictD, stall_id: 'property-g05-partition-fixture', name: 'Partition update after reconnect',
+      description: 'Fixed later logical timestamp', price: 0.00000001, currency: 'BTC', price_atomic: '1'
+    }), partitionNow + 1, conflictSecret, [['d', conflictD]]);
+    assert.equal((await publishEvent(r3, newerVersion)).accepted, true);
+    await waitStored(r4, newerVersion.id, true);
+    for (const target of [r1, r2]) for (let repetition = 0; repetition < ABSENCE_QUERY_REPETITIONS; repetition++) {
+      assert.equal((await wsQuery(target, { ids: [newerVersion.id], limit: 1 })).length, 0,
+        'the later update remains confined to its partition until the bridge reconnects');
+    }
+    nodes.set('Q23', await startNode(runtime, origin, report, 'Q23-later-update-rejoined', [r2, r3], { logicalClock: partitionClock }));
+    for (const relay of relays) await waitStored(relay.url, newerVersion.id, true);
+    await waitUntil(async () => {
+      const selections = await Promise.all(relays.map(relay => currentProductIds(marketPage, relay.url, versionLeft.pubkey, conflictD, partitionNow + 1)));
+      return selections.every(ids => ids.length === 1 && ids[0] === newerVersion.id);
+    }, 12000, 'relays did not converge on the later addressable marketplace version');
+    const tamperedVersion = { ...newerVersion, content: `${newerVersion.content} ` };
+    assert.equal(runtime.verifyEvent(tamperedVersion), false, 'a tampered addressable update fails signature verification');
+    assert.deepEqual(await activeProductIds(marketPage, [tamperedVersion], partitionNow + 1), [], 'tampered events cannot become active marketplace items');
+    await marketPage.locator('#refresh-marketplace').click();
+    await marketPage.waitForFunction(() => document.querySelectorAll('#marketplace-list .product-card').length === 1, null, { timeout: 12000 });
+    const latestCardTitle = (await marketPage.locator('#marketplace-list .product-card h3').textContent()).trim();
+    assert.equal(latestCardTitle, 'Partition update after reconnect');
+    report.topologies.partition_conflicts = {
+      relays: { left: [r1, r2], right: [r3, r4] },
+      address: `30018:${versionLeft.pubkey}:${conflictD}`,
+      concurrent_equal_time_ids: [versionLeft.id, versionRight.id],
+      equal_time_winner: tieWinner.id,
+      selector_order_permutations: tieInputs,
+      reconciled_effective_ids: await Promise.all(relays.map(relay => currentProductIds(marketPage, relay.url, versionLeft.pubkey, conflictD, partitionNow + 1))),
+      append_only_note_ids: [noteLeft.id, noteRight.id],
+      later_update_id: newerVersion.id,
+      tampered_signature_rejected: true,
+      marketplace_cards_after_each_reconciliation: [tieCardTitle, latestCardTitle],
+      absence_query_repetitions_per_destination: ABSENCE_QUERY_REPETITIONS
+    };
+    mark('G05-08', 'PASS', 'Two relay groups accepted conflicting signed updates while partitioned. The actual bridge reconciled them after reconnection, all relays selected the same NIP-01 tie winner independent of resolver input order, both append-only notes survived once, a later update superseded the conflict everywhere, and the marketplace UI rendered one valid card after each reconciliation.');
 
     activeCase = 'G05-05'; await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
     const sender = runtime.createIdentity(), recipient = runtime.createIdentity();

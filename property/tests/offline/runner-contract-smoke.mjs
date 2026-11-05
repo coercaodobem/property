@@ -38,7 +38,7 @@ const platformBrowserSource = await readFile(path.join(root, 'property/tests/pla
 assert.match(runnerSource, /-Djava\.io\.tmpdir=\$\{os\.tmpdir\(\)\}/,
   'Java children use the isolated run scratch directory for temporary native libraries');
 assert.match(runnerSource, /browser-g05-smoke\.mjs/, 'full profile executes the G05 multi-relay harness');
-assert.match(runnerSource, /const g05Ids = \['G05-01', 'G05-02', 'G05-03', 'G05-04', 'G05-05', 'G05-06', 'G05-07'\]/,
+assert.match(runnerSource, /const g05Ids = \['G05-01', 'G05-02', 'G05-03', 'G05-04', 'G05-05', 'G05-06', 'G05-07', 'G05-08'\]/,
   'runner records every G05 case individually');
 assert.match(viewportSource, /page\.screenshot\(/, 'G10-05 captures viewport screenshots for visual review');
 assert.match(viewportSource, /required_screenshots: 8/, 'G10-05 requires captures for all fixed viewport/zoom cases');
@@ -103,10 +103,10 @@ await access(path.join(root, 'property/tests/offline/g08-ledger-smoke.mjs'));
 await access(path.join(root, 'property/relay/campaign-engine.mjs'));
 const cases = parsePlanCases(plan);
 const details = parsePlanCaseDetails(plan);
-assert.equal(cases.length, 75);
-assert.equal(details.size, 75);
+assert.equal(cases.length, 76);
+assert.equal(details.size, 76);
 assert.ok([...details.values()].every(value => value.trim().length > 0));
-assert.equal(new Set(cases).size, 75);
+assert.equal(new Set(cases).size, 76);
 assert.equal(cases[0], 'G00-01');
 assert.equal(cases.at(-1), 'G12-06');
 const registryStart = plan.indexOf('## 6. Mandatory cases by gate');

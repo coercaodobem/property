@@ -1557,7 +1557,7 @@ async function runCoreProfile(profile, manifest, outputDir, cases, inventory, is
     return;
   }
 
-  const g05Ids = ['G05-01', 'G05-02', 'G05-03', 'G05-04', 'G05-05', 'G05-06', 'G05-07'];
+  const g05Ids = ['G05-01', 'G05-02', 'G05-03', 'G05-04', 'G05-05', 'G05-06', 'G05-07', 'G05-08'];
   if (!browserConfig) {
     for (const id of g05Ids) setCase(cases, id, {
       status: 'BLOCKED', gate_eligible: false, command: null, started_utc: null, ended_utc: null,
@@ -1577,7 +1577,7 @@ async function runCoreProfile(profile, manifest, outputDir, cases, inventory, is
       '--output', g05Output
     ];
     const g05Run = await runCommand(process.execPath, g05Args, manifest.case_timeout_ms,
-      path.join(outputDir, 'logs/G05-01-07-browser.log'));
+      path.join(outputDir, 'logs/G05-01-08-browser.log'));
     let g05Report = null;
     try { g05Report = JSON.parse(await readFile(path.join(g05Output, 'browser-g05-report.json'), 'utf8')); } catch {}
     for (const id of g05Ids) {
