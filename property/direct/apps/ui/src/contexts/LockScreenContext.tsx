@@ -61,6 +61,8 @@ const LockScreenContext = createContext<LockScreenContextValue | null>(null);
 
 // Kept across reloads, or reloading would reset the pacing.
 const ATTEMPTS_KEY = "ghostly_lock_attempts";
+/** The Web Lock pages of this origin take turns on to check an unlock password. */
+const ATTEMPTS_LOCK = "ghostly-unlock";
 /** Failures allowed before the wait starts; then it doubles from 1 s, up to 5 minutes. */
 const FREE_ATTEMPTS = 3;
 const MAX_DELAY_MS = 5 * 60_000;
@@ -102,8 +104,14 @@ function saveAttempts(attempts: Attempts | null): void {
   }
 }
 
+/** Only one tab checks a password at a time, so simultaneous tries cannot reuse the same failure count. */
+function oneTryAtATime(run: () => Promise<boolean>): Promise<boolean> {
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  return typeof locks?.request === "function" ? locks.request(ATTEMPTS_LOCK, run).then((valid) => valid) : run();
+}
+
 export function LockScreenProvider({ children }: { children: ReactNode }) {
-  const { settings, updateLockScreen } = useSettings();
+  const { settings, updateLockScreen, followStored } = useSettings();
   const lockActive = settings.lockScreen.enabled && !!settings.lockScreen.passwordHash;
   // Locked from the first render: a reload must not skip the password, unless the app handed the lock it passed across.
   const [handed] = useState(() => lockActive && takeUnlockHandover(activeProfileId(), settings.lockScreen.passwordHash));
@@ -143,10 +151,11 @@ export function LockScreenProvider({ children }: { children: ReactNode }) {
   }, [lockActive]);
 
   const lockHere = useCallback(() => {
-    if (settings.lockScreen.enabled && settings.lockScreen.passwordHash) {
+    const { enabled, passwordHash } = followStored().lockScreen;
+    if (enabled && passwordHash) {
       setIsLocked(true);
     }
-  }, [settings.lockScreen.enabled, settings.lockScreen.passwordHash]);
+  }, [followStored]);
 
   // The extension runs the app in several tabs at once: Lock Now in one locks them all, or the next tab would show
   // the chats to whoever clicks it. Only locking spreads; each tab is unlocked with the password on its own. The time
@@ -175,24 +184,28 @@ export function LockScreenProvider({ children }: { children: ReactNode }) {
       const storedHash = settings.lockScreen.passwordHash;
       if (!storedHash) return true;
 
-      const attempts = loadAttempts();
-      if (attempts.retryAt > Date.now()) {
-        setRetryAt(attempts.retryAt);
-        return false;
-      }
+      const valid = await oneTryAtATime(async () => {
+        const attempts = loadAttempts();
+        if (attempts.retryAt > Date.now()) {
+          setRetryAt(attempts.retryAt);
+          return false;
+        }
 
-      const valid = await verifyPassword(password, storedHash);
-      if (!valid) {
+        // Claim this slot before checking. The next tab sees the new count even while PBKDF2 is running.
         const failures = attempts.failures + 1;
         const delay =
           failures < FREE_ATTEMPTS ? 0 : Math.min(MAX_DELAY_MS, 1000 * 2 ** (failures - FREE_ATTEMPTS));
         const next = delay ? Date.now() + delay : 0;
         saveAttempts({ failures, retryAt: next });
+        if (await verifyPassword(password, storedHash)) {
+          saveAttempts(null);
+          return true;
+        }
         setRetryAt(next || null);
         return false;
-      }
+      });
+      if (!valid) return false;
 
-      saveAttempts(null);
       setRetryAt(null);
       setCovered(false);
       setIsLocked(false);
