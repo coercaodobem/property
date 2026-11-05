@@ -8,7 +8,7 @@
 
 Property is an open project for decentralized communication and voluntary exchange between people, built on Nostr. Its interface runs in a compatible browser on phones, tablets, and computers; access does not depend on app-store approval, publication, or maintenance. It includes an installable PWA, locally controlled identities, encrypted one-to-one and group messaging, and direct relay connections. On first use, Property randomly picks two relays from a list bundled in the app and saves the selection locally; people can replace them at any time.
 
-**[Open the app](https://coercaodobem.github.io/property/) · [Contribute](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Report an issue](https://github.com/coercaodobem/property/issues/new/choose)**
+**[Open the app](https://coercaodobem.github.io/property/) · [How Property works](https://coercaodobem.github.io/property/about.html) · [Contribute](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Report an issue](https://github.com/coercaodobem/property/issues/new/choose)**
 
 **Browser access:** open the site on a compatible device and, if you like, add the PWA to your home screen. The app does not need to be distributed through the Play Store or App Store.
 

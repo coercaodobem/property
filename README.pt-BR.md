@@ -8,7 +8,7 @@
 
 O Property é um projeto aberto de comunicação descentralizada e trocas voluntárias entre pessoas, baseado em Nostr. A interface funciona pelo navegador em celulares, tablets e computadores compatíveis; o acesso não depende de aprovação, publicação ou manutenção nas lojas de aplicativos. O projeto inclui uma PWA instalável, identidade controlada localmente, mensagens diretas e em grupo criptografadas e conexão direta a relays. No primeiro uso, o Property sorteia dois relays de uma lista incluída no app e salva a seleção localmente; a pessoa pode trocá-los quando quiser.
 
-**[Abrir o app](https://coercaodobem.github.io/property/) · [Como contribuir](CONTRIBUTING.pt-BR.md) · [Roadmap](ROADMAP.pt-BR.md) · [Reportar um problema](https://github.com/coercaodobem/property/issues/new/choose)**
+**[Abrir o app](https://coercaodobem.github.io/property/) · [Como funciona o Property](https://coercaodobem.github.io/property/about.pt-BR.html) · [Como contribuir](CONTRIBUTING.pt-BR.md) · [Roadmap](ROADMAP.pt-BR.md) · [Reportar um problema](https://github.com/coercaodobem/property/issues/new/choose)**
 
 **Acesso pelo navegador:** abra o site no dispositivo compatível e, se quiser, adicione a PWA à tela inicial. Não é preciso distribuir o app pela Play Store ou App Store. A interface abre em inglês; selecione **Português (Brasil)** no cabeçalho para mudar o idioma neste aparelho. A seleção é salva localmente. Mensagens, publicações, nomes e ofertas nunca são traduzidos.
 
