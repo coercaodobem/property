@@ -7,10 +7,12 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const html = await readFile(join(root, 'web/index.html'), 'utf8');
 const about = await readFile(join(root, 'web/about.html'), 'utf8');
+const ghostlyLicense = await readFile(join(root, 'web/GHOSTLY-MIT-LICENSE.txt'), 'utf8');
 const manifest = JSON.parse(await readFile(join(root, 'web/manifest.webmanifest'), 'utf8'));
 const app = await readFile(join(root, 'web/app.js'), 'utf8');
 const chatSearch = await readFile(join(root, 'web/chat-search.js'), 'utf8');
 const conversationFolders = await readFile(join(root, 'web/conversation-folders.js'), 'utf8');
+const richText = await readFile(join(root, 'web/rich-text.js'), 'utf8');
 const relayDefaults = await readFile(join(root, 'web/relay-defaults.js'), 'utf8');
 const shareInbox = await readFile(join(root, 'web/share-inbox.js'), 'utf8');
 const pwa = await readFile(join(root, 'web/pwa.js'), 'utf8');
@@ -35,6 +37,8 @@ assert.match(html, /rel="manifest"/);
 assert.match(html, /href="\.\/about\.html"/);
 assert.match(about, /Content-Security-Policy/);
 assert.match(about, /Identity and messages/);
+assert.match(about, /GHOSTLY-MIT-LICENSE\.txt/);
+assert.match(ghostlyLicense, /Copyright \(c\) 2026 Miguel Medeiros/);
 assert.doesNotMatch(about, /<script\b/i, 'about page has no executable scripts');
 assert.doesNotMatch(about, /(?:src|href)=["']https?:/i, 'about page has no external runtime resources');
 assert.match(sw, /nostr-tools-2\.25\.2\.bundle\.js/);
@@ -42,10 +46,11 @@ assert.match(sw, /vault\.js/);
 assert.match(sw, /about\.html/);
 assert.match(html, /\.\/chat-search\.js/);
 assert.match(html, /\.\/pwa\.js\?v=property-v33/);
-assert.match(html, /\.\/i18n\.js\?v=property-v35/);
-assert.match(html, /\.\/styles\.css\?v=property-v35/);
+assert.match(html, /\.\/i18n\.js\?v=property-v36/);
+assert.match(html, /\.\/styles\.css\?v=property-v36/);
 assert.match(html, /\.\/conversation-folders\.js\?v=property-v35/);
-assert.match(html, /\.\/app\.js\?v=property-v35/);
+assert.match(html, /\.\/rich-text\.js\?v=property-v36/);
+assert.match(html, /\.\/app\.js\?v=property-v36/);
 assert.match(sw, /chat-search\.js/);
 assert.match(sw, /pwa\.js\?v=property-v33/);
 assert.match(html, /data-install-property/);
@@ -63,6 +68,12 @@ assert.match(app, /if \(section\.isFolder && !section\.conversations\.length && 
 assert.match(app, /FolderStore\.move\(state\.conversationFolders, state\.folderMovingConversation/, 'chat and group assignment is a local action');
 assert.doesNotMatch(conversationFolders, /\bfetch\s*\(|\bWebSocket\b|\binnerHTML\b/, 'folder preferences never use the network or render markup');
 assert.match(sw, /conversation-folders\.js\?v=property-v35/, 'offline shell caches the local folder module');
+assert.match(sw, /rich-text\.js\?v=property-v36/, 'offline shell caches the local safe message renderer');
+assert.match(app, /RichText\.renderInto\(bubble, message\.text/, 'message formatting is rendered from the locally decrypted body');
+assert.match(app, /RichText\.preview\(conversation\.lastMessage/, 'chat list previews use formatted text without exposing spoiler contents');
+assert.match(app, /!RichText/, 'chat cannot boot if the local rich-text renderer is missing');
+assert.doesNotMatch(richText, /\binnerHTML\b/, 'message rendering never parses user text as HTML');
+assert.match(richText, /createTextNode\(/, 'plain message text is emitted through DOM text nodes');
 assert.doesNotMatch(html, /Property Direct|property\/direct/i, 'the shipped app has no separate Direct product or route');
 assert.match(ghostlyArchiveReadme, /Archived Ghostly source reference/);
 assert.match(ghostlyArchiveReadme, /not built or published by the Property Pages workflow/);
@@ -271,7 +282,7 @@ assert.doesNotMatch(`${app}\n${sw}`, /\bimport\s*\(\s*["']https?:/i,
   'the app and service worker cannot import remote executable code');
 assert.match(sw, /importScripts\('\.\/share-inbox\.js\?v=property-v33'\);/,
   'the service worker imports only Property local source for the share inbox');
-for (const localPath of ['./about.html', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
+for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './rich-text.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }
 await access(join(root, 'relay/dist-parts/manifest.txt'));

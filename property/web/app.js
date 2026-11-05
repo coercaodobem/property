@@ -20,6 +20,7 @@
   const AgentMessages = window.PropertyAgentMessages;
   const MessageSearch = window.PropertyMessageSearch;
   const FolderStore = window.PropertyConversationFolders;
+  const RichText = window.PropertyRichText;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const eventSourceHints = new WeakMap();
@@ -758,7 +759,7 @@
     const avatar = document.createElement('span'); avatar.className = `avatar${conversation.group ? ' group-avatar' : ''}`; avatar.textContent = conversation.group ? '◉' : label.slice(0, 1).toUpperCase();
     const info = document.createElement('span'); info.className = 'conversation-preview';
     const title = document.createElement('strong'); title.dataset.userContent = ''; title.textContent = label;
-    const preview = document.createElement('small'); preview.dataset.userContent = ''; preview.textContent = conversation.lastMessage || (conversation.group ? `${conversation.members?.length || 0} ${window.PropertyI18n?.language === 'pt-BR' ? 'participantes' : 'members'}` : conversation.pubkey.slice(0, 16));
+    const preview = document.createElement('small'); preview.dataset.userContent = ''; preview.textContent = RichText.preview(conversation.lastMessage || (conversation.group ? `${conversation.members?.length || 0} ${window.PropertyI18n?.language === 'pt-BR' ? 'participantes' : 'members'}` : conversation.pubkey.slice(0, 16)));
     info.append(title);
     const agentAccess = conversation.group ? null : await get('agentAccess', conversation.pubkey);
     if (conversation.agent || agentAccess?.status === 'approved') { const agentBadge = document.createElement('small'); agentBadge.className = 'agent-chat-badge'; agentBadge.textContent = localized('AGENT PROTOCOL', 'PROTOCOLO DE AGENTE'); info.append(agentBadge); }
@@ -983,7 +984,7 @@
         const parent = byEventId.get(message.replyToId);
         const quote = document.createElement('button'); quote.className = 'reply-reference'; quote.type = 'button';
         const author = parent?.direction === 'sent' ? (window.PropertyI18n?.language === 'pt-BR' ? 'Você' : 'You') : displayName(parent?.senderPubkey || peer, conversation?.group ? '' : conversation?.title || '');
-        quote.textContent = parent ? `${author}: ${parent.text.replace(/\s+/g, ' ').slice(0, 120)}` : 'Reply to a message';
+        quote.textContent = parent ? `${author}: ${RichText.preview(parent.text).slice(0, 120)}` : localized('Reply to a message', 'Responder a uma mensagem');
         const quoteLabel = parent
           ? `${window.PropertyI18n?.language === 'pt-BR' ? 'Ir para a mensagem respondida' : 'Go to replied message'}: ${quote.textContent}`
           : (window.PropertyI18n?.language === 'pt-BR' ? 'A mensagem respondida não está neste histórico local' : 'Replied message is not in this local history');
@@ -995,7 +996,7 @@
         });
         row.append(quote);
       }
-      const bubble = document.createElement('div'); bubble.className = 'message-bubble'; bubble.textContent = message.text;
+      const bubble = document.createElement('div'); bubble.className = 'message-bubble'; RichText.renderInto(bubble, message.text, window.PropertyI18n?.language || 'en');
       const counts = reactionsByTarget.get(eventId);
       let reactionSummary = null;
       if (counts?.size) {
@@ -1059,7 +1060,7 @@
     $('reply-context-label').textContent = message.direction === 'sent'
       ? (window.PropertyI18n?.language === 'pt-BR' ? 'Respondendo à sua mensagem' : 'Replying to your message')
       : (window.PropertyI18n?.language === 'pt-BR' ? `Respondendo a ${title}` : `Replying to ${title}`);
-    $('reply-context-text').textContent = message.text.replace(/\s+/g, ' ').slice(0, 180);
+    $('reply-context-text').textContent = RichText.preview(message.text).slice(0, 180);
   }
   async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false } = {}) {
     if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet });
@@ -1306,7 +1307,7 @@
       const name = document.createElement('strong'); name.textContent = conversationLabel(conversation || message.peer);
       const date = document.createElement('small'); date.textContent = new Date(message.createdAt).toLocaleString(window.PropertyI18n?.locale() || undefined);
       heading.append(name, date);
-      const excerpt = document.createElement('p'); excerpt.className = 'saved-message-text'; excerpt.textContent = message.text;
+      const excerpt = document.createElement('div'); excerpt.className = 'saved-message-text'; RichText.renderInto(excerpt, message.text, window.PropertyI18n?.language || 'en');
       const actions = document.createElement('div'); actions.className = 'dialog-actions';
       const open = document.createElement('button'); open.type = 'button'; open.className = 'button secondary'; open.textContent = 'Open message';
       open.addEventListener('click', async () => {
@@ -1673,7 +1674,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v35', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v36', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -1897,7 +1898,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !RichText || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.bridgeRefreshTimer = window.setInterval(refreshBridgeSubscriptions, 60_000);
