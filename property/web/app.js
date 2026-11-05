@@ -830,7 +830,14 @@
     }
     const previous = existingConversation || { pubkey: peer, title: '' };
     const isLatest = !previous.lastAt || message.createdAt >= previous.lastAt;
-    const updatedConversation = { ...previous, ...(group ? { group: true, members } : {}), ...(subject ? { title: subject } : {}), ...(fromAgent ? { agent: true } : {}), ...(isLatest ? { lastMessage: message.text, lastAt: message.createdAt } : {}) };
+    const previousUnreadCount = conversationUnreadCount(previous);
+    const visibleConversation = hasVisibleConversation(peer);
+    const unreadCount = edit
+      ? previousUnreadCount
+      : senderDirection === 'received' && !visibleConversation
+        ? Math.min(9999, previousUnreadCount + 1)
+        : visibleConversation ? 0 : previousUnreadCount;
+    const updatedConversation = { ...previous, unreadCount, ...(group ? { group: true, members } : {}), ...(subject ? { title: subject } : {}), ...(fromAgent ? { agent: true } : {}), ...(isLatest ? { lastMessage: message.text, lastAt: message.createdAt } : {}) };
     await put('conversations', updatedConversation);
     await renderConversations();
     if (state.activePeer === peer) { await updateConversationHeader(updatedConversation); await updateAgentBlockControl(peer); await renderMessages(peer); }
@@ -1017,6 +1024,24 @@
     const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'danger-text'; remove.textContent = localized('Delete folder', 'Excluir pasta'); remove.addEventListener('click', () => { details.open = false; deleteConversationFolder(folder); });
     menu.append(rename, up, down, remove); details.append(summary, menu); return details;
   }
+  function conversationUnreadCount(conversation) {
+    return Number.isSafeInteger(conversation?.unreadCount) ? Math.min(9999, Math.max(0, conversation.unreadCount)) : 0;
+  }
+  function unreadCountLabel(count) {
+    return window.PropertyI18n?.language === 'pt-BR'
+      ? `${count} ${count === 1 ? 'mensagem não lida' : 'mensagens não lidas'} neste aparelho. Nenhum recibo de leitura é enviado.`
+      : `${count} unread ${count === 1 ? 'message' : 'messages'} on this device. No read receipt is sent.`;
+  }
+  function hasVisibleConversation(peer) {
+    return state.activePeer === peer && state.activeView === 'messages' && document.visibilityState !== 'hidden';
+  }
+  async function markConversationRead(peer) {
+    if (!peer) return false;
+    const conversation = await get('conversations', peer);
+    if (!conversation || conversationUnreadCount(conversation) === 0) return false;
+    await put('conversations', { ...conversation, unreadCount: 0 });
+    return true;
+  }
   async function renderConversationRow(conversation) {
     const row = document.createElement('div'); row.className = 'conversation-row';
     const button = document.createElement('button'); button.className = `conversation-item${conversation.pubkey === state.activePeer ? ' active' : ''}`; button.type = 'button';
@@ -1028,7 +1053,15 @@
     info.append(title);
     const agentAccess = conversation.group ? null : await get('agentAccess', conversation.pubkey);
     if (conversation.agent || agentAccess?.status === 'approved') { const agentBadge = document.createElement('small'); agentBadge.className = 'agent-chat-badge'; agentBadge.textContent = localized('AGENT PROTOCOL', 'PROTOCOLO DE AGENTE'); info.append(agentBadge); }
-    info.append(preview); button.append(avatar, info); button.addEventListener('click', () => selectConversation(conversation.pubkey));
+    info.append(preview); button.append(avatar, info);
+    const unreadCount = conversationUnreadCount(conversation);
+    if (unreadCount > 0) {
+      const unreadBadge = document.createElement('span'); unreadBadge.className = 'unread-count-badge';
+      unreadBadge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+      unreadBadge.title = unreadCountLabel(unreadCount); unreadBadge.setAttribute('aria-label', unreadCountLabel(unreadCount));
+      button.append(unreadBadge);
+    }
+    button.addEventListener('click', () => selectConversation(conversation.pubkey));
     const details = document.createElement('details'); details.className = 'conversation-folder-actions';
     const summary = document.createElement('summary'); summary.textContent = '···'; summary.setAttribute('aria-label', localized('Conversation options', 'Opções da conversa')); summary.title = summary.getAttribute('aria-label');
     const menu = document.createElement('div'); menu.className = 'folder-actions-menu';
@@ -1059,8 +1092,15 @@
         const title = document.createElement('span'); title.className = 'folder-heading-name'; title.dataset.userContent = ''; title.textContent = name;
         const count = document.createElement('span'); count.className = 'folder-count'; count.textContent = String(section.conversations.length);
         const arrow = document.createElement('span'); arrow.className = 'folder-chevron'; arrow.textContent = section.collapsed ? '›' : '⌄';
-        toggle.setAttribute('aria-expanded', String(!section.collapsed)); toggle.setAttribute('aria-label', `${section.collapsed ? localized('Expand', 'Expandir') : localized('Collapse', 'Recolher')} ${name}`);
+        const unreadTotal = section.conversations.reduce((total, conversation) => total + conversationUnreadCount(conversation), 0);
+        toggle.setAttribute('aria-expanded', String(!section.collapsed)); toggle.setAttribute('aria-label', `${section.collapsed ? localized('Expand', 'Expandir') : localized('Collapse', 'Recolher')} ${name}${unreadTotal > 0 ? `; ${unreadCountLabel(unreadTotal)}` : ''}`);
         toggle.append(arrow, title, count);
+        if (unreadTotal > 0) {
+          const unread = document.createElement('span'); unread.className = 'unread-count-badge folder-unread-count';
+          unread.textContent = unreadTotal > 99 ? '99+' : String(unreadTotal);
+          unread.title = unreadCountLabel(unreadTotal); unread.setAttribute('aria-label', unreadCountLabel(unreadTotal));
+          toggle.append(unread);
+        }
         if (section.isFolder) {
           toggle.addEventListener('click', () => {
             const next = FolderStore.setCollapsed(state.conversationFolders, section.id, !section.collapsed);
@@ -1115,11 +1155,12 @@
     await updateConversationHeader(conversation);
     await updateAgentBlockControl(pubkey);
     await renderMessages(pubkey);
-    await renderConversations();
     if (window.innerWidth <= 800) {
       setActiveView('messages');
       setMobileConversationListOpen(false, { restoreFocus: true });
     }
+    if (state.activeView === 'messages') await markConversationRead(pubkey);
+    await renderConversations();
   }
   async function updateAgentBlockControl(pubkey) {
     const conversation = await get('conversations', pubkey);
@@ -1712,6 +1753,9 @@
     for (const name of ['messages', 'hangout', 'marketplace', 'node', 'saved']) {
       $(`${name}-view`).classList.toggle('hidden', name !== view);
       document.querySelector(`.nav-button[data-view="${name}"]`).classList.toggle('active', name === view);
+    }
+    if (view === 'messages' && state.activePeer) {
+      markConversationRead(state.activePeer).then(changed => changed && renderConversations()).catch(() => {});
     }
     if (view === 'hangout') refreshHangout().catch(() => {});
     if (view === 'marketplace') refreshMarketplace().catch(() => {});
@@ -2416,6 +2460,11 @@
       if (state.activePeer) await renderMessages(state.activePeer);
       if (state.activeView === 'saved') await renderSavedMessages();
     }));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'hidden' && state.activeView === 'messages' && state.activePeer) {
+        markConversationRead(state.activePeer).then(changed => changed && renderConversations()).catch(() => {});
+      }
+    });
     $('message-input').addEventListener('input', event => {
       resizeMessageInput(event.target);
       if (state.activePeer && !state.editingMessage) void saveChatDraft(state.activePeer, event.target.value).catch(() => {});
