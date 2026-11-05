@@ -17,6 +17,27 @@ assert.equal(rich.plainText('**open with no close'), '**open with no close', 'un
 assert.equal(rich.plainText('**bold _and nested_**'), 'bold and nested', 'paired markers may be nested');
 assert.equal(rich.preview('||private words||'), '▒▒▒', 'conversation previews do not reveal spoiler text');
 
+function fakeInput(value, start, end) {
+  return {
+    value, selectionStart: start, selectionEnd: end,
+    setRangeText(replacement, from, to) {
+      this.value = `${this.value.slice(0, from)}${replacement}${this.value.slice(to)}`;
+      this.selectionStart = from;
+      this.selectionEnd = from + replacement.length;
+    },
+    setSelectionRange(from, to) { this.selectionStart = from; this.selectionEnd = to; }
+  };
+}
+const selectedDraft = fakeInput('hello world', 6, 11);
+assert.equal(rich.wrapSelection(selectedDraft, '**'), true);
+assert.equal(selectedDraft.value, 'hello **world**');
+assert.deepEqual([selectedDraft.selectionStart, selectedDraft.selectionEnd], [6, 15]);
+const emptyDraft = fakeInput('hello world', 5, 5);
+assert.equal(rich.wrapSelection(emptyDraft, '||'), true);
+assert.equal(emptyDraft.value, 'hello|||| world');
+assert.deepEqual([emptyDraft.selectionStart, emptyDraft.selectionEnd], [7, 7], 'empty formatting pair leaves the caret inside');
+assert.equal(rich.wrapSelection(emptyDraft, '<img>'), false, 'unsupported markers are rejected');
+
 const blocks = plain(rich.parseMessage('**Title**\n\n# Heading\n\n- first\n- second\n  - nested\n\n> quoted *words*\n\n```js\nalert(1)\n```'));
 assert.deepEqual(blocks.map(block => block.type), ['paragraph', 'heading', 'list', 'quote', 'codeblock']);
 assert.equal(blocks[2].items[1].children[0].items[0].marker, '•', 'indented list items are represented as a nested list');

@@ -384,5 +384,16 @@
     return text.length > 500 ? `${text.slice(0, 499)}…` : text;
   }
 
-  window.PropertyRichText = Object.freeze({ parseMessage, tokenizeInline, plainText, preview, renderInto, MAX_FORMATTED_CHARS, SPOILER_PREVIEW });
+  function wrapSelection(input, marker) {
+    if (!input || typeof input.value !== 'string' || !['**', '_', '~~', '`', '||'].includes(marker)
+      || typeof input.setRangeText !== 'function' || typeof input.setSelectionRange !== 'function') return false;
+    const start = Math.max(0, Math.min(input.value.length, Number(input.selectionStart) || 0));
+    const end = Math.max(start, Math.min(input.value.length, Number(input.selectionEnd) || start));
+    const selected = input.value.slice(start, end);
+    input.setRangeText(`${marker}${selected}${marker}`, start, end, 'select');
+    if (!selected) input.setSelectionRange(start + marker.length, start + marker.length);
+    return true;
+  }
+
+  window.PropertyRichText = Object.freeze({ parseMessage, tokenizeInline, plainText, preview, renderInto, wrapSelection, MAX_FORMATTED_CHARS, SPOILER_PREVIEW });
 })();

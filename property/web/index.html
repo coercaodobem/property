@@ -11,8 +11,8 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v36">
-  <script defer src="./i18n.js?v=property-v36"></script>
+  <link rel="stylesheet" href="./styles.css?v=property-v37">
+  <script defer src="./i18n.js?v=property-v37"></script>
   <script defer src="./pwa.js?v=property-v33"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -28,8 +28,8 @@
   <script defer src="./agent-messaging.js?v=property-v26"></script>
   <script defer src="./chat-search.js?v=property-v28"></script>
   <script defer src="./conversation-folders.js?v=property-v35"></script>
-  <script defer src="./rich-text.js?v=property-v36"></script>
-  <script defer src="./app.js?v=property-v36"></script>
+  <script defer src="./rich-text.js?v=property-v37"></script>
+  <script defer src="./app.js?v=property-v37"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -117,7 +117,16 @@
           <div id="message-search-bar" class="message-search-bar hidden" role="search"><span aria-hidden="true">⌕</span><input id="message-search-input" type="search" autocomplete="off" placeholder="Search in this conversation" aria-label="Search in this conversation"><span id="message-search-count" class="message-search-count" role="status" aria-live="polite"></span><button id="message-search-older" class="icon-button small" type="button" aria-label="Older match" title="Older match" disabled>↑</button><button id="message-search-newer" class="icon-button small" type="button" aria-label="Newer match" title="Newer match" disabled>↓</button><button id="message-search-close" class="icon-button small" type="button" aria-label="Close search" title="Close search">×</button></div>
           <div id="messages" class="messages" aria-live="polite"></div>
           <div id="reply-context" class="reply-context hidden" aria-live="polite"><span><strong id="reply-context-label">Replying to message</strong><small id="reply-context-text"></small></span><button id="cancel-reply" type="button" class="icon-button small" aria-label="Cancel reply">×</button></div>
-          <form id="send-form" class="composer"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Write a private message…" aria-label="Message"></textarea><button class="send-button" type="submit" aria-label="Send message">↑</button></form>
+          <form id="send-form" class="composer">
+            <div class="composer-format-tools" role="toolbar" aria-label="Message formatting">
+              <button class="format-button format-bold" type="button" data-format-marker="**" aria-label="Bold" title="Bold">B</button>
+              <button class="format-button format-italic" type="button" data-format-marker="_" aria-label="Italic" title="Italic">I</button>
+              <button class="format-button format-strike" type="button" data-format-marker="~~" aria-label="Strikethrough" title="Strikethrough">S</button>
+              <button class="format-button" type="button" data-format-marker="`" aria-label="Inline code" title="Inline code">&lt;/&gt;</button>
+              <button class="format-button format-spoiler" type="button" data-format-marker="||" aria-label="Spoiler" title="Spoiler">◉</button>
+            </div>
+            <div class="composer-input-row"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Write a private message…" aria-label="Message"></textarea><button class="send-button" type="submit" aria-label="Send message">↑</button></div>
+          </form>
           <p id="composer-note" class="composer-note">NIP-17 · requires an inbox relay kind 10050 list published by both you and the other person</p>
         </div>
       </section>

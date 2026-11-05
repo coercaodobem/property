@@ -1829,6 +1829,12 @@
       if (state.activeView === 'saved') await renderSavedMessages();
     }));
     $('message-input').addEventListener('input', event => { event.target.style.height = 'auto'; event.target.style.height = `${Math.min(event.target.scrollHeight, 150)}px`; });
+    document.querySelectorAll('[data-format-marker]').forEach(button => button.addEventListener('click', () => {
+      const input = $('message-input');
+      if (!RichText.wrapSelection(input, button.dataset.formatMarker)) return;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.focus();
+    }));
     $('conversation-search').addEventListener('input', renderConversations);
     $('message-search-button').addEventListener('click', openMessageSearch);
     $('message-search-close').addEventListener('click', () => closeMessageSearch());
