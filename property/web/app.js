@@ -1265,8 +1265,13 @@
     const avatar = document.createElement('span'); avatar.className = `avatar${conversation.group ? ' group-avatar' : ''}`; avatar.textContent = conversation.group ? '◉' : label.slice(0, 1).toUpperCase();
     const info = document.createElement('span'); info.className = 'conversation-preview';
     const title = document.createElement('strong'); title.dataset.userContent = ''; title.textContent = label;
+    const titleRow = document.createElement('span'); titleRow.className = 'conversation-title-row'; titleRow.append(title);
+    if (conversation.pinned === true) {
+      const pin = document.createElement('span'); pin.className = 'conversation-pin-indicator'; pin.textContent = '📌';
+      pin.title = localized('Pinned conversation', 'Conversa fixada'); pin.setAttribute('aria-label', pin.title); titleRow.append(pin);
+    }
     const preview = document.createElement('small'); preview.dataset.userContent = ''; preview.textContent = RichText.preview(conversation.lastMessage || (conversation.group ? `${conversation.members?.length || 0} ${window.PropertyI18n?.language === 'pt-BR' ? 'participantes' : 'members'}` : conversation.pubkey.slice(0, 16)));
-    info.append(title);
+    info.append(titleRow);
     const agentAccess = conversation.group ? null : await get('agentAccess', conversation.pubkey);
     if (conversation.agent || agentAccess?.status === 'approved') { const agentBadge = document.createElement('small'); agentBadge.className = 'agent-chat-badge'; agentBadge.textContent = localized('AGENT PROTOCOL', 'PROTOCOLO DE AGENTE'); info.append(agentBadge); }
     info.append(preview); button.append(avatar, info);
@@ -1281,12 +1286,26 @@
     const details = document.createElement('details'); details.className = 'conversation-folder-actions';
     const summary = document.createElement('summary'); summary.textContent = '···'; summary.setAttribute('aria-label', localized('Conversation options', 'Opções da conversa')); summary.title = summary.getAttribute('aria-label');
     const menu = document.createElement('div'); menu.className = 'folder-actions-menu';
+    const pin = document.createElement('button'); pin.type = 'button'; pin.textContent = conversation.pinned === true ? localized('Unpin chat', 'Desafixar conversa') : localized('Pin chat', 'Fixar conversa');
+    pin.addEventListener('click', () => { details.open = false; void toggleConversationPin(conversation.pubkey); });
     const move = document.createElement('button'); move.type = 'button'; move.textContent = localized('Move to folder…', 'Mover para uma pasta…');
     move.addEventListener('click', () => { details.open = false; openMoveConversationFolder(conversation.pubkey); });
-    menu.append(move); details.append(summary, menu); row.append(button, details); return row;
+    menu.append(pin, move); details.append(summary, menu); row.append(button, details); return row;
+  }
+  async function toggleConversationPin(pubkey) {
+    try {
+      const conversation = await get('conversations', pubkey);
+      if (!conversation) return;
+      const pinned = conversation.pinned !== true;
+      await put('conversations', { ...conversation, pinned });
+      await renderConversations();
+      showToast(pinned ? localized('Chat pinned on this device.', 'Conversa fixada neste aparelho.') : localized('Chat unpinned on this device.', 'Conversa desafixada neste aparelho.'));
+    } catch {
+      showToast(localized('Could not update the local chat pin.', 'Não foi possível atualizar a fixação local da conversa.'));
+    }
   }
   async function renderConversations() {
-    const conversations = (await all('conversations')).sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+    const conversations = FolderStore.sortConversations(await all('conversations'));
     const search = $('conversation-search').value.trim().toLowerCase();
     const list = $('conversation-list');
     list.replaceChildren();
@@ -2473,7 +2492,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v47', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v48', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }

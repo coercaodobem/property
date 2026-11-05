@@ -47,6 +47,16 @@ config = folders.remove(config, 'folder-work');
 assert.equal(config.assignments[group], undefined, 'deleting a folder returns its conversations to Other chats without deleting them');
 assert.deepEqual(plain(folders.sections(rows, config)[1].conversations.map(row => row.pubkey)), [bob, group, carol]);
 
+const sortedChats = folders.sortConversations([
+  { pubkey: alice, lastAt: 80 },
+  { pubkey: bob, lastAt: 20, pinned: true },
+  { pubkey: carol, lastAt: 50, pinned: true },
+  { pubkey: group, lastAt: 90, pinned: 'true' }
+]);
+assert.deepEqual(plain(sortedChats.map(row => row.pubkey)), [carol, bob, group, alice], 'pinned chats stay first, ordered by recent activity; unpinned chats follow, and only boolean true counts as pinned');
+const tiedPins = folders.sortConversations([{ pubkey: alice, lastAt: 10, pinned: true }, { pubkey: bob, lastAt: 10, pinned: true }]);
+assert.deepEqual(plain(tiedPins.map(row => row.pubkey)), [alice, bob], 'equal timestamps preserve input order');
+
 const malformed = folders.normalize({
   folders: [{ id: 'ok', name: 'Safe', collapsed: true }, { id: 'bad', name: 'safe' }, { id: 'invalid id', name: 'Bad' }, { id: 'x', name: 'x'.repeat(41) }],
   assignments: { [alice]: 'ok', [bob]: 'missing', 'not-a-conversation-id': 'ok', [group]: 'ok' }
@@ -60,4 +70,4 @@ for (let index = 0; index < folders.MAX_FOLDERS; index++) limited = folders.crea
 assert.equal(limited.folders.length, 24);
 assert.throws(() => folders.create(limited, 'One more', 'f-extra'), /folder-limit-reached/);
 
-console.log('PASS: local conversation folders validate names, organize chats and groups, persist collapse/order, flatten search, and never delete conversations');
+console.log('PASS: local conversation folders and pinned chats validate, sort, organize conversations, persist collapse/order, flatten search, and never delete conversations');

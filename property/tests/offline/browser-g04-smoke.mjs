@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06'];
+const CASES = ['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -238,7 +238,10 @@ function publishEvent(url, event) {
 
 async function openApp(context, origin) {
   const page = await context.newPage(); await page.goto(`${origin}/property/`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, { timeout: 20000 });
+  await page.waitForFunction(async () => {
+    const registration = await navigator.serviceWorker?.getRegistration();
+    return registration?.active?.state === 'activated';
+  }, null, { timeout: 20000 });
   await page.waitForFunction(() => !document.querySelector('#auth-choice')?.classList.contains('hidden') || !document.querySelector('#workspace')?.classList.contains('hidden'), null, { timeout: 20000 });
   return page;
 }
@@ -249,6 +252,108 @@ async function createIdentity(page) {
   const npub = (await page.locator('#profile-npub').textContent()).trim();
   const pubkey = await page.evaluate(value => NostrTools.nip19.decode(value).data, npub);
   return { npub, pubkey };
+}
+async function importIdentity(page, secretHex) {
+  await page.locator('#import-account-button').click(); await page.locator('#auth-import').waitFor({ state: 'visible' });
+  await page.locator('#import-secret').fill(secretHex); await page.locator('#import-password').fill(PASSWORD); await page.locator('#remember-import').check();
+  await page.locator('#finish-import-button').click(); await page.locator('#workspace').waitFor({ state: 'visible', timeout: 30000 });
+  const npub = (await page.locator('#profile-npub').textContent()).trim();
+  const pubkey = await page.evaluate(value => NostrTools.nip19.decode(value).data, npub);
+  return { npub, pubkey };
+}
+async function freshSecretHex(page) {
+  return page.evaluate(() => Array.from(NostrTools.generateSecretKey(), byte => byte.toString(16).padStart(2, '0')).join(''));
+}
+async function saveRelaysBeforeIdentity(page, relayUrls) {
+  await page.evaluate(async urls => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('liberdade-local-v1');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction('settings', 'readwrite');
+      transaction.objectStore('settings').put({ id: 'relays', values: urls });
+      transaction.oncomplete = resolve;
+      transaction.onabort = () => reject(transaction.error || new Error('relay fixture transaction aborted'));
+      transaction.onerror = () => reject(transaction.error || new Error('relay fixture transaction failed'));
+    });
+    db.close();
+  }, relayUrls);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.locator('#auth-choice').waitFor({ state: 'visible' });
+}
+async function openGroupConversation(page, title, members) {
+  await page.locator('#new-chat-button').click(); await page.locator('#new-chat-dialog').waitFor({ state: 'visible' });
+  await page.locator('#open-group-dialog').click(); await page.locator('#group-dialog').waitFor({ state: 'visible' });
+  await page.locator('#group-name-input').fill(title); await page.locator('#group-members-input').fill(members.join('\n'));
+  await page.locator('#create-group-button').click(); await page.locator('#group-dialog').waitFor({ state: 'hidden' });
+  await page.locator('#conversation-pane').waitFor({ state: 'visible' });
+}
+async function createConversationFolder(page, title) {
+  await page.locator('#create-folder-button').click(); await page.locator('#folder-dialog').waitFor({ state: 'visible' });
+  await page.locator('#folder-name-input').fill(title); await page.locator('#folder-save').click();
+  await page.locator('#folder-dialog').waitFor({ state: 'hidden' });
+}
+async function moveConversationToFolder(page, title, folder) {
+  const row = page.locator('#conversation-list .conversation-row').filter({ hasText: title });
+  await row.locator('.conversation-folder-actions summary').click();
+  await row.locator('.folder-actions-menu button').filter({ hasText: 'Move to folder…' }).click();
+  await page.locator('#move-folder-dialog').waitFor({ state: 'visible' });
+  await page.locator('#folder-move-select').selectOption({ label: folder });
+  await page.locator('#move-folder-save').click(); await page.locator('#move-folder-dialog').waitFor({ state: 'hidden' });
+}
+async function setConversationTimes(page, updates) {
+  await page.evaluate(async entries => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('liberdade-local-v1');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction('conversations', 'readwrite');
+      const store = transaction.objectStore('conversations');
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const times = new Map(entries);
+        for (const conversation of request.result || []) {
+          if (times.has(conversation.pubkey)) store.put({ ...conversation, lastAt: times.get(conversation.pubkey) });
+        }
+      };
+      transaction.oncomplete = resolve;
+      transaction.onabort = () => reject(transaction.error || new Error('conversation fixture transaction aborted'));
+      transaction.onerror = () => reject(transaction.error || new Error('conversation fixture transaction failed'));
+    });
+    db.close();
+  }, Object.entries(updates));
+}
+async function conversationNames(page) {
+  return (await page.locator('#conversation-list .conversation-item strong').allTextContents()).map(value => value.trim());
+}
+async function setConversationPin(page, title, action, pinned) {
+  const row = page.locator('#conversation-list .conversation-row').filter({ hasText: title });
+  await row.locator('.conversation-folder-actions summary').click();
+  await row.locator('.folder-actions-menu button').filter({ hasText: action }).click();
+  await page.waitForFunction(({ name, expected }) => {
+    const found = [...document.querySelectorAll('#conversation-list .conversation-row')]
+      .find(item => item.querySelector('.conversation-item strong')?.textContent.trim() === name);
+    return Boolean(found?.querySelector('.conversation-pin-indicator')) === expected;
+  }, { name: title, expected: pinned }, { timeout: 5000 });
+}
+async function conversationRecords(page) {
+  return page.evaluate(async () => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('liberdade-local-v1');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const rows = await new Promise((resolve, reject) => {
+      const request = db.transaction('conversations').objectStore('conversations').getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+    db.close(); return rows.map(({ pubkey, title, pinned, lastAt }) => ({ pubkey, title, pinned: pinned === true, lastAt }));
+  });
 }
 async function configureRelays(page, general, inbox, publishInbox = true) {
   await page.locator('#open-settings').click(); await page.locator('#relay-dialog').waitFor({ state: 'visible' });
@@ -308,7 +413,7 @@ async function writeReport(output, report) { await mkdir(output, { recursive: tr
 
 async function main() {
   installProcessGroupSignalCleanup();
-  let options, runtime, app, proxy, relay0, relay1, falseAck, contextA, contextB, contextC, contextD, stage = 'startup';
+  let options, runtime, app, proxy, relay0, relay1, falseAck, contextA, contextB, contextC, contextD, contextE, contextF, stage = 'startup';
   const temp = await mkdtemp(path.join(os.tmpdir(), 'property-g04-'));
   const report = { schema_version: 1, cases: CASES.map(id => ({ case: id, status: 'NOT_RUN', reason: 'Case has not started.' })),
     relays: [], external_requests: [], websockets: [], denied_proxy_attempts: [], page_errors: [], inbox_checks: {}, message_checks: {}, failure_checks: {}, reconciliation: {} };
@@ -324,8 +429,12 @@ async function main() {
     contextB = await runtime.playwright[options.engine].launchPersistentContext(profileB, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
     contextC = await runtime.playwright[options.engine].launchPersistentContext(profileC, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
     for (const context of [contextA, contextB, contextC]) instrument(context, origin, report);
-    let pageA = await openApp(contextA, origin), pageB = await openApp(contextB, origin), pageC = await openApp(contextC, origin);
-    const a = await createIdentity(pageA), b = await createIdentity(pageB), c = await createIdentity(pageC);
+    stage = 'G04-01: open A'; let pageA = await openApp(contextA, origin);
+    stage = 'G04-01: open B'; let pageB = await openApp(contextB, origin);
+    stage = 'G04-01: open C'; let pageC = await openApp(contextC, origin);
+    stage = 'G04-01: create identity A'; const a = await createIdentity(pageA);
+    stage = 'G04-01: create identity B'; const b = await createIdentity(pageB);
+    stage = 'G04-01: create identity C'; const c = await createIdentity(pageC);
     await configureRelays(pageA, [relay0.url], [relay0.url]);
     await configureRelays(pageB, [relay0.url], [relay0.url, relay1.url]);
     await configureRelays(pageC, [relay0.url], [relay0.url]);
@@ -483,11 +592,81 @@ async function main() {
     report.reconciliation = { message_texts: expected, browser_database_counts: UICounts,
       retained_relay_event_count: retained.length, plaintext_found_in_relay: false,
       false_ack_message_delivered: false, read_receipt_protocol_present: false };
+    mark('G04-06', 'PASS', 'The delivered corpus reconciled one-for-one in both browser databases and real relay storage; no plaintext, duplicate UI copy, third-party recipient or read receipt was observed.');
+
+    // G04-09: local-only pin order, persistence across reload, and no sync or relay publication.
+    stage = 'G04-09: local pin ordering and isolation';
+    contextE = await runtime.browser.newContext({ serviceWorkers: 'allow' });
+    contextF = await runtime.browser.newContext({ serviceWorkers: 'allow' });
+    instrument(contextE, origin, report); instrument(contextF, origin, report);
+    const pageE = await openApp(contextE, origin);
+    const secretHex = await freshSecretHex(pageE);
+    await saveRelaysBeforeIdentity(pageE, [relay0.url]);
+    const owner = await importIdentity(pageE, secretHex);
+    await openConversation(pageE, b.npub, 'G04 direct B');
+    await openConversation(pageE, c.npub, 'G04 direct C');
+    await openGroupConversation(pageE, 'G04 private group', [b.npub, c.npub]);
+    const groupRecord = (await conversationRecords(pageE)).find(row => row.title === 'G04 private group');
+    assert.ok(groupRecord?.pubkey.startsWith('group:'), 'the private group is present in the local conversation store');
+    await createConversationFolder(pageE, 'G04 Pin Folder');
+    await moveConversationToFolder(pageE, 'G04 direct B', 'G04 Pin Folder');
+    await moveConversationToFolder(pageE, 'G04 direct C', 'G04 Pin Folder');
+    await moveConversationToFolder(pageE, 'G04 private group', 'G04 Pin Folder');
+    await setConversationTimes(pageE, {
+      [b.pubkey]: 10,
+      [c.pubkey]: 30,
+      [groupRecord.pubkey]: 20
+    });
+    await pageE.reload({ waitUntil: 'domcontentloaded' });
+    await pageE.locator('#workspace').waitFor({ state: 'visible', timeout: 20000 });
+    const beforePin = await conversationNames(pageE);
+    assert.deepEqual(beforePin, ['G04 direct C', 'G04 private group', 'G04 direct B'], 'baseline order follows fixed recent-activity values');
+    const baselineEvents = (await wsQuery(relay0.url, { authors: [owner.pubkey], limit: 1000 })).map(event => event.id).sort();
+    await setConversationPin(pageE, 'G04 direct B', 'Pin chat', true);
+    await setConversationPin(pageE, 'G04 private group', 'Pin chat', true);
+    const pinnedOrder = await conversationNames(pageE);
+    assert.deepEqual(pinnedOrder, ['G04 private group', 'G04 direct B', 'G04 direct C'], 'pinned older chats precede a more recent unpinned chat; pinned rows remain recent-first');
+    await setConversationPin(pageE, 'G04 private group', 'Unpin chat', false);
+    const unpinnedOrder = await conversationNames(pageE);
+    assert.deepEqual(unpinnedOrder, ['G04 direct C', 'G04 private group', 'G04 direct B'], 'unpin restores recent-first order');
+    await pageE.reload({ waitUntil: 'domcontentloaded' });
+    await pageE.locator('#workspace').waitFor({ state: 'visible', timeout: 20000 });
+    assert.deepEqual(await conversationNames(pageE), unpinnedOrder, 'local pin state and sort order survive one reload');
+    const afterReloadRecords = await conversationRecords(pageE);
+    assert.equal(afterReloadRecords.find(row => row.pubkey === b.pubkey)?.pinned, true, 'direct chat remains pinned after reload');
+    assert.equal(afterReloadRecords.find(row => row.pubkey === groupRecord.pubkey)?.pinned, false, 'un-pinned group remains unpinned after reload');
+
+    const pageF = await openApp(contextF, origin);
+    await saveRelaysBeforeIdentity(pageF, [relay0.url]);
+    const imported = await importIdentity(pageF, secretHex);
+    assert.equal(imported.pubkey, owner.pubkey, 'the clean second profile imports the same test identity');
+    await openConversation(pageF, b.npub, 'G04 direct B');
+    await openConversation(pageF, c.npub, 'G04 direct C');
+    await openGroupConversation(pageF, 'G04 private group', [b.npub, c.npub]);
+    await createConversationFolder(pageF, 'G04 Pin Folder');
+    await moveConversationToFolder(pageF, 'G04 direct B', 'G04 Pin Folder');
+    await moveConversationToFolder(pageF, 'G04 direct C', 'G04 Pin Folder');
+    await moveConversationToFolder(pageF, 'G04 private group', 'G04 Pin Folder');
+    const cleanProfileRecords = await conversationRecords(pageF);
+    assert.ok(cleanProfileRecords.filter(row => [b.pubkey, c.pubkey, groupRecord.pubkey].includes(row.pubkey)).every(row => row.pinned === false),
+      'a clean profile has no synced local pin state for the same direct chats or group');
+    const finalEvents = (await wsQuery(relay0.url, { authors: [owner.pubkey], limit: 1000 })).map(event => event.id).sort();
+    assert.deepEqual(finalEvents, baselineEvents, 'pin and unpin actions published exactly zero relay events');
+    report.local_pins = {
+      fixed_activity_order: { before: beforePin, pinned: pinnedOrder, after_unpin: unpinnedOrder },
+      survived_one_reload: true,
+      second_profile_same_identity: true,
+      second_profile_pins_synced: false,
+      relay_event_ids_before: baselineEvents,
+      relay_event_ids_after: finalEvents,
+      relay_event_delta: 0
+    };
+    mark('G04-09', 'PASS', 'Direct and group chats pin locally in the existing list, retain order after reload, remain unpinned in a clean profile with the same identity, and produce zero relay events.');
+
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
     assert.deepEqual(report.denied_proxy_attempts, [], 'no outbound proxy attempt');
     assert.deepEqual(report.page_errors, [], 'no page runtime errors');
     assert.ok(report.websockets.every(url => /^ws:\/\/127\.0\.0\.1:/.test(url)), 'browser WebSockets are loopback only');
-    mark('G04-06', 'PASS', 'The delivered corpus reconciled one-for-one in both browser databases and real relay storage; no plaintext, duplicate UI copy, third-party recipient or read receipt was observed.');
     report.result = report.cases.every(row => row.status === 'PASS') ? 'PASS' : 'FAIL';
     report.denied_proxy_attempts = [...proxy.attempts];
     await writeReport(path.resolve(options.output), report);
@@ -506,7 +685,7 @@ async function main() {
     catch (writeError) { process.stderr.write(`REPORT_WRITE_FAILED: ${safeText(writeError.message || writeError)}\n`); }
     process.stderr.write(`${report.result}: ${report.error}\n`); return report.result === 'BLOCKED' ? 2 : 1;
   } finally {
-    await closeContext(contextD); await closeContext(contextC); await closeContext(contextB); await closeContext(contextA);
+    await closeContext(contextF); await closeContext(contextE); await closeContext(contextD); await closeContext(contextC); await closeContext(contextB); await closeContext(contextA);
     await runtime?.browser?.close().catch(() => {});
     await stopGeode(relay1); await stopGeode(relay0);
     for (const server of [falseAck?.server, app?.server, proxy?.server]) if (server?.listening) await new Promise(resolve => { server.close(() => resolve()); server.closeAllConnections?.(); });

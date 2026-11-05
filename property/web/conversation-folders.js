@@ -83,6 +83,14 @@
     [folders[index], folders[target]] = [folders[target], folders[index]];
     return normalize({ ...config, folders });
   }
+  function sortConversations(conversations) {
+    const rows = Array.isArray(conversations) ? conversations : [];
+    return rows.map((conversation, index) => ({ conversation, index })).sort((a, b) => {
+      const pinned = Number(b.conversation?.pinned === true) - Number(a.conversation?.pinned === true);
+      const recent = (Number.isFinite(b.conversation?.lastAt) ? b.conversation.lastAt : 0) - (Number.isFinite(a.conversation?.lastAt) ? a.conversation.lastAt : 0);
+      return pinned || recent || a.index - b.index;
+    }).map(entry => entry.conversation);
+  }
   function sections(conversations, raw, query = '') {
     const config = normalize(raw);
     const rows = Array.isArray(conversations) ? conversations : [];
@@ -96,5 +104,5 @@
     if (other.length) result.push({ id: 'other-conversations', name: '', isFolder: false, isOther: true, collapsed: false, conversations: other });
     return result;
   }
-  window.PropertyConversationFolders = Object.freeze({ MAX_FOLDERS, MAX_NAME_LENGTH, normalize, create, rename, setCollapsed, move, remove, reorder, sections });
+  window.PropertyConversationFolders = Object.freeze({ MAX_FOLDERS, MAX_NAME_LENGTH, normalize, create, rename, setCollapsed, move, remove, reorder, sortConversations, sections });
 })();
