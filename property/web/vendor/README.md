@@ -12,3 +12,7 @@
 O aviso Unlicense foi mantido do pacote upstream e se aplica somente ao bundle `nostr-tools` acima; não define a licença do Property nem dos demais arquivos deste repositório.
 
 O bundle é carregado apenas do próprio pacote Property. Não há importação em runtime de CDN ou repositório externo. A cadeia de build e as dependências transitivas ainda requerem auditoria antes de um lançamento estável.
+
+- emoji-data-15.json — catálogo Emoji Mart 1.2.1 para Unicode 15, copiado do pacote arquivado archive/ghostly-source/node_modules/@emoji-mart/data/sets/15/native.json. A interface usa categorias, nomes, palavras-chave e variantes de tom de pele locais.
+- SHA-256: e1e7d657dba21af5904ffecf043f313852f5495833fc7bff6b1f0c5c4906d148.
+- Aviso MIT em licenses/emoji-mart-data-MIT.txt.

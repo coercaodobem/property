@@ -26,6 +26,7 @@ for test_file in \
   contact-smoke.mjs \
   contact-share-smoke.mjs \
   qr-code-smoke.mjs \
+  emoji-picker-smoke.mjs \
   relay-defaults-smoke.mjs \
   share-target-smoke.mjs \
   pwa-smoke.mjs \

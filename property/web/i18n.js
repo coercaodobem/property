@@ -3,6 +3,7 @@
   const EN_TO_PT = new Map();
   const PT_TO_EN = new Map();
   const pairs = [
+    ['Message formatting and emoji', 'Formatação da mensagem e emojis'], ['Add emoji', 'Adicionar emoji'], ['Choose emoji', 'Escolha um emoji'], ['Search emoji', 'Buscar emojis'], ['Skin tone', 'Tom de pele'], ['Close emoji picker', 'Fechar seletor de emojis'], ['Emoji categories', 'Categorias de emojis'],
     ['Application language', 'Idioma do aplicativo'],
     ['NIP-17 · LOCAL METADATA', 'NIP-17 · METADADOS LOCAIS'], ['Message details', 'Detalhes da mensagem'], ['This view excludes message text and private keys. Relays store encrypted gift-wraps, not the inner rumor; a relay acknowledgement does not prove the recipient read the message.', 'Esta tela não inclui o texto da mensagem nem chaves privadas. Os relays armazenam gift-wraps criptografados, não o rumor interno; a confirmação de um relay não prova que a pessoa destinatária leu a mensagem.'], ['Copy metadata JSON', 'Copiar metadados em JSON'], ['Done', 'Concluído'],
     ['LOCAL CONTACT', 'CONTATO LOCAL'], ['Conversation details', 'Detalhes da conversa'],

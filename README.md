@@ -12,7 +12,7 @@ Property is an open project for decentralized communication and voluntary exchan
 
 **Browser access:** open the site on a compatible device and, if you like, add the PWA to your home screen. The app does not need to be distributed through the Play Store or App Store.
 
-**One app, one identity:** Property is the Nostr PWA at the link above. Ghostly is a UX reference; compatible conversation improvements are integrated into this same app and use the user's Property identity and selected Nostr relays.
+**One app, one identity:** Property is the Nostr PWA at the link above. Ghostly is a UX reference; compatible conversation improvements, including the searchable offline emoji picker, are integrated into this same app and use the user's Property identity and selected Nostr relays.
 
 **Voluntary exchange:** the marketplace lets people publish and discover offers. Purchases, checkout, and custody are not enabled in this version.
 

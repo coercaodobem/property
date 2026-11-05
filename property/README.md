@@ -16,7 +16,7 @@ The upstream code snapshot is recorded at Amethyst commit `948135f7dbbae81d79a0b
 
 Serve `property/web` over HTTP(S), for example with `python3 -m http.server 8080 --directory property/web`, and open `http://localhost:8080`. PWA installation requires HTTPS (localhost is an exception). The app shell works offline after its first load; messaging requires reachable Nostr relays.
 
-Property is one PWA with one identity and Nostr transport. Ghostly is a UX reference; compatible conversation improvements live in this app and use its existing identity and relays. You can share a contact as a Property link, NIP-19 profile code, or QR and open it in the same app. On a fresh install, Property picks two relays randomly from a list bundled in the app, saves them locally, and connects after identity activation. You can change them at any time.
+Property is one PWA with one identity and Nostr transport. Ghostly is a UX reference; compatible conversation improvements live in this app and use its existing identity and relays. The composer includes an offline emoji picker with search, recent choices, and skin tones. You can share a contact as a Property link, NIP-19 profile code, or QR and open it in the same app. On a fresh install, Property picks two relays randomly from a list bundled in the app, saves them locally, and connects after identity activation. You can change them at any time.
 
 Chat drafts are kept locally per conversation and identity until you send or clear them. See the [Ghostly UX adaptation notes](docs/ghostly-integration.md) for the Nostr-specific choices and features that do not fit this app.
 

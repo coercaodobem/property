@@ -60,15 +60,18 @@ assert.match(sw, /vault\.js/);
 assert.match(sw, /about\.html/);
 assert.match(html, /\.\/chat-search\.js/);
 assert.match(html, /\.\/pwa\.js\?v=property-v35/);
-assert.match(html, /\.\/i18n\.js\?v=property-v46/);
-assert.match(html, /\.\/styles\.css\?v=property-v48/);
+assert.match(html, /\.\/i18n\.js\?v=property-v47/);
+assert.match(html, /\.\/styles\.css\?v=property-v49/);
 assert.match(html, /\.\/conversation-folders\.js\?v=property-v36/);
 assert.match(html, /\.\/chat-drafts\.js\?v=property-v38/);
 assert.match(html, /\.\/rich-text\.js\?v=property-v37/);
 assert.match(html, /\.\/vendor\/qr-code-generator\.js\?v=property-v39/);
 assert.match(html, /\.\/public-profile\.js\?v=property-v2/);
 assert.match(html, /\.\/nip05\.js\?v=property-v1/);
-assert.match(html, /\.\/app\.js\?v=property-v52/);
+assert.match(html, /\.\/emoji-picker\.js\?v=property-v1/);
+assert.match(html, /\.\/app\.js\?v=property-v53/);
+assert.match(html, /id="emoji-picker-button"/);
+assert.match(html, /id="emoji-picker-search"/);
 assert.match(html, /\.\/message-edits\.js\?v=property-v1/);
 assert.match(html, /id="edit-context"/);
 assert.match(html, /id="cancel-edit"/);
@@ -81,7 +84,10 @@ assert.match(sw, /secret-guard\.js\?v=property-v1/);
 assert.match(sw, /message-edits\.js\?v=property-v1/);
 assert.match(sw, /public-profile\.js\?v=property-v2/);
 assert.match(sw, /nip05\.js\?v=property-v1/);
-assert.match(sw, /app\.js\?v=property-v52/);
+assert.match(sw, /emoji-picker\.js\?v=property-v1/);
+assert.match(sw, /emoji-data-15\.json/);
+assert.match(sw, /emoji-mart-data-MIT\.txt/);
+assert.match(sw, /app\.js\?v=property-v53/);
 assert.match(sw, /conversation-folders\.js\?v=property-v36/);
 assert.match(sw, /pwa\.js\?v=property-v35/);
 assert.match(sw, /vendor\/qr-code-generator\.js\?v=property-v39/);
@@ -375,7 +381,7 @@ assert.doesNotMatch(`${app}\n${sw}`, /\bimport\s*\(\s*["']https?:/i,
   'the app and service worker cannot import remote executable code');
 assert.match(sw, /importScripts\('\.\/share-inbox\.js\?v=property-v33'\);/,
   'the service worker imports only Property local source for the share inbox');
-for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './vendor/QR-CODE-GENERATOR-LICENSE.txt', './vendor/licenses/secret-guard/README.md', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './chat-drafts.js', './rich-text.js', './secret-guard.js', './nip05.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './vendor/qr-code-generator.js', './app.js']) {
+for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './vendor/QR-CODE-GENERATOR-LICENSE.txt', './vendor/licenses/emoji-mart-data-MIT.txt', './vendor/emoji-data-15.json', './vendor/licenses/secret-guard/README.md', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './chat-drafts.js', './rich-text.js', './emoji-picker.js', './secret-guard.js', './nip05.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './vendor/qr-code-generator.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }
 await access(join(root, 'relay/dist-parts/manifest.txt'));

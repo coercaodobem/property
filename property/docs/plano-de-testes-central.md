@@ -164,6 +164,7 @@ Minimum corpus: 100 distinct public notes, 50 messages per direction, 10 offers 
 | G02-04 | Simulate full update, interrupted update, and mixed artifact. Preserve key, conversations, and preferences; shell version stays consistent or returns a recoverable error. Other app caches remain untouched. |
 | G02-05 | Import legacy backups, open legacy database, and test old/new paths on the same local origin; preserve the same identity. Wrong password, modified backup, and unavailable storage do not silently create another account. |
 | G02-06 | Test valid/invalid TLS/WSS, CSP, and malicious content. Do not disable TLS validation, accept remote scripts, or weaken production policy to fit the harness. |
+| G02-07 | With network egress disabled, open the message composer and use the emoji picker in English and Portuguese. Search one English term and three fixed Portuguese terms; select at the start, middle, and end of a draft; verify caret position, draft persistence, the 4,000-character guard, one recent-item update per selection, and distinct recent lists for two local identities. Reopen with a fresh cache and prove the local dataset is available offline. Before Send, reconcile zero relay events; after Send, confirm the existing NIP-17 flow and secret guard are unchanged. |
 
 ### G03 — Identity, password, recovery, and contacts
 
