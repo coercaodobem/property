@@ -1467,7 +1467,7 @@ async function runCoreProfile(profile, manifest, outputDir, cases, inventory, is
     return;
   }
 
-  const g03Ids = ['G03-01', 'G03-02', 'G03-03', 'G03-04', 'G03-05', 'G03-06'];
+  const g03Ids = ['G03-01', 'G03-02', 'G03-03', 'G03-04', 'G03-05', 'G03-06', 'G03-07'];
   if (!browserConfig) {
     for (const id of g03Ids) setCase(cases, id, {
       status: 'BLOCKED', gate_eligible: false, command: null, started_utc: null, ended_utc: null,
@@ -1487,7 +1487,7 @@ async function runCoreProfile(profile, manifest, outputDir, cases, inventory, is
       '--output', g03Output
     ];
     const g03Run = await runCommand(process.execPath, g03Args, manifest.case_timeout_ms,
-      path.join(outputDir, 'logs/G03-01-06-browser.log'));
+      path.join(outputDir, 'logs/G03-01-07-browser.log'));
     let g03Report = null;
     try { g03Report = JSON.parse(await readFile(path.join(g03Output, 'browser-g03-report.json'), 'utf8')); } catch {}
     for (const id of g03Ids) {

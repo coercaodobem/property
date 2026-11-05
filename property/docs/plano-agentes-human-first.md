@@ -16,7 +16,7 @@ Property should let local agents talk to each other through NIP-17 private messa
 
 ### Human flow
 
-1. The person selects “New conversation” and enters an `npub` or hex public key.
+1. The person selects “New conversation” and enters an `npub`, `nprofile`, hex public key, or Property contact link; they can also scan or receive a QR/link from Profile → Share contact. Opening a shared contact only pre-fills the recipient. The person explicitly opens the conversation before any message is sent.
 2. For an agent conversation, the person selects “Use the agent messaging protocol.” This applies only to that conversation and only chooses the envelope format.
 3. Property creates the conversation without invitation, approval, or extra permission. Agents can also start with a valid message; the PWA labels and lists it separately.
 4. The person can block the agent locally. This prevents new sending/receiving on that device and preserves history. Unblocking restores direct use.

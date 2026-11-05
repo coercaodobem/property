@@ -7,20 +7,23 @@ const source = await readFile(new URL('../web/pwa.js', import.meta.url), 'utf8')
 function loadPwa({ href = 'https://coercaodobem.github.io/property/', standalone = false } = {}) {
   const listeners = new Map();
   const historyWrites = [];
+  const dispatched = [];
   const window = {
     location: { href },
     history: { state: { source: 'test' }, replaceState(...args) { historyWrites.push(args); window.location.href = new URL(args[2], window.location.href).href; } },
     matchMedia: () => ({ matches: standalone }),
+    dispatchEvent(event) { dispatched.push(event); for (const listener of listeners.get(event.type) || []) listener(event); },
     addEventListener(name, listener) {
       const entries = listeners.get(name) || [];
       entries.push(listener);
       listeners.set(name, entries);
     }
   };
-  const context = { window, navigator: { standalone: false }, URL, Set };
+  const context = { window, navigator: { standalone: false }, URL, URLSearchParams, Set,
+    CustomEvent: class CustomEvent { constructor(type, options = {}) { this.type = type; this.detail = options.detail; } } };
   vm.createContext(context);
   vm.runInContext(source, context);
-  return { pwa: window.PropertyPwa, listeners, historyWrites };
+  return { pwa: window.PropertyPwa, listeners, historyWrites, dispatched, window };
 }
 
 const launch = loadPwa({ href: 'https://coercaodobem.github.io/property/?launch=marketplace&source=homescreen#return' });
@@ -39,6 +42,21 @@ assert.equal(shareLaunch.pwa.consumeLaunchAction(), '', 'incoming share launch i
 
 const overflowLaunch = loadPwa({ href: 'https://coercaodobem.github.io/property/?launch=share-full' });
 assert.equal(overflowLaunch.pwa.consumeLaunchAction(), 'share-full', 'queue overflow has a safe fixed launch status');
+
+const publicContact = 'nprofile1local-test-contact';
+const contactLaunch = loadPwa({ href: `https://coercaodobem.github.io/property/?keep=1#contact=${encodeURIComponent(publicContact)}&view=messages` });
+assert.equal(contactLaunch.pwa.consumeContactIntent(), publicContact, 'contact intent is read before app boot');
+assert.equal(contactLaunch.pwa.consumeContactIntent(), '', 'contact intent is consumed once');
+assert.deepEqual(contactLaunch.historyWrites[0], [{ source: 'test' }, '', '/property/?keep=1#view=messages'], 'public contact is removed from the address bar while unrelated route state is retained');
+contactLaunch.window.location.href = `https://coercaodobem.github.io/property/#contact=${encodeURIComponent(publicContact)}`;
+contactLaunch.listeners.get('hashchange')[0]();
+assert.equal(contactLaunch.pwa.consumeContactIntent(), publicContact, 'same-page contact navigation is queued for an active Property session');
+assert.equal(contactLaunch.dispatched[0].type, 'property-contact-intent', 'same-page contact navigation notifies the active app');
+assert.equal(contactLaunch.historyWrites.length, 2, 'same-page contact fragment is removed after capture');
+assert.equal(contactLaunch.window.location.href, 'https://coercaodobem.github.io/property/', 'same-page public contact is removed from the address bar');
+const routeOnly = loadPwa({ href: 'https://coercaodobem.github.io/property/#view=messages' });
+assert.equal(routeOnly.pwa.consumeContactIntent(), '', 'ordinary routes are not treated as contact links');
+assert.equal(routeOnly.historyWrites.length, 0, 'ordinary routes are not rewritten');
 
 const promptFlow = loadPwa();
 let prevented = false;
@@ -77,4 +95,4 @@ const installedButton = { hidden: false, addEventListener() {} };
 installedFlow.pwa.bindInstallControls([installedButton], manualHelp);
 assert.equal(installedButton.hidden, true, 'standalone installs do not offer a duplicate install action');
 
-console.log('PASS: PWA shortcuts are allowlisted and install controls cover prompted, manual, and installed states');
+console.log('PASS: PWA shortcuts, initial and active-session contact-link intake, safe URL cleanup, and install controls');

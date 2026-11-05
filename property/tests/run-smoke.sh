@@ -21,6 +21,8 @@ for test_file in \
   forwarding-smoke.mjs \
   sw-update-smoke.mjs \
   contact-smoke.mjs \
+  contact-share-smoke.mjs \
+  qr-code-smoke.mjs \
   relay-defaults-smoke.mjs \
   share-target-smoke.mjs \
   pwa-smoke.mjs \

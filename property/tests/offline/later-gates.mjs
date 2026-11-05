@@ -346,7 +346,7 @@ async function main(){
   await inherited('G09-06',['G05-02','G05-03','G05-05','G07-07'],'Perda isolada de relay/ponte, rotas alternativas e fronteira privada foram verificadas pelos casos reais do mesmo run.');
   if(!gatePassed('G09')){await stopAfterGate('G09','G09 não passou por completo; G10–G12 não foram iniciados.');return;}
 
-  await inherited('G10-01',['G03-01','G03-04','G04-01','G04-02'],'Criação de A/B, listas NIP-17, contato e conversa ponta a ponta foram percorridos pela UI neste run.');
+  await inherited('G10-01',['G03-01','G03-04','G03-07','G04-01','G04-02'],'Criação de A/B, contato por link/QR, listas NIP-17 e conversa ponta a ponta foram percorridos pela UI neste run.');
   await inherited('G10-02',['G04-03','G04-04','G05-02'],'Destinatário offline, recuperação após reabrir, perda de inbox e restauração foram verificadas neste run.');
   await inherited('G10-03',['G06-01','G06-02','G06-03','G06-05','G07-05','G07-07'],'Hangout, marketplace, campanha opt-in/bloqueio e contato foram exercitados pela UI e relay neste run.');
   await inherited('G10-04',['G02-06','G03-02','G03-03','G03-06'],'Sessão, bloqueio, backup/recuperação e privacidade em perfil limpo passaram nos casos herdados do mesmo run.');

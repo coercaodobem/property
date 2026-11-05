@@ -22,6 +22,7 @@
   const FolderStore = window.PropertyConversationFolders;
   const ChatDrafts = window.PropertyChatDrafts;
   const RichText = window.PropertyRichText;
+  const QrCode = window.PropertyQrCode;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const eventSourceHints = new WeakMap();
@@ -34,7 +35,7 @@
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, pendingLaunchAction: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0
+    storageReady: false, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0
   };
   const N = window.NostrTools;
   const bridge = Bridge?.createBridge(event => N.verifyEvent(event));
@@ -343,7 +344,12 @@
         await connectAllRelays();
       }
     }).catch(() => {});
-    if (state.pendingLaunchAction) {
+    if (state.pendingContactIntent) {
+      const contact = state.pendingContactIntent;
+      state.pendingContactIntent = '';
+      state.pendingLaunchAction = '';
+      openContactIntent(contact);
+    } else if (state.pendingLaunchAction) {
       const action = state.pendingLaunchAction;
       state.pendingLaunchAction = '';
       if (action === 'new-chat') $('new-chat-dialog').showModal();
@@ -355,6 +361,21 @@
     const profile = await get('settings', `profile-${state.pubkey}`) || { id: `profile-${state.pubkey}`, name: '' };
     $('profile-name').value = profile.name || '';
     $('profile-initial').textContent = profile.name?.slice(0, 1)?.toUpperCase() || 'L';
+  }
+  function openContactIntent(value) {
+    $('peer-input').value = value;
+    $('peer-name-input').value = '';
+    $('peer-relays-input').value = '';
+    $('agent-mode').checked = false;
+    showError('new-chat-error');
+    try {
+      const contact = Contact.parsePublicKey(value);
+      $('peer-input').value = N.nip19.npubEncode(contact.pubkey);
+      $('peer-relays-input').value = contact.relayHints.map(normalizeRelay).join('\n');
+    } catch (error) {
+      showError('new-chat-error', error.message || localized('Check the shared public contact.', 'Confira o contato público compartilhado.'));
+    }
+    $('new-chat-dialog').showModal();
   }
   async function autoUnlock() {
     const vault = state.account;
@@ -1711,12 +1732,21 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v36', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v37', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
   function wireEvents() {
     Pwa.bindInstallControls(document.querySelectorAll('[data-install-property]'), $('install-app-dialog'), () => showToast('Property installed.'));
+    window.addEventListener('property-contact-intent', event => {
+      const contact = typeof event.detail?.value === 'string' ? event.detail.value : '';
+      if (!contact) return;
+      Pwa.consumeContactIntent();
+      if (!state.pubkey) { state.pendingContactIntent = contact; return; }
+      state.pendingContactIntent = '';
+      state.pendingLaunchAction = '';
+      openContactIntent(contact);
+    });
     $('share-inbox-button').addEventListener('click', () => openShareInbox());
     $('share-close').addEventListener('click', () => $('share-dialog').close());
     $('share-later').addEventListener('click', () => $('share-dialog').close());
@@ -1912,6 +1942,58 @@
     $('save-profile').addEventListener('click', () => savePublicProfile().catch(error => showError('profile-error', error.message)));
     $('export-backup').addEventListener('click', exportBackupWithPassword);
     $('copy-npub').addEventListener('click', async () => { try { await navigator.clipboard.writeText(state.npub); showToast('npub copiado.'); } catch { showError('profile-error', state.npub); } });
+    $('share-contact').addEventListener('click', () => {
+      try {
+        state.contactShare = Contact.createShare({
+          pubkey: state.pubkey,
+          relayUrls: state.relays,
+          nprofileEncode: N.nip19.nprofileEncode,
+          npubEncode: N.nip19.npubEncode,
+          baseUrl: window.location.href
+        });
+        const qr = QrCode.createSvg(state.contactShare.url, localized('QR code to open this Property contact', 'QR code para abrir este contato Property'));
+        $('contact-share-link').textContent = state.contactShare.url;
+        $('contact-share-nprofile').textContent = state.contactShare.nprofile;
+        $('contact-share-fallback').hidden = true;
+        $('contact-share-fallback').value = state.contactShare.url;
+        $('contact-share-error').textContent = '';
+        $('contact-share-relays').textContent = state.contactShare.relayHints.length
+          ? state.contactShare.relayHints.join('\n')
+          : localized('No secure relay hints are selected. The recipient can still use your public key.', 'Nenhum relay seguro está selecionado como dica. A outra pessoa ainda pode usar sua chave pública.');
+        $('share-contact-native').hidden = typeof navigator.share !== 'function';
+        $('contact-share-qr').replaceChildren(qr);
+        $('profile-dialog').close();
+        $('contact-share-dialog').showModal();
+      } catch (error) { showError('profile-error', error.message || 'Não foi possível criar o link de contato.'); }
+    });
+    $('copy-contact-link').addEventListener('click', async () => {
+      if (!state.contactShare) return;
+      try {
+        await navigator.clipboard.writeText(state.contactShare.url);
+        $('contact-share-fallback').hidden = true;
+        showToast(localized('Property contact link copied.', 'Link de contato Property copiado.'));
+      } catch {
+        const field = $('contact-share-fallback');
+        field.value = state.contactShare.url; field.hidden = false; field.focus(); field.select();
+        showError('contact-share-error', localized('Copy was blocked. Select the link below to copy it manually.', 'A cópia foi bloqueada. Selecione o link abaixo para copiar manualmente.'));
+      }
+    });
+    $('copy-contact-nprofile').addEventListener('click', async () => {
+      if (!state.contactShare) return;
+      try {
+        await navigator.clipboard.writeText(state.contactShare.nprofile);
+        showToast(localized('Nostr profile code copied.', 'Código de perfil Nostr copiado.'));
+      } catch {
+        const field = $('contact-share-fallback');
+        field.value = state.contactShare.nprofile; field.hidden = false; field.focus(); field.select();
+        showError('contact-share-error', localized('Copy was blocked. Select the profile code below to copy it manually.', 'A cópia foi bloqueada. Selecione o código de perfil abaixo para copiar manualmente.'));
+      }
+    });
+    $('share-contact-native').addEventListener('click', async () => {
+      if (!state.contactShare || typeof navigator.share !== 'function') return;
+      try { await navigator.share({ title: 'Property', text: localized('My public Nostr contact', 'Meu contato público Nostr'), url: state.contactShare.url }); }
+      catch (error) { if (error?.name !== 'AbortError') showError('contact-share-error', localized('Could not open the share sheet.', 'Não foi possível abrir o compartilhamento do aparelho.')); }
+    });
     $('lock-account').addEventListener('click', () => lockIdentity());
     $('stop-locked-node').addEventListener('click', async () => {
       try {
@@ -1956,9 +2038,10 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !QrCode || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
+    state.pendingContactIntent = Pwa.consumeContactIntent();
     state.bridgeRefreshTimer = window.setInterval(refreshBridgeSubscriptions, 60_000);
     registerOfflineShell();
     try {

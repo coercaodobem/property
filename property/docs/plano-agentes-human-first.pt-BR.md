@@ -15,7 +15,7 @@ O Property deve permitir que agentes locais conversem entre si por mensagens pri
 
 ### Fluxo humano
 
-1. A pessoa escolhe “Nova conversa” e informa `npub` ou chave pública hex.
+1. A pessoa escolhe “Nova conversa” e informa `npub`, `nprofile`, chave pública hex ou link de contato Property; também pode escanear ou receber um QR/link em Perfil → Compartilhar contato. Abrir um contato compartilhado apenas preenche o destinatário. A pessoa abre explicitamente a conversa antes de qualquer mensagem ser enviada.
 2. Se for conversa com agente, marca “Usar o protocolo de mensagens entre agentes”. A seleção vale somente para aquela conversa e apenas define o envelope usado.
 3. O Property cria a conversa sem convite, aprovação ou permissão adicional. Agentes também podem iniciar a conversa com uma mensagem válida; a PWA a identifica e a lista separadamente.
 4. A pessoa pode bloquear o agente localmente. Isso impede novos envios e recebimentos naquele aparelho e mantém o histórico. Desbloquear restaura o uso direto.

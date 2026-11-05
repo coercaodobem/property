@@ -4,6 +4,14 @@
   const PT_TO_EN = new Map();
   const pairs = [
     ['Application language', 'Idioma do aplicativo'],
+    ['Share contact', 'Compartilhar contato'], ['Share your Property contact', 'Compartilhe seu contato Property'],
+    ['Scan the QR code or share the link to open this identity in Property.', 'Leia o QR code ou compartilhe o link para abrir esta identidade no Property.'],
+    ['Property contact link', 'Link de contato Property'], ['Copy Property link', 'Copiar link Property'], ['Share…', 'Compartilhar…'],
+    ['Contact link to copy manually', 'Link de contato para copiar manualmente'], ['Nostr profile code', 'Código de perfil Nostr'], ['Copy nprofile', 'Copiar nprofile'],
+    ['The code contains your public key and up to three selected secure relay hints. It never contains your private key or messages. Sharing reveals those relay addresses to the recipient.', 'O código contém sua chave pública e até três dicas de relays seguros selecionados. Ele nunca inclui sua chave privada ou mensagens. Ao compartilhar, os endereços dos relays ficam visíveis para quem receber.'],
+    ['This field does not search usernames. Paste an npub, nprofile, Property contact link, or 64-character hex public key.', 'Este campo não busca nomes de usuário. Cole um npub, nprofile, link de contato do Property ou chave pública hex de 64 caracteres.'],
+    ['Public npub, nprofile, Property contact link, or hex key', 'npub público, nprofile, link de contato Property ou chave hex'],
+    ['A Property contact link opens here with the public key ready. Display names are not unique identifiers.', 'O link de contato Property abre esta tela com a chave pública preenchida. Nomes de exibição não identificam uma pessoa de forma única.'],
     ['Install Property', 'Instalar o Property'], ['Install Property to your home screen or desktop.', 'Instale o Property na tela inicial ou no computador.'],
     ['If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser.', 'Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador.'],
     ['On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen.', 'No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início.'],

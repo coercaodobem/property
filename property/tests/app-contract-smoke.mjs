@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { access, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve, sep } from 'node:path';
@@ -18,6 +19,12 @@ const relayDefaults = await readFile(join(root, 'web/relay-defaults.js'), 'utf8'
 const shareInbox = await readFile(join(root, 'web/share-inbox.js'), 'utf8');
 const pwa = await readFile(join(root, 'web/pwa.js'), 'utf8');
 const contact = await readFile(join(root, 'web/contact.js'), 'utf8');
+const qrCode = await readFile(join(root, 'web/vendor/qr-code-generator.js'), 'utf8');
+const qrCodeHash = createHash('sha256').update(qrCode).digest('hex');
+const testQrDecoder = await readFile(join(root, 'tests/vendor/jsQR.js'));
+const testQrDecoderReadme = await readFile(join(root, 'tests/vendor/README.md'), 'utf8');
+const testQrDecoderLicense = await readFile(join(root, 'tests/vendor/JSQR-LICENSE.txt'), 'utf8');
+const i18n = await readFile(join(root, 'web/i18n.js'), 'utf8');
 const agentMessages = await readFile(join(root, 'web/agent-messaging.js'), 'utf8');
 const sw = await readFile(join(root, 'web/sw.js'), 'utf8');
 const vault = await readFile(join(root, 'web/vault.js'), 'utf8');
@@ -46,15 +53,36 @@ assert.match(sw, /nostr-tools-2\.25\.2\.bundle\.js/);
 assert.match(sw, /vault\.js/);
 assert.match(sw, /about\.html/);
 assert.match(html, /\.\/chat-search\.js/);
-assert.match(html, /\.\/pwa\.js\?v=property-v33/);
-assert.match(html, /\.\/i18n\.js\?v=property-v38/);
-assert.match(html, /\.\/styles\.css\?v=property-v38/);
+assert.match(html, /\.\/pwa\.js\?v=property-v35/);
+assert.match(html, /\.\/i18n\.js\?v=property-v39/);
+assert.match(html, /\.\/styles\.css\?v=property-v39/);
 assert.match(html, /\.\/conversation-folders\.js\?v=property-v35/);
 assert.match(html, /\.\/chat-drafts\.js\?v=property-v38/);
 assert.match(html, /\.\/rich-text\.js\?v=property-v37/);
-assert.match(html, /\.\/app\.js\?v=property-v38/);
+assert.match(html, /\.\/vendor\/qr-code-generator\.js\?v=property-v39/);
+assert.match(html, /\.\/app\.js\?v=property-v40/);
 assert.match(sw, /chat-search\.js/);
-assert.match(sw, /pwa\.js\?v=property-v33/);
+assert.match(sw, /pwa\.js\?v=property-v35/);
+assert.match(sw, /vendor\/qr-code-generator\.js\?v=property-v39/);
+assert.match(app, /Contact\.createShare\(/, 'contact sharing is built into the same Property app');
+assert.match(app, /QrCode\.createSvg\(/, 'the contact QR is generated from local bundled code');
+assert.match(app, /openContactIntent\(/, 'shared contacts are prefilled for explicit user confirmation');
+assert.match(app, /property-contact-intent/, 'same-page contact links are delivered to the active app');
+const openContactIntent = app.match(/function openContactIntent\(value\) \{([\s\S]*?)\n  \}/)?.[1] || '';
+assert.ok(openContactIntent, 'shared contact intake has a reviewable handler');
+assert.doesNotMatch(openContactIntent, /connectRelay|connectAllRelays|sendPrivate|addConversation/, 'received relay hints are never connected or persisted just by opening a contact link');
+assert.match(pwa, /history\.replaceState/, 'contact details are removed from the address bar before app boot');
+assert.match(html, /id="share-contact"/);
+assert.match(html, /id="contact-share-dialog"/);
+assert.match(i18n, /Share contact.*Compartilhar contato/);
+assert.match(i18n, /Public npub, nprofile, Property contact link, or hex key.*npub público/);
+assert.match(qrCode, /Project Nayuki QR Code Generator/);
+assert.match(qrCode, /window\.PropertyQrCode/);
+assert.equal(qrCodeHash, 'd4d14086837adae6b0603ab333443d80208205548ed5aa7ec9ec66e08fdabcf2', 'shipped QR encoder integrity is pinned');
+assert.match(testQrDecoderReadme, /not loaded by the Property PWA or shipped/i);
+assert.match(testQrDecoderReadme, /bc40c8a15196236b2314db0856f72ca0b49980cd5413b8c852a7349f5fee0859/);
+assert.equal(createHash('sha256').update(testQrDecoder).digest('hex'), 'bc40c8a15196236b2314db0856f72ca0b49980cd5413b8c852a7349f5fee0859', 'test-only QR decoder integrity is pinned');
+assert.match(testQrDecoderLicense, /Apache License/);
 assert.match(html, /data-install-property/);
 assert.match(html, /id="install-app-dialog"/);
 assert.match(html, /id="message-search-bar"/);
@@ -297,7 +325,7 @@ assert.doesNotMatch(`${app}\n${sw}`, /\bimport\s*\(\s*["']https?:/i,
   'the app and service worker cannot import remote executable code');
 assert.match(sw, /importScripts\('\.\/share-inbox\.js\?v=property-v33'\);/,
   'the service worker imports only Property local source for the share inbox');
-for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './chat-drafts.js', './rich-text.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
+for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './vendor/QR-CODE-GENERATOR-LICENSE.txt', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './chat-drafts.js', './rich-text.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './vendor/qr-code-generator.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }
 await access(join(root, 'relay/dist-parts/manifest.txt'));

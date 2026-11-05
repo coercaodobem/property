@@ -31,6 +31,7 @@ import { missingEvidenceReferences } from './evidence-audit.mjs';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../..');
 const plan = await readFile(path.join(root, 'property/docs/plano-de-testes-central.md'), 'utf8');
 const runnerSource = await readFile(path.join(root, 'property/tests/offline/run-offline.mjs'), 'utf8');
+const browserG03Source = await readFile(path.join(root, 'property/tests/offline/browser-g03-smoke.mjs'), 'utf8');
 const viewportSource = await readFile(path.join(root, 'property/tests/offline/g10-viewport-smoke.mjs'), 'utf8');
 const laterGatesSource = await readFile(path.join(root, 'property/tests/offline/later-gates.mjs'), 'utf8');
 const resilienceSource = await readFile(path.join(root, 'property/tests/offline/g11-multirelay-resilience.mjs'), 'utf8');
@@ -89,6 +90,18 @@ assert.equal(gateRowsPassed([...gate09Rows, gate09Rows[0]], ['G09-01', 'G09-02']
 assert.deepEqual(downstreamCaseIds(['G09-01', 'G10-01', 'G11-01', 'G12-01'], 'G10'), ['G11-01', 'G12-01']);
 await access(path.join(root, 'property/tests/offline/browser-g05-smoke.mjs'));
 assert.match(runnerSource, /browser-g06-smoke\.mjs/, 'full profile executes the G06 Hangout and marketplace harness');
+assert.match(runnerSource, /const g03Ids = \['G03-01', 'G03-02', 'G03-03', 'G03-04', 'G03-05', 'G03-06', 'G03-07'\]/,
+  'runner records contact sharing and QR intake in G03');
+assert.match(browserG03Source, /G03-07: share an identity as URL\/nprofile\/QR/,
+  'G03 browser journey generates a QR and tests active and locked-start contact links');
+assert.match(browserG03Source, /decodeQrMatrix\(qrMatrix\)/,
+  'G03 QR payload is decoded independently of the browser QR generator');
+assert.match(browserG03Source, /local_relay_selection_unchanged_by_received_hints/,
+  'G03 verifies that incoming profile hints do not replace the saved relay selection');
+assert.match(browserG03Source, /denied_proxy_limited_to_bundled_relays/,
+  'G03 records blocked relay attempts separately from completed external requests');
+assert.match(plan, /G03-06 \|[^\n]*local deny proxy[^\n]*bundled relay list/,
+  'G03-06 requires locally denied relay attempts and restricts them to bundled candidates');
 assert.match(runnerSource, /const g06Ids = \['G06-01', 'G06-02', 'G06-03', 'G06-04', 'G06-05'\]/,
   'runner records every G06 case individually');
 await access(path.join(root, 'property/tests/offline/browser-g06-smoke.mjs'));
@@ -103,10 +116,10 @@ await access(path.join(root, 'property/tests/offline/g08-ledger-smoke.mjs'));
 await access(path.join(root, 'property/relay/campaign-engine.mjs'));
 const cases = parsePlanCases(plan);
 const details = parsePlanCaseDetails(plan);
-assert.equal(cases.length, 80);
-assert.equal(details.size, 80);
+assert.equal(cases.length, 81);
+assert.equal(details.size, 81);
 assert.ok([...details.values()].every(value => value.trim().length > 0));
-assert.equal(new Set(cases).size, 80);
+assert.equal(new Set(cases).size, 81);
 assert.equal(cases[0], 'G00-01');
 assert.equal(cases.at(-1), 'G12-06');
 const registryStart = plan.indexOf('## 6. Mandatory cases by gate');
