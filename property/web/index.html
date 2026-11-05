@@ -11,7 +11,7 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v43">
+  <link rel="stylesheet" href="./styles.css?v=property-v44">
   <script defer src="./i18n.js?v=property-v44"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
@@ -34,7 +34,7 @@
   <script defer src="./message-edits.js?v=property-v1"></script>
   <script defer src="./secret-guard.js?v=property-v1"></script>
   <script defer src="./public-profile.js?v=property-v2"></script>
-  <script defer src="./app.js?v=property-v45"></script>
+  <script defer src="./app.js?v=property-v46"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -54,6 +54,11 @@
         <h1>Chat without asking permission.</h1>
         <p>Your private messages are end-to-end encrypted. Property connects directly to relays saved on this device.</p>
         <p class="fine-print">To make first use simple, Property randomly picks two relays from a list included in the app. You can change them any time. Public relays can see your IP address and public event metadata.</p>
+        <div id="first-use-relays" class="first-use-relays hidden" role="status" aria-live="polite">
+          <p id="first-use-relay-caption" class="first-use-relay-caption"></p>
+          <ul id="first-use-relay-list" class="first-use-relay-list"></ul>
+          <button id="first-use-open-relays" class="button text first-use-relay-change" type="button">Change relays</button>
+        </div>
         <div class="trust-list"><span>◈ No central account</span><span>◈ Code served from this package</span><span>◈ Direct relay connections</span></div>
       </section>
       <section id="auth-panel" class="auth-card">

@@ -205,6 +205,26 @@
     state.toastTimer = setTimeout(() => node.classList.remove('show'), 2800);
   }
   function localized(en, pt) { return window.PropertyI18n?.language === 'pt-BR' ? pt : en; }
+  function renderFirstUseRelaySuggestions() {
+    const panel = $('first-use-relays');
+    const caption = $('first-use-relay-caption');
+    const list = $('first-use-relay-list');
+    if (!panel || !caption || !list) return;
+    const visible = state.autoSelectedRelays && state.relays.length > 0;
+    panel.classList.toggle('hidden', !visible);
+    if (!visible) return;
+    caption.textContent = localized(
+      'Property picked these relays for you. No relay setup is needed; you can change them any time.',
+      'O Property escolheu estes relays para você. Não é preciso configurar nada; você pode trocá-los quando quiser.'
+    );
+    list.replaceChildren(...state.relays.map(url => {
+      const item = document.createElement('li');
+      const address = document.createElement('code');
+      address.textContent = url;
+      item.append(address);
+      return item;
+    }));
+  }
   function secretWarningCopy(finding) {
     const portuguese = window.PropertyI18n?.language === 'pt-BR';
     const copy = {
@@ -397,6 +417,7 @@
         : state.autoSelectedRelays
           ? (window.PropertyI18n?.language === 'pt-BR' ? 'Relays sugeridos; toque para ajustar' : 'Suggested relays; tap to change')
           : (window.PropertyI18n?.language === 'pt-BR' ? 'Toque para configurar' : 'Tap to configure');
+    renderFirstUseRelaySuggestions();
   }
   function updateLockedBridgeStatus() {
     const status = $('locked-node-status');
@@ -2139,7 +2160,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v45', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v46', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -2213,6 +2234,8 @@
     };
     $('open-settings').addEventListener('click', openRelaySettings);
     $('mobile-open-settings').addEventListener('click', openRelaySettings);
+    $('first-use-open-relays').addEventListener('click', openRelaySettings);
+    $('language-picker').addEventListener('change', renderFirstUseRelaySuggestions);
     $('create-folder-button').addEventListener('click', () => openFolderEditor());
     $('folder-save').addEventListener('click', () => saveFolderEditor());
     $('folder-name-input').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); saveFolderEditor(); } });
