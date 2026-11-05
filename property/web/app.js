@@ -28,6 +28,7 @@
   const QrCode = window.PropertyQrCode;
   const Nip05 = window.PropertyNip05;
   const EmojiPicker = window.PropertyEmojiPicker;
+  const ChatGestures = window.PropertyChatGestures;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const eventSourceHints = new WeakMap();
@@ -45,7 +46,7 @@
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, activeWorkspaceReady: false, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null
+    storageReady: false, activeWorkspaceReady: false, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false
   };
   const SHARE_LAUNCH_ACTIONS = new Set(['share', 'share-full', 'share-error']);
   let propertyTabChannel = null;
@@ -1505,6 +1506,39 @@
     state.messageSearchIndex = (state.messageSearchIndex + direction + total) % total;
     refreshMessageSearch({ scroll: true });
   }
+  function beginReplyToMessage(peer, message) {
+    if (peer !== state.activePeer || !nostrEventId(message)) return false;
+    state.replyingTo = message;
+    updateReplyContext();
+    $('message-input').focus();
+    return true;
+  }
+  function bindReplySwipe(bubble, peer, message, eventId) {
+    let start = null;
+    const isInteractive = target => Boolean(target?.closest?.('a,button,input,textarea,select,[contenteditable="true"],pre,code'));
+    const clear = () => { start = null; bubble.style.removeProperty('--reply-swipe-offset'); };
+    bubble.addEventListener('pointerdown', event => {
+      if (event.pointerType === 'mouse' || event.button !== 0 || event.isPrimary === false || isInteractive(event.target)) return;
+      start = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, pointerType: event.pointerType };
+    });
+    bubble.addEventListener('pointermove', event => {
+      if (!start || event.pointerId !== start.pointerId) return;
+      const deltaX = event.clientX - start.x;
+      const deltaY = event.clientY - start.y;
+      if (deltaX > 0 && deltaX >= Math.abs(deltaY)) bubble.style.setProperty('--reply-swipe-offset', `${Math.min(deltaX, 40)}px`);
+    });
+    bubble.addEventListener('pointerup', event => {
+      if (!start || event.pointerId !== start.pointerId) return;
+      const shouldReply = ChatGestures.shouldReplySwipe({
+        pointerType: start.pointerType, startX: start.x, startY: start.y,
+        endX: event.clientX, endY: event.clientY,
+        hasEventReference: Boolean(eventId), interactiveTarget: isInteractive(event.target)
+      });
+      clear();
+      if (shouldReply) beginReplyToMessage(peer, message);
+    });
+    bubble.addEventListener('pointercancel', event => { if (start?.pointerId === event.pointerId) clear(); });
+  }
   async function renderMessages(peer) {
     const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
     const messages = entries.filter(message => message.kind !== 7);
@@ -1563,6 +1597,7 @@
         row.append(quote);
       }
       const bubble = document.createElement('div'); bubble.className = 'message-bubble'; RichText.renderInto(bubble, message.text, window.PropertyI18n?.language || 'en');
+      bindReplySwipe(bubble, peer, message, eventId);
       const counts = reactionsByTarget.get(message.id);
       let reactionSummary = null;
       if (counts?.size) {
@@ -1579,9 +1614,7 @@
       const reply = document.createElement('button'); reply.type = 'button'; reply.className = 'message-reply'; reply.textContent = 'Reply'; reply.disabled = !eventId; reply.title = eventId ? 'Reply to this message' : 'This older message has no Nostr event reference';
       reply.addEventListener('click', () => {
         if (!eventId) { showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Esta mensagem antiga não tem uma referência de evento Nostr.' : 'This older message has no Nostr event reference.'); return; }
-        state.replyingTo = message;
-        updateReplyContext();
-        $('message-input').focus();
+        beginReplyToMessage(peer, message);
       });
       const react = document.createElement('button'); react.type = 'button'; react.className = 'message-react'; react.textContent = 'React'; react.disabled = !eventId; react.setAttribute('aria-label', 'React to this message'); react.title = 'Choose a reaction';
       const picker = document.createElement('div'); picker.id = `property-reaction-picker-${++reactionPickerSequence}`; picker.className = 'message-reaction-picker'; picker.hidden = true; picker.setAttribute('role', 'group'); picker.setAttribute('aria-label', 'Choose a reaction');
@@ -1731,6 +1764,17 @@
     resizeMessageInput(input);
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
+  }
+  async function editLastMessage() {
+    const peer = state.activePeer;
+    if (!peer || state.editingMessage || state.loadingLastMessageEdit) return;
+    state.loadingLastMessageEdit = true;
+    try {
+      const message = (await all('messages'))
+        .filter(item => item.peer === peer && item.direction === 'sent' && item.kind !== 7 && !item.fromAgent && !item.agentMessageId && !item.deleted && nostrEventId(item) && ['sent', 'partial'].includes(item.status))
+        .sort((a, b) => b.createdAt - a.createdAt || String(b.id).localeCompare(String(a.id)))[0];
+      if (message && state.activePeer === peer && !state.editingMessage) startMessageEdit(peer, message);
+    } finally { state.loadingLastMessageEdit = false; }
   }
   async function editPrivateMessage(peer, message, text) {
     const updatedText = text.trim();
@@ -2506,7 +2550,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v49', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v50', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -2723,6 +2767,13 @@
         markConversationRead(state.activePeer).then(changed => changed && renderConversations()).catch(() => {});
       }
     });
+    $('message-input').addEventListener('keydown', event => {
+      const input = $('message-input');
+      const overlayOpen = Boolean(document.querySelector('dialog[open]')) || !($('emoji-picker-panel')?.classList.contains('hidden'));
+      if (!ChatGestures.isEditLastShortcut(event, input.value, { editing: Boolean(state.editingMessage) || state.loadingLastMessageEdit, overlayOpen })) return;
+      event.preventDefault();
+      editLastMessage().catch(error => showToast(error.message || localized('Could not edit this message.', 'Não foi possível editar esta mensagem.')));
+    });
     $('message-input').addEventListener('input', event => {
       resizeMessageInput(event.target);
       if (state.activePeer && !state.editingMessage) void saveChatDraft(state.activePeer, event.target.value).catch(() => {});
@@ -2870,7 +2921,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();

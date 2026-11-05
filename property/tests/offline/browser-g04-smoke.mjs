@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09', 'G04-11'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -662,6 +662,60 @@ async function main() {
       relay_event_delta: 0
     };
     mark('G04-09', 'PASS', 'Direct and group chats pin locally in the existing list, retain order after reload, remain unpinned in a clean profile with the same identity, and produce zero relay events.');
+
+    // G04-11: message gestures only select existing local actions; they do not publish.
+    stage = 'G04-11: reply swipe and edit-last shortcut';
+    await openConversation(pageA, b.npub, 'B privado');
+    const replyBubble = pageA.locator('#messages .message-bubble').filter({ hasText: response }).last();
+    await replyBubble.waitFor({ state: 'visible', timeout: 10000 });
+    await replyBubble.evaluate(node => {
+      const rect = node.getBoundingClientRect();
+      const start = { bubbles: true, pointerId: 71, pointerType: 'touch', isPrimary: true, button: 0,
+        clientX: rect.left + 4, clientY: rect.top + 4 };
+      node.dispatchEvent(new PointerEvent('pointerdown', start));
+      node.dispatchEvent(new PointerEvent('pointermove', { ...start, clientX: start.clientX + 96, clientY: start.clientY + 12 }));
+      node.dispatchEvent(new PointerEvent('pointerup', { ...start, clientX: start.clientX + 96, clientY: start.clientY + 12 }));
+    });
+    await pageA.locator('#reply-context').waitFor({ state: 'visible', timeout: 5000 });
+    assert.ok((await pageA.locator('#reply-context-text').textContent()).includes(response),
+      'the rightward touch gesture selects the message it started on');
+    await pageA.locator('#cancel-reply').click();
+    await pageA.locator('#reply-context').waitFor({ state: 'hidden', timeout: 5000 });
+    const latestOwnText = await pageA.evaluate(async peerKey => {
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('liberdade-local-v1');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const messages = await new Promise((resolve, reject) => {
+        const request = db.transaction('messages').objectStore('messages').getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+      db.close();
+      return messages.filter(item => item.peer === peerKey && item.direction === 'sent' && item.kind !== 7 && !item.fromAgent
+        && !item.agentMessageId && !item.deleted && item.nostrEventId && ['sent', 'partial'].includes(item.status))
+        .sort((a, b) => b.createdAt - a.createdAt || String(b.id).localeCompare(String(a.id)))[0]?.text || null;
+    }, b.pubkey);
+    assert.ok(latestOwnText, 'the fixed chat has an eligible own message for ArrowUp edit');
+    const composer = pageA.locator('#message-input');
+    await composer.fill('preserve this draft'); await composer.press('ArrowUp');
+    assert.equal(await composer.inputValue(), 'preserve this draft', 'ArrowUp leaves a nonempty draft untouched');
+    assert.equal(await pageA.locator('#edit-context').isVisible(), false, 'ArrowUp does not start an edit when a draft exists');
+    await composer.fill('');
+    const eventsBeforeGestures = (await wsQuery(relay0.url, { kinds: [1059], '#p': [a.pubkey], limit: 1000 })).map(event => event.id).sort();
+    await composer.press('ArrowUp');
+    await pageA.locator('#edit-context').waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal(await composer.inputValue(), latestOwnText, 'ArrowUp loads the latest eligible own message into the existing editor');
+    await pageA.locator('#cancel-edit').click();
+    await pageA.locator('#edit-context').waitFor({ state: 'hidden', timeout: 5000 });
+    assert.equal(await composer.inputValue(), '', 'cancel restores the pre-edit empty draft');
+    const eventsAfterGestures = (await wsQuery(relay0.url, { kinds: [1059], '#p': [a.pubkey], limit: 1000 })).map(event => event.id).sort();
+    assert.deepEqual(eventsAfterGestures, eventsBeforeGestures, 'reply and edit shortcuts publish zero relay events');
+    report.message_gestures = { reply_target: response, right_swipe_px: 96, vertical_delta_px: 12,
+      arrow_up_edit_text_matches_latest_own_message: true, nonempty_draft_preserved: true, cancel_restored_empty_draft: true,
+      relay_event_delta: eventsAfterGestures.length - eventsBeforeGestures.length };
+    mark('G04-11', 'PASS', 'A fixed rightward touch swipe selected its exact reply target; ArrowUp edited the latest eligible own message only with an empty composer; cancel preserved the draft and neither shortcut published a relay event.');
 
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
     assert.deepEqual(report.denied_proxy_attempts, [], 'no outbound proxy attempt');
