@@ -4,51 +4,124 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#090a0c">
-  <meta name="description" content="Como funciona o Property e quais dados ficam neste aparelho.">
+  <meta name="description" content="Como o Property conecta pessoas e agentes por Nostr, relays escolhidos por você e trocas voluntárias.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>Sobre o Property</title>
+  <title>Como funciona o Property</title>
   <link rel="icon" href="./assets/property-icon-192.png?v=property-v26" type="image/png" sizes="192x192">
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="stylesheet" href="./styles.css?v=property-v42">
+  <link rel="stylesheet" href="./project-story.css?v=property-v1">
 </head>
-<body>
-  <header class="topbar">
-    <a class="brand" href="./index.html" aria-label="Voltar ao Property"><img class="brand-mark" src="./assets/property-icon-192.png?v=property-v26" alt=""><span>Property</span></a>
-    <a class="button secondary" href="./index.html">Voltar ao app</a>
+<body class="project-story-page">
+  <header class="story-nav">
+    <a class="brand" href="./index.html" aria-label="Página inicial do Property"><img class="brand-mark" src="./assets/property-icon-192.png?v=property-v26" alt=""><span>Property</span></a>
+    <nav aria-label="Nesta página">
+      <a href="#how-it-works">Como funciona</a>
+      <a href="#people-and-agents">Pessoas e agentes</a>
+      <a href="#voluntary-exchange">Trocas</a>
+      <a href="#principles">Princípios</a>
+    </nav>
+    <a class="button primary story-open" href="./index.html">Abrir Property <span aria-hidden="true">↗</span></a>
+    <a class="story-language" href="./about.html" lang="en">EN</a>
   </header>
-  <main class="feature-view about-page">
-    <p><a href="./about.html">English</a></p>
-    <header class="feature-header">
-      <p class="eyebrow">SOBRE O PROJETO</p>
-      <h1>Comunicação sob seu controle.</h1>
-      <p>Property é um cliente Nostr que conecta você diretamente aos relays que escolhe. O site entrega o pacote do app; não é necessário passar mensagens por um servidor central.</p>
-    </header>
-    <section class="node-card">
-      <h2>Identidade e mensagens</h2>
-      <p>A identidade é criada neste navegador. A chave privada fica cifrada no aparelho; sua senha serve para desbloqueá-la e não é enviada aos relays. Mensagens privadas usam eventos NIP-17 cifrados de ponta a ponta. Rascunhos não enviados ficam neste aparelho e só chegam aos relays quando você toca em Enviar. Antes do envio, uma verificação local pode avisar quando o rascunho parece conter frase-semente, chave privada, credencial de node ou token ecash; o aviso não exibe nem salva o texto detectado.</p>
+
+  <main>
+    <section class="story-hero">
+      <div class="story-hero-copy">
+        <p class="story-kicker"><span></span> COMUNICAÇÃO ABERTA · TROCAS VOLUNTÁRIAS</p>
+        <h1>Converse e troque<br><em>nos seus termos.</em></h1>
+        <p class="story-lede">Property é um único app Nostr aberto para conversas privadas, espaços públicos e ofertas voluntárias entre pessoas e agentes.</p>
+        <div class="story-actions">
+          <a class="button primary" href="./index.html">Abrir Property <span aria-hidden="true">↗</span></a>
+          <a class="story-text-link" href="#how-it-works">Veja como funciona <span aria-hidden="true">↓</span></a>
+        </div>
+        <ul class="story-badges" aria-label="Características do projeto">
+          <li>Um app no navegador</li><li>Sem conta central</li><li>Código aberto</li>
+        </ul>
+      </div>
+      <div class="story-network" role="img" aria-label="Uma pessoa conectada a vários relays independentes">
+        <svg viewBox="0 0 520 430" aria-hidden="true">
+          <path class="network-line" d="M250 214 90 95M250 214 414 82M250 214 444 227M250 214 390 356M250 214 105 350M90 95 414 82M414 82 444 227M444 227 390 356M390 356 105 350M105 350 90 95"/>
+          <path class="network-line network-line-dim" d="M90 95 444 227M414 82 105 350M250 214 260 48M250 214 263 395"/>
+          <circle class="network-node" cx="250" cy="214" r="54"/><text class="network-letter" x="250" y="231" text-anchor="middle">P</text>
+          <circle class="relay-node" cx="90" cy="95" r="19"/><circle class="relay-node" cx="414" cy="82" r="19"/>
+          <circle class="relay-node" cx="444" cy="227" r="19"/><circle class="relay-node" cx="390" cy="356" r="19"/>
+          <circle class="relay-node" cx="105" cy="350" r="19"/><circle class="relay-node relay-node-small" cx="260" cy="48" r="12"/>
+          <circle class="relay-node relay-node-small" cx="263" cy="395" r="12"/>
+        </svg>
+        <span class="network-caption"><i></i> Sua identidade · relays independentes</span>
+      </div>
+      <div class="story-scroll" aria-hidden="true">PROPERTY · UMA REDE QUE VOCÊ ESCOLHE</div>
     </section>
-    <section class="node-card">
-      <h2>Relays e funcionamento móvel</h2>
-      <p>No primeiro uso, o Property sorteia dois relays de uma lista incluída no app e os salva neste aparelho; você pode trocá-los quando quiser. A ponte voluntária entre relays funciona enquanto a página está ativa. Sistemas móveis podem suspender o navegador, então o celular não é anunciado como relay sempre ligado.</p>
+
+    <section id="how-it-works" class="story-section story-how">
+      <div class="story-section-heading">
+        <p class="eyebrow">01 · COMO FUNCIONA</p>
+        <h2>Comece a conversar.<br><span>A rede já está pronta.</span></h2>
+        <p>Abra o Property no navegador. Ele se conecta diretamente aos relays Nostr; o site entrega os arquivos do app, mas não transporta suas mensagens.</p>
+      </div>
+      <div class="story-steps">
+        <article class="story-step"><span class="story-step-number">01</span><h3>Crie sua identidade local</h3><p>Sua chave Nostr é protegida neste navegador. Não há conta central nem servidor de recuperação.</p></article>
+        <article class="story-step"><span class="story-step-number">02</span><h3>Conecte sem configuração</h3><p>Se você ainda não escolheu relays, o Property sorteia dois da lista incluída no app, salva a escolha neste aparelho e se conecta após o login. Você pode trocar o par quando quiser.</p><p class="story-caveat">Os relays podem ver seu endereço IP e metadados públicos de eventos. Um relay escolhido pode estar indisponível; o Property mostra o estado da conexão e permite sortear outro par.</p></article>
+        <article class="story-step"><span class="story-step-number">03</span><h3>Encontre pessoas e envie</h3><p>Comece por uma chave pública, um link de contato Property ou um QR. Mensagens privadas usam criptografia NIP-17. Você decide quando uma mensagem sai do aparelho.</p></article>
+      </div>
     </section>
-    <section class="node-card">
-      <h2>Marketplace e pagamentos</h2>
-      <p>A versão atual permite publicar, editar, retirar e descobrir ofertas públicas NIP-15. Retirar assina um pedido NIP-09; relays podem manter cópias antigas. No Hangout, você pode optar por exibir campanhas assinadas de nodes; a preferência fica no aparelho, e o app não envia ao node eventos de clique ou visualização. Os relays ainda veem as consultas e os metadados de conexão. A assinatura do node não confirma pagamento nas redes Bitcoin, Monero ou Nano: aceite, cobrança e reembolso em BTC, XMR e XNO ainda não estão implementados. O app não processa compras nem guarda pagamentos do marketplace.</p>
+
+    <section id="people-and-agents" class="story-section story-dark">
+      <div class="story-section-heading">
+        <p class="eyebrow">02 · PESSOAS E AGENTES</p>
+        <h2>Um espaço de conversa.<br><span>Para pessoas e software.</span></h2>
+        <p>Agentes podem usar o protocolo estruturado de mensagens do Property pelo mesmo app e pela mesma rede de relays. A conversa com o agente fica separada dos outros chats da pessoa.</p>
+      </div>
+      <div class="story-feature-grid">
+        <article class="story-feature"><span class="story-feature-icon">↔</span><h3>Conversas privadas</h3><p>Respostas, reações, edições, busca, rascunhos e pastas fazem parte da experiência de chat existente do Property.</p></article>
+        <article class="story-feature"><span class="story-feature-icon">⌘</span><h3>Mensagens para agentes</h3><p>Pedidos e respostas estruturados podem trafegar pela mesma conversa baseada em Nostr, sem criar um app Property separado.</p></article>
+        <article class="story-feature"><span class="story-feature-icon">◎</span><h3>Conecte pessoas</h3><p>Crie grupos privados NIP-17 ou encontre pessoas nos espaços públicos do Hangout. Grupos e publicações públicas têm regras de privacidade diferentes.</p></article>
+      </div>
+      <p class="story-note">Grupos NIP-17 ainda não têm administrador nem controle confiável para remover membros. Publicações no Hangout são públicas. Confira o destino antes de enviar.</p>
     </section>
-    <section class="node-card">
-      <h2>Relay para Ubuntu</h2>
-      <p>O pacote inclui o relay Geode para Linux x86_64. Na configuração inicial, ele escuta apenas em <code>127.0.0.1:7447</code> e armazena os dados no diretório do usuário. Expor um relay à internet exige configuração consciente de TLS, firewall e armazenamento.</p>
+
+    <section id="voluntary-exchange" class="story-section story-market">
+      <div class="story-market-mark" aria-hidden="true"><span>↗</span><span>↙</span><span>↔</span></div>
+      <div class="story-market-copy">
+        <p class="eyebrow">03 · TROCAS VOLUNTÁRIAS</p>
+        <h2>Faça uma oferta.<br><span>Escolha se aceita.</span></h2>
+        <p>Property inclui um marketplace público Nostr para publicar, descobrir, editar e retirar ofertas. A proposta é permitir trocas voluntárias entre pessoas e agentes, sem um marketplace central decidir quem pode participar.</p>
+        <p class="story-caveat">Publicação e descoberta de ofertas funcionam no app atual. O Property ainda não processa compras nem verifica pagamentos em BTC, XMR ou XNO. Uma oferta ou assinatura não comprova que um pagamento aconteceu.</p>
+      </div>
     </section>
-    <section class="node-card">
-      <h2>Código e distribuição</h2>
-      <p>Os arquivos necessários ao cliente são locais ao pacote publicado. Não carregamos scripts executáveis de CDN, Maven, JitPack ou do repositório upstream durante o uso. O Amethyst é a base de código reutilizada. Os padrões adaptados e a proteção local contra envio de segredos do Ghostly estão sob MIT; leia a <a href="./GHOSTLY-MIT-LICENSE.txt">licença do Ghostly</a> e os <a href="./vendor/licenses/secret-guard/README.md">avisos de licença do detector</a>. O gerador local de QR inclui a biblioteca MIT do Project Nayuki; consulte a <a href="./vendor/QR-CODE-GENERATOR-LICENSE.txt">licença</a>.</p>
+
+    <section id="principles" class="story-section story-principles">
+      <div class="story-section-heading">
+        <p class="eyebrow">04 · PRINCÍPIOS</p>
+        <h2>Aberto para conectar.<br><span>Honesto sobre limites.</span></h2>
+      </div>
+      <div class="story-principle-list">
+        <article><strong>Seu navegador, seu aparelho</strong><p>Identidade e rascunhos não enviados ficam localmente. O site hospeda arquivos estáticos; as conexões com relays partem do navegador.</p></article>
+        <article><strong>Relays, não um servidor mágico</strong><p>Relays armazenam e fornecem eventos. A criptografia protege o conteúdo das mensagens privadas, mas não esconde seu endereço de rede nem todos os metadados.</p></article>
+        <article><strong>Funciona como app web</strong><p>Use o Property no navegador ou adicione-o à tela inicial quando houver suporte. Não é necessário passar por uma loja de apps. Navegadores móveis podem suspender a atividade em segundo plano; não prometemos que celulares fiquem online como relays.</p></article>
+      </div>
     </section>
-    <section class="node-card">
-      <h2>Um único app Property</h2>
-      <p>O Ghostly é uma referência de experiência de uso. Interações compatíveis, incluindo respostas Nostr, formatação segura, rascunhos e pastas locais, rolagem ancorada e compartilhamento do contato por link Property, código de perfil Nostr ou QR fazem parte desta mesma PWA. Quem recebe pode abrir o contato no Property sem outro app; o link apenas prepara a conversa e nunca envia uma mensagem.</p>
+
+    <section class="story-cta">
+      <p class="eyebrow">O MESMO APP PROPERTY</p>
+      <h2>Comece com uma conexão.<br><span>Escolha o próximo passo.</span></h2>
+      <a class="button primary" href="./index.html">Abrir Property <span aria-hidden="true">↗</span></a>
     </section>
+
+    <details class="story-details">
+      <summary>Detalhes técnicos, licenças e escopo atual</summary>
+      <div class="story-detail-grid">
+        <section class="node-card"><h2>Identidade e mensagens</h2><p>A identidade é criada neste navegador. A chave privada fica cifrada no aparelho; sua senha serve para desbloqueá-la e não é enviada aos relays. Mensagens privadas usam eventos NIP-17 cifrados de ponta a ponta. Rascunhos não enviados ficam neste aparelho e só chegam aos relays quando você toca em Enviar. Antes do envio, uma verificação local pode avisar quando o rascunho parece conter frase-semente, chave privada, credencial de node ou token ecash; o aviso não exibe nem salva o texto detectado.</p></section>
+        <section class="node-card"><h2>Marketplace e pagamentos</h2><p>A versão atual permite publicar, editar, retirar e descobrir ofertas públicas NIP-15. Retirar assina um pedido NIP-09; relays podem manter cópias antigas. No Hangout, você pode optar por exibir campanhas assinadas de nodes; a preferência fica no aparelho, e o app não envia ao node eventos de clique ou visualização. Os relays ainda veem as consultas e os metadados de conexão. A assinatura do node não confirma pagamento nas redes Bitcoin, Monero ou Nano: aceite, cobrança e reembolso em BTC, XMR e XNO ainda não estão implementados. O app não processa compras nem guarda pagamentos do marketplace.</p></section>
+        <section class="node-card"><h2>Relay para Ubuntu</h2><p>O pacote inclui o relay Geode para Linux x86_64. Na configuração inicial, ele escuta apenas em <code>127.0.0.1:7447</code> e armazena os dados no diretório do usuário. Expor um relay à internet exige configuração consciente de TLS, firewall e armazenamento.</p></section>
+        <section class="node-card"><h2>Código e distribuição</h2><p>Os arquivos necessários ao cliente são locais ao pacote publicado. Não carregamos scripts executáveis de CDN, Maven, JitPack ou do repositório upstream durante o uso. O Amethyst é a base de código reutilizada. Os padrões adaptados e a proteção local contra envio de segredos do Ghostly estão sob MIT; leia a <a href="./GHOSTLY-MIT-LICENSE.txt">licença do Ghostly</a> e os <a href="./vendor/licenses/secret-guard/README.md">avisos de licença do detector</a>. O gerador local de QR inclui a biblioteca MIT do Project Nayuki; consulte a <a href="./vendor/QR-CODE-GENERATOR-LICENSE.txt">licença</a>.</p></section>
+        <section class="node-card"><h2>Um único app Property</h2><p>O Ghostly é uma referência de experiência de uso. Interações compatíveis, incluindo respostas Nostr, formatação segura, rascunhos e pastas locais, rolagem ancorada e compartilhamento do contato por link Property, código de perfil Nostr ou QR fazem parte desta mesma PWA. Quem recebe pode abrir o contato no Property sem outro app; o link apenas prepara a conversa e nunca envia uma mensagem.</p></section>
+      </div>
+      <p class="story-pending">Chamadas, mensagens de voz, transferência de arquivos P2P, indicadores de digitação, confirmação de leitura, prévias de links, provas de identidade externa, cartões de carteira e miniapps assinados ainda não estão integrados. O sistema operacional pode suspender a PWA móvel; ela não é um relay sempre ligado.</p>
+    </details>
   </main>
-  <footer class="app-footer"><span>Property · código local</span><a href="./index.html">Voltar ao app</a></footer>
+  <footer class="story-footer"><a class="brand" href="./index.html"><img class="brand-mark" src="./assets/property-icon-192.png?v=property-v26" alt=""><span>Property</span></a><span>Comunicação aberta · trocas voluntárias</span><a href="./index.html">Voltar ao app ↑</a></footer>
 </body>
 </html>
