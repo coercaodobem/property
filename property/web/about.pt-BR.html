@@ -10,7 +10,7 @@
   <link rel="icon" href="./assets/property-icon-192.png?v=property-v26" type="image/png" sizes="192x192">
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
-  <link rel="stylesheet" href="./styles.css?v=property-v39">
+  <link rel="stylesheet" href="./styles.css?v=property-v40">
 </head>
 <body>
   <header class="topbar">
@@ -26,7 +26,7 @@
     </header>
     <section class="node-card">
       <h2>Identidade e mensagens</h2>
-      <p>A identidade é criada neste navegador. A chave privada fica cifrada no aparelho; sua senha serve para desbloqueá-la e não é enviada aos relays. Mensagens privadas usam eventos NIP-17 cifrados de ponta a ponta. Rascunhos não enviados ficam neste aparelho e só chegam aos relays quando você toca em Enviar.</p>
+      <p>A identidade é criada neste navegador. A chave privada fica cifrada no aparelho; sua senha serve para desbloqueá-la e não é enviada aos relays. Mensagens privadas usam eventos NIP-17 cifrados de ponta a ponta. Rascunhos não enviados ficam neste aparelho e só chegam aos relays quando você toca em Enviar. Antes do envio, uma verificação local pode avisar quando o rascunho parece conter frase-semente, chave privada, credencial de node ou token ecash; o aviso não exibe nem salva o texto detectado.</p>
     </section>
     <section class="node-card">
       <h2>Relays e funcionamento móvel</h2>
@@ -42,7 +42,7 @@
     </section>
     <section class="node-card">
       <h2>Código e distribuição</h2>
-      <p>Os arquivos necessários ao cliente são locais ao pacote publicado. Não carregamos scripts executáveis de CDN, Maven, JitPack ou do repositório upstream durante o uso. O Amethyst é a base de código reutilizada. Os padrões de renderização de mensagens adaptados do Ghostly estão sob MIT; leia a <a href="./GHOSTLY-MIT-LICENSE.txt">licença do Ghostly</a>. O gerador local de QR inclui a biblioteca MIT do Project Nayuki; consulte a <a href="./vendor/QR-CODE-GENERATOR-LICENSE.txt">licença</a>.</p>
+      <p>Os arquivos necessários ao cliente são locais ao pacote publicado. Não carregamos scripts executáveis de CDN, Maven, JitPack ou do repositório upstream durante o uso. O Amethyst é a base de código reutilizada. Os padrões adaptados e a proteção local contra envio de segredos do Ghostly estão sob MIT; leia a <a href="./GHOSTLY-MIT-LICENSE.txt">licença do Ghostly</a> e os <a href="./vendor/licenses/secret-guard/README.md">avisos de licença do detector</a>. O gerador local de QR inclui a biblioteca MIT do Project Nayuki; consulte a <a href="./vendor/QR-CODE-GENERATOR-LICENSE.txt">licença</a>.</p>
     </section>
     <section class="node-card">
       <h2>Um único app Property</h2>

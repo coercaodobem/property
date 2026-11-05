@@ -10,7 +10,7 @@
   <link rel="icon" href="./assets/property-icon-192.png?v=property-v26" type="image/png" sizes="192x192">
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
-  <link rel="stylesheet" href="./styles.css?v=property-v39">
+  <link rel="stylesheet" href="./styles.css?v=property-v40">
 </head>
 <body>
   <header class="topbar">
@@ -25,7 +25,7 @@
     </header>
     <section class="node-card">
       <h2>Identity and messages</h2>
-      <p>Your identity is created in this browser. The private key is encrypted on this device; your password unlocks it and is never sent to relays. Private messages use end-to-end encrypted NIP-17 events. Unsent drafts stay on this device and reach relays only when you press Send.</p>
+      <p>Your identity is created in this browser. The private key is encrypted on this device; your password unlocks it and is never sent to relays. Private messages use end-to-end encrypted NIP-17 events. Unsent drafts stay on this device and reach relays only when you press Send. Before sending, a local check can warn if the draft resembles a recovery phrase, private key, node credential, or bearer ecash token; the warning never displays or saves the matched text.</p>
     </section>
     <section class="node-card">
       <h2>Relays and mobile operation</h2>
@@ -41,7 +41,7 @@
     </section>
     <section class="node-card">
       <h2>Code and distribution</h2>
-      <p>The files needed by the client are included in the published package. Property does not load executable scripts from a CDN, Maven, JitPack, or the upstream repository at runtime. Amethyst is the reused codebase. The adapted Ghostly message-rendering patterns are MIT licensed; read the <a href="./GHOSTLY-MIT-LICENSE.txt">Ghostly license</a>. The local QR encoder includes the MIT-licensed Project Nayuki generator; read its <a href="./vendor/QR-CODE-GENERATOR-LICENSE.txt">license</a>.</p>
+      <p>The files needed by the client are included in the published package. Property does not load executable scripts from a CDN, Maven, JitPack, or the upstream repository at runtime. Amethyst is the reused codebase. Adapted Ghostly patterns and the local secret guard are MIT licensed; read the <a href="./GHOSTLY-MIT-LICENSE.txt">Ghostly license</a> and the <a href="./vendor/licenses/secret-guard/README.md">secret-guard notices</a>. The local QR encoder includes the MIT-licensed Project Nayuki generator; read its <a href="./vendor/QR-CODE-GENERATOR-LICENSE.txt">license</a>.</p>
     </section>
     <section class="node-card">
       <h2>One Property app</h2>

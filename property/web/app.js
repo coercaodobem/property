@@ -22,6 +22,7 @@
   const FolderStore = window.PropertyConversationFolders;
   const ChatDrafts = window.PropertyChatDrafts;
   const RichText = window.PropertyRichText;
+  const SecretGuard = window.PropertySecretGuard;
   const QrCode = window.PropertyQrCode;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
@@ -35,7 +36,7 @@
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0
+    storageReady: false, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null
   };
   const N = window.NostrTools;
   const bridge = Bridge?.createBridge(event => N.verifyEvent(event));
@@ -93,6 +94,66 @@
     state.toastTimer = setTimeout(() => node.classList.remove('show'), 2800);
   }
   function localized(en, pt) { return window.PropertyI18n?.language === 'pt-BR' ? pt : en; }
+  function secretWarningCopy(finding) {
+    const portuguese = window.PropertyI18n?.language === 'pt-BR';
+    const copy = {
+      mnemonic: portuguese
+        ? ['Possível frase-semente de carteira', 'Quem receber esta frase pode assumir o controle da carteira. O conteúdo ainda não foi enviado. Continue apenas se pretende compartilhá-lo.']
+        : ['Possible wallet recovery phrase', 'Anyone who receives this phrase may take control of the wallet. The content has not been sent. Continue only if you intend to share it.'],
+      nsec: portuguese
+        ? ['Possível chave privada Nostr', 'Quem receber esta chave pode publicar em seu nome e acessar mensagens privadas dessa identidade. O conteúdo ainda não foi enviado.']
+        : ['Possible Nostr private key', 'Anyone who receives this key may publish as you and access private messages for that identity. The content has not been sent.'],
+      'bitcoin-key': portuguese
+        ? ['Possível chave privada Bitcoin', 'Quem receber esta chave pode gastar os fundos associados. O conteúdo ainda não foi enviado.']
+        : ['Possible Bitcoin private key', 'Anyone who receives this key may spend the associated funds. The content has not been sent.'],
+      'hex-key': portuguese
+        ? ['Possível chave privada', 'Este texto parece conter uma chave privada. Quem a receber pode controlar a conta associada. O conteúdo ainda não foi enviado.']
+        : ['Possible private key', 'This text looks like it contains a private key. Anyone who receives it may control the associated account. The content has not been sent.'],
+      'node-login': portuguese
+        ? ['Possível credencial de node', 'Quem receber este acesso pode usar o node e talvez movimentar fundos. O conteúdo ainda não foi enviado.']
+        : ['Possible node credential', 'Anyone who receives this credential may use the node and could spend its funds. The content has not been sent.'],
+      cashu: portuguese
+        ? ['Possível token ecash', 'Quem resgatar este token primeiro fica com o valor. Depois de enviado, ele não pode ser recuperado. O conteúdo ainda não foi enviado.']
+        : ['Possible ecash token', 'Whoever redeems this token first keeps its value. Once sent, it cannot be recovered. The content has not been sent.']
+    };
+    return copy[finding.kind] || (portuguese
+      ? ['Possível dado secreto', 'Este texto parece conter um segredo. A mensagem ainda não foi enviada.']
+      : ['Possible secret', 'This text looks like it contains a secret. The message has not been sent.']);
+  }
+  function settleSecretSendConfirmation(approved) {
+    const resolve = state.pendingSecretResolve;
+    state.pendingSecretResolve = null;
+    const dialog = $('secret-guard-dialog');
+    if (dialog?.open) dialog.close();
+    if (resolve) resolve(approved);
+  }
+  async function requestSecretSendConfirmation(text, peer, recipientLabelOverride = '') {
+    const finding = SecretGuard.findSecret(text);
+    if (!finding) return true;
+    if (state.pendingSecretResolve) return false;
+    let recipient = recipientLabelOverride;
+    if (!recipient && peer) {
+      const conversation = await get('conversations', peer);
+      recipient = conversationLabel(conversation || peer);
+      if (conversation?.group) {
+        const count = conversation.members?.length || 0;
+        recipient = localized(`${recipient} · ${count} group members`, `${recipient} · ${count} participantes`);
+      }
+    }
+    const [title, body] = secretWarningCopy(finding);
+    $('secret-guard-dialog').dataset.kind = finding.kind;
+    $('secret-guard-title').textContent = title;
+    $('secret-guard-copy').textContent = body;
+    $('secret-guard-target').textContent = recipient
+      ? localized(`Recipients: ${recipient}`, `Destinatários: ${recipient}`)
+      : localized('Destination: public relays', 'Destino: relays públicos');
+    return new Promise(resolve => {
+      state.pendingSecretResolve = resolve;
+      const dialog = $('secret-guard-dialog');
+      dialog.showModal();
+      $('secret-guard-cancel').focus();
+    });
+  }
   async function renderShareInbox() {
     const items = await ShareInbox.list();
     state.shareItems = items;
@@ -1117,8 +1178,11 @@
       : (window.PropertyI18n?.language === 'pt-BR' ? `Respondendo a ${title}` : `Replying to ${title}`);
     $('reply-context-text').textContent = RichText.preview(message.text).slice(0, 180);
   }
-  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false } = {}) {
-    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet });
+  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false } = {}) {
+    if (!secretConfirmed && !(await requestSecretSendConfirmation(text, peer))) {
+      return { savedLocally: false, cancelled: true, confirmedEnvelopeCount: 0, requiredEnvelopeCount: 0 };
+    }
+    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true });
     const agentAccess = await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') throw new Error('Este contato está bloqueado neste aparelho.');
     if (!state.inboxRelays.length) {
@@ -1417,11 +1481,20 @@
     const marker = window.PropertyI18n?.language === 'pt-BR' ? 'Encaminhada:' : 'Forwarded:';
     const text = `${marker}\n${message.text}`;
     $('forward-send').disabled = true;
+    const finding = SecretGuard.findSecret(text);
+    if (finding) {
+      const names = [];
+      for (const peer of peers) names.push(conversationLabel(await get('conversations', peer) || peer));
+      if (!(await requestSecretSendConfirmation(text, '', names.join(', ')))) {
+        $('forward-send').disabled = false;
+        return;
+      }
+    }
     let savedLocally = 0;
     let relayConfirmed = 0;
     for (const peer of peers) {
       try {
-        const result = await sendPrivateMessage(peer, text, null, { quiet: true });
+        const result = await sendPrivateMessage(peer, text, null, { quiet: true, secretConfirmed: Boolean(finding) });
         if (result.savedLocally) savedLocally += 1;
         relayConfirmed += result.confirmedEnvelopeCount;
       } catch { /* The final summary distinguishes local saves from relay confirmations. */ }
@@ -1517,6 +1590,7 @@
   async function publishHangoutPost() {
     const content = $('hangout-text').value.trim();
     if (!content) return showToast('Escreva algo antes de publicar.');
+    if (!(await requestSecretSendConfirmation(content, '', localized('anyone who reads public Hangout posts', 'qualquer pessoa que leia publicações no Hangout')))) return;
     const event = finalize(1, content);
     const sent = await publishToRelays(event);
     if (!sent) throw new Error('Nenhum relay confirmou a publicação. Verifique a conexão.');
@@ -1545,6 +1619,7 @@
       const { price, currency, atomic, raw } = Marketplace.parsePrice(rawPrice, Nano, $('product-currency').value);
       let image = $('product-image').value.trim();
       if (image) { image = Marketplace.safeExternalImageUrl(image); if (!image) throw new Error('Informe uma imagem HTTPS válida, sem credenciais ou endereço local.'); }
+      if (!(await requestSecretSendConfirmation(`${name}\n${description}\n${image}`, '', localized('anyone who reads public marketplace offers', 'qualquer pessoa que leia ofertas públicas do marketplace')))) return;
       const id = state.editingProduct?.data.id || crypto.randomUUID();
       const stallId = state.editingProduct?.data.currency === currency ? state.editingProduct.data.stall_id : await ensureStall(name, currency);
       const payload = { id, stall_id: stallId, name, description, images: image ? [image] : [], currency, price, price_atomic: atomic, ...(raw ? { price_raw: raw } : {}), quantity: null, specs: [], shipping: [] };
@@ -1732,7 +1807,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v37', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v38', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -1865,12 +1940,18 @@
       }
       catch (error) { showError('new-chat-error', error.message); }
     });
+    $('secret-guard-close').addEventListener('click', () => settleSecretSendConfirmation(false));
+    $('secret-guard-cancel').addEventListener('click', () => settleSecretSendConfirmation(false));
+    $('secret-guard-send-anyway').addEventListener('click', () => settleSecretSendConfirmation(true));
+    $('secret-guard-dialog').addEventListener('cancel', event => { event.preventDefault(); settleSecretSendConfirmation(false); });
+    $('secret-guard-dialog').addEventListener('close', () => settleSecretSendConfirmation(false));
     $('send-form').addEventListener('submit', async event => {
       event.preventDefault(); const input = $('message-input'); const text = input.value.trim(); const peer = state.activePeer; const replyTo = state.replyingTo; if (!text || !peer) return;
       const sentShareId = state.shareDraftPeer === peer ? state.shareDraftId : '';
       const submit = document.querySelector('#send-form button[type="submit"]'); submit.disabled = true;
       try {
-        await sendPrivateMessage(peer, text, replyTo);
+        const result = await sendPrivateMessage(peer, text, replyTo);
+        if (result.cancelled) return;
         if (sentShareId) {
           state.shareDraftId = ''; state.shareDraftPeer = '';
           try {
@@ -2038,7 +2119,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !QrCode || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();

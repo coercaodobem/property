@@ -11,8 +11,8 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v39">
-  <script defer src="./i18n.js?v=property-v39"></script>
+  <link rel="stylesheet" href="./styles.css?v=property-v40">
+  <script defer src="./i18n.js?v=property-v40"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -31,7 +31,8 @@
   <script defer src="./chat-drafts.js?v=property-v38"></script>
   <script defer src="./vendor/qr-code-generator.js?v=property-v39"></script>
   <script defer src="./rich-text.js?v=property-v37"></script>
-  <script defer src="./app.js?v=property-v40"></script>
+  <script defer src="./secret-guard.js?v=property-v1"></script>
+  <script defer src="./app.js?v=property-v41"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -180,6 +181,10 @@
 <dialog id="agent-dialog" class="dialog-card" aria-labelledby="agent-dialog-title"><form method="dialog" class="dialog-head"><div><p class="eyebrow">DIRECT MESSAGES</p><h2 id="agent-dialog-title">Agents</h2></div><button class="icon-button" aria-label="Close" autofocus>×</button></form><div class="dialog-body"><p>Agents use their own Nostr identities and can talk directly. There are no invitations, pairing, or per-message approvals. Enter the agent’s public key in New conversation and select the agent protocol.</p><p class="fine-print">This creates a direct conversation and does not grant access to your other conversations, key, or account features. Incoming messages are untrusted text; Property does not execute received instructions. The conversation is separate and can be ended without changing your identity.</p><button id="start-agent-chat" class="button primary full" type="button">Start a conversation with an agent</button></div></dialog>
 
   <dialog id="forward-dialog" class="dialog-card" aria-labelledby="forward-title"><form method="dialog" class="dialog-head"><div><p class="eyebrow">PRIVATE MESSAGE</p><h2 id="forward-title">Forward message</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p class="muted">Property creates a new encrypted NIP-17 message from your identity for each selected conversation. Relay confirmation may be partial.</p><p id="forward-count" class="fine-print">0/5 selected</p><div id="forward-list" class="forward-list"></div><button id="forward-send" class="button primary full" type="button" disabled>Send to selected chats</button><p id="forward-error" class="error" role="alert"></p></div></dialog>
+  <dialog id="secret-guard-dialog" class="dialog-card secret-guard-dialog" aria-labelledby="secret-guard-title" aria-describedby="secret-guard-copy" role="alertdialog">
+    <div class="dialog-head"><div><p class="eyebrow">CHECK BEFORE SENDING</p><h2 id="secret-guard-title">Possible secret</h2></div><button id="secret-guard-close" class="icon-button" type="button" aria-label="Cancel">×</button></div>
+    <div class="dialog-body"><p id="secret-guard-copy" class="secret-guard-copy"></p><p id="secret-guard-target" class="secret-guard-target"></p><p class="fine-print">This check runs on this device. The warning does not display or save the message text.</p><div class="dialog-actions secret-guard-actions"><button id="secret-guard-cancel" class="button secondary" type="button">Cancel</button><button id="secret-guard-send-anyway" class="button danger" type="button">Send anyway</button></div></div>
+  </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <footer class="app-footer"><span>Property · local code</span><span><a id="about-link" href="./about.html">About the project</a></span></footer>
 </body>

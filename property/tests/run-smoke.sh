@@ -17,6 +17,7 @@ for test_file in \
   conversation-folders-smoke.mjs \
   chat-drafts-smoke.mjs \
   rich-text-smoke.mjs \
+  secret-guard-smoke.mjs \
   vault-smoke.mjs \
   forwarding-smoke.mjs \
   sw-update-smoke.mjs \
