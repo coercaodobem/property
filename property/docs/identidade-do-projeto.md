@@ -27,7 +27,7 @@ The project aims to reuse as much working Amethyst code as possible instead of r
 
 ## Product and experience
 
-- **First use:** create or recover an identity, explain recovery clearly, use the two locally saved relay suggestions or replace them, and start a conversation without a terminal. The browser can retain a session; plaintext passwords are never stored.
+- **First use:** create or recover an identity, explain recovery clearly, and use the two locally saved relay suggestions without needing relay knowledge or a terminal. If no NIP-17 inbox list is available, settings pre-fill the selected relays; publishing the kind-10050 list stays explicit because it publicly reveals routing URLs. Both participants need a published list for private-message delivery. The browser can retain a session; plaintext passwords are never stored.
 - **Communication:** private messages, conversations, and public/group spaces use supported and validated Nostr protocols.
 - **Agents:** an independent Nostr identity can message any valid public key directly over NIP-17, without a Property invitation, pairing, or approval. Agent conversations are identified and kept separate; a person can block locally, and incoming messages are never executed. Human review, independent security review, external interoperability, and platform coverage still require their own evidence.
 - **Hangout:** the first version is a public Nostr kind 1 feed, fetched and published directly to selected relays. Closed communities/groups are not part of the initial implementation.

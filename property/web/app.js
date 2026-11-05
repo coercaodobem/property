@@ -72,8 +72,12 @@
     $('chat-avatar').classList.toggle('group-avatar', conversation.group === true);
     $('chat-avatar').textContent = conversation.group ? '◉' : $('chat-title').textContent.slice(0, 1).toUpperCase();
     $('composer-note').textContent = conversation.group
-      ? (window.PropertyI18n?.language === 'pt-BR' ? 'NIP-17 em grupo · uma cópia criptografada para o relay de recebimento de cada participante' : 'NIP-17 group · separately encrypted for each participant’s inbox relays')
-      : (window.PropertyI18n?.language === 'pt-BR' ? 'NIP-17 · exige uma lista pública de relays de recebimento kind 10050 sua e da outra pessoa' : 'NIP-17 · requires an inbox relay kind 10050 list published by both you and the other person');
+      ? (state.inboxRelays.length
+        ? localized('NIP-17 group · one encrypted copy goes to each participant’s inbox relays', 'Grupo NIP-17 · uma cópia criptografada vai para os relays de recebimento de cada participante')
+        : localized('Publish your suggested inbox relays in settings first; each group member also needs a public kind 10050 list.', 'Publique os relays de recebimento sugeridos nas configurações; cada participante também precisa de uma lista pública kind 10050.'))
+      : (state.inboxRelays.length
+        ? localized('NIP-17 · both people need a public inbox relay list (kind 10050)', 'NIP-17 · as duas pessoas precisam publicar uma lista de relays de recebimento (kind 10050)')
+        : localized('Publish your suggested inbox relays in settings to start; the other person must publish theirs too.', 'Publique os relays de recebimento sugeridos nas configurações para começar; a outra pessoa também precisa publicar os dela.'));
   }
 
   function showToast(message) {
@@ -390,7 +394,7 @@
   async function resolveInboxRelaysFor(pubkey) {
     if (pubkey === state.pubkey) {
       if (!state.inboxRelays.length) state.inboxRelays = await discoverInboxRelays(state.pubkey);
-      if (!state.inboxRelays.length) throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Publique sua lista de relays de recebimento NIP-17 nas configurações antes de enviar.' : 'Publish your NIP-17 inbox relay list in settings before sending.');
+      if (!state.inboxRelays.length) throw new Error(localized('Open relay settings, review the suggested inbox relays, and publish your public kind 10050 list before sending.', 'Abra as configurações de relays, confira os relays de recebimento sugeridos e publique sua lista pública kind 10050 antes de enviar.'));
       return state.inboxRelays;
     }
     let relays = state.peerInboxRelays.get(pubkey) || [];
@@ -934,7 +938,7 @@
     if (agentAccess?.status === 'blocked') throw new Error('Este contato está bloqueado neste aparelho.');
     if (!state.inboxRelays.length) {
       state.inboxRelays = await discoverInboxRelays(state.pubkey);
-      if (!state.inboxRelays.length) throw new Error('Configure e publique seus relays de recebimento NIP-17 nas configurações.');
+      if (!state.inboxRelays.length) throw new Error(localized('Open relay settings, review the suggested inbox relays, and publish your public kind 10050 list before sending.', 'Abra as configurações de relays, confira os relays de recebimento sugeridos e publique sua lista pública kind 10050 antes de enviar.'));
     }
     let peerRelays = state.peerInboxRelays.get(peer) || [];
     if (!peerRelays.length) {
@@ -1033,7 +1037,7 @@
     if (previous?.reaction === reaction) { showToast('You already sent this reaction.'); return; }
     if (!state.inboxRelays.length) {
       state.inboxRelays = await discoverInboxRelays(state.pubkey);
-      if (!state.inboxRelays.length) throw new Error('Configure and publish your NIP-17 inbox relays in settings.');
+      if (!state.inboxRelays.length) throw new Error(localized('Open relay settings, review the suggested inbox relays, and publish your public kind 10050 list before sending.', 'Abra as configurações de relays, confira os relays de recebimento sugeridos e publique sua lista pública kind 10050 antes de enviar.'));
     }
     let peerRelays = state.peerInboxRelays.get(peer) || [];
     if (!peerRelays.length) {
@@ -1540,7 +1544,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v33', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v34', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -1590,7 +1594,11 @@
     });
     const openRelaySettings = async () => {
       $('relay-input').value = state.relays.join('\n');
-      $('dm-relay-input').value = state.inboxRelays.join('\n');
+      const inboxSuggestion = state.inboxRelays.length ? state.inboxRelays : state.relays.slice(0, 3);
+      $('dm-relay-input').value = inboxSuggestion.join('\n');
+      $('inbox-relay-note').textContent = state.inboxRelays.length
+        ? localized('Publishing this list makes its relay URLs public as NIP-17 routing metadata; message contents remain encrypted.', 'Publicar esta lista deixa os endereços dos relays visíveis como metadados de roteamento NIP-17; o conteúdo das mensagens permanece criptografado.')
+        : localized('No inbox list is saved yet, so Property prefilled your selected relays. Review them, then publish only if you want these URLs public as NIP-17 routing metadata; message contents remain encrypted.', 'Ainda não há uma lista de recebimento salva, então o Property preencheu os relays selecionados. Confira e publique apenas se quiser tornar esses endereços públicos como metadados de roteamento NIP-17; o conteúdo das mensagens permanece criptografado.');
       $('relay-selection-note').textContent = state.autoSelectedRelays
         ? (window.PropertyI18n?.language === 'pt-BR' ? 'O Property escolheu estes relays aleatoriamente da lista incluída no app. Eles ficam salvos neste aparelho; troque-os quando quiser.' : 'Property picked these relays randomly from its bundled list. They are saved on this device; replace them any time.')
         : (window.PropertyI18n?.language === 'pt-BR' ? 'Estes são os relays salvos neste aparelho. Troque a seleção quando quiser.' : 'These relays are saved on this device. Replace the selection any time.');
@@ -1603,7 +1611,11 @@
       catch (error) { showError('relay-error', error.message); }
     });
     $('publish-inbox-list').addEventListener('click', () => publishInboxRelayList().catch(error => showError('relay-error', error.message || 'Falha ao publicar a lista NIP-17.')));
-    $('use-default-relays').addEventListener('click', () => { $('relay-input').value = RelayDefaults.pick().join('\n'); });
+    $('use-default-relays').addEventListener('click', () => {
+      const selection = RelayDefaults.pick();
+      $('relay-input').value = selection.join('\n');
+      if (!state.inboxRelays.length) $('dm-relay-input').value = selection.slice(0, 3).join('\n');
+    });
     $('new-chat-button').addEventListener('click', () => $('new-chat-dialog').showModal());
     $('mobile-new-chat-button').addEventListener('click', () => $('new-chat-dialog').showModal());
     $('mobile-open-conversations').addEventListener('click', () => setMobileConversationListOpen(true, { focus: true }));

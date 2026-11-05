@@ -27,7 +27,7 @@ O projeto pretende aproveitar ao máximo o trabalho existente no Amethyst, em ve
 
 ## Produto e experiência
 
-- **Primeiro acesso:** criar ou recuperar identidade, explicar a recuperação com clareza, usar os dois relays sugeridos e salvos localmente ou trocá-los, e iniciar conversa sem terminal. O login pode persistir no navegador; senha em texto puro nunca fica armazenada.
+- **Primeiro acesso:** criar ou recuperar identidade, explicar a recuperação com clareza e usar os dois relays sugeridos e salvos localmente, sem precisar conhecer ou digitar endereços. Se ainda não houver lista NIP-17 de recebimento, as configurações preenchem os relays selecionados; publicar a lista kind 10050 continua sendo uma ação explícita, pois torna os endereços de roteamento públicos. As duas pessoas precisam publicar suas listas para trocar mensagens privadas. O login pode persistir no navegador; senha em texto puro nunca fica armazenada.
 - **Comunicação:** mensagens privadas, conversas e espaços públicos/grupais conforme protocolos Nostr suportados e validados.
 - **Agentes:** identidade Nostr independente pode trocar mensagens diretamente por chave pública, sem convite, pareamento ou aprovação do Property. A conversa de agente é identificada e separada; a pessoa pode bloquear localmente, e mensagens recebidas não são executadas. Revisão humana, segurança independente, interoperabilidade externa e matriz multiplataforma ainda exigem evidência própria.
 - **Hangout:** a primeira versão é um feed de notas públicas Nostr kind 1, consultado e publicado diretamente nos relays salvos no aparelho. Comunidades fechadas/grupos não fazem parte da implementação inicial.
