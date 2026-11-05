@@ -42,8 +42,13 @@
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null
+    storageReady: false, activeWorkspaceReady: false, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null
   };
+  const SHARE_LAUNCH_ACTIONS = new Set(['share', 'share-full', 'share-error']);
+  let propertyTabChannel = null;
+  let propertyTabIsOwner = false;
+  let pendingTabShareAction = '';
+  let shareHandoffAnnounced = false;
   const N = window.NostrTools;
   const bridge = Bridge?.createBridge(event => N.verifyEvent(event));
 
@@ -264,6 +269,31 @@
     state.toastTimer = setTimeout(() => node.classList.remove('show'), 2800);
   }
   function localized(en, pt) { return window.PropertyI18n?.language === 'pt-BR' ? pt : en; }
+  function receiveShareHandoff(action) {
+    if (!SHARE_LAUNCH_ACTIONS.has(action)) return;
+    pendingTabShareAction = action;
+    if (!propertyTabIsOwner || !state.activeWorkspaceReady || !state.pubkey) return;
+    pendingTabShareAction = '';
+    if (!document.querySelector('dialog[open]') || $('share-dialog').open) void openShareInbox(action);
+    else void renderShareInbox().catch(() => {});
+  }
+  function announceQueuedShare() {
+    if (!propertyTabChannel || shareHandoffAnnounced) return;
+    const action = new URL(window.location.href).searchParams.get('launch');
+    if (!SHARE_LAUNCH_ACTIONS.has(action)) return;
+    try {
+      propertyTabChannel.postMessage({ type: 'share-queued', action });
+      shareHandoffAnnounced = true;
+    } catch {}
+  }
+  function handlePropertyTabMessage(event) {
+    const message = event.data;
+    if (propertyTabIsOwner) {
+      if (message?.type === 'share-queued' && SHARE_LAUNCH_ACTIONS.has(message.action)) receiveShareHandoff(message.action);
+      return;
+    }
+    if (message?.type === 'active-ready') announceQueuedShare();
+  }
   function activeTabGate(stateName) {
     const gate = $('active-tab-screen');
     if (!gate) return;
@@ -305,6 +335,13 @@
       return;
     }
 
+    try {
+      if (typeof BroadcastChannel === 'function') {
+        propertyTabChannel = new BroadcastChannel('property-active-app-v1');
+        propertyTabChannel.addEventListener('message', handlePropertyTabMessage);
+      }
+    } catch { propertyTabChannel = null; }
+
     let started = false;
     let acquired = false;
     let leaving = false;
@@ -320,15 +357,21 @@
     };
     const onPageHide = () => {
       leaving = true;
+      propertyTabIsOwner = false;
       abort.abort();
       releaseOwner();
+      propertyTabChannel?.close();
+      propertyTabChannel = null;
     };
     window.addEventListener('pagehide', onPageHide, { once: true });
     window.addEventListener('pageshow', event => {
       if (event.persisted) window.location.reload();
     });
     const waitTimer = window.setTimeout(() => {
-      if (!started) activeTabGate('waiting');
+      if (!started) {
+        activeTabGate('waiting');
+        announceQueuedShare();
+      }
     }, 180);
 
     let request;
@@ -336,6 +379,8 @@
       request = locks.request('property-active-app-v1', { mode: 'exclusive', signal: abort.signal }, async lock => {
         if (!lock) return;
         acquired = true;
+        propertyTabIsOwner = true;
+        propertyTabChannel?.postMessage({ type: 'active-ready' });
         window.clearTimeout(waitTimer);
         await startOnce();
         await holdLock;
@@ -343,6 +388,8 @@
     } catch {
       window.clearTimeout(waitTimer);
       window.removeEventListener('pagehide', onPageHide);
+      propertyTabChannel?.close();
+      propertyTabChannel = null;
       activeTabGate('unsupported');
       void startOnce();
       return;
@@ -352,9 +399,17 @@
       window.removeEventListener('pagehide', onPageHide);
       if (leaving) return;
       if (!acquired) {
+        propertyTabIsOwner = false;
+        propertyTabChannel?.close();
+        propertyTabChannel = null;
         activeTabGate('unsupported');
         void startOnce();
-      } else activeTabGate('startup-error');
+      } else {
+        propertyTabIsOwner = false;
+        propertyTabChannel?.close();
+        propertyTabChannel = null;
+        activeTabGate('startup-error');
+      }
     });
   }
   function renderFirstUseRelaySuggestions() {
@@ -660,6 +715,7 @@
     showToast('Identidade criada. Baixe um backup em Perfil e segurança.');
   }
   async function activateIdentity(secret) {
+    state.activeWorkspaceReady = false;
     state.secret = secret;
     resetIdleLock();
     state.pubkey = N.getPublicKey(secret);
@@ -707,6 +763,13 @@
       if (action === 'new-chat') $('new-chat-dialog').showModal();
       else if (['share', 'share-full', 'share-error'].includes(action)) openShareInbox(action);
       else setActiveView(action);
+    }
+    state.activeWorkspaceReady = true;
+    if (pendingTabShareAction) {
+      const action = pendingTabShareAction;
+      pendingTabShareAction = '';
+      if (!document.querySelector('dialog[open]') || $('share-dialog').open) void openShareInbox(action);
+      else void renderShareInbox().catch(() => {});
     }
   }
   async function refreshLocalProfile() {
@@ -2336,7 +2399,7 @@
     if (state.account) { const updated = { ...state.account }; delete updated.session; await put('vault', updated); state.account = updated; }
     clearTimeout(state.idleTimer);
     if (state.secret) state.secret.fill(0);
-    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null;
+    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false;
     state.replyingTo = null; updateReplyContext();
     state.draftLoadSequence++;
     $('message-input').value = '';
