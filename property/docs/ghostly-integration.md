@@ -14,7 +14,7 @@ Ghostly is a reference for useful conversation interactions and interface detail
 - Private-message replies use the NIP-17 `kind:14` `e` reference to the parent message. Property creates one rumor and wraps that same event for both participants, so its reply ID is consistent on both devices. Received replies keep the rumor event ID. The reply preview and jump action use local history only.
 - Re-rendering an open conversation keeps the visible message anchored when the person is reading older messages. If they were already at the bottom, the conversation stays at the bottom.
 - The reply action, contextual composer, and quoted-message preview use the same Property PWA, local identity, black-and-yellow brand, and existing English/Português (Brasil) language choice.
-- GitHub Pages builds and publishes only `property/web`; the PWA shell does not precache another app.
+- GitHub Pages builds and publishes only `property/web`; the PWA shell does not precache another app. The former `/direct/` route is a migration page with a cache-cleanup worker that redirects old installs to the main PWA.
 
 The reply tag follows the current NIP-17 message definition: <https://github.com/nostr-protocol/nips/blob/master/17.md>. It remains encrypted inside the NIP-17 rumor and gift wrap. Relays do not receive the plaintext body or local quote preview.
 

@@ -14,7 +14,7 @@ O Ghostly é uma referência para interações de conversa e detalhes de interfa
 - Respostas privadas usam a referência `e` para a mensagem-pai em eventos `kind:14` NIP-17. O Property cria um rumor e cifra esse mesmo evento para as duas identidades, mantendo o ID da resposta igual nos dois aparelhos. Respostas recebidas mantêm o ID do rumor. A prévia e a ação de ir à mensagem citada usam apenas o histórico local.
 - Ao redesenhar a conversa aberta, a rolagem mantém a mensagem visível ancorada enquanto a pessoa lê mensagens antigas. Se ela já estava no fim, a conversa continua no fim.
 - A ação de responder, o contexto do compositor e a prévia da citação usam a mesma PWA Property, identidade local, identidade visual preta e amarela e escolha existente entre inglês e Português (Brasil).
-- O GitHub Pages constrói e publica somente `property/web`; o shell da PWA não pré-carrega outro app.
+- O GitHub Pages constrói e publica somente `property/web`; o shell da PWA não pré-carrega outro app. O antigo caminho `/direct/` é uma página de migração com um worker que remove o cache antigo e redireciona instalações anteriores para a PWA principal.
 
 A tag de resposta segue a definição atual de mensagem NIP-17: <https://github.com/nostr-protocol/nips/blob/master/17.md>. Ela permanece criptografada dentro do rumor NIP-17 e do gift wrap. Os relays não recebem o texto em claro nem a prévia local da citação.
 

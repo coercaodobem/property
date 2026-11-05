@@ -159,7 +159,14 @@ const shellPathnames = new Set();
 assert.doesNotMatch(pagesWorkflow, /property\/direct|npm run build:web/, 'Pages publishes only the unified Property PWA');
 await assert.rejects(access(join(root, 'direct')), { code: 'ENOENT' }, 'the separate app is absent from the Property product tree');
 await access(join(root, '../archive/ghostly-source/README.md'));
-await assert.rejects(access(join(webRoot, 'direct')), { code: 'ENOENT' }, 'no separate app bundle is present');
+const migrationPage = await readFile(join(webRoot, 'direct/index.html'), 'utf8');
+const retiredWorker = await readFile(join(webRoot, 'direct/sw.js'), 'utf8');
+assert.match(migrationPage, /Open Property/, 'the former app URL only redirects to the main PWA');
+assert.match(retiredWorker, /property-direct-shell-/, 'the former app worker only clears its own cache');
+assert.doesNotMatch(retiredWorker, /addEventListener\(['"]fetch/, 'the former app worker does not serve a second application');
+await access(join(webRoot, 'direct/retire.js'));
+await access(join(webRoot, 'direct/retire.css'));
+await assert.rejects(access(join(webRoot, 'direct/assets')), { code: 'ENOENT' }, 'no separate app assets are shipped');
 for (const path of shellPaths) {
   shellPathnames.add(await localAssetPath(path, 'service-worker precache entry'));
 }
