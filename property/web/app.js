@@ -588,12 +588,13 @@
       }
       const bubble = document.createElement('div'); bubble.className = 'message-bubble'; bubble.textContent = message.text;
       const counts = reactionsByTarget.get(eventId);
+      let reactionSummary = null;
       if (counts?.size) {
         const summary = document.createElement('div'); summary.className = 'message-reactions'; summary.setAttribute('aria-label', 'Message reactions');
         for (const [reaction, count] of counts) {
           const pill = document.createElement('span'); pill.className = 'message-reaction-pill'; pill.textContent = `${reaction} ${count}`; summary.append(pill);
         }
-        row.append(summary);
+        reactionSummary = summary;
       }
       const delivery = message.status === 'pending' ? ' · aguardando relay' : message.status === 'partial' ? ' · entrega parcial' : '';
       const meta = document.createElement('span'); meta.className = 'message-meta'; meta.textContent = `${new Date(message.createdAt).toLocaleString(window.PropertyI18n?.locale() || undefined)}${delivery}`;
@@ -618,7 +619,7 @@
         picker.append(choice);
       }
       react.addEventListener('click', () => { picker.hidden = !picker.hidden; });
-      actions.append(reply, react, picker); row.append(bubble, meta, actions); container.append(row);
+      actions.append(reply, react, picker); row.append(bubble); if (reactionSummary) row.append(reactionSummary); row.append(meta, actions); container.append(row);
     }
     container.dataset.peer = peer;
     if (!samePeer || wasAtBottom || !anchor) container.scrollTop = container.scrollHeight;
