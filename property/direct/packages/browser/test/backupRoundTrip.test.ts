@@ -32,10 +32,10 @@ describe("the backup envelope", () => {
     expect(sealed).not.toContain("profile payload");
   });
 
-  it("says plainly when a file is not a Ghostly backup, or comes from a newer Ghostly", async () => {
+  it("says plainly when a file is not a Property backup, or comes from a newer Property", async () => {
     const sealed = await seal("x", PASS);
-    for (const text of ["not json", "null", "[]", JSON.stringify({ format: "other" })]) await expect(open(text, PASS), text).rejects.toThrow("This is not a Ghostly backup");
-    await expect(open(edit(sealed, (e) => { (e as { version: number }).version = 2; }), PASS)).rejects.toThrow("This backup comes from a newer Ghostly; update to restore it");
+    for (const text of ["not json", "null", "[]", JSON.stringify({ format: "other" })]) await expect(open(text, PASS), text).rejects.toThrow("This is not a Property backup");
+    await expect(open(edit(sealed, (e) => { (e as { version: number }).version = 2; }), PASS)).rejects.toThrow("This backup comes from a newer Property; update to restore it");
     expect(asked).toEqual([600_000]);
   });
 
@@ -145,6 +145,8 @@ describe("backup names", () => {
     expect(manifestName("abcdefghijklmnop", "mbox")).toBe("abcdefghijklmnop/hold/mbox/manifest.ghostly-held");
     expect(createdFromName("abcdefghijklmnop/backups/probe-1.txt")).toBe(0);
     expect(createdFromName("abcdefghijklmnop/backups/20260101T000000Z-UPPERCAS.ghostly-backup")).toBe(0);
+    expect(createdFromName("abcdefghijklmnop/backups/20260101T000000Z-aaaaaaaa.ghostly-backup")).toBe(Date.UTC(2026, 0, 1));
+    expect(createdFromName("abcdefghijklmnop/backups/20260102T000000Z-bbbbbbbb.property-backup")).toBe(Date.UTC(2026, 0, 2));
   });
 });
 

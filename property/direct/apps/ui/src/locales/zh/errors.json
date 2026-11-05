@@ -486,7 +486,7 @@
     "noRoom": "没有空间存放此备份",
     "noRoomNext": "请释放空间后重试。",
     "notABackup": "此备份中没有资料",
-    "notPropertyBackup": "这不是 Property 备份。请选择 .ghostly-backup 文件。",
+    "notPropertyBackup": "此文件不是 Property 备份。请选择 Property 备份文件。",
     "openElsewhere": "此资料已在另一个窗口中打开。请关闭该窗口后再试。",
     "shortPassphrase": "备份密码短语至少需要 12 个字符。",
     "switchFirst": "请先切换到另一个资料",

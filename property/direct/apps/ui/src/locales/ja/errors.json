@@ -486,7 +486,7 @@
     "noRoom": "このバックアップを入れる容量がありません",
     "noRoomNext": "空き容量を作ってから再試行してください。",
     "notABackup": "このバックアップにはプロフィールが含まれていません",
-    "notPropertyBackup": "これは Property のバックアップではありません。.ghostly-backup ファイルを選んでください。",
+    "notPropertyBackup": "このファイルは Property のバックアップではありません。Property のバックアップファイルを選んでください。",
     "openElsewhere": "このプロフィールは別のウィンドウで開いています。そのウィンドウを閉じてから再試行してください。",
     "shortPassphrase": "バックアップのパスフレーズは 12 文字以上にしてください。",
     "switchFirst": "先に別のプロフィールに切り替えてください",

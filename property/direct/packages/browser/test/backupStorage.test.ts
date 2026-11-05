@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { S3Store, signS3, validateS3Config } from "../src/backup/s3";
-import { backupName, createdFromName } from "../src/backup/storage";
+import { backupName, createdFromName, isBackupName } from "../src/backup/storage";
 import { decode, encode } from "../src/backup/codec";
 import { open, seal } from "../src/backup/envelope";
 // covers: storage.s3, backup.envelope, backup.passphrase-rules, delivery.hold.protocol
@@ -16,8 +16,11 @@ it("signs S3 requests exactly as AWS documents (SigV4 GET object example)", asyn
 
 it("names backups without anything personal, sortable by date", () => {
   const name = backupName("abcdefghijklmnop", new Date("2026-09-23T10:20:30.456Z"));
-  expect(name).toMatch(/^abcdefghijklmnop\/backups\/20260923T102030Z-[a-z2-7]{8}\.ghostly-backup$/);
+  expect(name).toMatch(/^abcdefghijklmnop\/backups\/20260923T102030Z-[a-z2-7]{8}\.property-backup$/);
   expect(createdFromName(name)).toBe(Date.parse("2026-09-23T10:20:30Z"));
+  expect(isBackupName(name)).toBe(true);
+  expect(isBackupName("abcdefghijklmnop/backups/20260922T102030Z-aaaaaaaa.ghostly-backup")).toBe(true);
+  expect(isBackupName("abcdefghijklmnop/backups/notes.txt")).toBe(false);
 });
 
 it("refuses S3 settings that would leak or cannot work", () => {
@@ -87,10 +90,10 @@ it("never leaves its own folder in the bucket, whatever a name or a listing says
     </ListBucketResult>`); }) as unknown as typeof fetch;
   const store = new S3Store({ endpoint: "https://s3.example.com", region: "us-east-1", bucket: "bkt", prefix: "g", accessKeyId: "k", secretAccessKey: "s" }, fetcher);
   for (const name of ["../other-bucket/x", "abcdefghijklmnop/backups/../../x", "abcdefghijklmnop/other/x", "/abs", ""]) {
-    await expect(store.get(name), name).rejects.toThrow("Not a Ghostly backup name");
-    await expect(store.put(name, new Uint8Array()), name).rejects.toThrow("Not a Ghostly backup name");
+    await expect(store.get(name), name).rejects.toThrow("Not a Property backup name");
+    await expect(store.put(name, new Uint8Array()), name).rejects.toThrow("Not a Property backup name");
   }
-  await expect(store.list("../x")).rejects.toThrow("Not a Ghostly backup name");
+  await expect(store.list("../x")).rejects.toThrow("Not a Property backup name");
   expect(seen).toEqual([]);
   // A listing that never ends, with keys from elsewhere: bounded, and only this folder's names.
   const listed = await store.list("abcdefghijklmnop");
@@ -121,8 +124,8 @@ it("presigns a read exactly as AWS documents (SigV4 query-string GET object exam
   expect(seen[0]).toMatchObject({ method: "PUT", url: "https://s3.example.com/bkt/g/abcdefghijklmnop/hold/abcdefghijklmnopqrstuv/manifest.ghostly-held", type: "application/vnd.ghostly.held" });
   await store.listFolder("abcdefghijklmnop", mailbox);
   expect(seen[1].url).toContain("prefix=g%2Fabcdefghijklmnop%2Fhold%2Fabcdefghijklmnopqrstuv%2F");
-  await expect(store.put("abcdefghijklmnop/hold/short/x.ghostly-held", new Uint8Array())).rejects.toThrow("Not a Ghostly backup name");
-  await expect(store.listFolder("abcdefghijklmnop", "../backups")).rejects.toThrow("Not a Ghostly backup name");
+  await expect(store.put("abcdefghijklmnop/hold/short/x.ghostly-held", new Uint8Array())).rejects.toThrow("Not a Property backup name");
+  await expect(store.listFolder("abcdefghijklmnop", "../backups")).rejects.toThrow("Not a Property backup name");
   const presigned = await store.presign(heldName("abcdefghijklmnop", mailbox, 1), 10 * 24 * 3600);
   expect(new URL(presigned).searchParams.get("X-Amz-Expires")).toBe(String(7 * 24 * 3600));
   expect(seen).toHaveLength(2);

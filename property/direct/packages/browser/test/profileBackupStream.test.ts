@@ -121,8 +121,8 @@ it("a profile whose database a newer version made is refused before anything is 
   const whole = await seal(await encode({ format: "ghostly-profile", version: 1, createdAt: 1, profile: { name: "Diary", builtIn: false }, storage: {}, databases: { peer, ark: {} } }), PASS);
   const before = await databases();
   for (const [bundle, passphrase] of [[streamed, undefined], [whole, PASS]] as const) {
-    await expect(openProfileBackup(bundle, passphrase)).rejects.toThrow("This backup comes from a newer Ghostly; update to restore it");
-    await expect(restoreProfileBackup(bundle, passphrase)).rejects.toThrow("This backup comes from a newer Ghostly; update to restore it");
+    await expect(openProfileBackup(bundle, passphrase)).rejects.toThrow("This backup comes from a newer Property; update to restore it");
+    await expect(restoreProfileBackup(bundle, passphrase)).rejects.toThrow("This backup comes from a newer Property; update to restore it");
     expect(await databases()).toEqual(before);
     expect(listProfiles().map((p) => p.id)).toEqual([""]);
   }

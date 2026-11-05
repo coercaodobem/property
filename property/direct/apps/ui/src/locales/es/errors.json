@@ -486,7 +486,7 @@
     "noRoom": "No hay espacio para esta copia",
     "noRoomNext": "Libera espacio y vuelve a intentarlo.",
     "notABackup": "Esta copia de seguridad no contiene un perfil",
-    "notPropertyBackup": "Esto no es una copia de Property. Elige un archivo .ghostly-backup.",
+    "notPropertyBackup": "Este archivo no es una copia de seguridad de Property. Elige un archivo de Property.",
     "openElsewhere": "Este perfil está abierto en otra ventana. Ciérrala e inténtalo de nuevo.",
     "shortPassphrase": "Usa al menos 12 caracteres para la frase de la copia.",
     "switchFirst": "Cambia primero a otro perfil",

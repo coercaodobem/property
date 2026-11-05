@@ -88,7 +88,7 @@ describe("a restored profile's name field", () => {
     await user.click(screen.getByRole("button", { name: "Baixe um backup antes" }));
     await user.type(screen.getByLabelText("Frase-senha do backup"), "a long backup passphrase");
     await user.click(screen.getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(vi.mocked(backUpToFile).mock.calls.map((call) => call[1])).toEqual(["Work.ghostly-backup"]));
+    await waitFor(() => expect(vi.mocked(backUpToFile).mock.calls.map((call) => call[1])).toEqual(["Work.property-backup"]));
     expect(screen.getByTestId("delete-profile-confirm")).toHaveAttribute("placeholder", expect.stringContaining("Work"));
     expect(screen.getByTestId("delete-profile-confirm").getAttribute("placeholder")).not.toContain("restaurado");
     await user.type(screen.getByTestId("delete-profile-confirm"), "Work");

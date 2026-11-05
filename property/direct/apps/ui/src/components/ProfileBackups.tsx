@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { S3Store, type S3Config } from "@ghostly/browser/backup/s3";
-import { backupName, newSpace, type StoredBackup } from "@ghostly/browser/backup/storage";
+import { backupName, isBackupName, newSpace, type StoredBackup } from "@ghostly/browser/backup/storage";
 import { useSettings } from "../contexts/SettingsContext";
 import { useI18n } from "../contexts/I18nContext";
 import { backupProtectionOf, isCancelled, openProfileBackup, profileBackupSizes, restoreOpenedBackup, sameIdentityProfiles, writeProfileBackup, type BackupInput, type BackupResult, type BackupSizes, type OpenedProfileBackup } from "../lib/profileBackup";
@@ -212,14 +212,14 @@ export function ProfileBackups({ canSwitch, openBackup = false }: { canSwitch: b
         <Block>
           {s3 && <Segmented label={t("profile.backups.restoreFrom")} value={from} onChange={(next) => { setFrom(next); setError(""); }} options={[{ value: "file", label: t("profile.backups.fromFile") }, { value: "s3", label: "S3" }]} />}
           {from === "file" || !s3 ? (
-            <input data-testid="restore-file" type="file" accept=".ghostly-backup,application/json,application/octet-stream" className={input} onChange={(e) => { const f = e.target.files?.[0]; if (f) void pickFile(f); }} />
+            <input data-testid="restore-file" type="file" accept=".property-backup,.ghostly-backup,application/json,application/octet-stream" className={input} onChange={(e) => { const f = e.target.files?.[0]; if (f) void pickFile(f); }} />
           ) : (
             <InputGroup>
               {listing?.length ? (
                 <Select data-testid="restore-pick" aria-label={t("profile.backups.toRestore")} value={picked} onChange={setPicked}
                   options={listing.map((b) => ({ value: b.name, label: new Date(b.created || b.modified || 0).toLocaleString(language), description: b.size ? byteSize(b.size, t) : undefined }))} />
               ) : listing ? <Notice>{t("profile.backups.noneYet")}</Notice> : null}
-              <Button data-testid="restore-list" disabled={busy} onClick={() => void run(async () => { const all = (await s3.list(space())).filter((b) => b.name.endsWith(".ghostly-backup")).reverse(); setListing(all); setPicked(all[0]?.name ?? ""); })}>{listing ? t("profile.backups.refresh") : t("profile.backups.list")}</Button>
+              <Button data-testid="restore-list" disabled={busy} onClick={() => void run(async () => { const all = (await s3.list(space())).filter((b) => isBackupName(b.name)).reverse(); setListing(all); setPicked(all[0]?.name ?? ""); })}>{listing ? t("profile.backups.refresh") : t("profile.backups.list")}</Button>
             </InputGroup>
           )}
           {unprotected && <Notice tone="warning" testId="restore-unprotected">{t("profile.backups.unprotectedFile")}</Notice>}

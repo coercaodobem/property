@@ -28,10 +28,15 @@ const random = (n: number) => Array.from(crypto.getRandomValues(new Uint8Array(n
 /** A profile's storage space: random, chosen once, never derived from its name or keys. */
 export const newSpace = () => random(16);
 
-/** `<space>/backups/<YYYYMMDDTHHMMSSZ>-<random>.ghostly-backup`, names that sort oldest first. */
+/** `<space>/backups/<YYYYMMDDTHHMMSSZ>-<random>.property-backup`, names that sort oldest first. */
 export function backupName(space: string, at = new Date()): string {
   const stamp = at.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
-  return `${space}/backups/${stamp}-${random(8)}.ghostly-backup`;
+  return `${space}/backups/${stamp}-${random(8)}.property-backup`;
+}
+
+/** Accept Property's filename and the upstream filename so existing backups remain restorable. */
+export function isBackupName(name: string): boolean {
+  return name.endsWith(".property-backup") || name.endsWith(".ghostly-backup");
 }
 
 /** `<space>/hold/<mailbox>/<sequence, 8 digits>-<random>.ghostly-held`: one held item; the manifest is `manifest.ghostly-held`. */
@@ -42,6 +47,6 @@ export const manifestName = (space: string, mailbox: string) => `${space}/hold/$
 
 /** When a backup was made, read from its name. */
 export function createdFromName(name: string): number {
-  const match = /(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z-[a-z2-7]{8}\.ghostly-backup$/.exec(name);
+  const match = /(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z-[a-z2-7]{8}\.(?:property|ghostly)-backup$/.exec(name);
   return match ? Date.UTC(+match[1], +match[2] - 1, +match[3], +match[4], +match[5], +match[6]) : 0;
 }

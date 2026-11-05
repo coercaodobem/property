@@ -53,6 +53,12 @@ describe("a profile backup's file", () => {
   beforeEach(() => { vi.mocked(backUpToFile).mockReset(); vi.mocked(openProfileBackup).mockReset(); vi.mocked(restoreOpenedBackup).mockReset(); });
   afterEach(() => { vi.restoreAllMocks(); });
 
+  it("offers Property backup files and keeps the upstream extension importable", async () => {
+    const { user } = renderApp(<ProfileBackups canSwitch={false} />);
+    await user.click(screen.getByTestId("restore-open"));
+    expect(screen.getByTestId("restore-file")).toHaveAttribute("accept", ".property-backup,.ghostly-backup,application/json,application/octet-stream");
+  });
+
   it("an empty one says why Restore stays off", async () => {
     const { user } = renderApp(<ProfileBackups canSwitch={false} />);
     await user.click(screen.getByTestId("restore-open"));
@@ -96,8 +102,8 @@ describe("a profile backup's file", () => {
 
     await backup.finish("saved");
     await waitFor(() => expect(screen.queryByTestId("backup-progress")).not.toBeInTheDocument());
-    expect(screen.getByTestId("backup-done")).toHaveTextContent(/^Saved as [\w-]+\.ghostly-backup · 5\.0 MB$/);
-    expect(vi.mocked(backUpToFile).mock.calls[0][1]).toMatch(/^[\w-]+\.ghostly-backup$/);
+    expect(screen.getByTestId("backup-done")).toHaveTextContent(/^Saved as [\w-]+\.property-backup · 5\.0 MB$/);
+    expect(vi.mocked(backUpToFile).mock.calls[0][1]).toMatch(/^[\w-]+\.property-backup$/);
     expect(screen.getByTestId("backup-passphrase"), "the passphrase is not left in the page").toHaveValue("");
   });
 
@@ -107,7 +113,7 @@ describe("a profile backup's file", () => {
     void backup;
     const { user } = renderApp(<ProfileBackups canSwitch={false} />);
     await startBackup(user);
-    expect(await screen.findByTestId("backup-done")).toHaveTextContent(/^Downloaded [\w-]+\.ghostly-backup · 5\.0 MB 2 files could not be read on this device and are not in the backup\.$/);
+    expect(await screen.findByTestId("backup-done")).toHaveTextContent(/^Downloaded [\w-]+\.property-backup · 5\.0 MB 2 files could not be read on this device and are not in the backup\.$/);
   });
 
   it("Light is a choice with the size of each before backing up, and the result says what was left out", async () => {
@@ -122,7 +128,7 @@ describe("a profile backup's file", () => {
     await user.type(screen.getByTestId("backup-passphrase"), "a long backup passphrase");
     await user.type(screen.getByTestId("backup-confirm"), "a long backup passphrase");
     await user.click(screen.getByTestId("backup-download"));
-    expect(await screen.findByTestId("backup-done")).toHaveTextContent(/^Downloaded [\w-]+\.ghostly-backup · 5\.0 MB Files over 1 MB were left out \(20\.0 MB\)\.$/);
+    expect(await screen.findByTestId("backup-done")).toHaveTextContent(/^Downloaded [\w-]+\.property-backup · 5\.0 MB Files over 1 MB were left out \(20\.0 MB\)\.$/);
     expect(vi.mocked(backUpToFile).mock.calls[0][0].light).toBe(true);
     expect(vi.mocked(profileBackupSizes)).toHaveBeenCalled();
   });
@@ -278,7 +284,7 @@ describe("a profile backup's file", () => {
     await user.type(screen.getByLabelText("Backup passphrase"), "a long backup passphrase");
     await user.click(screen.getByRole("button", { name: "Save" }));
     await screen.findByTestId("backup-progress");
-    expect(vi.mocked(backUpToFile).mock.calls[0][1]).toBe("Work.ghostly-backup");
+    expect(vi.mocked(backUpToFile).mock.calls[0][1]).toBe("Work.property-backup");
     expect(backup.options).toMatchObject({ passphrase: "a long backup passphrase", id: "abcdefghij" });
     await backup.finish("cancelled");
     await waitFor(() => expect(screen.getByRole("button", { name: "Save" })).toBeEnabled());
@@ -290,10 +296,10 @@ describe("a profile backup's file", () => {
   });
 
   it.each([
-    ["仕事", "仕事.ghostly-backup"],
-    ["Trabalho é bom", "Trabalho-é-bom.ghostly-backup"],
-    ["عمل", "عمل.ghostly-backup"],
-    ["!!!", "profile.ghostly-backup"],
+    ["仕事", "仕事.property-backup"],
+    ["Trabalho é bom", "Trabalho-é-bom.property-backup"],
+    ["عمل", "عمل.property-backup"],
+    ["!!!", "profile.property-backup"],
   ])("backing up %s before deleting it saves %s", async (name, file) => {
     vi.mocked(backUpToFile).mockResolvedValue({ how: "downloaded", result: RESULT });
     const { user } = renderApp(<DeleteProfileDialog entry={{ id: "abcdefghij", name, createdAt: 0 }} onClose={() => {}} />);

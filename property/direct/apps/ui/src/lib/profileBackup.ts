@@ -399,7 +399,7 @@ const isQuotaError = (error: unknown) => (error as { name?: string })?.name === 
  */
 export function backupFileName(profileName: string): string {
   const base = profileName.normalize("NFC").replace(/[^\p{L}\p{M}\p{N}_-]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 64);
-  return `${base || "profile"}.ghostly-backup`;
+  return `${base || "profile"}.property-backup`;
 }
 
 /** A bundle as it is handed over: a picked file, its bytes, or (version 1 only) its text. */

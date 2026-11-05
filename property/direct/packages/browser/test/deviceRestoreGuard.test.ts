@@ -74,9 +74,9 @@ describe("a bundle of an enrolled profile", () => {
     expect((await openProfileBackup(bundle, PASS)).devices).toBeUndefined();
   });
 
-  it("an envelope above the device set's is from a newer Ghostly and is refused before it is read", async () => {
+  it("an envelope above the device set's is from a newer Property and is refused before it is read", async () => {
     const line = new TextEncoder().encode(`${JSON.stringify({ format: "ghostly-backup", version: DEVICE_SET_BACKUP_VERSION + 1, protection: "none", check: { name: "SHA-256-chain" } })}\n`);
-    await expect(readBackupHeader(bytesSource(line))).rejects.toThrow("newer Ghostly");
+    await expect(readBackupHeader(bytesSource(line))).rejects.toThrow("newer Property");
   });
 
   it("a restored copy notes the raise its engine makes before it first starts", async () => {

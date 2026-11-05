@@ -486,7 +486,7 @@
     "noRoom": "Nessuno spazio per questo backup",
     "noRoomNext": "Libera spazio, poi riprova.",
     "notABackup": "Questo backup non contiene un profilo",
-    "notPropertyBackup": "Questo non è un backup di Property. Scegli un file .ghostly-backup.",
+    "notPropertyBackup": "Questo file non è un backup di Property. Scegli un file Property.",
     "openElsewhere": "Questo profilo è aperto in un'altra finestra. Chiudila, poi riprova.",
     "shortPassphrase": "Usa almeno 12 caratteri per la passphrase del backup.",
     "switchFirst": "Passa prima a un altro profilo",
