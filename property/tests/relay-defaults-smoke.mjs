@@ -23,4 +23,22 @@ assert.throws(() => defaults.pick(0, () => 0), RangeError);
 assert.throws(() => defaults.pick(7, () => 0), RangeError);
 assert.throws(() => defaults.pick(1, () => 6), RangeError, 'random index must fit the current pool');
 
-console.log('PASS: bundled relay recommendations choose a unique random subset and validate bounds');
+const initialDraws = [4, 1];
+const freshInstall = defaults.initialSelection(null, max => initialDraws.shift() % max);
+assert.deepEqual([...freshInstall.values], [defaults.candidates[4], defaults.candidates[1]]);
+assert.equal(new Set(freshInstall.values).size, 2, 'fresh install gets two unique suggested relays');
+assert.equal(freshInstall.autoSelected, true, 'fresh install does not require a manual relay choice');
+assert.equal(freshInstall.shouldPersist, true, 'suggested relays are persisted for the next launch');
+
+const savedChoice = [defaults.candidates[2]];
+const existingSettings = defaults.initialSelection({ values: savedChoice, autoSelected: false }, () => assert.fail('saved relays must not be replaced'));
+assert.deepEqual([...existingSettings.values], savedChoice, 'an existing user relay choice is preserved');
+assert.equal(existingSettings.autoSelected, false);
+assert.equal(existingSettings.shouldPersist, false);
+
+const emptySettings = defaults.initialSelection({ values: [], autoSelected: false }, max => 0);
+assert.equal(emptySettings.values.length, 2, 'empty relay settings recover to the suggested pair');
+assert.equal(emptySettings.autoSelected, true);
+assert.equal(emptySettings.shouldPersist, true);
+
+console.log('PASS: fresh installs get two persisted relay suggestions without a manual setup barrier');

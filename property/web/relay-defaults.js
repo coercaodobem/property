@@ -32,5 +32,20 @@
     return selected;
   }
 
-  window.PropertyRelayDefaults = Object.freeze({ candidates: CANDIDATES, pick });
+  function initialSelection(savedSettings, randomIntBelow) {
+    if (Array.isArray(savedSettings?.values) && savedSettings.values.length) {
+      return {
+        values: [...savedSettings.values],
+        autoSelected: savedSettings.autoSelected === true,
+        shouldPersist: false
+      };
+    }
+    return {
+      values: pick(2, randomIntBelow),
+      autoSelected: true,
+      shouldPersist: true
+    };
+  }
+
+  window.PropertyRelayDefaults = Object.freeze({ candidates: CANDIDATES, pick, initialSelection });
 })();

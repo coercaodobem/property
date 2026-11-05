@@ -80,7 +80,7 @@ assert.match(html, /id="stop-locked-node"/, 'locked user can stop the opt-in pub
 assert.match(app, /lockIdentity\(\{ preservePublicBridge = false \} = \{\}\)/, 'manual lock and idle lock have separate bridge behavior');
 assert.match(app, /lockIdentity\(\{ preservePublicBridge: true \}\)/, 'idle lock clears identity but retains the opt-in public bridge');
 assert.match(app, /state\.bridgeEnabled && state\.relays\.includes\(url\)/, 'public bridge can reconnect without an unlocked identity');
-assert.match(app, /RelayDefaults\.pick\(\)/, 'fresh installs select bundled relay suggestions automatically');
+assert.match(app, /RelayDefaults\.initialSelection\(relaySettings\)/, 'fresh installs select bundled relay suggestions automatically');
 assert.match(app, /autoSelected: true/, 'the generated relay selection is saved locally');
 assert.match(app, /if \(!state\.pubkey && !state\.bridgeEnabled\) return/, 'relay suggestions do not connect before identity activation');
 assert.match(html, /randomly picks two relays from a list included in the app/);

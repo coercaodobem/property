@@ -1430,7 +1430,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v28', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v32', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -1607,14 +1607,10 @@
       setStorageReady(true);
       state.account = await get('vault', 'account');
       const relaySettings = await get('settings', 'relays');
-      if (relaySettings?.values?.length) {
-        state.relays = relaySettings.values.map(normalizeRelay);
-        state.autoSelectedRelays = relaySettings.autoSelected === true;
-      } else {
-        state.relays = RelayDefaults.pick();
-        state.autoSelectedRelays = true;
-        await put('settings', { id: 'relays', values: state.relays, autoSelected: true });
-      }
+      const relaySelection = RelayDefaults.initialSelection(relaySettings);
+      state.relays = relaySelection.values.map(normalizeRelay);
+      state.autoSelectedRelays = relaySelection.autoSelected;
+      if (relaySelection.shouldPersist) await put('settings', { id: 'relays', values: state.relays, autoSelected: true });
       const bridgeSettings = await get('settings', 'browser-bridge');
       state.bridgeEnabled = bridgeSettings?.enabled === true;
       $('browser-node-toggle').checked = state.bridgeEnabled;
