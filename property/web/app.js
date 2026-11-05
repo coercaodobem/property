@@ -264,6 +264,99 @@
     state.toastTimer = setTimeout(() => node.classList.remove('show'), 2800);
   }
   function localized(en, pt) { return window.PropertyI18n?.language === 'pt-BR' ? pt : en; }
+  function activeTabGate(stateName) {
+    const gate = $('active-tab-screen');
+    if (!gate) return;
+    const title = $('active-tab-title');
+    const message = $('active-tab-message');
+    const reload = $('active-tab-reload');
+    const fallback = $('active-tab-fallback-note');
+    if (stateName === 'waiting') {
+      title.textContent = localized('Property is open in another tab', 'O Property já está aberto em outra aba');
+      message.textContent = localized(
+        'This tab is waiting without opening your identity or connecting to relays. Close the active Property tab and this one will start automatically.',
+        'Esta aba está aguardando sem abrir sua identidade nem se conectar aos relays. Feche a aba ativa do Property e esta começará automaticamente.'
+      );
+      reload.hidden = true;
+      gate.hidden = false;
+      return;
+    }
+    if (stateName === 'startup-error') {
+      title.textContent = localized('Property could not start', 'Não foi possível iniciar o Property');
+      message.textContent = localized('Reload this page to try again.', 'Recarregue esta página para tentar novamente.');
+      reload.hidden = false;
+      reload.textContent = localized('Reload Property', 'Recarregar Property');
+      gate.hidden = false;
+      return;
+    }
+    if (fallback) {
+      fallback.textContent = localized(
+        'This browser cannot keep two Property tabs from opening at once. For now, use Property in one tab at a time.',
+        'Este navegador não consegue impedir que duas abas do Property abram ao mesmo tempo. Por enquanto, use o Property em uma aba por vez.'
+      );
+      fallback.classList.remove('hidden');
+    }
+  }
+  function startWithActiveTabLock(start) {
+    const locks = globalThis.navigator?.locks;
+    if (!locks || typeof locks.request !== 'function') {
+      activeTabGate('unsupported');
+      void Promise.resolve().then(start).catch(() => activeTabGate('startup-error'));
+      return;
+    }
+
+    let started = false;
+    let acquired = false;
+    let leaving = false;
+    let releaseOwner;
+    const holdLock = new Promise(resolve => { releaseOwner = resolve; });
+    const abort = new AbortController();
+    const startOnce = async () => {
+      if (started) return;
+      started = true;
+      $('active-tab-screen').hidden = true;
+      try { await start(); }
+      catch { activeTabGate('startup-error'); }
+    };
+    const onPageHide = () => {
+      leaving = true;
+      abort.abort();
+      releaseOwner();
+    };
+    window.addEventListener('pagehide', onPageHide, { once: true });
+    window.addEventListener('pageshow', event => {
+      if (event.persisted) window.location.reload();
+    });
+    const waitTimer = window.setTimeout(() => {
+      if (!started) activeTabGate('waiting');
+    }, 180);
+
+    let request;
+    try {
+      request = locks.request('property-active-app-v1', { mode: 'exclusive', signal: abort.signal }, async lock => {
+        if (!lock) return;
+        acquired = true;
+        window.clearTimeout(waitTimer);
+        await startOnce();
+        await holdLock;
+      });
+    } catch {
+      window.clearTimeout(waitTimer);
+      window.removeEventListener('pagehide', onPageHide);
+      activeTabGate('unsupported');
+      void startOnce();
+      return;
+    }
+    Promise.resolve(request).catch(() => {
+      window.clearTimeout(waitTimer);
+      window.removeEventListener('pagehide', onPageHide);
+      if (leaving) return;
+      if (!acquired) {
+        activeTabGate('unsupported');
+        void startOnce();
+      } else activeTabGate('startup-error');
+    });
+  }
   function renderFirstUseRelaySuggestions() {
     const panel = $('first-use-relays');
     const caption = $('first-use-relay-caption');
@@ -2709,5 +2802,6 @@
       showAuthPane('auth-choice'); showError('auth-error', `Armazenamento local indisponível: ${error.message || 'erro do navegador'}`);
     }
   }
-  document.addEventListener('DOMContentLoaded', boot);
+  document.getElementById('active-tab-reload')?.addEventListener('click', () => window.location.reload());
+  document.addEventListener('DOMContentLoaded', () => startWithActiveTabLock(boot));
 })();

@@ -11,7 +11,7 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v46">
+  <link rel="stylesheet" href="./styles.css?v=property-v47">
   <script defer src="./i18n.js?v=property-v46"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
@@ -35,9 +35,18 @@
   <script defer src="./secret-guard.js?v=property-v1"></script>
   <script defer src="./public-profile.js?v=property-v2"></script>
   <script defer src="./nip05.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v49"></script>
+  <script defer src="./app.js?v=property-v50"></script>
 </head>
 <body>
+  <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
+    <section class="active-tab-card">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <p class="eyebrow">PROPERTY</p>
+      <h1 id="active-tab-title">Property is open in another tab</h1>
+      <p id="active-tab-message">This tab is waiting without opening your identity or connecting to relays. Close the active Property tab and this one will start automatically.</p>
+      <button id="active-tab-reload" class="button primary" type="button" hidden>Reload Property</button>
+    </section>
+  </main>
   <div id="app" class="app-shell">
     <header class="topbar">
       <a class="brand" href="#inicio" aria-label="Property home"><img class="brand-mark" src="./assets/property-icon-192.png?v=property-v26" alt=""><span>Property</span></a>
@@ -60,6 +69,7 @@
           <ul id="first-use-relay-list" class="first-use-relay-list"></ul>
           <button id="first-use-open-relays" class="button text first-use-relay-change" type="button">Change relays</button>
         </div>
+        <p id="active-tab-fallback-note" class="fine-print hidden" role="status"></p>
         <div class="trust-list"><span>◈ No central account</span><span>◈ Code served from this package</span><span>◈ Direct relay connections</span></div>
       </section>
       <section id="auth-panel" class="auth-card">
