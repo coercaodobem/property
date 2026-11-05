@@ -11,8 +11,8 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v40">
-  <script defer src="./i18n.js?v=property-v40"></script>
+  <link rel="stylesheet" href="./styles.css?v=property-v42">
+  <script defer src="./i18n.js?v=property-v42"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -31,8 +31,9 @@
   <script defer src="./chat-drafts.js?v=property-v38"></script>
   <script defer src="./vendor/qr-code-generator.js?v=property-v39"></script>
   <script defer src="./rich-text.js?v=property-v37"></script>
+  <script defer src="./message-edits.js?v=property-v1"></script>
   <script defer src="./secret-guard.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v41"></script>
+  <script defer src="./app.js?v=property-v43"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -119,6 +120,7 @@
           <header class="conversation-header"><button id="mobile-open-conversations" class="icon-button small mobile-conversation-toggle" type="button" aria-label="Show conversations" title="Show conversations" aria-expanded="false" aria-controls="conversation-list">☰</button><div class="avatar" id="chat-avatar">?</div><div class="person-details"><h2 id="chat-title">Conversation</h2><span id="chat-subtitle" class="muted"></span></div><button id="message-search-button" class="icon-button small" type="button" aria-label="Search in this conversation" title="Search in this conversation" aria-expanded="false">⌕</button><button id="agent-block-button" class="icon-button small hidden" type="button" aria-label="Block agent" title="Block agent">⊘</button><button id="chat-details-button" class="icon-button" aria-label="Conversation details">···</button></header>
           <div id="message-search-bar" class="message-search-bar hidden" role="search"><span aria-hidden="true">⌕</span><input id="message-search-input" type="search" autocomplete="off" placeholder="Search in this conversation" aria-label="Search in this conversation"><span id="message-search-count" class="message-search-count" role="status" aria-live="polite"></span><button id="message-search-older" class="icon-button small" type="button" aria-label="Older match" title="Older match" disabled>↑</button><button id="message-search-newer" class="icon-button small" type="button" aria-label="Newer match" title="Newer match" disabled>↓</button><button id="message-search-close" class="icon-button small" type="button" aria-label="Close search" title="Close search">×</button></div>
           <div id="messages" class="messages" aria-live="polite"></div>
+          <div id="edit-context" class="edit-context hidden" aria-live="polite"><span><strong id="edit-context-label">Editing your message</strong><small id="edit-context-text"></small></span><button id="cancel-edit" type="button" class="icon-button small" aria-label="Cancel edit">×</button></div>
           <div id="reply-context" class="reply-context hidden" aria-live="polite"><span><strong id="reply-context-label">Replying to message</strong><small id="reply-context-text"></small></span><button id="cancel-reply" type="button" class="icon-button small" aria-label="Cancel reply">×</button></div>
           <form id="send-form" class="composer">
             <div class="composer-format-tools" role="group" aria-label="Message formatting">

@@ -22,6 +22,7 @@
   const FolderStore = window.PropertyConversationFolders;
   const ChatDrafts = window.PropertyChatDrafts;
   const RichText = window.PropertyRichText;
+  const MessageEdits = window.PropertyMessageEdits;
   const SecretGuard = window.PropertySecretGuard;
   const QrCode = window.PropertyQrCode;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
@@ -32,7 +33,7 @@
     inboxRelays: [], peerInboxRelays: new Map(), peerRelayHints: new Map(),
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     currentConversation: null,
-    activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
+    activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
@@ -323,7 +324,7 @@
   const put = (store, value) => dbRequest(store, 'put', value);
   const del = (store, key) => dbRequest(store, 'delete', key);
   async function saveChatDraft(peer, text) {
-    if (!state.pubkey || !peer || (state.shareDraftId && state.shareDraftPeer === peer)) return;
+    if (!state.pubkey || !peer || (state.editingMessage && state.editingMessage.peer === peer) || (state.shareDraftId && state.shareDraftPeer === peer)) return;
     const id = ChatDrafts.idFor(state.pubkey, peer);
     const record = ChatDrafts.createRecord(state.pubkey, peer, text);
     if (record) await put('drafts', record);
@@ -620,14 +621,16 @@
   async function receiveGiftWrap(event) {
     if (!N.verifyEvent(event)) return;
     const rumor = N.nip17.unwrapEvent(event, state.secret);
-    if (!rumor || ![7, 14].includes(rumor.kind) || typeof rumor.content !== 'string' || rumor.content.length > 20000) return;
-    if (rumor.pubkey === state.pubkey) return;
+    if (!rumor || ![5, 7, 14].includes(rumor.kind) || typeof rumor.content !== 'string' || rumor.content.length > 20000) return;
     const members = rumorParticipants(rumor);
     if (members.length < 2 || !members.includes(state.pubkey)) return;
     const group = members.length > 2;
     if (group && members.length > MAX_NIP17_GROUP_MEMBERS) return;
     const peer = group ? groupConversationId(members) : members.find(member => member !== state.pubkey);
     if (!peer) return;
+    const edit = rumor.kind === 14 ? MessageEdits.editDescriptor(rumor) : null;
+    if (rumor.kind === 5) return; // NIP-17 edit tombstones are control events; the replacement carries the visible text.
+    if (rumor.pubkey === state.pubkey && !edit) return;
     const agentAccess = group ? null : await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') return;
     if (rumor.kind === 7) {
@@ -658,14 +661,34 @@
         agentMessageError = error?.code || 'invalid-agent-envelope';
       }
     }
-    const id = parsedAgentMessage ? `agent:${peer}:${parsedAgentMessage.messageId}` : rumor.id || event.id;
-    if (await get('messages', id)) return;
     const fromAgent = Boolean(parsedAgentMessage || agentMessageError);
+    if (edit && fromAgent) return;
     const replyTag = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'e' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) : null;
-    const message = { id, peer, text, senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: 'received', status: 'delivered', nostrEventId: rumor.id || event.id, ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
-    await put('messages', message);
+    const eventId = rumor.id || event.id;
+    const senderDirection = rumor.pubkey === state.pubkey ? 'sent' : 'received';
+    let message;
+    if (edit) {
+      const incoming = {
+        id: `edit:${peer}:${edit.rootId}`, peer, text: rumor.content, senderPubkey: rumor.pubkey,
+        createdAt: rumor.created_at * 1000, direction: senderDirection, status: 'delivered',
+        nostrEventId: eventId, edit,
+        ...(replyTag ? { replyToId: replyTag[1] } : {})
+      };
+      const result = MessageEdits.applyIncomingEdit(await all('messages'), incoming, state.pubkey);
+      if (!result.applied) return;
+      message = result.message;
+      await put('messages', message);
+    } else {
+      const id = parsedAgentMessage ? `agent:${peer}:${parsedAgentMessage.messageId}` : eventId;
+      if (await get('messages', id)) return;
+      const original = { id, peer, text, senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
+      const merged = MessageEdits.mergeOriginalBehindEdit(await all('messages'), original, state.pubkey);
+      message = merged?.message || original;
+      await put('messages', message);
+    }
     const previous = existingConversation || { pubkey: peer, title: '' };
-    const updatedConversation = { ...previous, ...(group ? { group: true, members } : {}), ...(subject ? { title: subject } : {}), ...(fromAgent ? { agent: true } : {}), lastMessage: text, lastAt: message.createdAt };
+    const isLatest = !previous.lastAt || message.createdAt >= previous.lastAt;
+    const updatedConversation = { ...previous, ...(group ? { group: true, members } : {}), ...(subject ? { title: subject } : {}), ...(fromAgent ? { agent: true } : {}), ...(isLatest ? { lastMessage: message.text, lastAt: message.createdAt } : {}) };
     await put('conversations', updatedConversation);
     await renderConversations();
     if (state.activePeer === peer) { await updateConversationHeader(updatedConversation); await updateAgentBlockControl(peer); await renderMessages(peer); }
@@ -924,6 +947,7 @@
     const previousPeer = state.activePeer;
     const changed = previousPeer !== pubkey;
     if (changed) {
+      cancelMessageEdit();
       closeMessageSearch(false);
       if (previousPeer) await saveChatDraft(previousPeer, $('message-input').value).catch(() => {});
     }
@@ -1063,19 +1087,23 @@
   async function renderMessages(peer) {
     const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
     const messages = entries.filter(message => message.kind !== 7);
+    const messageByEventId = new Map();
+    for (const message of messages) for (const eventId of MessageEdits.eventIds(message)) messageByEventId.set(eventId, message);
     const latestReactions = new Map();
     for (const reaction of entries.filter(message => message.kind === 7)) {
       if (!/^[0-9a-f]{64}$/i.test(reaction.targetEventId || '')) continue;
       const actor = reaction.reactorPubkey || (reaction.direction === 'sent' ? state.pubkey : reaction.senderPubkey || peer);
-      const key = `${reaction.targetEventId}:${actor}`;
+      const canonicalTarget = messageByEventId.get(reaction.targetEventId)?.id || reaction.targetEventId;
+      const key = `${canonicalTarget}:${actor}`;
       const previous = latestReactions.get(key);
       if (!previous || reaction.createdAt > previous.createdAt || (reaction.createdAt === previous.createdAt && reaction.id > previous.id)) latestReactions.set(key, reaction);
     }
     const reactionsByTarget = new Map();
     for (const reaction of latestReactions.values()) {
-      const counts = reactionsByTarget.get(reaction.targetEventId) || new Map();
+      const canonicalTarget = messageByEventId.get(reaction.targetEventId)?.id || reaction.targetEventId;
+      const counts = reactionsByTarget.get(canonicalTarget) || new Map();
       counts.set(reaction.reaction, (counts.get(reaction.reaction) || 0) + 1);
-      reactionsByTarget.set(reaction.targetEventId, counts);
+      reactionsByTarget.set(canonicalTarget, counts);
     }
     const conversation = await get('conversations', peer);
     const container = $('messages');
@@ -1084,7 +1112,7 @@
     const bounds = container.getBoundingClientRect();
     const firstVisible = [...container.children].find(row => row.dataset.messageId && row.getBoundingClientRect().bottom > bounds.top);
     const anchor = samePeer && firstVisible ? { id: firstVisible.dataset.messageId, top: firstVisible.getBoundingClientRect().top } : null;
-    const byEventId = new Map(messages.map(message => [nostrEventId(message), message]).filter(([id]) => id));
+    const byEventId = messageByEventId;
     container.replaceChildren();
     if (!messages.length) {
       const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = 'Esta conversa é privada. Envie uma mensagem para começar.'; container.append(empty); container.dataset.peer = peer; refreshMessageSearch(); return;
@@ -1094,6 +1122,7 @@
       row.dataset.messageId = message.id;
       const eventId = nostrEventId(message);
       if (eventId) row.dataset.nostrEventId = eventId;
+      row.dataset.eventIds = MessageEdits.eventIds(message).join(',');
       if (message.fromAgent) { const author = document.createElement('span'); author.className = 'agent-message-author'; author.textContent = message.agentMessageError ? 'Protocolo de agente · mensagem não reconhecida' : 'Protocolo de agente · identidade Nostr'; row.append(author); }
       if (conversation?.group && message.direction !== 'sent') { const author = document.createElement('span'); author.className = 'group-message-author'; author.textContent = displayName(message.senderPubkey || '', ''); row.append(author); }
       if (message.replyToId) {
@@ -1106,14 +1135,14 @@
           : (window.PropertyI18n?.language === 'pt-BR' ? 'A mensagem respondida não está neste histórico local' : 'Replied message is not in this local history');
         quote.setAttribute('aria-label', quoteLabel);
         quote.addEventListener('click', () => {
-          const target = [...container.children].find(candidate => candidate.dataset.nostrEventId === message.replyToId);
+          const target = [...container.children].find(candidate => candidate.dataset.eventIds?.split(',').includes(message.replyToId));
           if (target) { target.scrollIntoView({ block: 'center', behavior: 'smooth' }); target.classList.add('message-highlight'); setTimeout(() => target.classList.remove('message-highlight'), 900); }
           else showToast(window.PropertyI18n?.language === 'pt-BR' ? 'A mensagem respondida não está neste histórico local.' : 'The replied message is not in this local history.');
         });
         row.append(quote);
       }
       const bubble = document.createElement('div'); bubble.className = 'message-bubble'; RichText.renderInto(bubble, message.text, window.PropertyI18n?.language || 'en');
-      const counts = reactionsByTarget.get(eventId);
+      const counts = reactionsByTarget.get(message.id);
       let reactionSummary = null;
       if (counts?.size) {
         const summary = document.createElement('div'); summary.className = 'message-reactions'; summary.setAttribute('aria-label', 'Message reactions');
@@ -1123,7 +1152,8 @@
         reactionSummary = summary;
       }
       const delivery = message.status === 'pending' ? ' · aguardando relay' : message.status === 'partial' ? ' · entrega parcial' : '';
-      const meta = document.createElement('span'); meta.className = 'message-meta'; meta.textContent = `${new Date(message.createdAt).toLocaleString(window.PropertyI18n?.locale() || undefined)}${delivery}`;
+      const meta = document.createElement('span'); meta.className = 'message-meta'; meta.append(document.createTextNode(`${new Date(message.createdAt).toLocaleString(window.PropertyI18n?.locale() || undefined)}${delivery}`));
+      if (message.editSeq > 0) { const edited = document.createElement('span'); edited.className = 'message-edited'; edited.textContent = localized('Edited', 'Editada'); meta.append(edited); }
       const actions = document.createElement('div'); actions.className = 'message-actions';
       const reply = document.createElement('button'); reply.type = 'button'; reply.className = 'message-reply'; reply.textContent = 'Reply'; reply.disabled = !eventId; reply.title = eventId ? 'Reply to this message' : 'This older message has no Nostr event reference';
       reply.addEventListener('click', () => {
@@ -1150,6 +1180,11 @@
       const menuItems = document.createElement('div'); menuItems.className = 'message-menu-items';
       const save = document.createElement('button'); save.type = 'button'; save.textContent = message.saved ? 'Remove saved message' : 'Save message';
       save.addEventListener('click', () => { menu.open = false; setMessageSaved(peer, message, !message.saved).catch(error => showToast(error.message || 'Could not update saved messages.')); });
+      if (message.direction === 'sent' && !message.fromAgent && !message.agentMessageId && message.kind !== 7 && !message.deleted && ['sent', 'partial'].includes(message.status) && eventId) {
+        const editAction = document.createElement('button'); editAction.type = 'button'; editAction.textContent = localized('Edit message', 'Editar mensagem');
+        editAction.addEventListener('click', () => { menu.open = false; startMessageEdit(peer, message); });
+        menuItems.append(editAction);
+      }
       const forward = document.createElement('button'); forward.type = 'button'; forward.textContent = 'Forward';
       forward.addEventListener('click', () => { menu.open = false; openForwardDialog(message).catch(error => showToast(error.message || 'Could not open forwarding.')); });
       menuItems.append(save, forward); menu.append(menuButton, menuItems);
@@ -1177,6 +1212,106 @@
       ? (window.PropertyI18n?.language === 'pt-BR' ? 'Respondendo à sua mensagem' : 'Replying to your message')
       : (window.PropertyI18n?.language === 'pt-BR' ? `Respondendo a ${title}` : `Replying to ${title}`);
     $('reply-context-text').textContent = RichText.preview(message.text).slice(0, 180);
+  }
+  function updateEditContext() {
+    const message = state.editingMessage?.message;
+    $('edit-context').classList.toggle('hidden', !state.editingMessage);
+    const submit = document.querySelector('#send-form button[type="submit"]');
+    submit?.setAttribute('aria-label', state.editingMessage ? localized('Save edit', 'Salvar edição') : localized('Send message', 'Enviar mensagem'));
+    if (!message) return;
+    $('edit-context-label').textContent = localized('Editing your message', 'Editando sua mensagem');
+    $('edit-context-text').textContent = RichText.preview(message.text).slice(0, 180);
+  }
+  function cancelMessageEdit({ restoreFocus = false } = {}) {
+    if (!state.editingMessage) return;
+    const input = $('message-input');
+    input.value = state.editingDraft;
+    state.replyingTo = state.editingReplyingTo;
+    state.editingMessage = null;
+    state.editingDraft = '';
+    state.editingReplyingTo = null;
+    updateEditContext();
+    updateReplyContext();
+    resizeMessageInput(input);
+    if (restoreFocus) input.focus();
+  }
+  function startMessageEdit(peer, message) {
+    if (peer !== state.activePeer || message.direction !== 'sent' || message.kind === 7 || message.fromAgent || message.agentMessageId || message.deleted || !nostrEventId(message) || !['sent', 'partial'].includes(message.status)) return;
+    if (state.editingMessage) cancelMessageEdit();
+    const input = $('message-input');
+    state.editingDraft = input.value;
+    state.editingReplyingTo = state.replyingTo;
+    state.editingMessage = { peer, message: { ...message } };
+    state.replyingTo = null;
+    updateReplyContext();
+    updateEditContext();
+    input.value = message.text;
+    resizeMessageInput(input);
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+  async function editPrivateMessage(peer, message, text) {
+    const updatedText = text.trim();
+    if (!updatedText || updatedText.length > 4000) throw new Error(localized('Messages must contain 1–4,000 characters.', 'As mensagens devem ter de 1 a 4.000 caracteres.'));
+    if (updatedText === message.text) return { unchanged: true };
+    if (!(await requestSecretSendConfirmation(updatedText, peer))) return { cancelled: true };
+    if (peer !== state.activePeer || state.editingMessage?.message.id !== message.id) throw new Error(localized('This edit is no longer active.', 'Esta edição não está mais ativa.'));
+    const conversation = await get('conversations', peer);
+    if (!conversation || message.direction !== 'sent' || message.fromAgent || message.agentMessageId || message.kind === 7 || message.deleted || !['sent', 'partial'].includes(message.status)) {
+      throw new Error(localized('Only your delivered private messages can be edited.', 'Só é possível editar suas mensagens privadas já entregues.'));
+    }
+    const rootId = message.editRootId || nostrEventId(message);
+    if (!rootId) throw new Error(localized('This message has no Nostr event reference and cannot be edited.', 'Esta mensagem não tem uma referência de evento Nostr e não pode ser editada.'));
+    const members = conversation.group === true
+      ? [...new Set(conversation.members || [])].sort()
+      : [state.pubkey, peer].sort();
+    const relayLists = Object.create(null);
+    for (const member of members) relayLists[member] = await resolveInboxRelaysFor(member);
+    await connectAllRelays();
+    const edit = MessageEdits.createNip17Edit({
+      nostr: N, secret: state.secret, selfPubkey: state.pubkey, participants: members,
+      rootId, priorEventIds: MessageEdits.eventIds(message), sequence: (message.editSeq || 0) + 1,
+      createdAt: Math.floor((message.createdAt || Date.now()) / 1000),
+      replyToId: message.replyToId || '', subject: conversation.group ? conversation.title || '' : '', text: updatedText
+    });
+    const planFor = wraps => conversation.group === true
+      ? Routing.planGroupGiftWraps(wraps, members, relayLists, N.verifyEvent)
+      : Routing.planGiftWraps(wraps, state.pubkey, peer, relayLists[state.pubkey], relayLists[peer], N.verifyEvent);
+    const editPlan = planFor(edit.editWraps);
+    const deletePlan = planFor(edit.deleteWraps);
+    if (!editPlan.ready || !deletePlan.ready) throw new Error(localized('Could not prepare encrypted edit envelopes for every participant.', 'Não foi possível preparar envelopes criptografados da edição para todos os participantes.'));
+    const confirmed = new Set();
+    for (const delivery of editPlan.deliveries) {
+      try { if (await publishToRelays(delivery.event, delivery.relays)) confirmed.add(delivery.recipient); }
+      catch { /* Keep trying the other participant envelopes. */ }
+    }
+    const remoteRecipients = members.filter(member => member !== state.pubkey);
+    const confirmedRemote = remoteRecipients.filter(member => confirmed.has(member));
+    if (!confirmedRemote.length) return { unchanged: false, noRecipientAck: true, confirmed: 0, required: remoteRecipients.length };
+    for (const delivery of deletePlan.deliveries) {
+      if (!confirmed.has(delivery.recipient)) continue;
+      try { await publishToRelays(delivery.event, delivery.relays); }
+      catch { /* The replacement is already delivered; Property merges edits by their encrypted root tag. */ }
+    }
+    const localEdit = {
+      ...message, text: updatedText, senderPubkey: state.pubkey, direction: 'sent',
+      status: confirmedRemote.length === remoteRecipients.length ? 'sent' : 'partial',
+      nostrEventId: edit.editRumor.id, editRootId: edit.rootId, editSeq: edit.sequence,
+      previousEventIds: MessageEdits.eventIds(message).filter(id => id !== edit.editRumor.id)
+    };
+    const merged = MessageEdits.applyIncomingEdit(await all('messages'), {
+      ...localEdit, edit: { rootId: edit.rootId, sequence: edit.sequence }
+    }, state.pubkey);
+    const saved = merged.applied ? merged.message : localEdit;
+    saved.status = localEdit.status;
+    await put('messages', saved);
+    const latestConversation = await get('conversations', peer) || conversation;
+    if (!latestConversation.lastAt || saved.createdAt >= latestConversation.lastAt) {
+      await put('conversations', { ...latestConversation, lastMessage: updatedText, lastAt: saved.createdAt });
+    }
+    if (state.activePeer === peer) await renderMessages(peer);
+    await renderConversations();
+    return { updated: true, confirmed: confirmedRemote.length, required: remoteRecipients.length };
   }
   async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false } = {}) {
     if (!secretConfirmed && !(await requestSecretSendConfirmation(text, peer))) {
@@ -1280,8 +1415,9 @@
     const targetId = nostrEventId(message);
     if (!targetId || !REACTION_OPTIONS.includes(reaction)) throw new Error('This message cannot receive that reaction.');
     const actor = state.pubkey;
+    const targetIds = new Set(MessageEdits.eventIds(message));
     const previous = (await all('messages'))
-      .filter(item => item.peer === peer && item.kind === 7 && item.targetEventId === targetId && (item.reactorPubkey || (item.direction === 'sent' ? state.pubkey : peer)) === actor)
+      .filter(item => item.peer === peer && item.kind === 7 && targetIds.has(item.targetEventId) && (item.reactorPubkey || (item.direction === 'sent' ? state.pubkey : peer)) === actor)
       .sort((a, b) => b.createdAt - a.createdAt)[0];
     if (previous?.reaction === reaction) { showToast('You already sent this reaction.'); return; }
     if (!state.inboxRelays.length) {
@@ -1326,7 +1462,7 @@
       throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Esta mensagem do grupo não pode receber essa reação.' : 'This group message cannot receive that reaction.');
     }
     const previous = (await all('messages'))
-      .filter(item => item.peer === peer && item.kind === 7 && item.targetEventId === targetId && item.reactorPubkey === state.pubkey)
+      .filter(item => item.peer === peer && item.kind === 7 && MessageEdits.eventIds(message).includes(item.targetEventId) && item.reactorPubkey === state.pubkey)
       .sort((a, b) => b.createdAt - a.createdAt)[0];
     if (previous?.reaction === reaction) { showToast('You already sent this reaction.'); return; }
     const relayLists = Object.create(null);
@@ -1730,11 +1866,13 @@
     setConnectionStatus();
   }
   async function lockIdentity({ preservePublicBridge = false } = {}) {
+    cancelMessageEdit();
     if (state.activePeer) await saveChatDraft(state.activePeer, $('message-input').value).catch(() => {});
     if (state.account) { const updated = { ...state.account }; delete updated.session; await put('vault', updated); state.account = updated; }
     clearTimeout(state.idleTimer);
     if (state.secret) state.secret.fill(0);
     state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null;
+    state.replyingTo = null; updateReplyContext();
     state.draftLoadSequence++;
     $('message-input').value = '';
     resizeMessageInput();
@@ -1807,7 +1945,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v38', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v43', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -1947,6 +2085,31 @@
     $('secret-guard-dialog').addEventListener('close', () => settleSecretSendConfirmation(false));
     $('send-form').addEventListener('submit', async event => {
       event.preventDefault(); const input = $('message-input'); const text = input.value.trim(); const peer = state.activePeer; const replyTo = state.replyingTo; if (!text || !peer) return;
+      if (state.editingMessage) {
+        const editing = state.editingMessage;
+        const submit = document.querySelector('#send-form button[type="submit"]'); submit.disabled = true;
+        try {
+          const result = await editPrivateMessage(peer, editing.message, text);
+          if (result.cancelled) return;
+          if (result.noRecipientAck) {
+            showToast(localized('No recipient inbox relay confirmed the edit. The original message remains unchanged here.', 'Nenhum relay de recebimento confirmou a edição. A mensagem original continua neste aparelho.'));
+            return;
+          }
+          if (result.unchanged) showToast(localized('The edited text is the same; nothing was sent.', 'O texto não mudou; nada foi enviado.'));
+          const draft = state.editingDraft;
+          state.replyingTo = state.editingReplyingTo;
+          state.editingMessage = null; state.editingDraft = '';
+          state.editingReplyingTo = null;
+          updateEditContext();
+          updateReplyContext();
+          input.value = draft;
+          resizeMessageInput(input);
+          await saveChatDraft(peer, input.value).catch(() => {});
+          if (result.updated && result.confirmed < result.required) showToast(localized('Message edit sent to some recipients; delivery was partial.', 'A edição foi enviada a alguns participantes; a entrega foi parcial.'));
+        } catch (error) { showToast(error.message || localized('Could not edit this message.', 'Não foi possível editar esta mensagem.')); }
+        finally { submit.disabled = false; }
+        return;
+      }
       const sentShareId = state.shareDraftPeer === peer ? state.shareDraftId : '';
       const submit = document.querySelector('#send-form button[type="submit"]'); submit.disabled = true;
       try {
@@ -1973,6 +2136,7 @@
       catch (error) { showToast(error.message || 'Falha ao cifrar a mensagem.'); }
       finally { submit.disabled = false; }
     });
+    $('cancel-edit').addEventListener('click', () => cancelMessageEdit({ restoreFocus: true }));
     $('cancel-reply').addEventListener('click', () => { state.replyingTo = null; updateReplyContext(); });
     $('forward-send').addEventListener('click', () => forwardMessage().catch(error => showError('forward-error', error.message || 'Could not forward this message.')));
     $('forward-dialog').addEventListener('close', () => { state.forwardingMessage = null; $('forward-send').disabled = true; });
@@ -1984,7 +2148,7 @@
     }));
     $('message-input').addEventListener('input', event => {
       resizeMessageInput(event.target);
-      if (state.activePeer) void saveChatDraft(state.activePeer, event.target.value).catch(() => {});
+      if (state.activePeer && !state.editingMessage) void saveChatDraft(state.activePeer, event.target.value).catch(() => {});
     });
     document.querySelectorAll('[data-format-marker]').forEach(button => button.addEventListener('click', () => {
       const input = $('message-input');
@@ -2119,7 +2283,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();
