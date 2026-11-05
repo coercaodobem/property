@@ -1,0 +1,341 @@
+import { appendFileSync, existsSync, readFileSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { DAEMON_WATCH_PEER_IDLE_MS, fromBase64Url, RTC_CONFIG, setLinkTraceSink } from "@ghostly/core";
+import { MAX_IROH_RELAYS, irohRelayProblem } from "@ghostly/browser/platform/irohWeb";
+import type { EngineServer } from "@ghostly/browser/engine/server";
+import { loadCallStack } from "../calls/media";
+import { CliError } from "../errors";
+import { joinLogLine } from "../joinLog";
+import { nodeLocalFetch } from "../services";
+import { nodeFedimintSdk } from "./fedimint";
+import { installFileFetch } from "./fileFetch";
+import { nodeHoldFetch } from "./holdFetch";
+import { nodePushSend } from "./pushSend";
+import { openPersistentIndexedDb, type PersistentIndexedDb } from "./storage";
+import { RESTORED_MARK, type ProfilePaths } from "../profiles";
+import { servedApps } from "../appServe";
+import { envSwitch } from "../envSwitch";
+
+/** What runs a profile: its store, the engine and the host around it. */
+export interface Runtime {
+  readonly paths: ProfilePaths;
+  /** WebRTC runs here (node-datachannel loaded). */
+  readonly webrtc: boolean;
+  /** Why voice calls cannot run here, or null when they can (node-datachannel's media and Opus loaded). */
+  readonly callsUnavailable: string | null;
+  /** apps/1 is offered to contacts: the profile served an app when this engine started (src/appServe.ts). */
+  readonly apps: boolean;
+  readonly server: EngineServer;
+  readonly store: PersistentIndexedDb;
+  /** Says goodbye to peers, then folds the store. */
+  close(): Promise<void>;
+}
+
+/**
+ * The HyperDHT network: `PROPERTY_HYPERDHT_BOOTSTRAP` ("host:port,…") replaces the public bootstrap nodes, as it does
+ * for the Desktop's sidecar; a network all on loopback (the tests') is announced on loopback too.
+ */
+export function hyperdhtNetwork(env = process.env.PROPERTY_HYPERDHT_BOOTSTRAP): { bootstrap?: string[]; host?: string } {
+  const bootstrap = bootstrapNodes("PROPERTY_HYPERDHT_BOOTSTRAP", env);
+  if (!bootstrap.length) return {};
+  const loopback = bootstrap.every((node) => /^(127\.0\.0\.1|localhost):\d+$/.test(node));
+  return { bootstrap, ...(loopback ? { host: "127.0.0.1" } : {}) };
+}
+
+/**
+ * A bootstrap variable's nodes ("host:port,…"), each checked: a host without a port, a port past 65535 or `;` between
+ * nodes crashed every command from bittorrent-dht's timer (port NaN), and `udp://…`, `[v6]:port` or nodes split by
+ * spaces were looked up as names and left the profile with no DHT. IPv6 nodes are refused: neither bittorrent-dht nor
+ * dht-rpc reads them (both split host and port at the first ':').
+ */
+function bootstrapNodes(name: string, env: string | undefined): string[] {
+  const nodes = (env ?? "").split(",").map((node) => node.trim()).filter(Boolean);
+  const bad = nodes.find((node) => {
+    const port = /^[^\s:;/@[\]]+:(\d{1,5})$/.exec(node)?.[1];
+    return !port || Number(port) < 1 || Number(port) > 65535;
+  });
+  if (bad !== undefined) throw new CliError("usage", `${name} takes host:port nodes, comma-separated, not ${JSON.stringify(bad)}`);
+  return nodes;
+}
+
+/**
+ * The Pkarr relays of a private network or a test, `PROPERTY_PKARR_RELAYS` ("http://…,…"), the Desktop's name for it:
+ * the only relays this process uses, whatever the profile's `relays` setting says, from its very first publish. Null
+ * when unset.
+ */
+export function pkarrRelays(env = process.env): string[] | null {
+  const relays = (env.PROPERTY_PKARR_RELAYS ?? "").split(",").map((url) => url.trim()).filter(Boolean);
+  if (!relays.length) return null;
+  // Two relays split by ';' or a space were taken as one URL.
+  const bad = relays.find((url) => !/^https?:\/\/[^/\s]/i.test(url) || /[\s;]/.test(url) || !URL.canParse(url));
+  if (bad) throw new CliError("usage", `PROPERTY_PKARR_RELAYS takes http:// or https:// URLs, comma-separated, not ${JSON.stringify(bad)}`);
+  return relays;
+}
+
+/**
+ * The Iroh relays of a private network or a test, `PROPERTY_IROH_RELAYS` ("https://…,…"; http:// on loopback): the only
+ * relays this process's Iroh homes on, whatever the profile's `irohRelays` setting says. Null when unset (the setting,
+ * else n0's public relays).
+ */
+export function irohRelays(env = process.env): string[] | null {
+  const relays = (env.PROPERTY_IROH_RELAYS ?? "").split(",").map((url) => url.trim()).filter(Boolean);
+  if (!relays.length) return null;
+  const bad = relays.map((url) => irohRelayProblem(url)).find(Boolean);
+  if (bad) throw new CliError("usage", `PROPERTY_IROH_RELAYS: ${bad}`);
+  // More than the endpoint takes left every chat's Iroh refused, the profile running with none.
+  if (relays.length > MAX_IROH_RELAYS) throw new CliError("usage", `PROPERTY_IROH_RELAYS: use at most ${MAX_IROH_RELAYS} Iroh relays, not ${relays.length}`);
+  return relays;
+}
+
+/**
+ * The apps' public STUN servers (Google's, `RTC_CONFIG`), which every WebRTC connection asks for its public address:
+ * `PROPERTY_STUN=0` leaves them out (a private network, or tests on one machine, where host candidates connect). The
+ * profile's own `iceServers` stay.
+ */
+export function publicStun(env = process.env): boolean { return envSwitch("PROPERTY_STUN", true, env); }
+
+/** An RTC configuration without the apps' public STUN servers. */
+export function withoutPublicStun(config: RTCConfiguration | undefined): RTCConfiguration | undefined {
+  if (!config?.iceServers) return config;
+  const ours = new Set((RTC_CONFIG.iceServers ?? []).flatMap((server) => [server.urls].flat()));
+  const iceServers = config.iceServers
+    .map((server) => ({ ...server, urls: [server.urls].flat().filter((url) => !ours.has(url)) }))
+    .filter((server) => server.urls.length);
+  return { ...config, iceServers };
+}
+
+/**
+ * The Mainline DHT, for Pkarr beside the relays (`RelaysAndDht`): `PROPERTY_DHT=0` leaves it out (relays only, as the web
+ * app), `PROPERTY_DHT_BOOTSTRAP` ("host:port,…") replaces the public routers (a testnet; one all on loopback binds there).
+ * `PROPERTY_PKARR_RELAYS` without a bootstrap leaves it out too, as on the Desktop: a private network stays off the
+ * public DHT.
+ */
+export function mainlineNetwork(env = process.env): { off: true } | { off: false; bootstrap?: string[]; host?: string } {
+  if (!envSwitch("PROPERTY_DHT", true, env)) return { off: true };
+  const bootstrap = bootstrapNodes("PROPERTY_DHT_BOOTSTRAP", env.PROPERTY_DHT_BOOTSTRAP);
+  if (!bootstrap.length && pkarrRelays(env)) return { off: true };
+  if (!bootstrap.length) return { off: false };
+  const loopback = bootstrap.every((node) => /^(127\.0\.0\.1|localhost):\d+$/.test(node));
+  return { off: false, bootstrap, ...(loopback ? { host: "127.0.0.1" } : {}) };
+}
+
+/**
+ * WebRTC for the engine (WISP 101): libdatachannel through node-datachannel's W3C polyfill. Chats go live over it with
+ * browsers directly, and groups need it (their links use WebRTC alone). A native module: without it, or with
+ * `PROPERTY_WEBRTC=0`, the CLI runs without WebRTC and says so.
+ */
+async function installWebRtc(): Promise<boolean> {
+  if (!envSwitch("PROPERTY_WEBRTC", true)) return false;
+  try {
+    const polyfill = await import("node-datachannel/polyfill");
+    const scope = globalThis as unknown as Record<string, unknown>;
+    for (const name of ["RTCPeerConnection", "RTCSessionDescription", "RTCIceCandidate", "RTCDataChannel", "RTCDataChannelEvent", "RTCPeerConnectionIceEvent", "RTCCertificate"] as const) {
+      scope[name] ??= (polyfill as unknown as Record<string, unknown>)[name];
+    }
+    refuseDataAnswers(scope);
+    if (!publicStun()) leaveOutPublicStun(scope);
+    return true;
+  } catch (error) {
+    process.stderr.write(`property: WebRTC is unavailable (${error instanceof Error ? error.message : String(error)}); chats use HyperDHT, Iroh or the DHT\n`);
+    return false;
+  }
+}
+
+/**
+ * For tests: `PROPERTY_TEST_REFUSE_DATA_ANSWERS=<n>` refuses one in every n answers this process applies to its offers
+ * (the first, the n+1st, and so on), as libdatachannel 0.24.5 refuses one in its race (`ANSWER_REFUSED_REDIALS` in
+ * packages/core/src/datalink.ts): the connection closes, and setRemoteDescription throws.
+ */
+function refuseDataAnswers(scope: Record<string, unknown>): void {
+  const every = Number(process.env.PROPERTY_TEST_REFUSE_DATA_ANSWERS) || 0;
+  if (every <= 0) return;
+  let answers = 0;
+  const Base = scope.RTCPeerConnection as typeof RTCPeerConnection;
+  scope.RTCPeerConnection = class extends Base {
+    override async setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void> {
+      if (description.type === "answer" && answers++ % every === 0) {
+        this.close();
+        throw new Error("libdatachannel error while adding remote description: Got a remote candidate without ICE transport (PROPERTY_TEST_REFUSE_DATA_ANSWERS)");
+      }
+      return super.setRemoteDescription(description);
+    }
+  };
+}
+
+/** `PROPERTY_STUN=0`: every connection the engine makes leaves the apps' public STUN servers out of its configuration. */
+function leaveOutPublicStun(scope: Record<string, unknown>): void {
+  const Base = scope.RTCPeerConnection as typeof RTCPeerConnection;
+  scope.RTCPeerConnection = class extends Base {
+    constructor(config?: RTCConfiguration) { super(withoutPublicStun(config)); }
+  };
+}
+
+/** Server-sent events, which browsers have and Node does not: Arkade follows its server with them. */
+async function installEventSource(): Promise<void> {
+  const scope = globalThis as unknown as Record<string, unknown>;
+  if (scope.EventSource) return;
+  scope.EventSource = (await import("eventsource")).EventSource;
+}
+
+/**
+ * Arkade's descriptor library is CommonJS and `require`s `@scure/bip32`, which is ESM. When the engine's own imports
+ * are still evaluating that module, Node's require(esm) hands the library a namespace without `HDKey` yet ("reading
+ * 'fromMasterSeed'"). Loading it whole first avoids the race.
+ */
+async function preloadWalletModules(): Promise<void> {
+  await import("@scure/bip32").catch(() => {});
+  await import("@bitcoinerlab/descriptors-scure").catch(() => {});
+}
+
+/** Iroh's wasm, from next to the bundle (a package) or from the workspace (development and tests). */
+function irohWasmBytes(): Buffer {
+  // Beside this chunk, wherever the bundler put it (the entry, or assets/); else the workspace's.
+  for (const place of ["./ghostly_iroh_web_bg.wasm", "./assets/ghostly_iroh_web_bg.wasm"]) {
+    const path = fileURLToPath(new URL(place, import.meta.url));
+    if (existsSync(path)) return readFileSync(path);
+  }
+  return readFileSync(createRequire(import.meta.url).resolve("@ghostly/iroh-web/wasm"));
+}
+
+/**
+ * How a runtime starts: `deferGroups` leaves the groups' sessions unstarted (a one-shot for one chat); `deferChats` leaves
+ * the saved chats unstarted until a call names one (a one-shot for one chat, or one that makes or joins one); `offline`
+ * starts no chat or group and publishes nothing (a one-shot that only reads); `logJoins` says the steps of a join
+ * through a group's link on stderr (a daemon, whose log that is: `joinLog.ts`).
+ */
+export interface RuntimeOptions { deferGroups?: boolean; deferChats?: boolean; offline?: boolean; logJoins?: boolean }
+
+/**
+ * Starts the app's engine on this profile (WISP 1100 § Runtime): IndexedDB on disk, WebRTC through libdatachannel,
+ * HyperDHT native in this process, Iroh's wasm build (relay only, as the web app), Pkarr through the relays in the
+ * settings and the Mainline DHT directly (read when the relays fail, written always).
+ * The caller holds the profile's lock.
+ */
+/** The files a light backup left out, as the restore wrote them in the mark (an empty mark: none). */
+function leftOutIn(mark: string): string[] {
+  try {
+    const ids = (JSON.parse(readFileSync(mark, "utf8") || "{}") as { leftOut?: unknown }).leftOut;
+    return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
+  } catch { return []; }
+}
+
+export async function startRuntime(paths: ProfilePaths, options: RuntimeOptions = {}): Promise<Runtime> {
+  // `PROPERTY_LINK_TRACE=<file>`: each step of each chat's way to live, one JSON line (packages/core/src/linkTrace.ts),
+  // as the Desktop writes to its log. For measuring, not needed to run.
+  // Read first: a mistyped one stops here, before anything opens.
+  const pinned = pkarrRelays();
+  const pinnedIroh = irohRelays();
+  const network = hyperdhtNetwork();
+  const dht = mainlineNetwork();
+  const trace = process.env.PROPERTY_LINK_TRACE;
+  if (trace) setLinkTraceSink(line => appendFileSync(trace, line + "\n", { mode: 0o600 }));
+  if (trace || options.logJoins) {
+    // A join through a group's link, step by step (what the door read, whom it let in), in the same file; a daemon
+    // also says its knocks and entry sessions in its log.
+    (await import("@ghostly/browser/engine/joinTrace")).setJoinTraceSink(line => {
+      if (trace) appendFileSync(trace, line + "\n", { mode: 0o600 });
+      const said = options.logJoins ? joinLogLine(line) : null;
+      if (said) process.stderr.write(said + "\n");
+    });
+  }
+  const store = await openPersistentIndexedDb(paths.db);
+  // A profile a restore made, started for the first time: its store is the backup's, as old as the backup. Its ecash
+  // is checked with the mints and its unfinished payment attempts authorize nothing, as in the app's restore. Done
+  // before the engine reads any of it; the mark goes only once that is on disk, so a start cut short does it again.
+  const restored = join(paths.dir, RESTORED_MARK);
+  if (existsSync(restored)) {
+    try {
+      const rows = await import("@ghostly/browser/shared/restoredRows");
+      await rows.markRestoredWallet();
+      // The files a light backup left out: their records say so, as in the app's restore.
+      await rows.markLeftOutFiles(leftOutIn(restored));
+      // Its chats' ratchets stay with the profile it came from (WISP 4xx), a backup from before they were left out too.
+      await rows.forgetRatchets();
+      await store.compact();
+    } catch (error) {
+      await store.close().catch(() => {});
+      throw error;
+    }
+    rmSync(restored, { force: true });
+  }
+  const webrtc = await installWebRtc();
+  // Voice calls (WISP 1100 § Calls): offered to contacts (calls/1) only where their media can run.
+  const stack = webrtc ? await loadCallStack() : "Calls need WebRTC, which is off on this headless Property Direct";
+  const callsUnavailable = typeof stack === "string" ? stack : null;
+  installFileFetch();
+  // `PROPERTY_TEST_MINTS=<url,…>`: mints on this machine that are test servers with a fake Lightning backend (a regtest
+  // or e2e stack). Only through them does a Testnet wallet pay a Bitcoin (lnbc) invoice, as through the public test mint.
+  const testMints = process.env.PROPERTY_TEST_MINTS;
+  if (testMints) (await import("@ghostly/browser/shared/mints")).declareTestMints(testMints.split(","));
+  await installEventSource();
+  await preloadWalletModules();
+  // Loaded after IndexedDB is in place: nothing of the engine may open its database first.
+  const iroh = await import("@ghostly/iroh-web");
+  iroh.initSync({ module: irohWasmBytes() });
+  // Files sent and received are real files in the profile's folder, as on the Desktop.
+  const [{ registerFileBytes }, { NodeFileBytes }] = await Promise.all([import("@ghostly/browser/shared/fileBytes"), import("./fileBytes")]);
+  registerFileBytes("native", async () => new NodeFileBytes(paths.files), true);
+  // Files a profile took as Blobs in their records (held files, up to 1.3.0) go there too, and leave the snapshot.
+  if (await (await import("./blobFiles")).moveBlobFiles()) await store.compact();
+  const [{ EngineServer }, { createHyperEndpoint }] = await Promise.all([
+    import("@ghostly/browser/engine/server"),
+    import("./hyperdht/endpoint.mjs"),
+  ]);
+  const mainline = dht.off ? null : new (await import("./mainline")).Mainline({ bootstrap: dht.bootstrap, host: dht.host });
+  // `PROPERTY_PKARR_RELAYS`: those relays only, in place before the engine publishes anything (the setting is not read).
+  const transport = (mainline || pinned) ? new (await import("./mainline")).RelaysAndDht(mainline, pinned ? { relays: pinned } : {}, !!pinned) : null;
+  const apps = servedApps(paths.dir).length > 0;
+  const server = new EngineServer({
+    ...(transport ? { transport } : {}),
+    irohWeb: true,
+    // `PROPERTY_IROH_RELAYS`: those relays only (the setting is not read).
+    ...(pinnedIroh ? { irohRelays: pinnedIroh } : {}),
+    // A CLI profile is one device's (WISP 06): no device state is kept for it.
+    singleDevice: true,
+    nativeTransports: { "hyperdht/1": (seedB64: string) => createHyperEndpoint(fromBase64Url(seedB64), network) },
+    // No wallet starts by itself: a bot has the wallets it made (WISP 1100 § Wallet SDKs on Node).
+    automaticWallets: false,
+    // Fedimint's client databases are files of the profile, each in a worker thread (./fedimint.ts).
+    fedimintSdk: nodeFedimintSdk(join(paths.dir, "fedimint")),
+    // Local web apps may be shared with a contact, reached on loopback only (src/services.ts).
+    servicesSupport: true,
+    // No mini-app runs here (WISP 1200 § Per client: CLI). A profile that serves an app (`app serve`, src/appServe.ts)
+    // speaks apps/1 for it as a bot, with no store; any other offers no apps/1 and refuses the app calls, whatever the
+    // build's APPS_ENABLED says.
+    apps: apps ? "wire" : false,
+    // A daemon stays online: a hub of the large private groups it is in (WISP 902 · Group Mesh § Hubs), unless PROPERTY_HUB=0.
+    staysOnline: envSwitch("PROPERTY_HUB", true),
+    // A contact that left (a phone that put the app to sleep) is read every 10 s for 5 minutes, not every 30 s past 2.
+    watchPeerIdleMs: DAEMON_WATCH_PEER_IDLE_MS,
+    localFetch: nodeLocalFetch,
+    // A wake-up goes to a push service only, on public addresses only (./pushSend.ts), as the Desktop's does.
+    pushSend: (request) => nodePushSend(request),
+    // Held items are read from the contact's storage on public addresses only (./holdFetch.ts).
+    holdFetch: nodeHoldFetch(),
+    callsSupport: callsUnavailable === null,
+    ...(callsUnavailable ? { callsUnavailable } : {}),
+    ...(options.deferGroups ? { deferGroups: true } : {}),
+    ...(options.deferChats ? { deferChats: true } : {}),
+    ...(options.offline ? { offline: true } : {}),
+    // Tests only: group links as an app from before native ones (test/groupCompat.test.ts).
+    ...(process.env.PROPERTY_TEST_WEBRTC_GROUP_LINKS === "1" ? { webrtcGroupLinks: true } : {}),
+  });
+  try {
+    await server.ready;
+  } catch (error) {
+    await mainline?.destroy().catch(() => {});
+    await store.close().catch(() => {});
+    throw error;
+  }
+  let closing: Promise<void> | null = null;
+  return {
+    paths, server, store, webrtc, callsUnavailable, apps,
+    close: () => (closing ??= (async () => {
+      await server.node.shutdown({ quitting: true }).catch(() => {});
+      await mainline?.destroy().catch(() => {});
+      await store.close();
+    })()),
+  };
+}

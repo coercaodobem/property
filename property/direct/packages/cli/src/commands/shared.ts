@@ -1,0 +1,553 @@
+import { closeSync, openSync, readSync } from "node:fs";
+// From its own module, not the package: the command table is read by every command, and the package is all of the
+// protocol (~100 ms to load), which a command a daemon answers never needs.
+import { CRON_LINE, ITEM_STATES, PR_CHECKS, PR_STATES, ROUTINE_STATES, RUN_RESULTS, STATUS_CARD_LIMITS, TASK_STATUSES, cardLine, cardUrl, statusCardBytes } from "@ghostly/core/statusCards";
+import type { OptionSpec, Parsed } from "../args";
+import { CliError, localFileError } from "../errors";
+import { userPath } from "../profiles";
+
+/**
+ * The commands that are one API method each: how the command line becomes the method's parameters. Commands with
+ * their own flow (profiles, the daemon, listen, send's stdin, the engine passthrough) live in main.ts.
+ */
+export interface Command {
+  method: string;
+  usage: string;
+  summary: string;
+  options?: Record<string, OptionSpec>;
+  /** Positionals, in order; a trailing `...` one takes the rest joined by spaces. */
+  args?: string[];
+  /** The words a positional takes, by its name in `args`: any other is a usage error before the profile opens. */
+  words?: Record<string, readonly string[]>;
+  params?: (parsed: Parsed, args: Record<string, string | undefined>) => Record<string, unknown>;
+  /**
+   * A command that runs here, on files, with no profile or daemon (the publisher tools of WISP 1200): its answer is
+   * printed as a method's is, and `method` only names it.
+   */
+  run?: (parsed: Parsed, args: Record<string, string | undefined>) => Promise<Record<string, unknown>>;
+}
+
+export const wait: Record<string, OptionSpec> = {
+  wait: { type: "string", choices: ["none", "sent", "delivered"], description: "none, sent or delivered (default: none with a daemon, sent without)" },
+  timeout: { type: "number", description: "Seconds to wait (default 30)" },
+};
+/** A group has no receipts: `sent` waits until an edge took the frame (a member's, or one of my hubs'). */
+export const groupWait: Record<string, OptionSpec> = {
+  wait: { type: "string", choices: ["none", "sent"], description: "none or sent: until an edge took it (default none)" },
+  timeout: { type: "number", description: "Seconds to wait (default 30)" },
+};
+/** `listen`, `events` and `chat history`: received messages with `translation: { from, text }` (translate.ts). */
+export const translate: OptionSpec = { type: "string", description: "Not in this build yet (no language detector): messages print untranslated. Meant to add a translation into this language (en, pt...) to received messages, made on this machine" };
+export const net: OptionSpec ={ type: "string", choices: ["mainnet", "testnet"], description: "mainnet or testnet (default testnet)" };
+export const card: OptionSpec = { type: "string", description: "A Lightning card (its id; default: the network's default)" };
+export const memo: OptionSpec = { type: "string", description: "What it is for (up to 140 characters)" };
+export const confirmReal: OptionSpec = { type: "boolean", description: "Confirm a Mainnet (real money) spend" };
+
+/**
+ * A path as this command's working directory means it: the daemon runs elsewhere. "" (an unset variable in a script)
+ * names no file, never the current folder; `~/…` is in the user's home (userPath).
+ */
+export function here(path: unknown): string | undefined {
+  if (path === "") throw new CliError("usage", "A path given as \"\" names no file");
+  return typeof path === "string" ? userPath(path) : undefined;
+}
+
+/** The most a command reads of stdin or of a file it sends: the longest request line a daemon reads (client.ts `MAX_LINE`). */
+export const INPUT_BYTES = 16 * 1024 * 1024;
+export const STDIN_TOO_BIG = "More than 16 MiB came on stdin, more than any command takes (a long text goes as a file: property file send <chat|group> <path>)";
+
+/**
+ * A file's text, or stdin's (`0`), up to `INPUT_BYTES`: more is refused as it comes. `app send … -`, a card's `--json`
+ * and the files `identity complete` and `x401 credential add` send were read whole: 600 MiB answered V8's "Cannot
+ * create a string longer than 0x1fffffe8 characters", and past 16 MiB a daemon cut the line ("The daemon went away").
+ */
+export function readInput(file: string | 0): string {
+  const fd = file === 0 ? 0 : openSync(file, "r");
+  try {
+    const chunks: Buffer[] = [];
+    let bytes = 0;
+    for (;;) {
+      const chunk = Buffer.allocUnsafe(1024 * 1024);
+      const read = readSync(fd, chunk, 0, chunk.length, null);
+      if (!read) return Buffer.concat(chunks).toString("utf8");
+      bytes += read;
+      if (bytes > INPUT_BYTES) throw new CliError("bad_request", file === 0 ? STDIN_TOO_BIG : `${file} holds more than 16 MiB, more than any command takes (a file to share goes as one: property file send <chat|group> <path>)`);
+      chunks.push(chunk.subarray(0, read));
+    }
+  } finally { if (file !== 0) closeSync(fd); }
+}
+
+/**
+ * A list option that names chats (`--to`, `--from`): "" or "group:" alone (an unset variable in a script) names
+ * nothing, and is a usage error before the profile opens; it was a prefix of every id and took the only chat or group.
+ */
+export function refs(values: unknown, flag: string, what: string): void {
+  if (!Array.isArray(values)) return;
+  for (const value of values) {
+    if (typeof value === "string" && !value.replace(/^group:/, "").trim()) throw new CliError("usage", `--${flag} ${JSON.stringify(value)} names no ${what}`);
+  }
+}
+
+/** A whole number of sats from the command line. */
+export function sats(value: string | undefined): number {
+  const n = Number(value);
+  if (!value || !Number.isSafeInteger(n) || n <= 0) throw new CliError("usage", `Not an amount in sats: ${JSON.stringify(value)}`);
+  return n;
+}
+
+/** `name=value` options as an object. */
+export function pairs(values: unknown): Record<string, string> | undefined {
+  if (!Array.isArray(values) || !values.length) return undefined;
+  const out: Record<string, string> = {};
+  for (const item of values as string[]) {
+    const eq = item.indexOf("=");
+    if (eq < 1) throw new CliError("usage", `--value takes name=value, not ${JSON.stringify(item)}`);
+    out[item.slice(0, eq)] = item.slice(eq + 1);
+  }
+  return out;
+}
+
+export const rate: OptionSpec = { type: "number", description: "The audio's sample rate: 48000 (default), 24000, 16000, 12000 or 8000" };
+export const force: OptionSpec = { type: "boolean", description: "Send even if the text looks like a seed, a key or ecash" };
+export const reply: OptionSpec = { type: "string", description: "Reply to this message (its id, from history or an event)" };
+/** Buttons under a message (WISP 406 · Message Buttons): the text is the question. */
+export const buttonOptions: Record<string, OptionSpec> = {
+  button: { type: "list", description: "A button under the message, id:Label (again for each, 1 to 6; the label may hold colons). A press comes back as button.pressed" },
+  style: { type: "list", description: "A button's look, id=primary, neutral or danger" },
+  once: { type: "boolean", description: "Each person answers once: after a press their app offers the buttons no more" },
+  id: { type: "string", description: "The question's id (default: made up, ask-…)" },
+};
+/** The group's entry link lets anyone join: printed only when asked for. */
+export const showSecret: Record<string, OptionSpec> = { "show-secret": { type: "boolean", description: "Print the group's entry link (anyone who has it can join)" } };
+/** A pending chat's invite code lets whoever reads it take the chat: printed only when asked for. */
+export const showInvite: Record<string, OptionSpec> = { "show-secret": { type: "boolean", description: "Print a pending chat's invite code (whoever has it can take the chat)" } };
+export const secret = (options: Parsed["options"]) => (options["show-secret"] === true ? { showSecret: true } : {});
+
+/**
+ * `--kind` of the typing commands: another word is a usage error (exit 2) before the profile opens, not the API's
+ * "kind must be one of" (exit 1). The words are core's TYPING_KINDS, written out: the package is not loaded here.
+ */
+export const typingKind: OptionSpec = { type: "string", choices: ["typing", "recording", "thinking"], description: "typing (default), recording (a voice note) or thinking" };
+
+/**
+ * `--for` of the typing commands: the seconds it is kept on, 1 to 600, and never with `--stop`. A usage error (exit 2)
+ * that names the flag: before, the API's own check answered ("for must be a number from 1 to 600", exit 1).
+ */
+export function typingFor(options: Parsed["options"]): number | undefined {
+  const seconds = options.for;
+  if (seconds === undefined) return undefined;
+  if (typeof seconds !== "number" || !(seconds >= 1 && seconds <= 600)) throw new CliError("usage", `--for takes a number of seconds from 1 to 600, not ${JSON.stringify(seconds)}`);
+  if (options.stop === true) throw new CliError("usage", "--for keeps it on: not with --stop");
+  return seconds;
+}
+
+/**
+ * The ranges the API takes (api.ts, files.ts): the most minutes of a `--hold` (a week, HOLD_MAX_MINUTES), seconds;
+ * `chat connect`'s, the chat link's own wait for a contact (CONNECT_MAX_SECONDS).
+ */
+export const HOLD_MINUTES = 10_080, WAIT_SECONDS = 3600, LONG_WAIT_SECONDS = 86_400, HISTORY_LIMIT = 10_000, CONNECT_SECONDS = 90;
+
+/**
+ * A number flag out of the range the API takes: a usage error (exit 2) that names the flag, before the profile opens.
+ * Before, the API's own check answered once it had opened (a one-shot went online first), in its parameter's words
+ * ("hold must be a number from 0 to 10080", exit 1). The API keeps its check for socket callers.
+ */
+export function inRange(options: Parsed["options"], flag: string, what: string, min: number, max: number, whole = false): number | undefined {
+  const value = options[flag];
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !(value >= min && value <= max) || (whole && !Number.isInteger(value)))
+    throw new CliError("usage", `--${flag} takes ${what} from ${min} to ${max}, not ${JSON.stringify(value)}`);
+  return value;
+}
+
+/** `--timeout` of a command that waits: seconds, up to an hour (a send, a card, a button) or a day (`chat wait`, a file). */
+export const timeout = (options: Parsed["options"], max = WAIT_SECONDS) => inRange(options, "timeout", "a number of seconds", 1, max);
+/** `--limit` of a history: messages per page. */
+export const pageLimit = (options: Parsed["options"]) => inRange(options, "limit", "a whole number", 1, HISTORY_LIMIT, true);
+
+/** `--since` of `events` and `listen`: a seq, a whole number from 0 (a negative one replayed a made-up gap first). */
+export function since(options: Parsed["options"]): number | undefined {
+  const value = options.since;
+  if (value !== undefined && !(Number.isSafeInteger(value) && (value as number) >= 0)) throw new CliError("usage", `--since takes a seq from 0 up, not ${JSON.stringify(value)}`);
+  return value as number | undefined;
+}
+
+/**
+ * A time given as digits: milliseconds. Unix seconds (from 1e9, 2001, up to 1e11, which as milliseconds would be 1970
+ * to 1973) are refused with the milliseconds they mean: before, they were read as January 1970 without a word.
+ */
+function milliseconds(text: string, flag: string): number {
+  const ms = Number(text);
+  if (ms >= 1e9 && ms < 1e11) throw new CliError("usage", `--${flag} takes milliseconds, not seconds: ${text}000`);
+  return ms;
+}
+
+/**
+ * A history cursor: a time when it is all digits (`0` is from the start), else a message id. Message ids are never all
+ * digits (`me_…`, `peer_…`): before, fewer than 10 digits were read as an id ("No message 0").
+ */
+export function cursor(value: unknown, flag: string): string | number | undefined {
+  if (value === undefined) return undefined;
+  const text = String(value).trim();
+  return /^\d+$/.test(text) ? milliseconds(text, flag) : text;
+}
+
+/**
+ * A status card's fields given as JSON (WISP 405 · Status Cards): inline (`{...}`), `-` for stdin, or a file's path. The
+ * flags given beside it win over it.
+ */
+export function cardJson(value: unknown): Record<string, unknown> {
+  if (value === undefined) return {};
+  const text = String(value).trim();
+  // A file's path as here() reads it ("" names no file, not the current folder); a file not there or a folder is said
+  // with its path, as `x401 credential add` says it: before, Node's text, and a folder's named no path.
+  const file = text.startsWith("{") || text === "-" ? undefined : here(text)!;
+  let raw: string;
+  try { raw = text.startsWith("{") ? text : readInput(file ?? 0); }
+  catch (error) { throw (error instanceof CliError && error) || (file !== undefined && localFileError(error, file)) || new CliError("usage", `--json takes a card as JSON, - for stdin, or a file: ${error instanceof Error ? error.message : String(error)}`); }
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { throw new CliError("usage", "--json is not valid JSON"); }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new CliError("usage", "--json is a JSON object of the card's fields");
+  return parsed as Record<string, unknown>;
+}
+
+/** Options every status card command takes. */
+export const cardOptions: Record<string, OptionSpec> = {
+  json: { type: "string", description: "The card's fields as JSON: inline, - for stdin, or a file (flags win over it)" },
+  link: { type: "list", description: "A link on the card: https://… or label=https://… (up to 4)" },
+  text: { type: "string", description: "The text older apps show instead (default: written from the card)" },
+  force: { type: "boolean", description: "Send even if the card's text looks like a seed, a key or ecash" },
+};
+
+/** `--link label=https://…` or a bare link, as a card's links. */
+export function cardLinks(values: unknown): { url: string; label?: string }[] | undefined {
+  if (!Array.isArray(values) || !values.length) return undefined;
+  given("link", values, STATUS_CARD_LIMITS.links);
+  return (values as string[]).map((value) => {
+    const eq = value.indexOf("=");
+    const link = eq > 0 && !value.slice(0, eq).includes(":") ? { label: value.slice(0, eq), url: value.slice(eq + 1) } : { url: value };
+    if (!cardUrl(link.url)) throw new CliError("usage", `--link takes an https link of at most ${STATUS_CARD_LIMITS.url} characters, or label=link, not ${JSON.stringify(value)}`);
+    cardText("--link's label", link.label, STATUS_CARD_LIMITS.linkLabel, value);
+    return link;
+  });
+}
+
+export const listed = (words: readonly string[]) => `${words.slice(0, -1).join(", ")} or ${words.at(-1)}`;
+
+/**
+ * A text flag as the card counts it (one line, the display rules): blank, or longer than `max`, is a usage error (exit 2)
+ * that names the flag. Before, it reached the card's own check and failed as `bad_request` (exit 1) in the card's words
+ * ("Status card: title is at most 120 characters"), the whole card in its details. `shown` is what the flag was given.
+ */
+function cardText(flag: string, value: unknown, max: number, shown = value): void {
+  if (value === undefined) return;
+  const line = cardLine(String(value), Infinity);
+  if (!line) throw new CliError("usage", `${flag} takes text, not ${JSON.stringify(shown)}`);
+  const length = [...line].length;
+  if (length > max) throw new CliError("usage", `${flag} takes at most ${max} characters, not ${length}`);
+}
+
+/** `--status`, `--state`, `--pr-state`, `--pr-checks`: one of their words, or a usage error that lists them. */
+function oneWord(options: Parsed["options"], flag: string, words: readonly string[]): void {
+  if (options[flag] !== undefined && !words.includes(options[flag] as string)) throw new CliError("usage", `--${flag} takes ${listed(words)}, not ${JSON.stringify(options[flag])}`);
+}
+
+/** A flag given more times than the card holds: a usage error that says how many it takes. */
+function given(flag: string, values: unknown, max: number): void {
+  if (Array.isArray(values) && values.length > max) throw new CliError("usage", `--${flag} is given at most ${max} times, not ${values.length}`);
+}
+
+/**
+ * `--item state:text` as a task's item. The word before the first colon is the state when it is one lowercase word (and
+ * the colon does not start `://`): one of `ITEM_STATES`, or a usage error that lists them, so `queued:Publishing` is
+ * refused rather than shown as that text. Anything else (`Step 2: build`, `Note: x`, a link, no colon) is the whole
+ * text, pending; `pending:fix: tests` keeps a colon after a lowercase word.
+ */
+export function itemOf(value: string): { state: string; text: string } {
+  const colon = value.indexOf(":");
+  const word = colon > 0 ? value.slice(0, colon) : "";
+  if (!/^[a-z]+$/.test(word) || value.startsWith("//", colon + 1)) {
+    cardText("--item's text", value, STATUS_CARD_LIMITS.line);
+    return { state: "pending", text: value };
+  }
+  if (!(ITEM_STATES as readonly string[]).includes(word))
+    throw new CliError("usage", `--item takes state:text, and ${JSON.stringify(word)} is not a state: use ${listed(ITEM_STATES)} (pending:<text> keeps a colon in the text), not ${JSON.stringify(value)}`);
+  const text = value.slice(colon + 1).trim();
+  cardText("--item's text", text, STATUS_CARD_LIMITS.line, value);
+  return { state: word, text };
+}
+
+/**
+ * A card's fields past the bytes a card takes in all (`STATUS_CARD_LIMITS.bytes`, its JSON as UTF-8): a usage error
+ * (exit 2) with its size and what to cut. Every flag can be within its own bound and the card not: 20 items of 200
+ * characters past Latin (3 bytes each) take 12 KiB. Before, it failed as `bad_request` (exit 1), the whole card in it.
+ */
+function cardBytes(fields: Record<string, unknown>, flags: string): Record<string, unknown> {
+  const bytes = statusCardBytes(fields);
+  if (bytes > STATUS_CARD_LIMITS.bytes)
+    throw new CliError("usage", `The card takes ${bytes} bytes, and holds at most ${STATUS_CARD_LIMITS.bytes} in all (a character past Latin takes 2 to 4): give shorter or fewer ${flags}`);
+  return fields;
+}
+
+/** `--progress`, `--left`: a percent, or a usage error that names the flag. */
+function percent(options: Parsed["options"], flag: string): void {
+  const value = options[flag];
+  if (value !== undefined && !(typeof value === "number" && value >= 0 && value <= 100)) throw new CliError("usage", `--${flag} takes a percent from 0 to 100, not ${JSON.stringify(value)}`);
+}
+
+/**
+ * `--pr-number`, `--additions`, `--used`, `--limit`…: a count as the card takes it, a whole number from `min` up to
+ * `STATUS_CARD_LIMITS.count`. Before, it reached the card's check: `bad_request` (exit 1), "Status card: pr.number is a
+ * whole number from 1".
+ */
+const cardCount = (options: Parsed["options"], flag: string, min: number) => inRange(options, flag, "a whole number", min, STATUS_CARD_LIMITS.count, true);
+
+/** The flags of a task's pull request, and the field of `pr` each one gives. */
+const PR_FLAGS = [["pr-url", "url"], ["pr-number", "number"], ["additions", "additions"], ["deletions", "deletions"], ["files", "files"], ["pr-state", "state"], ["pr-checks", "checks"]] as const;
+
+/**
+ * A task's fields from its flags; what was not given is left out, so an update changes only what it names. What a flag
+ * got wrong is a usage error (exit 2) that names the flag: before, it reached the card's own check and failed as
+ * `bad_request` (exit 1) in the card's words ("Status card: done is at most total").
+ */
+export function taskFields(options: Parsed["options"]): Record<string, unknown> {
+  const fields: Record<string, unknown> = { ...cardJson(options.json) };
+  const set = (key: string, value: unknown) => { if (value !== undefined) fields[key] = value; };
+  cardText("--title", options.title, STATUS_CARD_LIMITS.title);
+  cardText("--step", options.step, STATUS_CARD_LIMITS.line);
+  cardText("--branch", options.branch, STATUS_CARD_LIMITS.branch);
+  for (const [flag, words] of [["status", TASK_STATUSES], ["pr-state", PR_STATES], ["pr-checks", PR_CHECKS]] as const) oneWord(options, flag, words);
+  set("id", options.id);
+  set("title", options.title);
+  set("status", options.status);
+  percent(options, "progress");
+  if (options.progress !== undefined && options.steps !== undefined) throw new CliError("usage", "--progress or --steps, not both");
+  set("progress", options.progress);
+  set("step", options.step);
+  set("branch", options.branch);
+  if (options.steps !== undefined) {
+    const match = /^(\d+)\s*\/\s*(\d+)$/.exec(String(options.steps));
+    if (!match) throw new CliError("usage", `--steps takes done/total, like 2/5, not ${JSON.stringify(options.steps)}`);
+    fields.done = Number(match[1]); fields.total = Number(match[2]);
+    if (Number(match[2]) > STATUS_CARD_LIMITS.count) throw new CliError("usage", `--steps takes done/total of at most ${STATUS_CARD_LIMITS.count} steps, like 2/5, not ${JSON.stringify(options.steps)}`);
+    if (Number(match[2]) < 1 || Number(match[1]) > Number(match[2])) throw new CliError("usage", `--steps takes done/total with done at most total, like 2/5, not ${JSON.stringify(options.steps)}`);
+  }
+  if (options["pr-url"] !== undefined && !cardUrl(options["pr-url"])) throw new CliError("usage", `--pr-url takes an https link of at most ${STATUS_CARD_LIMITS.url} characters, not ${JSON.stringify(options["pr-url"])}`);
+  for (const flag of ["pr-number", "additions", "deletions", "files"]) cardCount(options, flag, flag === "pr-number" ? 1 : 0);
+  const pr: Record<string, unknown> = {};
+  for (const [flag, key] of PR_FLAGS) if (options[flag] !== undefined) pr[key] = options[flag];
+  if (Object.keys(pr).length) fields.pr = { ...(fields.pr && typeof fields.pr === "object" ? fields.pr as object : {}), ...pr };
+  given("item", options.item, STATUS_CARD_LIMITS.items);
+  if (Array.isArray(options.item) && options.item.length) fields.items = (options.item as string[]).map(itemOf);
+  given("tag", options.tag, STATUS_CARD_LIMITS.tags);
+  if (Array.isArray(options.tag) && options.tag.length) {
+    const seen = new Set<string>();
+    for (const tag of options.tag as string[]) {
+      cardText("--tag", tag, STATUS_CARD_LIMITS.tag);
+      const clean = cardLine(tag, Infinity)!;
+      if (seen.has(clean)) throw new CliError("usage", `--tag ${JSON.stringify(clean)} is given twice`);
+      seen.add(clean);
+    }
+    fields.tags = options.tag as string[];
+  }
+  set("parent", options.parent);
+  const links = cardLinks(options.link);
+  if (links) fields.links = links;
+  return cardBytes(fields, "--item, --step, --link or --json");
+}
+
+/**
+ * The fields a new card cannot go without, given as a flag or in `--json`: a usage error (exit 2) that names the
+ * flags. Before, a missing `--title` reached the card's own check and failed as `bad_request` (exit 1) with
+ * "Status card: title is text".
+ */
+export function needs(card: Record<string, unknown>, fields: readonly (readonly [key: string, flag: string])[], usage: string): Record<string, unknown> {
+  const missing = fields.filter(([key]) => typeof card[key] !== "string" || !(card[key] as string).trim()).map(([, flag]) => `--${flag}`);
+  if (missing.length) throw new CliError("usage", `${missing.join(" and ")} ${missing.length > 1 ? "are" : "is"} needed: property ${usage}`);
+  return card;
+}
+
+/**
+ * A new task's pull request goes by its link: `--pr-state` and the like without `--pr-url` (or `pr.url` in `--json`)
+ * are a usage error that names them. An update's card may have the link already, so only a send asks.
+ */
+export function prLinked(card: Record<string, unknown>, options: Parsed["options"], usage: string): Record<string, unknown> {
+  const given = PR_FLAGS.filter(([flag]) => options[flag] !== undefined).map(([flag]) => `--${flag}`);
+  if (!given.length || (card.pr as { url?: unknown }).url !== undefined) return card;
+  throw new CliError("usage", `${given.join(" and ")} ${given.length > 1 ? "go" : "goes"} with --pr-url: property ${usage}`);
+}
+
+/**
+ * A usage card says how much is left: `--left`, or `--used` with `--limit`, as flags or in `--json`. The one that is
+ * missing is a usage error that names the flag.
+ */
+export function quota(card: Record<string, unknown>, usage: string): Record<string, unknown> {
+  const used = card.used !== undefined, limit = card.limit !== undefined;
+  if (used !== limit) throw new CliError("usage", `--${used ? "used" : "limit"} goes with --${used ? "limit" : "used"}: property ${usage}`);
+  if (card.left === undefined && !used) throw new CliError("usage", `--left is needed (or --used with --limit): property ${usage}`);
+  return card;
+}
+
+/** How the time flags say the dates they take (`--next`, `--resets`, `--also`'s `@`). */
+const CARD_TIME_FORMS = "2026-09-30 or 2026-09-30 01:00 (no zone: local time; a date alone is its midnight), 2026-09-30T01:00:00Z or 2026-09-30T01:00+02:00";
+
+/** An ISO date with no time, which `Date.parse` alone reads as UTC midnight: `2026-09-30`, `2026-09`. */
+const ISO_DAY = /^(?:[+-]\d{6}|\d{4})-\d{2}(-\d{2})?$/;
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+/** What `Date.parse` takes between a month's name and a number: `Apr 31`, `Apr-31`, `31/Apr`, `Apr.31`, `31 Apr,`. */
+const NAME_SEP = "[\\s,./-]*";
+const MONTH_DAY = new RegExp(`\\b(${MONTHS.join("|")})[a-z]*${NAME_SEP}(\\d{1,2})(?!\\d)`, "i");
+const DAY_MONTH = new RegExp(`(?<!\\d)(\\d{1,2})${NAME_SEP}(${MONTHS.join("|")})`, "i");
+
+/**
+ * The year, month (1 to 12) and day a date is written with: `2026-04-31`, `2026/4/31`, `4/31/2026` (month first, as
+ * `Date.parse` reads it, also with dashes or dots and a two-digit year), `Apr 31 2026`, `31-Apr-2026`. `Date.parse`
+ * takes any day up to 31 and moves it past the month's end, so the day is checked here.
+ */
+function writtenDay(text: string): [number, number, number] | undefined {
+  const numeric = /^([+-]\d{6}|\d{4})[-/](\d{1,2})[-/](\d{1,2})(?!\d)/.exec(text);
+  if (numeric) return [Number(numeric[1]), Number(numeric[2]), Number(numeric[3])];
+  const monthFirst = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})(?!\d)/.exec(text);
+  // A two-digit year is 1950 to 2049, as `Date.parse` takes it.
+  const yy = (y: string) => (y.length === 2 ? Number(y) + (Number(y) < 50 ? 2000 : 1900) : Number(y));
+  if (monthFirst) return [yy(monthFirst[3]!), Number(monthFirst[1]), Number(monthFirst[2])];
+  const year = /\b(\d{4})\b/.exec(text), monthDay = MONTH_DAY.exec(text), dayMonth = monthDay ? null : DAY_MONTH.exec(text);
+  const [word, day] = monthDay ? [monthDay[1]!, monthDay[2]!] : dayMonth ? [dayMonth[2]!, dayMonth[1]!] : [];
+  return year && word ? [Number(year[1]), MONTHS.indexOf(word.toLowerCase()) + 1, Number(day)] : undefined;
+}
+
+/**
+ * A time a command names: milliseconds, or a date the JavaScript Date reads (`2026-09-30T01:00:00Z`). A date with no
+ * zone is local time in every form: `Date.parse` reads `2026-09-30 01:00` and `Sep 30 2026` as local but an ISO date
+ * alone as UTC midnight (21:00 the day before in UTC-03, agents#2355), so that one is read as `2026-09-30T00:00`.
+ * A day the month does not have (`2026-04-31`) is refused, where `Date.parse` made it May 1. A time more than a year
+ * ahead is a usage error that names the flag and the last time it takes: before, it reached the card's check and failed
+ * as `bad_request` (exit 1), "Status card: resetsAt is a time in milliseconds, within a year". A time past is taken.
+ */
+export function cardTime(value: unknown, flag: string): number | undefined {
+  if (value === undefined) return undefined;
+  const text = String(value).trim();
+  const day = ISO_DAY.exec(text);
+  const ms = /^\d+$/.test(text) ? milliseconds(text, flag) : Date.parse(day ? `${text}${day[1] ? "" : "-01"}T00:00` : text);
+  if (!Number.isSafeInteger(ms) || ms <= 0) throw new CliError("usage", `--${flag} takes a time in milliseconds or a date: ${CARD_TIME_FORMS}, not ${JSON.stringify(value)}`);
+  const written = writtenDay(text);
+  if (written) {
+    const [year, month, date] = written, days = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    if (date > days) throw new CliError("usage", `--${flag} takes a day the month has (${year}-${String(month).padStart(2, "0")} has ${days}), not ${JSON.stringify(value)}`);
+  }
+  const last = new Date(Date.now() + STATUS_CARD_LIMITS.nextRunMs);
+  if (ms > last.getTime()) {
+    const two = (n: number) => String(n).padStart(2, "0");
+    const shown = `${last.getFullYear()}-${two(last.getMonth() + 1)}-${two(last.getDate())} ${two(last.getHours())}:${two(last.getMinutes())}`;
+    throw new CliError("usage", `--${flag} takes a time within a year from now (until ${shown}), not ${JSON.stringify(value)}`);
+  }
+  return ms;
+}
+
+/** `--run ok`, `--run failed:"CI flaked"`: a run of a routine, recorded as its last. */
+export function runOf(value: unknown): { result: string; summary?: string } | undefined {
+  if (value === undefined) return undefined;
+  const text = String(value), colon = text.indexOf(":");
+  const result = colon === -1 ? text : text.slice(0, colon), summary = colon === -1 ? "" : text.slice(colon + 1).trim();
+  if (!(RUN_RESULTS as readonly string[]).includes(result)) throw new CliError("usage", `--run takes ok, failed or skipped, and :a summary after it if you like, not ${JSON.stringify(value)}`);
+  if (summary) cardText("--run's summary", summary, STATUS_CARD_LIMITS.line);
+  return { result, ...(summary && { summary }) };
+}
+
+/** A routine's fields from its flags; what was not given is left out. */
+export function routineFields(options: Parsed["options"]): Record<string, unknown> {
+  const fields: Record<string, unknown> = { ...cardJson(options.json) };
+  cardText("--name", options.name, STATUS_CARD_LIMITS.title);
+  cardText("--schedule", options.schedule, STATUS_CARD_LIMITS.schedule);
+  if (options.cron !== undefined && !CRON_LINE.test(String(options.cron).trim())) {
+    const length = [...String(options.cron).trim()].length;
+    throw new CliError("usage", length > STATUS_CARD_LIMITS.cron ? `--cron takes at most ${STATUS_CARD_LIMITS.cron} characters, not ${length}`
+      : `--cron takes a cron line of 0-9 A-Z a-z * , / ? # - and spaces, not ${JSON.stringify(options.cron)}`);
+  }
+  oneWord(options, "state", ROUTINE_STATES);
+  for (const key of ["id", "name", "schedule", "cron", "state"] as const) if (options[key] !== undefined) fields[key] = options[key];
+  const next = cardTime(options.next, "next");
+  if (next !== undefined) fields.nextRunAt = next;
+  const links = cardLinks(options.link);
+  if (links) fields.links = links;
+  return cardBytes(fields, "--name, --schedule, --link or --json");
+}
+
+/** Options a routine command takes, beside `cardOptions`. */
+export const routineOptions: Record<string, OptionSpec> = {
+  name: { type: "string", description: "What the routine is (120 characters)" },
+  schedule: { type: "string", description: "When it runs, as people say it: \"every day 01:00\" (80 characters)" },
+  cron: { type: "string", description: "Its cron line, shown beside the schedule (never run)" },
+  state: { type: "string", description: "active (default on send) or paused" },
+  next: { type: "string", description: `Its next run, within a year: milliseconds or a date: ${CARD_TIME_FORMS}` },
+  run: { type: "string", description: "Record a run now: ok, failed or skipped, with :a summary if you like (it becomes the last run)" },
+  ...cardOptions,
+};
+
+/** Options a task command takes, beside `cardOptions`. */
+export const taskOptions: Record<string, OptionSpec> = {
+  title: { type: "string", description: "What the task is (120 characters)" },
+  status: { type: "string", description: "queued, running (default on send), blocked, done, failed or cancelled" },
+  progress: { type: "number", description: "Percent done, 0 to 100" },
+  steps: { type: "string", description: "Steps done of total, like 2/5 (progress is worked out from them)" },
+  step: { type: "string", description: "What it is doing now (200 characters)" },
+  item: { type: "list", description: "A step or log line, state:text with state pending, running, done, failed or skipped (text alone: pending). A lowercase word before the first colon must be one of them; pending:fix: x keeps the colon. The list replaces the card's (up to 20; the card holds at most 8 KiB in all, and a character past Latin takes 2 to 4 bytes)" },
+  branch: { type: "string", description: "The branch it works on" },
+  "pr-url": { type: "string", description: "The pull request's https link" },
+  "pr-number": { type: "number", description: "The pull request's number" },
+  additions: { type: "number", description: "Lines the pull request adds" },
+  deletions: { type: "number", description: "Lines the pull request removes" },
+  files: { type: "number", description: "Files the pull request changes" },
+  "pr-state": { type: "string", description: "Where the pull request stands: draft, open (ready for review), merged or closed" },
+  "pr-checks": { type: "string", description: "The pull request's checks: passing, failing or pending" },
+  tag: { type: "list", description: "A short label, like an area or a repository (24 characters); up to 3. An update's tags replace the card's: give all of them" },
+  parent: { type: "string", description: "The id of the task of yours in this chat that this one is a part of" },
+  ...cardOptions,
+};
+
+/**
+ * `--also week=80` or `--also week=80@2026-10-10T00:00:00Z`: another window of a usage card, its percent left and, after
+ * `@`, when it resets.
+ */
+export function usageWindowOf(value: string): { window: string; left: number; resetsAt?: number } {
+  const match = /^([^=]+)=(\d+(?:\.\d+)?)(?:@(.+))?$/.exec(value.trim());
+  if (!match) throw new CliError("usage", `--also takes window=percent or window=percent@time, like week=80@2026-10-10T00:00:00Z, not ${JSON.stringify(value)}`);
+  cardText("--also's window", match[1], STATUS_CARD_LIMITS.usageWindow, value);
+  if (Number(match[2]) > 100) throw new CliError("usage", `--also takes a percent from 0 to 100, not ${match[2]}`);
+  const resetsAt = cardTime(match[3], "also");
+  return { window: match[1].trim(), left: Number(match[2]), ...(resetsAt !== undefined && { resetsAt }) };
+}
+
+/** A usage card's fields from its flags (WISP 405 § Usage); `--json` gives any of them, the flags win over it. */
+export function usageFields(options: Parsed["options"]): Record<string, unknown> {
+  const fields: Record<string, unknown> = { ...cardJson(options.json) };
+  percent(options, "left");
+  if (options.left !== undefined && (options.used !== undefined || options.limit !== undefined)) throw new CliError("usage", "--left or --used with --limit, not both");
+  const used = cardCount(options, "used", 0), limit = cardCount(options, "limit", 1);
+  if (used !== undefined && limit !== undefined && used > limit) throw new CliError("usage", `--used takes at most --limit (${limit}), not ${used}`);
+  for (const [flag, max] of [["label", STATUS_CARD_LIMITS.usageLabel], ["account", STATUS_CARD_LIMITS.usageLabel], ["window", STATUS_CARD_LIMITS.usageWindow]] as const) cardText(`--${flag}`, options[flag], max);
+  given("also", options.also, STATUS_CARD_LIMITS.usageWindows);
+  for (const key of ["id", "left", "used", "limit", "label", "account", "window"] as const) if (options[key] !== undefined) fields[key] = options[key];
+  const resets = cardTime(options.resets, "resets");
+  if (resets !== undefined) fields.resetsAt = resets;
+  if (Array.isArray(options.also) && options.also.length) fields.windows = (options.also as string[]).map(usageWindowOf);
+  return cardBytes(fields, "--json");
+}
+
+/** Options `usage send` takes. */
+export const usageOptions: Record<string, OptionSpec> = {
+  left: { type: "number", description: "Percent of the quota left, 0 to 100" },
+  used: { type: "number", description: "How much is used, with --limit (instead of --left; the percent is worked out)" },
+  limit: { type: "number", description: "The quota, with --used" },
+  label: { type: "string", description: "What the quota is of, like Claude (24 characters)" },
+  account: { type: "string", description: "Which of your accounts it is, short (24 characters)" },
+  window: { type: "string", description: "The quota's window, as people say it: \"5 h\", \"week\" (16 characters)" },
+  resets: { type: "string", description: `When the window starts again, within a year: milliseconds or a date: ${CARD_TIME_FORMS}` },
+  also: { type: "list", description: "Another window, window=percent[@time], like week=80@2026-10-10T00:00:00Z or week=80@2026-10-10 (up to 3; shown in the details; a time as --resets takes, no zone: local time)" },
+  id: { type: "string", description: "The card's id (default usage: one card per chat)" },
+  all: { type: "boolean", description: "Every 1:1 chat with a contact, instead of one chat" },
+  json: cardOptions.json,
+  text: cardOptions.text,
+  force: cardOptions.force,
+};

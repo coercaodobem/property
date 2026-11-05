@@ -1,0 +1,206 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { EngineState, LinkView, StoredMessage } from "@ghostly/browser/shared/types";
+import { STATUS_CARD_LIMITS, checkStatusCard, statusCardText, type StatusCard } from "@ghostly/core";
+import { callApi, type ApiContext } from "../src/api";
+import { parseArgs } from "../src/args";
+import { COMMANDS, idSlot, positionals } from "../src/commands";
+import { chatOnly } from "../src/main";
+import { CliError, EXIT } from "../src/errors";
+// covers: headless.usage
+
+/** `usage send` (WISP 405 § Usage) against an engine that keeps what it is sent. */
+const link = (id: string, fields: Partial<LinkView> = {}) => ({ id, peerPubKeyZ32: "p" + id, createdAt: 1, lastMessageAt: 0, profile: "paired-chat/1", textDelivery: "stream", pairing: { status: "ready" }, ...fields }) as unknown as LinkView;
+
+function fake() {
+  const rows = new Map<string, StoredMessage[]>();
+  const of = (linkId: string) => rows.get(linkId) ?? rows.set(linkId, []).get(linkId)!;
+  let n = 0;
+  const card = (raw: unknown) => { const checked = checkStatusCard(raw); if ("error" in checked) throw new Error(checked.error); return checked.card; };
+  const node = {
+    getState: () => ({
+      links: [link("chat-one", { label: "Miguel" }), link("chat-two", { label: "Ana" }), link("old-chat", { label: "Old", profile: undefined }), link("invite", { peerPubKeyZ32: "" })],
+      groups: [], settings: {}, transport: {},
+    }) as unknown as EngineState,
+    getMessages: vi.fn(async (linkId: string) => of(linkId).map((m) => ({ ...m }))),
+    getMessage: vi.fn(async (linkId: string, id: string) => { const m = of(linkId).find((x) => x.id === id); return m && { ...m }; }),
+    groupMessages: vi.fn(async () => []),
+    sendMessage: vi.fn(async ({ linkId, text, card: raw }: { linkId: string; text: string; card?: unknown }): Promise<{ error: string | null; messageId: string }> => {
+      const c = card(raw) as StatusCard;
+      const id = `me_${++n}`;
+      of(linkId).push({ linkId, id, wireId: `w${n}`, text: text || statusCardText(c), sender: "me", timestamp: Date.now(), via: "datalink", delivery: "sent", card: c });
+      return { error: null, messageId: id };
+    }),
+    editMessage: vi.fn(async ({ linkId, messageId, card: raw }: { linkId: string; messageId: string; text: string; card?: unknown }) => {
+      const row = of(linkId).find((m) => m.id === messageId)!;
+      row.card = card(raw);
+      row.edit = { seq: (row.edit?.seq ?? 0) + 1, at: Date.now(), history: [] };
+      return { error: null, messageId };
+    }),
+  };
+  const ctx = { runtime: { server: { node }, paths: { name: "default" } }, hub: { onEvent: () => () => {}, onState: () => () => {}, lastSeq: 0, replay: () => [] }, mode: "daemon", version: "test" } as unknown as ApiContext;
+  return { ctx, node, rows: of };
+}
+
+function params(argv: string[]): Record<string, unknown> {
+  const command = COMMANDS["usage send"]!;
+  const parsed = parseArgs(argv, command.options ?? {}, idSlot(command));
+  return command.params!(parsed, positionals(command, parsed.positionals));
+}
+
+const T0 = Date.UTC(2026, 9, 7, 12, 0);
+afterEach(() => { vi.useRealTimers(); });
+
+describe("usage send", () => {
+  it("builds the card from flags, the JSON under them", () => {
+    expect(params(["Miguel", "--left", "62", "--label", "Claude", "--account", "work", "--window", "5 h", "--resets", "2026-10-07T18:00:00Z",
+      "--also", "week=80@2026-10-10T00:00:00Z", "--also", "opus=40", "--json", '{"label":"ignored","used":1,"limit":2}'])).toEqual({
+      chat: "Miguel", all: false, text: undefined, force: false, wait: undefined, timeout: undefined,
+      card: { label: "Claude", account: "work", left: 62, window: "5 h", used: 1, limit: 2, resetsAt: Date.UTC(2026, 9, 7, 18),
+        windows: [{ window: "week", left: 80, resetsAt: Date.UTC(2026, 9, 10) }, { window: "opus", left: 40 }] },
+    });
+    expect(params(["--all", "--left", "5"])).toMatchObject({ chat: undefined, all: true, card: { left: 5 } });
+    expect(() => params(["--left", "5"])).toThrow(expect.objectContaining({ code: "usage", message: expect.stringMatching(/Name a chat or group, or give --all/) }));
+    // Both, as neither: a usage error (exit 2) before the profile opens, not the API's bad_request (exit 1).
+    expect(() => params(["Miguel", "--all", "--left", "5"])).toThrow(expect.objectContaining({ code: "usage", message: expect.stringMatching(/not both/) }));
+    expect(() => params(["Miguel", "--also", "week"])).toThrow(/--also takes window=percent/);
+    expect(() => params(["Miguel", "--resets", "soon"])).toThrow(/--resets takes a time/);
+    expect(() => params(["Miguel", "--left", "50", "--resets", "1791849403"])).toThrow(expect.objectContaining({ code: "usage", message: "--resets takes milliseconds, not seconds: 1791849403000" }));
+    expect(() => params(["Miguel", "--left", "50", "--also", "week=80@1791849403"])).toThrow(/--also takes milliseconds, not seconds/);
+  });
+
+  it("reads --resets and --also's time with no zone as local time, a bare date as local midnight (agents#2355)", () => {
+    const zone = process.env.TZ;
+    try {
+      process.env.TZ = "America/Sao_Paulo";
+      // Before, 2026-11-03 was UTC midnight: the card said the window resets at 21:00 the day before.
+      expect(params(["Miguel", "--left", "50", "--resets", "2026-11-03", "--also", "week=80@2026-11-03", "--also", "opus=40@2026-11-03 09:00", "--also", "day=10@2026-11-03Z"]).card).toMatchObject({
+        resetsAt: Date.UTC(2026, 10, 3, 3),
+        windows: [{ window: "week", resetsAt: Date.UTC(2026, 10, 3, 3) }, { window: "opus", resetsAt: Date.UTC(2026, 10, 3, 12) }, { window: "day", resetsAt: Date.UTC(2026, 10, 3) }],
+      });
+    } finally {
+      if (zone === undefined) delete process.env.TZ; else process.env.TZ = zone;
+    }
+    for (const flag of ["resets", "also"] as const) expect(COMMANDS["usage send"]!.options![flag].description).toMatch(/no zone: local time/);
+  });
+
+  it("refuses a day the month does not have in --resets and --also, where the card showed the next month's first day", () => {
+    expect(() => params(["Miguel", "--left", "40", "--resets", "2026-04-31"])).toThrow(expect.objectContaining({ code: "usage", message: "--resets takes a day the month has (2026-04 has 30), not \"2026-04-31\"" }));
+    expect(() => params(["Miguel", "--left", "40", "--also", "week=80@2026-02-30"])).toThrow(expect.objectContaining({ code: "usage", message: "--also takes a day the month has (2026-02 has 28), not \"2026-02-30\"" }));
+  });
+
+  it("refuses a --resets or --also time more than a year ahead as a usage error (exit 2) that names the flag and the last time it takes", () => {
+    const zone = process.env.TZ;
+    try {
+      process.env.TZ = "UTC";
+      vi.useFakeTimers({ toFake: ["Date"], now: Date.UTC(2026, 10, 4, 11, 30, 20) });
+      // Before, bad_request (exit 1): "Status card: resetsAt is a time in milliseconds, within a year", and windows[0].resetsAt.
+      expect(() => params(["Miguel", "--left", "40", "--resets", "2028-01-01"])).toThrow(expect.objectContaining({ code: "usage", message: "--resets takes a time within a year from now (until 2027-11-05 11:30), not \"2028-01-01\"" }));
+      expect(() => params(["Miguel", "--left", "40", "--also", "week=80@2028-01-01"])).toThrow(expect.objectContaining({ code: "usage", message: "--also takes a time within a year from now (until 2027-11-05 11:30), not \"2028-01-01\"" }));
+      expect(params(["Miguel", "--left", "40", "--resets", "2027-11-05 11:30", "--also", "week=80@2026-11-01"]).card).toMatchObject({ resetsAt: Date.UTC(2027, 10, 5, 11, 30), windows: [{ resetsAt: Date.UTC(2026, 10, 1) }] });
+    } finally {
+      if (zone === undefined) delete process.env.TZ; else process.env.TZ = zone;
+    }
+  });
+
+  it("refuses a report that says no quota as a usage error (exit 2) that names the flag, not the card's field", () => {
+    const usage = (argv: string[], message: RegExp) => expect(() => params(argv)).toThrow(expect.objectContaining({ code: "usage", message: expect.stringMatching(message) }));
+    usage(["Alice"], /^--left is needed \(or --used with --limit\): property usage send/);
+    usage(["--all", "--window", "5 h"], /^--left is needed/);
+    usage(["Alice", "--used", "5"], /^--used goes with --limit: property usage send/);
+    usage(["Alice", "--limit", "50"], /^--limit goes with --used: property usage send/);
+    usage(["Alice", "--limit", "50", "--left", "40"], /^--left or --used with --limit, not both$/);
+    usage(["Alice", "--left", "140"], /^--left takes a percent from 0 to 100, not 140$/);
+    // Before, these reached the card's check: bad_request (exit 1), "Status card: limit is a whole number from 1".
+    usage(["Alice", "--used", "5", "--limit", "0"], /^--limit takes a whole number from 1 to 1000000000, not 0$/);
+    usage(["Alice", "--used", "1.5", "--limit", "3"], /^--used takes a whole number from 0 to 1000000000, not 1.5$/);
+    usage(["Alice", "--used", "-1", "--limit", "3"], /^--used takes a whole number from 0 to 1000000000, not -1$/);
+    usage(["Alice", "--used", "6", "--limit", "3"], /^--used takes at most --limit \(3\), not 6$/);
+    expect(params(["Alice", "--used", "3", "--limit", "3"]).card).toEqual({ used: 3, limit: 3 });
+    expect(params(["Alice", "--used", "0", "--limit", "1"]).card).toEqual({ used: 0, limit: 1 });
+    // --json may give them, and the two ways to say it stand.
+    expect(params(["Alice", "--json", '{"left":40}']).card).toEqual({ left: 40 });
+    expect(params(["Alice", "--used", "5", "--limit", "50"]).card).toEqual({ used: 5, limit: 50 });
+    expect(params(["Alice", "--left", "0"]).card).toEqual({ left: 0 });
+  });
+
+  it("refuses a text too long or blank as a usage error (exit 2) that names the flag, not the card's field", () => {
+    const usage = (argv: string[], message: RegExp) => expect(() => params(argv)).toThrow(expect.objectContaining({ code: "usage", message: expect.stringMatching(message) }));
+    // Before: bad_request (exit 1), "Status card: label is at most 24 characters".
+    usage(["Alice", "--left", "50", "--label", "l".repeat(30)], /^--label takes at most 24 characters, not 30$/);
+    usage(["Alice", "--left", "50", "--account", "a".repeat(25)], /^--account takes at most 24 characters, not 25$/);
+    usage(["Alice", "--left", "50", "--window", "w".repeat(17)], /^--window takes at most 16 characters, not 17$/);
+    usage(["Alice", "--left", "50", "--label", " "], /^--label takes text, not " "$/);
+    usage(["Alice", "--left", "50", "--also", `${"w".repeat(20)}=80`], /^--also's window takes at most 16 characters, not 20$/);
+    usage(["Alice", "--left", "50", "--also", "week=150"], /^--also takes a percent from 0 to 100, not 150$/);
+    usage(["Alice", "--left", "50", "--also", "a=1", "--also", "b=1", "--also", "c=1", "--also", "d=1"], /^--also is given at most 3 times, not 4$/);
+    expect(params(["Alice", "--json", `{"left":40,"label":"${"l".repeat(30)}"}`]).card).toMatchObject({ label: "l".repeat(30) });
+  });
+
+  it("sends the card once, then edits that one message with each report: one card per chat, whole reports", async () => {
+    vi.useFakeTimers({ now: T0, toFake: ["Date"] });
+    const { ctx, node, rows } = fake();
+    const first = await callApi(ctx, "usage.send", { chat: "Miguel", card: { label: "Claude", account: "work", left: 62, window: "5 h" } }) as Record<string, unknown>;
+    expect(first).toMatchObject({ chat: "chat-one", usage: "usage", updated: false });
+    expect(rows("chat-one")).toHaveLength(1);
+    expect(rows("chat-one")[0].card).toEqual({ kind: "usage", id: "usage", label: "Claude", account: "work", left: 62, window: "5 h", updatedAt: T0 });
+    expect(rows("chat-one")[0].text).toBe("📊 Claude · work · 62% left (5 h)");
+
+    vi.setSystemTime(T0 + 600_000);
+    const second = await callApi(ctx, "usage.send", { chat: "Miguel", card: { label: "Claude", left: 12 } }) as Record<string, unknown>;
+    expect(second).toMatchObject({ usage: "usage", updated: true, queued: false, edits: 1 });
+    expect(node.sendMessage).toHaveBeenCalledTimes(1);
+    expect(rows("chat-one")).toHaveLength(1);
+    // The account and the window were not said again: gone from the card.
+    expect(rows("chat-one")[0].card).toEqual({ kind: "usage", id: "usage", label: "Claude", left: 12, updatedAt: T0 + 600_000 });
+    // The chat's history was read once, for the first report (is a card there?); a later report reads its card's message.
+    expect(node.getMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts a new message once the card took its edits", async () => {
+    vi.useFakeTimers({ now: T0, toFake: ["Date"] });
+    const { ctx, node, rows } = fake();
+    await callApi(ctx, "usage.send", { chat: "Miguel", card: { left: 62 } });
+    rows("chat-one")[0].edit = { seq: STATUS_CARD_LIMITS.edits, at: T0, history: [] };
+    vi.setSystemTime(T0 + 600_000);
+    expect(await callApi(ctx, "usage.send", { chat: "Miguel", card: { left: 50 } })).toMatchObject({ updated: false });
+    expect(node.sendMessage).toHaveBeenCalledTimes(2);
+    expect(rows("chat-one")).toHaveLength(2);
+  });
+
+  it("--all reports to every 1:1 chat with a contact, and refuses a bad report before sending anything", async () => {
+    const { ctx, node, rows } = fake();
+    const result = await callApi(ctx, "usage.send", { all: true, card: { left: 30, label: "Claude" } }) as { chats: Record<string, unknown>[] };
+    expect(result.chats.map((c) => c.chat)).toEqual(["chat-one", "chat-two"]);
+    expect(rows("chat-two")[0].card).toMatchObject({ kind: "usage", left: 30 });
+    await expect(callApi(ctx, "usage.send", { all: true, card: { left: 140 } })).rejects.toMatchObject({ code: "bad_request", message: /left is a number from 0 to 100/ });
+    await expect(callApi(ctx, "usage.send", { chat: "Miguel", card: { label: "Claude" } })).rejects.toMatchObject({ code: "bad_request", message: /left \(a percent\) or used and limit/ });
+    expect(node.sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it("--all checks --wait and --timeout once, before any chat, and fails when no chat took the card", async () => {
+    const { ctx, node } = fake();
+    await expect(callApi(ctx, "usage.send", { all: true, card: { left: 5 }, wait: "bogus" })).rejects.toMatchObject({ code: "bad_request", message: "wait must be one of none, sent" });
+    await expect(callApi(ctx, "usage.send", { all: true, card: { left: 5 }, timeout: 99999 })).rejects.toMatchObject({ code: "bad_request", message: /timeout must be a number from 1 to 3600/ });
+    expect(node.getMessages).not.toHaveBeenCalled();
+    expect(node.sendMessage).not.toHaveBeenCalled();
+    // Each chat's refusal keeps its code; every chat refusing is the call failing (exit 1), with each one in details.
+    node.sendMessage.mockImplementation(async () => ({ error: "The contact is away", messageId: "" }));
+    const failed = await callApi(ctx, "usage.send", { all: true, card: { left: 5 } }).catch((error: unknown) => error) as CliError;
+    expect(failed).toBeInstanceOf(CliError);
+    expect(EXIT[failed.code]).toBe(1);
+    const chats = (failed.details as { chats: { chat: string; error: { code: string; message: string } }[] }).chats;
+    expect(chats.map((c) => c.chat)).toEqual(["chat-one", "chat-two"]);
+    for (const c of chats) expect(c.error).toMatchObject({ code: expect.any(String), message: expect.stringMatching(/away/) });
+    // One chat taking it is enough: the other's refusal is said, the call answers.
+    node.sendMessage.mockImplementationOnce(async () => ({ error: "The contact is away", messageId: "" }));
+    node.sendMessage.mockImplementationOnce(async ({ linkId }: { linkId: string }) => ({ error: null, messageId: `${linkId}_1` }));
+    const some = await callApi(ctx, "usage.send", { all: true, card: { left: 5 } }) as { chats: Record<string, unknown>[] };
+    expect(some.chats[0]).toMatchObject({ chat: "chat-one", error: { code: expect.any(String), message: expect.stringMatching(/away/) } });
+    expect(some.chats[1]).toMatchObject({ chat: "chat-two", updated: false });
+  });
+
+  it("starts no group sessions for --all, as it reaches 1:1 chats only", () => {
+    expect(chatOnly("usage.send", { all: true })).toBe(true);
+    expect(chatOnly("usage.send", { chat: "Sala" })).toBe(false);
+  });
+});

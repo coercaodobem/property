@@ -1,0 +1,148 @@
+import { CliError } from "../errors";
+import { commands as apps } from "./apps";
+import { commands as calls } from "./calls";
+import { commands as chats } from "./chats";
+import { commands as files } from "./files";
+import { commands as general } from "./general";
+import { commands as groups } from "./groups";
+import { commands as identities } from "./identities";
+import { commands as payments } from "./payments";
+import { commands as services } from "./services";
+import { type Command, wait, groupWait, force, reply, buttonOptions, listed } from "./shared";
+import type { OptionSpec } from "../args";
+
+export type { Command };
+
+/**
+ * The commands that are one API method each, one file per area of the app, each in alphabetical order. A new
+ * command goes in its area's file at its place; a new area is a new file and its two lines here. The order here
+ * is the order `property help` lists them in.
+ */
+export const COMMANDS: Record<string, Command> = {
+  ...general,
+  ...chats,
+  ...groups,
+  ...files,
+  ...payments,
+  ...identities,
+  ...services,
+  ...calls,
+  ...apps,
+};
+
+/** Commands that take text (argument or stdin), with the secret guard and delivery waits. */
+export const TEXT_COMMANDS: Record<string, { method: string; target: "chat" | "group"; message?: true; usage: string; summary: string; args: string[]; options: Record<string, OptionSpec> }> = {
+  "send": {
+    method: "chat.send", target: "chat", args: ["chat", "text...?"], usage: "send <chat> [text...] [--reply <message>] [--button id:Label]... [--style id=primary|neutral|danger]... [--once] [--id id] [--stdin] [--force] [--wait none|sent|delivered] [--timeout s]", summary: "Send a message (text from arguments or stdin); --button puts buttons under it, each label its own (case aside)",
+    options: { stdin: { type: "boolean", description: "Read the text from stdin" }, force, reply, ...buttonOptions, ...wait },
+  },
+  "edit": {
+    method: "chat.edit", target: "chat", message: true, args: ["chat", "message", "text...?"], usage: "edit <chat> <message> [text... | --text <text> | --stdin] [--force] [--wait none|confirmed] [--timeout s]", summary: "Replace the text of a message you sent (the id send gave; in a group, group edit)",
+    options: { stdin: { type: "boolean", description: "Read the new text from stdin" }, text: { type: "string", description: "The new text, as one argument" }, force, wait: { type: "string", choices: ["none", "confirmed"], description: "none or confirmed (default: none with a daemon, confirmed without)" }, timeout: wait.timeout },
+  },
+  "group send": {
+    method: "group.send", target: "group", args: ["group", "text...?"], usage: "group send <group> [text...] [--mention <member>]... [--reply <message>] [--button id:Label]... [--style id=primary|neutral|danger]... [--once] [--id id] [--stdin] [--force] [--wait none|sent] [--timeout s]", summary: "Send to a group; mention members written as @name in the text; --button puts buttons under it",
+    options: { stdin: { type: "boolean", description: "Read the text from stdin" }, force, reply, mention: { type: "list", description: "A member (key, key prefix, name or everyone) named as @name in the text" }, ...buttonOptions, ...groupWait },
+  },
+  "group edit": {
+    method: "group.edit", target: "group", message: true, args: ["group", "message", "text...?"], usage: "group edit <group> <message> [text... | --text <text> | --stdin] [--mention <member>]... [--force] [--wait none|sent] [--timeout s]", summary: "Replace the text of a message you sent to a group (the id group send gave)",
+    options: { stdin: { type: "boolean", description: "Read the new text from stdin" }, text: { type: "string", description: "The new text, as one argument" }, force, mention: { type: "list", description: "A member newly named as @name in the text (those the message named stay)" }, ...groupWait },
+  },
+};
+
+
+/**
+ * Positionals that name something by its id (a chat or a group also by a prefix or its name). The ids are the
+ * engine's and the contacts', and drafts, payments and groups are base64url, which starts with `-` one time in 64:
+ * in these a word that starts with a dash is the value. A mistyped flag there names nothing and fails as not found;
+ * text, names and paths stay strict.
+ */
+const ID_ARGS = new Set(["chat", "message", "group", "member", "payment", "file", "draft", "id", "card", "service", "call"]);
+
+/**
+ * The positionals that may be left out ahead of a required one (`chat?` in `[<chat>] <file>`): left out, they shift the
+ * others. One with no required one after it (`<chat> [<method>]`, `text...?`) is simply missing at the end: it shifts nothing.
+ */
+const leadingOptionals = (names: readonly string[]) => names.filter((name, i) => name.endsWith("?") && !name.endsWith("...?") && names.slice(i + 1).some((after) => !after.endsWith("?")));
+
+/**
+ * Which of a command's positionals take an id, by index (a trailing `...` one covers the rest). An optional `name?`
+ * shifts the others, so it counts only where it and what may come in its place are all ids.
+ */
+export function idSlot(command: { args?: string[] }): (index: number) => boolean {
+  const names = (command.args ?? []).map((name) => name.replace(/\?$/, ""));
+  const shift = leadingOptionals(command.args ?? []).length;
+  const rest = names.findIndex((name) => name.endsWith("..."));
+  const at = (index: number) => {
+    const name = rest !== -1 && index >= rest ? names[rest].slice(0, -3) : names[index];
+    return name !== undefined && ID_ARGS.has(name);
+  };
+  return (index) => at(index) && (shift === 0 || index + shift >= names.length || at(index + shift));
+}
+
+/** Whether a command's last positional takes the rest of the line as words, not ids: a text, a name, a path, emoji. */
+export function takesText(command: { args?: string[] }): boolean {
+  const last = command.args?.at(-1)?.replace(/\?$/, "");
+  return !!last?.endsWith("...") && !ID_ARGS.has(last.slice(0, -3));
+}
+
+/**
+ * The placeholders a usage line shows for its positionals, in order: `chat pay <chat> <sats> [--memo t]` →
+ * ["chat", "sats"]. One that is not a plain `<x>` (`[text... | --text <text>]`) is undefined; the flags end them.
+ */
+function usageNames(usage: string): (string | undefined)[] {
+  const words = usage.split(/\s+/);
+  const first = words.findIndex((word) => word.startsWith("<") || word.startsWith("["));
+  const out: (string | undefined)[] = [];
+  for (const word of first === -1 ? [] : words.slice(first)) {
+    if (/^\[?-|^\|/.test(word)) break;
+    out.push(/^\[?<([^>]+?)(?:\.\.\.)?>(?:\.\.\.)?\]?$/.exec(word)?.[1]);
+  }
+  return out;
+}
+
+/**
+ * The positionals of a command, by name; missing required ones are a usage error, and so are ones given as "" (an
+ * unset variable in a script), before the profile opens. A leading `name?` is optional: it is given only when every
+ * required one is there too (`file accept [<chat>] <file>`). A trailing `name...` takes the rest and needs at least
+ * one word that is not ""; `name...?` may take none (text from stdin, `chat rename`'s name back to the contact's).
+ * One that takes a few words (`words`) is refused any other the same way, named as the usage shows it (`<type>`).
+ */
+export function positionals(command: { usage: string; args?: string[]; words?: Record<string, readonly string[]> }, values: readonly string[]): Record<string, string | undefined> {
+  let names = command.args ?? [];
+  const optional = leadingOptionals(names);
+  let skip = 0;
+  if (optional.length) {
+    skip = Math.max(0, optional.length - Math.max(0, values.length - (names.length - optional.length)));
+    names = [...optional.slice(skip).map((name) => name.slice(0, -1)), ...names.filter((name) => !optional.includes(name))];
+  }
+  // Named as the usage line shows it (`<sats>`, not the parameter's `amount`).
+  const shown = usageNames(command.usage);
+  const missing = (i: number, name: string) => new CliError("usage", `Missing <${shown[i + skip] ?? name}>: property ${command.usage}`);
+  const out: Record<string, string | undefined> = {};
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i].replace(/\?$/, "");
+    if (name.endsWith("...")) {
+      const rest = values.slice(i);
+      if (rest.every((word) => word === "") && !names[i].endsWith("?")) throw missing(i, name.slice(0, -3));
+      out[name.slice(0, -3)] = rest.length ? rest.join(" ") : undefined;
+      return out;
+    }
+    if (values[i] === undefined && names[i].endsWith("?")) continue;
+    if (values[i] === undefined || values[i] === "") throw missing(i, name);
+    const words = command.words?.[name];
+    if (words && !words.includes(values[i])) {
+      // A usage that spells the words out (`<auto|dht|...>`) names the argument by its own name.
+      const placeholder = shown[i + skip] && !shown[i + skip]!.includes("|") ? shown[i + skip] : name;
+      throw new CliError("usage", `<${placeholder}> takes ${listed(words)}, not ${JSON.stringify(values[i])}`);
+    }
+    out[name] = values[i];
+  }
+  noMoreThan(names.length, values, command.usage);
+  return out;
+}
+
+/** Words past a usage's arguments are refused, never dropped: `profile use my bot` would select `my`. */
+export function noMoreThan(count: number, values: readonly string[], usage: string): void {
+  if (values.length > count) throw new CliError("usage", `Too many arguments: property ${usage}`);
+}

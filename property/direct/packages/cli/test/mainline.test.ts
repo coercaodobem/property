@@ -1,0 +1,536 @@
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { DiscoveryBudgetError, FRESH_READ_MS, GhostLink, createIdentity, edgeParams, randomBytes, toBase64Url, type Identity, type PollIntervals } from "@ghostly/core";
+import { createSocket, type Socket } from "node:dgram";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { Mainline, RelaysAndDht } from "../src/runtime/mainline";
+import { hyperdhtNetwork, mainlineNetwork, pkarrRelays } from "../src/runtime/engine";
+import { error, property, home, hyperdhtTestnet, ok, Running } from "./support/cli";
+// covers: headless.daemon, headless.groups, core.relay-client
+
+/**
+ * Pkarr over the Mainline DHT on Node (WISP 1100 § Runtime): a headless Property Direct keeps finding its contacts while the
+ * relays fail. A DHT testnet of this process's own nodes on loopback, relays that answer 500 (or work), and two group
+ * edges (paired links pinned to member keys, as the engine builds them) with WebRTC stood in for.
+ */
+const nodes: Mainline[] = [];
+async function testnet(size: number): Promise<string> {
+  const first = new Mainline({ bootstrap: false, host: "127.0.0.1", timeoutMs: 5_000 });
+  await first.listening;
+  nodes.push(first);
+  const bootstrap = `127.0.0.1:${first.address().port}`;
+  for (let i = 1; i < size; i++) { const node = new Mainline({ bootstrap: [bootstrap], host: "127.0.0.1", timeoutMs: 5_000 }); await node.listening; nodes.push(node); }
+  for (const a of nodes) for (const b of nodes) if (a !== b) a.addNode("127.0.0.1", b.address().port);
+  testnetNodes.push(...nodes);
+  return bootstrap;
+}
+const testnetNodes: Mainline[] = [];
+/** A node of another app on the testnet, bound and knowing the testnet's nodes. */
+async function peer(bootstrap: string): Promise<Mainline> {
+  const node = new Mainline({ bootstrap: [bootstrap], host: "127.0.0.1", timeoutMs: 5_000 });
+  await node.listening;
+  for (const other of testnetNodes) node.addNode("127.0.0.1", other.address().port);
+  nodes.push(node);
+  return node;
+}
+
+/** Relays in memory: every request answers 500 while `down`, else a shared store. */
+function relays(state: { down: boolean; packets: Map<string, Uint8Array> }): typeof fetch {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (state.down) return new Response("internal error", { status: 500 });
+    const key = new URL(String(input)).pathname.slice(1);
+    if (init?.method === "PUT") { state.packets.set(key, new Uint8Array(init.body as ArrayBuffer)); return new Response(null, { status: 204 }); }
+    const packet = state.packets.get(key);
+    return packet ? new Response(packet as BodyInit) : new Response(null, { status: 404 });
+  }) as typeof fetch;
+}
+const RELAYS = ["https://relay-one.test", "https://relay-two.test"];
+
+let bootstrap = "";
+beforeAll(async () => { bootstrap = await testnet(6); }, 30_000);
+afterAll(async () => { await Promise.all(nodes.map((n) => n.destroy())); });
+
+describe("Pkarr over the Mainline DHT, beside the relays", { timeout: 60_000 }, () => {
+  it("a packet published while every relay answers 500 is read back from the DHT", async () => {
+    const store = { down: true, packets: new Map<string, Uint8Array>() };
+    const a = new RelaysAndDht(await peer(bootstrap), { relays: RELAYS, fetch: relays(store), log: () => {} });
+    const b = new RelaysAndDht(await peer(bootstrap), { relays: RELAYS, fetch: relays(store), log: () => {} });
+    const me = createIdentity();
+    await a.publish(me, [{ label: "_hello", value: "from the dht" }]);
+    const found = await b.resolve(me.pubKeyZ32);
+    expect(found?.records).toEqual([expect.objectContaining({ label: "_hello", value: "from the dht" })]);
+    // A newer one wins over an older one.
+    await a.publish(me, [{ label: "_hello", value: "newer" }]);
+    expect((await b.resolve(me.pubKeyZ32))?.records[0].value).toBe("newer");
+    expect(b.discovery().path).toEqual({ via: "dht" });
+  });
+
+  it("with the relays working, reads go to them, and every packet is on the DHT too", async () => {
+    const store = { down: false, packets: new Map<string, Uint8Array>() };
+    const dht = await peer(bootstrap);
+    const a = new RelaysAndDht(dht, { relays: RELAYS, fetch: relays(store), log: () => {} });
+    const me = createIdentity();
+    const dated = vi.spyOn(a.relays, "publishDated");
+    await a.publish(me, [{ label: "_x", value: "both" }]);
+    // With the DHT, a packet is signed whatever the relays' budgets say (`elsewhere`): it goes there anyway.
+    expect(dated.mock.calls[0]![5]).toBe(true);
+    expect((await a.resolve(me.pubKeyZ32))?.records[0].value).toBe("both");
+    expect(a.discovery().path).toMatchObject({ via: "relay" });
+    // The DHT has it as well: an app that reads only the DHT (the Desktop) finds it.
+    const deadline = Date.now() + 10_000;
+    let onDht = null;
+    while (!onDht && Date.now() < deadline) { onDht = await (await peer(bootstrap)).get(me.pubKeyZ32).catch(() => null); if (!onDht) await new Promise((r) => setTimeout(r, 200)); }
+    expect(onDht?.records[0].value).toBe("both");
+  });
+
+  it("a relay that takes requests and never answers holds neither a publish nor a read for its 10 s timeout", async () => {
+    // Each request ends only when the client drops it (a blackholed or stuck relay).
+    const hung = (async (_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+    })) as typeof fetch;
+    const a = new RelaysAndDht(await peer(bootstrap), { relays: [RELAYS[0]!], fetch: hung, log: () => {} });
+    const b = new RelaysAndDht(await peer(bootstrap), { relays: [RELAYS[0]!], fetch: hung, log: () => {} });
+    const me = createIdentity();
+    let started = Date.now();
+    await a.publish(me, [{ label: "_x", value: "hello" }]);
+    const publishMs = Date.now() - started;
+    started = Date.now();
+    const found = await b.resolve(me.pubKeyZ32);
+    const readMs = Date.now() - started;
+    // A key nobody published, read by a CLI whose relay has not failed yet: the DHT's "none" is the answer once a
+    // slow relay would have had its say.
+    const c = new RelaysAndDht(await peer(bootstrap), { relays: [RELAYS[0]!], fetch: hung, log: () => {} });
+    started = Date.now();
+    expect(await c.resolve(createIdentity().pubKeyZ32)).toBeNull();
+    const missingMs = Date.now() - started;
+    console.log(`MAINLINE hung relay: publish ${publishMs} ms, read ${readMs} ms, read of a missing key ${missingMs} ms`);
+    expect(found?.records[0]?.value).toBe("hello");
+    expect(b.discovery().path).toEqual({ via: "dht" });
+    expect(publishMs).toBeLessThan(1_500);
+    // The DHT's packet waits for the relays until a slow one would have answered (`SLOW_MS`), for a newer copy there.
+    expect(readMs).toBeLessThan(3_500);
+    expect(missingMs).toBeLessThan(4_500);
+  });
+
+  for (const how of ["500", "refused"] as const) it(`relays that answered, then fail (${how}): a read takes the DHT's newer packet at once, not their last copy`, async () => {
+    const store = { down: false, packets: new Map<string, Uint8Array>() };
+    const answer = relays(store);
+    const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (store.down && how === "refused") throw new TypeError("fetch failed");
+      return answer(input, init);
+    }) as typeof fetch;
+    const a = new RelaysAndDht(await peer(bootstrap), { relays: RELAYS.slice(0, 1), fetch: fetchFn, log: () => {} });
+    const b = new RelaysAndDht(await peer(bootstrap), { relays: RELAYS.slice(0, 1), fetch: fetchFn, log: () => {} });
+    const me = createIdentity();
+    await a.publish(me, [{ label: "_x", value: "old" }]);
+    expect((await b.resolve(me.pubKeyZ32))?.records[0].value).toBe("old");
+    // The relay fails for everyone; the newer packet goes out on the DHT only.
+    store.down = true;
+    await a.publish(me, [{ label: "_x", value: "new" }]).catch(() => {});
+    let onDht = null;
+    for (let i = 0; i < 20 && onDht?.records[0].value !== "new"; i++) onDht = await (await peer(bootstrap)).get(me.pubKeyZ32).catch(() => null);
+    expect(onDht?.records[0].value).toBe("new");
+    // Past the relay's answer of just now (`FRESH_READ_MS`): that one stands without asking anyone.
+    await new Promise((r) => setTimeout(r, FRESH_READ_MS + 100));
+    // The read the relay fails, and the next one while it cools down (it is not asked): both from the DHT. Until its
+    // breaker opened (three failures, 20 s apart), they handed back the relay's last copy for about 40 s.
+    for (let read = 0; read < 2; read++) {
+      expect((await b.resolve(me.pubKeyZ32))?.records[0].value).toBe("new");
+      expect(b.discovery().path).toEqual({ via: "dht" });
+      await new Promise((r) => setTimeout(r, 1_000));
+    }
+  });
+
+  // agents#1594: with the relay 2 s to answer (far, loaded, or fetching from the DHT itself), the hedge took whichever
+  // packet came first: the DHT's older copy won every read over the relay's newer one (5/5 reads v1).
+  it("a relay that takes 2 s with a newer packet than the DHT's: the read is the newer one", async () => {
+    const store = { down: false, packets: new Map<string, Uint8Array>() };
+    const answer = relays(store);
+    const slow = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method !== "PUT") await new Promise((r) => setTimeout(r, 2_000));
+      return answer(input, init);
+    }) as typeof fetch;
+    const me = createIdentity();
+    const a = new RelaysAndDht(await peer(bootstrap), { relays: RELAYS.slice(0, 1), fetch: answer, log: () => {} });
+    await a.publish(me, [{ label: "_x", value: "v1" }]);
+    // v2 on the relay only: a web contact, one whose DHT put failed, a network that blocks UDP.
+    const relayOnly = new RelaysAndDht(null, { relays: RELAYS.slice(0, 1), fetch: answer, log: () => {} });
+    await relayOnly.publish(me, [{ label: "_x", value: "v2" }]);
+    let onDht = null;
+    for (let i = 0; i < 20 && onDht?.records[0].value !== "v1"; i++) onDht = await (await peer(bootstrap)).get(me.pubKeyZ32).catch(() => null);
+    expect(onDht?.records[0].value, "the DHT still holds v1").toBe("v1");
+    const b = new RelaysAndDht(await peer(bootstrap), { relays: RELAYS.slice(0, 1), fetch: slow, log: () => {} });
+    const reads: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const started = Date.now();
+      const found = await b.resolve(me.pubKeyZ32);
+      reads.push(`${found?.records[0].value}/${Date.now() - started}ms`);
+      await new Promise((r) => setTimeout(r, FRESH_READ_MS + 100));
+    }
+    console.log(`MAINLINE slow relay with the newer packet: ${reads.join(" ")}`);
+    for (const read of reads) expect(read.split("/")[0]).toBe("v2");
+  });
+
+  // agents#1595: relays that take 4 s to say a key is not there. Every poll of it (an unused invite's joiner key)
+  // hedged at 1.5 s, a DHT lookup of its own each time (+47 in 10 min).
+  // agents#1715: a read the relays' budget held back waited for their minute, though the DHT (no budget) had the packet:
+  // past ~10 chats on working relays, each new pairing took 3-18 s instead of 0.1-2.8 s.
+  it("a read the relays' budget holds back is answered from the DHT; a background one, or one the DHT lacks, still waits", async () => {
+    const store = { down: false, packets: new Map<string, Uint8Array>() };
+    const writer = new RelaysAndDht(await peer(bootstrap), { relays: RELAYS, fetch: relays(store), log: () => {} });
+    const me = createIdentity();
+    await writer.publish(me, [{ label: "_x", value: "envelope" }]);
+    const a = new RelaysAndDht(await peer(bootstrap), { relays: RELAYS, fetch: relays(store), log: () => {} });
+    vi.spyOn(a.relays, "resolve").mockRejectedValue(new DiscoveryBudgetError(59_988));
+    // The DHT's copy may take a moment to spread over the testnet.
+    let read: Awaited<ReturnType<RelaysAndDht["resolve"]>> | undefined;
+    const deadline = Date.now() + 10_000;
+    while (!read && Date.now() < deadline) read = await a.resolve(me.pubKeyZ32).catch(() => undefined);
+    expect(read?.records[0].value).toBe("envelope");
+    expect(a.discovery().path).toMatchObject({ via: "dht" });
+    await expect(a.resolve(me.pubKeyZ32, { background: true })).rejects.toBeInstanceOf(DiscoveryBudgetError);
+    await expect(a.resolve(createIdentity().pubKeyZ32)).rejects.toBeInstanceOf(DiscoveryBudgetError);
+  }, 60_000);
+
+  // A publish the relays' budget held back went to the DHT, and was said held back all the same: the link published
+  // again in 0.25-4 s, a new signature and a new DHT put each time (1-1.6 puts a minute per chat at budget, not one per 4 min).
+  it("a publish the relays' budget holds back is out once the DHT takes it, and the relays get the newest when it frees", async () => {
+    vi.useFakeTimers();
+    try {
+      const store = { down: false, packets: new Map<string, Uint8Array>() };
+      let relayPuts = 0;
+      const answer = relays(store);
+      const counted = ((input: RequestInfo | URL, init?: RequestInit) => { if (init?.method === "PUT") relayPuts++; return answer(input, init); }) as typeof fetch;
+      let dhtPuts = 0;
+      // A BEP44 put is a lookup then a put: ~100 ms on a loopback testnet, more on the public DHT.
+      const dht = { put: async () => { dhtPuts++; await new Promise((r) => setTimeout(r, 100)); return 8; }, get: async () => null } as unknown as Mainline;
+      const a = new RelaysAndDht(dht, { relays: RELAYS.slice(0, 1), fetch: counted, requestsPerMinute: 5, log: () => {} });
+      // The relay's minute spent on reads of other keys, as 20+ chats' polls spend it.
+      for (let i = 0; i < 10; i++) await a.resolve(createIdentity().pubKeyZ32).catch(() => {});
+      const me = createIdentity();
+      const outcomes: string[] = [];
+      for (let i = 0; i < 5; i++) {
+        const outcome = a.publish(me, [{ label: "_x", value: `v${i}` }]).then(() => "out", (e: unknown) => String(e));
+        await vi.advanceTimersByTimeAsync(200);
+        outcomes.push(await outcome);
+      }
+      expect(outcomes).toEqual(Array(5).fill("out"));
+      expect(dhtPuts).toBe(5);
+      expect(relayPuts, "held back on the relay").toBe(0);
+      // Browser contacts read only the relays: the newest packet goes there once the budget frees, once.
+      await vi.advanceTimersByTimeAsync(65_000);
+      expect(relayPuts).toBe(1);
+      expect((await a.relays.resolve(me.pubKeyZ32))?.records[0].value).toBe("v4");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("polls of a key nobody published, answered 404 slowly, do not each look it up on the DHT", async () => {
+    const answer = relays({ down: false, packets: new Map() });
+    const slow404 = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method !== "PUT") await new Promise((r) => setTimeout(r, 4_000));
+      return answer(input, init);
+    }) as typeof fetch;
+    const dht = await peer(bootstrap);
+    let lookups = 0;
+    const get = dht.get.bind(dht);
+    dht.get = (key: string) => { lookups++; return get(key); };
+    const c = new RelaysAndDht(dht, { relays: RELAYS.slice(0, 1), fetch: slow404, log: () => {} });
+    const key = createIdentity().pubKeyZ32;
+    for (let i = 0; i < 4; i++) expect(await c.resolve(key)).toBeNull();
+    console.log(`MAINLINE slow 404: 4 reads, ${lookups} DHT lookups`);
+    // The first read cannot know the key is missing: it hedges at 1.5 s. The next ones wait as the relays' hedge does.
+    expect(lookups).toBeLessThanOrEqual(1);
+  }, 60_000);
+
+  // agents#1638: a clock that ran ahead, set right, then a restart. Every DHT node held the key's packet dated by the
+  // fast clock and refused each put (302), and the CLI tried again every 4 s until the clock caught up.
+  it("after a restart, a publish the DHT refuses for a later-dated packet goes out dated past it, while every relay answers 500", async () => {
+    // A testnet of its own, small enough that every put reaches each node: on the shared one a put sometimes landed on
+    // a node that never held the older packet, and was taken there.
+    const net: Mainline[] = [];
+    const join = async () => {
+      const node = new Mainline({ bootstrap: net.length ? [`127.0.0.1:${net[0]!.address().port}`] : false, host: "127.0.0.1", timeoutMs: 5_000 });
+      await node.listening;
+      for (const other of net) { node.addNode("127.0.0.1", other.address().port); other.addNode("127.0.0.1", node.address().port); }
+      net.push(node); nodes.push(node);
+      return node;
+    };
+    const quit = async (node: Mainline) => { net.splice(net.indexOf(node), 1); await node.destroy(); };
+    for (let i = 0; i < 4; i++) await join();
+    const reader = await join();
+    const store = { down: true, packets: new Map<string, Uint8Array>() };
+    const me = createIdentity();
+    const ahead = BigInt(Date.now() + 2 * 3_600_000) * 1000n;
+    // Before the restart: dated two hours ahead. Then that app quits.
+    const old = await join();
+    const before = new RelaysAndDht(old, { relays: RELAYS, fetch: relays(store), log: () => {} });
+    before.relays.sawTimestamp(me.pubKeyZ32, ahead);
+    await before.publish(me, [{ label: "_x", value: "fast clock" }]);
+    expect((await reader.get(me.pubKeyZ32))?.records[0].value).toBe("fast clock");
+    await quit(old);
+    // After it: the clock is right, and nothing remembers that date.
+    const restarted = await join();
+    const after = new RelaysAndDht(restarted, { relays: RELAYS, fetch: relays(store), log: () => {} });
+    await after.publish(me, [{ label: "_x", value: "right clock" }]);
+    const onDht = await reader.get(me.pubKeyZ32);
+    expect(onDht?.records[0].value).toBe("right clock");
+    expect(onDht!.timestampMicros).toBeGreaterThan(ahead);
+    await quit(restarted);
+    // The held packet cannot be read: the publish fails, and says the DHT refused it, not only that the relays did.
+    const blind = await join();
+    blind.get = async () => null;
+    const third = new RelaysAndDht(blind, { relays: RELAYS, fetch: relays(store), log: () => {} });
+    await expect(third.publish(me, [{ label: "_x", value: "again" }])).rejects.toThrow(/every relay.*; The DHT holds a later-dated packet/);
+  }, 60_000);
+
+  it("a group's edge goes live while every relay answers 500, through the DHT, without a restart", async () => {
+    const store = { down: true, packets: new Map<string, Uint8Array>() };
+    const group = toBase64Url(randomBytes(16));
+    const [one, two] = [createIdentity(), createIdentity()];
+    const fast: PollIntervals = { active: 500, idle: 1_000, fast: 250, background: 1_000, connected: 2_000 };
+    const edge = async (me: Identity, other: Identity) => {
+      const link = new GhostLink({
+        params: edgeParams(group, me.seed, me.pubKeyZ32, other.pubKeyZ32),
+        pairing: { credentials: { seedB64: me.seedB64, peerKey: other.pubKeyZ32, requireSignedSignals: true, verifiedPeerKey: other.pubKeyZ32 },
+          pinPeer: async (key) => { if (key !== other.pubKeyZ32) throw new Error("Not the member this edge belongs to"); }, trustOnFirstUse: false },
+        transport: new RelaysAndDht(await peer(bootstrap), { relays: RELAYS, fetch: relays(store), log: () => {} }),
+        pollIntervals: fast, autoConnect: true, groupsSupport: true,
+        createPeerConnection: () => new FakePeerConnection() as unknown as RTCPeerConnection,
+        localFetch: async () => { throw new Error("no services"); }, getServices: () => [{ id: "chat", type: "chat" }], getHostedHttpService: () => undefined,
+      });
+      link.start();
+      return link;
+    };
+    const a = await edge(one, two), b = await edge(two, one);
+    try {
+      const started = Date.now();
+      while (!(a.isDataLinkOpen && b.isDataLinkOpen) && Date.now() - started < 40_000) await new Promise((r) => setTimeout(r, 200));
+      console.log(`MAINLINE edge live in ${(Date.now() - started) / 1000} s with every relay answering 500`);
+      expect(a.isDataLinkOpen && b.isDataLinkOpen).toBe(true);
+      expect(store.packets.size).toBe(0);
+    } finally {
+      await Promise.all([a.stop(false), b.stop(false)]);
+    }
+  });
+});
+
+describe("a private network's relays (PROPERTY_PKARR_RELAYS)", { timeout: 60_000 }, () => {
+  it("are read from the environment, and leave the public DHT out unless a bootstrap is given", () => {
+    expect(pkarrRelays({})).toBeNull();
+    expect(pkarrRelays({ PROPERTY_PKARR_RELAYS: " http://127.0.0.1:49501 , https://relay.lan/ ," })).toEqual(["http://127.0.0.1:49501", "https://relay.lan/"]);
+    expect(() => pkarrRelays({ PROPERTY_PKARR_RELAYS: "relay.lan" })).toThrow(expect.objectContaining({ code: "usage", message: expect.stringMatching(/http:\/\/ or https:\/\//) }));
+    expect(mainlineNetwork({ PROPERTY_PKARR_RELAYS: "http://127.0.0.1:49501" })).toEqual({ off: true });
+    expect(mainlineNetwork({ PROPERTY_PKARR_RELAYS: "http://127.0.0.1:49501", PROPERTY_DHT_BOOTSTRAP: "127.0.0.1:49502" })).toEqual({ off: false, bootstrap: ["127.0.0.1:49502"], host: "127.0.0.1" });
+    expect(mainlineNetwork({})).toEqual({ off: false });
+  });
+
+  it("are refused when two are split by ';' or a space, as one URL they reached nobody", () => {
+    for (const relays of ["http://10.9.9.9:8080;http://10.9.9.8:8080", "http://10.9.9.9:8080 http://10.9.9.8:8080", "http://[fd00::1"]) {
+      expect(() => pkarrRelays({ PROPERTY_PKARR_RELAYS: relays }), relays).toThrow(expect.objectContaining({ code: "usage", message: expect.stringContaining(JSON.stringify(relays)) }));
+    }
+  });
+
+  it("are the only relays: the profile's relays setting does not replace them, and without a DHT they carry everything", async () => {
+    const store = { down: false, packets: new Map<string, Uint8Array>() };
+    const a = new RelaysAndDht(null, { relays: RELAYS, fetch: relays(store), log: () => {} }, true);
+    a.configure({ relays: ["https://pkarr.example.org"], readRelays: false });
+    expect(a.describe()).toEqual({ protocol: "Pkarr relays (HTTP)", relays: RELAYS });
+    const me = createIdentity();
+    await a.publish(me, [{ label: "_hello", value: "private" }]);
+    expect(store.packets.size).toBe(1);
+    expect((await a.resolve(me.pubKeyZ32))?.records[0].value).toBe("private");
+    // A packet signed here goes to the relays with its date, its signature not checked again (`putSigned`): only a
+    // payload signed elsewhere goes through `publishPayload`, which checks it to read its date.
+    const checked = vi.spyOn(a.relays, "publishPayload"), signed = vi.spyOn(a.relays, "putSigned"), dated = vi.spyOn(a.relays, "publishDated");
+    await a.publish(me, [{ label: "_hello", value: "again" }]);
+    expect(checked).not.toHaveBeenCalled();
+    expect(signed).toHaveBeenCalledTimes(1);
+    expect(signed.mock.calls[0]![2]).toBe((await a.resolve(me.pubKeyZ32))!.timestampMicros);
+    // Relays only: a publish none of them takes now is not signed (the budget is asked first).
+    expect(dated.mock.calls[0]![5]).toBe(false);
+    // Not pinned: the setting replaces them, as before.
+    const b = new RelaysAndDht(null, { relays: RELAYS, fetch: relays(store), log: () => {} });
+    b.configure({ relays: ["https://pkarr.example.org"], readRelays: false });
+    expect(b.describe().relays).toEqual(["https://pkarr.example.org"]);
+  });
+
+  it("are what a profile uses from its first run, whatever its setting says; a bad one is a usage error", async () => {
+    const dir = home("pinned-relays");
+    const url = "http://127.0.0.1:49503";
+    const as = (...args: string[]) => property(["--home", dir, ...args], { env: { PROPERTY_PKARR_RELAYS: url } });
+    expect(ok(await as("status")).discovery).toEqual({ protocol: "Pkarr relays (HTTP)", relays: [url] });
+    ok(await as("settings", "set", "relays", JSON.stringify(["http://127.0.0.1:49504"])));
+    expect(ok(await as("status")).discovery).toEqual({ protocol: "Pkarr relays (HTTP)", relays: [url] });
+    // Unset (empty), the profile's own setting is back.
+    expect((ok(await property(["--home", dir, "status"], { env: { PROPERTY_PKARR_RELAYS: "" } })).discovery as { relays: string[] }).relays).toEqual(["http://127.0.0.1:49504"]);
+    error(await property(["--home", dir, "status"], { env: { PROPERTY_PKARR_RELAYS: "relay.lan" } }), "usage", 2);
+  });
+});
+
+/**
+ * The daemons also get a HyperDHT of this test's own. An edge whose WebRTC attempt came to nothing goes on native only
+ * for the rest of the run (node.ts `edgeWithoutRtc`), and with no STUN every such attempt reads as a network that blocks
+ * direct connections. Here the native transport it then needs is on loopback; with none, as since the tests left the
+ * public networks (#1389), the edge stayed down and the test timed out at "edge up" (CI, 2026-10-07).
+ */
+describe("two daemons whose only relay answers 500 to everything", { timeout: 300_000 }, () => {
+  let relay: Server, url = "";
+  let hyperdht: Awaited<ReturnType<typeof hyperdhtTestnet>> | undefined;
+  const running: Running[] = [];
+  beforeAll(async () => {
+    relay = createServer((_request, response) => { response.statusCode = 500; response.end("internal error"); });
+    await new Promise<void>((resolve) => relay.listen(0, "127.0.0.1", resolve));
+    url = `http://127.0.0.1:${(relay.address() as AddressInfo).port}`;
+    hyperdht = await hyperdhtTestnet();
+  }, 30_000);
+  afterAll(async () => { await Promise.all(running.map((r) => r.stop())); relay?.close(); await hyperdht?.destroy(); }, 60_000);
+
+  it("a private group is joined by its link and carries a message, all through the Mainline DHT", async () => {
+    const env = { PROPERTY_DHT: "1", PROPERTY_DHT_BOOTSTRAP: bootstrap, PROPERTY_PKARR_RELAYS: url, PROPERTY_HYPERDHT_BOOTSTRAP: hyperdht!.bootstrap };
+    const [admin, joiner] = [home("dht-admin"), home("dht-joiner")];
+    const as = (dir: string, ...args: string[]) => property(["--home", dir, ...args], { env });
+    for (const dir of [admin, joiner]) {
+      ok(await as(dir, "settings", "set", "relays", JSON.stringify([url])));
+      const daemon = new Running(["--home", dir, "daemon"], env);
+      running.push(daemon);
+      await daemon.waitFor((l) => l.daemon === "ready");
+    }
+    const started = Date.now();
+    const group = ok(await as(admin, "group", "create", "Relays down", "--mesh")).group as string;
+    const link = ok(await as(admin, "group", "link", group)).link as string;
+    ok(await as(joiner, "group", "join", link));
+    const until = async (what: string, done: () => Promise<boolean>) => {
+      const end = Date.now() + 180_000;
+      while (!(await done())) { if (Date.now() > end) throw new Error(`${what}: not in 180 s`); await new Promise((r) => setTimeout(r, 1000)); }
+    };
+    await until("joined", async () => ok(await as(joiner, "group", "show", group)).status === "active");
+    await until("edge up", async () => (ok(await as(joiner, "group", "show", group)).members as { online: boolean }[]).every((m) => m.online));
+    ok(await as(admin, "group", "send", group, "--", "through the dht"));
+    await until("delivered", async () => (ok(await as(joiner, "group", "history", group)).messages as { text: string }[]).some((m) => m.text === "through the dht"));
+    console.log(`MAINLINE daemons: joined, edge up and a message delivered in ${Math.round((Date.now() - started) / 1000)} s with the relay answering 500`);
+  });
+});
+
+let fingerprints = 0;
+const byFingerprint = new Map<string, FakePeerConnection>();
+function sdp(setup: string): { sdp: string; fingerprint: string } {
+  const n = ++fingerprints;
+  const fingerprint = n.toString(16).padStart(4, "0").repeat(16);
+  const colons = fingerprint.toUpperCase().match(/.{2}/g)!.join(":");
+  return { fingerprint, sdp: ["v=0", `a=ice-ufrag:u${n}`, "a=ice-pwd:passwordpasswordpassword", `a=fingerprint:sha-256 ${colons}`, `a=setup:${setup}`,
+    "a=candidate:1 1 udp 2122260223 127.0.0.1 50000 typ host", ""].join("\r\n") };
+}
+const fingerprintOf = (text: string) => /a=fingerprint:sha-256 (\S+)/i.exec(text)![1].replace(/:/g, "").toLowerCase();
+class FakeChannel extends EventTarget {
+  readyState: RTCDataChannelState = "connecting";
+  bufferedAmount = 0;
+  binaryType = "arraybuffer";
+  bufferedAmountLowThreshold = 0;
+  peer: FakeChannel | null = null;
+  send(data: string | ArrayBuffer) { const peer = this.peer; queueMicrotask(() => { if (peer?.readyState === "open") peer.dispatchEvent(Object.assign(new Event("message"), { data })); }); }
+  open() { this.readyState = "open"; this.dispatchEvent(new Event("open")); }
+  close() { if (this.readyState === "closed") return; this.readyState = "closed"; this.dispatchEvent(new Event("close")); this.peer?.close(); }
+}
+class FakePeerConnection extends EventTarget {
+  localDescription: RTCSessionDescriptionInit | null = null;
+  remoteDescription: RTCSessionDescriptionInit | null = null;
+  iceGatheringState: RTCIceGatheringState = "complete";
+  connectionState: RTCPeerConnectionState = "new";
+  channel!: FakeChannel;
+  closed = false;
+  getConfiguration() { return { iceServers: [] }; }
+  createDataChannel() { this.channel = new FakeChannel(); return this.channel as unknown as RTCDataChannel; }
+  async createOffer() { return { type: "offer" as const, sdp: this.made("actpass") }; }
+  async createAnswer() { return { type: "answer" as const, sdp: this.made("active") }; }
+  private made(setup: string) { const made = sdp(setup); byFingerprint.set(made.fingerprint, this); return made.sdp; }
+  async setLocalDescription(description: RTCSessionDescriptionInit) { this.localDescription = description; }
+  async setRemoteDescription(description: RTCSessionDescriptionInit) {
+    this.remoteDescription = description;
+    if (description.type !== "answer") return;
+    const answerer = byFingerprint.get(fingerprintOf(description.sdp!));
+    if (!answerer || answerer.closed || fingerprintOf(answerer.remoteDescription!.sdp!) !== fingerprintOf(this.localDescription!.sdp!)) return;
+    this.channel.peer = answerer.channel; answerer.channel.peer = this.channel;
+    setTimeout(() => { if (this.closed || answerer.closed) return; for (const pc of [this, answerer]) { pc.connectionState = "connected"; pc.channel.open(); } }, 0);
+  }
+  close() { this.closed = true; this.connectionState = "closed"; this.channel?.close(); }
+}
+
+// agents#1573: a group edge asks before it signs (`publishHeld`). With the DHT a packet goes there whatever the relays'
+// budgets say, so nothing is held; with the relays alone, what they say.
+describe("a publish held before it is signed", () => {
+  it("is never held with the DHT beside the relays, and is what the relays say without it", async () => {
+    const answer = (async () => new Response(null, { status: 204 })) as typeof fetch;
+    const id = createIdentity();
+    const alone = new RelaysAndDht(null, { relays: ["https://a.test"], fetch: answer, log: () => {} });
+    const withDht = new RelaysAndDht({} as Mainline, { relays: ["https://a.test"], fetch: answer, log: () => {} });
+    for (const transport of [alone, withDht]) {
+      for (let i = 0; i < 40; i++) await transport.relays.publish(id, [{ label: "_ts", value: String(i) }]).catch(() => {});
+    }
+    expect(alone.publishHeld(id.pubKeyZ32)).toBeInstanceOf(DiscoveryBudgetError);
+    expect(withDht.publishHeld(id.pubKeyZ32)).toBeNull();
+  });
+});
+
+describe("the bootstrap nodes (PROPERTY_DHT_BOOTSTRAP, PROPERTY_HYPERDHT_BOOTSTRAP)", () => {
+  // Without a port, a port past 65535 or with ';' between nodes, bittorrent-dht sent to port NaN from a timer and every
+  // command died with Node's RangeError stack; the others were looked up as names, and the profile had no DHT.
+  const bad = ["10.9.9.9", "10.9.9.9:6881;10.9.9.8:6881", "10.9.9.9:99999", "10.9.9.9:0", "udp://10.9.9.9:6881", "[fd00::1]:6881", "10.9.9.9 10.9.9.8", "10.9.9.9:6881 10.9.9.8:6881", "10.9.9.9:"];
+
+  it("are each host:port, a bad one a usage error naming the variable and the node", () => {
+    for (const nodes of bad) {
+      expect(() => mainlineNetwork({ PROPERTY_DHT_BOOTSTRAP: nodes }), nodes).toThrow(expect.objectContaining({ code: "usage", message: `PROPERTY_DHT_BOOTSTRAP takes host:port nodes, comma-separated, not ${JSON.stringify(nodes)}` }));
+      expect(() => hyperdhtNetwork(nodes), nodes).toThrow(expect.objectContaining({ code: "usage", message: `PROPERTY_HYPERDHT_BOOTSTRAP takes host:port nodes, comma-separated, not ${JSON.stringify(nodes)}` }));
+    }
+    expect(() => mainlineNetwork({ PROPERTY_DHT_BOOTSTRAP: "127.0.0.1:49502, 10.9.9.9" })).toThrow('not "10.9.9.9"');
+  });
+
+  it("take names and addresses with a port, a list all on loopback bound there", () => {
+    expect(mainlineNetwork({ PROPERTY_DHT_BOOTSTRAP: " router.bittorrent.com:6881 , 10.9.9.9:65535 ," })).toEqual({ off: false, bootstrap: ["router.bittorrent.com:6881", "10.9.9.9:65535"] });
+    expect(mainlineNetwork({ PROPERTY_DHT_BOOTSTRAP: "127.0.0.1:1,localhost:49502" })).toEqual({ off: false, bootstrap: ["127.0.0.1:1", "localhost:49502"], host: "127.0.0.1" });
+    expect(hyperdhtNetwork("node1.hyperdht.org:49737")).toEqual({ bootstrap: ["node1.hyperdht.org:49737"] });
+    expect(hyperdhtNetwork("")).toEqual({});
+  });
+});
+
+// A command that reads only the profile, or a profile set offline, asks the DHT nothing: before, every command started a
+// node at once, which bootstrapped from the public routers (find_node to router.bittorrent.com and the like) and sent
+// them this machine's address; `settings set online false` did not stop it. A UDP socket on loopback stands in for the
+// routers and counts what comes.
+describe("the Mainline DHT node starts when it is asked something", { timeout: 60_000 }, () => {
+  let router: Socket;
+  let received = 0;
+  beforeAll(async () => {
+    router = createSocket("udp4");
+    router.on("message", () => { received += 1; });
+    await new Promise<void>((resolve) => router.bind(0, "127.0.0.1", resolve));
+  });
+  afterAll(() => router?.close());
+  const bootstrap = () => `127.0.0.1:${router.address().port}`;
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
+
+  it("a node nothing is asked of sends nothing; its first get bootstraps", async () => {
+    received = 0;
+    const node = new Mainline({ bootstrap: [bootstrap()], host: "127.0.0.1", timeoutMs: 1_000 });
+    await settle();
+    expect(node.running).toBe(false);
+    expect(received).toBe(0);
+    await node.get(createIdentity().pubKeyZ32).catch(() => null);
+    expect(node.running).toBe(true);
+    expect(received).toBeGreaterThan(0);
+    await node.destroy();
+    await expect(node.get(createIdentity().pubKeyZ32)).rejects.toThrow("closed");
+  });
+
+  it("chat list, settings get and status, and a profile set offline, send the DHT's routers nothing", async () => {
+    received = 0;
+    const dir = home("dht-quiet");
+    const env = { PROPERTY_DHT: "1", PROPERTY_DHT_BOOTSTRAP: bootstrap() };
+    for (const command of [["chat", "list"], ["settings", "get"], ["status"], ["settings", "set", "online", "false"], ["chat", "list"]]) {
+      ok(await property(["--home", dir, ...command], { env }));
+    }
+    await settle();
+    expect(received).toBe(0);
+  });
+});

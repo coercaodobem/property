@@ -63,7 +63,7 @@ export const ENGINE_ERRORS = {
   // Paying in a chat.
   contactAway: "Your contact is offline. Nothing was sent: pay once the chat is live.",
   contactNoWallet: "Your contact has no wallet yet: they need one to pay or be paid",
-  contactNoPayments: "Your contact has payments off in this chat, or needs an updated Property",
+  contactNoPayments: "Your contact has payments off in this chat, or needs an updated Property Direct",
   // Real money and test coins.
   realMoneyUnconfirmed: "This pays with real money: confirm it with Send real money first. Nothing was sent.",
   mainnetPaymentOnTestnet: "This is a Mainnet payment (real money): a Testnet wallet never pays it. Use a Mainnet wallet.",

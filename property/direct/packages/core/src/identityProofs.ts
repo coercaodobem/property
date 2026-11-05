@@ -20,7 +20,7 @@ import { hasVisible, stripHidden } from "./text";
  */
 
 export const IDENTITY_PROOF_CAPABILITY = "identity-proof/1";
-/** Domain separation: this signed prefix is shared with Ghostly clients; keep it stable for verification. */
+/** Legacy signed domain separator: keep the exact prefix stable so existing Ghostly proofs remain verifiable. */
 export const IDENTITY_STATEMENT_PREFIX = "Ghostly identity proof v1";
 /** No binding is valid for longer than this, whatever the provider allows. */
 export const IDENTITY_MAX_VALIDITY = 400 * 86_400;

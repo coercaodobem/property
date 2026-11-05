@@ -1,0 +1,1156 @@
+import { createHash } from "node:crypto";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createSocket } from "node:dgram";
+import { connect, Server, type Socket } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { buildSdpFromSignal, heardCallSignal, parseCallSignal } from "@ghostly/core";
+import type { EngineState, LinkView } from "@ghostly/browser/shared/types";
+import { AudioSocket, audioSocketPath } from "../src/calls/audioSocket";
+import { CALL_PACE_MS, CallManager, MAX_EARLY_ANSWERS, MAX_REDIALS, type CallEngine } from "../src/calls/manager";
+import { CallMedia, loadCallStack, type CallStack } from "../src/calls/media";
+import { dominantHz, level, tone } from "./support/tone";
+// covers: headless.calls
+
+/**
+ * The call manager end to end without the engine: two managers whose signals go straight to each other (as the chat
+ * session would carry them), real libdatachannel media on loopback, and programs on the audio sockets.
+ */
+const dirs: string[] = [];
+const tmp = () => { const d = mkdtempSync(join(tmpdir(), "gc-")); dirs.push(d); return d; };
+let bindBefore: string | undefined;
+beforeAll(() => { bindBefore = process.env.PROPERTY_CALL_BIND; process.env.PROPERTY_CALL_BIND = "127.0.0.1"; });
+afterAll(() => {
+  if (bindBefore === undefined) delete process.env.PROPERTY_CALL_BIND; else process.env.PROPERTY_CALL_BIND = bindBefore;
+  for (const d of dirs) rmSync(d, { recursive: true, force: true });
+});
+
+type IceServers = { urls: string; username?: string; credential?: string }[];
+interface Side { calls: CallManager; events: { type: string; [k: string]: unknown }[]; signals: (string | null)[]; link: Partial<LinkView> }
+
+function pairOfManagers(stacks: { a?: () => Promise<CallStack | string>; b?: () => Promise<CallStack | string>; now?: () => number; nowB?: () => number; delay?: number; maxRedials?: number; stall?: { afterMs: number; endMs: number }; iceServersB?: IceServers; earlyAnswerMs?: number; callPaceMs?: number } = {}): { a: Side; b: Side } {
+  // Each side's clock: the same one unless `nowB` gives the second side its own.
+  const nowA = stacks.now ?? Date.now, nowB = stacks.nowB ?? nowA;
+  const make = (chat: string): Side => {
+    const side = { events: [], signals: [], link: { id: chat, profile: "paired-chat/1", callsUnavailable: null, label: `to ${chat}` } } as unknown as Side;
+    return side;
+  };
+  const a = make("chat-ab"), b = make("chat-ba");
+  const engine = (me: Side, other: () => Side, heardAt: () => number, iceServers: IceServers = []): CallEngine => ({
+    getState: () => ({ links: [me.link], settings: { iceServers } }) as unknown as EngineState,
+    setCallSignal: async ({ signal }) => {
+      me.signals.push(signal);
+      // The chat session carries it to the contact, a moment later, and the contact's engine says when it heard it.
+      if (signal) setTimeout(() => other().calls.onSignal(other().link.id!, heardCallSignal(signal, heardAt())), stacks.delay ?? 5);
+    },
+  });
+  a.calls = new CallManager({ engine: engine(a, () => b, nowB), emit: (type, _id, fields) => a.events.push({ type, ...fields }), profileDir: tmp(), stack: stacks.a, now: stacks.now, maxRedials: stacks.maxRedials, stall: stacks.stall, callPaceMs: stacks.callPaceMs });
+  b.calls = new CallManager({ engine: engine(b, () => a, nowA, stacks.iceServersB), emit: (type, _id, fields) => b.events.push({ type, ...fields }), profileDir: tmp(), stack: stacks.b, now: stacks.nowB ?? stacks.now, earlyAnswerMs: stacks.earlyAnswerMs });
+  return { a, b };
+}
+
+/**
+ * The real media stack, but the first `refuse` answers applied on it are refused as libdatachannel 0.24.5 refuses one
+ * in its race (see CallManager's `redial`): the connection closes, and adding the answer throws. With `ending:
+ * "fails"`, the race's other ending: the answer goes in, and the connection fails at once. Ours are never applied, so
+ * the contact's side cannot connect on one. The real race, in either ending, comes on top of ours (CI runners lose
+ * about one answer in six): `refused()` counts them all, and a test that refuses answers raises the caller's
+ * `maxRedials` by as many, so the app's own tries stay whole for the real ones.
+ */
+function refusingStack(refuse: number, ending: "throws" | "fails" = "throws"): (() => Promise<CallStack | string>) & { refused: () => number } {
+  let refused = 0;
+  const stack = async () => {
+    const real = await loadCallStack();
+    if (typeof real === "string") return real;
+    const Real = real.ndc.PeerConnection;
+    function PeerConnection(...args: ConstructorParameters<typeof Real>) {
+      const pc = new Real(...args);
+      const apply = pc.setRemoteDescription.bind(pc);
+      const listen = pc.onStateChange.bind(pc);
+      // Whether this connection's answer went in, and whether its refusal was counted.
+      let answered = false, connected = false, counted = false;
+      // A connection failed here ("fails"): what the real one says after is not heard.
+      let deliver: ((state: string) => void) | null = null, faked = false;
+      const refuseIt = () => { if (!counted) { counted = true; refused++; } };
+      // The native methods are read-only on the prototype: the connection gets its own.
+      Object.defineProperty(pc, "setRemoteDescription", {
+        value: (sdp: string, type: Parameters<typeof apply>[1]) => {
+          if (type !== "answer") return apply(sdp, type);
+          // Set first: the connection can fail while the answer goes in.
+          answered = true;
+          if (refused < refuse) {
+            refuseIt();
+            if (ending === "fails") {
+              faked = true;
+              pc.close();
+              setTimeout(() => deliver?.("failed"), 0);
+              return;
+            }
+            pc.close();
+            throw new Error("libdatachannel error while adding remote description: Got a remote candidate without ICE transport");
+          }
+          try {
+            return apply(sdp, type);
+          } catch (error) {
+            refuseIt();
+            throw error;
+          }
+        },
+      });
+      Object.defineProperty(pc, "onStateChange", {
+        value: (cb: Parameters<typeof listen>[0]) => {
+          deliver = (state) => {
+            if (state === "connected") connected = true;
+            if (state === "failed" && answered && !connected) refuseIt();
+            cb(state as Parameters<typeof cb>[0]);
+          };
+          listen((state) => { if (!faked) deliver!(state); });
+        },
+      });
+      return pc;
+    }
+    return { ...real, ndc: { ...real.ndc, PeerConnection } as unknown as CallStack["ndc"] };
+  };
+  return Object.assign(stack, { refused: () => refused });
+}
+
+/**
+ * The real media stack, but what comes in on the call's tracks can be cut (`deaf(true)`): as when the contact's side
+ * died, nothing arrives, while the connection itself stays up, as libjuice keeps it for about 30 s.
+ */
+function deafStack(): (() => Promise<CallStack | string>) & { deaf: (on: boolean) => void } {
+  let deaf = false;
+  const stack = async () => {
+    const real = await loadCallStack();
+    if (typeof real === "string") return real;
+    const Real = real.ndc.PeerConnection;
+    function PeerConnection(...args: ConstructorParameters<typeof Real>) {
+      const pc = new Real(...args);
+      const add = pc.addTrack.bind(pc);
+      Object.defineProperty(pc, "addTrack", {
+        value: (...trackArgs: Parameters<typeof add>) => {
+          const track = add(...trackArgs);
+          const listen = track.onMessage.bind(track);
+          Object.defineProperty(track, "onMessage", { value: (cb: Parameters<typeof listen>[0]) => listen((message) => { if (!deaf) cb(message); }) });
+          return track;
+        },
+      });
+      return pc;
+    }
+    return { ...real, ndc: { ...real.ndc, PeerConnection } as unknown as CallStack["ndc"] };
+  };
+  return Object.assign(stack, { deaf: (on: boolean) => { deaf = on; } });
+}
+
+/** The real media stack, counting the connections it made and the ones still open (not closed), and the most open at once. */
+function countingStack(): (() => Promise<CallStack | string>) & { made: () => number; open: () => number; peak: () => number } {
+  let made = 0, peak = 0;
+  const open = new Set<object>();
+  const stack = async () => {
+    const real = await loadCallStack();
+    if (typeof real === "string") return real;
+    const Real = real.ndc.PeerConnection;
+    function PeerConnection(...args: ConstructorParameters<typeof Real>) {
+      const pc = new Real(...args);
+      made++;
+      open.add(pc);
+      peak = Math.max(peak, open.size);
+      const close = pc.close.bind(pc);
+      Object.defineProperty(pc, "close", { value: () => { open.delete(pc); close(); } });
+      return pc;
+    }
+    return { ...real, ndc: { ...real.ndc, PeerConnection } as unknown as CallStack["ndc"] };
+  };
+  return Object.assign(stack, { made: () => made, open: () => open.size, peak: () => peak });
+}
+
+/** Runs with these environment variables, then puts back what they were. */
+async function withEnv<T>(vars: Record<string, string>, run: () => Promise<T>): Promise<T> {
+  const before = Object.fromEntries(Object.keys(vars).map((name) => [name, process.env[name]]));
+  Object.assign(process.env, vars);
+  try {
+    return await run();
+  } finally {
+    for (const [name, value] of Object.entries(before)) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    }
+  }
+}
+
+const signalsOf = (side: Side, t: string) => side.signals.filter((s) => s && JSON.parse(s).t === t);
+const diagnose = (a: Side, b: Side) => (e: Error) => { throw new Error(`${e.message}\nA: ${JSON.stringify(a.events)}\nB: ${JSON.stringify(b.events)}\nsignals A ${a.signals.length} B ${b.signals.length}`); };
+
+async function until<T>(check: () => T | undefined | false, ms = 15_000): Promise<T> {
+  const end = Date.now() + ms;
+  for (;;) {
+    const value = check();
+    if (value) return value;
+    if (Date.now() > end) throw new Error("timed out");
+    await new Promise((r) => setTimeout(r, 20));
+  }
+}
+
+/**
+ * A program on a call's socket: what it hears, and a way to speak. `halfOpen`: one that keeps its side open after EOF,
+ * as a program whose writer goes on when its reader stops.
+ */
+async function program(path: string, halfOpen = false): Promise<{ socket: Socket; heard: () => Buffer; ended: Promise<void> }> {
+  const socket = connect({ path, allowHalfOpen: halfOpen });
+  const chunks: Buffer[] = [];
+  socket.on("data", (d: Buffer) => chunks.push(d));
+  const ended = new Promise<void>((resolve) => socket.on("end", () => resolve()));
+  await new Promise<void>((resolve, reject) => { socket.once("connect", resolve); socket.once("error", reject); });
+  return { socket, heard: () => Buffer.concat(chunks), ended };
+}
+
+describe("the audio socket", () => {
+  it("serves one program at a time, owner-only, and ends it with EOF", async () => {
+    const path = audioSocketPath(tmp(), "abc");
+    const got: Buffer[] = [];
+    const socket = await AudioSocket.open(path, 16000, { onAudio: (c) => got.push(c) });
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+    const first = await program(path);
+    await until(() => socket.connected);
+    first.socket.write(Buffer.from([1, 2, 3, 4]));
+    await until(() => got.length);
+    socket.write(Buffer.alloc(640, 7));
+    await until(() => first.heard().length === 640);
+    // A second program replaces the first, which reads EOF.
+    const second = await program(path);
+    await first.ended;
+    second.socket.write(Buffer.from([5, 6]));
+    await until(() => Buffer.concat(got).length === 6);
+    await socket.close();
+    await second.ended;
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it("with the call's token required (a named pipe others may open), hears and replaces nobody before the token", async () => {
+    const path = audioSocketPath(tmp(), "abc");
+    const got: Buffer[] = [];
+    const socket = await AudioSocket.open(path, 16000, { onAudio: (c) => got.push(c) }, { requireToken: true, proveMs: 300 });
+    expect(socket.token).toMatch(/^[0-9a-f]{64}$/);
+    const frame = Buffer.alloc(640, 7);
+    // The program sends the token first, its audio in the same write: only the audio goes to the call.
+    const first = await program(path);
+    first.socket.write(Buffer.concat([Buffer.from(`${socket.token}\n`), Buffer.from([1, 2])]));
+    await until(() => socket.connected);
+    await until(() => Buffer.concat(got).length === 2);
+    socket.write(frame);
+    await until(() => first.heard().length === 640);
+    // Another account's client that only reads: no audio, and the program keeps the call.
+    const reader = await program(path);
+    await new Promise((r) => setTimeout(r, 50));
+    for (let i = 0; i < 10; i++) socket.write(frame);
+    await until(() => first.heard().length === 11 * 640);
+    expect(reader.heard().length).toBe(0);
+    // It is closed once its time to prove itself is up; a wrong token is closed at once.
+    await reader.ended;
+    const wrong = await program(path);
+    wrong.socket.write(`${"0".repeat(64)}\n`);
+    await wrong.ended;
+    expect(wrong.heard().length).toBe(0);
+    expect(socket.connected).toBe(true);
+    first.socket.write(Buffer.from([3]));
+    await until(() => Buffer.concat(got).length === 3);
+    // A program with the token replaces the first, which reads EOF.
+    const second = await program(path);
+    second.socket.write(`${socket.token}\n`);
+    await first.ended;
+    socket.write(frame);
+    await until(() => second.heard().length === 640);
+    await socket.close();
+    await second.ended;
+  });
+
+  it("on an owner-only socket takes a program with or without the token, and keeps the token out of the audio", async () => {
+    const path = audioSocketPath(tmp(), "abc");
+    const got: Buffer[] = [];
+    const socket = await AudioSocket.open(path, 16000, { onAudio: (c) => got.push(c) }, { requireToken: false });
+    const first = await program(path);
+    first.socket.write(`${socket.token}\n`);
+    first.socket.write(Buffer.from([1, 2]));
+    await until(() => Buffer.concat(got).length === 2);
+    expect(Buffer.concat(got)).toEqual(Buffer.from([1, 2]));
+    // One written to the contract before the token: its audio from the first byte.
+    const second = await program(path);
+    await first.ended;
+    second.socket.write(Buffer.from([0x61, 0x62, 9]));
+    await until(() => Buffer.concat(got).length === 5);
+    expect(Buffer.concat(got).subarray(2)).toEqual(Buffer.from([0x61, 0x62, 9]));
+    await socket.close();
+  });
+
+  it("moves to a private folder in /tmp when the profile's path is too long for a socket, and refuses a shared one", async () => {
+    vi.stubEnv("XDG_RUNTIME_DIR", "");
+    vi.stubEnv("TMPDIR", "/tmp");
+    const long = join(tmp(), "x".repeat(120));
+    const path = audioSocketPath(long, "abc");
+    expect(path).toMatch(new RegExp(`^/tmp/property-calls-${process.getuid!()}-[0-9a-f]{24}/abc\\.sock$`));
+    expect(audioSocketPath("/home/bot/.property/profiles/p", "abc")).toBe("/home/bot/.property/profiles/p/calls/abc.sock");
+    const socket = await AudioSocket.open(path, 48000, { onAudio: () => {} });
+    expect(statSync(join(path, "..")).mode & 0o777).toBe(0o700);
+    await socket.close();
+    chmodSync(join(path, ".."), 0o755);
+    await expect(AudioSocket.open(path, 48000, { onAudio: () => {} })).rejects.toThrow(/not a folder of this user's alone/);
+    rmSync(join(path, ".."), { recursive: true, force: true });
+    // In the user's own runtime folder when there is one: nobody else can make its folder first.
+    const run = tmp();
+    chmodSync(run, 0o700);
+    vi.stubEnv("XDG_RUNTIME_DIR", run);
+    expect(audioSocketPath(long, "abc")).toBe(join(run, `property-calls-${createHash("sha256").update(long).digest("hex").slice(0, 24)}`, "abc.sock"));
+    vi.unstubAllEnvs();
+  });
+
+  it("a daemon's manager removes the sockets a crashed one left, in either folder; a one-shot's leaves them", async () => {
+    const engine: CallEngine = { getState: () => ({ links: [] }) as unknown as EngineState, setCallSignal: () => {} };
+    for (const profileDir of [tmp(), join(tmp(), "x".repeat(120))]) {
+      const left = audioSocketPath(profileDir, "0123456789ab");
+      // The daemon that made it died during the call: its socket's file stays.
+      mkdirSync(join(left, ".."), { recursive: true, mode: 0o700 });
+      writeFileSync(left, "");
+      writeFileSync(join(left, "..", "notes.txt"), "kept");
+      expect(existsSync(left)).toBe(true);
+      new CallManager({ engine, emit: () => {}, profileDir, answers: false });
+      expect(existsSync(left)).toBe(true);
+      new CallManager({ engine, emit: () => {}, profileDir, answers: true });
+      expect(existsSync(left)).toBe(false);
+      expect(existsSync(join(left, "..", "notes.txt"))).toBe(true);
+      rmSync(join(left, ".."), { recursive: true, force: true });
+    }
+  });
+});
+
+describe("a one-shot's call", () => {
+  it("names the daemon it needs, before the chat's own not-live reason", async () => {
+    const link = { id: "chat-ab", label: "bia", profile: "paired-chat/1", callsUnavailable: "Calls need a live connection" } as unknown as LinkView;
+    const engine: CallEngine = { getState: () => ({ links: [link] }) as unknown as EngineState, setCallSignal: () => {} };
+    const calls = new CallManager({ engine, emit: () => {}, profileDir: tmp(), answers: false });
+    const daemon = { code: "unavailable", message: "Calls need the daemon (a call outlives this command): start it with `property daemon --detach`" };
+    await expect(calls.start("bia", {})).rejects.toMatchObject(daemon);
+    // A daemon still says why the chat cannot call.
+    await expect(new CallManager({ engine, emit: () => {}, profileDir: tmp(), answers: true }).start("bia", {})).rejects.toMatchObject({ code: "unavailable", message: "Calls need a live connection" });
+  });
+});
+
+describe("two call managers", { timeout: 60_000 }, () => {
+  it("call, auto-answer, a tone each way through the programs, flush, hang up", async () => {
+    const { a, b } = pairOfManagers();
+    b.calls.setAuto({ on: true, from: ["chat-ba"], rate: 16000 });
+    expect(JSON.parse(readFileSync(join(dirs.at(-1)!, "calls.json"), "utf8"))).toEqual({ autoAnswer: { on: true, from: ["chat-ba"], rate: 16000 } });
+
+    const placed = await a.calls.start("chat-ab", { rate: 48000 }) as { call: string; audio: { socket: string; rate: number } };
+    expect(placed).toMatchObject({ direction: "out", state: "ringing", audio: { token: expect.stringMatching(/^[0-9a-f]{64}$/), rate: 48000, channels: 1, format: "s16le", frameMs: 20 } });
+    expect(a.events.map((e) => e.type)).toEqual(["call.outgoing"]);
+    // The program may connect before anyone answered.
+    const alice = await program(placed.audio.socket);
+
+    const incoming = await until(() => b.events.find((e) => e.type === "call.incoming"));
+    expect(incoming).toMatchObject({ chat: "chat-ba", name: "to chat-ba", video: false, auto: true });
+    const [connectedA, connectedB] = await Promise.all([
+      until(() => a.events.find((e) => e.type === "call.connected")),
+      until(() => b.events.find((e) => e.type === "call.connected")),
+    ]);
+    expect(connectedB).toMatchObject({ direction: "in", audio: { rate: 16000 } });
+    const bob = await program((connectedB.audio as { socket: string }).socket);
+    expect(connectedA).toMatchObject({ direction: "out", audio: { socket: placed.audio.socket } });
+
+    // Each program speaks faster than real time; the other hears it at its own rate.
+    alice.socket.write(tone(440, 48000, 1500));
+    bob.socket.write(tone(660, 16000, 1500));
+    await until(() => bob.heard().length >= 640 * 60 && alice.heard().length >= 1920 * 60, 20_000);
+    expect(dominantHz(bob.heard().subarray(640 * 20, 640 * 60), 16000)).toBeCloseTo(440, -1);
+    expect(dominantHz(alice.heard().subarray(1920 * 20, 1920 * 60), 48000)).toBeCloseTo(660, -1);
+
+    // Barge-in: a long sentence queued, then flushed; silence follows at once.
+    alice.socket.write(tone(440, 48000, 10_000));
+    await new Promise((r) => setTimeout(r, 300));
+    const { flushedMs } = a.calls.flush(undefined) as { flushedMs: number };
+    expect(flushedMs).toBeGreaterThan(8000);
+    const mark = bob.heard().length;
+    await until(() => bob.heard().length >= mark + 640 * 25);
+    expect(level(bob.heard().subarray(mark + 640 * 10, mark + 640 * 25))).toBeLessThan(0.01);
+
+    // Where the call runs, for a person reading `call list` when one does not connect.
+    expect(a.calls.list()).toMatchObject([{ state: "connected", stats: { programConnected: true, ice: { state: expect.stringMatching(/^(connected|completed)$/), pair: expect.stringMatching(/:\d+ host <-> .+:\d+ (host|prflx)$/) } } }]);
+    await b.calls.hangup("chat-ba");
+    await Promise.all([alice.ended, bob.ended]);
+    const endedA = await until(() => a.events.find((e) => e.type === "call.ended"));
+    expect(endedA).toMatchObject({ reason: "remote-hangup" });
+    expect(endedA.duration).toBeGreaterThan(1000);
+    expect(b.events.find((e) => e.type === "call.ended")).toMatchObject({ reason: "hangup" });
+    expect(a.calls.list()).toEqual([]);
+    expect(existsSync(placed.audio.socket)).toBe(false);
+  });
+
+  it("a hang-up reaches the contact at once when the programs keep their sockets open after EOF", async () => {
+    const { a, b } = pairOfManagers();
+    b.calls.setAuto({ on: true, from: [], rate: 16000 });
+    const placed = await a.calls.start("chat-ab", {}) as { call: string; audio: { socket: string } };
+    const alice = await program(placed.audio.socket, true);
+    const [, connectedB] = await Promise.all([a, b].map((side) => until(() => side.events.find((e) => e.type === "call.connected"))));
+    const bob = await program((connectedB.audio as { socket: string }).socket, true);
+    await until(() => [a, b].every((side) => (side.calls.list()[0] as { stats?: { programConnected?: boolean } } | undefined)?.stats?.programConnected));
+
+    const start = Date.now();
+    await b.calls.hangup("chat-ba");
+    expect(Date.now() - start).toBeLessThan(500);
+    expect(b.events.find((e) => e.type === "call.ended")).toMatchObject({ reason: "hangup" });
+    expect(signalsOf(b, "h")).toHaveLength(1);
+    await bob.ended;
+    expect(await until(() => a.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "remote-hangup" });
+    await alice.ended;
+    expect(Date.now() - start).toBeLessThan(1000);
+    alice.socket.destroy();
+    bob.socket.destroy();
+  });
+
+  it("answers an app's video call saying it takes no picture (`vr: 0`), so the app sends none; a call with no video section says nothing", async () => {
+    const { a, b } = pairOfManagers();
+    b.calls.setAuto({ on: true, from: [], rate: 16000 });
+    const stack = await loadCallStack() as CallStack;
+    // An app's offer of a video call: an audio and a video section on one connection, its camera on.
+    const app = await CallMedia.offer(stack, { rate: 48000, onFrame: () => {}, onState: () => {} });
+    try {
+      const offer = { t: "o", ts: Date.now(), ...app.local, m: ["a", "v"], ss: [app.local.ss![0], 4242], v: 1, k: "c" };
+      b.calls.onSignal("chat-ba", heardCallSignal(JSON.stringify(offer), Date.now()));
+      expect(await until(() => b.events.find((e) => e.type === "call.incoming"))).toMatchObject({ video: true, auto: true });
+      const answer = JSON.parse((await until(() => signalsOf(b, "a")[0]))!);
+      expect(answer).toMatchObject({ o: offer.ts, m: ["a", "v"], v: 0, vr: 0 });
+      // What the app rebuilds from it: the video section is there, and closed.
+      const rebuilt = buildSdpFromSignal(parseCallSignal(JSON.stringify(answer))!);
+      expect(rebuilt.slice(rebuilt.indexOf("m=video"))).toContain("\r\na=inactive\r\n");
+      expect(rebuilt.slice(0, rebuilt.indexOf("m=video"))).toContain("\r\na=sendrecv\r\n");
+      b.calls.onSignal("chat-ba", heardCallSignal(JSON.stringify({ t: "h", ts: Date.now() + 1 }), Date.now()));
+      await until(() => b.events.find((e) => e.type === "call.ended"));
+    } finally {
+      app.close();
+    }
+
+    // The CLI's own call has an audio section alone: nothing to close, on the offer or on its answer.
+    await a.calls.start("chat-ab", {});
+    await Promise.all([a, b].map((side) => until(() => side.events.find((e) => e.type === "call.connected"))));
+    expect(JSON.parse(signalsOf(a, "o")[0]!)).not.toHaveProperty("vr");
+    expect(JSON.parse(signalsOf(b, "a")[1]!)).not.toHaveProperty("vr");
+    await a.calls.hangup("chat-ab");
+    await until(() => b.events.filter((e) => e.type === "call.ended").length === 2);
+  });
+
+  it("does not say it restarts ICE (libdatachannel cannot), and a restart offer changes nothing: no ring, no answer, the call goes on", async () => {
+    const { a, b } = pairOfManagers();
+    b.calls.setAuto({ on: true, from: [], rate: 16000 });
+    // With no call on, a restart offer rings nobody.
+    const stray = { t: "r", ts: Date.now(), u: "strayU", p: "strayPstrayPstrayPstrayP", f: "ab".repeat(32), s: "actpass", m: ["a"], c: [], x: 1 };
+    b.calls.onSignal("chat-ba", JSON.stringify(stray));
+    expect(b.events).toEqual([]);
+    expect(b.calls.list()).toEqual([]);
+
+    await a.calls.start("chat-ab", {});
+    await Promise.all([a, b].map((side) => until(() => side.events.find((e) => e.type === "call.connected"))));
+    // Neither its offer nor its answer says `x`: an app's call with it ends on a lost path as before (WISP 601).
+    const [offer] = signalsOf(a, "o").map((s) => JSON.parse(s!));
+    const [answer] = signalsOf(b, "a").map((s) => JSON.parse(s!));
+    expect(offer.x).toBeUndefined();
+    expect(answer.x).toBeUndefined();
+
+    // An app would not send one to a side that did not say `x`; one that comes all the same is dropped.
+    const sent = b.signals.length;
+    b.calls.onSignal("chat-ba", JSON.stringify({ ...offer, t: "r", ts: Date.now() + 1, u: "newU", p: "newPnewPnewPnewPnewPnewP", x: 1 }));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(b.signals).toHaveLength(sent);
+    expect(b.calls.list()).toMatchObject([{ state: "connected" }]);
+    expect(a.calls.list()).toMatchObject([{ state: "connected" }]);
+    await a.calls.hangup("chat-ab");
+    await until(() => b.events.find((e) => e.type === "call.ended"));
+  });
+
+  it("a contact whose packets stop: the call says it stalled within the wait, resumes when they come back, and ends as failed when they do not", async () => {
+    const stack = deafStack();
+    const { a, b } = pairOfManagers({ a: stack, stall: { afterMs: 800, endMs: 3000 } });
+    b.calls.setAuto({ on: true, from: [], rate: 16000 });
+    const placed = await a.calls.start("chat-ab", {}) as { audio: { socket: string } };
+    const alice = await program(placed.audio.socket);
+    await Promise.all([a, b].map((side) => until(() => side.events.find((e) => e.type === "call.connected"))));
+    await new Promise((r) => setTimeout(r, 1200));
+    // The contact's audio comes all along (silence too): nothing stalls.
+    expect(a.events.map((e) => e.type)).toEqual(["call.outgoing", "call.connected"]);
+    expect(a.calls.get(undefined)).toMatchObject({ state: "connected", stalled: false });
+
+    stack.deaf(true);
+    const cut = Date.now();
+    const stalled = await until(() => a.events.find((e) => e.type === "call.stalled"));
+    expect(Date.now() - cut).toBeLessThan(2000);
+    expect(stalled).toMatchObject({ chat: "chat-ab", direction: "out", silentMs: expect.any(Number) });
+    expect(stalled.silentMs).toBeGreaterThanOrEqual(800);
+    expect(a.calls.get(undefined)).toMatchObject({ state: "connected", stalled: true });
+
+    stack.deaf(false);
+    const resumed = await until(() => a.events.find((e) => e.type === "call.resumed"));
+    expect(resumed.silentMs).toBeGreaterThanOrEqual(800);
+    expect(a.calls.get(undefined)).toMatchObject({ state: "connected", stalled: false });
+
+    stack.deaf(true);
+    const cutAgain = Date.now();
+    const ended = await until(() => a.events.find((e) => e.type === "call.ended"), 10_000);
+    expect(ended).toMatchObject({ reason: "failed" });
+    expect(Date.now() - cutAgain).toBeGreaterThanOrEqual(2900);
+    expect(Date.now() - cutAgain).toBeLessThan(5000);
+    expect(a.events.filter((e) => e.type === "call.stalled")).toHaveLength(2);
+    // The program reads EOF, and the contact's app is told.
+    await alice.ended;
+    expect(signalsOf(a, "h")).toHaveLength(1);
+    expect(await until(() => b.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "remote-hangup" });
+    stack.deaf(false);
+  });
+
+  // Its codecs' delete throwing (a broken Opus module: "memory access out of bounds") went up through the media's close
+  // and stopped the call's end there: no hang-up to the contact, no call.ended, the connection left open.
+  it("a call whose codecs throw as it ends still ends: the contact is told, call.ended goes out, the connection closes", async () => {
+    const counted = countingStack();
+    const throwing = async (): Promise<CallStack | string> => {
+      const real = await counted();
+      if (typeof real === "string") return real;
+      return { ...real, opus: (rate) => {
+        const codec = real.opus(rate);
+        return { encode: codec.encode, decode: codec.decode, delete: () => { codec.delete?.(); throw new RangeError("memory access out of bounds"); } };
+      } };
+    };
+    const { a, b } = pairOfManagers({ b: throwing });
+    b.calls.setAuto({ on: true, from: [], rate: 16000 });
+    await a.calls.start("chat-ab", {});
+    await until(() => (b.calls.list() as { state: string }[])[0]?.state === "connected");
+    await b.calls.hangup(undefined);
+    expect(await until(() => b.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "hangup" });
+    expect(await until(() => a.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "remote-hangup" });
+    await until(() => counted.open() === 0);
+    expect(b.calls.list()).toEqual([]);
+  });
+
+  it("a hang-up saying the contact could not connect (an app whose microphone was refused) ends a ringing call as failed", async () => {
+    const { a, b } = pairOfManagers();
+    await a.calls.start("chat-ab", {});
+    await until(() => b.events.find((e) => e.type === "call.incoming"));
+    // What an app sends when its answer could not use the microphone (useWebRTC, WISP 601 "Couldn't connect").
+    a.calls.onSignal("chat-ab", JSON.stringify({ t: "h", ts: Date.now() + 1, r: "u" }));
+    expect(await until(() => a.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "failed" });
+    expect(a.calls.list()).toEqual([]);
+    await a.calls.stopAll();
+    await b.calls.stopAll();
+  });
+
+  it("an unanswered call is missed on one side, declined on the other, and busy chats refuse a second", async () => {
+    const { a, b } = pairOfManagers();
+    await a.calls.start("chat-ab", {});
+    await expect(a.calls.start("chat-ab", {})).rejects.toMatchObject({ code: "busy" });
+    await until(() => b.events.find((e) => e.type === "call.incoming"));
+    expect(b.calls.list()).toMatchObject([{ direction: "in", state: "ringing", audio: null }]);
+    await b.calls.hangup(undefined);
+    expect(await until(() => a.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "rejected" });
+    expect(b.events.find((e) => e.type === "call.ended")).toMatchObject({ reason: "hangup" });
+
+    // The caller gives up while it rings: missed.
+    await a.calls.start("chat-ab", {});
+    await until(() => b.events.filter((e) => e.type === "call.incoming").length === 2);
+    await a.calls.hangup(undefined);
+    expect(await until(() => b.events.filter((e) => e.type === "call.ended")[1])).toMatchObject({ reason: "missed" });
+    await expect(b.calls.answer(undefined, {})).rejects.toMatchObject({ code: "not_found" });
+    // The hang-up signal is cleared later, as the apps do; stopping sends nothing more.
+    expect(a.signals.at(-1)).toMatch(/"t":"h"/);
+    await a.calls.stopAll();
+    await b.calls.stopAll();
+  });
+
+  it("a call placed in the hang-up's millisecond rings, and a hang-up in its offer's millisecond ends the ring", async () => {
+    // A clock that stands still, as it does for a bot that redials or cancels at once: each signal is still newer.
+    const at = Date.now();
+    // No pace between calls (`CALL_PACE_MS`): this one is about the signals' timestamps.
+    const { a, b } = pairOfManagers({ now: () => at, callPaceMs: 0 });
+    await a.calls.start("chat-ab", {});
+    await until(() => b.events.find((e) => e.type === "call.incoming"));
+    await a.calls.hangup(undefined);
+    await a.calls.start("chat-ab", {});
+    await until(() => b.events.filter((e) => e.type === "call.incoming").length === 2, 2000);
+    await a.calls.hangup(undefined);
+    await until(() => b.events.filter((e) => e.type === "call.ended").length === 2, 2000);
+    expect(b.calls.list()).toEqual([]);
+    const sent = a.signals.filter((s): s is string => s !== null).map((s) => (JSON.parse(s) as { ts: number }).ts);
+    expect(sent).toEqual([...sent].sort((x, y) => x - y));
+    expect(new Set(sent).size).toBe(sent.length);
+    await a.calls.stopAll();
+    await b.calls.stopAll();
+  });
+
+  // A bot looping call.start / call.hangup placed 1,375 calls a minute (agents#974): the contact's app keeps each as a
+  // missed call. A call that ended unanswered is followed by the next one no sooner than CALL_PACE_MS.
+  it("a call placed right after this side's last one ended unanswered is refused as busy, with the wait left; after it, or after a declined or answered call, it rings", async () => {
+    let at = Date.now();
+    const { a, b } = pairOfManagers({ now: () => at });
+    await a.calls.start("chat-ab", {});
+    await until(() => b.events.find((e) => e.type === "call.incoming"));
+    await a.calls.hangup(undefined);
+    await until(() => b.events.find((e) => e.type === "call.ended"));
+    at += 500;
+    const refused = await a.calls.start("chat-ab", {}).catch((error: unknown) => error);
+    expect(refused).toMatchObject({ code: "busy", details: { retryAfterMs: CALL_PACE_MS - 500 } });
+    expect((refused as Error).message).toBe("Your last call in this chat ended unanswered a moment ago: call again in 1.5 s");
+    // Nothing went to the contact for it, and nothing is on here.
+    expect(b.events.filter((e) => e.type === "call.incoming")).toHaveLength(1);
+    expect(a.calls.list()).toEqual([]);
+    at += CALL_PACE_MS;
+    await a.calls.start("chat-ab", {});
+    await until(() => b.events.filter((e) => e.type === "call.incoming").length === 2);
+    // Declined by the contact: no pace, the next call may go at once.
+    await b.calls.hangup(undefined);
+    await until(() => a.events.filter((e) => e.type === "call.ended").length === 2);
+    await a.calls.start("chat-ab", {});
+    await until(() => b.events.filter((e) => e.type === "call.incoming").length === 3);
+    await a.calls.hangup(undefined);
+    await a.calls.stopAll();
+    await b.calls.stopAll();
+  });
+
+  it("a call answered seconds after it rang sends its answer at once, though the STUN server never answers: its candidates were gathered as it rang", async () => {
+    // A STUN server that swallows every request, as on a network that blocks UDP to it (many offices and hotels).
+    const silent = createSocket("udp4");
+    let asked = 0;
+    silent.on("message", () => { asked++; });
+    await new Promise<void>((bound) => silent.bind(0, "127.0.0.1", bound));
+    try {
+      await withEnv({ PROPERTY_STUN: "0" }, async () => {
+        const { a, b } = pairOfManagers({ iceServersB: [{ urls: `stun:127.0.0.1:${silent.address().port}` }] });
+        await a.calls.start("chat-ab", {});
+        await until(() => b.events.find((e) => e.type === "call.incoming"));
+        await new Promise((r) => setTimeout(r, 3000));
+        const askedRinging = asked;
+        const started = Date.now();
+        await b.calls.answer(undefined, {});
+        expect(signalsOf(b, "a")).toHaveLength(1);
+        expect(Date.now() - started, "the answer went out at once").toBeLessThan(500);
+        expect(askedRinging, "the STUN server was asked while the call rang").toBeGreaterThan(0);
+        // The offer's candidates, held back while it rang, went in with the answer: the call connects.
+        await until(() => a.calls.list()[0]?.state === "connected" && b.calls.list()[0]?.state === "connected").catch(diagnose(a, b));
+        await a.calls.hangup(undefined);
+        await until(() => b.events.find((e) => e.type === "call.ended"));
+        await a.calls.stopAll();
+        await b.calls.stopAll();
+      });
+    } finally {
+      silent.close();
+    }
+  });
+
+  it("the answer made as a call rings: closed when the call is declined or missed, made again while it rings long, and answered on", async () => {
+    await withEnv({ PROPERTY_STUN: "0" }, async () => {
+      const counted = countingStack();
+      // No pace between calls (`CALL_PACE_MS`): the caller places one right after the one it hung up.
+      const { a, b } = pairOfManagers({ b: counted, earlyAnswerMs: 300, callPaceMs: 0 });
+
+      // Declined: made again a few times while it rang, and none is left open.
+      await a.calls.start("chat-ab", {});
+      await until(() => b.events.find((e) => e.type === "call.incoming"));
+      await until(() => counted.made() >= 3);
+      await b.calls.hangup(undefined);
+      expect(await until(() => a.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "rejected" });
+      await until(() => counted.open() === 0);
+
+      // Missed: the caller gives up while it rings.
+      const before = counted.made();
+      await a.calls.start("chat-ab", {});
+      await until(() => b.events.filter((e) => e.type === "call.incoming").length === 2);
+      await until(() => counted.made() > before);
+      await a.calls.hangup(undefined);
+      expect(await until(() => b.events.filter((e) => e.type === "call.ended")[1])).toMatchObject({ reason: "missed" });
+      await until(() => counted.open() === 0);
+
+      // Answered after ringing past several early answers: on the last one, the others closed.
+      await new Promise((r) => setTimeout(r, 200));
+      await a.calls.start("chat-ab", {});
+      await until(() => b.events.filter((e) => e.type === "call.incoming").length === 3);
+      await new Promise((r) => setTimeout(r, 1000));
+      const made = counted.made();
+      await b.calls.answer(undefined, {});
+      expect(counted.made(), "no connection was made for the answer").toBe(made);
+      await until(() => a.calls.list()[0]?.state === "connected" && b.calls.list()[0]?.state === "connected").catch(diagnose(a, b));
+      expect(counted.open()).toBe(1);
+      await a.calls.hangup(undefined);
+      await until(() => b.events.filter((e) => e.type === "call.ended").length === 3);
+      await until(() => counted.open() === 0);
+      await a.calls.stopAll();
+      await b.calls.stopAll();
+    });
+  });
+
+  // Reported 2026-10-19: libjuice never gives a TURN allocation back (no Refresh with LIFETIME 0 when a connection
+  // closes), so each early answer held one on the server for 10 minutes, declined, missed and cancelled calls too, and
+  // a server with a per-user quota refused the next calls' relay.
+  it("with a TURN server in its settings, a call declined or missed asks it for nothing, and one answered gets its relay as it is answered and connects", async () => {
+    // A TURN server that answers nothing: it counts the Allocate requests sent to it.
+    const turn = createSocket("udp4");
+    let allocates = 0;
+    turn.on("message", (msg) => { if (msg.length >= 20 && msg.readUInt16BE(0) === 0x0003) allocates++; });
+    await new Promise<void>((bound) => turn.bind(0, "127.0.0.1", bound));
+    try {
+      await withEnv({ PROPERTY_STUN: "0" }, async () => {
+        const counted = countingStack();
+        const iceServersB = [{ urls: `turn:127.0.0.1:${turn.address().port}`, username: "u", credential: "p" }];
+        const { a, b } = pairOfManagers({ b: counted, earlyAnswerMs: 300, callPaceMs: 0, iceServersB });
+
+        // Declined, after ringing past a few early answers' turns.
+        await a.calls.start("chat-ab", {});
+        await until(() => b.events.find((e) => e.type === "call.incoming"));
+        await new Promise((r) => setTimeout(r, 1000));
+        expect(counted.made(), "no connection was made while it rang").toBe(0);
+        await b.calls.hangup(undefined);
+        expect(await until(() => a.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "rejected" });
+
+        // Missed: the caller gives up while it rings.
+        await a.calls.start("chat-ab", {});
+        await until(() => b.events.filter((e) => e.type === "call.incoming").length === 2);
+        await new Promise((r) => setTimeout(r, 1000));
+        await a.calls.hangup(undefined);
+        expect(await until(() => b.events.filter((e) => e.type === "call.ended")[1])).toMatchObject({ reason: "missed" });
+        expect(counted.made()).toBe(0);
+        expect(allocates, "the TURN server was asked nothing").toBe(0);
+
+        // Answered: the answer's connection is made now, with the TURN server, and the call connects.
+        await new Promise((r) => setTimeout(r, 200));
+        await a.calls.start("chat-ab", {});
+        await until(() => b.events.filter((e) => e.type === "call.incoming").length === 3);
+        const logged: string[] = [];
+        const write = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => { logged.push(String(chunk)); return true; });
+        try {
+          await b.calls.answer(undefined, {});
+        } finally {
+          write.mockRestore();
+        }
+        expect(counted.made()).toBe(1);
+        await until(() => allocates > 0);
+        // It never answered: the daemon's log says the call has no relay, and why that can be.
+        expect(logged.join("")).toContain("no relay address: the TURN server refused the allocation or did not answer in time");
+        await until(() => a.calls.list()[0]?.state === "connected" && b.calls.list()[0]?.state === "connected").catch(diagnose(a, b));
+        await a.calls.hangup(undefined);
+        await until(() => b.events.filter((e) => e.type === "call.ended").length === 3);
+        await until(() => counted.open() === 0);
+        await a.calls.stopAll();
+        await b.calls.stopAll();
+      });
+    } finally {
+      turn.close();
+    }
+  });
+
+  it("calls that ring and hang up over and over, from one chat or many, make one early answer at a time per chat and MAX_EARLY_ANSWERS in all", async () => {
+    // A STUN server that never answers: each early answer takes HOST_GATHER_MS to make, and outlives its call that long.
+    const silent = createSocket("udp4");
+    await new Promise<void>((bound) => silent.bind(0, "127.0.0.1", bound));
+    try {
+      await withEnv({ PROPERTY_STUN: "0" }, async () => {
+        const counted = countingStack();
+        const { a, b } = pairOfManagers({ b: counted, iceServersB: [{ urls: `stun:127.0.0.1:${silent.address().port}` }] });
+        await a.calls.start("chat-ab", {});
+        await until(() => b.events.find((e) => e.type === "call.incoming"));
+        const offer = JSON.parse(signalsOf(a, "o")[0]!) as { ts: number };
+        let ts = offer.ts;
+        const ring = (chat: string) => b.calls.onSignal(chat, heardCallSignal(JSON.stringify({ ...offer, ts: ++ts }), Date.now()));
+        const hangUp = (chat: string) => b.calls.onSignal(chat, heardCallSignal(JSON.stringify({ t: "h", ts: ++ts }), Date.now()));
+
+        // One chat: 40 rings, each hung up at once, then one that keeps ringing.
+        for (let i = 0; i < 40; i++) { ring("chat-ba"); hangUp("chat-ba"); }
+        ring("chat-ba");
+        await new Promise((r) => setTimeout(r, 300));
+        expect(counted.peak(), "one early answer at a time for the chat").toBe(1);
+        // The call still ringing gets its own once the one being made is done.
+        await until(() => counted.made() >= 2 && counted.open() === 1 && b.calls.list().length === 1, 10_000);
+        hangUp("chat-ba");
+        await until(() => counted.open() === 0, 10_000);
+
+        // Ten chats at once, each ringing and hanging up 5 times, then ringing.
+        for (let i = 0; i < 5; i++) for (let c = 0; c < 10; c++) { ring(`chat-${c}`); hangUp(`chat-${c}`); }
+        for (let c = 0; c < 10; c++) ring(`chat-${c}`);
+        await new Promise((r) => setTimeout(r, 300));
+        expect(counted.peak()).toBeLessThanOrEqual(MAX_EARLY_ANSWERS);
+        await new Promise((r) => setTimeout(r, 2500));
+        expect(counted.peak()).toBeLessThanOrEqual(MAX_EARLY_ANSWERS);
+        expect(b.calls.list()).toHaveLength(10);
+        await b.calls.stopAll();
+        await a.calls.stopAll();
+        await until(() => counted.open() === 0, 10_000);
+      });
+    } finally {
+      silent.close();
+    }
+  });
+
+  // Reported 2026-10-01 (a contact whose clock runs two minutes fast): a signal more than two minutes from this clock
+  // never rang, and an answer dated before the caller's offer (a callee's clock behind) was never taken.
+  it.each([["two minutes behind", -2 * 60_000 - 500], ["two minutes ahead", 2 * 60_000 + 500], ["nine minutes behind", -9 * 60_000]])("a contact whose clock is %s: its call rings, the answer names the offer, and the call connects both ways", async (_, skew) => {
+    for (const calleeIsOff of [true, false]) {
+      const off = () => Date.now() + skew;
+      // The second side is the callee; one of the two has the clock that is off.
+      const { a, b } = calleeIsOff ? pairOfManagers({ nowB: off }) : pairOfManagers({ now: off, nowB: () => Date.now() });
+      await a.calls.start("chat-ab", {});
+      await until(() => b.events.find((e) => e.type === "call.incoming")).catch(diagnose(a, b));
+      await b.calls.answer(undefined, {});
+      const offer = JSON.parse(signalsOf(a, "o")[0]!) as { ts: number }, answer = JSON.parse(signalsOf(b, "a")[0]!) as { ts: number; o: number };
+      expect(answer.o).toBe(offer.ts);
+      expect(Math.abs(answer.ts - offer.ts)).toBeGreaterThan(60_000);
+      await until(() => a.calls.list()[0]?.state === "connected" && b.calls.list()[0]?.state === "connected").catch(diagnose(a, b));
+      await a.calls.hangup(undefined);
+      expect(await until(() => b.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "remote-hangup" });
+      await a.calls.stopAll();
+      await b.calls.stopAll();
+    }
+  });
+
+  it("a signal dated a day ahead is not taken, and the contact's call after it still rings", async () => {
+    const { a, b } = pairOfManagers();
+    b.calls.onSignal("chat-ba", heardCallSignal(JSON.stringify({ t: "h", ts: Date.now() + 24 * 60 * 60_000 }), Date.now()));
+    await a.calls.start("chat-ab", {});
+    await until(() => b.events.find((e) => e.type === "call.incoming")).catch(diagnose(a, b));
+    await a.calls.hangup(undefined);
+    expect(await until(() => b.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "missed" });
+    await a.calls.stopAll();
+    await b.calls.stopAll();
+  });
+
+  /** Both sides call each other at once; the side whose offer lost is the one that ends its call as `crossed`. */
+  async function glare(a: Side, b: Side) {
+    await Promise.allSettled([a.calls.start("chat-ab", {}), b.calls.start("chat-ba", {})]);
+    const crossed = (s: Side) => s.events.some((e) => e.type === "call.ended" && e.reason === "crossed");
+    const loser = await until(() => [a, b].find(crossed)).catch(diagnose(a, b));
+    const winner = loser === a ? b : a;
+    await until(() => loser.events.find((e) => e.type === "call.incoming")).catch(diagnose(a, b));
+    // Its own call ended first, then the contact's rang; it sent no hang-up, which would end the contact's call.
+    expect(loser.events.map((e) => e.type).filter((t) => t !== "call.outgoing")).toEqual(["call.ended", "call.incoming"]);
+    expect(signalsOf(loser, "h")).toEqual([]);
+    expect(crossed(winner)).toBe(false);
+    expect(winner.calls.list()).toMatchObject([{ direction: "out", state: "ringing" }]);
+    expect(loser.calls.list()).toMatchObject([{ direction: "in", state: "ringing" }]);
+    return { loser, winner };
+  }
+
+  it("both call at once: the earlier offer rings on the other side, and answering it connects", async () => {
+    const { a, b } = pairOfManagers();
+    const { loser } = await glare(a, b);
+    await loser.calls.answer(undefined, {});
+    await Promise.all([
+      until(() => a.events.find((e) => e.type === "call.connected")),
+      until(() => b.events.find((e) => e.type === "call.connected")),
+    ]).catch(diagnose(a, b));
+    await a.calls.stopAll();
+    await b.calls.stopAll();
+  });
+
+  it("both call at once in the same millisecond: the lower DTLS fingerprint wins", async () => {
+    const at = Date.now();
+    // The session is slow enough that both offers go out before either arrives: the tie is decided by the offers alone.
+    const { a, b } = pairOfManagers({ now: () => at, delay: 1500 });
+    const { winner } = await glare(a, b);
+    const offerOf = (s: Side) => JSON.parse(signalsOf(s, "o")[0]!) as { ts: number; f: string };
+    const [mine, theirs] = [offerOf(winner), offerOf(winner === a ? b : a)];
+    expect(mine.ts).toBe(theirs.ts);
+    expect(mine.f < theirs.f).toBe(true);
+    await a.calls.stopAll();
+    await b.calls.stopAll();
+  });
+
+  // Once connected, the caller hears a hang-up as one even when it started over first (CI run 36697428485: the real
+  // race made it redial, and the stop ended its call as `failed`).
+  for (const refuse of [0, 1]) {
+    it(`a daemon that stops hangs up its calls first${refuse ? ", after the caller started over" : ""}`, async () => {
+      const stack = refusingStack(refuse);
+      const { a, b } = pairOfManagers({ a: stack, maxRedials: refuse + MAX_REDIALS });
+      b.calls.setAuto({ on: true });
+      await a.calls.start("chat-ab", {});
+      await until(() => a.events.find((e) => e.type === "call.connected")).catch(diagnose(a, b));
+      expect(signalsOf(a, "o")).toHaveLength(stack.refused() + 1);
+      await b.calls.stopAll();
+      expect(b.events.find((e) => e.type === "call.ended")).toMatchObject({ reason: "stopped" });
+      expect(await until(() => a.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "remote-hangup" });
+      await expect(b.calls.start("chat-ba", {})).rejects.toMatchObject({ code: "unavailable" });
+    });
+  }
+
+  it("an offer that arrives while the daemon stops rings nothing and throws nothing", async () => {
+    const { a, b } = pairOfManagers();
+    await b.calls.stopAll();
+    await a.calls.start("chat-ab", {});
+    // The chat session hands it over as the daemon stops: it was thrown out of the session's event ("The daemon is
+    // stopping"), an error nobody handled.
+    const offer = signalsOf(a, "o")[0]!;
+    expect(() => b.calls.onSignal("chat-ba", offer)).not.toThrow();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(b.calls.list()).toEqual([]);
+    expect(b.events.filter((e) => e.type === "call.incoming")).toEqual([]);
+    await a.calls.stopAll();
+  });
+
+  describe("a call that ends while it is answered or placed", () => {
+    /** One manager whose signals go nowhere, and what its profile's folder still holds: socket files, listening servers. */
+    const lone = (chat: string) => {
+      const dir = tmp();
+      const side = { events: [], signals: [], link: { id: chat, profile: "paired-chat/1", callsUnavailable: null, label: `to ${chat}` } } as unknown as Side;
+      const engine: CallEngine = { getState: () => ({ links: [side.link] }) as unknown as EngineState, setCallSignal: async ({ signal }) => { side.signals.push(signal); } };
+      side.calls = new CallManager({ engine, emit: (type, _id, fields) => side.events.push({ type, ...fields }), profileDir: dir });
+      const folder = join(audioSocketPath(dir, "0".repeat(12)), "..");
+      const files = () => existsSync(folder) ? readdirSync(folder) : [];
+      const servers = () => (process as unknown as { _getActiveHandles(): unknown[] })._getActiveHandles()
+        .filter((handle) => handle instanceof Server && handle.listening && String(handle.address()).startsWith(folder)).length;
+      return { side, files, servers };
+    };
+    /** A caller's offer, and the same offer and its hang-up as the callee's chat session hands them over, each round later than the last. */
+    const offered = async () => {
+      const caller = lone("chat-ab");
+      await caller.side.calls.start("chat-ab", {});
+      const offer = JSON.parse(signalsOf(caller.side, "o")[0]!) as { ts: number };
+      let round = 0;
+      return {
+        caller,
+        offer: () => heardCallSignal(JSON.stringify({ ...offer, ts: offer.ts + ++round * 10 }), Date.now()),
+        hangUp: () => heardCallSignal(JSON.stringify({ t: "h", ts: offer.ts + round * 10 + 1 }), Date.now()),
+      };
+    };
+    const settled = () => new Promise((r) => setTimeout(r, 300));
+
+    it("auto-answer: the offer and its hang-up at once, 5 times, leave no socket, no listening server and no call", async () => {
+      const { caller, offer, hangUp } = await offered();
+      const callee = lone("chat-ba");
+      callee.side.calls.setAuto({ on: true });
+      for (let i = 0; i < 5; i++) {
+        callee.side.calls.onSignal("chat-ba", offer());
+        callee.side.calls.onSignal("chat-ba", hangUp());
+        await settled();
+      }
+      expect(callee.side.events.map((e) => e.type)).toEqual(Array(5).fill(["call.incoming", "call.ended"]).flat());
+      expect(callee.side.calls.list()).toEqual([]);
+      expect(callee.files()).toEqual([]);
+      expect(callee.servers()).toBe(0);
+      // No answer was sent for a call that was over.
+      expect(signalsOf(callee.side, "a")).toEqual([]);
+      await caller.side.calls.stopAll();
+      await callee.side.calls.stopAll();
+    });
+
+    it("`call answer`: the hang-up while the answer loads its stack, or while its socket opens, refuses the answer and leaves nothing", async () => {
+      const { caller, offer, hangUp } = await offered();
+      const callee = lone("chat-ba");
+      callee.side.calls.onSignal("chat-ba", offer());
+      const early = callee.side.calls.answer(undefined, {});
+      callee.side.calls.onSignal("chat-ba", hangUp());
+      await expect(early).rejects.toMatchObject({ code: "unavailable" });
+
+      // The hang-up comes as the socket opens: `end` finds none on the call yet.
+      const open = AudioSocket.open.bind(AudioSocket);
+      const opening = vi.spyOn(AudioSocket, "open").mockImplementation(async (...args) => {
+        const socket = await open(...args);
+        callee.side.calls.onSignal("chat-ba", hangUp());
+        return socket;
+      });
+      try {
+        callee.side.calls.onSignal("chat-ba", offer());
+        await expect(callee.side.calls.answer(undefined, {})).rejects.toMatchObject({ code: "unavailable" });
+        expect(opening).toHaveBeenCalledTimes(1);
+      } finally {
+        opening.mockRestore();
+      }
+      await settled();
+      expect(callee.side.events.filter((e) => e.type === "call.ended")).toMatchObject([{ reason: "missed" }, { reason: "remote-hangup" }]);
+      expect(callee.side.calls.list()).toEqual([]);
+      expect(callee.files()).toEqual([]);
+      expect(callee.servers()).toBe(0);
+      expect(signalsOf(callee.side, "a")).toEqual([]);
+      await caller.side.calls.stopAll();
+      await callee.side.calls.stopAll();
+    });
+
+    it("a call hung up while its socket opens is not placed, and leaves nothing", async () => {
+      const caller = lone("chat-ab");
+      const open = AudioSocket.open.bind(AudioSocket);
+      const opening = vi.spyOn(AudioSocket, "open").mockImplementation(async (...args) => {
+        const socket = await open(...args);
+        void caller.side.calls.hangup(undefined);
+        return socket;
+      });
+      try {
+        await expect(caller.side.calls.start("chat-ab", {})).rejects.toMatchObject({ code: "unavailable" });
+      } finally {
+        opening.mockRestore();
+      }
+      await settled();
+      expect(caller.side.calls.list()).toEqual([]);
+      expect(caller.files()).toEqual([]);
+      expect(caller.servers()).toBe(0);
+      expect(signalsOf(caller.side, "o")).toEqual([]);
+      await caller.side.calls.stopAll();
+    });
+
+    it("a call answered twice at once is answered once, on one socket", async () => {
+      const { caller, offer } = await offered();
+      const callee = lone("chat-ba");
+      callee.side.calls.onSignal("chat-ba", offer());
+      const answers = await Promise.allSettled([callee.side.calls.answer(undefined, {}), callee.side.calls.answer(undefined, {})]);
+      expect(answers.map((a) => a.status)).toEqual(["fulfilled", "rejected"]);
+      expect(answers[1]).toMatchObject({ reason: { code: "refused" } });
+      expect(callee.side.calls.list()).toMatchObject([{ state: "connecting" }]);
+      expect(callee.files()).toHaveLength(1);
+      expect(callee.servers()).toBe(1);
+      expect(signalsOf(callee.side, "a")).toHaveLength(1);
+      await callee.side.calls.hangup(undefined);
+      expect(callee.files()).toEqual([]);
+      expect(callee.servers()).toBe(0);
+      await caller.side.calls.stopAll();
+      await callee.side.calls.stopAll();
+    });
+  });
+
+  it("an answer refused as its connection closes: both sides start over once, on new connections and the same sockets", async () => {
+    const stack = refusingStack(1);
+    const { a, b } = pairOfManagers({ a: stack, maxRedials: 1 + MAX_REDIALS });
+    b.calls.setAuto({ on: true, rate: 16000 });
+    const placed = await a.calls.start("chat-ab", { rate: 48000 }) as { call: string; audio: { socket: string } };
+    const alice = await program(placed.audio.socket);
+    const [, connectedB] = await Promise.all([
+      until(() => a.events.find((e) => e.type === "call.connected")),
+      until(() => b.events.find((e) => e.type === "call.connected")),
+    ]).catch(diagnose(a, b));
+    expect(signalsOf(a, "o")).toHaveLength(stack.refused() + 1);
+    expect(signalsOf(b, "a")).toHaveLength(stack.refused() + 1);
+    expect(signalsOf(a, "h")).toHaveLength(0);
+    expect(a.events.map((e) => e.type)).toEqual(["call.outgoing", "call.connected"]);
+    expect(b.events.map((e) => e.type)).toEqual(["call.incoming", "call.connected"]);
+    expect(a.calls.list()).toMatchObject([{ call: placed.call, state: "connected", audio: { socket: placed.audio.socket } }]);
+
+    // The program that connected before the answer speaks over the new connection.
+    const bob = await program((connectedB.audio as { socket: string }).socket);
+    alice.socket.write(tone(440, 48000, 1500));
+    await until(() => bob.heard().length >= 640 * 60, 20_000);
+    expect(dominantHz(bob.heard().subarray(640 * 20, 640 * 60), 16000)).toBeCloseTo(440, -1);
+
+    await a.calls.hangup(undefined);
+    await Promise.all([alice.ended, bob.ended]);
+    expect(await until(() => b.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "remote-hangup" });
+  });
+
+  // Linux arm64 runners saw the race twice in a row (CI run 36667046330): one start-over was not enough.
+  for (const refuse of [2, 3]) {
+    it(`an answer refused ${refuse} times in a row: the call still connects, on the same sockets`, async () => {
+      const stack = refusingStack(refuse);
+      const { a, b } = pairOfManagers({ a: stack, maxRedials: refuse + MAX_REDIALS });
+      b.calls.setAuto({ on: true });
+      const placed = await a.calls.start("chat-ab", {}) as { call: string; audio: { socket: string } };
+      await Promise.all([
+        until(() => a.events.find((e) => e.type === "call.connected")),
+        until(() => b.events.find((e) => e.type === "call.connected")),
+      ]).catch(diagnose(a, b));
+      expect(signalsOf(a, "o")).toHaveLength(stack.refused() + 1);
+      expect(signalsOf(b, "a")).toHaveLength(stack.refused() + 1);
+      expect(signalsOf(a, "h")).toHaveLength(0);
+      expect(signalsOf(b, "h")).toHaveLength(0);
+      expect(a.events.map((e) => e.type)).toEqual(["call.outgoing", "call.connected"]);
+      expect(b.events.map((e) => e.type)).toEqual(["call.incoming", "call.connected"]);
+      expect(a.calls.list()).toMatchObject([{ call: placed.call, state: "connected", audio: { socket: placed.audio.socket } }]);
+      await a.calls.stopAll();
+      await b.calls.stopAll();
+    });
+  }
+
+  it("an answer that goes in, its connection failing at once, 2 times in a row: the call still connects, on the same sockets", async () => {
+    // The race's other ending (CI run 36695348205): the caller ended the call 3 s later as a remote hang-up, untold.
+    const stack = refusingStack(2, "fails");
+    const { a, b } = pairOfManagers({ a: stack, maxRedials: 2 + MAX_REDIALS });
+    b.calls.setAuto({ on: true });
+    const placed = await a.calls.start("chat-ab", {}) as { call: string; audio: { socket: string } };
+    await Promise.all([
+      until(() => a.events.find((e) => e.type === "call.connected")),
+      until(() => b.events.find((e) => e.type === "call.connected")),
+    ]).catch(diagnose(a, b));
+    expect(stack.refused()).toBeGreaterThanOrEqual(2);
+    expect(signalsOf(a, "o")).toHaveLength(stack.refused() + 1);
+    expect(signalsOf(b, "a")).toHaveLength(stack.refused() + 1);
+    expect(signalsOf(a, "h")).toHaveLength(0);
+    expect(a.events.map((e) => e.type)).toEqual(["call.outgoing", "call.connected"]);
+    expect(b.events.map((e) => e.type)).toEqual(["call.incoming", "call.connected"]);
+    expect(a.calls.list()).toMatchObject([{ call: placed.call, state: "connected", audio: { socket: placed.audio.socket } }]);
+    await a.calls.stopAll();
+    await b.calls.stopAll();
+  });
+
+  it("answers refused past the last start-over end the call as failed, and the contact is told", async () => {
+    // The first offer and MAX_REDIALS more, each answer refused.
+    const { a, b } = pairOfManagers({ a: refusingStack(MAX_REDIALS + 1) });
+    b.calls.setAuto({ on: true });
+    await a.calls.start("chat-ab", {});
+    expect(await until(() => a.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "failed" });
+    expect(await until(() => b.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "remote-hangup" });
+    expect(signalsOf(a, "o")).toHaveLength(MAX_REDIALS + 1);
+    expect(signalsOf(b, "a")).toHaveLength(MAX_REDIALS + 1);
+    expect(signalsOf(a, "h")).toHaveLength(1);
+    expect(a.events.find((e) => e.type === "call.connected")).toBeUndefined();
+    expect(a.calls.list()).toEqual([]);
+    await a.calls.stopAll();
+    await b.calls.stopAll();
+  });
+
+  it("a contact that does not answer the second offer, as the apps do, hangs up: the call failed", async () => {
+    const { a, b } = pairOfManagers({ a: refusingStack(1) });
+    b.calls.setAuto({ on: true });
+    // The apps answer an offer only while idle (useWebRTC): their connection fails with the caller's, and they hang up.
+    const onSignal = b.calls.onSignal.bind(b.calls);
+    b.calls.onSignal = (chat, json) => {
+      if (JSON.parse(json).t === "o" && signalsOf(b, "a").length) void b.calls.hangup(undefined);
+      else onSignal(chat, json);
+    };
+    await a.calls.start("chat-ab", {});
+    expect(await until(() => a.events.find((e) => e.type === "call.ended"))).toMatchObject({ reason: "failed" });
+    expect(signalsOf(a, "o")).toHaveLength(2);
+    expect(a.calls.list()).toEqual([]);
+    await a.calls.stopAll();
+    await b.calls.stopAll();
+  });
+});
+
+describe("auto-answer from the chats named", () => {
+  const KEY = "y".repeat(52);
+  const links = [
+    { id: "chat-real-alice", label: "Alice", peerNick: "alice", peerPubKeyZ32: "o".repeat(51) + "y", profile: "paired-chat/1" },
+    { id: "chat-mallory", label: null, peerNick: "Bob", peerPubKeyZ32: KEY, profile: "paired-chat/1" },
+  ] as unknown as LinkView[];
+  const manager = () => new CallManager({ engine: { getState: () => ({ links, settings: {} }) as unknown as EngineState, setCallSignal: async () => {} }, emit: () => {}, profileDir: tmp() });
+  const saved = (calls: CallManager) => (calls as unknown as { configPath: string }).configPath;
+
+  it("takes a chat by its id, its contact's key or this side's label", () => {
+    const calls = manager();
+    expect(calls.setAuto({ on: true, from: ["chat-mallory", KEY, "alice"] }).from).toEqual(["chat-mallory", "chat-mallory", "chat-real-alice"]);
+  });
+
+  it("refuses a chat named only by its contact's own name or a prefix of its id, and keeps nothing", () => {
+    const calls = manager();
+    for (const ref of ["Bob", "chat-mall"]) {
+      expect(() => calls.setAuto({ on: true, from: [ref] })).toThrow(expect.objectContaining({ code: "bad_request", details: expect.objectContaining({ chat: "chat-mallory", contact: KEY }) }));
+    }
+    expect(calls.getAuto()).toMatchObject({ on: false, from: [] });
+    expect(existsSync(saved(calls))).toBe(false);
+  });
+
+  it("drops a removed chat from the list, and turns auto-answer off when the last one goes", () => {
+    const calls = manager();
+    calls.setAuto({ on: true, from: ["chat-mallory", "alice"], rate: 16000 });
+    calls.forgetChat("chat-mallory");
+    expect(calls.getAuto()).toEqual({ on: true, from: ["chat-real-alice"], rate: 16000 });
+    calls.forgetChat("chat-real-alice");
+    expect(calls.getAuto()).toEqual({ on: false, from: [], rate: 48000 });
+    expect(JSON.parse(readFileSync(saved(calls), "utf8"))).toEqual({ autoAnswer: { on: false, from: [], rate: 48000 } });
+  });
+
+  it("leaves auto-answer from anyone on when a chat is removed", () => {
+    const calls = manager();
+    calls.setAuto({ on: true });
+    calls.forgetChat("chat-mallory");
+    expect(calls.getAuto()).toMatchObject({ on: true, from: [] });
+  });
+
+  it("names the command that gives the chat a label when it refuses one", () => {
+    expect(() => manager().setAuto({ on: true, from: ["Bob"] })).toThrow(/property chat rename <chat> <name>/);
+  });
+});

@@ -1,4 +1,8 @@
-# Ghostly docs
+# Property Direct documentation
+
+This documentation tree includes upstream protocol and architecture references. For current Property Direct behavior,
+start with the [English overview](../README.md), its [Português (Brasil) edition](../README.pt-BR.md), and the
+[Property Direct CLI guide](CLI.md) ([Português (Brasil)](CLI.pt-BR.md)).
 
 | Topic | Docs |
 |---|---|

@@ -1,0 +1,317 @@
+import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { deserialize, serialize } from "node:v8";
+import { expect, it } from "vitest";
+import { seal } from "@ghostly/browser/backup/envelope";
+import { databaseName } from "@ghostly/browser/shared/idb";
+import { openPersistentIndexedDb } from "../src/runtime/storage";
+import { BIN, error, property, home, ok, testEnv } from "./support/cli";
+// covers: headless.backup, backup.light
+
+const PASS = { PROPERTY_BACKUP_PASSPHRASE: "correct horse battery staple" };
+/** Nothing of the environment's passphrase, whatever the shell running the tests holds. */
+const NO_PASS = { PROPERTY_BACKUP_PASSPHRASE: "" };
+const header = (file: string) => { const bytes = readFileSync(file); return JSON.parse(bytes.subarray(0, bytes.indexOf(10)).toString("utf8")) as Record<string, unknown>; };
+const pattern = (length: number, seed: number) => { const out = Buffer.alloc(length); for (let i = 0; i < length; i++) out[i] = (i * 31 + seed * 17 + (i >> 8)) & 255; return out; };
+
+it("backs a profile up under a passphrase and restores it into a new one, never over an existing one", async () => {
+  const dir = home("backup");
+  ok(await property(["--home", dir, "profile", "set", "--name", "Backup bot"]));
+  const file = join(dir, "bot.property-backup");
+  error(await property(["--home", dir, "profile", "backup", "--out", file], { env: { PROPERTY_BACKUP_PASSPHRASE: "short" } }), "bad_request", 1);
+  expect(readdirSync(dir).filter((name) => name.includes("property-backup")), "a refused backup leaves no file, whole or partial").toEqual([]);
+  const made = ok(await property(["--home", dir, "profile", "backup", "--out", file], { env: PASS }));
+  expect(made).toMatchObject({ path: file, protection: "passphrase", bytes: statSync(file).size });
+  expect(header(file)).toMatchObject({ format: "ghostly-backup", version: 2, protection: "passphrase", kdf: { name: "PBKDF2-SHA256", iterations: 600_000 }, cipher: { name: "AES-256-GCM" } });
+  expect(readFileSync(file, "latin1")).not.toContain("Backup bot");
+  expect(statSync(file).mode & 0o777).toBe(0o600);
+  expect(readdirSync(dir).filter((name) => name.includes(".partial")), "the file being written took its name only when whole").toEqual([]);
+  // A file there already: refused (exit 1), as a restore into a profile that exists. Not `confirm` (exit 5, "needs
+  // --force"): backup takes no --force.
+  expect(error(await property(["--home", dir, "profile", "backup", "--out", file], { env: PASS }), "refused", 1).message).toBe(`${file} exists: choose another name`);
+
+  const wrong = join(dir, "wrong");
+  writeFileSync(wrong, "not the passphrase\n");
+  error(await property(["--home", dir, "profile", "restore", file, "copy", "--passphrase-file", wrong]), "refused", 1);
+  error(await property(["--home", dir, "profile", "restore", file, "default"], { env: PASS }), "refused", 1);
+  error(await property(["--home", dir, "profile", "restore", file, "copy"], { env: NO_PASS }), "usage", 2);
+  expect(ok(await property(["--home", dir, "profile", "restore", file, "copy"], { env: PASS }))).toMatchObject({ restored: "copy", protection: "passphrase" });
+  expect(ok(await property(["--home", dir, "--profile", "copy", "profile", "show"]))).toMatchObject({ profile: "copy", name: "Backup bot" });
+});
+
+it("a profile's files travel with it, large ones too, and a damaged or cut backup restores nothing", async () => {
+  const dir = home("backup-files");
+  ok(await property(["--home", dir, "profile", "set", "--name", "Files bot"]));
+  // Files as the engine keeps them: real files under the profile's files folder, of any size.
+  const files = join(dir, "profiles", "default", "files", "property");
+  mkdirSync(files, { recursive: true });
+  const big = pattern(5 * 1024 * 1024 + 7, 1);
+  writeFileSync(join(files, "chat-in-big"), big);
+  for (let i = 0; i < 40; i++) writeFileSync(join(files, `chat-in-${i}`), pattern(2000 + i, i));
+  writeFileSync(join(files, "chat-in-empty"), "");
+
+  const file = join(dir, "files.property-backup");
+  expect(ok(await property(["--home", dir, "profile", "backup", "--out", file], { env: PASS }))).toMatchObject({ files: 42 });
+  const restored = ok(await property(["--home", dir, "profile", "restore", file, "copy"], { env: PASS })) as { folder: string };
+  const copied = join(restored.folder, "files", "property");
+  expect(readdirSync(copied).length).toBe(42);
+  expect(readFileSync(join(copied, "chat-in-big")).equals(big)).toBe(true);
+  expect(readFileSync(join(copied, "chat-in-17")).equals(pattern(2017, 17))).toBe(true);
+  expect(statSync(join(copied, "chat-in-empty")).size).toBe(0);
+  expect(ok(await property(["--home", dir, "--profile", "copy", "profile", "show"]))).toMatchObject({ name: "Files bot" });
+
+  // Changed in the middle, or cut short: refused, and no half-made profile stays.
+  const bytes = readFileSync(file);
+  const changed = Buffer.from(bytes); changed[Math.floor(bytes.length / 2)] ^= 1;
+  writeFileSync(join(dir, "changed.property-backup"), changed);
+  writeFileSync(join(dir, "cut.property-backup"), bytes.subarray(0, bytes.length - 21));
+  for (const damaged of ["changed.property-backup", "cut.property-backup"]) {
+    expect(error(await property(["--home", dir, "profile", "restore", join(dir, damaged), "broken"], { env: PASS }), "refused", 1).message).toContain("damaged");
+    expect(readdirSync(join(dir, "profiles")).sort()).toEqual(["copy", "default"]);
+  }
+});
+
+it("a backup without a passphrase is made only when asked for by name, says so, and restores with none", async () => {
+  const dir = home("backup-open");
+  ok(await property(["--home", dir, "profile", "set", "--name", "Open bot"]));
+  const file = join(dir, "open.property-backup");
+  // Neither a passphrase nor the flag: nothing is made, and the message names the flag.
+  expect(error(await property(["--home", dir, "profile", "backup", "--out", file], { env: NO_PASS }), "usage", 2).message).toContain("--no-passphrase");
+  // Both: refused, not guessed.
+  expect(error(await property(["--home", dir, "profile", "backup", "--out", file, "--no-passphrase"], { env: PASS }), "usage", 2).message).toContain("choose one");
+  error(await property(["--home", dir, "profile", "backup", "--out", file, "--passphrase"], { env: NO_PASS }), "usage", 2);
+  expect(readdirSync(dir).filter((name) => name.includes("property-backup"))).toEqual([]);
+
+  const run = await property(["--home", dir, "profile", "backup", "--out", file, "--no-passphrase"], { env: NO_PASS });
+  expect(ok(run)).toMatchObject({ path: file, protection: "none" });
+  expect(run.stderr).toContain("Not encrypted: this file holds the profile's keys, chats and wallet secrets in the clear.");
+  expect(header(file)).toEqual({ format: "ghostly-backup", version: 2, protection: "none", check: { name: "SHA-256-chain" } });
+  // No passphrase is asked for, and one in the environment is not needed.
+  expect(ok(await property(["--home", dir, "profile", "restore", file, "copy"], { env: NO_PASS }))).toMatchObject({ restored: "copy", protection: "none" });
+  expect(ok(await property(["--home", dir, "--profile", "copy", "profile", "show"]))).toMatchObject({ name: "Open bot" });
+  // Still checked: a changed byte is refused.
+  const bytes = Buffer.from(readFileSync(file)); bytes[bytes.length - 50] ^= 1;
+  writeFileSync(join(dir, "changed.property-backup"), bytes);
+  error(await property(["--home", dir, "profile", "restore", join(dir, "changed.property-backup"), "broken"], { env: NO_PASS }), "refused", 1);
+});
+
+it("a backup an older CLI made (version 1) still restores", async () => {
+  const dir = home("backup-v1");
+  ok(await property(["--home", dir, "profile", "set", "--name", "Old bot"]));
+  // A close may leave the store's last rows in its journal: folded into the snapshot here, as that CLI's close did.
+  const folding = await openPersistentIndexedDb(join(dir, "profiles", "default", "db"));
+  await folding.compact();
+  await folding.close();
+  // As the CLI wrote it until now: the store and every file as base64 in one sealed JSON document. Its store was of
+  // format 1, every value inline: this profile has no messages, so the messages store kept in rows.db has none to inline.
+  const saved = deserialize(readFileSync(join(dir, "profiles", "default", "db", "snapshot.bin"))) as { format: number; databases: { stores: { records: unknown[]; onDisk?: boolean }[] }[] };
+  for (const db of saved.databases) for (const kept of db.stores) if (kept.onDisk) { expect(kept.records).toEqual([]); delete kept.onDisk; }
+  saved.format = 1;
+  const store = serialize(saved).toString("base64");
+  const payload = { format: "ghostly-cli-profile/1", createdAt: 1, store, files: [{ path: "property/chat-in-a", data: pattern(3000, 3).toString("base64") }] };
+  const file = join(dir, "old.property-backup");
+  writeFileSync(file, await seal(JSON.stringify(payload), PASS.PROPERTY_BACKUP_PASSPHRASE));
+  error(await property(["--home", dir, "profile", "restore", file, "copy"], { env: { PROPERTY_BACKUP_PASSPHRASE: "not the passphrase" } }), "refused", 1);
+  const restored = ok(await property(["--home", dir, "profile", "restore", file, "copy"], { env: PASS })) as { folder: string };
+  expect(restored).toMatchObject({ restored: "copy", protection: "passphrase" });
+  expect(readFileSync(join(restored.folder, "files", "property", "chat-in-a")).equals(pattern(3000, 3))).toBe(true);
+  expect(ok(await property(["--home", dir, "--profile", "copy", "profile", "show"]))).toMatchObject({ name: "Old bot" });
+});
+
+it("a file that is no backup is called that at once, whatever the passphrase, and a sealed one with none asks in restore's words", async () => {
+  const dir = home("backup-not-one");
+  ok(await property(["--home", dir, "profile", "set", "--name", "Bot"]));
+  const notes = join(dir, "notes.txt"), empty = join(dir, "empty.property-backup"), other = join(dir, "other.json");
+  writeFileSync(notes, "groceries\nmilk\n");
+  writeFileSync(empty, "");
+  writeFileSync(other, JSON.stringify({ format: "something-else", version: 1 }));
+  for (const file of [notes, empty, other]) {
+    for (const env of [NO_PASS, PASS]) {
+      expect(error(await property(["--home", dir, "profile", "restore", file, "copy"], { env }), "refused", 1).message).toBe("This is not a Property Direct backup");
+    }
+  }
+  // A real sealed backup (both versions) and no passphrase: restore's own options, not backup's --no-passphrase.
+  const sealed = join(dir, "sealed.property-backup"), old = join(dir, "old.property-backup");
+  ok(await property(["--home", dir, "profile", "backup", "--out", sealed], { env: PASS }));
+  writeFileSync(old, await seal(JSON.stringify({ format: "ghostly-cli-profile/1" }), PASS.PROPERTY_BACKUP_PASSPHRASE));
+  for (const file of [sealed, old]) {
+    const message = error(await property(["--home", dir, "profile", "restore", file, "copy"], { env: NO_PASS }), "usage", 2).message;
+    expect(message).toContain("--passphrase-file or PROPERTY_BACKUP_PASSPHRASE");
+    expect(message).not.toContain("--no-passphrase");
+  }
+});
+
+// A folder to restore was refused with Node's "EISDIR: illegal operation on a directory, read", and a backup into a
+// folder that does not exist named a file the person never typed (`x.backup.partial-<pid>`).
+it("a path that is wrong on this machine is named as the person typed it: a folder to restore, a missing folder to back up into", async () => {
+  const dir = home("backup-paths");
+  ok(await property(["--home", dir, "profile", "set", "--name", "Bot"]));
+  const folder = join(dir, "a-folder");
+  mkdirSync(folder);
+  expect(error(await property(["--home", dir, "profile", "restore", folder, "copy"], { env: NO_PASS }), "bad_request", 1).message).toBe(`${folder} is a folder: name a file`);
+  const missing = join(dir, "nodir");
+  const message = error(await property(["--home", dir, "profile", "backup", "--out", join(missing, "x.property-backup"), "--no-passphrase"], { env: NO_PASS }), "not_found", 3).message;
+  expect(message).toBe(`No such file or folder: ${missing}`);
+  expect(existsSync(missing)).toBe(false);
+});
+
+// A passphrase file that was a folder named no path, one given as "" (an unset variable) said "No such file or folder: "
+// and an empty one "comes from --passphrase-file" to someone who gave it; `--out ""` was the current folder. A picture
+// that is a folder was not_found "No file" for a path that is there, and an evidence file that is a folder named no path.
+it("the files profile commands read are named as every other file: a folder, a path given as \"\", an empty passphrase file", async () => {
+  const dir = home("backup-read-paths");
+  ok(await property(["--home", dir, "profile", "set", "--name", "Bot"]));
+  const folder = join(dir, "a-folder"), empty = join(dir, "empty-passphrase"), out = join(dir, "x.property-backup");
+  mkdirSync(folder);
+  writeFileSync(empty, "\n");
+  const NAMES_NO_FILE = 'A path given as "" names no file';
+  for (const command of [["backup", "--out", out], ["restore", out, "copy"]]) {
+    const run = (...args: string[]) => property(["--home", dir, "profile", ...command, ...args], { env: NO_PASS });
+    if (command[0] === "restore") ok(await property(["--home", dir, "profile", "backup", "--out", out], { env: PASS }));
+    expect(error(await run("--passphrase-file", folder), "bad_request", 1).message).toBe(`${folder} is a folder: name a file`);
+    expect(error(await run("--passphrase-file", ""), "usage", 2).message).toBe(NAMES_NO_FILE);
+    expect(error(await run("--passphrase-file", empty), "bad_request", 1).message).toBe(`${empty} is empty: it holds the backup's passphrase`);
+  }
+  expect(readdirSync(join(dir, "profiles"))).toEqual(["default"]);
+  expect(error(await property(["--home", dir, "profile", "backup", "--out", "", "--no-passphrase"], { env: NO_PASS }), "usage", 2).message).toBe(NAMES_NO_FILE);
+  expect(error(await property(["--home", dir, "profile", "picture", folder]), "bad_request", 1).message).toBe(`${folder} is a folder: name a file`);
+  expect(error(await property(["--home", dir, "identity", "complete", "draft", "--evidence-file", folder]), "bad_request", 1).message).toBe(`${folder} is a folder: name a file`);
+});
+
+// The folder took the profile's name before anything was in it: a restore stopped half way (Ctrl-C, a kill) left a
+// profile that was listed and opened, with the keys of the original and a file cut short.
+it("a restore stopped while it writes leaves no profile, and the next one is whole", { timeout: 120_000 }, async () => {
+  const dir = home("backup-stopped");
+  ok(await property(["--home", dir, "profile", "set", "--name", "Stopped bot"]));
+  const files = join(dir, "profiles", "default", "files", "property");
+  mkdirSync(files, { recursive: true });
+  const big = randomBytes(64 * 1024 * 1024);
+  writeFileSync(join(files, "chat-in-big"), big);
+  const file = join(dir, "big.property-backup");
+  ok(await property(["--home", dir, "profile", "backup", "--out", file], { env: PASS }));
+
+  // Killed the moment its folder appears beside the profiles: nothing of the file is in it yet, or only a part.
+  const profiles = join(dir, "profiles");
+  const child = spawn(process.execPath, [BIN, "--home", dir, "profile", "restore", file, "copy"], { env: testEnv(PASS), stdio: "ignore" });
+  const gone = new Promise<void>((done) => child.once("exit", () => done()));
+  while (child.exitCode === null && child.signalCode === null && readdirSync(profiles).length < 2) await new Promise((r) => setImmediate(r));
+  child.kill("SIGKILL");
+  await gone;
+  expect(child.signalCode, "the restore was still running when it was stopped").toBe("SIGKILL");
+  expect(existsSync(join(profiles, "copy")), "no profile under the name it was restoring into").toBe(false);
+  expect((ok(await property(["--home", dir, "profile", "list"])).profiles as { name: string }[]).map((p) => p.name)).toEqual(["default"]);
+
+  // The same name again: restored whole, and what the stopped one left is gone.
+  const restored = ok(await property(["--home", dir, "profile", "restore", file, "copy"], { env: PASS })) as { folder: string };
+  expect(readdirSync(profiles).sort()).toEqual(["copy", "default"]);
+  expect(readFileSync(join(restored.folder, "files", "property", "chat-in-big")).equals(big)).toBe(true);
+  expect(ok(await property(["--home", dir, "--profile", "copy", "profile", "show"]))).toMatchObject({ name: "Stopped bot" });
+});
+
+// The store came back as the backup held it: ecash the original spent afterwards stayed in the copy's balance, and
+// its payments failed with the mint's "Token already spent". The app's restore marks the ecash to be checked.
+it("a restored profile's ecash is marked to be checked with its mint the first time it starts", async () => {
+  const dir = home("backup-ecash");
+  ok(await property(["--home", dir, "profile", "set", "--name", "Ecash bot"]));
+  // A mint nobody answers at: what is asked of it stays to be asked.
+  const proof = (secret: string, extra: Record<string, unknown> = {}) => ({ mint: "http://127.0.0.1:9", id: "009a1f293253e41e", amount: 64, secret, C: "02ab", ...extra });
+  const rows = async (folder: string, store: string, put: unknown[] = []) => {
+    const opened = await openPersistentIndexedDb(join(folder, "db"));
+    try {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => { const r = opened.factory.open(databaseName()); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+      const tx = db.transaction(store, "readwrite");
+      for (const row of put) tx.objectStore(store).put(row);
+      const all = tx.objectStore(store).getAll();
+      await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onabort = tx.onerror = () => reject(tx.error); });
+      db.close();
+      return all.result as Record<string, unknown>[];
+    } finally { await opened.close(); }
+  };
+  const original = join(dir, "profiles", "default");
+  await rows(original, "proofs", [proof("free"), proof("held", { reserved: true })]);
+  await rows(original, "swaps", [{ id: "swap-1", mint: "http://127.0.0.1:9", kind: "send", swap: { inputs: [], keepOutputs: [], sendOutputs: [] }, createdAt: Date.now() }]);
+
+  const file = join(dir, "ecash.property-backup");
+  ok(await property(["--home", dir, "profile", "backup", "--out", file], { env: PASS }));
+  const restored = ok(await property(["--home", dir, "profile", "restore", file, "copy"], { env: PASS })) as { folder: string };
+  // Its engine starts (any command does it), and the copy's money is the copy of a backup from then on.
+  ok(await property(["--home", dir, "--profile", "copy", "wallet", "list"]));
+  const proofs = await rows(restored.folder, "proofs");
+  expect(proofs.find((p) => p.secret === "free")).toMatchObject({ amount: 64, unchecked: true });
+  expect(proofs.find((p) => p.secret === "held"), "ecash a payment holds is left to that payment").toEqual(proof("held", { reserved: true }));
+  expect(await rows(restored.folder, "swaps")).toMatchObject([{ id: "swap-1", restored: true }]);
+  expect(existsSync(join(restored.folder, "restored")), "done once: the mark is gone").toBe(false);
+  // The profile it was copied from is as it was.
+  ok(await property(["--home", dir, "wallet", "list"]));
+  expect((await rows(original, "proofs")).some((p) => p.unchecked)).toBe(false);
+  expect(await rows(original, "swaps")).toEqual([expect.not.objectContaining({ restored: true })]);
+});
+
+it("--light leaves out files over 1 MB (voice messages over 4 MB), and the copy says each is not in this backup", async () => {
+  const dir = home("backup-light");
+  ok(await property(["--home", dir, "profile", "set", "--name", "Light bot"]));
+  const original = join(dir, "profiles", "default");
+  const files = join(original, "files", "property");
+  mkdirSync(files, { recursive: true });
+  const MIB = 1024 * 1024;
+  const sizes: Record<string, number> = { "chat-in-small": 500_000, "chat-in-voice": 3 * MIB, "chat-in-photo": 2 * MIB, "chat-in-video": 20 * MIB };
+  for (const [i, [id, size]] of Object.entries(sizes).entries()) writeFileSync(join(files, id), pattern(size, i));
+  // Their records, as the engine keeps them: the voice message says it is one.
+  const opened = await openPersistentIndexedDb(join(original, "db"));
+  try {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => { const r = opened.factory.open(databaseName()); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+    const tx = db.transaction(["files", "fileState"], "readwrite");
+    for (const [id, size] of Object.entries(sizes)) {
+      tx.objectStore("files").put({ id, linkId: "chat", createdAt: 1, direction: "in", metadata: { name: `${id}.bin`, size, mime: "application/octet-stream", timestamp: 1, ...(id === "chat-in-voice" ? { voice: { duration: 600_000, peaks: [1] } } : {}) } });
+      tx.objectStore("fileState").put({ id, bytes: "native", transfer: { state: "done", transferred: size, size } });
+    }
+    await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onabort = tx.onerror = () => reject(tx.error); });
+    db.close();
+  } finally { await opened.close(); }
+
+  const full = join(dir, "full.property-backup"), light = join(dir, "light.property-backup");
+  ok(await property(["--home", dir, "profile", "backup", "--out", full], { env: PASS }));
+  expect(ok(await property(["--home", dir, "profile", "backup", "--out", light, "--light"], { env: PASS }))).toMatchObject({ files: 2, light: true, leftOut: 2, leftOutBytes: 22 * MIB });
+  expect(statSync(light).size).toBeLessThan(statSync(full).size / 4);
+
+  const restored = ok(await property(["--home", dir, "profile", "restore", light, "copy"], { env: PASS })) as { folder: string };
+  expect(readdirSync(join(restored.folder, "files", "property")).sort()).toEqual(["chat-in-small", "chat-in-voice"]);
+  // Its engine starts with the first command: the records of the files left out say so.
+  const saved = join(dir, "out");
+  mkdirSync(saved);
+  expect(error(await property(["--home", dir, "--profile", "copy", "file", "save", "chat-in-video", "--dir", saved]), "not_found", 3).message).toContain("Not in this backup");
+  expect(readdirSync(saved), "nothing written for a file that is not here").toEqual([]);
+  expect(existsSync(join(restored.folder, "restored")), "done once: the mark is gone").toBe(false);
+});
+
+// The profile keeps its messages in rows.db: its snapshot names them only. A backup is one store with every value in
+// it (format 1), which this property and any older one restore.
+it("a backup carries the messages kept in rows.db, as a store of format 1", async () => {
+  const dir = home("backup-rows");
+  ok(await property(["--home", dir, "profile", "set", "--name", "Rows bot"]));
+  const dbDir = join(dir, "profiles", "default", "db");
+  const message = { linkId: "chat-1", id: "peer_1", text: "kept in rows.db", sender: "peer", timestamp: 1, via: "datalink" };
+  const putIn = await openPersistentIndexedDb(dbDir);
+  const d = await new Promise<IDBDatabase>((resolve, reject) => { const r = putIn.factory.open(databaseName()); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+  await new Promise<void>((resolve, reject) => { const t = d.transaction("messages", "readwrite"); t.objectStore("messages").put(message); t.oncomplete = () => resolve(); t.onerror = () => reject(t.error); });
+  d.close();
+  await putIn.compact();
+  await putIn.close();
+  expect((deserialize(readFileSync(join(dbDir, "snapshot.bin"))) as { format: number }).format).toBe(3);
+
+  ok(await property(["--home", dir, "profile", "backup", "--out", join(dir, "rows.property-backup")], { env: PASS }));
+  const restored = ok(await property(["--home", dir, "profile", "restore", join(dir, "rows.property-backup"), "rows-copy"], { env: PASS })) as { folder: string };
+  const copy = deserialize(readFileSync(join(restored.folder, "db", "snapshot.bin"))) as { format: number; databases: { name: string; stores: { name: string; records: [unknown, unknown][] }[] }[] };
+  expect(copy.format).toBe(1);
+  expect(copy.databases.find((db) => db.name === databaseName())!.stores.find((s) => s.name === "messages")!.records).toEqual([[["chat-1", "peer_1"], message]]);
+  // Opened, it moves its messages to rows.db again, and reads them back.
+  const reopened = await openPersistentIndexedDb(join(restored.folder, "db"));
+  const r = await new Promise<IDBDatabase>((resolve, reject) => { const q = reopened.factory.open(databaseName()); q.onsuccess = () => resolve(q.result); q.onerror = () => reject(q.error); });
+  const got = await new Promise((resolve, reject) => { const q = r.transaction("messages").objectStore("messages").get(["chat-1", "peer_1"]); q.onsuccess = () => resolve(q.result); q.onerror = () => reject(q.error); });
+  expect(got).toEqual(message);
+  r.close();
+  await reopened.close();
+  expect(existsSync(join(restored.folder, "db", "rows.db"))).toBe(true);
+});

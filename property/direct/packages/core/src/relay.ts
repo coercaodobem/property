@@ -575,7 +575,7 @@ export class RelayTransport implements PkarrTransport {
     this.backgroundPerMinute = this.perMinute === REQUESTS_PER_MINUTE ? BACKGROUND_REQUESTS_PER_MINUTE : Math.ceil(this.perMinute * 2 / 3);
     this.backgroundWhileSignaling = this.perMinute === REQUESTS_PER_MINUTE ? BACKGROUND_WHILE_SIGNALING : Math.ceil(this.perMinute / 6);
     // Read at a terminal too (a CLI one-shot writes it on stderr): "tripped" and "left alone" were the breaker's words.
-    const log = options.log ?? ((line: string) => console.info(`ghostly: ${line}`));
+    const log = options.log ?? ((line: string) => console.info(`property: ${line}`));
     this.breaker = new RelayBreaker({
       ...options.breaker,
       onTrip: (relay, reason, forMs) => {

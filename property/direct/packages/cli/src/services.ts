@@ -1,0 +1,331 @@
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { GhostlyHttpError, LIMITS, parseLocalTarget, type ClientRequest, type ClientResponse, type LocalFetch } from "@ghostly/core";
+import { bool, chatOf, findOwnNamedChat, node, num, state, str, type ApiContext, type Method, type Params } from "./apiKit";
+import { CliError } from "./errors";
+import { isLive } from "./views";
+
+/**
+ * Shared services (WISP 700/701, WISP 1100 phase 3b): a web app on this machine a contact may open over the chat's live
+ * link, and a contact's app opened here on a loopback port. As on the Desktop: only loopback is reached, redirects are
+ * handed back rather than followed, and a service is shared with each contact by name, never by default.
+ */
+
+const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
+
+/** The engine's way to reach a shared app: loopback only, no redirect followed, no cookies (Node sends none). */
+export const nodeLocalFetch: LocalFetch = async (request) => {
+  const url = new URL(request.url);
+  if (!["http:", "https:"].includes(url.protocol) || !(LOOPBACK.has(url.hostname) || /^127\.\d+\.\d+\.\d+$/.test(url.hostname))) {
+    throw new Error("Shared services are reached on this machine only");
+  }
+  const response = await fetch(url, { method: request.method, headers: request.headers, body: request.body as BodyInit | null, signal: request.signal, redirect: "manual", ...(request.body ? { duplex: "half" } : {}) } as RequestInit);
+  const headers: [string, string][] = [];
+  response.headers.forEach((value, name) => headers.push([name, value]));
+  return {
+    status: response.status, headers,
+    body: response.body ? (async function* () {
+      const reader = response.body!.getReader();
+      try { for (;;) { const { done, value } = await reader.read(); if (done) return; if (value?.length) yield value; } } finally { reader.cancel().catch(() => {}); }
+    })() : null,
+  };
+};
+
+/**
+ * Contact services open on loopback ports, by `<peer>/<service>`, while this process runs: each as soon as it starts
+ * opening, so a second `service open` meanwhile answers the same one. A server that could not open is taken out.
+ */
+const open = new Map<string, Promise<OpenedService>>();
+const MAX_RESPONSE_BYTES = 32 * 1024 * 1024;
+/** Cookie names an opened service may set and have passed back (browsers keep about 180 per host). */
+const MAX_COOKIE_NAMES = 256;
+
+/**
+ * The cookie that shows a browser was given this service's link here. It is this machine's, never the contact's:
+ * it is not passed on to the contact, and a `Set-Cookie` from the contact by that name is dropped.
+ */
+export const OPEN_COOKIE = "ghostly_open";
+/** The link `service open` prints: it sets `OPEN_COOKIE` and sends the browser on to `/`. */
+const OPEN_PATH = "/.property-open/";
+const LEGACY_OPEN_PATH = "/.ghostly-open/";
+
+/**
+ * Only the cookies this service set itself (by name, from its own `Set-Cookie`) go on to the contact; any other a
+ * browser sends (one set for localhost by another app here, this machine's `OPEN_COOKIE`) stays here.
+ */
+export function ownCookies(header: string, names: ReadonlySet<string>): string | null {
+  const kept = header.split(";").map((pair) => pair.trim()).filter((pair) => {
+    const at = pair.indexOf("=");
+    const name = at > 0 ? pair.slice(0, at).trim() : "";
+    return !!name && name !== OPEN_COOKIE && names.has(name);
+  });
+  return kept.length ? kept.join("; ") : null;
+}
+
+/** The cookie a `Set-Cookie` sets, by name. */
+export function setCookieName(value: string): string | null {
+  const at = value.indexOf("="), end = value.indexOf(";");
+  if (at <= 0 || (end !== -1 && end < at)) return null;
+  return value.slice(0, at).trim() || null;
+}
+
+/**
+ * A contact's `Set-Cookie` as this machine passes it to the browser: without `Domain`, so the cookie stays on the
+ * service's own host name (not every *.localhost). Null for one this machine does not take (`OPEN_COOKIE`, no name).
+ */
+export function hostOnlyCookie(value: string): string | null {
+  const name = setCookieName(value);
+  if (!name || name === OPEN_COOKIE) return null;
+  return value.split(";").filter((part, i) => i === 0 || !/^\s*domain\s*(=|$)/i.test(part)).join(";");
+}
+
+/** A cookie's values in a `Cookie` header, by name (a page may set another by the same name on a narrower path). */
+function cookieValues(header: string | undefined, name: string): string[] {
+  return (header ?? "").split(";").flatMap((pair) => {
+    const at = pair.indexOf("=");
+    return at > 0 && pair.slice(0, at).trim() === name ? [pair.slice(at + 1).trim()] : [];
+  });
+}
+
+function sameSecret(a: string, b: string): boolean {
+  return a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+/** How an opened service reaches the contact's app: the engine's `request` for that contact and service. */
+export type ServiceSend = (request: ClientRequest) => Promise<ClientResponse>;
+
+export interface OpenedService {
+  server: Server;
+  /** The link to open: it hands the browser this service's cookie, then shows `/`. */
+  url: string;
+  /** The service's own host name, `<random>.localhost:<port>`: any other `Host` is not this service. */
+  host: string;
+}
+
+/**
+ * Added to every answer of a contact's app, next to any policy the contact sends (a browser enforces both): its
+ * requests (fetch, XHR, beacons, WebSockets, EventSource) and forms reach only its own origin, the contact's server;
+ * its scripts, pictures, frames, fonts, media, styles and workers its own origin and https sites (and inline, data:
+ * and blob: content), never plain http. The page is served from `<random>.localhost`, which Chrome counts as this
+ * machine, so its own guard for requests to local addresses (Local Network Access) would not ask before the page
+ * reached another service on 127.0.0.1 or the local network, and a policy cannot tell a public https site from one
+ * here or on the local network with a trusted certificate: requests that can read an answer or post go nowhere else.
+ * Inline scripts and styles stay allowed: this policy bounds where the page reaches, not how the app is written. A
+ * top-level navigation is not covered: no browser lets a policy bound it.
+ */
+export const OPENED_SERVICE_CSP = "default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self'; form-action 'self'";
+
+/**
+ * The contact's headers that are not passed on: each makes the browser send something to a place it names, outside
+ * `connect-src` (violation and network-error reports, and the endpoints they go to; `Link` preloads, prefetches and
+ * early connections). Only the contact's server is reached.
+ */
+export const OPENED_SERVICE_DROPPED_HEADERS = ["content-security-policy-report-only", "reporting-endpoints", "report-to", "nel", "link"];
+
+/** The directives of a contact's policy that send reports to a URL it names, dropped from it. */
+export const OPENED_SERVICE_DROPPED_DIRECTIVES = ["report-uri", "report-to"];
+
+/** A contact's `Content-Security-Policy` value (one policy or several joined by commas) without its report directives. */
+export function withoutReports(value: string): string {
+  return value.split(",")
+    .map((policy) => policy.split(";").filter((directive) => !OPENED_SERVICE_DROPPED_DIRECTIVES.includes(directive.trim().split(/\s+/)[0].toLowerCase())).join(";").trim())
+    .filter((policy) => policy.replaceAll(";", "").trim())
+    .join(", ");
+}
+
+function plain(response: ServerResponse, status: number, text: string, headers: Record<string, string> = {}): void {
+  response.writeHead(status, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", ...headers });
+  response.end(text);
+}
+
+/**
+ * A contact's app on a loopback port of this machine, under a host name of its own (`<random>.localhost`): its
+ * cookies and storage are its own, apart from any other app on 127.0.0.1 or localhost, and a name that merely
+ * resolves here (DNS rebinding) is not it. Only a browser given the link (which sets `OPEN_COOKIE`) is served; anyone
+ * else on this machine who finds the port gets 404. The body streams through, bounded by `MAX_RESPONSE_BYTES`.
+ */
+export async function openServiceServer(send: ServiceSend, port = 0): Promise<OpenedService> {
+  const name = `${randomBytes(16).toString("hex")}.localhost`;
+  const token = randomBytes(32).toString("hex");
+  const cookies = new Set<string>();
+  let host = "";
+  const server = createServer((request, response) => {
+    if (request.headers.host?.toLowerCase() !== host) return plain(response, 404, "Not found");
+    const path = request.url ?? "/";
+    const openPath = path.startsWith(OPEN_PATH) ? OPEN_PATH : path.startsWith(LEGACY_OPEN_PATH) ? LEGACY_OPEN_PATH : null;
+    if (openPath) {
+      if (!sameSecret(path.slice(openPath.length), token)) return plain(response, 404, "Not found");
+      return plain(response, 303, "", { location: "/", "referrer-policy": "no-referrer", "set-cookie": `${OPEN_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax` });
+    }
+    if (!cookieValues(request.headers.cookie, OPEN_COOKIE).some((value) => sameSecret(value, token))) return plain(response, 404, "Not found");
+    const chunks: Buffer[] = [];
+    let size = 0, refused = false;
+    request.on("data", (chunk: Buffer) => {
+      if (refused) return;
+      size += chunk.length;
+      if (size > LIMITS.maxRequestBodyBytes) {
+        refused = true;
+        chunks.length = 0;
+        plain(response, 413, "The request body is too large", { connection: "close" });
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on("end", () => { if (!refused) void proxy(request, response, chunks, send, cookies); });
+  });
+  await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, "127.0.0.1", () => { server.off("error", reject); resolve(); }); });
+  host = `${name}:${(server.address() as AddressInfo).port}`;
+  return { server, host, url: `http://${host}${OPEN_PATH}${token}` };
+}
+
+async function proxy(request: IncomingMessage, response: ServerResponse, chunks: Buffer[], send: ServiceSend, cookies: Set<string>): Promise<void> {
+  // A browser that goes away stops the contact's answer too.
+  const stop = new AbortController();
+  response.on("close", () => { if (!response.writableFinished) stop.abort(); });
+  try {
+    const headers = Object.entries(request.headers).flatMap(([name, value]) => (Array.isArray(value) ? value.map((v) => [name, v] as [string, string]) : value === undefined ? [] : [[name, value] as [string, string]]))
+      .flatMap(([name, value]): [string, string][] => {
+        if (name.toLowerCase() !== "cookie") return [[name, value]];
+        const own = ownCookies(value, cookies);
+        return own ? [[name, own]] : [];
+      });
+    const answer = await send({ method: request.method ?? "GET", path: request.url ?? "/", headers, body: chunks.length ? new Uint8Array(Buffer.concat(chunks)) : null, maxResponseBytes: MAX_RESPONSE_BYTES, signal: stop.signal });
+    const out: Record<string, string | string[]> = {};
+    for (const [name, value] of answer.headers) {
+      const lower = name.toLowerCase();
+      if (lower === "transfer-encoding" || lower === "connection" || OPENED_SERVICE_DROPPED_HEADERS.includes(lower)) continue;
+      if (lower === "set-cookie") {
+        const cookie = hostOnlyCookie(value);
+        if (!cookie) continue;
+        if (cookies.size < MAX_COOKIE_NAMES) cookies.add(setCookieName(cookie)!);
+        out[lower] = [...((out[lower] as string[] | undefined) ?? []), cookie];
+      } else if (lower === "content-security-policy") {
+        const policy = withoutReports(value);
+        if (policy) out[lower] = [...((out[lower] as string[] | undefined) ?? []), policy];
+      } else out[lower] = value;
+    }
+    out["content-security-policy"] = [...((out["content-security-policy"] as string[] | undefined) ?? []), OPENED_SERVICE_CSP];
+    response.writeHead(answer.status, out);
+    // Streamed, not gathered: past the cap (or when the contact drops it) the body stops and the connection closes.
+    await pipeline(Readable.from(answer.body, { objectMode: false }), response);
+  } catch (error) {
+    // Once the status line is out, a second one cannot follow: the response is cut, and the browser sees it end short.
+    if (response.headersSent) { response.destroy(); return; }
+    const gone = error instanceof GhostlyHttpError && ["unreachable", "timeout", "closed", "offline"].includes(error.code);
+    plain(response, gone ? 503 : 502, gone ? "This service is not reachable. Services exist while their ghost is online." : `The request failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * The service a command names, by its id: one of this profile's. The engine changes nothing for an id it does not
+ * know and says nothing, so a mistyped id read as done ("shared": true, with a contact).
+ */
+function serviceOf(ctx: ApiContext, params: Params): string {
+  const serviceId = str(params, "service", true);
+  if (!state(ctx).services.some((s) => s.id === serviceId)) throw new CliError("not_found", `No service ${JSON.stringify(serviceId)} (property service list)`);
+  return serviceId;
+}
+
+/**
+ * A port the person chose that could not be taken, in words that name it. Before, one in use was Node's EADDRINUSE as
+ * `engine`, and one not allowed read as a file (`localFileError`): "Not allowed to write or read the path".
+ */
+function portError(error: unknown, port: number): unknown {
+  const { code } = (error ?? {}) as { code?: unknown };
+  if (port && code === "EADDRINUSE") return new CliError("busy", `Port ${port} is in use on this machine: choose another, or leave out --port`);
+  if (port && (code === "EACCES" || code === "EPERM")) return new CliError("refused", `Port ${port} is not allowed for this user: choose another, or leave out --port`);
+  return error;
+}
+
+export const SERVICE_METHODS: Record<string, Method> = {
+  async "service.list"(ctx) {
+    return { services: state(ctx).services.map((s) => ({ id: s.id, name: s.name, target: s.target, enabled: s.enabled, sharedWith: s.sharedWith ?? [], requests: s.requests })) };
+  },
+  async "service.add"(ctx, params) {
+    const target = str(params, "target", true);
+    let url: URL;
+    try { url = new URL(target); } catch { throw new CliError("bad_request", `Not a URL: ${target}`); }
+    const here = LOOPBACK.has(url.hostname) || /^127\.\d+\.\d+\.\d+$/.test(url.hostname);
+    if (!here) throw new CliError("refused", "Only a web app on this machine (127.0.0.1, localhost) can be shared");
+    // The engine's own check of the target (core http.ts `parseLocalTarget`), first: a query, a fragment, a user and
+    // password or a scheme other than http(s) is the person's input to fix, `bad_request` naming it. Thrown by the engine,
+    // they were plain errors, `engine` (exit 1): "the engine failed" (agents#894).
+    try { parseLocalTarget(target); } catch (error) {
+      const said = error instanceof Error ? error.message : String(error);
+      // Named without its user, password, query and fragment: the parts refused here can hold a secret (a token).
+      const shown = `${url.protocol}//${url.host}${url.pathname}`;
+      throw new CliError(/^Only services on this machine/.test(said) ? "refused" : "bad_request", `${said}: ${shown}`);
+    }
+    // `service`, as the rest of the family answers it; `serviceId` (the engine's key) stays beside it for a release.
+    const { serviceId } = node(ctx).addService({ name: str(params, "name", true), target });
+    return { service: serviceId, serviceId };
+  },
+  async "service.remove"(ctx, params) {
+    const serviceId = serviceOf(ctx, params);
+    await node(ctx).removeService({ serviceId });
+    return { removed: serviceId };
+  },
+  async "service.enable"(ctx, params) {
+    const serviceId = serviceOf(ctx, params);
+    await node(ctx).setServiceEnabled({ serviceId, enabled: !bool(params, "off") });
+    return { service: serviceId, enabled: !bool(params, "off") };
+  },
+  async "service.share"(ctx, params) {
+    // A grant the contact keeps using: only what this side chose names its chat, as for `call auto --from`.
+    const link = findOwnNamedChat(state(ctx).links, str(params, "chat", true));
+    const shared = !bool(params, "off");
+    const serviceId = serviceOf(ctx, params);
+    await node(ctx).setServiceShared({ serviceId, peerPubKeyZ32: link.peerPubKeyZ32, shared });
+    return { service: serviceId, chat: link.id, shared };
+  },
+  /** What a contact shares with this profile (while its app is live). */
+  async "service.peer"(ctx, params) {
+    const link = chatOf(ctx, params);
+    return { chat: link.id, live: isLive(link), services: link.peerServices ?? [] };
+  },
+  /** A contact's shared app on a loopback port of this machine, as the Desktop opens it in a window. */
+  async "service.open"(ctx, params) {
+    if (ctx.mode !== "daemon") throw new CliError("unavailable", "An opened service lives in the daemon: start `property daemon --detach` first");
+    const link = chatOf(ctx, params);
+    const service = str(params, "service", true);
+    const key = `${link.peerPubKeyZ32}/${service}`;
+    const port = num(params, "port", 0, { min: 0, max: 65535, whole: true });
+    // One still opening counts: before, two opens at once each made a server, and `service close` closed only the second.
+    const already = await open.get(key)?.catch(() => undefined);
+    if (already) {
+      // Another port asked for: the link on this one, with exit 0, left a script that was told a port on the wrong one.
+      const on = (already.server.address() as AddressInfo).port;
+      if (port && port !== on) throw new CliError("busy", `That service is open here on port ${on}: property service close ${link.id} ${service} first, or leave out --port`);
+      return { chat: link.id, service, url: already.url };
+    }
+    if (!link.peerServices?.some((s) => s.id === service)) throw new CliError("not_found", `The contact shares no service ${service} (or is not live)`);
+    const peer = link.peerPubKeyZ32;
+    // Another open began while this one waited: it answers that one.
+    if (open.has(key)) return SERVICE_METHODS["service.open"](ctx, params);
+    const opening = openServiceServer((request) => node(ctx).request(peer, service, request), port).catch((error: unknown) => {
+      if (open.get(key) === opening) open.delete(key);
+      throw portError(error, port);
+    });
+    open.set(key, opening);
+    const opened = await opening;
+    return { chat: link.id, service, url: opened.url };
+  },
+  async "service.close"(ctx, params) {
+    const link = chatOf(ctx, params);
+    const key = `${link.peerPubKeyZ32}/${str(params, "service", true)}`;
+    const pending = open.get(key);
+    open.delete(key);
+    const entry = await pending?.catch(() => undefined);
+    if (!entry) throw new CliError("not_found", "That service is not open here");
+    // Closed means closed: an answer still streaming (a page's EventSource) kept `close` waiting for good, and kept coming.
+    // Each connection's end stops the contact's answer too (`proxy`).
+    await new Promise<void>((resolve) => {
+      entry.server.close(() => resolve());
+      entry.server.closeAllConnections();
+    });
+    return { closed: key };
+  },
+};

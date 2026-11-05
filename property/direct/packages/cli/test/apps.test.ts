@@ -1,0 +1,533 @@
+import { createHash, generateKeyPairSync } from "node:crypto";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { appRevocationFor, readAppBundle, readAppRevocations, type AppManifest } from "@ghostly/core";
+import { verifyApp } from "../src/apps";
+import { CliError } from "../src/errors";
+import { error, property, home, ok } from "./support/cli";
+// covers: apps.bundle, apps.store
+
+/*
+ * The publisher tools of WISP 1200 against the core's test vectors (packages/core/test/vectors): `app publish` makes
+ * each valid bundle byte for byte from its files and the vector's key, `app verify` refuses each invalid one with the
+ * vector's code, and `store sign` makes the vector's signed index. Ed25519 is deterministic, so a byte-equal bundle
+ * proves the manifest, the order, the signature and the framing all match the core.
+ */
+
+const VECTORS = resolve(import.meta.dirname, "../../core/test/vectors");
+type Segment = { hex: string } | { fill: string; size: number };
+const bundleVectors = JSON.parse(readFileSync(join(VECTORS, "app-bundle.json"), "utf8")) as {
+  valid: { name: string; bytes: Segment[]; sha256: string; length: number; read: { digest: string; manifest: AppManifest } }[];
+  invalid: { name: string; refusal: string; bytes: Segment[] }[];
+};
+const storeVectors = JSON.parse(readFileSync(join(VECTORS, "app-store.json"), "utf8")) as {
+  valid: { name: string; index: string; sig: string }[];
+};
+
+function fromSegments(segments: Segment[]): Uint8Array {
+  const parts = segments.map((s) => ("hex" in s ? Buffer.from(s.hex, "hex") : Buffer.alloc(s.size, Number.parseInt(s.fill, 16))));
+  return new Uint8Array(Buffer.concat(parts));
+}
+
+const tmp = () => mkdtempSync(join(tmpdir(), "property-apps-"));
+const sha256hex = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+
+/** A key file for a vector label (seed = SHA-256 of the upstream `ghostly apps vectors: <label>` test value), as PKCS #8 PEM. */
+function vectorKey(dir: string, label: string, header = ""): string {
+  const seed = createHash("sha256").update(`ghostly apps vectors: ${label}`).digest();
+  const der = Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), seed]);
+  const pem = `-----BEGIN PRIVATE KEY-----\n${der.toString("base64")}\n-----END PRIVATE KEY-----\n`;
+  const path = join(dir, `${label.replace(/\W/g, "-")}.pem`);
+  writeFileSync(path, header + pem, { mode: 0o600 });
+  return path;
+}
+
+/** A folder `app publish` reads: the vector's files and its manifest as ghostly-app.json (without what publish writes). */
+function appFolder(manifest: AppManifest, files: Map<string, Uint8Array>): string {
+  const dir = tmp();
+  const { publisher: _p, files: _f, ghostlyApp: _g, ...draft } = manifest;
+  writeFileSync(join(dir, "ghostly-app.json"), JSON.stringify(draft, null, 2));
+  for (const [path, bytes] of files) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), bytes);
+  }
+  return dir;
+}
+
+const chess = () => {
+  const vector = bundleVectors.valid[0];
+  const read = readAppBundle(fromSegments(vector.bytes));
+  if (!read.ok) throw new Error("vector 0 does not read");
+  return { vector, manifest: read.bundle.manifest, files: read.bundle.files };
+};
+
+/**
+ * A vector with a key or a client name from a later format: a reader takes it, the publisher CLI (a writer) never makes
+ * it. An unknown key is `unknown-key` (named, `runtime.<key>` inside runtime); an unknown client is `bad-field`.
+ */
+const laterKey = (v: { name: string }) => v.name.endsWith("ignored by the reader");
+
+describe("app publish", () => {
+  it.each(bundleVectors.valid.filter((v) => !laterKey(v)).map((v) => [v.name, v] as const))("makes the vector's bundle byte for byte: %s", async (_, vector) => {
+    const read = readAppBundle(fromSegments(vector.bytes));
+    if (!read.ok) throw new Error(`the vector does not read: ${read.reason}`);
+    const dir = appFolder(read.bundle.manifest, read.bundle.files);
+    const keys = tmp();
+    const made = ok(await property(["app", "publish", dir, "--key", vectorKey(keys, "publisher")]));
+    const bytes = readFileSync(join(dir, "app.ghostlyapp"));
+    expect(bytes.length).toBe(vector.length);
+    expect(sha256hex(bytes)).toBe(vector.sha256);
+    expect(made).toMatchObject({ digest: vector.read.digest, sequence: vector.read.manifest.sequence, previous: null, keyCreated: false });
+    // And the bundle it wrote verifies, as a client reads it.
+    expect(ok(await property(["app", "verify", join(dir, "app.ghostlyapp")]))).toMatchObject({ valid: true, digest: vector.read.digest });
+  }, 60_000);
+
+  it.each(bundleVectors.valid.filter(laterKey).map((v) => [v.name, v] as const))("verifies, but never publishes, a manifest with a later key: %s", async (_, vector) => {
+    const bytes = fromSegments(vector.bytes);
+    const read = readAppBundle(bytes);
+    if (!read.ok) throw new Error(`the vector does not read: ${read.reason}`);
+    const dir = appFolder(read.bundle.manifest, read.bundle.files);
+    const given = join(tmp(), "app.ghostlyapp");
+    writeFileSync(given, bytes);
+    expect(ok(await property(["app", "verify", given]))).toMatchObject({ valid: true, digest: vector.read.digest });
+    const refused = error(await property(["app", "publish", dir, "--key", vectorKey(tmp(), "publisher")]), "refused", 1) as { details?: { reason?: string } };
+    expect(refused.details?.reason).toBe(vector.name.includes("client name") ? "bad-field" : "unknown-key");
+    expect(existsSync(join(dir, "app.ghostlyapp"))).toBe(false);
+  }, 60_000);
+
+  it("raises the sequence by itself, keeps the app's key, and refuses another key's bundle", async () => {
+    const { manifest, files } = chess();
+    const dir = appFolder(manifest, files);
+    const keys = tmp();
+    const key = vectorKey(keys, "publisher");
+    expect(ok(await property(["app", "publish", dir, "--key", key]))).toMatchObject({ sequence: 1, previous: null });
+    writeFileSync(join(dir, "index.html"), "<!doctype html><title>Chess 2</title>");
+    const second = ok(await property(["app", "publish", dir, "--key", key]));
+    expect(second).toMatchObject({ sequence: 2, previous: 1, ref: `${manifest.publisher}/chess` });
+
+    // Another key may not publish the next version of this app.
+    const other = error(await property(["app", "publish", dir, "--key", vectorKey(keys, "other publisher")]), "refused", 1) as { details?: { reason?: string } };
+    expect(other.details?.reason).toBe("other-app");
+    // A key file that is missing is not made over an app another key signed: a typo is not a new app.
+    error(await property(["app", "publish", dir, "--key", join(keys, "typo.pem")]), "not_found", 3);
+    expect(existsSync(join(keys, "typo.pem"))).toBe(false);
+    expect(readAppBundle(new Uint8Array(readFileSync(join(dir, "app.ghostlyapp"))))).toMatchObject({ ok: true, bundle: { manifest: { sequence: 2 } } });
+  }, 60_000);
+
+  it("a bundle published into another --out never holds the one an earlier publish left in the folder", async () => {
+    const { manifest, files } = chess();
+    const dir = appFolder(manifest, files);
+    const key = vectorKey(tmp(), "publisher");
+    ok(await property(["app", "publish", dir, "--key", key]));
+    const out = join(tmp(), "chess.ghostlyapp");
+    const made = ok(await property(["app", "publish", dir, "--key", key, "--out", out])) as { files: string[] };
+    expect(made.files).toEqual([...files.keys()].sort());
+    const read = readAppBundle(new Uint8Array(readFileSync(out)));
+    expect(read.ok && [...read.bundle.files.keys()]).not.toContain("app.ghostlyapp");
+  }, 60_000);
+
+  it("makes an owner-only key on first use and never prints it", async () => {
+    const { manifest, files } = chess();
+    const dir = appFolder(manifest, files);
+    const key = join(tmp(), "keys", "publisher.pem");
+    const result = await property(["app", "publish", dir, "--key", key]);
+    const made = ok(result);
+    expect(made.keyCreated).toBe(true);
+    expect(made.publisher).not.toBe(manifest.publisher);
+    if (process.platform !== "win32") {
+      expect(statSync(key).mode & 0o777).toBe(0o600);
+      expect(statSync(dirname(key)).mode & 0o777).toBe(0o700);
+    }
+    const pem = readFileSync(key, "utf8");
+    expect(pem).toMatch(/^Property Direct publisher key \(WISP 1200\)/);
+    const body = /-----BEGIN PRIVATE KEY-----\n([^-]+)-----END/.exec(pem)![1].replace(/\s/g, "");
+    expect(result.stdout + result.stderr).not.toContain("PRIVATE KEY");
+    expect(result.stdout + result.stderr).not.toContain(body.slice(-20));
+    expect(result.stderr).toContain(`new publisher key written to ${key}; back it up`);
+  }, 60_000);
+
+  it("refuses a key file others may read, and a store key", async () => {
+    const { manifest, files } = chess();
+    const dir = appFolder(manifest, files);
+    const keys = tmp();
+    if (process.platform !== "win32") {
+      const open = vectorKey(keys, "publisher");
+      chmodSync(open, 0o644);
+      expect(error(await property(["app", "publish", dir, "--key", open]), "refused", 1).message).toContain("chmod 600");
+    }
+    const store = vectorKey(keys, "store", "Property Direct store key (WISP 1200).\n");
+    expect(error(await property(["app", "publish", dir, "--key", store]), "refused", 1).message).toContain("a store key never signs an app");
+    expect(existsSync(join(dir, "app.ghostlyapp"))).toBe(false);
+  }, 60_000);
+
+  it("never bundles a private key: a --key inside the folder is refused before it is made, and any key file found there", async () => {
+    const { manifest, files } = chess();
+    const dir = appFolder(manifest, files);
+    // A key the first run would make inside the folder: refused, and not made.
+    for (const inside of [join(dir, "publisher.key"), join(dir, "keys", "publisher.pem"), join(dir, ".publisher.key"), join(dir, "..publisher.key"), join(dir, "..keys", "publisher.key")]) {
+      const refusal = error(await property(["app", "publish", dir, "--key", inside]), "refused", 1) as { message: string; details?: { reason?: string } };
+      expect(refusal.details?.reason).toBe("private-key");
+      expect(refusal.message).toContain("outside the app's folder");
+      expect(existsSync(inside)).toBe(false);
+    }
+    // A key kept elsewhere, but a key file (this one, another's, any PEM private key) left in the folder.
+    const key = vectorKey(tmp(), "publisher");
+    for (const [path, text] of [
+      ["publisher.key", readFileSync(key, "utf8")],
+      ["old/store.pem", `Property Direct store key (WISP 1200). Secret.\n${readFileSync(key, "utf8")}`],
+      ["deploy/id_ed25519", `-----BEGIN OPENSSH PRIVATE KEY-----\n${"b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQ".repeat(2)}\n-----END OPENSSH PRIVATE KEY-----\n`],
+      // A traditional encrypted PEM (`openssl genrsa -aes256`, `openssl ec -aes256`): its body opens with
+      // "Proc-Type: 4,ENCRYPTED" and "DEK-Info: ...", headers with a space in them.
+      ["deploy/server.key", generateKeyPairSync("ec", { namedCurve: "P-256", publicKeyEncoding: { type: "spki", format: "pem" }, privateKeyEncoding: { type: "sec1", format: "pem", cipher: "aes-256-cbc", passphrase: "hunter2" } }).privateKey],
+      // An OpenPGP secret key (`gpg --export-secret-keys --armor`): a "PRIVATE KEY BLOCK", here with a version header.
+      ["signing/secret.asc", `-----BEGIN PGP PRIVATE KEY BLOCK-----\nVersion: GnuPG v2.4.5\n\n${"lQOYBGVt3n8BCADKz1x9".repeat(4)}\n=Xk2Q\n-----END PGP PRIVATE KEY BLOCK-----\n`],
+    ] as const) {
+      const leaky = appFolder(manifest, files);
+      mkdirSync(dirname(join(leaky, path)), { recursive: true });
+      writeFileSync(join(leaky, path), text);
+      const refusal = error(await property(["app", "publish", leaky, "--key", key]), "refused", 1) as { details?: { reason?: string; detail?: string } };
+      expect(refusal.details).toEqual({ reason: "private-key", detail: path });
+      expect(existsSync(join(leaky, "app.ghostlyapp"))).toBe(false);
+    }
+    // Code that only names the block (a PEM parser) is not a key.
+    const parser = appFolder(manifest, new Map([...files, ["pem.js", new TextEncoder().encode('const head = "-----BEGIN PRIVATE KEY-----";\n')]]));
+    expect(ok(await property(["app", "publish", parser, "--key", key]))).toMatchObject({ files: ["index.html", "pem.js"] });
+  }, 60_000);
+
+  it("lists a folder's files in the manifest's order when a file and a folder share a prefix", async () => {
+    const { manifest, files } = chess();
+    const text = (s: string) => new TextEncoder().encode(s);
+    const dir = appFolder(manifest, new Map([...files, ["lib/x.js", text("1")], ["lib-extra.js", text("2")], ["img/a.txt", text("3")], ["img.txt", text("4")]]));
+    const made = ok(await property(["app", "publish", dir, "--key", vectorKey(tmp(), "publisher")]));
+    expect(made.files).toEqual(["img.txt", "img/a.txt", "index.html", "lib-extra.js", "lib/x.js"]);
+    expect(ok(await property(["app", "verify", join(dir, "app.ghostlyapp")]))).toMatchObject({ valid: true });
+  }, 60_000);
+
+  it("says what is wrong with the source: a usage error, fields publish writes, a manifest a client refuses", async () => {
+    const { manifest, files } = chess();
+    const keys = tmp();
+    const key = vectorKey(keys, "publisher");
+    error(await property(["app", "publish", tmp()]), "usage", 2);
+    error(await property(["app", "publish", tmp(), "--key", key]), "not_found", 3);
+    const dir = appFolder(manifest, files);
+    writeFileSync(join(dir, "ghostly-app.json"), JSON.stringify({ ...JSON.parse(readFileSync(join(dir, "ghostly-app.json"), "utf8")), publisher: manifest.publisher }));
+    expect(error(await property(["app", "publish", dir, "--key", key]), "bad_request", 1).message).toContain("publish writes it");
+    const long = appFolder({ ...manifest, title: "x".repeat(41) }, files);
+    const refusal = error(await property(["app", "publish", long, "--key", key]), "refused", 1) as { details?: { reason?: string; detail?: string } };
+    expect(refusal.details).toEqual({ reason: "bad-field", detail: "title is not valid" });
+    // Dot files stay out of the bundle, and say so.
+    const dotted = appFolder(manifest, files);
+    writeFileSync(join(dotted, ".DS_Store"), "x");
+    expect(ok(await property(["app", "publish", dotted, "--key", key]))).toMatchObject({ files: ["index.html"], skipped: [".DS_Store"] });
+  }, 60_000);
+
+  it("refuses a path option given as \"\" (an unset variable) as naming no file, never the current folder", async () => {
+    const { manifest, files } = chess();
+    const dir = appFolder(manifest, files);
+    const keys = tmp();
+    const fresh = join(keys, "new.key");
+    expect(error(await property(["app", "publish", dir, "--key", fresh, "--out", ""]), "usage", 2).message).toMatch(/^A path given as "" names no file/);
+    // Nothing was made: no key, no bundle.
+    expect(existsSync(fresh)).toBe(false);
+    expect(existsSync(join(dir, "app.ghostlyapp"))).toBe(false);
+    const key = vectorKey(keys, "publisher");
+    ok(await property(["app", "publish", dir, "--key", key]));
+    expect(error(await property(["app", "revoke", dir, "--key", key, "--up-to", "1", "--bundle", ""]), "usage", 2).message).toMatch(/^A path given as "" names no file/);
+    const index = join(tmp(), "index.json");
+    writeFileSync(index, "{}");
+    expect(error(await property(["store", "sign", index, "--key", join(keys, "store.key"), "--out", ""]), "usage", 2).message).toMatch(/^A path given as "" names no file/);
+    expect(existsSync(join(keys, "store.key"))).toBe(false);
+  }, 60_000);
+
+  it("names a store index that is a folder, as every other file option does", async () => {
+    const keys = tmp();
+    const folder = tmp();
+    expect(error(await property(["store", "sign", folder, "--key", join(keys, "store.key")]), "bad_request", 1).message).toBe(`${folder} is a folder: name a file`);
+    expect(existsSync(join(keys, "store.key"))).toBe(false);
+  }, 60_000);
+});
+
+describe("app publish --sequence", () => {
+  it("sets the sequence, refused unless higher than the bundle at the output", async () => {
+    const { manifest, files } = chess();
+    const dir = appFolder(manifest, files);
+    const key = vectorKey(tmp(), "publisher");
+    expect(ok(await property(["app", "publish", dir, "--key", key, "--sequence", "5"]))).toMatchObject({ sequence: 5, previous: null });
+    expect((error(await property(["app", "publish", dir, "--key", key, "--sequence", "5"]), "refused", 1) as { details?: { reason?: string } }).details?.reason).toBe("equivocation");
+    expect((error(await property(["app", "publish", dir, "--key", key, "--sequence", "4"]), "refused", 1) as { details?: { reason?: string } }).details?.reason).toBe("rollback");
+    error(await property(["app", "publish", dir, "--key", key, "--sequence", "0"]), "usage", 2);
+    expect(ok(await property(["app", "publish", dir, "--key", key]))).toMatchObject({ sequence: 6, previous: 5 });
+  }, 60_000);
+});
+
+describe("app revoke", () => {
+  it("adds signed revocations a client reads to property-revoke.json, by the app's own key only", async () => {
+    const { manifest, files } = chess();
+    const dir = appFolder(manifest, files);
+    const keys = tmp();
+    const key = vectorKey(keys, "publisher");
+    const first = ok(await property(["app", "publish", dir, "--key", key]));
+    const byDigest = ok(await property(["app", "revoke", dir, "--key", key, "--digest", first.digest as string, "--reason", "Leaked a test move list"]));
+    expect(byDigest).toMatchObject({ app: `${manifest.publisher}/chess`, digests: [first.digest], current: true, added: true, revocations: 1 });
+    // The same statement again adds nothing; up to a sequence adds a second one.
+    expect(ok(await property(["app", "revoke", dir, "--key", key, "--digest", first.digest as string, "--reason", "Leaked a test move list"]))).toMatchObject({ added: false, revocations: 1 });
+    expect(ok(await property(["app", "revoke", dir, "--key", key, "--up-to", "1"]))).toMatchObject({ upTo: 1, current: true, added: true, revocations: 2 });
+
+    const read = readAppRevocations(new Uint8Array(readFileSync(join(dir, "property-revoke.json"))));
+    expect(read.ok).toBe(true);
+    const version = { ref: `${manifest.publisher}/chess`, sequence: 1, digest: first.digest as string };
+    expect(appRevocationFor(version, read.ok ? read.revocations : [])).not.toBeNull();
+    // The list is never bundled: the next version leaves it out.
+    expect(ok(await property(["app", "publish", dir, "--key", key]))).toMatchObject({ files: ["index.html"], sequence: 2 });
+
+    const other = error(await property(["app", "revoke", dir, "--key", vectorKey(keys, "other publisher"), "--up-to", "1"]), "refused", 1) as { details?: { reason?: string } };
+    expect(other.details?.reason).toBe("signature-key");
+    error(await property(["app", "revoke", dir, "--key", join(keys, "missing.pem"), "--up-to", "1"]), "not_found", 3);
+    expect(existsSync(join(keys, "missing.pem"))).toBe(false);
+    error(await property(["app", "revoke", dir, "--key", key]), "usage", 2);
+    error(await property(["app", "revoke", dir, "--key", key, "--up-to", "1", "--digest", first.digest as string]), "usage", 2);
+    expect((error(await property(["app", "revoke", dir, "--key", key, "--digest", "not-a-digest"]), "refused", 1) as { details?: { reason?: string } }).details?.reason).toBe("bad-revocation");
+    expect(readAppRevocations(new Uint8Array(readFileSync(join(dir, "property-revoke.json"))))).toMatchObject({ ok: true, revocations: { length: 2 } });
+  }, 60_000);
+
+  it("refuses --up-to past the newest version unless --force, and publish never makes a version the list already stops", async () => {
+    const { manifest, files } = chess();
+    const dir = appFolder(manifest, files);
+    const key = vectorKey(tmp(), "publisher");
+    for (let i = 0; i < 3; i++) ok(await property(["app", "publish", dir, "--key", key]));
+    // A typo, 30 for 3: clients keep a revocation for good, so versions 4 to 30 would be stopped before they exist.
+    const typo = error(await property(["app", "revoke", dir, "--key", key, "--up-to", "30"]), "usage", 2);
+    expect(typo.message).toContain("--up-to 3");
+    expect(existsSync(join(dir, "property-revoke.json"))).toBe(false);
+    // Meant (versions published from another folder went past this bundle): --force writes it.
+    expect(ok(await property(["app", "revoke", dir, "--key", key, "--up-to", "30", "--force"]))).toMatchObject({ upTo: 30, current: true, added: true });
+    // The next version, 4, is one the list stops: refused, naming the sequence that clears it, and nothing written.
+    const before = readFileSync(join(dir, "app.ghostlyapp"));
+    const stopped = error(await property(["app", "publish", dir, "--key", key]), "refused", 1) as { message: string; details?: { reason?: string; sequence?: number } };
+    expect(stopped.details).toMatchObject({ reason: "revoked", sequence: 31 });
+    expect(stopped.message).toContain("--sequence 31");
+    error(await property(["app", "publish", dir, "--key", key, "--sequence", "30"]), "refused", 1);
+    expect(readFileSync(join(dir, "app.ghostlyapp")).equals(before)).toBe(true);
+    expect(ok(await property(["app", "publish", dir, "--key", key, "--sequence", "31"]))).toMatchObject({ sequence: 31, previous: 3 });
+    // Up to the bundle's own sequence needs no --force.
+    expect(ok(await property(["app", "revoke", dir, "--key", key, "--up-to", "31"]))).toMatchObject({ upTo: 31, current: true });
+  });
+
+  it("is read by app verify and app serve from the property-revoke.json beside the bundle, as a client reads it", async () => {
+    const { manifest, files } = chess();
+    const dir = appFolder(manifest, files);
+    const key = vectorKey(tmp(), "publisher");
+    const bundle = join(dir, "app.ghostlyapp");
+    const first = ok(await property(["app", "publish", dir, "--key", key]));
+    expect(ok(await property(["app", "verify", bundle]))).toMatchObject({ valid: true, digest: first.digest });
+    ok(await property(["app", "revoke", dir, "--key", key, "--digest", first.digest as string, "--reason", "Leaked a test move list"]));
+
+    const refusal = error(await property(["app", "verify", bundle]), "refused", 1) as { message: string; details?: { reason?: string; detail?: string } };
+    expect(refusal.details).toMatchObject({ reason: "revoked", detail: "Leaked a test move list" });
+    expect(refusal.message).toContain("revoked");
+    const served = error(await property(["--home", home("revoked"), "app", "serve", bundle, "--grant", "chat"]), "refused", 1) as { details?: { reason?: string } };
+    expect(served.details?.reason).toBe("revoked");
+
+    // A version the list does not cover is valid.
+    expect(ok(await property(["app", "publish", dir, "--key", key]))).toMatchObject({ sequence: 2 });
+    expect(ok(await property(["app", "verify", bundle]))).toMatchObject({ valid: true, sequence: 2 });
+  }, 60_000);
+});
+
+describe("app verify", () => {
+  it.each(bundleVectors.invalid.map((v) => [v.name, v] as const))("refuses %s with the vector's code", async (_, vector) => {
+    const path = join(tmp(), "app.ghostlyapp");
+    writeFileSync(path, fromSegments(vector.bytes));
+    const refusal = await verifyApp(path).then(() => null, (e: unknown) => e);
+    expect(refusal).toBeInstanceOf(CliError);
+    expect((refusal as CliError).code).toBe("refused");
+    expect((refusal as CliError).details?.reason).toBe(vector.refusal);
+  });
+
+  it("answers exit 1 with the reason for a tampered bundle, 3 for no file, 2 for a URL a client does not read", async () => {
+    const { vector } = chess();
+    const bytes = fromSegments(vector.bytes);
+    bytes[bytes.length - 1] ^= 1;
+    const path = join(tmp(), "app.ghostlyapp");
+    writeFileSync(path, bytes);
+    const refusal = error(await property(["app", "verify", path]), "refused", 1) as { details?: { reason?: string; detail?: string } };
+    expect(refusal.details).toEqual({ reason: "file-hash", detail: "index.html" });
+    error(await property(["app", "verify", join(tmp(), "none.ghostlyapp")]), "not_found", 3);
+    error(await property(["app", "verify", "http://example.com/app.ghostlyapp"]), "usage", 2);
+    error(await property(["app", "verify", "https://cdn.jsdelivr.net/gh/ana/chess@main/app.ghostlyapp"]), "usage", 2);
+  }, 60_000);
+});
+
+describe("app verify <url>", () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+  const { vector } = chess();
+  const bundle = fromSegments(vector.bytes);
+  const stream = (chunks: Uint8Array[]) => new ReadableStream<Uint8Array>({ start(c) { for (const chunk of chunks) c.enqueue(chunk); c.close(); } });
+
+  it("reads a bundle over https, following a redirect held to the same rule", async () => {
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      if (url.endsWith("/property-revoke.json")) return new Response("no", { status: 404 });
+      seen.push(url);
+      if (url.includes("@")) return new Response(stream([bundle]), { status: 200 });
+      return new Response(null, { status: 302, headers: { location: "https://cdn.jsdelivr.net/gh/ana/chess@0123456789abcdef0123456789abcdef01234567/app.ghostlyapp" } });
+    });
+    expect(await verifyApp("https://raw.githubusercontent.com/ana/chess/HEAD/app.ghostlyapp")).toMatchObject({ valid: true, digest: vector.read.digest });
+    expect(seen).toHaveLength(2);
+  });
+
+  it("refuses a redirect to a URL a client does not read", async () => {
+    vi.stubGlobal("fetch", async () => new Response(null, { status: 301, headers: { location: "http://example.com/app.ghostlyapp" } }));
+    await expect(verifyApp("https://example.com/app.ghostlyapp")).rejects.toMatchObject({ code: "refused" });
+    vi.stubGlobal("fetch", async () => new Response(null, { status: 302, headers: { location: "https://cdn.jsdelivr.net/gh/ana/chess@latest/app.ghostlyapp" } }));
+    await expect(verifyApp("https://example.com/app.ghostlyapp")).rejects.toMatchObject({ code: "refused" });
+  });
+
+  it("stops past 16 MiB, by its length or while it reads", async () => {
+    const limit = 16 * 1024 * 1024;
+    vi.stubGlobal("fetch", async () => new Response(stream([bundle]), { status: 200, headers: { "content-length": String(limit + 1) } }));
+    await expect(verifyApp("https://example.com/a.ghostlyapp")).rejects.toMatchObject({ code: "refused", details: { reason: "too-large" } });
+    let pulled = 0;
+    const endless = new ReadableStream<Uint8Array>({ pull(c) { pulled += 1; c.enqueue(new Uint8Array(1024 * 1024)); } });
+    vi.stubGlobal("fetch", async () => new Response(endless, { status: 200 }));
+    await expect(verifyApp("https://example.com/a.ghostlyapp")).rejects.toMatchObject({ code: "refused", details: { reason: "too-large" } });
+    expect(pulled).toBeLessThan(20);
+  });
+
+  it("refuses a version its publisher revoked in the property-revoke.json beside the URL; none there is no error", async () => {
+    const dir = tmp();
+    writeFileSync(join(dir, "app.ghostlyapp"), bundle);
+    ok(await property(["app", "revoke", dir, "--key", vectorKey(tmp(), "publisher"), "--up-to", "1", "--reason", "Leaked a test move list"]));
+    const list = readFileSync(join(dir, "property-revoke.json"));
+    const seen: string[] = [];
+    let revoked = true;
+    vi.stubGlobal("fetch", async (url: string) => {
+      seen.push(url);
+      if (url.includes("/app.ghostlyapp")) return new Response(stream([bundle]), { status: 200 });
+      return revoked ? new Response(stream([new Uint8Array(list)]), { status: 200 }) : new Response("no", { status: 404 });
+    });
+    const url = "https://raw.githubusercontent.com/ana/chess/HEAD/app.ghostlyapp?x=1";
+    await expect(verifyApp(url)).rejects.toMatchObject({ code: "refused", details: { reason: "revoked", detail: "Leaked a test move list" } });
+    expect(seen).toEqual([url, "https://raw.githubusercontent.com/ana/chess/HEAD/property-revoke.json"]);
+    revoked = false;
+    expect(await verifyApp(url)).toMatchObject({ valid: true, digest: vector.read.digest });
+  }, 60_000);
+
+  it("says not found for a 404", async () => {
+    vi.stubGlobal("fetch", async () => new Response("no", { status: 404 }));
+    await expect(verifyApp("https://example.com/a.ghostlyapp")).rejects.toMatchObject({ code: "not_found" });
+  });
+});
+
+describe("store sign", () => {
+  const vector = storeVectors.valid[0];
+
+  it("makes the vector's property-store.json and property-store.sig from an index written by hand", async () => {
+    const dir = tmp();
+    const keys = tmp();
+    const { key: _key, ...index } = JSON.parse(vector.index) as Record<string, unknown>;
+    writeFileSync(join(dir, "index.json"), JSON.stringify(index, null, 2));
+    const signed = ok(await property(["store", "sign", join(dir, "index.json"), "--key", vectorKey(keys, "store")]));
+    expect(readFileSync(join(dir, "property-store.json"), "utf8")).toBe(vector.index);
+    expect(readFileSync(join(dir, "property-store.sig"), "utf8")).toBe(vector.sig);
+    expect(signed).toMatchObject({ sequence: JSON.parse(vector.index).sequence, previous: null, keyCreated: false });
+  }, 60_000);
+
+  it("refuses a lower sequence, the same one with other content, another key and a publisher key", async () => {
+    const dir = tmp();
+    const keys = tmp();
+    const key = vectorKey(keys, "store");
+    const index = JSON.parse(vector.index) as Record<string, unknown> & { sequence: number; name: string };
+    const write = (value: object) => writeFileSync(join(dir, "index.json"), JSON.stringify(value));
+    write(index);
+    ok(await property(["store", "sign", join(dir, "index.json"), "--key", key]));
+    // The same index again is the same bytes: fine.
+    ok(await property(["store", "sign", join(dir, "index.json"), "--key", key]));
+    write({ ...index, sequence: index.sequence - 1 });
+    expect((error(await property(["store", "sign", join(dir, "index.json"), "--key", key]), "refused", 1) as { details?: { reason?: string } }).details?.reason).toBe("rollback");
+    write({ ...index, name: `${index.name} 2` });
+    expect((error(await property(["store", "sign", join(dir, "index.json"), "--key", key]), "refused", 1) as { details?: { reason?: string } }).details?.reason).toBe("equivocation");
+    write({ ...index, name: `${index.name} 2`, sequence: index.sequence + 1 });
+    expect(ok(await property(["store", "sign", join(dir, "index.json"), "--key", key]))).toMatchObject({ sequence: index.sequence + 1, previous: index.sequence });
+    expect((error(await property(["store", "sign", join(dir, "index.json"), "--key", vectorKey(keys, "other store")]), "refused", 1) as { details?: { reason?: string } }).details?.reason).toBe("store-key");
+    const publisher = vectorKey(keys, "publisher", "Property Direct publisher key (WISP 1200).\n");
+    expect(error(await property(["store", "sign", join(dir, "index.json"), "--key", publisher]), "refused", 1).message).toContain("a publisher key never signs a store index");
+  }, 60_000);
+
+  it("makes a store key for an index that names none, and refuses an index a client would refuse", async () => {
+    const dir = tmp();
+    const { key: _key, ...index } = JSON.parse(vector.index) as Record<string, unknown>;
+    writeFileSync(join(dir, "index.json"), JSON.stringify(index));
+    const key = join(tmp(), "store.pem");
+    const made = ok(await property(["store", "sign", join(dir, "index.json"), "--key", key]));
+    expect(made.keyCreated).toBe(true);
+    expect(readFileSync(key, "utf8")).toMatch(/^Property Direct store key/);
+    writeFileSync(join(dir, "far.json"), JSON.stringify({ ...index, expires: Math.floor(Date.now() / 1000) + 91 * 86_400 }));
+    expect((error(await property(["store", "sign", join(dir, "far.json"), "--key", key, "--out", tmp()]), "refused", 1) as { details?: { reason?: string } }).details?.reason).toBe("expires-too-far");
+    writeFileSync(join(dir, "unknown.json"), JSON.stringify({ ...index, extra: 1 }));
+    expect((error(await property(["store", "sign", join(dir, "unknown.json"), "--key", key, "--out", tmp()]), "refused", 1) as { details?: { reason?: string } }).details?.reason).toBe("unknown-key");
+  }, 60_000);
+
+  it("never makes a key or signs over an index there that another store key signed", async () => {
+    const dir = tmp();
+    const keys = tmp();
+    const key = vectorKey(keys, "store");
+    const { key: _key, ...index } = JSON.parse(vector.index) as Record<string, unknown> & { sequence: number };
+    writeFileSync(join(dir, "index.json"), JSON.stringify(index));
+    const first = ok(await property(["store", "sign", join(dir, "index.json"), "--key", key]));
+    const held = readFileSync(join(dir, "property-store.json"), "utf8");
+    const heldSig = readFileSync(join(dir, "property-store.sig"), "utf8");
+    writeFileSync(join(dir, "index.json"), JSON.stringify({ ...index, sequence: index.sequence + 1 }));
+    // A mistyped --key path: no new key, the held index stays.
+    const typo = join(keys, "stor.pem");
+    expect(error(await property(["store", "sign", join(dir, "index.json"), "--key", typo]), "not_found", 3).message).toContain(String(first.fingerprint));
+    expect(existsSync(typo)).toBe(false);
+    // Another store key that is there: refused, naming both.
+    const other = vectorKey(keys, "other store");
+    const refusal = error(await property(["store", "sign", join(dir, "index.json"), "--key", other]), "refused", 1) as { message: string; details?: { reason?: string } };
+    expect(refusal.details?.reason).toBe("store-key");
+    expect(refusal.message).toContain(String(first.fingerprint));
+    expect(readFileSync(join(dir, "property-store.json"), "utf8")).toBe(held);
+    expect(readFileSync(join(dir, "property-store.sig"), "utf8")).toBe(heldSig);
+    // Another store is another --out.
+    expect(ok(await property(["store", "sign", join(dir, "index.json"), "--key", other, "--out", tmp()]))).toMatchObject({ previous: null, keyCreated: false });
+  }, 60_000);
+
+  it("never signs over a property-store.json or .sig there that does not read as a signed index, but for its own bytes", async () => {
+    const dir = tmp();
+    const keys = tmp();
+    const key = vectorKey(keys, "store");
+    const index = JSON.parse(vector.index) as Record<string, unknown> & { name: string };
+    const draft = join(dir, "index.json");
+    writeFileSync(draft, JSON.stringify(index));
+    ok(await property(["store", "sign", draft, "--key", key]));
+    const held = readFileSync(join(dir, "property-store.json"), "utf8");
+    const heldSig = readFileSync(join(dir, "property-store.sig"), "utf8");
+    // Equivocation over a held index whose signature is damaged, or gone: refused, naming the file, and both stay.
+    writeFileSync(draft, JSON.stringify({ ...index, name: `${index.name} 2` }));
+    writeFileSync(join(dir, "property-store.sig"), heldSig.slice(0, -5));
+    const damaged = error(await property(["store", "sign", draft, "--key", key]), "refused", 1) as { message: string; details?: { reason?: string } };
+    expect(damaged.message).toContain(`${join(dir, "property-store.json")} is there and is not a signed store index`);
+    expect(readFileSync(join(dir, "property-store.json"), "utf8")).toBe(held);
+    expect(readFileSync(join(dir, "property-store.sig"), "utf8")).toBe(heldSig.slice(0, -5));
+    rmSync(join(dir, "property-store.sig"));
+    expect((error(await property(["store", "sign", draft, "--key", key]), "refused", 1) as { details?: { reason?: string } }).details?.reason).toBe("bad-signature-statement");
+    expect(readFileSync(join(dir, "property-store.json"), "utf8")).toBe(held);
+    expect(existsSync(join(dir, "property-store.sig"))).toBe(false);
+    // A signature alone: refused too, and no key is made for it.
+    const lone = tmp();
+    writeFileSync(join(lone, "property-store.sig"), heldSig);
+    const fresh = join(keys, "new.pem");
+    const { key: _key, ...keyless } = index;
+    writeFileSync(join(lone, "index.json"), JSON.stringify(keyless));
+    expect((error(await property(["store", "sign", join(lone, "index.json"), "--key", fresh]), "refused", 1) as { details?: { reason?: string } }).details?.reason).toBe("missing-file");
+    expect(existsSync(fresh)).toBe(false);
+    expect(existsSync(join(lone, "property-store.json"))).toBe(false);
+    // The index there is the one this signs (a run stopped before its signature was written): signed again.
+    writeFileSync(draft, JSON.stringify(index));
+    ok(await property(["store", "sign", draft, "--key", key]));
+    expect(readFileSync(join(dir, "property-store.sig"), "utf8")).toBe(heldSig);
+  }, 60_000);
+});

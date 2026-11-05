@@ -1,0 +1,330 @@
+import { EventEmitter } from "node:events";
+import { request as httpRequest } from "node:http";
+import { createServer as createNetServer, Server as NetServer, type AddressInfo } from "node:net";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { GhostlyHttpError, LIMITS, type ClientRequest, type ClientResponse } from "@ghostly/core";
+import { keepServing } from "../src/host";
+import type { ApiContext } from "../src/api";
+import { hostOnlyCookie, OPEN_COOKIE, OPENED_SERVICE_CSP, openServiceServer, ownCookies, SERVICE_METHODS, setCookieName, type OpenedService, type ServiceSend } from "../src/services";
+// covers: headless.services
+
+interface Reply { status: number; headers: Record<string, string | string[] | undefined>; body: string; aborted: boolean }
+
+/** A request to the opened service's port with any `Host` (fetch would not let a test set one). */
+function get(opened: OpenedService, path: string, { host = opened.host, cookie, method = "GET", body }: { host?: string; cookie?: string; method?: string; body?: Buffer } = {}): Promise<Reply> {
+  const port = Number(opened.host.split(":")[1]);
+  return new Promise((resolve, reject) => {
+    const req = httpRequest({ host: "127.0.0.1", port, path, method, headers: { host, ...(cookie ? { cookie } : {}) } }, (res) => {
+      const parts: Buffer[] = [];
+      let aborted = false;
+      res.on("data", (c: Buffer) => parts.push(c));
+      res.on("aborted", () => { aborted = true; });
+      res.on("error", () => { aborted = true; });
+      res.on("close", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body: Buffer.concat(parts).toString(), aborted: aborted || !res.complete }));
+    });
+    req.on("error", reject);
+    req.end(body);
+  });
+}
+
+function answer(status: number, headers: [string, string][], chunks: (string | Error)[]): ClientResponse {
+  const body = (async function* () {
+    for (const chunk of chunks) {
+      await new Promise((r) => setTimeout(r, 5));
+      if (chunk instanceof Error) throw chunk;
+      yield new TextEncoder().encode(chunk);
+    }
+  })();
+  return { status, headers, body, bytes: async () => { throw new Error("gathered, not streamed"); } };
+}
+
+const servers: OpenedService[] = [];
+afterEach(async () => { for (const s of servers.splice(0)) await new Promise<void>((r) => s.server.close(() => r())); });
+
+async function opened(send: ServiceSend): Promise<{ service: OpenedService; cookie: string }> {
+  const service = await openServiceServer(send);
+  servers.push(service);
+  const url = new URL(service.url);
+  const first = await get(service, url.pathname);
+  const set = String(first.headers["set-cookie"]);
+  return { service, cookie: set.split(";")[0] };
+}
+
+/** `service close`: an answer still streaming (a page's EventSource) ends with it, and does not hold the command. */
+describe("closing an opened service", () => {
+  it("answers at once and ends what is still streaming, on the contact's side too", async () => {
+    let signal: AbortSignal | undefined;
+    const request = async (_peer: string, _service: string, asked: ClientRequest): Promise<ClientResponse> => {
+      signal = asked.signal;
+      const body = (async function* () {
+        while (!asked.signal?.aborted) {
+          yield new TextEncoder().encode("data: tick\n\n");
+          await new Promise((r) => setTimeout(r, 5));
+        }
+      })();
+      return { status: 200, headers: [["content-type", "text/event-stream"]], body, bytes: async () => { throw new Error("gathered, not streamed"); } };
+    };
+    const link = { id: "closechat", peerPubKeyZ32: "closepeer", peerServices: [{ id: "app", name: "App" }] };
+    const ctx = { mode: "daemon", runtime: { server: { node: { getState: () => ({ links: [link], groups: [] }), request } } } } as unknown as ApiContext;
+    const params = { chat: link.id, service: "app" };
+    const { url } = (await SERVICE_METHODS["service.open"](ctx, params)) as { url: string };
+    const parsed = new URL(url), service = { host: parsed.host } as OpenedService;
+    const cookie = String((await get(service, parsed.pathname)).headers["set-cookie"]).split(";")[0];
+    const stream = get(service, "/events", { cookie });
+    await vi.waitFor(() => expect(signal).toBeDefined());
+
+    const closed = await Promise.race([SERVICE_METHODS["service.close"](ctx, params), new Promise((r) => setTimeout(() => r("still waiting"), 3000))]);
+
+    expect(closed).toEqual({ closed: "closepeer/app" });
+    expect((await stream).aborted).toBe(true);
+    await vi.waitFor(() => expect(signal?.aborted).toBe(true));
+    await expect(get(service, "/", { cookie })).rejects.toThrow(/ECONNREFUSED/);
+  });
+});
+
+/** `service open --port`: the port asked for, or a refusal that names it. */
+describe("opening a service on a given port", () => {
+  const link = { id: "portchat", peerPubKeyZ32: "portpeer", peerServices: [{ id: "app", name: "App" }] };
+  const ctx = { mode: "daemon", runtime: { server: { node: { getState: () => ({ links: [link], groups: [] }) } } } } as unknown as ApiContext;
+  const openOn = (port?: number) => SERVICE_METHODS["service.open"](ctx, { chat: link.id, service: "app", port }) as Promise<{ url: string }>;
+  const portOf = (url: string) => Number(new URL(url).port);
+  afterEach(async () => { await SERVICE_METHODS["service.close"](ctx, { chat: link.id, service: "app" }).catch(() => {}); });
+  afterEach(() => { vi.restoreAllMocks(); });
+  /** A port free a moment ago, as the system hands them out. */
+  const freePort = async () => {
+    const probe = createNetServer();
+    await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
+    const { port } = probe.address() as AddressInfo;
+    await new Promise((r) => probe.close(r));
+    return port;
+  };
+
+  it("a port in use says so and names it, not Node's EADDRINUSE as the engine failing", async () => {
+    const taken = createNetServer();
+    await new Promise<void>((r) => taken.listen(0, "127.0.0.1", r));
+    const { port } = taken.address() as AddressInfo;
+    await expect(openOn(port)).rejects.toMatchObject({ code: "busy", message: `Port ${port} is in use on this machine: choose another, or leave out --port` });
+    await new Promise((r) => taken.close(r));
+    // Nothing stayed open: the same port works once it is free.
+    expect(portOf((await openOn(port)).url)).toBe(port);
+  });
+
+  it("a port this user may not take says so and names it, not \"the path\"", async () => {
+    vi.spyOn(NetServer.prototype, "listen").mockImplementationOnce(function (this: NetServer) {
+      process.nextTick(() => this.emit("error", Object.assign(new Error("listen EACCES: permission denied 127.0.0.1:80"), { code: "EACCES", syscall: "listen" })));
+      return this;
+    });
+    await expect(openOn(80)).rejects.toMatchObject({ code: "refused", message: "Port 80 is not allowed for this user: choose another, or leave out --port" });
+  });
+
+  it("open already: another port is refused, naming the one it is on; no port, 0 or the same one answers its link", async () => {
+    const port = await freePort();
+    const { url } = await openOn(port);
+    expect(portOf(url)).toBe(port);
+    const other = port === 65535 ? port - 1 : port + 1;
+    await expect(openOn(other)).rejects.toMatchObject({ code: "busy", message: `That service is open here on port ${port}: property service close ${link.id} app first, or leave out --port` });
+    for (const same of [undefined, 0, port]) expect((await openOn(same)).url).toBe(url);
+  });
+
+  it("two opens at once open one server, and close closes it: no link of either still reaches the contact", async () => {
+    const [first, second] = await Promise.all([openOn(), openOn()]);
+    expect(second.url).toBe(first.url);
+    await SERVICE_METHODS["service.close"](ctx, { chat: link.id, service: "app" });
+    await expect(fetch(first.url, { redirect: "manual" })).rejects.toThrow();
+    // One whose port could not be taken is not left in the way of the next open.
+    const taken = createNetServer();
+    await new Promise<void>((r) => taken.listen(0, "127.0.0.1", r));
+    const { port } = taken.address() as AddressInfo;
+    const results = await Promise.allSettled([openOn(port), openOn(port)]);
+    expect(results.map((r) => r.status)).toEqual(["rejected", "rejected"]);
+    await new Promise((r) => taken.close(r));
+    expect(portOf((await openOn()).url)).toBeGreaterThan(0);
+  });
+
+  it("the API takes a whole number only, for a socket caller too", async () => {
+    await expect(openOn(1.5)).rejects.toMatchObject({ code: "bad_request", message: "port must be a whole number from 0 to 65535" });
+  });
+});
+
+/** `service open`: the contact's app under a host name of its own, for the browser that was given the link. */
+describe("an opened service's host and link", () => {
+  it("is a random name under localhost; the link hands over an owner-only cookie and goes on to /", async () => {
+    const seen: ClientRequest[] = [];
+    const service = await openServiceServer(async (request) => { seen.push(request); return answer(200, [["content-type", "text/plain"]], ["hi"]); });
+    servers.push(service);
+    const url = new URL(service.url);
+    expect(url.protocol).toBe("http:");
+    expect(url.hostname).toMatch(/^[0-9a-f]{32}\.localhost$/);
+    expect(url.pathname).toMatch(/^\/\.property-open\/[0-9a-f]{64}$/);
+    const first = await get(service, url.pathname);
+    expect(first.status).toBe(303);
+    expect(first.headers.location).toBe("/");
+    const set = String(first.headers["set-cookie"]);
+    expect(set).toMatch(new RegExp(`^${OPEN_COOKIE}=[0-9a-f]{64}; Path=/; HttpOnly; SameSite=Lax$`));
+    expect(set).not.toMatch(/domain/i);
+    const page = await get(service, "/docs?x=1", { cookie: `${set.split(";")[0]}; other_app=secret` });
+    expect(page.status).toBe(200);
+    expect(page.body).toBe("hi");
+    expect(seen).toHaveLength(1);
+    expect(seen[0].path).toBe("/docs?x=1");
+    // This machine's cookie, and another app's, stay here.
+    expect(seen[0].headers?.find(([name]) => name === "cookie")).toBeUndefined();
+  });
+
+  it("refuses another Host, a missing or wrong cookie, and a wrong link, with 404", async () => {
+    let asked = 0;
+    const { service, cookie } = await opened(async () => { asked++; return answer(200, [], ["hi"]); });
+    const port = service.host.split(":")[1];
+    for (const host of [`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`, `rebind.example:${port}`, `other.localhost:${port}`, service.host.split(":")[0]]) {
+      expect((await get(service, "/", { host, cookie })).status).toBe(404);
+    }
+    expect((await get(service, "/")).status).toBe(404);
+    expect((await get(service, "/", { cookie: `${OPEN_COOKIE}=${"0".repeat(64)}` })).status).toBe(404);
+    expect((await get(service, "/.ghostly-open/" + "0".repeat(64))).status).toBe(404);
+    expect((await get(service, "/.ghostly-open/")).status).toBe(404);
+    expect(asked).toBe(0);
+    expect((await get(service, "/", { host: service.host.toUpperCase(), cookie })).status).toBe(200);
+    // A cookie of the same name the page set on a narrower path comes first; the real one still counts.
+    expect((await get(service, "/app/", { cookie: `${OPEN_COOKIE}=x; ${cookie}` })).status).toBe(200);
+    expect(asked).toBe(2);
+  });
+
+  it("keeps the service's cookies on its own host: Domain is dropped, and this machine's cookie cannot be set", async () => {
+    const seen: ClientRequest[] = [];
+    const { service, cookie } = await opened(async (request) => {
+      seen.push(request);
+      return answer(200, [["set-cookie", "sid=abc; Path=/; Domain=localhost; HttpOnly"], ["set-cookie", "theme=dark; domain=.localhost"], ["set-cookie", `${OPEN_COOKIE}=stolen; Path=/`]], ["ok"]);
+    });
+    const page = await get(service, "/", { cookie });
+    expect(page.headers["set-cookie"]).toEqual(["sid=abc; Path=/; HttpOnly", "theme=dark"]);
+    await get(service, "/", { cookie: `${cookie}; sid=abc; theme=dark; other_app=secret` });
+    expect(seen[1].headers?.find(([name]) => name === "cookie")?.[1]).toBe("sid=abc; theme=dark");
+  });
+
+  it("adds a policy that keeps the page's requests and forms on its own origin (not this machine, the local network or any https host), next to the contact's", async () => {
+    const { service, cookie } = await opened(async (request) => answer(200, request.path === "/own"
+      ? [["content-type", "text/html"], ["content-security-policy", "default-src 'self'"], ["content-security-policy", "img-src *"]]
+      : [["content-type", "text/html"]], ["<p>hi</p>"]));
+    expect(OPENED_SERVICE_CSP).toBe("default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self'; form-action 'self'");
+    const page = await get(service, "/", { cookie });
+    expect(page.headers["content-security-policy"]).toBe(OPENED_SERVICE_CSP);
+    // Node joins repeated headers with ", ": each policy is still there, and a browser enforces every one.
+    const own = await get(service, "/own", { cookie });
+    expect(own.headers["content-security-policy"]).toBe(`default-src 'self', img-src *, ${OPENED_SERVICE_CSP}`);
+  });
+
+  it("passes on no header that makes the browser send reports or early requests elsewhere, and drops report directives from the contact's policy", async () => {
+    const { service, cookie } = await opened(async () => answer(200, [
+      ["content-type", "text/html"],
+      ["Content-Security-Policy", "default-src 'self'; report-uri http://127.0.0.1:9/r; img-src *; Report-To main"],
+      ["content-security-policy", "report-uri https://localhost/r, script-src 'self';report-to main"],
+      ["content-security-policy-report-only", "default-src 'none'; report-uri http://127.0.0.1:9/r"],
+      ["Reporting-Endpoints", "main=\"http://127.0.0.1:9/r\""],
+      ["report-to", "{\"group\":\"main\",\"max_age\":86400,\"endpoints\":[{\"url\":\"http://127.0.0.1:9/r\"}]}"],
+      ["NEL", "{\"report_to\":\"main\",\"max_age\":86400}"],
+      ["link", "<https://127.0.0.1:8443/admin>; rel=preload; as=fetch; crossorigin"],
+      ["Link", "<https://nas.local/>; rel=preconnect, </style.css>; rel=\"dns-prefetch prefetch\""],
+      ["x-served-by", "atlas"],
+    ], ["<p>hi</p>"]));
+    const page = await get(service, "/", { cookie });
+    expect(page.headers["x-served-by"]).toBe("atlas");
+    for (const name of ["content-security-policy-report-only", "reporting-endpoints", "report-to", "nel", "link"]) expect(page.headers[name], name).toBeUndefined();
+    expect(page.headers["content-security-policy"]).toBe(`default-src 'self'; img-src *, script-src 'self', ${OPENED_SERVICE_CSP}`);
+  });
+
+  it("the policy keeps pictures, frames and every other load off plain http too, and leaves inline scripts and styles working", () => {
+    const policy = new Map(OPENED_SERVICE_CSP.split(";").map((part) => part.trim().split(/\s+/)).map(([name, ...sources]) => [name, sources]));
+    // How a browser picks the list for each kind of load: the first directive present in its chain (CSP Level 3).
+    const chains: Record<string, string[]> = {
+      img: ["img-src", "default-src"], media: ["media-src", "default-src"], font: ["font-src", "default-src"],
+      frame: ["frame-src", "child-src", "default-src"], worker: ["worker-src", "child-src", "script-src", "default-src"],
+      object: ["object-src", "default-src"], manifest: ["manifest-src", "default-src"],
+      script: ["script-src-elem", "script-src", "default-src"], style: ["style-src-elem", "style-src", "default-src"],
+      connect: ["connect-src", "default-src"], form: ["form-action"],
+    };
+    for (const [load, chain] of Object.entries(chains)) {
+      const sources = policy.get(chain.find((name) => policy.has(name)) ?? "");
+      expect(sources, load).toBeDefined();
+      // Only its own origin, https, inline and local data: no `*`, no http:, no host (127.0.0.1, a LAN address).
+      for (const source of sources!) expect(["'self'", "https:", "data:", "blob:", "'unsafe-inline'", "'unsafe-eval'"], `${load}: ${source}`).toContain(source);
+    }
+    // What can read an answer or post goes to its own origin only: https: also names this machine and the local network.
+    expect(policy.get("connect-src")).toEqual(["'self'"]);
+    expect(policy.get("form-action")).toEqual(["'self'"]);
+    expect(policy.get("default-src")).toEqual(expect.arrayContaining(["'unsafe-inline'", "'unsafe-eval'"]));
+  });
+});
+
+/** A contact's answer that breaks halfway (too large, or dropped) cuts the response; the daemon goes on serving. */
+describe("an opened service's answers", () => {
+  it("a body that fails after its headers ends the response short, and the next request is served", async () => {
+    let n = 0;
+    const { service, cookie } = await opened(async () => (++n === 1
+      ? answer(200, [["content-type", "text/html"]], ["<p>start", new GhostlyHttpError("response-too-large", "Response body too large")])
+      : answer(200, [["content-type", "text/plain"]], ["still here"])));
+    const cut = await get(service, "/big", { cookie });
+    expect(cut.status).toBe(200);
+    expect(cut.aborted).toBe(true);
+    expect(cut.body).toBe("<p>start");
+    const next = await get(service, "/", { cookie });
+    expect(next).toMatchObject({ status: 200, body: "still here", aborted: false });
+  });
+
+  it("streams the body as it comes, never gathering it", async () => {
+    const { service, cookie } = await opened(async () => answer(200, [], ["a", "b", "c"]));
+    expect(await get(service, "/", { cookie })).toMatchObject({ status: 200, body: "abc", aborted: false });
+  });
+
+  it("a contact that cannot be reached is a 503; a request that fails before an answer, a 502", async () => {
+    const { service, cookie } = await opened(async (request) => {
+      if (request.path === "/gone") throw new GhostlyHttpError("offline", "offline");
+      return answer(200, [["bad header", "x"]], ["x"]);
+    });
+    expect((await get(service, "/gone", { cookie })).status).toBe(503);
+    expect((await get(service, "/bad", { cookie })).status).toBe(502);
+  });
+
+  it("a request body over the limit is refused here with 413, never sent on", async () => {
+    let asked = 0;
+    const { service, cookie } = await opened(async () => { asked++; return answer(200, [], ["x"]); });
+    const reply = await get(service, "/upload", { cookie, method: "POST", body: Buffer.alloc(LIMITS.maxRequestBodyBytes + 1) });
+    expect(reply.status).toBe(413);
+    expect(asked).toBe(0);
+  });
+});
+
+describe("an opened service's cookies", () => {
+  it("passes on only the cookies the service set itself, never this machine's", () => {
+    const own = new Set(["sid", OPEN_COOKIE]);
+    expect(ownCookies("other_app=secret; sid=abc; theme=dark", own)).toBe("sid=abc");
+    expect(ownCookies(`other_app=secret; ${OPEN_COOKIE}=x`, own)).toBeNull();
+    expect(ownCookies("sid=abc", new Set())).toBeNull();
+    expect(ownCookies("  sid = abc ;junk", own)).toBe("sid = abc");
+  });
+
+  it("reads a Set-Cookie's name and makes it host-only", () => {
+    expect(setCookieName("sid=abc; Path=/; HttpOnly")).toBe("sid");
+    expect(setCookieName("sid=")).toBe("sid");
+    expect(setCookieName("=abc")).toBeNull();
+    expect(setCookieName("HttpOnly; sid=abc")).toBeNull();
+    expect(hostOnlyCookie("sid=abc; Domain=localhost; Path=/")).toBe("sid=abc; Path=/");
+    expect(hostOnlyCookie("sid=abc;DOMAIN = .localhost")).toBe("sid=abc");
+    expect(hostOnlyCookie("sid=domain=x; Path=/")).toBe("sid=domain=x; Path=/");
+    expect(hostOnlyCookie(`${OPEN_COOKIE}=x`)).toBeNull();
+    expect(hostOnlyCookie("=x")).toBeNull();
+  });
+});
+
+describe("the daemon's last resort", () => {
+  it("says an error nobody caught, with its stack, and does not exit", () => {
+    const proc = new EventEmitter();
+    const lines: string[] = [];
+    keepServing(proc as unknown as NodeJS.Process, (text) => lines.push(text));
+    proc.emit("unhandledRejection", new Error("headers sent twice"));
+    proc.emit("uncaughtException", new Error("thrown in a callback"));
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatch(/unhandled rejection.*headers sent twice/s);
+    expect(lines[0]).toMatch(/at /);
+    expect(lines[1]).toMatch(/uncaught exception.*thrown in a callback/s);
+  });
+});
