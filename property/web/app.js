@@ -39,7 +39,7 @@
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null
+    storageReady: false, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null
   };
   const N = window.NostrTools;
   const bridge = Bridge?.createBridge(event => N.verifyEvent(event));
@@ -1329,7 +1329,12 @@
       }
       const forward = document.createElement('button'); forward.type = 'button'; forward.textContent = 'Forward';
       forward.addEventListener('click', () => { menu.open = false; openForwardDialog(message).catch(error => showToast(error.message || 'Could not open forwarding.')); });
-      menuItems.append(save, forward); menu.append(menuButton, menuItems);
+      const details = document.createElement('button'); details.type = 'button'; details.textContent = localized('Details', 'Detalhes');
+      details.addEventListener('click', () => {
+        menu.open = false;
+        openMessageDetails(peer, message).catch(error => showToast(error.message || localized('Could not open message details.', 'Não foi possível abrir os detalhes da mensagem.')));
+      });
+      menuItems.append(save, details, forward); menu.append(menuButton, menuItems);
       actions.append(reply, react, picker, menu); row.append(bubble); if (reactionSummary) row.append(reactionSummary); row.append(meta, actions); container.append(row);
     }
     container.dataset.peer = peer;
@@ -1343,6 +1348,51 @@
   function nostrEventId(message) {
     if (typeof message?.nostrEventId === 'string' && /^[0-9a-f]{64}$/i.test(message.nostrEventId)) return message.nostrEventId;
     return typeof message?.id === 'string' && /^[0-9a-f]{64}$/i.test(message.id) ? message.id : '';
+  }
+  async function openMessageDetails(peer, message) {
+    const conversation = await get('conversations', peer);
+    const eventId = nostrEventId(message);
+    const senderPubkey = message.senderPubkey || (message.direction === 'sent' ? state.pubkey : conversation?.group ? '' : peer);
+    const timestamp = Number.isFinite(message.createdAt) ? new Date(message.createdAt) : null;
+    const relayStatus = new Map([
+      ['pending', localized('No planned encrypted envelope has a relay acknowledgement yet.', 'Nenhum envelope criptografado planejado recebeu confirmação de relay ainda.')],
+      ['sent', localized('A relay acknowledged each planned envelope. This does not confirm that the recipient read it.', 'Um relay confirmou cada envelope planejado. Isso não confirma que a pessoa destinatária leu a mensagem.')],
+      ['partial', localized('Some planned encrypted envelopes received relay acknowledgements; others did not.', 'Alguns envelopes criptografados receberam confirmação de relay; outros não.')],
+      ['delivered', localized('This encrypted message reached this device through a relay.', 'Esta mensagem criptografada chegou a este aparelho por um relay.')]
+    ]).get(message.status) || localized('No relay status is available for this local record.', 'Não há estado de relay disponível para este registro local.');
+    const details = {
+      format: 'Property NIP-17 message metadata v1',
+      eventReferenceType: 'inner rumor reference; relays store encrypted gift-wrap events',
+      rumorId: eventId || null,
+      senderPubkey: senderPubkey || null,
+      direction: message.direction === 'sent' ? 'sent' : 'received',
+      conversationType: conversation?.group === true ? 'private-group' : 'one-to-one',
+      createdAt: timestamp && Number.isFinite(timestamp.getTime()) ? timestamp.toISOString() : null,
+      localRelayStatus: message.status || 'unknown',
+      replyToRumorId: typeof message.replyToId === 'string' && /^[0-9a-f]{64}$/i.test(message.replyToId) ? message.replyToId.toLowerCase() : null,
+      editSequence: Number.isSafeInteger(message.editSeq) && message.editSeq > 0 ? message.editSeq : null
+    };
+    state.messageDetailsPayload = JSON.stringify(details, null, 2);
+    const fields = $('message-details-fields');
+    fields.replaceChildren();
+    const addField = (label, value, code = false) => {
+      if (!value) return;
+      const row = document.createElement('div');
+      const term = document.createElement('dt'); term.textContent = label;
+      const description = document.createElement('dd');
+      if (code) { const valueNode = document.createElement('code'); valueNode.textContent = value; description.append(valueNode); }
+      else description.textContent = value;
+      row.append(term, description); fields.append(row);
+    };
+    addField(localized('Conversation', 'Conversa'), conversation?.group === true ? localized('Private group', 'Grupo privado') : localized('One-to-one private chat', 'Conversa privada individual'));
+    addField(localized('Direction', 'Direção'), message.direction === 'sent' ? localized('Sent by you', 'Enviada por você') : localized('Received', 'Recebida'));
+    addField(localized('Original timestamp', 'Data e hora original'), timestamp && Number.isFinite(timestamp.getTime()) ? timestamp.toLocaleString(window.PropertyI18n?.locale() || undefined) : '—');
+    addField(localized('Sender public key', 'Chave pública de quem enviou'), senderPubkey, true);
+    addField(localized('NIP-17 rumor reference', 'Referência do rumor NIP-17'), eventId, true);
+    addField(localized('Reply reference', 'Referência da resposta'), message.replyToId, true);
+    addField(localized('Relay status', 'Estado nos relays'), relayStatus);
+    if (details.editSequence) addField(localized('Edit sequence', 'Sequência da edição'), String(details.editSequence));
+    $('message-details-dialog').showModal();
   }
   function updateReplyContext() {
     const context = $('reply-context');
@@ -2160,7 +2210,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v46', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v47', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -2411,6 +2461,12 @@
     });
     $('export-backup').addEventListener('click', exportBackupWithPassword);
     $('copy-npub').addEventListener('click', async () => { try { await navigator.clipboard.writeText(state.npub); showToast('npub copiado.'); } catch { showError('profile-error', state.npub); } });
+    $('message-details-copy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(state.messageDetailsPayload);
+        showToast(localized('Message metadata copied. No message text or private key was included.', 'Metadados copiados. O texto da mensagem e a chave privada não foram incluídos.'));
+      } catch { showToast(localized('Clipboard access is unavailable in this browser.', 'A área de transferência não está disponível neste navegador.')); }
+    });
     $('share-contact').addEventListener('click', () => {
       try {
         state.contactShare = Contact.createShare({

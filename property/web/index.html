@@ -11,8 +11,8 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v44">
-  <script defer src="./i18n.js?v=property-v44"></script>
+  <link rel="stylesheet" href="./styles.css?v=property-v45">
+  <script defer src="./i18n.js?v=property-v45"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -34,7 +34,7 @@
   <script defer src="./message-edits.js?v=property-v1"></script>
   <script defer src="./secret-guard.js?v=property-v1"></script>
   <script defer src="./public-profile.js?v=property-v2"></script>
-  <script defer src="./app.js?v=property-v46"></script>
+  <script defer src="./app.js?v=property-v47"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -196,6 +196,15 @@
         <button id="load-chat-public-profile" class="button primary full" type="button">Load latest public profile</button>
         <p class="fine-print">Property reads signed kind 0 profile events only from your saved relays and the relay hints for this conversation. Profile names and descriptions are self-described; a Nostr signature ties the event to this public key, not to a verified real-world identity. NIP-05 is shown without verification. Property does not load remote profile images.</p>
       </section>
+    </div>
+  </dialog>
+
+  <dialog id="message-details-dialog" class="dialog-card" aria-labelledby="message-details-title" aria-describedby="message-details-note">
+    <form method="dialog" class="dialog-head"><div><p class="eyebrow">NIP-17 · LOCAL METADATA</p><h2 id="message-details-title">Message details</h2></div><button class="icon-button" aria-label="Close">×</button></form>
+    <div class="dialog-body">
+      <p id="message-details-note" class="fine-print">This view excludes message text and private keys. Relays store encrypted gift-wraps, not the inner rumor; a relay acknowledgement does not prove the recipient read the message.</p>
+      <dl id="message-details-fields" class="message-detail-list"></dl>
+      <div class="dialog-actions"><button id="message-details-copy" class="button secondary message-details-copy" type="button">Copy metadata JSON</button><form method="dialog"><button class="button text" type="submit">Done</button></form></div>
     </div>
   </dialog>
 

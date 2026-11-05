@@ -4,6 +4,7 @@
   const PT_TO_EN = new Map();
   const pairs = [
     ['Application language', 'Idioma do aplicativo'],
+    ['NIP-17 · LOCAL METADATA', 'NIP-17 · METADADOS LOCAIS'], ['Message details', 'Detalhes da mensagem'], ['This view excludes message text and private keys. Relays store encrypted gift-wraps, not the inner rumor; a relay acknowledgement does not prove the recipient read the message.', 'Esta tela não inclui o texto da mensagem nem chaves privadas. Os relays armazenam gift-wraps criptografados, não o rumor interno; a confirmação de um relay não prova que a pessoa destinatária leu a mensagem.'], ['Copy metadata JSON', 'Copiar metadados em JSON'], ['Done', 'Concluído'],
     ['LOCAL CONTACT', 'CONTATO LOCAL'], ['Conversation details', 'Detalhes da conversa'],
     ['Local name on this device', 'Nome local neste aparelho'], ['Add an optional local name', 'Adicione um nome local opcional'], ['Save local name', 'Salvar nome local'],
     ['PUBLIC NOSTR PROFILE', 'PERFIL PÚBLICO NOSTR'], ['No public profile has been loaded on this device yet.', 'Nenhum perfil público foi carregado neste aparelho ainda.'],
