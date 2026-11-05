@@ -19,6 +19,7 @@
   const Contact = window.PropertyContact;
   const AgentMessages = window.PropertyAgentMessages;
   const MessageSearch = window.PropertyMessageSearch;
+  const FolderStore = window.PropertyConversationFolders;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const eventSourceHints = new WeakMap();
@@ -28,6 +29,7 @@
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     currentConversation: null,
     activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
+    conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
     storageReady: false, pendingLaunchAction: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: ''
@@ -668,26 +670,153 @@
       }
     });
   }
+  function conversationFolderSettingsId() { return `conversation-folders-${state.pubkey}`; }
+  async function loadConversationFolders() {
+    if (!state.pubkey) return FolderStore.normalize(null);
+    state.conversationFolders = FolderStore.normalize(await get('settings', conversationFolderSettingsId()));
+    return state.conversationFolders;
+  }
+  async function saveConversationFolders(config) {
+    state.conversationFolders = FolderStore.normalize(config);
+    await put('settings', { id: conversationFolderSettingsId(), ...state.conversationFolders });
+    await renderConversations();
+  }
+  function openFolderEditor(folderId = '') {
+    const folder = state.conversationFolders?.folders.find(item => item.id === folderId);
+    state.folderEditingId = folder?.id || '';
+    $('folder-dialog-title').textContent = folder ? localized('Rename folder', 'Renomear pasta') : localized('Create a folder', 'Criar pasta');
+    $('folder-name-input').value = folder?.name || '';
+    $('folder-save').textContent = folder ? localized('Save name', 'Salvar nome') : localized('Create folder', 'Criar pasta');
+    showError('folder-error');
+    $('folder-dialog').showModal();
+    $('folder-name-input').focus();
+  }
+  function openMoveConversationFolder(conversationId) {
+    state.folderMovingConversation = conversationId;
+    const select = $('folder-move-select');
+    select.replaceChildren();
+    const other = document.createElement('option'); other.value = ''; other.textContent = localized('Other chats', 'Outras conversas'); select.append(other);
+    for (const folder of state.conversationFolders?.folders || []) {
+      const option = document.createElement('option'); option.value = folder.id; option.dataset.userContent = ''; option.textContent = folder.name; select.append(option);
+    }
+    select.value = state.conversationFolders?.assignments[conversationId] || '';
+    showError('move-folder-error');
+    $('move-folder-dialog').showModal();
+  }
+  function folderErrorText(error) {
+    const messages = {
+      'folder-name-required': localized('Enter a folder name.', 'Informe o nome da pasta.'),
+      'folder-name-too-long': localized('Folder names can contain up to 40 characters.', 'O nome da pasta pode ter até 40 caracteres.'),
+      'folder-name-duplicate': localized('A folder with this name already exists.', 'Já existe uma pasta com esse nome.'),
+      'folder-limit-reached': localized('Property supports up to 24 folders on this device.', 'O Property aceita até 24 pastas neste aparelho.'),
+      'folder-not-found': localized('This folder no longer exists.', 'Esta pasta não existe mais.'),
+      'conversation-id-invalid': localized('This conversation could not be moved.', 'Não foi possível mover esta conversa.')
+    };
+    return messages[error?.message] || localized('Could not update folders on this device.', 'Não foi possível atualizar as pastas neste aparelho.');
+  }
+  async function saveFolderEditor() {
+    try {
+      const config = state.folderEditingId
+        ? FolderStore.rename(state.conversationFolders, state.folderEditingId, $('folder-name-input').value)
+        : FolderStore.create(state.conversationFolders, $('folder-name-input').value, `folder-${crypto.randomUUID()}`);
+      await saveConversationFolders(config);
+      $('folder-dialog').close();
+      state.folderEditingId = '';
+    } catch (error) { showError('folder-error', folderErrorText(error)); }
+  }
+  async function saveMovedConversationFolder() {
+    try {
+      await saveConversationFolders(FolderStore.move(state.conversationFolders, state.folderMovingConversation, $('folder-move-select').value));
+      $('move-folder-dialog').close();
+      state.folderMovingConversation = '';
+    } catch (error) { showError('move-folder-error', folderErrorText(error)); }
+  }
+  async function deleteConversationFolder(folder) {
+    const message = localized(`Delete “${folder.name}”? Its conversations will return to Other chats.`, `Excluir “${folder.name}”? As conversas voltarão para Outras conversas.`);
+    if (!window.confirm(message)) return;
+    try { await saveConversationFolders(FolderStore.remove(state.conversationFolders, folder.id)); }
+    catch (error) { showToast(folderErrorText(error)); }
+  }
+  async function moveConversationFolder(folder, direction) {
+    try { await saveConversationFolders(FolderStore.reorder(state.conversationFolders, folder.id, direction)); }
+    catch (error) { showToast(folderErrorText(error)); }
+  }
+  function renderConversationFolderMenu(folder, index, total) {
+    const details = document.createElement('details'); details.className = 'folder-actions';
+    const summary = document.createElement('summary'); summary.textContent = '···'; summary.setAttribute('aria-label', localized('Folder options', 'Opções da pasta')); summary.title = summary.getAttribute('aria-label');
+    const menu = document.createElement('div'); menu.className = 'folder-actions-menu';
+    const rename = document.createElement('button'); rename.type = 'button'; rename.textContent = localized('Rename', 'Renomear'); rename.addEventListener('click', () => { details.open = false; openFolderEditor(folder.id); });
+    const up = document.createElement('button'); up.type = 'button'; up.textContent = localized('Move up', 'Mover para cima'); up.disabled = index === 0; up.addEventListener('click', () => { details.open = false; moveConversationFolder(folder, -1); });
+    const down = document.createElement('button'); down.type = 'button'; down.textContent = localized('Move down', 'Mover para baixo'); down.disabled = index === total - 1; down.addEventListener('click', () => { details.open = false; moveConversationFolder(folder, 1); });
+    const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'danger-text'; remove.textContent = localized('Delete folder', 'Excluir pasta'); remove.addEventListener('click', () => { details.open = false; deleteConversationFolder(folder); });
+    menu.append(rename, up, down, remove); details.append(summary, menu); return details;
+  }
+  async function renderConversationRow(conversation) {
+    const row = document.createElement('div'); row.className = 'conversation-row';
+    const button = document.createElement('button'); button.className = `conversation-item${conversation.pubkey === state.activePeer ? ' active' : ''}`; button.type = 'button';
+    const label = conversationLabel(conversation);
+    const avatar = document.createElement('span'); avatar.className = `avatar${conversation.group ? ' group-avatar' : ''}`; avatar.textContent = conversation.group ? '◉' : label.slice(0, 1).toUpperCase();
+    const info = document.createElement('span'); info.className = 'conversation-preview';
+    const title = document.createElement('strong'); title.dataset.userContent = ''; title.textContent = label;
+    const preview = document.createElement('small'); preview.dataset.userContent = ''; preview.textContent = conversation.lastMessage || (conversation.group ? `${conversation.members?.length || 0} ${window.PropertyI18n?.language === 'pt-BR' ? 'participantes' : 'members'}` : conversation.pubkey.slice(0, 16));
+    info.append(title);
+    const agentAccess = conversation.group ? null : await get('agentAccess', conversation.pubkey);
+    if (conversation.agent || agentAccess?.status === 'approved') { const agentBadge = document.createElement('small'); agentBadge.className = 'agent-chat-badge'; agentBadge.textContent = localized('AGENT PROTOCOL', 'PROTOCOLO DE AGENTE'); info.append(agentBadge); }
+    info.append(preview); button.append(avatar, info); button.addEventListener('click', () => selectConversation(conversation.pubkey));
+    const details = document.createElement('details'); details.className = 'conversation-folder-actions';
+    const summary = document.createElement('summary'); summary.textContent = '···'; summary.setAttribute('aria-label', localized('Conversation options', 'Opções da conversa')); summary.title = summary.getAttribute('aria-label');
+    const menu = document.createElement('div'); menu.className = 'folder-actions-menu';
+    const move = document.createElement('button'); move.type = 'button'; move.textContent = localized('Move to folder…', 'Mover para uma pasta…');
+    move.addEventListener('click', () => { details.open = false; openMoveConversationFolder(conversation.pubkey); });
+    menu.append(move); details.append(summary, menu); row.append(button, details); return row;
+  }
   async function renderConversations() {
     const conversations = (await all('conversations')).sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
     const search = $('conversation-search').value.trim().toLowerCase();
     const list = $('conversation-list');
     list.replaceChildren();
     const filtered = conversations.filter(item => (conversationLabel(item) + item.lastMessage).toLowerCase().includes(search));
-    if (!filtered.length) {
-      const empty = document.createElement('p'); empty.className = 'conversation-empty'; empty.textContent = search ? 'Nenhuma conversa encontrada.' : 'Suas conversas aparecerão aqui.'; list.append(empty); return;
+    const config = await loadConversationFolders();
+    if (!filtered.length && search) {
+      const empty = document.createElement('p'); empty.className = 'conversation-empty'; empty.textContent = localized('No conversations found.', 'Nenhuma conversa encontrada.'); list.append(empty); return;
     }
-    for (const conversation of filtered) {
-      const button = document.createElement('button'); button.className = `conversation-item${conversation.pubkey === state.activePeer ? ' active' : ''}`; button.type = 'button';
-      const label = conversationLabel(conversation);
-      const avatar = document.createElement('span'); avatar.className = `avatar${conversation.group ? ' group-avatar' : ''}`; avatar.textContent = conversation.group ? '◉' : label.slice(0, 1).toUpperCase();
-      const info = document.createElement('span'); info.className = 'conversation-preview';
-      const title = document.createElement('strong'); title.dataset.userContent = ''; title.textContent = label;
-      const preview = document.createElement('small'); preview.dataset.userContent = ''; preview.textContent = conversation.lastMessage || (conversation.group ? `${conversation.members?.length || 0} ${window.PropertyI18n?.language === 'pt-BR' ? 'participantes' : 'members'}` : conversation.pubkey.slice(0, 16));
-      info.append(title);
-      const agentAccess = conversation.group ? null : await get('agentAccess', conversation.pubkey);
-      if (conversation.agent || agentAccess?.status === 'approved') { const agentBadge = document.createElement('small'); agentBadge.className = 'agent-chat-badge'; agentBadge.textContent = 'PROTOCOLO DE AGENTE'; info.append(agentBadge); }
-      info.append(preview); button.append(avatar, info); button.addEventListener('click', () => selectConversation(conversation.pubkey)); list.append(button);
+    if (!filtered.length && !config.folders.length) {
+      const empty = document.createElement('p'); empty.className = 'conversation-empty'; empty.textContent = localized('Your conversations will appear here.', 'Suas conversas aparecerão aqui.'); list.append(empty); return;
+    }
+    const sections = FolderStore.sections(filtered, config, search);
+    for (const [index, section] of sections.entries()) {
+      const sectionNode = document.createElement('section'); sectionNode.className = 'conversation-folder-section';
+      if (section.isFolder || section.isOther) {
+        const header = document.createElement('div'); header.className = 'folder-heading-row';
+        const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'folder-toggle';
+        const name = section.isOther ? localized('Other chats', 'Outras conversas') : section.name;
+        const title = document.createElement('span'); title.className = 'folder-heading-name'; title.dataset.userContent = ''; title.textContent = name;
+        const count = document.createElement('span'); count.className = 'folder-count'; count.textContent = String(section.conversations.length);
+        const arrow = document.createElement('span'); arrow.className = 'folder-chevron'; arrow.textContent = section.collapsed ? '›' : '⌄';
+        toggle.setAttribute('aria-expanded', String(!section.collapsed)); toggle.setAttribute('aria-label', `${section.collapsed ? localized('Expand', 'Expandir') : localized('Collapse', 'Recolher')} ${name}`);
+        toggle.append(arrow, title, count);
+        if (section.isFolder) {
+          toggle.addEventListener('click', () => {
+            const next = FolderStore.setCollapsed(state.conversationFolders, section.id, !section.collapsed);
+            saveConversationFolders(next).catch(error => showToast(folderErrorText(error)));
+          });
+          header.append(toggle, renderConversationFolderMenu(section, index, config.folders.length));
+        } else {
+          toggle.disabled = true; header.append(toggle);
+        }
+        sectionNode.append(header);
+      }
+      if (!section.collapsed) {
+        if (section.isFolder && !section.conversations.length && filtered.length) {
+          const empty = document.createElement('p'); empty.className = 'conversation-empty folder-empty'; empty.textContent = localized('No conversations in this folder yet.', 'Ainda não há conversas nesta pasta.'); sectionNode.append(empty);
+        } else {
+          for (const conversation of section.conversations) sectionNode.append(await renderConversationRow(conversation));
+        }
+      }
+      list.append(sectionNode);
+    }
+    if (!filtered.length) {
+      const empty = document.createElement('p'); empty.className = 'conversation-empty'; empty.textContent = localized('Your conversations will appear here.', 'Suas conversas aparecerão aqui.'); list.append(empty);
     }
   }
   async function selectConversation(pubkey) {
@@ -1544,7 +1673,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v34', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v35', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -1606,6 +1735,11 @@
     };
     $('open-settings').addEventListener('click', openRelaySettings);
     $('mobile-open-settings').addEventListener('click', openRelaySettings);
+    $('create-folder-button').addEventListener('click', () => openFolderEditor());
+    $('folder-save').addEventListener('click', () => saveFolderEditor());
+    $('folder-name-input').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); saveFolderEditor(); } });
+    $('move-folder-save').addEventListener('click', () => saveMovedConversationFolder());
+    $('move-folder-dialog').addEventListener('close', () => { state.folderMovingConversation = ''; });
     $('save-relays').addEventListener('click', async () => {
       try { await saveRelaySettings(parseRelayList($('relay-input').value)); $('relay-dialog').close(); showError('relay-error'); }
       catch (error) { showError('relay-error', error.message); }
@@ -1763,7 +1897,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.bridgeRefreshTimer = window.setInterval(refreshBridgeSubscriptions, 60_000);

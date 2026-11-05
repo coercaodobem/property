@@ -11,8 +11,8 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v33">
-  <script defer src="./i18n.js?v=property-v34"></script>
+  <link rel="stylesheet" href="./styles.css?v=property-v35">
+  <script defer src="./i18n.js?v=property-v35"></script>
   <script defer src="./pwa.js?v=property-v33"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -27,7 +27,8 @@
   <script defer src="./contact.js?v=property-v26"></script>
   <script defer src="./agent-messaging.js?v=property-v26"></script>
   <script defer src="./chat-search.js?v=property-v28"></script>
-  <script defer src="./app.js?v=property-v34"></script>
+  <script defer src="./conversation-folders.js?v=property-v35"></script>
+  <script defer src="./app.js?v=property-v35"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -94,7 +95,7 @@
 
     <section id="workspace" class="workspace hidden">
       <aside class="sidebar">
-        <div class="sidebar-heading"><div><p class="eyebrow">YOUR SPACE</p><h2>Conversations</h2></div><div class="sidebar-heading-actions"><button id="close-mobile-conversations" class="icon-button mobile-close-conversations" aria-label="Close conversations" title="Close conversations">×</button><button id="new-chat-button" class="icon-button" aria-label="New conversation">＋</button></div></div>
+        <div class="sidebar-heading"><div><p class="eyebrow">YOUR SPACE</p><h2>Conversations</h2></div><div class="sidebar-heading-actions"><button id="close-mobile-conversations" class="icon-button mobile-close-conversations" aria-label="Close conversations" title="Close conversations">×</button><button id="create-folder-button" class="icon-button" aria-label="Create folder" title="Create folder">▱</button><button id="new-chat-button" class="icon-button" aria-label="New conversation" title="New conversation">＋</button></div></div>
         <label class="search"><span aria-hidden="true">⌕</span><input id="conversation-search" type="search" placeholder="Search conversations"></label>
         <div id="conversation-list" class="conversation-list"></div>
         <nav class="main-nav" aria-label="Property areas">
@@ -143,6 +144,9 @@
   </div>
 
   <dialog id="relay-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">DIRECT CONNECTION</p><h2>Your relays</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p id="relay-selection-note" class="muted">On first use, Property randomly selects two relays from a bundled public list and saves them on this device. You can replace them any time.</p><label class="field"><span>General relays (one per line)</span><textarea id="relay-input" rows="4" spellcheck="false"></textarea></label><label class="field"><span>NIP-17 inbox relays (1–3 URLs)</span><textarea id="dm-relay-input" rows="3" spellcheck="false" placeholder="wss://relay.example"></textarea></label><p id="inbox-relay-note" class="fine-print">If you have not set an inbox list, Property suggests your selected relays here. Publishing makes the relay URLs public as NIP-17 routing metadata; message contents remain encrypted.</p><div class="dialog-actions"><button id="save-relays" class="button primary" type="button">Save and connect</button><button id="publish-inbox-list" class="button secondary" type="button">Publish my NIP-17 inbox relays</button><button id="use-default-relays" class="button text" type="button">Choose another random pair</button></div><p class="fine-print">Public relays can see your IP address and public event metadata. Private message content remains end-to-end encrypted. Connecting starts when your Property identity is active.</p><p id="relay-error" class="error" role="alert"></p></div></dialog>
+
+  <dialog id="folder-dialog" class="dialog-card" aria-labelledby="folder-dialog-title"><form method="dialog" class="dialog-head"><div><p class="eyebrow">LOCAL ORGANIZATION</p><h2 id="folder-dialog-title">Create a folder</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><label class="field"><span>Folder name</span><input id="folder-name-input" maxlength="40" autocomplete="off" placeholder="Personal"></label><p class="fine-print">Folder names and conversation assignments stay on this device. They are not published to relays.</p><button id="folder-save" class="button primary full" type="button">Create folder</button><p id="folder-error" class="error" role="alert"></p></div></dialog>
+  <dialog id="move-folder-dialog" class="dialog-card" aria-labelledby="move-folder-title"><form method="dialog" class="dialog-head"><div><p class="eyebrow">LOCAL ORGANIZATION</p><h2 id="move-folder-title">Move conversation</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><label class="field"><span>Folder</span><select id="folder-move-select"></select></label><p class="fine-print">This changes only the local conversation list. No event is sent to a relay.</p><button id="move-folder-save" class="button primary full" type="button">Move conversation</button><p id="move-folder-error" class="error" role="alert"></p></div></dialog>
 
   <dialog id="new-chat-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">PRIVATE MESSAGE</p><h2>New conversation</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><label class="field"><span>Public npub or hex public key</span><input id="peer-input" autocomplete="off" spellcheck="false" placeholder="npub1…"></label><label class="field"><span>Local name (optional)</span><input id="peer-name-input" maxlength="80" placeholder="How do you know this person?"></label><label class="field"><span>Profile relays (one per line, optional)</span><textarea id="peer-relays-input" rows="2" spellcheck="false" placeholder="wss://relay.example"></textarea></label><label class="check-row"><input id="agent-mode" type="checkbox"><span>Use the agent messaging protocol. This opens only this conversation; it does not grant access to your other messages or your key.</span></label><button id="start-chat-button" class="button primary full" type="button">Open conversation</button><button id="open-group-dialog" class="button secondary full" type="button">Create private group</button><p id="new-chat-error" class="error" role="alert"></p></div></dialog>
 

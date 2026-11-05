@@ -10,6 +10,7 @@ const about = await readFile(join(root, 'web/about.html'), 'utf8');
 const manifest = JSON.parse(await readFile(join(root, 'web/manifest.webmanifest'), 'utf8'));
 const app = await readFile(join(root, 'web/app.js'), 'utf8');
 const chatSearch = await readFile(join(root, 'web/chat-search.js'), 'utf8');
+const conversationFolders = await readFile(join(root, 'web/conversation-folders.js'), 'utf8');
 const relayDefaults = await readFile(join(root, 'web/relay-defaults.js'), 'utf8');
 const shareInbox = await readFile(join(root, 'web/share-inbox.js'), 'utf8');
 const pwa = await readFile(join(root, 'web/pwa.js'), 'utf8');
@@ -41,8 +42,10 @@ assert.match(sw, /vault\.js/);
 assert.match(sw, /about\.html/);
 assert.match(html, /\.\/chat-search\.js/);
 assert.match(html, /\.\/pwa\.js\?v=property-v33/);
-assert.match(html, /\.\/i18n\.js\?v=property-v34/);
-assert.match(html, /\.\/app\.js\?v=property-v34/);
+assert.match(html, /\.\/i18n\.js\?v=property-v35/);
+assert.match(html, /\.\/styles\.css\?v=property-v35/);
+assert.match(html, /\.\/conversation-folders\.js\?v=property-v35/);
+assert.match(html, /\.\/app\.js\?v=property-v35/);
 assert.match(sw, /chat-search\.js/);
 assert.match(sw, /pwa\.js\?v=property-v33/);
 assert.match(html, /data-install-property/);
@@ -52,6 +55,14 @@ assert.match(html, /id="message-search-button"/);
 assert.match(app, /MessageSearch\.findMessageIds/);
 assert.match(app, /MessageSearch\.matchRanges/);
 assert.doesNotMatch(chatSearch, /\bfetch\s*\(|\bWebSocket\b|\binnerHTML\b/, 'in-chat search only filters local text and never parses message text as HTML');
+assert.match(html, /id="create-folder-button"/);
+assert.match(app, /FolderStore\.sections\(filtered, config, search\)/, 'conversation folders only organize the existing local chat list');
+assert.match(app, /conversation-folders-\$\{state\.pubkey\}/, 'folder preferences are stored per local identity');
+assert.match(app, /if \(!filtered\.length && !config\.folders\.length\)/, 'saved folders remain visible before the first conversation exists');
+assert.match(app, /if \(section\.isFolder && !section\.conversations\.length && filtered\.length\)/, 'empty folder guidance appears only after at least one conversation exists');
+assert.match(app, /FolderStore\.move\(state\.conversationFolders, state\.folderMovingConversation/, 'chat and group assignment is a local action');
+assert.doesNotMatch(conversationFolders, /\bfetch\s*\(|\bWebSocket\b|\binnerHTML\b/, 'folder preferences never use the network or render markup');
+assert.match(sw, /conversation-folders\.js\?v=property-v35/, 'offline shell caches the local folder module');
 assert.doesNotMatch(html, /Property Direct|property\/direct/i, 'the shipped app has no separate Direct product or route');
 assert.match(ghostlyArchiveReadme, /Archived Ghostly source reference/);
 assert.match(ghostlyArchiveReadme, /not built or published by the Property Pages workflow/);
@@ -260,7 +271,7 @@ assert.doesNotMatch(`${app}\n${sw}`, /\bimport\s*\(\s*["']https?:/i,
   'the app and service worker cannot import remote executable code');
 assert.match(sw, /importScripts\('\.\/share-inbox\.js\?v=property-v33'\);/,
   'the service worker imports only Property local source for the share inbox');
-for (const localPath of ['./about.html', './styles.css', './relay-defaults.js', './share-inbox.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
+for (const localPath of ['./about.html', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }
 await access(join(root, 'relay/dist-parts/manifest.txt'));

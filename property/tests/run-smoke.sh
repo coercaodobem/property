@@ -14,6 +14,7 @@ for test_file in \
   ledger-rpc-smoke.mjs \
   protocol-smoke.mjs \
   chat-search-smoke.mjs \
+  conversation-folders-smoke.mjs \
   vault-smoke.mjs \
   forwarding-smoke.mjs \
   sw-update-smoke.mjs \
