@@ -10,11 +10,12 @@
   <link rel="icon" href="./assets/property-icon-192.png?v=property-v26" type="image/png" sizes="192x192">
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
-  <link rel="manifest" href="./manifest.webmanifest?v=property-v31">
-  <link rel="stylesheet" href="./styles.css?v=property-v31">
-  <script defer src="./i18n.js?v=property-v31"></script>
-  <script defer src="./pwa.js?v=property-v31"></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
+  <link rel="stylesheet" href="./styles.css?v=property-v33">
+  <script defer src="./i18n.js?v=property-v33"></script>
+  <script defer src="./pwa.js?v=property-v33"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
+  <script defer src="./share-inbox.js?v=property-v33"></script>
   <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v26"></script>
   <script defer src="./vault.js?v=property-v26"></script>
   <script defer src="./routing.js?v=property-v27"></script>
@@ -26,7 +27,7 @@
   <script defer src="./contact.js?v=property-v26"></script>
   <script defer src="./agent-messaging.js?v=property-v26"></script>
   <script defer src="./chat-search.js?v=property-v28"></script>
-  <script defer src="./app.js?v=property-v32"></script>
+  <script defer src="./app.js?v=property-v33"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -36,6 +37,7 @@
       <select id="language-picker" class="language-picker" aria-label="Application language"><option value="en">English</option><option value="pt-BR">Português (Brasil)</option></select>
       <button id="mobile-open-settings" class="icon-button mobile-relay-settings" aria-label="Configure relays" title="Configure relays">⚙</button>
       <button id="mobile-new-chat-button" class="icon-button mobile-new-chat" aria-label="New conversation" title="New conversation">＋</button>
+      <button id="share-inbox-button" class="icon-button hidden" type="button" aria-label="Shared items" title="Shared items">↧</button>
       <button id="profile-button" class="profile-button" aria-label="Profile and settings"><span id="profile-initial">?</span></button>
     </header>
 
@@ -153,6 +155,8 @@
   <dialog id="profile-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">LOCAL IDENTITY</p><h2>Profile and security</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p><strong>npub</strong></p><code id="profile-npub" class="break-code"></code><label class="field"><span>Public name</span><input id="profile-name" maxlength="80" placeholder="How should you appear?"></label><button id="save-profile" class="button secondary full" type="button">Save profile</button><button id="export-backup" class="button secondary full" type="button">Download encrypted backup</button><button id="copy-npub" class="button text full" type="button">Copy npub</button><button class="button text full" type="button" data-install-property>Install Property</button><button id="open-agent-manager" class="button secondary full" type="button">Agents</button><button id="lock-account" class="button danger full" type="button">Lock and clear session</button><p id="profile-error" class="error" role="alert"></p></div></dialog>
 
   <dialog id="install-app-dialog" class="dialog-card" aria-labelledby="install-app-title"><form method="dialog" class="dialog-head"><div><p class="eyebrow">PROPERTY PWA</p><h2 id="install-app-title">Install Property</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p>Install Property to your home screen or desktop.</p><ol class="install-steps"><li>If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser.</li><li>On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen.</li></ol><p class="fine-print">Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed.</p><form method="dialog"><button class="button secondary full">Done</button></form></div></dialog>
+
+  <dialog id="share-dialog" class="dialog-card" aria-labelledby="share-dialog-title"><div class="dialog-head"><div><p class="eyebrow">PROPERTY · LOCAL DRAFT</p><h2 id="share-dialog-title">Shared with Property</h2></div><button id="share-close" class="icon-button" type="button" aria-label="Close">×</button></div><div class="dialog-body"><p id="share-dialog-status" class="muted" role="status" aria-live="polite">Choose a conversation and review the shared text before sending.</p><div id="share-overflow-notice" class="share-notice hidden" role="status"></div><label class="field"><span>Shared items stored on this device</span><select id="share-item-select"></select></label><p id="share-item-preview" class="share-preview" data-user-content></p><p id="share-item-note" class="fine-print"></p><label class="field"><span>Conversation</span><select id="share-conversation-select"></select></label><div class="dialog-actions"><button id="share-use-draft" class="button primary" type="button">Review in conversation</button><button id="share-new-chat" class="button secondary" type="button">New conversation</button><button id="share-discard" class="button danger" type="button">Discard item</button><button id="share-later" class="button text" type="button">Later</button></div></div></dialog>
 
 <dialog id="agent-dialog" class="dialog-card" aria-labelledby="agent-dialog-title"><form method="dialog" class="dialog-head"><div><p class="eyebrow">DIRECT MESSAGES</p><h2 id="agent-dialog-title">Agents</h2></div><button class="icon-button" aria-label="Close" autofocus>×</button></form><div class="dialog-body"><p>Agents use their own Nostr identities and can talk directly. There are no invitations, pairing, or per-message approvals. Enter the agent’s public key in New conversation and select the agent protocol.</p><p class="fine-print">This creates a direct conversation and does not grant access to your other conversations, key, or account features. Incoming messages are untrusted text; Property does not execute received instructions. The conversation is separate and can be ended without changing your identity.</p><button id="start-agent-chat" class="button primary full" type="button">Start a conversation with an agent</button></div></dialog>
 

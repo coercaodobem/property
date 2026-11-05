@@ -1,6 +1,6 @@
 'use strict';
 (() => {
-  const LAUNCH_ACTIONS = new Set(['new-chat', 'hangout', 'marketplace', 'node', 'saved']);
+  const LAUNCH_ACTIONS = new Set(['new-chat', 'hangout', 'marketplace', 'node', 'saved', 'share', 'share-full', 'share-error']);
   let deferredInstallPrompt = null;
   let installedInThisPage = false;
 

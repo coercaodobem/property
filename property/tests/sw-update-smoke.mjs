@@ -9,6 +9,11 @@ const deleted = [];
 let requests = [];
 let currentCache;
 let claimed = false;
+const importedScripts = [];
+const provideWorkerImports = target => {
+  target.importScripts = (...paths) => importedScripts.push(...paths);
+  target.PropertyShareInbox = { MAX_REQUEST_BYTES: 64 * 1024 };
+};
 const serviceWorkerSource = await readFile(new URL('../web/sw.js', import.meta.url), 'utf8');
 const shellCache = /const CACHE = '([^']+)'/.exec(serviceWorkerSource)?.[1];
 assert.match(shellCache || '', /^property-shell-v\d+$/);
@@ -23,6 +28,7 @@ const context = {
   self: { location: { origin }, addEventListener(name, listener) { listeners[name] = listener; },
     async skipWaiting() {}, clients: { async claim() { claimed = true; } } }
 };
+provideWorkerImports(context);
 vm.createContext(context);
 vm.runInContext(serviceWorkerSource, context);
 let pending;
@@ -41,6 +47,7 @@ listeners.activate({ waitUntil(promise) { pending = promise; } });
 await pending;
 assert.deepEqual(deleted.sort(), ['liberdade-shell-v4', 'property-shell-v5']);
 assert.equal(claimed, true);
+assert.equal(importedScripts[0], './share-inbox.js?v=property-v33', 'the update harness records the worker local inbox dependency');
 
 const failedListeners = {};
 const failedDeletes = [];
@@ -56,6 +63,7 @@ const failedContext = {
   self: { location: { origin }, addEventListener(name, listener) { failedListeners[name] = listener; },
     async skipWaiting() { failureSkippedWaiting = true; }, clients: { async claim() {} } }
 };
+provideWorkerImports(failedContext);
 vm.createContext(failedContext);
 vm.runInContext(await readFile(new URL('../web/sw.js', import.meta.url), 'utf8'), failedContext);
 let failedInstall;
@@ -78,6 +86,7 @@ const duplicateContext = {
   self: { location: { origin }, addEventListener(name, listener) { duplicateListeners[name] = listener; },
     async skipWaiting() {}, clients: { async claim() {} } }
 };
+provideWorkerImports(duplicateContext);
 vm.createContext(duplicateContext);
 vm.runInContext(serviceWorkerSource, duplicateContext);
 let duplicateInstall;

@@ -162,7 +162,22 @@
     ['The public relay bridge was stopped.', 'Ponte pública parada.'], ['The local relay was added. This connection works only on this computer.', 'Relay local adicionado. A conexão só funciona neste computador.'], ['The relay bridge is active while the app is open.', 'Ponte ativa entre os relays selecionados enquanto o app estiver aberto.'],
     ['Could not load the local protocol/contact bundle. Reload Property.', 'Os arquivos locais do protocolo ou de contatos não carregaram. Recarregue o pacote do Property.'], ['A message has an invalid conversation identifier.', 'Identificador de conversa inválido.'],
     ['Input is not a valid nsec or 64-character hex private key.', 'Informe uma chave nsec ou hex de 64 caracteres.'], ['The relay address is invalid.', 'Confira o endereço de relay informado. Use uma URL wss:// válida; ws:// só funciona em testes locais.'],
-    ['Public Nostr storefront', 'Vitrine pública no Nostr'], ['Property: offline cache is unavailable.', 'Property: cache offline indisponível.']
+    ['Public Nostr storefront', 'Vitrine pública no Nostr'], ['Property: offline cache is unavailable.', 'Property: cache offline indisponível.'],
+    ['Shared items', 'Itens compartilhados'], ['Shared with Property', 'Compartilhado com o Property'],
+    ['Choose a conversation and review the shared text before sending.', 'Escolha uma conversa e revise o texto compartilhado antes de enviar.'],
+    ['Choose a conversation, review the text, then send it yourself.', 'Escolha uma conversa, revise o texto e envie quando quiser.'],
+    ['No shared items are waiting.', 'Nenhum item compartilhado está aguardando.'], ['No shared content is waiting on this device.', 'Não há conteúdo compartilhado aguardando neste aparelho.'],
+    ['Shared items stored on this device', 'Itens compartilhados armazenados neste aparelho'], ['Conversation', 'Conversa'],
+    ['Review in conversation', 'Revisar na conversa'], ['New conversation', 'Nova conversa'], ['Discard item', 'Descartar item'], ['Later', 'Depois'],
+    ['Oversized shared item', 'Item compartilhado grande demais'], ['This shared item exceeded the size limit. Its content was not stored.', 'Este item compartilhado excedeu o limite de tamanho. O conteúdo não foi armazenado.'],
+    ['The shared content was shortened to fit a private message. Review it before sending.', 'O conteúdo foi encurtado para caber em uma mensagem privada. Revise antes de enviar.'],
+    ['The local share inbox is full. Discard an item before sharing another.', 'A caixa local de compartilhamento está cheia. Descarte um item antes de compartilhar outro.'],
+    ['Property could not save this shared item locally. Check device storage and try again.', 'O Property não conseguiu salvar este item localmente. Verifique o armazenamento do aparelho e tente novamente.'],
+    ['Could not open the local share inbox. Your shared content was not sent.', 'Não foi possível abrir a caixa local. O conteúdo compartilhado não foi enviado.'],
+    ['Shared item discarded on this device.', 'Item compartilhado descartado neste aparelho.'], ['Could not discard this item from local storage.', 'Não foi possível descartar este item do armazenamento local.'],
+    ['No conversations yet', 'Nenhuma conversa ainda'], ['Draft ready. Review it and tap Send when you choose.', 'Rascunho pronto. Revise e toque em Enviar quando decidir.'],
+    ['Could not open this conversation draft.', 'Não foi possível abrir este rascunho na conversa.'],
+    ['Message saved, but the shared item remains in the local inbox.', 'Mensagem salva, mas o item compartilhado continua na caixa local.']
   ];
   for (const [english, portuguese] of pairs) {
     EN_TO_PT.set(english, portuguese);

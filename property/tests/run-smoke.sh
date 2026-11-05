@@ -19,6 +19,7 @@ for test_file in \
   sw-update-smoke.mjs \
   contact-smoke.mjs \
   relay-defaults-smoke.mjs \
+  share-target-smoke.mjs \
   pwa-smoke.mjs \
   app-contract-smoke.mjs \
   relay-migration-smoke.mjs \

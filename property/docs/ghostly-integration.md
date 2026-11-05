@@ -22,6 +22,7 @@
 - These interactions use the existing black-and-yellow Property brand and English/Português (Brasil) language choice.
 - On a fresh install, the same PWA randomly selects two relay URLs from a small list bundled with the app and saves them locally. It connects after identity activation; people can replace the pair in settings. This avoids requiring relay knowledge before a first conversation. Public relays can see the user's IP address and public event metadata, so the onboarding copy discloses this.
 - On mobile, the existing conversation list opens as a drawer inside the same PWA. The current Property conversation store and relay connections remain the only source of chat state.
+- The Property PWA accepts text and links shared from another app through its Web Share Target. A service worker enforces a 64 KiB request limit and stores at most 10 pending items in local IndexedDB; shared text is never copied into the redirect URL. The recipient chooses a conversation, reviews the draft in the normal composer, and taps Send to publish through Property's existing NIP-17 path. Later keeps the item locally, Discard removes it, and files are not accepted. A full queue rejects the new share without deleting existing items.
 - The sign-in and profile screens expose an Install Property action. Browsers with a native install prompt ask only after the person taps it; other browsers show local instructions, including Safari's Add to Home Screen steps. The installed app exposes shortcuts for New conversation, Hangout, and Marketplace, which reopen the same Property PWA and wait for identity activation before opening a screen.
 - GitHub Pages builds and publishes only the Property PWA from `property/web`.
 
@@ -29,4 +30,4 @@ Reply tags and Chat Rooms follow the current [NIP-17 definition](https://github.
 
 ## Not claimed as integrated
 
-Calls, file transfer, voice messages, wallets, and mini-apps are not claimed as integrated. Each needs a Nostr-compatible design, security review, and fixed-count validation. Ghostly's independent P2P transport is not part of Property. A mobile PWA may be suspended by the operating system and is not an always-on relay.
+Calls, file transfer, voice messages, wallets, and mini-apps are not claimed as integrated. Each needs a Nostr-compatible design, security review, and fixed-count validation. The share target is limited to browsers/operating systems that expose PWA Web Share Target; platform-specific availability remains pending until tested. Ghostly's independent P2P transport is not part of Property. A mobile PWA may be suspended by the operating system and is not an always-on relay.

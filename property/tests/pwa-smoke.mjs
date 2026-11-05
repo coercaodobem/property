@@ -32,6 +32,14 @@ const invalidLaunch = loadPwa({ href: 'https://coercaodobem.github.io/property/?
 assert.equal(invalidLaunch.pwa.consumeLaunchAction(), '', 'unknown shortcut actions are ignored');
 assert.equal(invalidLaunch.historyWrites.length, 0, 'unknown query values are not rewritten');
 
+const shareLaunch = loadPwa({ href: 'https://coercaodobem.github.io/property/?launch=share&text=private' });
+assert.equal(shareLaunch.pwa.consumeLaunchAction(), 'share', 'incoming shares open the same Property PWA');
+assert.deepEqual(shareLaunch.historyWrites[0], [{ source: 'test' }, '', '/property/?text=private']);
+assert.equal(shareLaunch.pwa.consumeLaunchAction(), '', 'incoming share launch is consumed once');
+
+const overflowLaunch = loadPwa({ href: 'https://coercaodobem.github.io/property/?launch=share-full' });
+assert.equal(overflowLaunch.pwa.consumeLaunchAction(), 'share-full', 'queue overflow has a safe fixed launch status');
+
 const promptFlow = loadPwa();
 let prevented = false;
 let prompted = false;

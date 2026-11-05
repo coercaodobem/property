@@ -11,6 +11,7 @@ const manifest = JSON.parse(await readFile(join(root, 'web/manifest.webmanifest'
 const app = await readFile(join(root, 'web/app.js'), 'utf8');
 const chatSearch = await readFile(join(root, 'web/chat-search.js'), 'utf8');
 const relayDefaults = await readFile(join(root, 'web/relay-defaults.js'), 'utf8');
+const shareInbox = await readFile(join(root, 'web/share-inbox.js'), 'utf8');
 const pwa = await readFile(join(root, 'web/pwa.js'), 'utf8');
 const contact = await readFile(join(root, 'web/contact.js'), 'utf8');
 const agentMessages = await readFile(join(root, 'web/agent-messaging.js'), 'utf8');
@@ -39,9 +40,9 @@ assert.match(sw, /nostr-tools-2\.25\.2\.bundle\.js/);
 assert.match(sw, /vault\.js/);
 assert.match(sw, /about\.html/);
 assert.match(html, /\.\/chat-search\.js/);
-assert.match(html, /\.\/pwa\.js\?v=property-v31/);
+assert.match(html, /\.\/pwa\.js\?v=property-v33/);
 assert.match(sw, /chat-search\.js/);
-assert.match(sw, /pwa\.js\?v=property-v31/);
+assert.match(sw, /pwa\.js\?v=property-v33/);
 assert.match(html, /data-install-property/);
 assert.match(html, /id="install-app-dialog"/);
 assert.match(html, /id="message-search-bar"/);
@@ -88,9 +89,27 @@ assert.match(html, /Choose another random pair/);
 assert.match(html, /Public relays can see your IP address and public event metadata/);
 assert.match(html, /\.\/relay-defaults\.js/);
 assert.match(sw, /relay-defaults\.js/);
+assert.match(html, /\.\/share-inbox\.js\?v=property-v33/);
+assert.match(sw, /share-inbox\.js\?v=property-v33/);
+assert.match(shareInbox, /MAX_PENDING = 10/);
+assert.match(shareInbox, /MAX_REQUEST_BYTES = 64 \* 1024/);
+assert.match(app, /ShareInbox\.formatText/);
+assert.match(app, /prepareShareDraft\(/);
+assert.match(app, /ShareInbox\.remove\(sentShareId\)/, 'a shared item is removed only after the user sends from the normal conversation composer');
+assert.ok(manifest.share_target && typeof manifest.share_target === 'object');
+assert.equal(manifest.share_target.method, 'POST');
+assert.equal(manifest.share_target.enctype, 'application/x-www-form-urlencoded');
+assert.deepEqual(Object.values(manifest.share_target.params), ['title', 'text', 'url']);
+assert.doesNotMatch(JSON.stringify(manifest.share_target), /files/i, 'the Property share target never requests shared files');
+assert.match(sw, /request\.body\.getReader/, 'incoming content is read with a byte limit');
+assert.match(sw, /target\.searchParams\.set\('launch', result\)/, 'shared content is never placed in the redirect URL');
+assert.match(html, /id="share-item-preview"[^>]*data-user-content/, 'external text is isolated from the translation layer');
+assert.match(html, /id="share-use-draft"/);
+assert.match(html, /id="share-discard"/);
+assert.match(html, /id="share-later"/);
 assert.match(app, /Pwa\.consumeLaunchAction\(\)/, 'PWA shortcut launch actions are consumed only by the Property app');
 assert.match(app, /state\.pendingLaunchAction = ''/, 'shortcut actions are applied only once after the identity activates');
-assert.match(pwa, /LAUNCH_ACTIONS = new Set\(\['new-chat', 'hangout', 'marketplace', 'node', 'saved'\]\)/);
+assert.match(pwa, /LAUNCH_ACTIONS = new Set\(\['new-chat', 'hangout', 'marketplace', 'node', 'saved', 'share', 'share-full', 'share-error'\]\)/);
 assert.match(pwa, /beforeinstallprompt/);
 assert.match(pwa, /appinstalled/);
 assert.match(relayDefaults, /wss:\/\/relay\.damus\.io/);
@@ -230,9 +249,11 @@ assert.ok(workerRegistration, 'PWA registers a service worker');
 await localAssetPath(workerRegistration[1], 'service-worker script');
 assert.doesNotMatch(`${html}\n${about}`, /<(?:script|link)\b[^>]*(?:src|href)=["'](?:https?:)?\/\//i,
   'HTML cannot load executable code or styles from another origin');
-assert.doesNotMatch(`${app}\n${sw}`, /\bimportScripts\s*\(|\bimport\s*\(\s*["']https?:/i,
+assert.doesNotMatch(`${app}\n${sw}`, /\bimport\s*\(\s*["']https?:/i,
   'the app and service worker cannot import remote executable code');
-for (const localPath of ['./about.html', './styles.css', './relay-defaults.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
+assert.match(sw, /importScripts\('\.\/share-inbox\.js\?v=property-v33'\);/,
+  'the service worker imports only Property local source for the share inbox');
+for (const localPath of ['./about.html', './styles.css', './relay-defaults.js', './share-inbox.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }
 await access(join(root, 'relay/dist-parts/manifest.txt'));

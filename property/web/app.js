@@ -5,6 +5,7 @@
   const dec = new TextDecoder();
   const RelayDefaults = window.PropertyRelayDefaults;
   const Pwa = window.PropertyPwa;
+  const ShareInbox = window.PropertyShareInbox;
   // Stable legacy database ID: preserve existing identities and sessions on this origin.
   const DB_NAME = 'liberdade-local-v1';
   const DB_VERSION = 2;
@@ -29,7 +30,7 @@
     activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, pendingLaunchAction: ''
+    storageReady: false, pendingLaunchAction: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: ''
   };
   const N = window.NostrTools;
   const bridge = Bridge?.createBridge(event => N.verifyEvent(event));
@@ -81,6 +82,110 @@
     node.classList.add('show');
     clearTimeout(state.toastTimer);
     state.toastTimer = setTimeout(() => node.classList.remove('show'), 2800);
+  }
+  function localized(en, pt) { return window.PropertyI18n?.language === 'pt-BR' ? pt : en; }
+  async function renderShareInbox() {
+    const items = await ShareInbox.list();
+    state.shareItems = items;
+    const button = $('share-inbox-button');
+    button.hidden = items.length === 0;
+    button.classList.toggle('hidden', items.length === 0);
+    button.textContent = items.length ? `↧${items.length}` : '↧';
+    button.setAttribute('aria-label', items.length ? localized(`Shared items, ${items.length} pending`, `${items.length} itens compartilhados pendentes`) : localized('Shared items', 'Itens compartilhados'));
+    const itemSelect = $('share-item-select');
+    const previousItem = itemSelect.value;
+    itemSelect.replaceChildren();
+    if (!items.length) {
+      const empty = document.createElement('option');
+      empty.textContent = localized('No shared items are waiting.', 'Nenhum item compartilhado está aguardando.');
+      empty.disabled = true;
+      itemSelect.append(empty);
+    } else {
+      for (const [index, item] of items.entries()) {
+        const option = document.createElement('option');
+        option.value = String(item.id);
+        option.dataset.userContent = '';
+        const label = item.tooLarge ? localized('Oversized shared item', 'Item compartilhado grande demais') : (item.title || ShareInbox.formatText(item).split('\n')[0] || localized(`Shared item ${index + 1}`, `Item compartilhado ${index + 1}`));
+        option.textContent = label.slice(0, 120);
+        itemSelect.append(option);
+      }
+      itemSelect.value = items.some(item => String(item.id) === previousItem) ? previousItem : String(items[0].id);
+    }
+    const conversationSelect = $('share-conversation-select');
+    const previousConversation = conversationSelect.value;
+    conversationSelect.replaceChildren();
+    const conversations = (await all('conversations')).sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+    for (const conversation of conversations) {
+      const option = document.createElement('option');
+      option.value = conversation.pubkey;
+      option.dataset.userContent = '';
+      option.textContent = conversationLabel(conversation);
+      conversationSelect.append(option);
+    }
+    if (conversations.some(item => item.pubkey === previousConversation)) conversationSelect.value = previousConversation;
+    if (!conversations.length) {
+      const empty = document.createElement('option');
+      empty.textContent = localized('No conversations yet', 'Nenhuma conversa ainda');
+      empty.disabled = true;
+      conversationSelect.append(empty);
+    }
+    renderSelectedShare();
+  }
+  function renderSelectedShare() {
+    const item = state.shareItems.find(candidate => String(candidate.id) === $('share-item-select').value);
+    const preview = $('share-item-preview');
+    const note = $('share-item-note');
+    const notice = $('share-overflow-notice');
+    const tooLarge = item?.tooLarge === true;
+    preview.textContent = item && !tooLarge ? ShareInbox.formatText(item) : '';
+    note.textContent = item?.truncated
+      ? localized('The shared content was shortened to fit a private message. Review it before sending.', 'O conteúdo foi encurtado para caber em uma mensagem privada. Revise antes de enviar.')
+      : '';
+    if (tooLarge) {
+      notice.textContent = localized('This shared item exceeded the size limit. Its content was not stored.', 'Este item compartilhado excedeu o limite de tamanho. O conteúdo não foi armazenado.');
+      notice.classList.remove('hidden');
+    } else {
+      notice.textContent = '';
+      notice.classList.add('hidden');
+    }
+    const usable = !!item && !tooLarge && !!ShareInbox.formatText(item);
+    $('share-use-draft').disabled = !usable || !$('share-conversation-select').value;
+    $('share-new-chat').disabled = !usable;
+    $('share-discard').disabled = !item;
+  }
+  async function openShareInbox(launchAction = '') {
+    try {
+      await renderShareInbox();
+      if (launchAction === 'share-full') {
+        $('share-dialog-status').textContent = localized('The local share inbox is full. Discard an item before sharing another.', 'A caixa local de compartilhamento está cheia. Descarte um item antes de compartilhar outro.');
+      } else if (launchAction === 'share-error') {
+        $('share-dialog-status').textContent = localized('Property could not save this shared item locally. Check device storage and try again.', 'O Property não conseguiu salvar este item localmente. Verifique o armazenamento do aparelho e tente novamente.');
+      } else {
+        $('share-dialog-status').textContent = state.shareItems.length
+          ? localized('Choose a conversation, review the text, then send it yourself.', 'Escolha uma conversa, revise o texto e envie quando quiser.')
+          : localized('No shared content is waiting on this device.', 'Não há conteúdo compartilhado aguardando neste aparelho.');
+      }
+      renderSelectedShare();
+      if (!$('share-dialog').open) $('share-dialog').showModal();
+    } catch {
+      $('share-dialog-status').textContent = localized('Could not open the local share inbox. Your shared content was not sent.', 'Não foi possível abrir a caixa local. O conteúdo compartilhado não foi enviado.');
+      if (!$('share-dialog').open) $('share-dialog').showModal();
+    }
+  }
+  async function prepareShareDraft(peer, id) {
+    const item = state.shareItems.find(candidate => String(candidate.id) === String(id)) || (await ShareInbox.list()).find(candidate => String(candidate.id) === String(id));
+    if (!item || item.tooLarge) return;
+    const text = ShareInbox.formatText(item);
+    if (!text) return;
+    await selectConversation(peer);
+    state.shareDraftId = item.id;
+    state.shareDraftPeer = peer;
+    const input = $('message-input');
+    input.value = text;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+    $('share-dialog').close();
+    showToast(localized('Draft ready. Review it and tap Send when you choose.', 'Rascunho pronto. Revise e toque em Enviar quando decidir.'));
   }
   function showError(id, message = '') { $(id).textContent = message; }
   function showAuthPane(name) {
@@ -204,6 +309,7 @@
     }
     await connectAllRelays();
     await renderConversations();
+    await renderShareInbox().catch(() => {});
     if (state.activePeer) await selectConversation(state.activePeer);
     else if (window.innerWidth <= 800 && knownConversations.length) setMobileConversationListOpen(true);
     discoverInboxRelays(state.pubkey).then(async relays => {
@@ -216,6 +322,7 @@
       const action = state.pendingLaunchAction;
       state.pendingLaunchAction = '';
       if (action === 'new-chat') $('new-chat-dialog').showModal();
+      else if (['share', 'share-full', 'share-error'].includes(action)) openShareInbox(action);
       else setActiveView(action);
     }
   }
@@ -581,6 +688,7 @@
   }
   async function selectConversation(pubkey) {
     if (state.activePeer !== pubkey) closeMessageSearch(false);
+    if (state.shareDraftId && state.shareDraftPeer !== pubkey) { state.shareDraftId = ''; state.shareDraftPeer = ''; }
     state.activePeer = pubkey;
     state.currentConversation = null;
     state.replyingTo = null;
@@ -1362,6 +1470,8 @@
     clearTimeout(state.idleTimer);
     if (state.secret) state.secret.fill(0);
     state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null;
+    if (state.shareDraftId) $('message-input').value = '';
+    state.shareDraftId = ''; state.shareDraftPeer = '';
     if (preservePublicBridge && state.bridgeEnabled) await closeIdentityRelaySubscriptions();
     else {
       if (state.bridgeEnabled) {
@@ -1430,12 +1540,39 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v32', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v33', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
   function wireEvents() {
     Pwa.bindInstallControls(document.querySelectorAll('[data-install-property]'), $('install-app-dialog'), () => showToast('Property installed.'));
+    $('share-inbox-button').addEventListener('click', () => openShareInbox());
+    $('share-close').addEventListener('click', () => $('share-dialog').close());
+    $('share-later').addEventListener('click', () => $('share-dialog').close());
+    $('share-item-select').addEventListener('change', renderSelectedShare);
+    $('share-conversation-select').addEventListener('change', renderSelectedShare);
+    $('share-use-draft').addEventListener('click', () => {
+      prepareShareDraft($('share-conversation-select').value, $('share-item-select').value)
+        .catch(() => showToast(localized('Could not open this conversation draft.', 'Não foi possível abrir este rascunho na conversa.')));
+    });
+    $('share-new-chat').addEventListener('click', () => {
+      const item = state.shareItems.find(candidate => String(candidate.id) === $('share-item-select').value);
+      if (!item || item.tooLarge) return;
+      state.pendingShareForNewChat = String(item.id);
+      $('share-dialog').close();
+      $('new-chat-dialog').showModal();
+    });
+    $('share-discard').addEventListener('click', async () => {
+      const id = $('share-item-select').value;
+      try {
+        if (id) await ShareInbox.remove(Number(id));
+        await renderShareInbox();
+        $('share-dialog-status').textContent = localized('Shared item discarded on this device.', 'Item compartilhado descartado neste aparelho.');
+      } catch {
+        $('share-dialog-status').textContent = localized('Could not discard this item from local storage.', 'Não foi possível descartar este item do armazenamento local.');
+      }
+    });
+    $('new-chat-dialog').addEventListener('close', () => { state.pendingShareForNewChat = ''; });
     $('create-account-button').addEventListener('click', () => showAuthPane('auth-setup'));
     $('import-account-button').addEventListener('click', () => showAuthPane('auth-import'));
     document.querySelectorAll('.back-auth').forEach(button => button.addEventListener('click', () => showAuthPane('auth-choice')));
@@ -1483,6 +1620,7 @@
     });
     $('empty-new-chat').addEventListener('click', () => $('new-chat-dialog').showModal());
     $('open-group-dialog').addEventListener('click', () => {
+      state.pendingShareForNewChat = '';
       $('new-chat-dialog').close(); showError('group-error'); $('group-dialog').showModal();
     });
     $('create-group-button').addEventListener('click', async () => {
@@ -1493,6 +1631,7 @@
     });
     $('start-chat-button').addEventListener('click', async () => {
       try {
+        const pendingShareId = state.pendingShareForNewChat;
         const parsed = Contact.parsePublicKey($('peer-input').value);
         let profileHints;
         try { profileHints = parsed.relayHints.map(normalizeRelay); }
@@ -1503,15 +1642,30 @@
         });
         const hints = [...new Set([...profileHints, ...extraHints])];
         await addConversation(parsed.pubkey, $('peer-name-input').value, hints, $('agent-mode').checked);
+        state.pendingShareForNewChat = '';
         $('new-chat-dialog').close(); $('peer-input').value = ''; $('peer-name-input').value = ''; $('peer-relays-input').value = ''; $('agent-mode').checked = false; showError('new-chat-error');
+        if (pendingShareId) {
+          try { await prepareShareDraft(parsed.pubkey, pendingShareId); }
+          catch { showToast(localized('The conversation opened, but the shared draft could not be loaded.', 'A conversa abriu, mas não foi possível carregar o rascunho compartilhado.')); }
+        }
       }
       catch (error) { showError('new-chat-error', error.message); }
     });
     $('send-form').addEventListener('submit', async event => {
       event.preventDefault(); const input = $('message-input'); const text = input.value.trim(); const peer = state.activePeer; const replyTo = state.replyingTo; if (!text || !peer) return;
+      const sentShareId = state.shareDraftPeer === peer ? state.shareDraftId : '';
       const submit = document.querySelector('#send-form button[type="submit"]'); submit.disabled = true;
       try {
         await sendPrivateMessage(peer, text, replyTo);
+        if (sentShareId) {
+          state.shareDraftId = ''; state.shareDraftPeer = '';
+          try {
+            await ShareInbox.remove(sentShareId);
+            await renderShareInbox();
+          } catch {
+            showToast(localized('Message saved, but the shared item remains in the local inbox.', 'Mensagem salva, mas o item compartilhado continua na caixa local.'));
+          }
+        }
         if (state.activePeer === peer && input.value.trim() === text) { input.value = ''; input.style.height = ''; }
         if (state.activePeer === peer && state.replyingTo === replyTo) { state.replyingTo = null; updateReplyContext(); }
       }
@@ -1597,7 +1751,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !Pwa || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.bridgeRefreshTimer = window.setInterval(refreshBridgeSubscriptions, 60_000);
