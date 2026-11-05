@@ -13,6 +13,7 @@ for test_file in \
   campaign-engine-smoke.mjs \
   ledger-rpc-smoke.mjs \
   protocol-smoke.mjs \
+  chat-search-smoke.mjs \
   vault-smoke.mjs \
   forwarding-smoke.mjs \
   sw-update-smoke.mjs \

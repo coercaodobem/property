@@ -22,7 +22,7 @@
     ['Confirm password', 'Confirme a senha'], ['A persistent session is convenient, but anyone with access to an unlocked browser can act as you. Use your device screen lock.', 'A sessão persistente é conveniente, mas alguém com acesso ao navegador já desbloqueado pode agir como você. Use bloqueio de tela no aparelho.'],
     ['Create and continue', 'Criar e continuar'], ['Back', 'Voltar'], ['IMPORT IDENTITY', 'IMPORTAR IDENTIDADE'], ['Use an existing key', 'Use uma chave existente'],
     ['Secret nsec or hex key', 'Chave secreta nsec ou hex'], ['Create a local password', 'Crie uma senha local'], ['Import securely', 'Importar com segurança'],
-    ['YOUR SPACE', 'SEU ESPAÇO'], ['Conversations', 'Conversas'], ['Search conversations', 'Buscar conversa'], ['Property areas', 'Áreas do Property'],
+    ['YOUR SPACE', 'SEU ESPAÇO'], ['Conversations', 'Conversas'], ['Search conversations', 'Buscar conversa'], ['Search in this conversation', 'Buscar nesta conversa'], ['Older match', 'Resultado anterior'], ['Newer match', 'Próximo resultado'], ['Close search', 'Fechar busca'], ['No messages', 'Nenhuma mensagem'], ['Property areas', 'Áreas do Property'],
     ['Messages', 'Mensagens'], ['Hangout', 'Hangout'], ['Marketplace', 'Marketplace'], ['My node', 'Meu node'], ['Set up your connection', 'Configure sua conexão'],
     ['Your conversations, without a middleman', 'Suas conversas, sem intermediário'], ['Start a private conversation using the other person’s npub.', 'Inicie uma conversa privada usando o npub da outra pessoa.'],
     ['No conversations found.', 'Nenhuma conversa encontrada.'], ['Your conversations will appear here.', 'Suas conversas aparecerão aqui.'],

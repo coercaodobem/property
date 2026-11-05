@@ -17,6 +17,7 @@
 - NIP-17 rooms do not provide membership approval, an administrator, or reliable leave/removal controls. Each member must already have published an inbox list that the sender can discover through their configured relays. Create a room with people who have agreed to participate. Groups larger than 10 need a more suitable protocol.
 - Messages can be bookmarked in the existing local message store. Bookmarks stay on this device and are not published to relays.
 - Forwarding creates a new encrypted NIP-17 message from the same Property identity for each selected existing conversation. The result reports local copies separately from relay-confirmed envelopes; it does not claim delivery solely because a copy was saved locally.
+- In-chat search filters the current conversation's locally rendered messages. It ignores letter case and accents, highlights matches, and lets the person move between results. It does not search relays, publish a query, or place it in the URL.
 - Re-rendering an open conversation keeps the visible message anchored when the person is reading older messages. If they were already at the bottom, the conversation stays at the bottom.
 - These interactions use the existing black-and-yellow Property brand and English/Português (Brasil) language choice.
 - GitHub Pages builds and publishes only the Property PWA from `property/web`.

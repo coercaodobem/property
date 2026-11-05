@@ -16,6 +16,7 @@
   const Campaigns = window.PropertyCampaigns;
   const Contact = window.PropertyContact;
   const AgentMessages = window.PropertyAgentMessages;
+  const MessageSearch = window.PropertyMessageSearch;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const eventSourceHints = new WeakMap();
@@ -25,6 +26,7 @@
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     currentConversation: null,
     activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, forwardingMessage: null,
+    messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
     storageReady: false
   };
@@ -561,6 +563,7 @@
     }
   }
   async function selectConversation(pubkey) {
+    if (state.activePeer !== pubkey) closeMessageSearch(false);
     state.activePeer = pubkey;
     state.currentConversation = null;
     state.replyingTo = null;
@@ -601,6 +604,84 @@
     await updateAgentBlockControl(peer);
     await renderConversations();
   }
+  function setMessageSearchText(node, value, ranges) {
+    const fragment = document.createDocumentFragment();
+    let cursor = 0;
+    for (const [start, end] of ranges) {
+      if (start > cursor) fragment.append(document.createTextNode(value.slice(cursor, start)));
+      const mark = document.createElement('mark');
+      mark.className = 'message-search-hit';
+      mark.textContent = value.slice(start, end);
+      fragment.append(mark);
+      cursor = end;
+    }
+    if (cursor < value.length) fragment.append(document.createTextNode(value.slice(cursor)));
+    node.replaceChildren(fragment);
+  }
+  function refreshMessageSearch({ resetIndex = false, scroll = false } = {}) {
+    const input = $('message-search-input');
+    const query = input?.value || '';
+    const portuguese = window.PropertyI18n?.language === 'pt-BR';
+    input.setAttribute('aria-label', portuguese ? 'Buscar nesta conversa' : 'Search in this conversation');
+    input.placeholder = portuguese ? 'Buscar nesta conversa' : 'Search in this conversation';
+    $('message-search-button').setAttribute('aria-label', portuguese ? 'Buscar nesta conversa' : 'Search in this conversation');
+    $('message-search-button').title = portuguese ? 'Buscar nesta conversa' : 'Search in this conversation';
+    $('message-search-older').setAttribute('aria-label', portuguese ? 'Resultado anterior' : 'Older match');
+    $('message-search-older').title = portuguese ? 'Resultado anterior' : 'Older match';
+    $('message-search-newer').setAttribute('aria-label', portuguese ? 'Próximo resultado' : 'Newer match');
+    $('message-search-newer').title = portuguese ? 'Próximo resultado' : 'Newer match';
+    $('message-search-close').setAttribute('aria-label', portuguese ? 'Fechar busca' : 'Close search');
+    $('message-search-close').title = portuguese ? 'Fechar busca' : 'Close search';
+    const previousId = state.messageSearchIds[state.messageSearchIndex] || '';
+    const rows = [...$('messages').querySelectorAll('.message-row')];
+    const items = rows.map(row => ({ id: row.dataset.messageId, text: row.querySelector('.message-bubble')?.textContent || '' }));
+    const ids = MessageSearch.findMessageIds(items, query);
+    state.messageSearchIds = ids;
+    if (!query.trim() || !ids.length) state.messageSearchIndex = -1;
+    else if (resetIndex || !ids.includes(previousId)) state.messageSearchIndex = ids.length - 1;
+    else state.messageSearchIndex = ids.indexOf(previousId);
+    const currentId = ids[state.messageSearchIndex] || '';
+    for (const row of rows) {
+      const bubble = row.querySelector('.message-bubble');
+      if (!bubble) continue;
+      const value = bubble.textContent || '';
+      const ranges = ids.includes(row.dataset.messageId) ? MessageSearch.matchRanges(value, query) : [];
+      setMessageSearchText(bubble, value, ranges);
+      row.classList.toggle('message-search-result', ids.includes(row.dataset.messageId));
+      row.classList.toggle('message-search-current', row.dataset.messageId === currentId);
+    }
+    const count = $('message-search-count');
+    if (count) {
+      count.textContent = !query.trim() ? '' : !ids.length
+        ? (portuguese ? 'Nenhuma mensagem' : 'No messages')
+        : portuguese ? `${state.messageSearchIndex + 1} de ${ids.length}` : `${state.messageSearchIndex + 1} of ${ids.length}`;
+    }
+    $('message-search-older').disabled = !ids.length;
+    $('message-search-newer').disabled = !ids.length;
+    $('message-search-button').setAttribute('aria-expanded', String(state.messageSearchOpen));
+    if (scroll && currentId) rows.find(row => row.dataset.messageId === currentId)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  function openMessageSearch() {
+    if (!state.activePeer) return;
+    state.messageSearchOpen = true;
+    $('message-search-bar').classList.remove('hidden');
+    $('message-search-input').value = '';
+    refreshMessageSearch({ resetIndex: true });
+    $('message-search-input').focus();
+  }
+  function closeMessageSearch(returnFocus = true) {
+    state.messageSearchOpen = false;
+    $('message-search-bar').classList.add('hidden');
+    $('message-search-input').value = '';
+    refreshMessageSearch();
+    if (returnFocus) $('message-search-button').focus();
+  }
+  function moveMessageSearchResult(direction) {
+    const total = state.messageSearchIds.length;
+    if (!total) return;
+    state.messageSearchIndex = (state.messageSearchIndex + direction + total) % total;
+    refreshMessageSearch({ scroll: true });
+  }
   async function renderMessages(peer) {
     const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
     const messages = entries.filter(message => message.kind !== 7);
@@ -628,7 +709,7 @@
     const byEventId = new Map(messages.map(message => [nostrEventId(message), message]).filter(([id]) => id));
     container.replaceChildren();
     if (!messages.length) {
-      const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = 'Esta conversa é privada. Envie uma mensagem para começar.'; container.append(empty); container.dataset.peer = peer; return;
+      const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = 'Esta conversa é privada. Envie uma mensagem para começar.'; container.append(empty); container.dataset.peer = peer; refreshMessageSearch(); return;
     }
     for (const message of messages) {
       const row = document.createElement('div'); row.className = `message-row${message.direction === 'sent' ? ' mine' : ''}`;
@@ -702,6 +783,7 @@
       const restored = [...container.children].find(row => row.dataset.messageId === anchor.id);
       if (restored) container.scrollTop += restored.getBoundingClientRect().top - anchor.top;
     }
+    refreshMessageSearch();
   }
   function nostrEventId(message) {
     if (typeof message?.nostrEventId === 'string' && /^[0-9a-f]{64}$/i.test(message.nostrEventId)) return message.nostrEventId;
@@ -1398,6 +1480,16 @@
     }));
     $('message-input').addEventListener('input', event => { event.target.style.height = 'auto'; event.target.style.height = `${Math.min(event.target.scrollHeight, 150)}px`; });
     $('conversation-search').addEventListener('input', renderConversations);
+    $('message-search-button').addEventListener('click', openMessageSearch);
+    $('message-search-close').addEventListener('click', () => closeMessageSearch());
+    $('message-search-input').addEventListener('input', () => refreshMessageSearch({ resetIndex: true, scroll: true }));
+    $('message-search-input').addEventListener('keydown', event => {
+      if (event.isComposing) return;
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeMessageSearch(); }
+      else if (event.key === 'Enter') { event.preventDefault(); moveMessageSearchResult(event.shiftKey ? 1 : -1); }
+    });
+    $('message-search-older').addEventListener('click', () => moveMessageSearchResult(-1));
+    $('message-search-newer').addEventListener('click', () => moveMessageSearchResult(1));
     document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => setActiveView(button.dataset.view)));
     $('refresh-hangout').addEventListener('click', () => refreshHangout().catch(error => showToast(error.message || 'Falha ao carregar o Hangout.')));
     $('show-node-campaigns').addEventListener('change', async event => {

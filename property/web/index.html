@@ -11,8 +11,8 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v26">
-  <link rel="stylesheet" href="./styles.css?v=property-v27">
-  <script defer src="./i18n.js?v=property-v27"></script>
+  <link rel="stylesheet" href="./styles.css?v=property-v28">
+  <script defer src="./i18n.js?v=property-v28"></script>
   <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v26"></script>
   <script defer src="./vault.js?v=property-v26"></script>
   <script defer src="./routing.js?v=property-v27"></script>
@@ -23,7 +23,8 @@
   <script defer src="./campaigns.js?v=property-v26"></script>
   <script defer src="./contact.js?v=property-v26"></script>
   <script defer src="./agent-messaging.js?v=property-v26"></script>
-  <script defer src="./app.js?v=property-v27"></script>
+  <script defer src="./chat-search.js?v=property-v28"></script>
+  <script defer src="./app.js?v=property-v28"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -103,7 +104,8 @@
       <section id="messages-view" class="content-view messages-view">
         <div id="empty-conversation" class="empty-state"><div class="empty-symbol">✳</div><h2>Your conversations, without a middleman</h2><p>Start a private conversation using the other person’s npub.</p><button id="empty-new-chat" class="button primary">New conversation</button></div>
         <div id="conversation-pane" class="conversation-pane hidden">
-          <header class="conversation-header"><div class="avatar" id="chat-avatar">?</div><div class="person-details"><h2 id="chat-title">Conversation</h2><span id="chat-subtitle" class="muted"></span></div><button id="agent-block-button" class="icon-button small hidden" type="button" aria-label="Block agent" title="Block agent">⊘</button><button id="chat-details-button" class="icon-button" aria-label="Conversation details">···</button></header>
+          <header class="conversation-header"><div class="avatar" id="chat-avatar">?</div><div class="person-details"><h2 id="chat-title">Conversation</h2><span id="chat-subtitle" class="muted"></span></div><button id="message-search-button" class="icon-button small" type="button" aria-label="Search in this conversation" title="Search in this conversation" aria-expanded="false">⌕</button><button id="agent-block-button" class="icon-button small hidden" type="button" aria-label="Block agent" title="Block agent">⊘</button><button id="chat-details-button" class="icon-button" aria-label="Conversation details">···</button></header>
+          <div id="message-search-bar" class="message-search-bar hidden" role="search"><span aria-hidden="true">⌕</span><input id="message-search-input" type="search" autocomplete="off" placeholder="Search in this conversation" aria-label="Search in this conversation"><span id="message-search-count" class="message-search-count" role="status" aria-live="polite"></span><button id="message-search-older" class="icon-button small" type="button" aria-label="Older match" title="Older match" disabled>↑</button><button id="message-search-newer" class="icon-button small" type="button" aria-label="Newer match" title="Newer match" disabled>↓</button><button id="message-search-close" class="icon-button small" type="button" aria-label="Close search" title="Close search">×</button></div>
           <div id="messages" class="messages" aria-live="polite"></div>
           <div id="reply-context" class="reply-context hidden" aria-live="polite"><span><strong id="reply-context-label">Replying to message</strong><small id="reply-context-text"></small></span><button id="cancel-reply" type="button" class="icon-button small" aria-label="Cancel reply">×</button></div>
           <form id="send-form" class="composer"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Write a private message…" aria-label="Message"></textarea><button class="send-button" type="submit" aria-label="Send message">↑</button></form>

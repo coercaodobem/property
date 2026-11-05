@@ -17,6 +17,7 @@ O [Ghostly](https://github.com/MiguelMedeiros/ghostly) é uma referência upstre
 - Salas NIP-17 não oferecem aprovação de entrada, administração ou controles confiáveis para sair/remover participantes. Cada membro precisa já ter publicado uma lista inbox que o remetente consiga descobrir pelos relays configurados. Crie salas com pessoas que concordaram em participar. Grupos acima de 10 pessoas precisam de outro protocolo mais adequado.
 - Mensagens podem ser salvas no armazenamento de mensagens local já existente. Elas ficam neste aparelho e não são publicadas nos relays.
 - Encaminhar cria uma nova mensagem NIP-17 criptografada pela mesma identidade Property para cada conversa existente selecionada. O resultado separa cópias locais de envelopes confirmados pelos relays; salvar uma cópia local não é apresentado como entrega.
+- A busca no chat filtra as mensagens renderizadas localmente na conversa atual. Ignora maiúsculas/minúsculas e acentos, destaca os resultados e permite navegar entre eles. Não consulta relays, publica a busca nem a inclui na URL.
 - Ao redesenhar a conversa aberta, a rolagem mantém a mensagem visível ancorada enquanto a pessoa lê mensagens antigas. Se ela já estava no fim, a conversa continua no fim.
 - Essas interações usam a identidade visual preta e amarela já existente e a opção entre inglês e Português (Brasil).
 - O GitHub Pages constrói e publica somente a PWA Property a partir de `property/web`.
