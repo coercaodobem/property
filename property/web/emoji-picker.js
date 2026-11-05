@@ -159,9 +159,12 @@
     const status = document.getElementById('emoji-picker-status');
     const input = document.getElementById('message-input');
     const closeButton = document.getElementById('emoji-picker-close');
+    const reactionDialog = document.getElementById('reaction-emoji-dialog');
+    const reactionMount = document.getElementById('reaction-emoji-mount');
     if (!toggle || !panel || !search || !categoryBar || !grid || !toneSelect || !status || !input || !closeButton) return null;
 
     let catalog = null, activeCategory = 'people', tone = 0;
+    let reactionSelection = null, panelOrigin = null;
     const owner = () => typeof options.owner === 'function' ? options.owner() : '';
     const isOpen = () => !panel.classList.contains('hidden');
     function announce(message) { status.textContent = message; }
@@ -243,13 +246,7 @@
       const activeButton = [...categoryBar.children].find(button => button.dataset.category === activeCategory);
       if (activeButton) activeButton.setAttribute('aria-pressed', 'true');
     }
-    function setOpen(open, focusSearch = false) {
-      panel.classList.toggle('hidden', !open);
-      toggle.setAttribute('aria-expanded', String(open));
-      if (!open) {
-        toggle.focus();
-        return;
-      }
+    function prepareOpen(focusSearch = false) {
       readTone();
       if (catalog) render();
       else {
@@ -260,12 +257,52 @@
           retry.type = 'button';
           retry.className = 'button secondary';
           retry.textContent = text('Retry', 'Tentar novamente');
-          retry.addEventListener('click', () => { dataPromise = null; setOpen(true, true); });
+          retry.addEventListener('click', () => { dataPromise = null; prepareOpen(true); });
           grid.replaceChildren(retry);
           announce(text('The bundled emoji data could not be loaded.', 'Não foi possível carregar os emojis incluídos no app.'));
         });
       }
       if (focusSearch) search.focus({ preventScroll: true });
+    }
+    function closeReactionPicker(restoreFocus = true) {
+      const active = reactionSelection;
+      reactionSelection = null;
+      panel.classList.add('hidden');
+      panel.classList.remove('emoji-picker-panel-dialog');
+      if (reactionDialog?.open) reactionDialog.close();
+      if (panelOrigin) {
+        const { parent, nextSibling } = panelOrigin;
+        if (parent?.isConnected) parent.insertBefore(panel, nextSibling?.parentNode === parent ? nextSibling : null);
+        panelOrigin = null;
+      }
+      active?.trigger?.setAttribute('aria-expanded', 'false');
+      if (restoreFocus && active?.trigger?.isConnected) active.trigger.focus({ preventScroll: true });
+    }
+    function openForReaction({ trigger, onPick } = {}) {
+      if (!reactionDialog || !reactionMount || typeof onPick !== 'function') return false;
+      if (reactionSelection) closeReactionPicker(false);
+      panelOrigin = { parent: panel.parentNode, nextSibling: panel.nextSibling };
+      reactionSelection = { trigger, onPick };
+      search.value = '';
+      activeCategory = 'people';
+      reactionMount.append(panel);
+      panel.classList.add('emoji-picker-panel-dialog');
+      panel.classList.remove('hidden');
+      toggle.setAttribute('aria-expanded', 'false');
+      trigger?.setAttribute('aria-expanded', 'true');
+      reactionDialog.showModal();
+      prepareOpen(true);
+      return true;
+    }
+    function setOpen(open, focusSearch = false) {
+      if (!open && reactionSelection) { closeReactionPicker(); return; }
+      panel.classList.toggle('hidden', !open);
+      toggle.setAttribute('aria-expanded', String(open));
+      if (!open) {
+        toggle.focus();
+        return;
+      }
+      prepareOpen(focusSearch);
     }
     function scrollToCategory(id) {
       if (search.value) { search.value = ''; render(); }
@@ -277,6 +314,14 @@
       if (activeButton) activeButton.setAttribute('aria-pressed', 'true');
     }
     function insertEmoji(native) {
+      if (reactionSelection) {
+        if (!catalog?.byNative.has(native)) return false;
+        const active = reactionSelection;
+        remember(owner(), native, catalog);
+        closeReactionPicker(true);
+        Promise.resolve().then(() => active.onPick(native)).catch(error => options.onError?.(error));
+        return true;
+      }
       const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
       const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : start;
       const insertion = insertAtSelection(input.value, start, end, native, input.maxLength);
@@ -312,7 +357,13 @@
       cells[Math.max(0, Math.min(cells.length - 1, at + delta))]?.focus();
     }
     toggle.addEventListener('click', event => setOpen(!isOpen(), event.detail === 0));
-    closeButton.addEventListener('click', () => { setOpen(false); input.focus(); });
+    closeButton.addEventListener('click', () => {
+      if (reactionSelection) closeReactionPicker();
+      else { setOpen(false); input.focus(); }
+    });
+    document.getElementById('reaction-emoji-close')?.addEventListener('click', () => closeReactionPicker());
+    reactionDialog?.addEventListener('cancel', event => { event.preventDefault(); closeReactionPicker(); });
+    reactionDialog?.addEventListener('click', event => { if (event.target === reactionDialog) closeReactionPicker(); });
     search.addEventListener('input', render);
     toneSelect.innerHTML = '';
     SKIN_NAMES.forEach((names, index) => {
@@ -347,10 +398,14 @@
       if (activeButton) activeButton.setAttribute('aria-pressed', 'true');
     });
     document.addEventListener('keydown', event => {
-      if (isOpen() && event.key === 'Escape') { event.preventDefault(); setOpen(false); input.focus(); }
+      if (isOpen() && event.key === 'Escape') {
+        event.preventDefault();
+        if (reactionSelection) closeReactionPicker();
+        else { setOpen(false); input.focus(); }
+      }
     });
     document.addEventListener('pointerdown', event => {
-      if (isOpen() && !panel.contains(event.target) && !toggle.contains(event.target)) setOpen(false);
+      if (!reactionSelection && isOpen() && !panel.contains(event.target) && !toggle.contains(event.target)) setOpen(false);
     });
     document.getElementById('language-picker')?.addEventListener('change', () => {
       if (catalog) render();
@@ -365,8 +420,10 @@
       toneSelect.value = String(selectedTone);
       categoryBar.setAttribute('aria-label', text('Emoji categories', 'Categorias de emoji'));
     });
-    return Object.freeze({ close: () => setOpen(false), refresh: render });
+    return Object.freeze({ close: () => setOpen(false), refresh: render, openForReaction });
   }
 
-  window.PropertyEmojiPicker = Object.freeze({ init, catalogFrom, searchEmoji, withSkin, insertAtSelection });
+  function supportsEmoji(native) { return loadData().then(catalog => catalog.byNative.has(String(native))); }
+
+  window.PropertyEmojiPicker = Object.freeze({ init, catalogFrom, searchEmoji, withSkin, insertAtSelection, supportsEmoji });
 })();

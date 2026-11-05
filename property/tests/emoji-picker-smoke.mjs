@@ -9,7 +9,7 @@ const raw = JSON.parse(await readFile(join(root, 'web/vendor/emoji-data-15.json'
 const source = await readFile(join(root, 'web/emoji-picker.js'), 'utf8');
 const license = await readFile(join(root, 'web/vendor/licenses/emoji-mart-data-MIT.txt'), 'utf8');
 const window = {};
-vm.runInNewContext(source, { window, document: {}, fetch: () => assert.fail('catalog tests must not make a network request') });
+vm.runInNewContext(source, { window, document: {}, fetch: async () => ({ ok: true, json: async () => raw }) });
 const picker = window.PropertyEmojiPicker;
 
 assert.match(license, /MIT License/);
@@ -21,6 +21,8 @@ assert.deepEqual(Array.from(catalog.categories, category => category.id), ['peop
 assert.ok(catalog.all.length >= 1800);
 assert.ok(picker.searchEmoji(catalog, 'smile').some(emoji => emoji.id === 'smiley'));
 assert.ok(picker.searchEmoji(catalog, 'coração', 'pt-BR').some(emoji => emoji.id === 'heart'));
+assert.equal(await picker.supportsEmoji('🪿'), true, 'custom reactions are limited to the bundled Unicode catalog');
+assert.equal(await picker.supportsEmoji('not-an-emoji'), false, 'unsupported reaction payloads are rejected');
 assert.equal(picker.withSkin(catalog.all.find(emoji => emoji.id === 'wave'), 1), '👋🏻');
 assert.deepEqual({ ...picker.insertAtSelection('abcd', 0, 0, '🙂') }, { value: '🙂abcd', selectionStart: 2, selectionEnd: 2 });
 assert.deepEqual({ ...picker.insertAtSelection('abcd', 2, 2, '🙂') }, { value: 'ab🙂cd', selectionStart: 4, selectionEnd: 4 });

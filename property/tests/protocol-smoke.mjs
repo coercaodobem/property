@@ -62,6 +62,27 @@ assert.equal(unwrapped.content, plaintext);
 assert.throws(() => nostr.nip17.unwrapEvent(recipientWrap, eve), 'a non-recipient must not decrypt the message');
 assert.equal(nostr.nip17.unwrapEvent(senderWrap, alice).content, plaintext, 'sender can read their own copy');
 
+const reactionTarget = signEvent({ kind: 1, pubkey: alicePub, tags: [], content: 'offline reaction target', created_at: Math.floor(Date.now() / 1000) }, alice);
+const customReaction = '🪿';
+const directReactionRumor = nostr.nip59.createRumor({
+  kind: 7,
+  tags: [['e', reactionTarget.id, '', alicePub], ['p', alicePub], ['k', '14']],
+  content: customReaction,
+}, alice);
+const directReactionWraps = [alicePub, bobPub].map(recipient => nostr.nip59.createWrap(nostr.nip59.createSeal(directReactionRumor, alice, recipient), recipient));
+const directReactionPlan = routing.planGiftWraps(directReactionWraps, alicePub, bobPub, aliceInbox, bobInbox, nostr.verifyEvent);
+assert.equal(directReactionPlan.ready, true, 'custom emoji reactions use the normal private NIP-17 recipient route');
+for (const delivery of directReactionPlan.deliveries) {
+  assert.equal(delivery.event.kind, 1059);
+  assert.equal(delivery.event.content.includes(customReaction), false, 'relay-visible reaction envelope hides the emoji payload');
+  const secretForRecipient = delivery.recipient === alicePub ? alice : bob;
+  const reaction = nostr.nip17.unwrapEvent(delivery.event, secretForRecipient);
+  assert.equal(reaction.kind, 7);
+  assert.equal(reaction.content, customReaction);
+  assert.equal(reaction.tags.find(tag => tag[0] === 'e')?.[1], reactionTarget.id);
+}
+assert.throws(() => nostr.nip17.unwrapEvent(directReactionWraps[0], eve), 'a non-recipient cannot read a custom emoji reaction');
+
 const groupMembers = [alicePub, bobPub, carolPub, davePub].sort();
 const groupSecrets = new Map([[alicePub, alice], [bobPub, bob], [carolPub, carol], [davePub, dave]]);
 const groupText = 'offline-group-payload-4-members';
@@ -88,6 +109,23 @@ for (const delivery of groupPlan.deliveries) {
   assert.equal(rumor.tags.filter(tag => tag[0] === 'p').length, 3, 'the room participant set names the other three members');
 }
 assert.throws(() => nostr.nip17.unwrapEvent(groupWraps[0], eve), 'a person outside the room cannot decrypt a member envelope');
+
+const groupReactionRumor = nostr.nip59.createRumor({
+  kind: 7,
+  tags: [['e', groupRumor.id, '', bobPub], ['k', '14'], ...groupMembers.filter(pubkey => pubkey !== alicePub).map(pubkey => ['p', pubkey])],
+  content: customReaction,
+}, alice);
+const groupReactionWraps = groupMembers.map(recipient => nostr.nip59.createWrap(nostr.nip59.createSeal(groupReactionRumor, alice, recipient), recipient));
+const groupReactionPlan = routing.planGroupGiftWraps(groupReactionWraps, groupMembers, groupRelays, nostr.verifyEvent);
+assert.equal(groupReactionPlan.ready, true, 'custom emoji group reaction has one NIP-17 envelope per member');
+for (const delivery of groupReactionPlan.deliveries) {
+  const reaction = nostr.nip17.unwrapEvent(delivery.event, groupSecrets.get(delivery.recipient));
+  assert.equal(reaction.kind, 7);
+  assert.equal(reaction.content, customReaction);
+  assert.equal(reaction.tags.filter(tag => tag[0] === 'p').length, 3);
+  assert.equal(delivery.event.content.includes(customReaction), false);
+}
+assert.throws(() => nostr.nip17.unwrapEvent(groupReactionWraps[0], eve), 'an outsider cannot read a custom emoji group reaction');
 assert.equal(routing.planGroupGiftWraps(groupWraps.slice(1), groupMembers, groupRelays, nostr.verifyEvent).reason, 'missing-gift-wrap', 'a missing participant envelope fails closed');
 assert.equal(routing.planGroupGiftWraps(groupWraps, groupMembers, { ...groupRelays, [carolPub]: [] }, nostr.verifyEvent).reason, 'missing-inbox', 'a participant without an inbox route fails closed');
 assert.equal(routing.planGroupGiftWraps(groupWraps, [...groupMembers, evePub], Object.fromEntries([...groupMembers, evePub].map(pubkey => [pubkey, ['wss://member.example']])), nostr.verifyEvent).reason, 'missing-gift-wrap', 'incomplete recipient coverage fails closed');

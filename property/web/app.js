@@ -31,6 +31,8 @@
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const eventSourceHints = new WeakMap();
+  let emojiPicker = null;
+  let reactionPickerSequence = 0;
   let ownNip05CheckId = 0;
   let peerNip05CheckId = 0;
   const state = {
@@ -1582,7 +1584,8 @@
         $('message-input').focus();
       });
       const react = document.createElement('button'); react.type = 'button'; react.className = 'message-react'; react.textContent = 'React'; react.disabled = !eventId; react.setAttribute('aria-label', 'React to this message'); react.title = 'Choose a reaction';
-      const picker = document.createElement('div'); picker.className = 'message-reaction-picker'; picker.hidden = true; picker.setAttribute('role', 'group'); picker.setAttribute('aria-label', 'Choose a reaction');
+      const picker = document.createElement('div'); picker.id = `property-reaction-picker-${++reactionPickerSequence}`; picker.className = 'message-reaction-picker'; picker.hidden = true; picker.setAttribute('role', 'group'); picker.setAttribute('aria-label', 'Choose a reaction');
+      react.setAttribute('aria-controls', `${picker.id} reaction-emoji-dialog`); react.setAttribute('aria-expanded', 'false');
       for (const emoji of REACTION_OPTIONS) {
         const choice = document.createElement('button'); choice.type = 'button'; choice.className = 'message-reaction-choice'; choice.textContent = emoji; choice.setAttribute('aria-label', window.PropertyI18n?.language === 'pt-BR' ? `Reação ${emoji}` : `${emoji} reaction`);
         choice.addEventListener('click', async () => {
@@ -1593,7 +1596,17 @@
         });
         picker.append(choice);
       }
-      react.addEventListener('click', () => { picker.hidden = !picker.hidden; });
+      const moreReactions = document.createElement('button'); moreReactions.type = 'button'; moreReactions.className = 'message-reaction-more'; moreReactions.textContent = 'More emoji…';
+      moreReactions.addEventListener('click', () => {
+        picker.hidden = true;
+        react.setAttribute('aria-expanded', 'false');
+        emojiPicker?.openForReaction({ trigger: react, onPick: emoji => sendPrivateReaction(peer, message, emoji).catch(error => showToast(error.message || 'Could not send reaction.')) });
+      });
+      picker.append(moreReactions);
+      react.addEventListener('click', () => {
+        picker.hidden = !picker.hidden;
+        react.setAttribute('aria-expanded', String(!picker.hidden));
+      });
       const menu = document.createElement('details'); menu.className = 'message-menu';
       const menuButton = document.createElement('summary'); menuButton.textContent = '⋮'; menuButton.setAttribute('aria-label', 'More message actions');
       const menuItems = document.createElement('div'); menuItems.className = 'message-menu-items';
@@ -1882,7 +1895,7 @@
     const agentAccess = await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') throw new Error('This contact is blocked on this device.');
     const targetId = nostrEventId(message);
-    if (!targetId || !REACTION_OPTIONS.includes(reaction)) throw new Error('This message cannot receive that reaction.');
+    if (!targetId || !(REACTION_OPTIONS.includes(reaction) || await EmojiPicker.supportsEmoji(reaction))) throw new Error('This message cannot receive that reaction.');
     const actor = state.pubkey;
     const targetIds = new Set(MessageEdits.eventIds(message));
     const previous = (await all('messages'))
@@ -1927,7 +1940,7 @@
     const conversation = await get('conversations', peer);
     const members = [...new Set(conversation?.members || [])].sort();
     const targetId = nostrEventId(message);
-    if (members.length < 3 || members.length > MAX_NIP17_GROUP_MEMBERS || !members.includes(state.pubkey) || !targetId || !REACTION_OPTIONS.includes(reaction)) {
+    if (members.length < 3 || members.length > MAX_NIP17_GROUP_MEMBERS || !members.includes(state.pubkey) || !targetId || !(REACTION_OPTIONS.includes(reaction) || await EmojiPicker.supportsEmoji(reaction))) {
       throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Esta mensagem do grupo não pode receber essa reação.' : 'This group message cannot receive that reaction.');
     }
     const previous = (await all('messages'))
@@ -2493,13 +2506,13 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v48', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v49', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
   function wireEvents() {
     Pwa.bindInstallControls(document.querySelectorAll('[data-install-property]'), $('install-app-dialog'), () => showToast('Property installed.'));
-    EmojiPicker.init({ owner: () => state.pubkey });
+    emojiPicker = EmojiPicker.init({ owner: () => state.pubkey, onError: error => showToast(error?.message || 'Could not send reaction.') });
     window.addEventListener('property-contact-intent', event => {
       const contact = typeof event.detail?.value === 'string' ? event.detail.value : '';
       if (!contact) return;

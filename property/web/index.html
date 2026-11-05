@@ -11,8 +11,8 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v49">
-  <script defer src="./i18n.js?v=property-v47"></script>
+  <link rel="stylesheet" href="./styles.css?v=property-v50">
+  <script defer src="./i18n.js?v=property-v48"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -35,8 +35,8 @@
   <script defer src="./secret-guard.js?v=property-v1"></script>
   <script defer src="./public-profile.js?v=property-v2"></script>
   <script defer src="./nip05.js?v=property-v1"></script>
-  <script defer src="./emoji-picker.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v53"></script>
+  <script defer src="./emoji-picker.js?v=property-v2"></script>
+  <script defer src="./app.js?v=property-v54"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -162,6 +162,10 @@
             </section>
             <div class="composer-input-row"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Write a private message…" aria-label="Message"></textarea><button class="send-button" type="submit" aria-label="Send message">↑</button></div>
           </form>
+          <dialog id="reaction-emoji-dialog" class="dialog-card emoji-reaction-dialog" aria-labelledby="reaction-emoji-title">
+            <div class="dialog-head"><div><p class="eyebrow">MESSAGE REACTION</p><h2 id="reaction-emoji-title">Choose a reaction</h2></div><button id="reaction-emoji-close" class="icon-button small" type="button" aria-label="Close emoji picker" title="Close emoji picker">×</button></div>
+            <div id="reaction-emoji-mount"></div>
+          </dialog>
           <p id="composer-note" class="composer-note">NIP-17 · requires an inbox relay kind 10050 list published by both you and the other person</p>
           <p class="composer-draft-note">Drafts stay on this device and are not sent until you press Send.</p>
         </div>
