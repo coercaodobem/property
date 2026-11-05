@@ -47,7 +47,7 @@ it("an app without groups never sees a group frame, and a contact on it cannot b
   await new Promise(r => setTimeout(r, 20));
   expect(a.groupsSupport).toBe(false);
   expect(b.groupsSupport).toBe(false);
-  expect(() => a.sendGroupFrame({ t: "group-invite", g: "x" })).toThrow(/updated Ghostly/);
+  expect(() => a.sendGroupFrame({ t: "group-invite", g: "x" })).toThrow(/updated Property/);
   // A group frame smuggled in anyway is dropped on the side without groups, and so is a foreign frame without an id.
   (a as unknown as { channel: { send(d: string): void } }).channel.send(JSON.stringify({ t: "group-invite", g: "x" }));
   expect(await a.sendMessage("still a chat")).toBeNull();

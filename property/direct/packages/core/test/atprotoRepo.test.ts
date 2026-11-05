@@ -249,8 +249,8 @@ describe("handles, DIDs, record keys and the record", () => {
     expect(() => checkAtprotoProofRecord(value, statement)).not.toThrow();
     const other = identityStatement({ ...binding, nonce: "BBBBBBBBBBBBBBBBBBBBBB" });
     expect(() => checkAtprotoProofRecord(value, other)).toThrow("another statement");
-    expect(() => checkAtprotoProofRecord({ ...value, extra: 1 }, statement)).toThrow("not a Ghostly proof");
-    expect(() => checkAtprotoProofRecord({ ...value, $type: "app.bsky.feed.post" }, statement)).toThrow("not a Ghostly proof");
-    expect(() => checkAtprotoProofRecord({ ...value, createdAt: 5 }, statement)).toThrow("not a Ghostly proof");
+    expect(() => checkAtprotoProofRecord({ ...value, extra: 1 }, statement)).toThrow("not a Property proof");
+    expect(() => checkAtprotoProofRecord({ ...value, $type: "app.bsky.feed.post" }, statement)).toThrow("not a Property proof");
+    expect(() => checkAtprotoProofRecord({ ...value, createdAt: 5 }, statement)).toThrow("not a Property proof");
   });
 });

@@ -101,7 +101,7 @@ describe("a voice message that will not play as it is", () => {
     await waitFor(() => expect(saveFile).toHaveBeenCalledWith(message.file!.id, voiceDownloadName("audio/mp4", message.timestamp)));
   });
 
-  it("saves one under the name Ghostly makes for it, never the name the sender gave it", async () => {
+  it("saves one under the name Property makes for it, never the name the sender gave it", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const saveFile = vi.spyOn(servicesPlatform!, "saveFile").mockResolvedValue(true);
     audio.canPlay = () => "";
@@ -112,7 +112,7 @@ describe("a voice message that will not play as it is", () => {
     await clickPlay();
     const save = screen.getByTestId("voice-save");
     const name = voiceDownloadName("audio/webm", message.timestamp);
-    expect(name).toMatch(/^Ghostly voice .+\.webm$/);
+    expect(name).toMatch(/^Property voice .+\.webm$/);
     // The web's fallback link names the same file as the save dialog.
     expect(save).toHaveAttribute("download", name);
     fireEvent.click(save);

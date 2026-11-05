@@ -75,7 +75,7 @@ describe("held bundles: framing refusals", () => {
   it("refuses a newer framing version and a wrong magic", () => {
     const h = setup(), body = utf8Encode("hi");
     const newer = h.bundle(body); newer[4] = 2;
-    expect(() => h.bob.open(newer, { now: NOW })).toThrow(/newer Ghostly/);
+    expect(() => h.bob.open(newer, { now: NOW })).toThrow(/newer Property/);
     const magic = h.bundle(body); magic[0] ^= 1;
     expect(reason(() => h.bob.open(magic, { now: NOW }))).toBe("format");
   });

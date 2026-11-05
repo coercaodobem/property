@@ -804,7 +804,7 @@ describe("paired payments", () => {
     const t = linkedPair([{ events: payEvents() }, { events: { onPaymentRequest } }], data => typeof data === "string" && data.includes('"paired-payments"'));
     await t.ready();
     expect(t.a.supportsPayments).toBe(false);
-    await expect(t.a.sendPaymentRequest(request)).rejects.toThrow("Your contact has payments off in this chat, or needs an updated Ghostly");
+    await expect(t.a.sendPaymentRequest(request)).rejects.toThrow("Your contact has payments off in this chat, or needs an updated Property");
     const send = vi.spyOn(t.ca, "send");
     t.a.sendPaymentResult({ id: "payment-1", ok: true });
     expect(send).not.toHaveBeenCalled();
@@ -812,7 +812,7 @@ describe("paired payments", () => {
   });
 
   // The app's rule (Chat.tsx): a contact whose networks name no wallet offers no way until it makes one. Both ran the
-  // same release, and the refusal said they needed an updated Ghostly.
+  // same release, and the refusal said they needed an updated Property.
   it("a contact with no wallet is refused as having no wallet yet; one with a wallet and nothing on, as off or older", async () => {
     const t = linkedPair([{ events: payEvents(), paymentNetworks: {} }, { events: payEvents() }]);
     await t.ready();
@@ -824,7 +824,7 @@ describe("paired payments", () => {
     t.a.setPaymentNetworks({ cashu: ["testnet"] });
     t.a.setPaymentMethods({ cashu: false });
     await t.settle("b");
-    await expect(t.b.requirePaymentSupport()).rejects.toMatchObject({ engineCode: "contactNoPayments", message: "Your contact has payments off in this chat, or needs an updated Ghostly" });
+    await expect(t.b.requirePaymentSupport()).rejects.toMatchObject({ engineCode: "contactNoPayments", message: "Your contact has payments off in this chat, or needs an updated Property" });
     // A wallet made and on: nothing refused.
     t.a.setPaymentMethods({});
     await t.settle("b");

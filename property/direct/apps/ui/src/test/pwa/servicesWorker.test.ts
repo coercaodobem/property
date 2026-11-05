@@ -85,7 +85,7 @@ describe("a navigation the services worker hands to the contact", () => {
       expect(answer, JSON.stringify(one)).not.toBeNull();
       const response = await answer!;
       expect(response.status).toBe(403);
-      expect(await response.text()).toBe("This app opens only inside Ghostly.");
+      expect(await response.text()).toBe("This app opens only inside Property Direct.");
       expect(response.headers.get("content-security-policy")).toBe("frame-ancestors 'self' https://app.ghostly.example");
     }
     expect(bridge.postMessage).not.toHaveBeenCalled();

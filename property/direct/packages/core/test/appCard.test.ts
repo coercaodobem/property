@@ -91,10 +91,10 @@ describe("the app card", () => {
   });
 
   it("writes a text an older app shows, the url on a line of its own", () => {
-    expect(statusCardText(readStatusCard(opened)!)).toBe(`🧩 Opened Chess 1.2.0 in this chat (Ghostly app)\n${RAW}`);
-    expect(statusCardText(readStatusCard(shared)!)).toBe(`🧩 Chess 1.2.0 (Ghostly app)\n${RAW}`);
+    expect(statusCardText(readStatusCard(opened)!)).toBe(`🧩 Opened Chess 1.2.0 in this chat (Property app)\n${RAW}`);
+    expect(statusCardText(readStatusCard(shared)!)).toBe(`🧩 Chess 1.2.0 (Property app)\n${RAW}`);
     const { url: _url, ...noUrl } = shared;
-    expect(statusCardText(readStatusCard(noUrl)!)).toBe("🧩 Chess 1.2.0 (Ghostly app)");
+    expect(statusCardText(readStatusCard(noUrl)!)).toBe("🧩 Chess 1.2.0 (Property app)");
   });
 
   it("is no card to a reader without the app kind (Ghostly up to 1.1), which shows the text and its link", () => {
@@ -108,7 +108,7 @@ describe("the app card", () => {
     expect(readStatusCard(card)).toEqual(readStatusCard(opened));
     expect(checkStatusCard(card)).toEqual({ card: readStatusCard(opened) });
     // The text is written from a card as it was made too, not only as a reader keeps it.
-    expect(statusCardText(card as AppCard)).toBe(`🧩 Opened Chess 1.2.0 in this chat (Ghostly app)\n${RAW}`);
+    expect(statusCardText(card as AppCard)).toBe(`🧩 Opened Chess 1.2.0 in this chat (Property app)\n${RAW}`);
     expect(appCardUrl(`${RAW}?token=${token}`)).toBe(RAW);
     expect(appCardUrl("http://example.com/app.ghostlyapp")).toBeUndefined();
   });

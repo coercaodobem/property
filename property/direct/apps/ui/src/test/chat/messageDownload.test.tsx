@@ -120,7 +120,7 @@ describe("Download in a message's menu", () => {
     const { user } = show(voice());
     await menu(user);
     await user.click(screen.getByTestId("message-download"));
-    await waitFor(() => expect(clicked).toEqual([{ href: "blob:ghostly/voice", download: "Ghostly voice 2026-09-27 14.01.30.webm" }]));
+    await waitFor(() => expect(clicked).toEqual([{ href: "blob:ghostly/voice", download: "Property voice 2026-09-27 14.01.30.webm" }]));
     expect(servicesPlatform!.getFile).toHaveBeenCalledWith("chat1-in-voice");
     expect(screen.queryByTestId("message-menu")).not.toBeInTheDocument();
   });
@@ -143,7 +143,7 @@ describe("Download in a message's menu", () => {
     const { user } = show(voice());
     await menu(user);
     await user.click(screen.getByTestId("message-download"));
-    await waitFor(() => expect(saveFile).toHaveBeenCalledWith("chat1-in-voice", "Ghostly voice 2026-09-27 14.01.30.webm"));
+    await waitFor(() => expect(saveFile).toHaveBeenCalledWith("chat1-in-voice", "Property voice 2026-09-27 14.01.30.webm"));
     expect(clicked).toEqual([]);
     expect(screen.queryByTestId("message-menu")).not.toBeInTheDocument();
   });
@@ -202,7 +202,7 @@ describe("Download in a message's menu", () => {
     const { user } = show(voice());
     await menu(user);
     await user.click(screen.getByTestId("message-download-mp3"));
-    await waitFor(() => expect(clicked).toEqual([{ href: "blob:ghostly/voice", download: "Ghostly voice 2026-09-27 14.01.30.mp3" }]));
+    await waitFor(() => expect(clicked).toEqual([{ href: "blob:ghostly/voice", download: "Property voice 2026-09-27 14.01.30.mp3" }]));
     expect(vi.mocked(voiceToMp3).mock.calls[0]![0].type).toBe("audio/webm");
     const calls = vi.mocked(URL.createObjectURL).mock.calls;
     expect((calls[calls.length - 1]![0] as Blob).type).toBe("audio/mpeg");
@@ -232,7 +232,7 @@ describe("Download in a message's menu", () => {
     const { user } = show(voice());
     await menu(user);
     await user.click(screen.getByTestId("message-download-mp3"));
-    await waitFor(() => expect(saveBlob).toHaveBeenCalledWith(expect.any(Blob), "Ghostly voice 2026-09-27 14.01.30.mp3"));
+    await waitFor(() => expect(saveBlob).toHaveBeenCalledWith(expect.any(Blob), "Property voice 2026-09-27 14.01.30.mp3"));
     expect(clicked).toEqual([]);
     expect(screen.queryByTestId("message-menu")).not.toBeInTheDocument();
   });

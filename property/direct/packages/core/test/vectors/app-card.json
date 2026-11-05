@@ -35,7 +35,7 @@
         "version": "1.2.0",
         "url": "https://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
       },
-      "text": "🧩 Chess 1.2.0 (Ghostly app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
+      "text": "🧩 Chess 1.2.0 (Property app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
     },
     {
       "name": "an opened card",
@@ -61,7 +61,7 @@
         "url": "https://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp",
         "opened": true
       },
-      "text": "🧩 Opened Chess 1.2.0 in this chat (Ghostly app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
+      "text": "🧩 Opened Chess 1.2.0 in this chat (Property app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
     },
     {
       "name": "a shared card without url",
@@ -83,7 +83,7 @@
         "title": "Chess",
         "version": "1.2.0"
       },
-      "text": "🧩 Chess 1.2.0 (Ghostly app)"
+      "text": "🧩 Chess 1.2.0 (Property app)"
     },
     {
       "name": "an opened card without url",
@@ -107,7 +107,7 @@
         "version": "1.2.0",
         "opened": true
       },
-      "text": "🧩 Opened Chess 1.2.0 in this chat (Ghostly app)"
+      "text": "🧩 Opened Chess 1.2.0 in this chat (Property app)"
     },
     {
       "name": "a card without version",
@@ -129,7 +129,7 @@
         "title": "Chess",
         "url": "https://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
       },
-      "text": "🧩 Chess (Ghostly app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
+      "text": "🧩 Chess (Property app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
     },
     {
       "name": "sequence 0",
@@ -153,7 +153,7 @@
         "version": "1.2.0",
         "url": "https://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
       },
-      "text": "🧩 Chess 1.2.0 (Ghostly app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
+      "text": "🧩 Chess 1.2.0 (Property app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
     },
     {
       "name": "the largest sequence",
@@ -177,7 +177,7 @@
         "version": "1.2.0",
         "url": "https://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
       },
-      "text": "🧩 Chess 1.2.0 (Ghostly app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
+      "text": "🧩 Chess 1.2.0 (Property app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
     },
     {
       "name": "a url that is not https is left out",
@@ -200,7 +200,7 @@
         "title": "Chess",
         "version": "1.2.0"
       },
-      "text": "🧩 Chess 1.2.0 (Ghostly app)"
+      "text": "🧩 Chess 1.2.0 (Property app)"
     },
     {
       "name": "opened other than true reads as absent",
@@ -225,7 +225,7 @@
         "version": "1.2.0",
         "url": "https://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
       },
-      "text": "🧩 Chess 1.2.0 (Ghostly app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
+      "text": "🧩 Chess 1.2.0 (Property app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
     },
     {
       "name": "a title past 40 characters is cut",
@@ -249,7 +249,7 @@
         "version": "1.2.0",
         "url": "https://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
       },
-      "text": "🧩 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC 1.2.0 (Ghostly app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
+      "text": "🧩 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC 1.2.0 (Property app)\nhttps://raw.githubusercontent.com/ghostly-vectors/chess/HEAD/app.ghostlyapp"
     }
   ],
   "invalid": [

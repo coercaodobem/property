@@ -108,9 +108,9 @@ async function readBody(request: Request): Promise<ArrayBuffer | null | "too-lar
 async function forward(event: FetchEvent): Promise<Response> {
   const request = event.request;
   const all = await worker.clients.matchAll({ type: "window", includeUncontrolled: true });
-  if (request.mode === "navigate" && !startedHere(event, all)) return plain(403, "This app opens only inside Ghostly.");
+  if (request.mode === "navigate" && !startedHere(event, all)) return plain(403, "This app opens only inside Property Direct.");
   const to = bridge(all);
-  if (!to) return plain(503, "This app is open only while Ghostly shows it.");
+  if (!to) return plain(503, "This app is open only while Property Direct shows it.");
   const body = await readBody(request);
   if (body === "too-large") return plain(413, "The request body is too large.");
   const url = new URL(request.url);
@@ -169,7 +169,7 @@ worker.addEventListener("fetch", (event) => {
   const answer = async () => {
     // A tab of its own on this origin (a window the app opened, a link from elsewhere) outlives the view: refused.
     const client = event.clientId ? await worker.clients.get(event.clientId) : undefined;
-    if (!fromView(event.request, client)) return plain(403, "This app opens only inside Ghostly.");
+    if (!fromView(event.request, client)) return plain(403, "This app opens only inside Property Direct.");
     return forward(event);
   };
   event.respondWith(answer().catch(() => plain(502, "The request failed.")));

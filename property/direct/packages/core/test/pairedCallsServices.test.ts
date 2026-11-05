@@ -250,7 +250,7 @@ describe("calls on a paired session (calls/1)", () => {
     await new Promise(resolve => setTimeout(resolve, 50));
     expect(a.link.supportsCalls).toBe(false);
     expect(a.link.supportsServices).toBe(false);
-    expect(a.link.callsUnavailable).toBe("Your contact needs an updated Ghostly for calls");
+    expect(a.link.callsUnavailable).toBe("Your contact needs an updated Property for calls");
   });
 
   it("sends what the session could not carry on the next one, while it is fresh", async () => {

@@ -138,15 +138,15 @@ describe("names and times", () => {
   it("names a downloaded voice message from its time, in its own container", () => {
     // covers: files.download
     const ts = new Date(2026, 8, 27, 14, 1, 30).getTime();
-    expect(voiceDownloadName("audio/webm", ts)).toBe("Ghostly voice 2026-09-27 14.01.30.webm");
-    expect(voiceDownloadName("audio/wav", ts)).toBe("Ghostly voice 2026-09-27 14.01.30.wav");
+    expect(voiceDownloadName("audio/webm", ts)).toBe("Property voice 2026-09-27 14.01.30.webm");
+    expect(voiceDownloadName("audio/wav", ts)).toBe("Property voice 2026-09-27 14.01.30.wav");
     expect(voiceDownloadName("audio/ogg;codecs=opus", ts)).toMatch(/\.ogg$/);
   });
 
   it("a time no date can hold makes a name without one, never NaN", () => {
     // Past Date's end (8.64e15) yet a safe integer, as a sender may claim one.
-    expect(voiceDownloadName("audio/webm", 8_700_000_000_000_000)).toBe("Ghostly voice.webm");
-    expect(voiceDownloadName("audio/webm", Number.NaN)).toBe("Ghostly voice.webm");
+    expect(voiceDownloadName("audio/webm", 8_700_000_000_000_000)).toBe("Property voice.webm");
+    expect(voiceDownloadName("audio/webm", Number.NaN)).toBe("Property voice.webm");
     expect(voiceFileName("audio/ogg", Number.POSITIVE_INFINITY)).toBe("Voice message.ogg");
   });
 
