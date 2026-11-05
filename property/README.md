@@ -16,7 +16,7 @@ The upstream code snapshot is recorded at Amethyst commit `948135f7dbbae81d79a0b
 
 Serve `property/web` over HTTP(S), for example with `python3 -m http.server 8080 --directory property/web`, and open `http://localhost:8080`. PWA installation requires HTTPS (localhost is an exception). The app shell works offline after its first load; messaging requires reachable Nostr relays.
 
-Property is one PWA with one identity and Nostr transport. Ghostly is a UX reference; compatible conversation improvements live in this app and use its existing identity and user-selected relays.
+Property is one PWA with one identity and Nostr transport. Ghostly is a UX reference; compatible conversation improvements live in this app and use its existing identity and relays. On a fresh install, Property picks two relays randomly from a list bundled in the app, saves them locally, and connects after identity activation. You can change them at any time.
 
 The **Relay bridge** option forwards signed public events between relays selected by the user. NIP-17 gift wraps are forwarded only to the local identity's inbox relays; the client does not decrypt the content to forward it. Local limits are 60 events and 2 MB of outbound traffic per minute, counting each relay destination. The bridge stops when the browser is suspended and may use mobile data.
 
@@ -41,7 +41,7 @@ With Node.js 22, `bash property/tests/run-smoke.sh` runs the local smoke suite w
 ## Known limits
 
 - A PWA does not remain active in the background on a phone: iOS and Android may suspend or terminate the browser.
-- The static host serves the interface code; the client opens data connections directly to relays selected by the user.
+- The static host serves the interface code; the client opens data connections directly to two bundled public relays selected at random on first use. You can replace them. Public relays can see your IP address and public event metadata.
 - Keeping a session on this device is convenient, but reduces protection if someone gains access to an already unlocked browser.
 - Hangout and the marketplace are early-stage. Payments, custody, escrow, and automatic node monetization are not enabled in this version.
 - The optional campaign reader validates the signature and event fields, uses HTTPS links, and keeps images inline. It does not verify a node-declared BTC/XMR/XNO payment; campaign acceptance, payment, and refund engines are not available in this version.

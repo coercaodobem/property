@@ -3,7 +3,7 @@
   const $ = id => document.getElementById(id);
   const enc = new TextEncoder();
   const dec = new TextDecoder();
-  const PUBLIC_RELAY_EXAMPLES = ['wss://relay.damus.io', 'wss://nos.lol'];
+  const RelayDefaults = window.PropertyRelayDefaults;
   // Stable legacy database ID: preserve existing identities and sessions on this origin.
   const DB_NAME = 'liberdade-local-v1';
   const DB_VERSION = 2;
@@ -25,7 +25,7 @@
     inboxRelays: [], peerInboxRelays: new Map(), peerRelayHints: new Map(),
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     currentConversation: null,
-    activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, forwardingMessage: null,
+    activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
     storageReady: false
@@ -102,7 +102,13 @@
     dot.classList.toggle('partial', open > 0 && open < relayCount);
     $('connection-label').textContent = open === 0 ? 'offline' : `${open}/${relayCount} relay${relayCount === 1 ? '' : 's'}`;
     $('relay-count').textContent = `${state.relays.length} relay${state.relays.length === 1 ? '' : 's'}`;
-    $('relay-summary-text').textContent = open ? `${open} conectado${open === 1 ? '' : 's'}` : relayCount === 0 ? 'Adicione um relay para sincronizar' : 'Toque para configurar';
+    $('relay-summary-text').textContent = open
+      ? window.PropertyI18n?.language === 'pt-BR' ? `${open} conectado${open === 1 ? '' : 's'}` : `${open} connected`
+      : relayCount === 0
+        ? (window.PropertyI18n?.language === 'pt-BR' ? 'Adicione um relay para sincronizar' : 'Add a relay to sync')
+        : state.autoSelectedRelays
+          ? (window.PropertyI18n?.language === 'pt-BR' ? 'Relays sugeridos; toque para ajustar' : 'Suggested relays; tap to change')
+          : (window.PropertyI18n?.language === 'pt-BR' ? 'Toque para configurar' : 'Tap to configure');
   }
   function updateLockedBridgeStatus() {
     const status = $('locked-node-status');
@@ -190,13 +196,15 @@
     $('show-node-campaigns').checked = campaignSettings.enabled;
     const inboxSettings = await get('settings', `inbox-${state.pubkey}`);
     state.inboxRelays = (inboxSettings?.values || []).map(normalizeRelay).slice(0, 3);
-    for (const conversation of (await all('conversations')).slice(0, 100)) {
+    const knownConversations = (await all('conversations')).slice(0, 100);
+    for (const conversation of knownConversations) {
       const peerSettings = await get('settings', `peer-inbox-${conversation.pubkey}`);
       if (peerSettings?.values?.length) state.peerInboxRelays.set(conversation.pubkey, peerSettings.values.map(normalizeRelay).slice(0, 3));
     }
     await connectAllRelays();
     await renderConversations();
     if (state.activePeer) await selectConversation(state.activePeer);
+    else if (window.innerWidth <= 800 && knownConversations.length) setMobileConversationListOpen(true);
     discoverInboxRelays(state.pubkey).then(async relays => {
       if (!state.inboxRelays.length && relays.length) {
         state.inboxRelays = relays;
@@ -250,7 +258,8 @@
   }
   async function saveRelaySettings(values) {
     state.relays = [...new Set(values.map(normalizeRelay))];
-    await put('settings', { id: 'relays', values: state.relays });
+    state.autoSelectedRelays = false;
+    await put('settings', { id: 'relays', values: state.relays, autoSelected: false });
     await connectAllRelays();
   }
   function finalize(kind, content, tags = []) {
@@ -333,6 +342,7 @@
   }
   async function connectAllRelays() {
     await closeRelays();
+    if (!state.pubkey && !state.bridgeEnabled) return;
     for (const url of effectiveRelayUrls()) connectRelay(url);
     setConnectionStatus();
   }
@@ -575,7 +585,10 @@
     await updateAgentBlockControl(pubkey);
     await renderMessages(pubkey);
     await renderConversations();
-    if (window.innerWidth <= 800) setActiveView('messages');
+    if (window.innerWidth <= 800) {
+      setActiveView('messages');
+      setMobileConversationListOpen(false, { restoreFocus: true });
+    }
   }
   async function updateAgentBlockControl(pubkey) {
     const conversation = await get('conversations', pubkey);
@@ -999,6 +1012,7 @@
   }
   function setActiveView(view) {
     state.activeView = view;
+    if (view !== 'messages') setMobileConversationListOpen(false);
     for (const name of ['messages', 'hangout', 'marketplace', 'node', 'saved']) {
       $(`${name}-view`).classList.toggle('hidden', name !== view);
       document.querySelector(`.nav-button[data-view="${name}"]`).classList.toggle('active', name === view);
@@ -1006,6 +1020,18 @@
     if (view === 'hangout') refreshHangout().catch(() => {});
     if (view === 'marketplace') refreshMarketplace().catch(() => {});
     if (view === 'saved') renderSavedMessages().catch(() => {});
+  }
+  function setMobileConversationListOpen(open, { focus = false, restoreFocus = false } = {}) {
+    const shouldOpen = Boolean(open && window.innerWidth <= 800);
+    $('workspace').classList.toggle('mobile-conversations-open', shouldOpen);
+    $('mobile-conversation-backdrop').classList.toggle('hidden', !shouldOpen);
+    $('messages-view').inert = shouldOpen;
+    $('mobile-open-conversations').setAttribute('aria-expanded', String(shouldOpen));
+    if (shouldOpen && focus) $('conversation-search').focus();
+    else if (!shouldOpen && restoreFocus) {
+      const toggle = $('mobile-open-conversations');
+      (toggle.getClientRects().length ? toggle : $('empty-new-chat')).focus();
+    }
   }
   async function setMessageSaved(peer, message, saved) {
     const updated = { ...message, saved, ...(saved ? { savedAt: Date.now() } : { savedAt: 0 }) };
@@ -1420,6 +1446,9 @@
     const openRelaySettings = async () => {
       $('relay-input').value = state.relays.join('\n');
       $('dm-relay-input').value = state.inboxRelays.join('\n');
+      $('relay-selection-note').textContent = state.autoSelectedRelays
+        ? (window.PropertyI18n?.language === 'pt-BR' ? 'O Property escolheu estes relays aleatoriamente da lista incluída no app. Eles ficam salvos neste aparelho; troque-os quando quiser.' : 'Property picked these relays randomly from its bundled list. They are saved on this device; replace them any time.')
+        : (window.PropertyI18n?.language === 'pt-BR' ? 'Estes são os relays salvos neste aparelho. Troque a seleção quando quiser.' : 'These relays are saved on this device. Replace the selection any time.');
       $('relay-dialog').showModal();
     };
     $('open-settings').addEventListener('click', openRelaySettings);
@@ -1429,9 +1458,21 @@
       catch (error) { showError('relay-error', error.message); }
     });
     $('publish-inbox-list').addEventListener('click', () => publishInboxRelayList().catch(error => showError('relay-error', error.message || 'Falha ao publicar a lista NIP-17.')));
-    $('use-default-relays').addEventListener('click', () => { $('relay-input').value = PUBLIC_RELAY_EXAMPLES.join('\n'); });
+    $('use-default-relays').addEventListener('click', () => { $('relay-input').value = RelayDefaults.pick().join('\n'); });
     $('new-chat-button').addEventListener('click', () => $('new-chat-dialog').showModal());
     $('mobile-new-chat-button').addEventListener('click', () => $('new-chat-dialog').showModal());
+    $('mobile-open-conversations').addEventListener('click', () => setMobileConversationListOpen(true, { focus: true }));
+    $('close-mobile-conversations').addEventListener('click', () => setMobileConversationListOpen(false, { restoreFocus: true }));
+    $('mobile-conversation-backdrop').addEventListener('click', () => setMobileConversationListOpen(false, { restoreFocus: true }));
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && $('workspace').classList.contains('mobile-conversations-open')) {
+        event.preventDefault();
+        setMobileConversationListOpen(false, { restoreFocus: true });
+      }
+    });
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 800) setMobileConversationListOpen(false);
+    });
     $('empty-new-chat').addEventListener('click', () => $('new-chat-dialog').showModal());
     $('open-group-dialog').addEventListener('click', () => {
       $('new-chat-dialog').close(); showError('group-error'); $('group-dialog').showModal();
@@ -1548,7 +1589,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.bridgeRefreshTimer = window.setInterval(refreshBridgeSubscriptions, 60_000);
     registerOfflineShell();
@@ -1557,7 +1598,14 @@
       setStorageReady(true);
       state.account = await get('vault', 'account');
       const relaySettings = await get('settings', 'relays');
-      if (relaySettings?.values?.length) state.relays = relaySettings.values.map(normalizeRelay);
+      if (relaySettings?.values?.length) {
+        state.relays = relaySettings.values.map(normalizeRelay);
+        state.autoSelectedRelays = relaySettings.autoSelected === true;
+      } else {
+        state.relays = RelayDefaults.pick();
+        state.autoSelectedRelays = true;
+        await put('settings', { id: 'relays', values: state.relays, autoSelected: true });
+      }
       const bridgeSettings = await get('settings', 'browser-bridge');
       state.bridgeEnabled = bridgeSettings?.enabled === true;
       $('browser-node-toggle').checked = state.bridgeEnabled;

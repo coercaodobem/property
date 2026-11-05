@@ -18,6 +18,7 @@ for test_file in \
   forwarding-smoke.mjs \
   sw-update-smoke.mjs \
   contact-smoke.mjs \
+  relay-defaults-smoke.mjs \
   app-contract-smoke.mjs \
   relay-migration-smoke.mjs \
   portable-packages-smoke.mjs \

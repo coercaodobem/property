@@ -8,7 +8,7 @@
 
 ## Purpose
 
-Property is a Nostr-based client for communication and digital community. People use an installable web interface on a phone or computer, control their own identity, and choose which relays carry their events. The interface must not own accounts or become a mandatory message intermediary.
+Property is a Nostr-based client for communication and digital community. People use an installable web interface on a phone or computer and control their own identity. On first use, the client randomly selects two relays from a bundled list, saves them locally, and connects after identity activation; people can replace them at any time. The interface must not own accounts or become a mandatory message intermediary.
 
 The project aims to reuse as much working Amethyst code as possible instead of rebuilding proven components from scratch. Execution remains autonomous: code used by Property belongs in its repository and published package, with no executable code fetched from outside services at runtime.
 
@@ -17,7 +17,7 @@ The project aims to reuse as much working Amethyst code as possible instead of r
 1. **Identity stays under the person's control.** There is no central account server. The client creates a random Nostr key using a cryptographically secure source, protects it locally with a password, and supports recovery with a recovery secret. The browser retains identity between sessions and can stay signed in on that device by choice, with manual lock and a local idle policy. A username is a profile identifier, not the key.
 2. **A password is not a private key.** The password unlocks a random key encrypted in local storage. A password-resistant key derivation function, with implementation and parameters pinned in the project, protects the key. The password is not sent to relays or the app host. Losing both the password and recovery secret means losing access; there is no central reset.
 3. **Private messages use end-to-end encryption.** Individual conversations use a mature, compatible Nostr protocol, initially NIP-17 after reviewing its specification and reused implementation. Sender and recipient can read the content; relays and the host see ciphertext and protocol-observable metadata.
-4. **Connect directly to relays.** JavaScript in the browser opens secure connections directly to user-selected relays. GitHub Pages serves static app files; it does not receive or forward message content.
+4. **Connect directly to relays.** JavaScript in the browser opens secure connections directly to the relays stored on the device. A fresh install randomly selects two from a bundled list; people can replace them in settings. GitHub Pages serves static app files; it does not receive or forward message content. Public relays can see the user's IP address and public event metadata.
 5. **Relay forwarding is voluntary.** When enabled, the PWA can forward signed public events between selected relays. NIP-17 gift wraps are forwarded only when addressed to the local identity, and only to that identity's inbox relays; the app does not decrypt them. The bridge does not read or alter other people's envelopes. It is limited to 60 events and 2 MB of outgoing traffic per minute, counting each destination, and only runs while the PWA is active.
 6. **Keep the layers clear.** The interface is a client; relays transport and store events under their own policies; people can run nodes that provide services and remain online on PCs. Mobile browser forwarding is best effort, may use mobile data, and is neither a public inbound relay nor an always-on service. Do not add a custom P2P protocol before proving it is needed.
 7. **Do not promise background execution.** On a phone, the person can enable node collaboration while the browser/app is active. The operating system may suspend the PWA; the project does not promise an always-on mobile relay, screen-on operation, root access, or hidden execution. PCs can run nodes continuously.
@@ -27,7 +27,7 @@ The project aims to reuse as much working Amethyst code as possible instead of r
 
 ## Product and experience
 
-- **First use:** create or recover an identity, explain recovery clearly, choose relays, and start a conversation without a terminal. The browser can retain a session; plaintext passwords are never stored.
+- **First use:** create or recover an identity, explain recovery clearly, use the two locally saved relay suggestions or replace them, and start a conversation without a terminal. The browser can retain a session; plaintext passwords are never stored.
 - **Communication:** private messages, conversations, and public/group spaces use supported and validated Nostr protocols.
 - **Agents:** an independent Nostr identity can message any valid public key directly over NIP-17, without a Property invitation, pairing, or approval. Agent conversations are identified and kept separate; a person can block locally, and incoming messages are never executed. Human review, independent security review, external interoperability, and platform coverage still require their own evidence.
 - **Hangout:** the first version is a public Nostr kind 1 feed, fetched and published directly to selected relays. Closed communities/groups are not part of the initial implementation.

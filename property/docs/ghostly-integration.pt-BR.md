@@ -4,7 +4,7 @@ O [Ghostly](https://github.com/MiguelMedeiros/ghostly) é uma referência upstre
 
 ## Limites do produto
 
-- Manter a identidade Nostr do Property, o armazenamento local de mensagens, os eventos Nostr e os relays escolhidos pela pessoa.
+- Manter a identidade Nostr do Property, o armazenamento local de mensagens, os eventos Nostr e os relays salvos no aparelho. Instalações novas recebem um par aleatório da lista incluída no app e podem trocá-lo.
 - Adaptar interações compatíveis dentro da PWA Property e usar as conexões existentes com relays.
 - Não incluir nem publicar outro cliente derivado do Ghostly. Ele é referência de design, não dependência de execução.
 - Adaptar comportamentos que dependem de protocolo ao Nostr. Recursos incompatíveis com segurança pelos fluxos atuais ficam de fora até terem desenho e validação compatíveis.
@@ -20,6 +20,8 @@ O [Ghostly](https://github.com/MiguelMedeiros/ghostly) é uma referência upstre
 - A busca no chat filtra as mensagens renderizadas localmente na conversa atual. Ignora maiúsculas/minúsculas e acentos, destaca os resultados e permite navegar entre eles. Não consulta relays, publica a busca nem a inclui na URL.
 - Ao redesenhar a conversa aberta, a rolagem mantém a mensagem visível ancorada enquanto a pessoa lê mensagens antigas. Se ela já estava no fim, a conversa continua no fim.
 - Essas interações usam a identidade visual preta e amarela já existente e a opção entre inglês e Português (Brasil).
+- Em uma instalação nova, a mesma PWA sorteia dois endereços de relay de uma lista pequena incluída no app e os salva localmente. A conexão começa após ativar a identidade; a pessoa pode trocar o par nas configurações. Isso evita exigir conhecimento sobre relays antes da primeira conversa. A interface informa que relays públicos veem o IP e metadados de eventos públicos.
+- No celular, a lista de conversas existente abre como um painel dentro da mesma PWA. O armazenamento de conversas e as conexões do Property continuam sendo a única fonte do estado do chat.
 - O GitHub Pages constrói e publica somente a PWA Property a partir de `property/web`.
 
 As tags de resposta e as salas de conversa seguem a definição atual do [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md), incluindo a orientação para usar um protocolo mais adequado em salas com mais de 10 pessoas. O texto da mensagem permanece criptografado e a prévia da citação é local; os relays não recebem o texto em claro.

@@ -6,7 +6,7 @@
   <img src="property/web/assets/property-brand.png" alt="Property logo" width="320">
 </p>
 
-Property is an open project for decentralized communication and voluntary exchange between people, built on Nostr. Its interface runs in a compatible browser on phones, tablets, and computers; access does not depend on app-store approval, publication, or maintenance. It includes an installable PWA, locally controlled identities, encrypted one-to-one and group messaging, and direct connections to relays chosen by each person.
+Property is an open project for decentralized communication and voluntary exchange between people, built on Nostr. Its interface runs in a compatible browser on phones, tablets, and computers; access does not depend on app-store approval, publication, or maintenance. It includes an installable PWA, locally controlled identities, encrypted one-to-one and group messaging, and direct relay connections. On first use, Property randomly picks two relays from a list bundled in the app and saves the selection locally; people can replace them at any time.
 
 **[Open the app](https://coercaodobem.github.io/property/) · [Contribute](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Report an issue](https://github.com/coercaodobem/property/issues/new/choose)**
 
@@ -18,7 +18,7 @@ Property is an open project for decentralized communication and voluntary exchan
 
 ## What we are building
 
-A straightforward way to chat, publish, and discover offers in a decentralized network over Wi-Fi or mobile data. People control their identity and choose which relays carry their events. A password protects a random key created on the device; there is no central login or password recovery. The web host serves static app files; the client connects directly to the selected relays.
+A straightforward way to chat, publish, and discover offers in a decentralized network over Wi-Fi or mobile data. People control their identity and can change which relays carry their events. A password protects a random key created on the device; there is no central login or password recovery. The web host serves static app files; the client connects directly to relays. Public relays can see the user's IP address and public event metadata; private message content remains end-to-end encrypted.
 
 PCs can run relays continuously. The browser can forward events between relays only while the PWA is active. Android and iOS may suspend a background PWA, so a continuously running mobile node is not supported by this web app.
 

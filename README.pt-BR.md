@@ -6,7 +6,7 @@
   <img src="property/web/assets/property-brand.png" alt="Identidade visual do Property" width="320">
 </p>
 
-O Property é um projeto aberto de comunicação descentralizada e trocas voluntárias entre pessoas, baseado em Nostr. A interface funciona pelo navegador em celulares, tablets e computadores compatíveis; o acesso não depende de aprovação, publicação ou manutenção nas lojas de aplicativos. O projeto inclui uma PWA instalável, identidade controlada localmente, mensagens diretas e em grupo criptografadas e conexão direta aos relays escolhidos pela pessoa.
+O Property é um projeto aberto de comunicação descentralizada e trocas voluntárias entre pessoas, baseado em Nostr. A interface funciona pelo navegador em celulares, tablets e computadores compatíveis; o acesso não depende de aprovação, publicação ou manutenção nas lojas de aplicativos. O projeto inclui uma PWA instalável, identidade controlada localmente, mensagens diretas e em grupo criptografadas e conexão direta a relays. No primeiro uso, o Property sorteia dois relays de uma lista incluída no app e salva a seleção localmente; a pessoa pode trocá-los quando quiser.
 
 **[Abrir o app](https://coercaodobem.github.io/property/) · [Como contribuir](CONTRIBUTING.pt-BR.md) · [Roadmap](ROADMAP.pt-BR.md) · [Reportar um problema](https://github.com/coercaodobem/property/issues/new/choose)**
 
@@ -18,7 +18,7 @@ O Property é um projeto aberto de comunicação descentralizada e trocas volunt
 
 ## O que queremos construir
 
-Uma interface simples para conversar, publicar e descobrir ofertas em uma rede descentralizada por Wi-Fi ou rede móvel. Pessoas controlam sua identidade e escolhem os relays que transportam seus eventos. A senha protege a chave aleatória criada no aparelho; não existe servidor central de login ou recuperação. O navegador se conecta diretamente aos relays escolhidos pelo usuário.
+Uma interface simples para conversar, publicar e descobrir ofertas em uma rede descentralizada por Wi-Fi ou rede móvel. Pessoas controlam sua identidade e podem mudar os relays que transportam seus eventos. A senha protege a chave aleatória criada no aparelho; não existe servidor central de login ou recuperação. O navegador se conecta diretamente aos relays. Relays públicos podem ver o endereço IP e metadados de eventos públicos; o conteúdo de mensagens privadas permanece criptografado de ponta a ponta.
 
 PCs podem operar relays continuamente. A colaboração da PWA entre relays acontece enquanto o navegador está ativo. Android e iOS podem suspender uma PWA em segundo plano; manter um nó móvel permanentemente ativo ainda exige outra solução de plataforma, a desenvolver.
 

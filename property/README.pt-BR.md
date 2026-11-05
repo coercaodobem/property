@@ -18,7 +18,7 @@ A interface abre em inglês por padrão. Selecione **Português (Brasil)** no ca
 
 Sirva `property/web` por HTTP(S), por exemplo com `python3 -m http.server 8080 --directory property/web`, e acesse `http://localhost:8080`. Para instalar como PWA, o host deve usar HTTPS (localhost é exceção). O shell funciona offline depois da primeira carga; comunicação depende de relays Nostr alcançáveis.
 
-O Property é uma única PWA com uma identidade e transporte Nostr. O Ghostly é uma referência de UX; melhorias compatíveis de conversa ficam neste app e usam a identidade existente e os relays escolhidos pela pessoa.
+O Property é uma única PWA com uma identidade e transporte Nostr. O Ghostly é uma referência de UX; melhorias compatíveis de conversa ficam neste app e usam a identidade existente e seus relays. Em uma instalação nova, o Property escolhe aleatoriamente dois relays de uma lista incluída no app, salva a seleção localmente e conecta após ativar a identidade. Você pode trocá-los quando quiser.
 
 A opção **Ponte entre relays** encaminha eventos públicos assinados entre os relays que a pessoa selecionou. Gift wraps NIP-17 só são encaminhados para os inbox relays da própria identidade; o cliente não decifra o conteúdo para retransmiti-lo. Há limites locais de 60 eventos por minuto e 2 MB de tráfego de saída por minuto, contando o envio a cada relay. A ponte não funciona quando o navegador é suspenso e pode consumir dados móveis.
 
@@ -43,7 +43,7 @@ Com Node.js 22 instalado, `bash property/tests/run-smoke.sh` executa os testes l
 ## Limites conhecidos
 
 - Uma PWA não permanece ativa em segundo plano no celular: iOS e Android podem suspender ou encerrar o navegador.
-- O host estático entrega o código da interface; as conexões de dados são abertas pelo cliente aos relays escolhidos.
+- O host estático entrega o código da interface; o cliente abre conexões diretamente com dois relays públicos escolhidos aleatoriamente de uma lista incluída no primeiro uso. Você pode substituí-los. Relays públicos podem ver seu endereço IP e metadados de eventos públicos.
 - A opção de manter a sessão neste aparelho prioriza conveniência e reduz a proteção contra alguém que obtenha acesso ao navegador desbloqueado.
 - Hangout e marketplace estão em estágio inicial; pagamentos, custódia, escrow e monetização automática de nodes não são ativados nesta versão.
 - A exibição opcional de campanhas valida a assinatura e os campos do evento, usa link HTTPS e mantém imagem inline. O pagamento BTC/XMR/XNO declarado pelo node não é verificado pelo cliente; a engine de aceite, recebimento e reembolso não existe nesta versão.

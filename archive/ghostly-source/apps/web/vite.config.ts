@@ -59,9 +59,9 @@ function versionFile(): Plugin {
 }
 
 export default defineConfig({
-  base: "/property/direct/",
+  base: "/",
   define: { __APP_VERSION__: JSON.stringify(version), __APP_BUILD__: JSON.stringify(build) },
-  plugins: [appsTestGuard("web"), translateGuard("web"), versionFile(), localePreload(), serviceWorker(build, "/property/direct/"), servicesBridge(), stylesheetsFirstPlugin(), runnerHeaders(), ghostlyPlatformModules(), react(), tailwindcss()],
+  plugins: [appsTestGuard("web"), translateGuard("web"), versionFile(), localePreload(), serviceWorker(build, "/"), servicesBridge(), stylesheetsFirstPlugin(), runnerHeaders(), ghostlyPlatformModules(), react(), tailwindcss()],
   envDir: repositoryRoot,
   resolve: { alias: tauriAliases },
   server: { port: 5180, strictPort: true },

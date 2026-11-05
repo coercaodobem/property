@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.9.0",
   "type": "module",
-  "description": "Property Direct: peer-to-peer conversations, calls and file sharing in a browser.",
+  "description": "Archived upstream Ghostly browser client retained for local UX research; not a Property application.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",

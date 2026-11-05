@@ -10,6 +10,7 @@ const about = await readFile(join(root, 'web/about.html'), 'utf8');
 const manifest = JSON.parse(await readFile(join(root, 'web/manifest.webmanifest'), 'utf8'));
 const app = await readFile(join(root, 'web/app.js'), 'utf8');
 const chatSearch = await readFile(join(root, 'web/chat-search.js'), 'utf8');
+const relayDefaults = await readFile(join(root, 'web/relay-defaults.js'), 'utf8');
 const contact = await readFile(join(root, 'web/contact.js'), 'utf8');
 const agentMessages = await readFile(join(root, 'web/agent-messaging.js'), 'utf8');
 const sw = await readFile(join(root, 'web/sw.js'), 'utf8');
@@ -22,6 +23,8 @@ const campaigns = await readFile(join(root, 'web/campaigns.js'), 'utf8');
 const css = await readFile(join(root, 'web/styles.css'), 'utf8');
 const pagesWorkflow = await readFile(join(root, '../.github/workflows/property-pages.yml'), 'utf8');
 const ghostlyArchiveReadme = await readFile(join(root, '../archive/ghostly-source/apps/web/README.md'), 'utf8');
+const ghostlyArchivePackage = await readFile(join(root, '../archive/ghostly-source/apps/web/package.json'), 'utf8');
+const ghostlyArchiveVite = await readFile(join(root, '../archive/ghostly-source/apps/web/vite.config.ts'), 'utf8');
 const relayLauncher = await readFile(join(root, 'relay/start.sh'), 'utf8');
 assert.match(html, /Content-Security-Policy/);
 assert.match(html, /vendor\/nostr-tools-2\.25\.2\.bundle\.js/);
@@ -45,6 +48,14 @@ assert.doesNotMatch(html, /Property Direct|property\/direct/i, 'the shipped app 
 assert.match(ghostlyArchiveReadme, /Archived Ghostly source reference/);
 assert.match(ghostlyArchiveReadme, /not built or published by the Property Pages workflow/);
 assert.doesNotMatch(ghostlyArchiveReadme, /Property Direct|property\/direct/i, 'archived Ghostly source is not described as another Property product');
+assert.match(ghostlyArchivePackage, /Archived upstream Ghostly browser client retained for local UX research/);
+assert.doesNotMatch(ghostlyArchivePackage, /Property Direct|property\/direct/i, 'archived metadata does not label a second Property product');
+assert.doesNotMatch(ghostlyArchiveVite, /property\/direct/i, 'archived build config does not create a Property sub-app route');
+assert.match(html, /id="mobile-open-conversations"[^>]*aria-controls="conversation-list"/);
+assert.match(html, /id="close-mobile-conversations"/);
+assert.match(app, /setMobileConversationListOpen\(true, \{ focus: true \}\)/);
+assert.match(app, /knownConversations\.length\) setMobileConversationListOpen\(true\)/);
+assert.match(css, /workspace\.mobile-conversations-open \.sidebar/);
 assert.match(pagesWorkflow, /path:\s*property\/web/);
 await assert.rejects(access(join(root, 'web/direct')), 'the Pages bundle contains no second browser app');
 assert.match(html, /\.\/vault\.js/);
@@ -64,11 +75,17 @@ assert.match(html, /id="stop-locked-node"/, 'locked user can stop the opt-in pub
 assert.match(app, /lockIdentity\(\{ preservePublicBridge = false \} = \{\}\)/, 'manual lock and idle lock have separate bridge behavior');
 assert.match(app, /lockIdentity\(\{ preservePublicBridge: true \}\)/, 'idle lock clears identity but retains the opt-in public bridge');
 assert.match(app, /state\.bridgeEnabled && state\.relays\.includes\(url\)/, 'public bridge can reconnect without an unlocked identity');
-assert.match(app, /relays: \[\],/, 'fresh installs have no configured relays');
-assert.match(app, /const PUBLIC_RELAY_EXAMPLES = \['wss:\/\/relay\.damus\.io', 'wss:\/\/nos\.lol'\]/);
-assert.match(app, /PUBLIC_RELAY_EXAMPLES\.join/);
-assert.match(html, /No relay is configured automatically/);
-assert.match(html, /Load public examples/);
+assert.match(app, /RelayDefaults\.pick\(\)/, 'fresh installs select bundled relay suggestions automatically');
+assert.match(app, /autoSelected: true/, 'the generated relay selection is saved locally');
+assert.match(app, /if \(!state\.pubkey && !state\.bridgeEnabled\) return/, 'relay suggestions do not connect before identity activation');
+assert.match(html, /randomly picks two relays from a list included in the app/);
+assert.match(html, /Choose another random pair/);
+assert.match(html, /Public relays can see your IP address and public event metadata/);
+assert.match(html, /\.\/relay-defaults\.js/);
+assert.match(sw, /relay-defaults\.js/);
+assert.match(relayDefaults, /wss:\/\/relay\.damus\.io/);
+assert.match(relayDefaults, /wss:\/\/nos\.lol/);
+assert.match(app, /mobile-conversations-open/);
 assert.match(app, /Campaigns\.selectSponsoredCampaigns/);
 assert.match(html, /\.\/contact\.js/);
 assert.doesNotMatch(html, /agent-pairing\.js|agent-invite|approve-agent-invite/, 'PWA no longer loads an invitation or approval flow');
@@ -203,7 +220,7 @@ assert.doesNotMatch(`${html}\n${about}`, /<(?:script|link)\b[^>]*(?:src|href)=["
   'HTML cannot load executable code or styles from another origin');
 assert.doesNotMatch(`${app}\n${sw}`, /\bimportScripts\s*\(|\bimport\s*\(\s*["']https?:/i,
   'the app and service worker cannot import remote executable code');
-for (const localPath of ['./about.html', './styles.css', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
+for (const localPath of ['./about.html', './styles.css', './relay-defaults.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }
 await access(join(root, 'relay/dist-parts/manifest.txt'));

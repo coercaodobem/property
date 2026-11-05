@@ -4,7 +4,7 @@
 
 ## Product boundary
 
-- Keep Property's existing Nostr identity, local message store, Nostr events, and user-selected relays.
+- Keep Property's existing Nostr identity, local message store, Nostr events, and device-saved relays. Fresh installs receive a locally stored random pair from the bundled list and can replace it.
 - Adapt compatible interactions inside the Property PWA and use its existing relay connections.
 - Do not bundle or publish a second Ghostly-derived client. Ghostly is a design reference, not a runtime dependency.
 - Adapt protocol-dependent behavior to Nostr. Features that cannot be carried safely by the current Nostr flows stay out until they have a compatible design and validation gate.
@@ -20,6 +20,8 @@
 - In-chat search filters the current conversation's locally rendered messages. It ignores letter case and accents, highlights matches, and lets the person move between results. It does not search relays, publish a query, or place it in the URL.
 - Re-rendering an open conversation keeps the visible message anchored when the person is reading older messages. If they were already at the bottom, the conversation stays at the bottom.
 - These interactions use the existing black-and-yellow Property brand and English/Português (Brasil) language choice.
+- On a fresh install, the same PWA randomly selects two relay URLs from a small list bundled with the app and saves them locally. It connects after identity activation; people can replace the pair in settings. This avoids requiring relay knowledge before a first conversation. Public relays can see the user's IP address and public event metadata, so the onboarding copy discloses this.
+- On mobile, the existing conversation list opens as a drawer inside the same PWA. The current Property conversation store and relay connections remain the only source of chat state.
 - GitHub Pages builds and publishes only the Property PWA from `property/web`.
 
 Reply tags and Chat Rooms follow the current [NIP-17 definition](https://github.com/nostr-protocol/nips/blob/master/17.md), including its guidance to use a more suitable protocol for rooms larger than 10 people. Message bodies and local quote previews remain encrypted or local; relays do not receive their plaintext.
