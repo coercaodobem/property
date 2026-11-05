@@ -30,10 +30,10 @@ describe("the manifest's words, in every language the app ships", () => {
     for (const folder of FOLDERS) expect(existsSync(join(LOCALES, folder, "messages.json"))).toBe(true);
   });
 
-  it("keeps the English words the store has shown so far", () => {
+  it("keeps the English Property name and description", () => {
     const en = messages("en");
-    expect(en.appName.message).toBe("Ghostly");
-    expect(en.appShortName.message).toBe("Ghostly");
+    expect(en.appName.message).toBe("Property");
+    expect(en.appShortName.message).toBe("Property");
     expect(en.appDescription.message).toBe("Your services exist while you are online. Ephemeral, identity-addressed peer-to-peer chat and local web apps over WebRTC.");
   });
 
@@ -41,7 +41,7 @@ describe("the manifest's words, in every language the app ships", () => {
     const words = messages(folder);
     expect(Object.keys(words).sort()).toEqual(KEYS);
     for (const key of KEYS) expect(words[key].message.trim()).not.toBe("");
-    expect(words.appName.message).toBe("Ghostly");
+    expect(words.appName.message).toBe("Property");
     expect(words.appShortName.message.length).toBeLessThanOrEqual(12);
     expect(words.appDescription.message.length).toBeLessThanOrEqual(132);
     if (folder !== "en") expect(words.appDescription.message).not.toBe(messages("en").appDescription.message);

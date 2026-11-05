@@ -122,7 +122,7 @@ export function createAtprotoIdentityProvider(options: AtprotoIdentityOptions = 
       signer("atproto-oauth", "proof-records", "Your server (Bluesky or another PDS)",
         "Opens your server's login page. Property asks only to create and delete its own proof records: never to post, read your messages or edit your profile."),
       signer("atproto-oauth-full", "full", "Your server, full access (older servers)",
-        "Only if your server says it cannot limit Property's permission: it then asks for access to your whole account. Property still only writes this one record, and gives the access back right away."),
+        "Asks for access to your whole account on servers that cannot limit Property's permission. Property suggests it when your server refuses the narrower sign-in or the record write. Property still writes only this record, then gives the access back right away."),
     ],
     parseEvidence(raw) {
       if (!raw || typeof raw !== "object" || Array.isArray(raw) || Object.keys(raw).length) throw new Error("Invalid AT Protocol evidence");

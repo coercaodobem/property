@@ -122,7 +122,7 @@ describe("clearing the profile's data", () => {
       world.onCreateDocument = async () => {};
       expect(await world.chrome.runtime.sendMessage({ target: "background", type: "restart-engine" })).toEqual({
         ok: false,
-        error: "Error: The Ghostly peer did not start. Reopen the extension to retry.",
+        error: "Error: The Property peer did not start. Reopen the extension to retry.",
       });
       await settle(20);
       expect(unhandled).toEqual([]);

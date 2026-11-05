@@ -1,6 +1,7 @@
 {
   "fromContacts": "من جهات اتصالك",
   "fromContactsEmpty": "تظهر هنا التطبيقات التي تشاركها جهات اتصالك.",
+  "added": "تمت إضافة {{app}}. اختر من يمكنه فتحه ضمن الأشخاص.",
   "ghostlyOnline": "Property متصل",
   "goOffline": "اقطع الاتصال: لن يبقى شيء مما تشاركه متاحًا",
   "goOnline": "اتصل",
@@ -18,7 +19,10 @@
   "people": "الأشخاص",
   "peopleDone": "تم",
   "remove": "إزالة",
+  "removed": "تمت إزالة {{app}}.",
   "removeNamed": "أزل {{app}}",
+  "removeText": "لن تتمكن جهات اتصالك من فتح هذا التطبيق المحلي بعد الآن.",
+  "removeTitle": "إزالة {{app}}؟",
   "requestCount": "· {{count}} طلبات",
   "requestCount_many": "· {{count}} طلبًا",
   "requestCount_one": "· طلب واحد",

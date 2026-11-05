@@ -1,6 +1,7 @@
 {
   "fromContacts": "連絡先から",
   "fromContactsEmpty": "連絡先が共有したアプリがここに表示されます。",
+  "added": "{{app}}を追加しました。[連絡先]で開ける相手を選んでください。",
   "ghostlyOnline": "Property オンライン",
   "goOffline": "オフラインにする：共有中のものに届かなくなります",
   "goOnline": "オンラインにする",
@@ -18,7 +19,10 @@
   "people": "相手",
   "peopleDone": "完了",
   "remove": "削除",
+  "removed": "{{app}}を削除しました。",
   "removeNamed": "{{app}} を削除",
+  "removeText": "連絡先はこのローカルアプリを開けなくなります。",
+  "removeTitle": "{{app}}を削除しますか？",
   "requestCount": "· {{count}} 件のリクエスト",
   "requestCount_one": "· {{count}} 件のリクエスト",
   "share": "共有",

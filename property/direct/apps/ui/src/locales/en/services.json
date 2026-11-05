@@ -1,6 +1,7 @@
 {
   "fromContacts": "From your contacts",
   "fromContactsEmpty": "Apps your contacts share show up here.",
+  "added": "{{app}} added. Choose who can open it under People.",
   "ghostlyOnline": "Property online",
   "goOffline": "Go offline: nothing you share stays reachable",
   "goOnline": "Go online",
@@ -18,7 +19,10 @@
   "people": "People",
   "peopleDone": "Done",
   "remove": "Remove",
+  "removed": "{{app}} removed.",
   "removeNamed": "Remove {{app}}",
+  "removeText": "Contacts will no longer be able to open this local app.",
+  "removeTitle": "Remove {{app}}?",
   "requestCount": "· {{count}} requests",
   "requestCount_one": "· {{count}} request",
   "share": "Share",

@@ -1,6 +1,7 @@
 {
   "fromContacts": "来自联系人",
   "fromContactsEmpty": "联系人共享的应用会显示在这里。",
+  "added": "已添加 {{app}}。请在“联系人”中选择可打开它的人。",
   "ghostlyOnline": "Property 在线",
   "goOffline": "离线：你共享的内容都将无法访问",
   "goOnline": "上线",
@@ -18,7 +19,10 @@
   "people": "联系人",
   "peopleDone": "完成",
   "remove": "移除",
+  "removed": "已移除 {{app}}。",
   "removeNamed": "移除 {{app}}",
+  "removeText": "联系人将无法再打开此本地应用。",
+  "removeTitle": "移除 {{app}}？",
   "requestCount": "· {{count}} 次请求",
   "requestCount_one": "· {{count}} 次请求",
   "share": "共享",

@@ -1,6 +1,7 @@
 {
   "fromContacts": "Dai tuoi contatti",
   "fromContactsEmpty": "Qui compaiono le app condivise dai tuoi contatti.",
+  "added": "{{app}} è stata aggiunta. Scegli in Persone chi può aprirla.",
   "ghostlyOnline": "Property online",
   "goOffline": "Vai offline: niente di ciò che condividi resta raggiungibile",
   "goOnline": "Vai online",
@@ -18,7 +19,10 @@
   "people": "Persone",
   "peopleDone": "Fatto",
   "remove": "Rimuovi",
+  "removed": "{{app}} è stata rimossa.",
   "removeNamed": "Rimuovi {{app}}",
+  "removeText": "I tuoi contatti non potranno più aprire questa app locale.",
+  "removeTitle": "Rimuovere {{app}}?",
   "requestCount": "· {{count}} richieste",
   "requestCount_one": "· {{count}} richiesta",
   "share": "Condividi",
