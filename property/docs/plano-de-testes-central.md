@@ -20,7 +20,7 @@ Here, **offline** means internet access is blocked while the isolated lab's loca
 |---|---|---|
 | Provenance and autonomy | Document Amethyst/Geode reuse, licenses, hashes, local dependencies, and no runtime code fetch | G00, G02 |
 | Identity | Random local key, password-protected vault, session, lock, backup, and recovery of the same identity | G01, G03, G10 |
-| Private communication | NIP-17, kind 10050, offline recipient, retries, failures, confidentiality, direct relay connections | G04, G05, G09, G10 |
+| Private communication | NIP-17 direct and group chats (up to 10 people), kind 10050, offline recipient, retries, failures, confidentiality, direct relay connections | G04, G05, G09, G10 |
 | Decentralization | Relay choice/switching, voluntary bridges, multiple paths, and continuity without the app host | G05, G09 |
 | Usable PWA | First use, clear errors, cache, update, migration, accessibility, and full UI journeys | G02, G03, G10, G12 |
 | Hangout | Publish/read public notes, verify authorship, deduplicate, and start a conversation from the author | G06, G10 |
@@ -29,7 +29,7 @@ Here, **offline** means internet access is blocked while the isolated lab's loca
 | Computer relays | Bundled runtime, persistent data, restart, limits, retention, and recovery across fixed partition/restart cycles | G00, G09, G11, G12 |
 | Platforms | PWA on desktop/Android/iOS and relay packages for Linux x86_64, Windows x64, and macOS Apple Silicon | G12 |
 
-The planned campaign financial engine remains in scope even though it is absent from the current MVP. Missing functionality fails the corresponding gate; it does not justify deleting a gate, substituting a mock, or treating a declared transaction ID as payment. Marketplace checkout/custody/escrow, private groups, Lightning, and a continuously active mobile relay are not part of the consolidated MVP. Explicitly verify that the app does not simulate these capabilities. Mac Intel and other relay architectures remain future extensions; do not claim they passed. Add cases and gates before accepting any scope expansion.
+The planned campaign financial engine remains in scope even though it is absent from the current MVP. Missing functionality fails the corresponding gate; it does not justify deleting a gate, substituting a mock, or treating a declared transaction ID as payment. Private NIP-17 groups with up to 10 participants are in scope; they have no administrator, membership approval, or reliable leave/removal controls. Groups above 10, marketplace checkout/custody/escrow, Lightning, and a continuously active mobile relay are not part of the consolidated MVP. Explicitly verify that the app does not simulate unsupported capabilities. Mac Intel and other relay architectures remain future extensions; do not claim they passed. Add cases and gates before accepting any scope expansion.
 
 ## 3. Execution rules
 
@@ -150,7 +150,7 @@ Minimum corpus: 100 distinct public notes, 50 messages per direction, 10 offers 
 
 | Case | Procedure and acceptance |
 |---|---|
-| G01-01 | Run all 16 current `run-smoke.sh` suites inside isolation. Check each result, exit code, suite count, and negative case. Update the count if the suite list changes. |
+| G01-01 | Run every suite declared in `run-smoke.sh` and `agent-package-smoke.sh` inside isolation. Check each result, exit code, actual suite count, and negative case; record the count from the scripts rather than relying on a fixed historical number. |
 | G01-02 | Run integration between two real relays and native launcher integration. Verify positive ACK, queries by ID, and exact persistence after restart, not only total counts. Expand existing tests if they only compare counts. |
 | G01-03 | Prove test sensitivity by tampering only isolated fixtures for signature, bundle/hash, atomic price, and backup; each must fail for the expected reason. Restore fixtures without changing expected output or disabling checks. |
 
@@ -186,6 +186,8 @@ Minimum corpus: 100 distinct public notes, 50 messages per direction, 10 offers 
 | G04-04 | Disable one B inbox, then all; test negative ACK, false ACK without persistence, and reconnection. UI distinguishes relay acceptance, failure/partial state, and read state; ACK alone never claims read. Independent query detects a lying relay. |
 | G04-05 | Remove kind 10050, tamper recipient/signature/envelope, alter timestamp, and replay IDs. Do not send via public fallback; reject invalid inputs; no third party receives plaintext. |
 | G04-06 | Run corpus in both directions and reconcile every ID/envelope/conversation in browser and relay. Normal flow has zero loss and one UI appearance per message. Capture visible metadata limits without claiming total anonymity. |
+| G04-07 | In the isolated lab, create one four-member NIP-17 room through the Property UI. Give every member a distinct kind-10050 inbox relay, send one fixed group message, and reconcile exactly four gift wraps: one sender copy and one per other member. All four members decrypt the same rumor/ID; a fifth identity cannot decrypt; no relay or host sees plaintext. The sorted member set and `subject` produce the same room identity/title at each recipient. |
+| G04-08 | In the same four-member room, exercise one reply, one reaction, and one forwarded message to a second pre-created group. Reconcile their participant tags, parent event ID, exact per-member envelope count, inbox destinations, deduplication, and visible sender attribution. Missing inbox data, missing/duplicate/extra envelopes, duplicate participants, or more than 10 members fail closed; do not add a public or third-party fallback. |
 
 ### G05 — Multiple relays/layers and bridges
 
@@ -263,6 +265,7 @@ Each journey uses the real browser app through visible controls; direct internal
 | G10-04 | Backup/recovery in clean profile, session, block, and data migration. Restore correct identity without erasing source or exposing secrets in captures. |
 | G10-05 | Viewports 360×800, 390×844, 768×1024, and 1440×900; keyboard, 200% zoom, visible focus, accessible names, and notices in the selected app language. On a fresh profile, verify English is the default; switch to Português (Brasil), reload, and confirm the selection persists. Verify that user-written names/posts/offers/messages and agent message bodies are never translated. No essential hidden/inaccessible control or unintended horizontal scroll. Emulated mobile viewport is not physical iOS/Android installation. |
 | G10-06 | With four relays and three real bridges, send exactly 50 private messages and 100 public notes. Reconcile content, authorship, IDs, ACKs, destination delivery, and unique storage; capture bundle bytes, RSS, and disk after message batch and each 50-note batch. Check visual deduplication in the five G11 samples. PASS depends on counts/invariants, not latency/load/recovery time. Do not extrapolate to internet/4G. |
+| G10-07 | Through the same PWA, create and reopen a private group; verify title, participant count, sender labels, reply/reaction/forward controls, errors for invalid membership, and NIP-17 inbox explanation in English and Portuguese. Repeat at 390×844 and 1440×900; no separate app, identity, transport, or private-key step appears. Clearly disclose that the protocol has no admin or reliable leave/removal controls. |
 
 If a tool cannot provide a required count/evidence, instrument the harness or mark BLOCKED; do not estimate. Memory/disk limits are resource checks at fixed checkpoints, not speed targets. Justify changes before retest, never silently tune to a result.
 

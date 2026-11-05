@@ -6,7 +6,7 @@
   <img src="property/web/assets/property-brand.png" alt="Property logo" width="320">
 </p>
 
-Property is an open project for decentralized communication and voluntary exchange between people, built on Nostr. Its interface runs in a compatible browser on phones, tablets, and computers; access does not depend on app-store approval, publication, or maintenance. It includes an installable PWA, locally controlled identities, encrypted private messaging, and direct connections to relays chosen by each person.
+Property is an open project for decentralized communication and voluntary exchange between people, built on Nostr. Its interface runs in a compatible browser on phones, tablets, and computers; access does not depend on app-store approval, publication, or maintenance. It includes an installable PWA, locally controlled identities, encrypted one-to-one and group messaging, and direct connections to relays chosen by each person.
 
 **[Open the app](https://coercaodobem.github.io/property/) · [Contribute](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Report an issue](https://github.com/coercaodobem/property/issues/new/choose)**
 
@@ -30,7 +30,7 @@ The platform goal includes Windows, macOS, Linux/Ubuntu, Android, and iOS. The c
 |---|---|---|
 | Web app | HTTPS PWA; runtime files ship in the same package | Full Android/iOS device validation and accessibility review |
 | Identity | Random local key, password-protected vault, persistent session, and encrypted backup | More recovery testing on real devices |
-| Messaging | NIP-17 flows and kind 10050 inbox relay lists, with local tests | Broader interoperability testing with real networks |
+| Messaging | Encrypted NIP-17 direct and group chats (up to 10 participants), with kind 10050 inbox lists and offline protocol tests | Broader interoperability testing; groups have no admin, approval, or reliable member removal |
 | Agents | Direct NIP-17/MCP conversations by public key, with no Property invitation or approval; reversible local blocking | Human review, independent security review, external hosts, and other platforms |
 | PC relay | Geode with bundled runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon | Platform matrix and multi-relay G11-03 gate with 300 probes, three restarts, and nine partition events; see the [test plan status](property/docs/plano-de-testes-central.md) |
 | Volunteer bridge | Limited event forwarding between relays while the PWA is active | Continuous mobile operation is not supported by a PWA |
@@ -86,7 +86,7 @@ These tests do not make payments or publish messages to public relays. Local int
 | [`property/relay/`](property/relay/) | Portable relay launcher and package |
 | [`property/tests/`](property/tests/) | Property product validations |
 | [`property/docs/`](property/docs/) | Product identity, decisions, execution notes, and test plan |
-| [`archive/ghostly-source/`](archive/ghostly-source/) | Archived UX reference; not built or published |
+| [`property/docs/ghostly-integration.md`](property/docs/ghostly-integration.md) | Ghostly-inspired chat interactions inside the existing Property PWA |
 | [`geode/`](geode/) | Reused relay code |
 | `amethyst/`, `commons/`, `commonsUI/`, `desktopApp/`, `cli/` | Preserved upstream base; their presence does not mean every target is shipped as a Property product |
 

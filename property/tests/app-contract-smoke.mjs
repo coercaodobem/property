@@ -64,7 +64,9 @@ assert.match(app, /AgentMessages\.decodeEnvelope/);
 assert.doesNotMatch(app, /agentConversationStarted|agentPairing|approveAgentInvite|inspectAgentInvite/, 'the active app has no agent pairing gate');
 assert.match(app, /AgentMessages\.encodeEnvelope\(/, 'human messages to an agent carry a versioned request envelope');
 assert.match(app, /previous\.agent === true/, 'a user can choose the agent protocol for one direct conversation');
-assert.match(app, /const isAgentProtocol = rumor\.content\.includes\(AgentMessages\.PROTOCOL\)/, 'valid agent messages do not require pairing or a preceding human request');
+assert.match(app, /const isAgentProtocol = !group && rumor\.content\.includes\(AgentMessages\.PROTOCOL\)/, 'agent envelopes stay scoped to direct conversations and do not redefine group chat');
+assert.match(html, /id="group-dialog"/, 'private groups are a dialog inside the single Property PWA');
+assert.match(app, /Routing\.planGroupGiftWraps\(/, 'group delivery uses Property’s existing NIP-17 relay routing');
 assert.match(app, /message\.text/);
 assert.match(html, /id="open-agent-manager"/);
 assert.match(html, /id="agent-mode" type="checkbox"/);
@@ -84,7 +86,7 @@ assert.match(vault, /iterations: ITERATIONS/);
 assert.match(sw, /caches\.match/);
 assert.match(vault, /const ITERATIONS = 600000/);
 assert.match(app, /Vault\.createVault/);
-assert.match(app, /nip17\.wrapManyEvents/);
+assert.match(app, /N\.nip59\.createWrap\(N\.nip59\.createSeal/, 'Property seals one shared NIP-17 rumor separately for each direct or group participant');
 assert.match(app, /planGiftWraps/);
 assert.match(app, /forwardRelayEvent/);
 assert.match(app, /startBridgeSubscription/);
@@ -123,7 +125,8 @@ assert.doesNotMatch(html, /<link[^>]+href=["']https?:[^"']+\.css/i, 'runtime CSS
 for (const action of ['actions/checkout', 'actions/configure-pages', 'actions/upload-pages-artifact', 'actions/deploy-pages']) {
   assert.ok(pagesWorkflow.includes(action), `Pages workflow includes ${action}`);
 }
-assert.equal([...pagesWorkflow.matchAll(/uses:\s*[\w-]+\/[\w-]+@[0-9a-f]{40}/g)].length, 5, 'every workflow action is pinned to a commit SHA');
+const pagesActions = pagesWorkflow.split('\n').filter(line => /^\s*uses:\s*/.test(line));
+assert.ok(pagesActions.length > 0 && pagesActions.every(line => /uses:\s*[\w-]+\/[\w-]+@[0-9a-f]{40}(?:\s|$)/.test(line)), 'every workflow action is pinned to a commit SHA');
 const pagesBase = new URL('https://coercaodobem.github.io/property/');
 const shellMatch = sw.match(/const SHELL = \[(.*?)\];/s);
 assert.ok(shellMatch, 'service worker declares its offline shell');

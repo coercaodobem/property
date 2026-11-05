@@ -11,11 +11,11 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v26">
-  <link rel="stylesheet" href="./styles.css?v=property-v26">
-  <script defer src="./i18n.js?v=property-v26"></script>
+  <link rel="stylesheet" href="./styles.css?v=property-v27">
+  <script defer src="./i18n.js?v=property-v27"></script>
   <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v26"></script>
   <script defer src="./vault.js?v=property-v26"></script>
-  <script defer src="./routing.js?v=property-v26"></script>
+  <script defer src="./routing.js?v=property-v27"></script>
   <script defer src="./forwarding.js?v=property-v26"></script>
   <script defer src="./nano.js?v=property-v26"></script>
   <script defer src="./money.js?v=property-v26"></script>
@@ -23,7 +23,7 @@
   <script defer src="./campaigns.js?v=property-v26"></script>
   <script defer src="./contact.js?v=property-v26"></script>
   <script defer src="./agent-messaging.js?v=property-v26"></script>
-  <script defer src="./app.js?v=property-v26"></script>
+  <script defer src="./app.js?v=property-v27"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -107,7 +107,7 @@
           <div id="messages" class="messages" aria-live="polite"></div>
           <div id="reply-context" class="reply-context hidden" aria-live="polite"><span><strong id="reply-context-label">Replying to message</strong><small id="reply-context-text"></small></span><button id="cancel-reply" type="button" class="icon-button small" aria-label="Cancel reply">×</button></div>
           <form id="send-form" class="composer"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Write a private message…" aria-label="Message"></textarea><button class="send-button" type="submit" aria-label="Send message">↑</button></form>
-          <p class="composer-note">NIP-17 · requires an inbox relay kind 10050 list published by both you and the other person</p>
+          <p id="composer-note" class="composer-note">NIP-17 · requires an inbox relay kind 10050 list published by both you and the other person</p>
         </div>
       </section>
 
@@ -135,7 +135,9 @@
 
   <dialog id="relay-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">DIRECT CONNECTION</p><h2>Your relays</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p class="muted">No relay is configured automatically. Choose addresses and select “Save and connect”. Use wss:// in production; ws:// works only for local tests. The NIP-17 list is public.</p><label class="field"><span>General relays (one per line)</span><textarea id="relay-input" rows="4" spellcheck="false"></textarea></label><label class="field"><span>NIP-17 inbox relays (1–3 URLs)</span><textarea id="dm-relay-input" rows="3" spellcheck="false" placeholder="wss://relay.example"></textarea></label><div class="dialog-actions"><button id="save-relays" class="button primary" type="button">Save and connect</button><button id="publish-inbox-list" class="button secondary" type="button">Publish my NIP-17 inbox relays</button><button id="use-default-relays" class="button text" type="button">Load public examples</button></div><p class="fine-print">The examples are two public relays; filling them in does not connect. Connection starts only after saving. The NIP-17 list is public; messages go to the inbox relays you and the other person selected.</p><p id="relay-error" class="error" role="alert"></p></div></dialog>
 
-  <dialog id="new-chat-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">PRIVATE MESSAGE</p><h2>New conversation</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><label class="field"><span>Public npub or hex public key</span><input id="peer-input" autocomplete="off" spellcheck="false" placeholder="npub1…"></label><label class="field"><span>Local name (optional)</span><input id="peer-name-input" maxlength="80" placeholder="How do you know this person?"></label><label class="field"><span>Profile relays (one per line, optional)</span><textarea id="peer-relays-input" rows="2" spellcheck="false" placeholder="wss://relay.example"></textarea></label><label class="check-row"><input id="agent-mode" type="checkbox"><span>Use the agent messaging protocol. This opens only this conversation; it does not grant access to your other messages or your key.</span></label><button id="start-chat-button" class="button primary full" type="button">Open conversation</button><p id="new-chat-error" class="error" role="alert"></p></div></dialog>
+  <dialog id="new-chat-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">PRIVATE MESSAGE</p><h2>New conversation</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><label class="field"><span>Public npub or hex public key</span><input id="peer-input" autocomplete="off" spellcheck="false" placeholder="npub1…"></label><label class="field"><span>Local name (optional)</span><input id="peer-name-input" maxlength="80" placeholder="How do you know this person?"></label><label class="field"><span>Profile relays (one per line, optional)</span><textarea id="peer-relays-input" rows="2" spellcheck="false" placeholder="wss://relay.example"></textarea></label><label class="check-row"><input id="agent-mode" type="checkbox"><span>Use the agent messaging protocol. This opens only this conversation; it does not grant access to your other messages or your key.</span></label><button id="start-chat-button" class="button primary full" type="button">Open conversation</button><button id="open-group-dialog" class="button secondary full" type="button">Create private group</button><p id="new-chat-error" class="error" role="alert"></p></div></dialog>
+
+  <dialog id="group-dialog" class="dialog-card" aria-labelledby="group-dialog-title"><form method="dialog" class="dialog-head"><div><p class="eyebrow">PRIVATE NIP-17 ROOM</p><h2 id="group-dialog-title">Create a private group</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><label class="field"><span>Group name</span><input id="group-name-input" maxlength="80" autocomplete="off" placeholder="A name everyone will recognize"></label><label class="field"><span>Members’ public npub or hex keys, one per line</span><textarea id="group-members-input" rows="5" autocomplete="off" spellcheck="false" placeholder="npub1…&#10;npub1…"></textarea></label><p class="fine-print">Add 2–9 other people. Each member needs a public NIP-17 inbox list (kind 10050) discoverable through your configured relays. Property encrypts a separate envelope for each participant. NIP-17 groups have no administrator, membership approval, or reliable leave/removal control; create rooms with people who have agreed to participate.</p><button id="create-group-button" class="button primary full" type="button">Create group</button><p id="group-error" class="error" role="alert"></p></div></dialog>
 
   <dialog id="product-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">NIP-15</p><h2 id="product-dialog-title">Publish offer</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><label class="field"><span>Product or service name</span><input id="product-name" maxlength="140"></label><label class="field"><span>Description</span><textarea id="product-description" rows="4" maxlength="2000"></textarea></label><label class="field"><span>Currency</span><select id="product-currency"><option value="XNO">XNO · Nano</option><option value="XMR">XMR · Monero</option><option value="BTC">BTC · Bitcoin</option></select></label><label class="field"><span>Price</span><input id="product-price" type="text" inputmode="decimal" maxlength="80" required placeholder="e.g. 0.25"></label><label class="field"><span>HTTPS image (optional)</span><input id="product-image" type="url" placeholder="https://…"></label><button id="publish-product" class="button primary full" type="button">Sign and publish</button><p class="fine-print">NIP-15 is a draft protocol marked as not recommended. The MVP lets you publish, edit, and request removal of offers; it does not process payments or provide custody.</p><p id="product-error" class="error" role="alert"></p></div></dialog>
 

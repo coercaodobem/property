@@ -6,7 +6,7 @@
   <img src="property/web/assets/property-brand.png" alt="Identidade visual do Property" width="320">
 </p>
 
-O Property é um projeto aberto de comunicação descentralizada e trocas voluntárias entre pessoas, baseado em Nostr. A interface funciona pelo navegador em celulares, tablets e computadores compatíveis; o acesso não depende de aprovação, publicação ou manutenção nas lojas de aplicativos. O projeto inclui uma PWA instalável, identidade controlada localmente, mensagens privadas criptografadas e conexão direta aos relays escolhidos pela pessoa.
+O Property é um projeto aberto de comunicação descentralizada e trocas voluntárias entre pessoas, baseado em Nostr. A interface funciona pelo navegador em celulares, tablets e computadores compatíveis; o acesso não depende de aprovação, publicação ou manutenção nas lojas de aplicativos. O projeto inclui uma PWA instalável, identidade controlada localmente, mensagens diretas e em grupo criptografadas e conexão direta aos relays escolhidos pela pessoa.
 
 **[Abrir o app](https://coercaodobem.github.io/property/) · [Como contribuir](CONTRIBUTING.pt-BR.md) · [Roadmap](ROADMAP.pt-BR.md) · [Reportar um problema](https://github.com/coercaodobem/property/issues/new/choose)**
 
@@ -30,7 +30,7 @@ O objetivo de plataforma inclui Windows, macOS, Linux/Ubuntu, Android e iOS. A i
 |---|---|---|
 | Interface web | PWA publicada em HTTPS; arquivos de execução servidos do próprio pacote | Validação completa em Android/iOS e acessibilidade |
 | Identidade | Chave aleatória local, cofre cifrado por senha, sessão persistente e backup cifrado | Mais testes de recuperação e uso em aparelhos reais |
-| Mensagens | Fluxos NIP-17 e listas de inbox relays kind 10050, com testes locais | Validação ampliada de interoperabilidade e redes reais |
+| Mensagens | Conversas diretas e grupos NIP-17 criptografados (até 10 participantes), listas inbox kind 10050 e testes offline | Validação ampliada de interoperabilidade; grupos não têm administração, aprovação ou remoção confiável de membros |
 | Agentes | Conversas diretas via NIP-17/MCP por chave pública, sem convite nem aprovação do Property; bloqueio local reversível | Revisão humana, revisão independente de segurança, hosts externos e outras plataformas |
 | Relay de PC | Geode com runtime incluído para Linux x86_64, Windows x64 e macOS Apple Silicon | Matriz por plataforma e gate multi-relay G11-03 com 300 probes, três reinícios e nove eventos de partição; veja o [status do plano](property/docs/plano-de-testes-central.pt-BR.md) |
 | Ponte voluntária | Encaminhamento limitado entre relays enquanto a PWA está ativa | Operação móvel contínua não é suportada pela PWA |
@@ -86,7 +86,7 @@ Esses testes não dependem de pagamentos ou publicação de mensagens em relays 
 | [`property/relay/`](property/relay/) | Launcher e pacote portátil do relay |
 | [`property/tests/`](property/tests/) | Validações do produto Property |
 | [`property/docs/`](property/docs/) | Identidade, decisões, execução e plano de testes |
-| [`archive/ghostly-source/`](archive/ghostly-source/) | Referência de UX arquivada; não é construída nem publicada |
+| [`property/docs/ghostly-integration.pt-BR.md`](property/docs/ghostly-integration.pt-BR.md) | Interações de conversa inspiradas no Ghostly dentro da PWA Property existente |
 | [`geode/`](geode/) | Código do relay reaproveitado do Amethyst |
 | `amethyst/`, `commons/`, `commonsUI/`, `desktopApp/`, `cli/` | Base upstream preservada; presença do código não significa que todos os alvos sejam produtos Property publicados |
 

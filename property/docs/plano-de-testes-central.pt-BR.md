@@ -21,7 +21,7 @@ Layers designa as camadas exercitadas no laboratório: navegador/identidade, des
 |---|---|---|
 | Origem e autonomia | Reuso Amethyst/Geode documentado, licenças, hashes, dependências locais e nenhuma busca de código em runtime | G00, G02 |
 | Identidade | Chave aleatória local, senha protegendo cofre, sessão, bloqueio, backup e recuperação da mesma identidade | G01, G03, G10 |
-| Comunicação privada | NIP-17, kind 10050, destinatário offline, repetição, falhas, confidencialidade e conexão direta aos relays | G04, G05, G09, G10 |
+| Comunicação privada | Conversas diretas e em grupo NIP-17 (até 10 pessoas), kind 10050, destinatário offline, repetição, falhas, confidencialidade e conexão direta aos relays | G04, G05, G09, G10 |
 | Descentralização | Escolha/troca de relays, pontes voluntárias, vários caminhos e continuidade sem o host do app | G05, G09 |
 | PWA utilizável | Primeiro uso, erros claros, cache, atualização, migração, acessibilidade e fluxo completo pela interface | G02, G03, G10, G12 |
 | Hangout | Publicar/ler notas públicas, verificar autoria, deduplicar e iniciar conversa a partir da autoria | G06, G10 |
@@ -30,9 +30,7 @@ Layers designa as camadas exercitadas no laboratório: navegador/identidade, des
 | Nodes de computador | Runtime incluído, dados persistentes, reinício, limites, retenção e recuperação após ciclos fixos de partição/reinício | G00, G09, G11, G12 |
 | Plataformas | PWA em desktop/Android/iOS e pacotes de relay Linux x86_64, Windows x64 e macOS Apple Silicon | G12 |
 
-A engine financeira de campanhas permanece no escopo planejado, mesmo estando ausente no MVP atual. Sua ausência reprova a implementação correspondente; não autoriza apagar o gate, trocar o teste por um mock ou declarar a campanha paga porque existe um txid no evento.
-
-Checkout, custódia, escrow e pagamentos de compras do marketplace, grupos privados, Lightning e relay móvel continuamente ativo não estão definidos como funcionalidades do MVP consolidado. Testar explicitamente que o app não simula essas capacidades. Mac Intel e outras arquiteturas de relay continuam expansões pendentes, sem alegação de suporte aprovado. Se o mantenedor ampliar esse escopo, acrescentar casos e gates antes de promover a ampliação.
+A engine financeira de campanhas permanece no escopo planejado, mesmo estando ausente no MVP atual. Sua ausência reprova a implementação correspondente; não autoriza apagar o gate, trocar o teste por um mock ou declarar a campanha paga porque existe um txid no evento. Grupos privados NIP-17 com até 10 participantes fazem parte do escopo; não têm administração, aprovação de entrada ou controles confiáveis para sair/remover membros. Grupos acima de 10 pessoas, checkout/custódia/escrow do marketplace, Lightning e relay móvel continuamente ativo não fazem parte do MVP consolidado. Verificar explicitamente que o app não simula recursos fora do escopo. Mac Intel e outras arquiteturas de relay continuam extensões futuras, sem alegação de aprovação. Acrescentar casos e gates antes de aceitar ampliação de escopo.
 
 ## 3. Instruções de execução para o modelo ativo escolhido pelo mantenedor
 
@@ -151,7 +149,7 @@ Prazos de `waitFor`, socket, subprocesso e watchdog são apenas proteções cont
 
 | Caso | Procedimento e aprovação |
 |---|---|
-| G01-01 | Executar todas as 16 suítes atuais de run-smoke.sh dentro do isolamento. Conferir individualmente resultado, código de saída e o número de suítes; validar casos negativos. Atualizar esta contagem quando a lista de suítes mudar. |
+| G01-01 | Executar todas as suítes declaradas em run-smoke.sh e agent-package-smoke.sh dentro do isolamento. Conferir cada resultado, código de saída, quantidade real de suítes e caso negativo; registrar a contagem diretamente dos scripts, sem depender de número histórico fixo. |
 | G01-02 | Executar integração entre dois relays reais e integração nativa do launcher. Verificar ACK positivo, consulta por IDs e persistência exata após reinício, não só contagem total. Ampliar o teste existente se só comparar contagens. |
 | G01-03 | Demonstrar sensibilidade dos testes: adulterar apenas fixtures isoladas de assinatura, bundle/hash, preço atômico e backup; cada caso deve falhar pelo motivo previsto. Restaurar fixtures sem editar esperado ou desativar checks. |
 
@@ -187,6 +185,8 @@ Prazos de `waitFor`, socket, subprocesso e watchdog são apenas proteções cont
 | G04-04 | Desligar um inbox de B, depois todos; testar ACK negativo, falso ACK sem persistência e reconexão. UI distingue envio aceito por relay, falha/parcial e leitura; não anuncia leitura só por ACK. Consulta independente detecta relay que mentiu. |
 | G04-05 | Faltar kind 10050, adulterar destinatário/assinatura/envelope, manipular timestamp e repetir IDs. Não envia por fallback público; rejeita inválidos; nenhum terceiro recebe plaintext. |
 | G04-06 | Executar o corpus nas duas direções e reconciliar cada ID/envelope/conversa no browser e no relay. Em fluxo normal, zero perdas e uma aparição por mensagem na UI. Capturar limites de metadados visíveis sem afirmar anonimato total. |
+| G04-07 | No laboratório isolado, criar pela UI do Property uma sala NIP-17 com quatro participantes. Configurar inbox kind 10050 distinto para cada um, enviar uma mensagem fixa e reconciliar exatamente quatro gift wraps: uma cópia do remetente e uma para cada outro membro. Os quatro decifram o mesmo rumor/ID; uma quinta identidade não decifra; nenhum relay ou host vê plaintext. O conjunto ordenado de membros e o `subject` produzem a mesma identidade/título de sala em cada destinatário. |
+| G04-08 | Na mesma sala com quatro participantes, testar uma resposta, uma reação e uma mensagem encaminhada para um segundo grupo criado antes. Reconciliar tags de participantes, ID do evento-pai, contagem exata de envelopes por pessoa, destinos inbox, deduplicação e autoria visível. Inbox ausente, envelope ausente/duplicado/extra, participantes duplicados ou mais de 10 membros falham de modo fechado; não adicionar fallback público nem por terceiros. |
 
 ### G05 — Vários layers/relays e pontes
 
@@ -264,6 +264,7 @@ Cada jornada usa o app real no navegador, por controles visíveis; chamadas dire
 | G10-04 | Backup/recuperação em perfil limpo, sessão, bloqueio e migração com dados. Voltar à identidade correta sem apagar origem nem expor segredo em captura. |
 | G10-05 | Viewports 360x800, 390x844, 768x1024 e 1440x900; teclado, zoom 200%, foco visível, nomes acessíveis e avisos no idioma selecionado. Em perfil novo, confirmar inglês como padrão; mudar para Português (Brasil), recarregar e confirmar que a seleção persiste. Confirmar que nomes, publicações, ofertas, mensagens de usuários e corpos de mensagens entre agentes nunca são traduzidos. Sem controle essencial oculto/inacessível ou rolagem horizontal involuntária. Tamanho móvel emulado não equivale a instalação iOS/Android. |
 | G10-06 | Em quatro relays e três pontes reais, enviar exatamente 50 mensagens privadas e 100 notas públicas. Reconciliar conteúdo, autoria, IDs, ACKs, entrega no destino e armazenamento único; capturar bytes do bundle, RSS e disco após o lote de mensagens e cada lote de 50 notas. A deduplicação visual é verificada nos cinco samples de G11. Critério de PASS é a contagem e as invariantes, sem metas de latência, carregamento ou retomada cronometrada. Não extrapolar para internet/4G. |
+| G10-07 | No mesmo PWA, criar e reabrir um grupo privado; conferir título, total de participantes, identificação de quem enviou, controles de resposta/reação/encaminhamento, erros de membros inválidos e explicação de inbox NIP-17 em inglês e português. Repetir em 390x844 e 1440x900; não aparece outro app, identidade, transporte ou etapa de chave privada. Informar claramente que o protocolo não tem administração nem controles confiáveis para sair/remover membros. |
 
 Se a ferramenta não fornecer uma contagem ou evidência exigida, instrumentar o harness ou registrar BLOCKED; nunca preencher com estimativa. Os limites de memória/disco são critérios de recurso aferidos nos checkpoints fixos, não metas de velocidade. Mudança exige justificativa técnica anterior ao reteste, nunca ajuste silencioso ao resultado.
 
