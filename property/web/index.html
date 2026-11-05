@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#090a0c">
   <meta name="description" content="Property: Nostr communication with a locally controlled identity and relays you choose.">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https: ws: wss:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>Property</title>
   <link rel="icon" href="./assets/property-icon-192.png?v=property-v26" type="image/png" sizes="192x192">
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
   <link rel="stylesheet" href="./styles.css?v=property-v46">
-  <script defer src="./i18n.js?v=property-v45"></script>
+  <script defer src="./i18n.js?v=property-v46"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -34,7 +34,8 @@
   <script defer src="./message-edits.js?v=property-v1"></script>
   <script defer src="./secret-guard.js?v=property-v1"></script>
   <script defer src="./public-profile.js?v=property-v2"></script>
-  <script defer src="./app.js?v=property-v48"></script>
+  <script defer src="./nip05.js?v=property-v1"></script>
+  <script defer src="./app.js?v=property-v49"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -178,7 +179,7 @@
 
   <dialog id="delete-product-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">NOSTR WITHDRAWAL</p><h2>Withdraw this offer?</h2></div><button class="icon-button" aria-label="Cancel">×</button></form><div class="dialog-body"><p id="delete-product-label" class="muted"></p><button id="confirm-delete-product" class="button danger full" type="button">Sign and publish request</button><p id="delete-product-error" class="error" role="alert"></p></div></dialog>
 
-  <dialog id="profile-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">LOCAL IDENTITY</p><h2>Profile and security</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p><strong>npub</strong></p><code id="profile-npub" class="break-code"></code><p class="fine-print">Profile details are public Nostr metadata. Property reads and writes them through your saved relays; it never fetches a profile image. NIP-05 is displayed without verification.</p><button id="load-public-profile" class="button text full" type="button">Load current public profile</button><label class="field"><span>Public name</span><input id="profile-name" maxlength="80" placeholder="How should you appear?"></label><label class="field"><span>About</span><textarea id="profile-about" rows="3" maxlength="1000"></textarea></label><label class="field"><span>Website URL (optional)</span><input id="profile-website" type="url" maxlength="2048" placeholder="https://example.com"></label><label class="field"><span>Profile picture URL (optional)</span><input id="profile-picture" type="url" maxlength="2048" placeholder="https://example.com/image.jpg"></label><label class="field"><span>NIP-05 (not verified)</span><input id="profile-nip05" maxlength="160" placeholder="name@example.com"></label><p id="profile-save-status" class="fine-print" role="status" aria-live="polite">Your profile is public only after you choose Save and publish.</p><button id="save-profile" class="button secondary full" type="button">Save and publish profile</button><button id="share-contact" class="button primary full" type="button">Share contact</button><button id="export-backup" class="button secondary full" type="button">Download encrypted backup</button><button id="copy-npub" class="button text full" type="button">Copy npub</button><button class="button text full" type="button" data-install-property>Install Property</button><button id="open-agent-manager" class="button secondary full" type="button">Agents</button><button id="lock-account" class="button danger full" type="button">Lock and clear session</button><p id="profile-error" class="error" role="alert"></p></div></dialog>
+  <dialog id="profile-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">LOCAL IDENTITY</p><h2>Profile and security</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p><strong>npub</strong></p><code id="profile-npub" class="break-code"></code><p class="fine-print">Profile details are public Nostr metadata. Property reads and writes them through your saved relays; it never fetches a profile image. A NIP-05 check only compares a domain's published mapping with this key; it does not verify a real-world person.</p><button id="load-public-profile" class="button text full" type="button">Load current public profile</button><label class="field"><span>Public name</span><input id="profile-name" maxlength="80" placeholder="How should you appear?"></label><label class="field"><span>About</span><textarea id="profile-about" rows="3" maxlength="1000"></textarea></label><label class="field"><span>Website URL (optional)</span><input id="profile-website" type="url" maxlength="2048" placeholder="https://example.com"></label><label class="field"><span>Profile picture URL (optional)</span><input id="profile-picture" type="url" maxlength="2048" placeholder="https://example.com/image.jpg"></label><label class="field"><span>NIP-05</span><input id="profile-nip05" maxlength="160" placeholder="name@example.com"></label><button id="verify-profile-nip05" class="button text full" type="button" disabled>Check domain mapping</button><p id="profile-nip05-status" class="fine-print" role="status" aria-live="polite"></p><p class="fine-print">Only checked when you tap the button. The request reveals your IP address to the NIP-05 domain. The result links a domain to a public key; it does not prove a person's identity.</p><p id="profile-save-status" class="fine-print" role="status" aria-live="polite">Your profile is public only after you choose Save and publish.</p><button id="save-profile" class="button secondary full" type="button">Save and publish profile</button><button id="share-contact" class="button primary full" type="button">Share contact</button><button id="export-backup" class="button secondary full" type="button">Download encrypted backup</button><button id="copy-npub" class="button text full" type="button">Copy npub</button><button class="button text full" type="button" data-install-property>Install Property</button><button id="open-agent-manager" class="button secondary full" type="button">Agents</button><button id="lock-account" class="button danger full" type="button">Lock and clear session</button><p id="profile-error" class="error" role="alert"></p></div></dialog>
 
   <dialog id="chat-details-dialog" class="dialog-card" aria-labelledby="chat-details-title">
     <form method="dialog" class="dialog-head"><div><p class="eyebrow">LOCAL CONTACT</p><h2 id="chat-details-title">Conversation details</h2></div><button class="icon-button" aria-label="Close">×</button></form>
@@ -193,8 +194,10 @@
           <div id="chat-profile-name-field" hidden></div><div id="chat-profile-about-field" hidden></div>
           <div id="chat-profile-nip05-field" hidden></div><div id="chat-profile-website-field" hidden></div>
         </dl>
+        <button id="verify-chat-nip05" class="button text full" type="button" hidden>Check domain mapping</button>
+        <p id="chat-profile-nip05-status" class="fine-print" role="status" aria-live="polite"></p>
         <button id="load-chat-public-profile" class="button primary full" type="button">Load latest public profile</button>
-        <p class="fine-print">Property reads signed kind 0 profile events only from your saved relays and the relay hints for this conversation. Profile names and descriptions are self-described; a Nostr signature ties the event to this public key, not to a verified real-world identity. NIP-05 is shown without verification. Property does not load remote profile images.</p>
+        <p class="fine-print">Property reads signed kind 0 profile events only from your saved relays and the relay hints for this conversation. Profile names and descriptions are self-described; a Nostr signature ties the event to this public key, not to a verified real-world identity. A NIP-05 check only runs when you tap the button, reveals your IP address to that domain, and checks only its mapping to a public key. Property does not load remote profile images.</p>
       </section>
     </div>
   </dialog>

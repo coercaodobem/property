@@ -16,6 +16,7 @@ const conversationFolders = await readFile(join(root, 'web/conversation-folders.
 const chatDrafts = await readFile(join(root, 'web/chat-drafts.js'), 'utf8');
 const richText = await readFile(join(root, 'web/rich-text.js'), 'utf8');
 const secretGuard = await readFile(join(root, 'web/secret-guard.js'), 'utf8');
+const nip05 = await readFile(join(root, 'web/nip05.js'), 'utf8');
 const messageEdits = await readFile(join(root, 'web/message-edits.js'), 'utf8');
 const secretGuardNotices = await readFile(join(root, 'web/vendor/licenses/secret-guard/README.md'), 'utf8');
 const relayDefaults = await readFile(join(root, 'web/relay-defaults.js'), 'utf8');
@@ -43,6 +44,7 @@ const ghostlyArchivePackage = await readFile(join(root, '../archive/ghostly-sour
 const ghostlyArchiveVite = await readFile(join(root, '../archive/ghostly-source/apps/web/vite.config.ts'), 'utf8');
 const relayLauncher = await readFile(join(root, 'relay/start.sh'), 'utf8');
 assert.match(html, /Content-Security-Policy/);
+assert.match(html, /connect-src 'self' https: ws: wss:/, 'NIP-05 HTTPS requests are permitted only in the app network policy');
 assert.match(html, /vendor\/nostr-tools-2\.25\.2\.bundle\.js/);
 assert.match(html, /rel="manifest"/);
 assert.match(html, /href="\.\/about\.html"/);
@@ -58,14 +60,15 @@ assert.match(sw, /vault\.js/);
 assert.match(sw, /about\.html/);
 assert.match(html, /\.\/chat-search\.js/);
 assert.match(html, /\.\/pwa\.js\?v=property-v35/);
-assert.match(html, /\.\/i18n\.js\?v=property-v45/);
+assert.match(html, /\.\/i18n\.js\?v=property-v46/);
 assert.match(html, /\.\/styles\.css\?v=property-v46/);
 assert.match(html, /\.\/conversation-folders\.js\?v=property-v35/);
 assert.match(html, /\.\/chat-drafts\.js\?v=property-v38/);
 assert.match(html, /\.\/rich-text\.js\?v=property-v37/);
 assert.match(html, /\.\/vendor\/qr-code-generator\.js\?v=property-v39/);
 assert.match(html, /\.\/public-profile\.js\?v=property-v2/);
-assert.match(html, /\.\/app\.js\?v=property-v48/);
+assert.match(html, /\.\/nip05\.js\?v=property-v1/);
+assert.match(html, /\.\/app\.js\?v=property-v49/);
 assert.match(html, /\.\/message-edits\.js\?v=property-v1/);
 assert.match(html, /id="edit-context"/);
 assert.match(html, /id="cancel-edit"/);
@@ -77,10 +80,21 @@ assert.match(sw, /chat-search\.js/);
 assert.match(sw, /secret-guard\.js\?v=property-v1/);
 assert.match(sw, /message-edits\.js\?v=property-v1/);
 assert.match(sw, /public-profile\.js\?v=property-v2/);
-assert.match(sw, /app\.js\?v=property-v48/);
+assert.match(sw, /nip05\.js\?v=property-v1/);
+assert.match(sw, /app\.js\?v=property-v49/);
 assert.match(sw, /pwa\.js\?v=property-v35/);
 assert.match(sw, /vendor\/qr-code-generator\.js\?v=property-v39/);
 assert.match(app, /Contact\.createShare\(/, 'contact sharing is built into the same Property app');
+assert.match(app, /\$\('verify-profile-nip05'\)\.addEventListener\('click'/, 'own NIP-05 checks require an explicit button press');
+assert.match(app, /\$\('verify-chat-nip05'\)\.addEventListener\('click'/, 'contact NIP-05 checks require an explicit button press');
+assert.match(html, /id="profile-nip05-status"[^>]*aria-live="polite"/);
+assert.match(html, /id="chat-profile-nip05-status"[^>]*aria-live="polite"/);
+assert.match(html, /randomly picks two relays from a list included in the app/);
+assert.match(app, /RelayDefaults\.initialSelection\(relaySettings\)/, 'the automatic first-use relay suggestion remains integrated');
+assert.equal((app.match(/Nip05\.check\(/g) || []).length, 1, 'the NIP-05 network check is centralized and not run while loading profiles');
+assert.match(nip05, /credentials: 'omit'/);
+assert.match(nip05, /redirect: 'manual'/);
+assert.match(nip05, /MAX_RESPONSE_BYTES = 65_536/);
 assert.match(app, /QrCode\.createSvg\(/, 'the contact QR is generated from local bundled code');
 assert.match(app, /openContactIntent\(/, 'shared contacts are prefilled for explicit user confirmation');
 assert.match(app, /property-contact-intent/, 'same-page contact links are delivered to the active app');
@@ -359,7 +373,7 @@ assert.doesNotMatch(`${app}\n${sw}`, /\bimport\s*\(\s*["']https?:/i,
   'the app and service worker cannot import remote executable code');
 assert.match(sw, /importScripts\('\.\/share-inbox\.js\?v=property-v33'\);/,
   'the service worker imports only Property local source for the share inbox');
-for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './vendor/QR-CODE-GENERATOR-LICENSE.txt', './vendor/licenses/secret-guard/README.md', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './chat-drafts.js', './rich-text.js', './secret-guard.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './vendor/qr-code-generator.js', './app.js']) {
+for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './vendor/QR-CODE-GENERATOR-LICENSE.txt', './vendor/licenses/secret-guard/README.md', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './chat-drafts.js', './rich-text.js', './secret-guard.js', './nip05.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './vendor/qr-code-generator.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }
 await access(join(root, 'relay/dist-parts/manifest.txt'));
@@ -367,6 +381,8 @@ const syntax = spawnSync('node', ['--check', join(root, 'web/app.js')], { encodi
 assert.equal(syntax.status, 0, syntax.stderr || syntax.stdout);
 const secretGuardSyntax = spawnSync('node', ['--check', join(root, 'web/secret-guard.js')], { encoding: 'utf8' });
 assert.equal(secretGuardSyntax.status, 0, secretGuardSyntax.stderr || secretGuardSyntax.stdout);
+const nip05Syntax = spawnSync('node', ['--check', join(root, 'web/nip05.js')], { encoding: 'utf8' });
+assert.equal(nip05Syntax.status, 0, nip05Syntax.stderr || nip05Syntax.stdout);
 const bash = spawnSync('bash', ['-n', join(root, 'relay/start.sh')], { encoding: 'utf8' });
 assert.equal(bash.status, 0, bash.stderr || bash.stdout);
 assert.ok(css.length > 5000, 'responsive app styles exist');

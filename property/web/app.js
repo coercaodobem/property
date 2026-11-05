@@ -26,9 +26,12 @@
   const MessageEdits = window.PropertyMessageEdits;
   const SecretGuard = window.PropertySecretGuard;
   const QrCode = window.PropertyQrCode;
+  const Nip05 = window.PropertyNip05;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const eventSourceHints = new WeakMap();
+  let ownNip05CheckId = 0;
+  let peerNip05CheckId = 0;
   const state = {
     db: null, account: null, secret: null, pubkey: '', npub: '', relays: [],
     inboxRelays: [], peerInboxRelays: new Map(), peerRelayHints: new Map(),
@@ -103,12 +106,67 @@
     } else description.textContent = value;
     container.replaceChildren(term, description); container.hidden = false;
   }
+  function nip05ErrorMessage(error) {
+    if (error?.code === 'nip05-invalid-identifier') return localized('Enter a valid name@domain identifier.', 'Informe um identificador name@domínio válido.');
+    if (error?.code === 'nip05-http-error') return localized('The domain returned an unusable response. Redirects are not accepted.', 'O domínio retornou uma resposta inválida. Redirecionamentos não são aceitos.');
+    if (error?.code === 'nip05-response-too-large') return localized('The domain response exceeded the size limit.', 'A resposta do domínio excedeu o limite de tamanho.');
+    if (error?.code === 'nip05-invalid-response') return localized('The domain did not return a valid NIP-05 response.', 'O domínio não retornou uma resposta NIP-05 válida.');
+    if (error?.code === 'nip05-network-error') return localized('Could not check the domain. The browser may block the request, for example because of CORS.', 'Não foi possível consultar o domínio. O navegador pode bloquear a solicitação, por exemplo por CORS.');
+    return localized('The NIP-05 check is unavailable.', 'A consulta NIP-05 está indisponível.');
+  }
+  async function performNip05Check(identifier, pubkey, status, button, isCurrent) {
+    button.disabled = true;
+    status.textContent = localized('Checking the domain mapping…', 'Consultando o vínculo do domínio…');
+    try {
+      const result = await Nip05.check(identifier, pubkey);
+      if (!isCurrent()) return;
+      status.textContent = result.matches
+        ? localized('The domain mapping matches this Nostr key. This does not verify a real-world identity.', 'O domínio aponta para esta chave Nostr. Isso não verifica uma identidade no mundo real.')
+        : localized('The domain mapping does not match this Nostr key.', 'O domínio não aponta para esta chave Nostr.');
+    } catch (error) {
+      if (isCurrent()) status.textContent = nip05ErrorMessage(error);
+    } finally {
+      if (isCurrent()) button.disabled = false;
+    }
+  }
+  function resetOwnNip05Check() {
+    ownNip05CheckId += 1;
+    $('profile-nip05-status').textContent = '';
+    $('verify-profile-nip05').disabled = !$('profile-nip05').value.trim();
+  }
+  function resetPeerNip05Check(profile) {
+    peerNip05CheckId += 1;
+    $('chat-profile-nip05-status').textContent = '';
+    const button = $('verify-chat-nip05');
+    button.hidden = !profile?.nip05;
+    button.disabled = !profile?.nip05;
+  }
+  function verifyOwnNip05() {
+    const identifier = $('profile-nip05').value.trim();
+    const pubkey = state.pubkey;
+    if (!identifier || !pubkey) return;
+    const checkId = ++ownNip05CheckId;
+    return performNip05Check(identifier, pubkey, $('profile-nip05-status'), $('verify-profile-nip05'), () =>
+      checkId === ownNip05CheckId && state.pubkey === pubkey && $('profile-nip05').value.trim() === identifier
+    );
+  }
+  function verifyPeerNip05() {
+    const peer = state.chatDetailsPeer;
+    const profile = state.peerProfiles.get(peer);
+    const identifier = profile?.nip05 || '';
+    if (!peer || !identifier || !$('chat-details-dialog').open) return;
+    const checkId = ++peerNip05CheckId;
+    return performNip05Check(identifier, peer, $('chat-profile-nip05-status'), $('verify-chat-nip05'), () =>
+      checkId === peerNip05CheckId && $('chat-details-dialog').open && state.chatDetailsPeer === peer && state.peerProfiles.get(peer)?.nip05 === identifier
+    );
+  }
   function renderPeerPublicProfile(profile) {
     const status = $('chat-profile-status');
     const fields = $('chat-public-profile-fields');
     if (!profile) {
       fields.hidden = true;
       status.textContent = localized('No public profile has been loaded on this device yet.', 'Nenhum perfil público foi carregado neste aparelho ainda.');
+      resetPeerNip05Check(null);
       return;
     }
     const fetched = profile.checkedAt ? new Date(profile.checkedAt).toLocaleString(window.PropertyI18n?.locale() || undefined) : '';
@@ -117,9 +175,10 @@
       : localized('Saved on this device', 'Salvo neste aparelho');
     setOptionalProfileField($('chat-profile-name-field'), localized('Name', 'Nome'), profile.displayName || profile.name);
     setOptionalProfileField($('chat-profile-about-field'), localized('About', 'Sobre'), profile.about);
-    setOptionalProfileField($('chat-profile-nip05-field'), localized('NIP-05 · not verified', 'NIP-05 · não verificado'), profile.nip05);
+    setOptionalProfileField($('chat-profile-nip05-field'), localized('NIP-05 · not checked', 'NIP-05 · não consultado'), profile.nip05);
     setOptionalProfileField($('chat-profile-website-field'), localized('Website', 'Site'), profile.website, { href: PublicProfile.safeWebsite(profile.website) });
     fields.hidden = ![profile.displayName, profile.name, profile.about, profile.nip05, profile.website].some(Boolean);
+    resetPeerNip05Check(profile);
   }
   async function openChatDetails() {
     const peer = state.activePeer;
@@ -565,6 +624,7 @@
     $('profile-picture').value = profile.picture || '';
     $('profile-nip05').value = profile.nip05 || '';
     $('profile-initial').textContent = profile.name?.slice(0, 1)?.toUpperCase() || 'L';
+    resetOwnNip05Check();
   }
   function openContactIntent(value) {
     $('peer-input').value = value;
@@ -2087,6 +2147,7 @@
 
     const profile = { id: `profile-${state.pubkey}`, name, about, website, picture, nip05 };
     await put('settings', profile);
+    resetOwnNip05Check();
     $('profile-initial').textContent = name.slice(0, 1).toUpperCase() || 'L';
     const current = await readOwnPublicProfile();
     if (!current.reachable) {
@@ -2140,6 +2201,7 @@
         $('profile-website').value = '';
         $('profile-picture').value = '';
         $('profile-nip05').value = '';
+        resetOwnNip05Check();
         status.textContent = localized('No signed public profile was found on your saved relays.', 'Nenhum perfil público assinado foi encontrado nos seus relays salvos.');
         return;
       }
@@ -2149,6 +2211,7 @@
       $('profile-website').value = profile.website;
       $('profile-picture').value = PublicProfile.safeWebsite(metadata.picture);
       $('profile-nip05').value = profile.nip05;
+      resetOwnNip05Check();
       status.textContent = localized('Profile loaded from a saved relay. Review it before saving.', 'Perfil carregado de um relay salvo. Confira antes de salvar.');
     } finally {
       button.disabled = false;
@@ -2306,6 +2369,9 @@
     $('profile-button').addEventListener('click', () => $('profile-dialog').showModal());
     $('chat-details-button').addEventListener('click', () => openChatDetails().catch(error => showToast(error.message || localized('Could not open conversation details.', 'Não foi possível abrir os detalhes da conversa.'))));
     $('load-chat-public-profile').addEventListener('click', () => loadChatPublicProfile());
+    $('verify-profile-nip05').addEventListener('click', () => verifyOwnNip05());
+    $('profile-nip05').addEventListener('input', resetOwnNip05Check);
+    $('verify-chat-nip05').addEventListener('click', () => verifyPeerNip05());
     $('save-chat-local-name').addEventListener('click', () => saveConversationLocalName().catch(error => showToast(error.message || localized('Could not save the local name.', 'Não foi possível salvar o nome local.'))));
     $('agent-block-button').addEventListener('click', () => toggleAgentBlock().catch(error => showToast(error.message || 'Não foi possível atualizar o bloqueio.')));
     $('open-agent-manager').addEventListener('click', () => {
@@ -2455,6 +2521,8 @@
     $('forward-send').addEventListener('click', () => forwardMessage().catch(error => showError('forward-error', error.message || 'Could not forward this message.')));
     $('forward-dialog').addEventListener('close', () => { state.forwardingMessage = null; $('forward-send').disabled = true; });
     $('language-picker').addEventListener('change', () => queueMicrotask(async () => {
+      resetOwnNip05Check();
+      resetPeerNip05Check(state.peerProfiles.get(state.chatDetailsPeer));
       if (state.currentConversation) await updateConversationHeader(state.currentConversation);
       updateReplyContext(); await renderConversations();
       if (state.activePeer) await renderMessages(state.activePeer);
