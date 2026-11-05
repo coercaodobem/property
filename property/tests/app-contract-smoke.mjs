@@ -156,7 +156,24 @@ function collectStaticReferences(markup) {
   return references;
 }
 const shellPathnames = new Set();
-for (const path of shellPaths) shellPathnames.add(await localAssetPath(path, 'service-worker precache entry'));
+const directBundleIndex = join(webRoot, 'direct', 'index.html');
+let directBundleAvailable = true;
+try {
+  await access(directBundleIndex);
+} catch (error) {
+  if (error.code !== 'ENOENT') throw error;
+  directBundleAvailable = false;
+}
+if (!directBundleAvailable) {
+  const directPackage = JSON.parse(await readFile(join(root, 'direct/package.json'), 'utf8'));
+  assert.ok(directPackage.scripts?.['build:web'], 'Property Direct has a reproducible static web build');
+  assert.match(pagesWorkflow, /npm run build:web/, 'Pages builds Property Direct before uploading the static apps');
+  assert.match(pagesWorkflow, /path:\s*property\/web\b/, 'Pages uploads the generated Property Direct bundle');
+}
+for (const path of shellPaths) {
+  if (path === './direct/' && !directBundleAvailable) continue;
+  shellPathnames.add(await localAssetPath(path, 'service-worker precache entry'));
+}
 for (const path of new Set([manifest.start_url, './index.html', './about.html'])) {
   const pathname = await localAssetPath(path, 'offline navigation document');
   assert.ok(shellPathnames.has(pathname), `offline service-worker shell must precache navigation document ${path}`);
@@ -189,4 +206,4 @@ assert.equal(syntax.status, 0, syntax.stderr || syntax.stdout);
 const bash = spawnSync('bash', ['-n', join(root, 'relay/start.sh')], { encoding: 'utf8' });
 assert.equal(bash.status, 0, bash.stderr || bash.stdout);
 assert.ok(css.length > 5000, 'responsive app styles exist');
-console.log('PASS: local-only web assets, CSP, PWA shell registration, segmented relay package, pinned Pages workflow, no eval, JS/shell syntax');
+console.log(`PASS: local-only web assets, CSP, PWA shell registration, ${directBundleAvailable ? 'built Direct bundle' : 'Direct source/Pages build contract'}, segmented relay package, pinned Pages workflow, no eval, JS/shell syntax`);
