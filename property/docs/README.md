@@ -4,7 +4,7 @@ English is the default language for the project and these documents. Choose **Po
 
 ## Product and implementation
 
-- [Property Direct browser app](../direct/README.md) · [Português (Brasil)](../direct/README.pt-BR.md)
+- [Ghostly UX integration in the Property PWA](ghostly-integration.md) · [Português (Brasil)](ghostly-integration.pt-BR.md)
 - [Project identity and principles](identidade-do-projeto.md) · [Português (Brasil)](identidade-do-projeto.pt-BR.md)
 - [Central execution plan](plano-central.md) · [Português (Brasil)](plano-central.pt-BR.md)
 - [Amethyst-to-Property data migration](migracao-property.md) · [Português (Brasil)](migracao-property.pt-BR.md)

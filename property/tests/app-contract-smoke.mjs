@@ -156,22 +156,11 @@ function collectStaticReferences(markup) {
   return references;
 }
 const shellPathnames = new Set();
-const directBundleIndex = join(webRoot, 'direct', 'index.html');
-let directBundleAvailable = true;
-try {
-  await access(directBundleIndex);
-} catch (error) {
-  if (error.code !== 'ENOENT') throw error;
-  directBundleAvailable = false;
-}
-if (!directBundleAvailable) {
-  const directPackage = JSON.parse(await readFile(join(root, 'direct/package.json'), 'utf8'));
-  assert.ok(directPackage.scripts?.['build:web'], 'Property Direct has a reproducible static web build');
-  assert.match(pagesWorkflow, /npm run build:web/, 'Pages builds Property Direct before uploading the static apps');
-  assert.match(pagesWorkflow, /path:\s*property\/web\b/, 'Pages uploads the generated Property Direct bundle');
-}
+assert.doesNotMatch(pagesWorkflow, /property\/direct|npm run build:web/, 'Pages publishes only the unified Property PWA');
+await assert.rejects(access(join(root, 'direct')), { code: 'ENOENT' }, 'the separate app is absent from the Property product tree');
+await access(join(root, '../archive/ghostly-source/README.md'));
+await assert.rejects(access(join(webRoot, 'direct')), { code: 'ENOENT' }, 'no separate app bundle is present');
 for (const path of shellPaths) {
-  if (path === './direct/' && !directBundleAvailable) continue;
   shellPathnames.add(await localAssetPath(path, 'service-worker precache entry'));
 }
 for (const path of new Set([manifest.start_url, './index.html', './about.html'])) {
@@ -206,4 +195,4 @@ assert.equal(syntax.status, 0, syntax.stderr || syntax.stdout);
 const bash = spawnSync('bash', ['-n', join(root, 'relay/start.sh')], { encoding: 'utf8' });
 assert.equal(bash.status, 0, bash.stderr || bash.stdout);
 assert.ok(css.length > 5000, 'responsive app styles exist');
-console.log(`PASS: local-only web assets, CSP, PWA shell registration, ${directBundleAvailable ? 'built Direct bundle' : 'Direct source/Pages build contract'}, segmented relay package, pinned Pages workflow, no eval, JS/shell syntax`);
+console.log('PASS: local-only web assets, CSP, unified Property PWA packaging, segmented relay package, pinned Pages workflow, no eval, JS/shell syntax');

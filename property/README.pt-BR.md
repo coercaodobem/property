@@ -18,7 +18,7 @@ A interface abre em inglês por padrão. Selecione **Português (Brasil)** no ca
 
 Sirva `property/web` por HTTP(S), por exemplo com `python3 -m http.server 8080 --directory property/web`, e acesse `http://localhost:8080`. Para instalar como PWA, o host deve usar HTTPS (localhost é exceção). O shell funciona offline depois da primeira carga; comunicação depende de relays Nostr alcançáveis.
 
-Para o cliente peer-to-peer experimental, separado e adaptado do Ghostly, abra o [Property Direct](https://coercaodobem.github.io/property/direct/). Ele usa outra identidade e outro transporte e não se conecta aos relays Nostr desta PWA.
+O Property é uma única PWA com uma identidade e transporte Nostr. O Ghostly é uma referência de UX; melhorias compatíveis de conversa ficam neste app e usam a identidade existente e os relays escolhidos pela pessoa.
 
 A opção **Ponte entre relays** encaminha eventos públicos assinados entre os relays que a pessoa selecionou. Gift wraps NIP-17 só são encaminhados para os inbox relays da própria identidade; o cliente não decifra o conteúdo para retransmiti-lo. Há limites locais de 60 eventos por minuto e 2 MB de tráfego de saída por minuto, contando o envio a cada relay. A ponte não funciona quando o navegador é suspenso e pode consumir dados móveis.
 

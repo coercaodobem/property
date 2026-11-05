@@ -27,6 +27,7 @@
     ['Your conversations, without a middleman', 'Suas conversas, sem intermediário'], ['Start a private conversation using the other person’s npub.', 'Inicie uma conversa privada usando o npub da outra pessoa.'],
     ['No conversations found.', 'Nenhuma conversa encontrada.'], ['Your conversations will appear here.', 'Suas conversas aparecerão aqui.'],
     ['Write a private message…', 'Escreva uma mensagem privada…'], ['Message', 'Mensagem'], ['Send message', 'Enviar mensagem'],
+    ['Reply', 'Responder'], ['Cancel reply', 'Cancelar resposta'], ['Replying to message', 'Respondendo à mensagem'], ['Replying to your message', 'Respondendo à sua mensagem'], ['Reply to a message', 'Responder a uma mensagem'], ['Reply to this message', 'Responder a esta mensagem'], ['This older message has no Nostr event reference', 'Esta mensagem antiga não tem uma referência de evento Nostr'], ['Replied message is not in this local history', 'A mensagem respondida não está neste histórico local'],
     ['NIP-17 · requires an inbox relay list (kind 10050) published by you and the other person', 'NIP-17 · requer relay inbox kind 10050 publicado por você e pela outra pessoa'],
     ['PUBLIC SPACES', 'ESPAÇOS PÚBLICOS'], ['Discover public conversations on the relays you chose.', 'Descubra conversas públicas nos relays que você escolheu.'],
     ['Refresh spaces', 'Atualizar espaços'], ['Share something publicly', 'Compartilhe algo publicamente'], ['This content will be public on connected relays.', 'Este conteúdo será público nos relays conectados.'],

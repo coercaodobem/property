@@ -12,7 +12,7 @@ O Property é um projeto aberto de comunicação descentralizada e trocas volunt
 
 **Acesso pelo navegador:** abra o site no dispositivo compatível e, se quiser, adicione a PWA à tela inicial. Não é preciso distribuir o app pela Play Store ou App Store. A interface abre em inglês; selecione **Português (Brasil)** no cabeçalho para mudar o idioma neste aparelho. A seleção é salva localmente. Mensagens, publicações, nomes e ofertas nunca são traduzidos.
 
-**App peer-to-peer experimental:** [Abrir o Property Direct](https://coercaodobem.github.io/property/direct/), uma adaptação do Ghostly. É um cliente separado, com outra identidade e outro transporte; não usa relays Nostr nem compartilha conversas com a PWA principal do Property.
+**Um app, uma identidade:** o Property é a PWA Nostr no link acima. O Ghostly é uma referência de UX; melhorias compatíveis de conversa são integradas neste mesmo app e usam a identidade Property e os relays Nostr escolhidos pela pessoa.
 
 **Trocas voluntárias:** o marketplace permite publicar e descobrir ofertas. Compra, checkout e custódia ainda não estão habilitados nesta versão.
 
@@ -86,6 +86,7 @@ Esses testes não dependem de pagamentos ou publicação de mensagens em relays 
 | [`property/relay/`](property/relay/) | Launcher e pacote portátil do relay |
 | [`property/tests/`](property/tests/) | Validações do produto Property |
 | [`property/docs/`](property/docs/) | Identidade, decisões, execução e plano de testes |
+| [`archive/ghostly-source/`](archive/ghostly-source/) | Referência de UX arquivada; não é construída nem publicada |
 | [`geode/`](geode/) | Código do relay reaproveitado do Amethyst |
 | `amethyst/`, `commons/`, `commonsUI/`, `desktopApp/`, `cli/` | Base upstream preservada; presença do código não significa que todos os alvos sejam produtos Property publicados |
 

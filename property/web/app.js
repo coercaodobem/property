@@ -21,7 +21,7 @@
     db: null, account: null, secret: null, pubkey: '', npub: '', relays: [],
     inboxRelays: [], peerInboxRelays: new Map(), peerRelayHints: new Map(),
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
-    activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0,
+    activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
     storageReady: false
   };
@@ -350,7 +350,8 @@
     const id = parsedAgentMessage ? `agent:${peer}:${parsedAgentMessage.messageId}` : rumor.id || event.id;
     if (await get('messages', id)) return;
     const fromAgent = Boolean(parsedAgentMessage || agentMessageError);
-    const message = { id, peer, text, createdAt: rumor.created_at * 1000, direction: 'received', status: 'delivered', ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
+    const replyTag = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'e' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) : null;
+    const message = { id, peer, text, createdAt: rumor.created_at * 1000, direction: 'received', status: 'delivered', nostrEventId: rumor.id || event.id, ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
     await put('messages', message);
     const previous = existingConversation || { pubkey: peer, title: '' };
     await put('conversations', { ...previous, ...(fromAgent ? { agent: true } : {}), lastMessage: text, lastAt: message.createdAt });
@@ -481,6 +482,8 @@
   }
   async function selectConversation(pubkey) {
     state.activePeer = pubkey;
+    state.replyingTo = null;
+    updateReplyContext();
     $('empty-conversation').classList.add('hidden');
     $('conversation-pane').classList.remove('hidden');
     $('chat-title').dataset.userContent = '';
@@ -522,21 +525,77 @@
   }
   async function renderMessages(peer) {
     const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
-    const container = $('messages'); container.replaceChildren();
+    const conversation = await get('conversations', peer);
+    const container = $('messages');
+    const samePeer = container.dataset.peer === peer;
+    const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 72;
+    const bounds = container.getBoundingClientRect();
+    const firstVisible = [...container.children].find(row => row.dataset.messageId && row.getBoundingClientRect().bottom > bounds.top);
+    const anchor = samePeer && firstVisible ? { id: firstVisible.dataset.messageId, top: firstVisible.getBoundingClientRect().top } : null;
+    const byEventId = new Map(entries.map(message => [nostrEventId(message), message]).filter(([id]) => id));
+    container.replaceChildren();
     if (!entries.length) {
-      const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = 'Esta conversa é privada. Envie uma mensagem para começar.'; container.append(empty); return;
+      const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = 'Esta conversa é privada. Envie uma mensagem para começar.'; container.append(empty); container.dataset.peer = peer; return;
     }
     for (const message of entries) {
       const row = document.createElement('div'); row.className = `message-row${message.direction === 'sent' ? ' mine' : ''}`;
+      row.dataset.messageId = message.id;
+      const eventId = nostrEventId(message);
+      if (eventId) row.dataset.nostrEventId = eventId;
       if (message.fromAgent) { const author = document.createElement('span'); author.className = 'agent-message-author'; author.textContent = message.agentMessageError ? 'Protocolo de agente · mensagem não reconhecida' : 'Protocolo de agente · identidade Nostr'; row.append(author); }
+      if (message.replyToId) {
+        const parent = byEventId.get(message.replyToId);
+        const quote = document.createElement('button'); quote.className = 'reply-reference'; quote.type = 'button';
+        const author = parent?.direction === 'sent' ? (window.PropertyI18n?.language === 'pt-BR' ? 'Você' : 'You') : displayName(peer, conversation?.title || '');
+        quote.textContent = parent ? `${author}: ${parent.text.replace(/\s+/g, ' ').slice(0, 120)}` : 'Reply to a message';
+        const quoteLabel = parent
+          ? `${window.PropertyI18n?.language === 'pt-BR' ? 'Ir para a mensagem respondida' : 'Go to replied message'}: ${quote.textContent}`
+          : (window.PropertyI18n?.language === 'pt-BR' ? 'A mensagem respondida não está neste histórico local' : 'Replied message is not in this local history');
+        quote.setAttribute('aria-label', quoteLabel);
+        quote.addEventListener('click', () => {
+          const target = [...container.children].find(candidate => candidate.dataset.nostrEventId === message.replyToId);
+          if (target) { target.scrollIntoView({ block: 'center', behavior: 'smooth' }); target.classList.add('message-highlight'); setTimeout(() => target.classList.remove('message-highlight'), 900); }
+          else showToast(window.PropertyI18n?.language === 'pt-BR' ? 'A mensagem respondida não está neste histórico local.' : 'The replied message is not in this local history.');
+        });
+        row.append(quote);
+      }
       const bubble = document.createElement('div'); bubble.className = 'message-bubble'; bubble.textContent = message.text;
       const delivery = message.status === 'pending' ? ' · aguardando relay' : message.status === 'partial' ? ' · entrega parcial' : '';
       const meta = document.createElement('span'); meta.className = 'message-meta'; meta.textContent = `${new Date(message.createdAt).toLocaleString(window.PropertyI18n?.locale() || undefined)}${delivery}`;
-      row.append(bubble, meta); container.append(row);
+      const actions = document.createElement('div'); actions.className = 'message-actions';
+      const reply = document.createElement('button'); reply.type = 'button'; reply.className = 'message-reply'; reply.textContent = 'Reply'; reply.disabled = !eventId; reply.title = eventId ? 'Reply to this message' : 'This older message has no Nostr event reference';
+      reply.addEventListener('click', () => {
+        if (!eventId) { showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Esta mensagem antiga não tem uma referência de evento Nostr.' : 'This older message has no Nostr event reference.'); return; }
+        state.replyingTo = message;
+        updateReplyContext();
+        $('message-input').focus();
+      });
+      actions.append(reply); row.append(bubble, meta, actions); container.append(row);
     }
-    container.scrollTop = container.scrollHeight;
+    container.dataset.peer = peer;
+    if (!samePeer || wasAtBottom || !anchor) container.scrollTop = container.scrollHeight;
+    else {
+      const restored = [...container.children].find(row => row.dataset.messageId === anchor.id);
+      if (restored) container.scrollTop += restored.getBoundingClientRect().top - anchor.top;
+    }
   }
-  async function sendPrivateMessage(peer, text) {
+  function nostrEventId(message) {
+    if (typeof message?.nostrEventId === 'string' && /^[0-9a-f]{64}$/i.test(message.nostrEventId)) return message.nostrEventId;
+    return typeof message?.id === 'string' && /^[0-9a-f]{64}$/i.test(message.id) ? message.id : '';
+  }
+  function updateReplyContext() {
+    const context = $('reply-context');
+    const message = state.replyingTo;
+    context.classList.toggle('hidden', !message);
+    if (!message) return;
+    const conversation = state.activePeer;
+    const title = conversation ? displayName(conversation, '') : 'Conversation';
+    $('reply-context-label').textContent = message.direction === 'sent'
+      ? (window.PropertyI18n?.language === 'pt-BR' ? 'Respondendo à sua mensagem' : 'Replying to your message')
+      : (window.PropertyI18n?.language === 'pt-BR' ? `Respondendo a ${title}` : `Replying to ${title}`);
+    $('reply-context-text').textContent = message.text.replace(/\s+/g, ' ').slice(0, 180);
+  }
+  async function sendPrivateMessage(peer, text, replyTo = null) {
     const agentAccess = await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') throw new Error('Este contato está bloqueado neste aparelho.');
     if (!state.inboxRelays.length) {
@@ -559,15 +618,21 @@
     const wireContent = agentConversation ? AgentMessages.encodeEnvelope({
       conversationId: await AgentMessages.conversationId(state.pubkey, peer),
       messageId: agentMessageId,
-      inReplyTo: null,
+      inReplyTo: replyTo ? (replyTo.agentMessageId || nostrEventId(replyTo)) : null,
       body: text,
     }) : text;
-    const wraps = N.nip17.wrapManyEvents(state.secret, [{ publicKey: peer }], wireContent);
+    const replyEventId = replyTo ? nostrEventId(replyTo) : '';
+    if (replyTo && !replyEventId) throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Esta mensagem não pode ser citada como resposta Nostr.' : 'This message cannot be referenced as a Nostr reply.');
+    const rumorTags = [['p', peer]];
+    if (replyEventId) rumorTags.push(['e', replyEventId, '', 'reply']);
+    // Make one rumor and wrap that exact event for both participants, so NIP-17 reply IDs match on each device.
+    const sentRumor = N.nip59.createRumor({ kind: 14, tags: rumorTags, content: wireContent }, state.secret);
+    const wraps = [state.pubkey, peer].map(recipient => N.nip59.createWrap(N.nip59.createSeal(sentRumor, state.secret, recipient), recipient));
     const routePlan = Routing.planGiftWraps(wraps, state.pubkey, peer, state.inboxRelays, peerRelays, N.verifyEvent);
     if (!routePlan.ready) throw new Error('A mensagem NIP-17 não tem os dois envelopes válidos ou as listas de recebimento necessárias.');
     if (!Array.isArray(wraps) || wraps.length < 2 || wraps.some(event => event.kind !== 1059)) throw new Error('A biblioteca não gerou envelopes NIP-17 válidos.');
     const id = agentConversation ? `agent-out:${peer}:${agentMessageId}` : `${state.pubkey}:${crypto.randomUUID()}`;
-    const message = { id, peer, text, createdAt: Date.now(), direction: 'sent', status: 'pending', ...(agentConversation ? { agentMessageId, inReplyTo: null } : {}) };
+    const message = { id, peer, text, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
     await put('messages', message);
     await put('conversations', { ...previous, ...(agentConversation ? { agent: true } : {}), lastMessage: text, lastAt: message.createdAt });
     await renderMessages(peer); await renderConversations();
@@ -890,7 +955,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v24', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v25', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -943,11 +1008,18 @@
       catch (error) { showError('new-chat-error', error.message); }
     });
     $('send-form').addEventListener('submit', async event => {
-      event.preventDefault(); const text = $('message-input').value.trim(); if (!text || !state.activePeer) return;
-      $('message-input').value = ''; $('message-input').style.height = '';
-      try { await sendPrivateMessage(state.activePeer, text); }
+      event.preventDefault(); const input = $('message-input'); const text = input.value.trim(); const peer = state.activePeer; const replyTo = state.replyingTo; if (!text || !peer) return;
+      const submit = document.querySelector('#send-form button[type="submit"]'); submit.disabled = true;
+      try {
+        await sendPrivateMessage(peer, text, replyTo);
+        if (state.activePeer === peer && input.value.trim() === text) { input.value = ''; input.style.height = ''; }
+        if (state.activePeer === peer && state.replyingTo === replyTo) { state.replyingTo = null; updateReplyContext(); }
+      }
       catch (error) { showToast(error.message || 'Falha ao cifrar a mensagem.'); }
+      finally { submit.disabled = false; }
     });
+    $('cancel-reply').addEventListener('click', () => { state.replyingTo = null; updateReplyContext(); });
+    $('language-picker').addEventListener('change', () => queueMicrotask(() => { updateReplyContext(); if (state.activePeer) renderMessages(state.activePeer); }));
     $('message-input').addEventListener('input', event => { event.target.style.height = 'auto'; event.target.style.height = `${Math.min(event.target.scrollHeight, 150)}px`; });
     $('conversation-search').addEventListener('input', renderConversations);
     document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => setActiveView(button.dataset.view)));

@@ -3,32 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#101720">
+  <meta name="theme-color" content="#090a0c">
   <meta name="description" content="Property: Nostr communication with a locally controlled identity and relays you choose.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>Property</title>
-  <link rel="icon" href="./assets/property-icon-192.png?v=property-v24" type="image/png" sizes="192x192">
-  <link rel="icon" href="./assets/icon.svg?v=property-v24" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v24">
-  <link rel="manifest" href="./manifest.webmanifest?v=property-v24">
-  <link rel="stylesheet" href="./styles.css?v=property-v24">
-  <script defer src="./i18n.js?v=property-v24"></script>
-  <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v24"></script>
-  <script defer src="./vault.js?v=property-v24"></script>
-  <script defer src="./routing.js?v=property-v24"></script>
-  <script defer src="./forwarding.js?v=property-v24"></script>
-  <script defer src="./nano.js?v=property-v24"></script>
-  <script defer src="./money.js?v=property-v24"></script>
-  <script defer src="./marketplace.js?v=property-v24"></script>
-  <script defer src="./campaigns.js?v=property-v24"></script>
-  <script defer src="./contact.js?v=property-v24"></script>
-  <script defer src="./agent-messaging.js?v=property-v24"></script>
-  <script defer src="./app.js?v=property-v24"></script>
+  <link rel="icon" href="./assets/property-icon-192.png?v=property-v25" type="image/png" sizes="192x192">
+  <link rel="icon" href="./assets/icon.svg?v=property-v25" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v25">
+  <link rel="manifest" href="./manifest.webmanifest?v=property-v25">
+  <link rel="stylesheet" href="./styles.css?v=property-v25">
+  <script defer src="./i18n.js?v=property-v25"></script>
+  <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v25"></script>
+  <script defer src="./vault.js?v=property-v25"></script>
+  <script defer src="./routing.js?v=property-v25"></script>
+  <script defer src="./forwarding.js?v=property-v25"></script>
+  <script defer src="./nano.js?v=property-v25"></script>
+  <script defer src="./money.js?v=property-v25"></script>
+  <script defer src="./marketplace.js?v=property-v25"></script>
+  <script defer src="./campaigns.js?v=property-v25"></script>
+  <script defer src="./contact.js?v=property-v25"></script>
+  <script defer src="./agent-messaging.js?v=property-v25"></script>
+  <script defer src="./app.js?v=property-v25"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
     <header class="topbar">
-      <a class="brand" href="#inicio" aria-label="Property home"><img class="brand-mark" src="./assets/property-icon-192.png?v=property-v24" alt=""><span>Property</span></a>
+      <a class="brand" href="#inicio" aria-label="Property home"><img class="brand-mark" src="./assets/property-icon-192.png?v=property-v25" alt=""><span>Property</span></a>
       <div class="connection"><span id="connection-dot" class="dot"></span><span id="connection-label">offline</span></div>
       <select id="language-picker" class="language-picker" aria-label="Application language"><option value="en">English</option><option value="pt-BR">Português (Brasil)</option></select>
       <button id="mobile-open-settings" class="icon-button mobile-relay-settings" aria-label="Configure relays" title="Configure relays">⚙</button>
@@ -104,6 +104,7 @@
         <div id="conversation-pane" class="conversation-pane hidden">
           <header class="conversation-header"><div class="avatar" id="chat-avatar">?</div><div class="person-details"><h2 id="chat-title">Conversation</h2><span id="chat-subtitle" class="muted"></span></div><button id="agent-block-button" class="icon-button small hidden" type="button" aria-label="Block agent" title="Block agent">⊘</button><button id="chat-details-button" class="icon-button" aria-label="Conversation details">···</button></header>
           <div id="messages" class="messages" aria-live="polite"></div>
+          <div id="reply-context" class="reply-context hidden" aria-live="polite"><span><strong id="reply-context-label">Replying to message</strong><small id="reply-context-text"></small></span><button id="cancel-reply" type="button" class="icon-button small" aria-label="Cancel reply">×</button></div>
           <form id="send-form" class="composer"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Write a private message…" aria-label="Message"></textarea><button class="send-button" type="submit" aria-label="Send message">↑</button></form>
           <p class="composer-note">NIP-17 · requires an inbox relay kind 10050 list published by both you and the other person</p>
         </div>
