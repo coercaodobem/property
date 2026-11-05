@@ -12,6 +12,7 @@ const manifest = JSON.parse(await readFile(join(root, 'web/manifest.webmanifest'
 const app = await readFile(join(root, 'web/app.js'), 'utf8');
 const chatSearch = await readFile(join(root, 'web/chat-search.js'), 'utf8');
 const conversationFolders = await readFile(join(root, 'web/conversation-folders.js'), 'utf8');
+const chatDrafts = await readFile(join(root, 'web/chat-drafts.js'), 'utf8');
 const richText = await readFile(join(root, 'web/rich-text.js'), 'utf8');
 const relayDefaults = await readFile(join(root, 'web/relay-defaults.js'), 'utf8');
 const shareInbox = await readFile(join(root, 'web/share-inbox.js'), 'utf8');
@@ -46,11 +47,12 @@ assert.match(sw, /vault\.js/);
 assert.match(sw, /about\.html/);
 assert.match(html, /\.\/chat-search\.js/);
 assert.match(html, /\.\/pwa\.js\?v=property-v33/);
-assert.match(html, /\.\/i18n\.js\?v=property-v37/);
-assert.match(html, /\.\/styles\.css\?v=property-v37/);
+assert.match(html, /\.\/i18n\.js\?v=property-v38/);
+assert.match(html, /\.\/styles\.css\?v=property-v38/);
 assert.match(html, /\.\/conversation-folders\.js\?v=property-v35/);
+assert.match(html, /\.\/chat-drafts\.js\?v=property-v38/);
 assert.match(html, /\.\/rich-text\.js\?v=property-v37/);
-assert.match(html, /\.\/app\.js\?v=property-v37/);
+assert.match(html, /\.\/app\.js\?v=property-v38/);
 assert.match(sw, /chat-search\.js/);
 assert.match(sw, /pwa\.js\?v=property-v33/);
 assert.match(html, /data-install-property/);
@@ -68,6 +70,16 @@ assert.match(app, /if \(section\.isFolder && !section\.conversations\.length && 
 assert.match(app, /FolderStore\.move\(state\.conversationFolders, state\.folderMovingConversation/, 'chat and group assignment is a local action');
 assert.doesNotMatch(conversationFolders, /\bfetch\s*\(|\bWebSocket\b|\binnerHTML\b/, 'folder preferences never use the network or render markup');
 assert.match(sw, /conversation-folders\.js\?v=property-v35/, 'offline shell caches the local folder module');
+assert.match(sw, /chat-drafts\.js\?v=property-v38/, 'offline shell caches per-conversation drafts');
+assert.match(app, /DB_VERSION = 3/);
+assert.match(app, /\['drafts', 'id'\]/, 'drafts use a local IndexedDB store');
+assert.match(app, /ChatDrafts\.idFor\(state\.pubkey, peer\)/, 'draft keys are isolated by Property identity and conversation');
+assert.match(app, /saveChatDraft\(previousPeer, \$\('message-input'\)\.value\)/, 'switching chats stores the previous local draft');
+assert.match(app, /loadChatDraft\(pubkey\)/, 'opening a chat restores only that chat draft');
+assert.match(app, /if \(!state\.pubkey \|\| !peer \|\| \(state\.shareDraftId && state\.shareDraftPeer === peer\)\) return/, 'shared items remain in their own review queue instead of becoming chat drafts');
+assert.match(app, /await saveChatDraft\(peer, input\.value\)\.catch\(\(\) => \{\}\);/, 'successful sends clear sent drafts or preserve text typed during an in-flight send');
+assert.doesNotMatch(chatDrafts, /\bfetch\s*\(|\bWebSocket\b/, 'chat drafts never use the network');
+assert.match(html, /Drafts stay on this device and are not sent until you press Send\./);
 assert.match(sw, /rich-text\.js\?v=property-v37/, 'offline shell caches the local safe message renderer');
 assert.match(html, /data-format-marker="\*\*"/, 'the composer exposes bold formatting');
 assert.match(html, /data-format-marker="\|\|"/, 'the composer exposes spoilers');
@@ -285,7 +297,7 @@ assert.doesNotMatch(`${app}\n${sw}`, /\bimport\s*\(\s*["']https?:/i,
   'the app and service worker cannot import remote executable code');
 assert.match(sw, /importScripts\('\.\/share-inbox\.js\?v=property-v33'\);/,
   'the service worker imports only Property local source for the share inbox');
-for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './rich-text.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
+for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './chat-drafts.js', './rich-text.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }
 await access(join(root, 'relay/dist-parts/manifest.txt'));

@@ -18,6 +18,8 @@ Serve `property/web` over HTTP(S), for example with `python3 -m http.server 8080
 
 Property is one PWA with one identity and Nostr transport. Ghostly is a UX reference; compatible conversation improvements live in this app and use its existing identity and relays. On a fresh install, Property picks two relays randomly from a list bundled in the app, saves them locally, and connects after identity activation. You can change them at any time.
 
+Chat drafts are kept locally per conversation and identity until you send or clear them. See the [Ghostly UX adaptation notes](docs/ghostly-integration.md) for the Nostr-specific choices and features that do not fit this app.
+
 The **Relay bridge** option forwards signed public events between relays selected by the user. NIP-17 gift wraps are forwarded only to the local identity's inbox relays; the client does not decrypt the content to forward it. Local limits are 60 events and 2 MB of outbound traffic per minute, counting each relay destination. The bridge stops when the browser is suspended and may use mobile data.
 
 ## GitHub Pages deployment

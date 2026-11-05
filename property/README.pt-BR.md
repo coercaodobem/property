@@ -20,6 +20,8 @@ Sirva `property/web` por HTTP(S), por exemplo com `python3 -m http.server 8080 -
 
 O Property é uma única PWA com uma identidade e transporte Nostr. O Ghostly é uma referência de UX; melhorias compatíveis de conversa ficam neste app e usam a identidade existente e seus relays. Em uma instalação nova, o Property escolhe aleatoriamente dois relays de uma lista incluída no app, salva a seleção localmente e conecta após ativar a identidade. Você pode trocá-los quando quiser.
 
+Rascunhos de chat ficam salvos localmente por conversa e identidade até serem enviados ou apagados. Veja as [notas de adaptação da UX do Ghostly](docs/ghostly-integration.pt-BR.md) para as escolhas específicas do Nostr e os recursos incompatíveis com este app.
+
 A opção **Ponte entre relays** encaminha eventos públicos assinados entre os relays que a pessoa selecionou. Gift wraps NIP-17 só são encaminhados para os inbox relays da própria identidade; o cliente não decifra o conteúdo para retransmiti-lo. Há limites locais de 60 eventos por minuto e 2 MB de tráfego de saída por minuto, contando o envio a cada relay. A ponte não funciona quando o navegador é suspenso e pode consumir dados móveis.
 
 ## Publicar no GitHub Pages

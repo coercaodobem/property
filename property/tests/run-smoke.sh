@@ -15,6 +15,7 @@ for test_file in \
   protocol-smoke.mjs \
   chat-search-smoke.mjs \
   conversation-folders-smoke.mjs \
+  chat-drafts-smoke.mjs \
   rich-text-smoke.mjs \
   vault-smoke.mjs \
   forwarding-smoke.mjs \

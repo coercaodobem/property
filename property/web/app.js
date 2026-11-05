@@ -8,7 +8,7 @@
   const ShareInbox = window.PropertyShareInbox;
   // Stable legacy database ID: preserve existing identities and sessions on this origin.
   const DB_NAME = 'liberdade-local-v1';
-  const DB_VERSION = 2;
+  const DB_VERSION = 3;
   const Vault = window.PropertyVault;
   const Routing = window.PropertyNostrRouting;
   const Bridge = window.PropertyRelayBridge;
@@ -20,6 +20,7 @@
   const AgentMessages = window.PropertyAgentMessages;
   const MessageSearch = window.PropertyMessageSearch;
   const FolderStore = window.PropertyConversationFolders;
+  const ChatDrafts = window.PropertyChatDrafts;
   const RichText = window.PropertyRichText;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
@@ -33,7 +34,7 @@
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, pendingLaunchAction: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: ''
+    storageReady: false, pendingLaunchAction: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0
   };
   const N = window.NostrTools;
   const bridge = Bridge?.createBridge(event => N.verifyEvent(event));
@@ -185,6 +186,7 @@
     const text = ShareInbox.formatText(item);
     if (!text) return;
     await selectConversation(peer);
+    await saveChatDraft(peer, $('message-input').value).catch(() => {});
     state.shareDraftId = item.id;
     state.shareDraftPeer = peer;
     const input = $('message-input');
@@ -235,7 +237,7 @@
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
         const db = request.result;
-        for (const [name, keyPath] of [['vault', 'id'], ['settings', 'id'], ['conversations', 'pubkey'], ['messages', 'id'], ['agentInvites', 'id'], ['agentAccess', 'pubkey']]) {
+        for (const [name, keyPath] of [['vault', 'id'], ['settings', 'id'], ['conversations', 'pubkey'], ['messages', 'id'], ['drafts', 'id'], ['agentInvites', 'id'], ['agentAccess', 'pubkey']]) {
           if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath });
         }
       };
@@ -258,6 +260,22 @@
   const all = store => dbRequest(store, 'getAll');
   const put = (store, value) => dbRequest(store, 'put', value);
   const del = (store, key) => dbRequest(store, 'delete', key);
+  async function saveChatDraft(peer, text) {
+    if (!state.pubkey || !peer || (state.shareDraftId && state.shareDraftPeer === peer)) return;
+    const id = ChatDrafts.idFor(state.pubkey, peer);
+    const record = ChatDrafts.createRecord(state.pubkey, peer, text);
+    if (record) await put('drafts', record);
+    else await del('drafts', id);
+  }
+  async function loadChatDraft(peer) {
+    if (!state.pubkey || !peer) return '';
+    const record = await get('drafts', ChatDrafts.idFor(state.pubkey, peer));
+    return ChatDrafts.readRecord(record, state.pubkey, peer);
+  }
+  function resizeMessageInput(input = $('message-input')) {
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 150)}px`;
+  }
   const toBase64 = Vault.toBase64;
   const fromBase64 = Vault.fromBase64;
   const encryptBytes = Vault.encryptBytes;
@@ -821,9 +839,25 @@
     }
   }
   async function selectConversation(pubkey) {
-    if (state.activePeer !== pubkey) closeMessageSearch(false);
+    const previousPeer = state.activePeer;
+    const changed = previousPeer !== pubkey;
+    if (changed) {
+      closeMessageSearch(false);
+      if (previousPeer) await saveChatDraft(previousPeer, $('message-input').value).catch(() => {});
+    }
     if (state.shareDraftId && state.shareDraftPeer !== pubkey) { state.shareDraftId = ''; state.shareDraftPeer = ''; }
     state.activePeer = pubkey;
+    if (changed) {
+      const input = $('message-input');
+      input.value = '';
+      resizeMessageInput(input);
+      const loadSequence = ++state.draftLoadSequence;
+      const savedDraft = await loadChatDraft(pubkey).catch(() => '');
+      if (state.activePeer === pubkey && state.draftLoadSequence === loadSequence && !input.value) {
+        input.value = savedDraft;
+        resizeMessageInput(input);
+      }
+    }
     state.currentConversation = null;
     state.replyingTo = null;
     updateReplyContext();
@@ -1600,11 +1634,14 @@
     setConnectionStatus();
   }
   async function lockIdentity({ preservePublicBridge = false } = {}) {
+    if (state.activePeer) await saveChatDraft(state.activePeer, $('message-input').value).catch(() => {});
     if (state.account) { const updated = { ...state.account }; delete updated.session; await put('vault', updated); state.account = updated; }
     clearTimeout(state.idleTimer);
     if (state.secret) state.secret.fill(0);
     state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null;
-    if (state.shareDraftId) $('message-input').value = '';
+    state.draftLoadSequence++;
+    $('message-input').value = '';
+    resizeMessageInput();
     state.shareDraftId = ''; state.shareDraftPeer = '';
     if (preservePublicBridge && state.bridgeEnabled) await closeIdentityRelaySubscriptions();
     else {
@@ -1813,7 +1850,13 @@
             showToast(localized('Message saved, but the shared item remains in the local inbox.', 'Mensagem salva, mas o item compartilhado continua na caixa local.'));
           }
         }
-        if (state.activePeer === peer && input.value.trim() === text) { input.value = ''; input.style.height = ''; }
+        if (state.activePeer === peer) {
+          if (input.value.trim() === text) {
+            input.value = sentShareId ? await loadChatDraft(peer).catch(() => '') : '';
+            resizeMessageInput(input);
+          }
+          await saveChatDraft(peer, input.value).catch(() => {});
+        }
         if (state.activePeer === peer && state.replyingTo === replyTo) { state.replyingTo = null; updateReplyContext(); }
       }
       catch (error) { showToast(error.message || 'Falha ao cifrar a mensagem.'); }
@@ -1828,7 +1871,10 @@
       if (state.activePeer) await renderMessages(state.activePeer);
       if (state.activeView === 'saved') await renderSavedMessages();
     }));
-    $('message-input').addEventListener('input', event => { event.target.style.height = 'auto'; event.target.style.height = `${Math.min(event.target.scrollHeight, 150)}px`; });
+    $('message-input').addEventListener('input', event => {
+      resizeMessageInput(event.target);
+      if (state.activePeer) void saveChatDraft(state.activePeer, event.target.value).catch(() => {});
+    });
     document.querySelectorAll('[data-format-marker]').forEach(button => button.addEventListener('click', () => {
       const input = $('message-input');
       if (!RichText.wrapSelection(input, button.dataset.formatMarker)) return;
@@ -1900,11 +1946,17 @@
         showToast(error.message || 'Não foi possível atualizar a ponte.');
       }
     });
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && state.pubkey) { resetIdleLock(); for (const url of effectiveRelayUrls()) connectRelay(url); } });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && state.activePeer) void saveChatDraft(state.activePeer, $('message-input').value).catch(() => {});
+      if (!document.hidden && state.pubkey) { resetIdleLock(); for (const url of effectiveRelayUrls()) connectRelay(url); }
+    });
+    window.addEventListener('pagehide', () => {
+      if (state.activePeer) void saveChatDraft(state.activePeer, $('message-input').value).catch(() => {});
+    });
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !RichText || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || typeof Contact?.parsePublicKey !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.bridgeRefreshTimer = window.setInterval(refreshBridgeSubscriptions, 60_000);
