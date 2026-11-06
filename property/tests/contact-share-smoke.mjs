@@ -53,7 +53,7 @@ for (const input of malformedInputs) {
   assert.throws(() => contact.parsePublicKey(input), error => (!input || !error.message.includes(input)) && !/at parsePublicKey|Letter "/.test(error.message), 'bad/secret input has a bounded, safe error');
 }
 assert.throws(() => contact.parsePublicKey('nsec1private'), /private nsec/i, 'English contact validation is available by default');
-assert.throws(() => contact.parsePublicKey('not-a-user'), /does not search usernames/i);
+assert.throws(() => contact.parsePublicKey('not-a-user'), /tap Resolve NIP-05 first; a name alone is not unique/i);
 assert.throws(() => contact.parsePublicKey('nprofile1test', () => ({ type: 'nprofile', data: { pubkey, relays: 'invalid' } })), /invalid relay list/i,
   'malformed nprofile relay hints report in English by default');
 context.PropertyI18n.language = 'pt-BR';
