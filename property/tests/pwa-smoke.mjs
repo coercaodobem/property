@@ -58,6 +58,18 @@ const routeOnly = loadPwa({ href: 'https://coercaodobem.github.io/property/#view
 assert.equal(routeOnly.pwa.consumeContactIntent(), '', 'ordinary routes are not treated as contact links');
 assert.equal(routeOnly.historyWrites.length, 0, 'ordinary routes are not rewritten');
 
+const encryptedInvite = `${'a'.repeat(64)}.ciphertext+/=`;
+const inviteLaunch = loadPwa({ href: `https://coercaodobem.github.io/property/?keep=1#groupInvite=${encodeURIComponent(encryptedInvite)}&view=messages` });
+assert.equal(inviteLaunch.pwa.consumeGroupInviteIntent(), encryptedInvite, 'the initial group invite is captured before app boot');
+assert.equal(inviteLaunch.pwa.consumeGroupInviteIntent(), '', 'group invite intents are consumed exactly once');
+assert.deepEqual(inviteLaunch.historyWrites[0], [{ source: 'test' }, '', '/property/?keep=1#view=messages'], 'encrypted group data is removed from the visible URL while other route state remains');
+inviteLaunch.window.location.href = `https://coercaodobem.github.io/property/#groupInvite=${encodeURIComponent(encryptedInvite)}`;
+inviteLaunch.listeners.get('hashchange')[1]();
+assert.equal(inviteLaunch.pwa.consumeGroupInviteIntent(), encryptedInvite, 'same-page group links reach the active Property app');
+assert.equal(inviteLaunch.dispatched[0].type, 'property-group-invite-intent', 'active sessions receive a group invite event');
+assert.equal(inviteLaunch.historyWrites.length, 2, 'same-page group invite fragments are removed immediately');
+assert.equal(inviteLaunch.window.location.href, 'https://coercaodobem.github.io/property/', 'the invite payload does not remain in browser history');
+
 const promptFlow = loadPwa();
 let prevented = false;
 let prompted = false;

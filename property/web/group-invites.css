@@ -1,0 +1,41 @@
+.group-invite-section {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line, #29323a);
+}
+.group-invite-section h3,
+.group-invite-preview-members-heading {
+  margin: 0;
+  font-size: 1rem;
+}
+.group-invite-link {
+  min-height: 88px;
+  overflow-wrap: anywhere;
+  font: 0.8rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.group-invite-qr {
+  display: grid;
+  justify-items: center;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--line, #29323a);
+  border-radius: 14px;
+  background: #fff;
+}
+.group-invite-qr svg {
+  display: block;
+  width: min(100%, 440px);
+  height: auto;
+}
+.group-invite-preview-members {
+  display: grid;
+  gap: 6px;
+  max-height: 180px;
+  margin: 0;
+  padding: 0 0 0 20px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  color: var(--muted, #aab3be);
+}

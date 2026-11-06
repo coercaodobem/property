@@ -4,6 +4,7 @@
   let deferredInstallPrompt = null;
   let installedInThisPage = false;
   let pendingContactIntent = '';
+  let pendingGroupInviteIntent = '';
 
   function captureContactIntent(url) {
     const hash = new URLSearchParams(url.hash.replace(/^#/, ''));
@@ -14,12 +15,28 @@
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
     return value;
   }
+  function captureGroupInviteIntent(url) {
+    const hash = new URLSearchParams(url.hash.replace(/^#/, ''));
+    if (!hash.has('groupInvite')) return '';
+    const value = hash.get('groupInvite') || '';
+    hash.delete('groupInvite');
+    url.hash = hash.toString() ? hash.toString() : '';
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    return value;
+  }
   pendingContactIntent = captureContactIntent(new URL(window.location.href));
+  pendingGroupInviteIntent = captureGroupInviteIntent(new URL(window.location.href));
   window.addEventListener('hashchange', () => {
     const value = captureContactIntent(new URL(window.location.href));
     if (!value) return;
     pendingContactIntent = value;
     window.dispatchEvent(new CustomEvent('property-contact-intent', { detail: { value } }));
+  });
+  window.addEventListener('hashchange', () => {
+    const value = captureGroupInviteIntent(new URL(window.location.href));
+    if (!value) return;
+    pendingGroupInviteIntent = value;
+    window.dispatchEvent(new CustomEvent('property-group-invite-intent', { detail: { value } }));
   });
 
   window.addEventListener('beforeinstallprompt', event => {
@@ -39,6 +56,12 @@
   function consumeContactIntent() {
     const value = pendingContactIntent;
     pendingContactIntent = '';
+    return value;
+  }
+
+  function consumeGroupInviteIntent() {
+    const value = pendingGroupInviteIntent;
+    pendingGroupInviteIntent = '';
     return value;
   }
 
@@ -78,5 +101,5 @@
     }
   }
 
-  window.PropertyPwa = Object.freeze({ consumeLaunchAction, consumeContactIntent, bindInstallControls });
+  window.PropertyPwa = Object.freeze({ consumeLaunchAction, consumeContactIntent, consumeGroupInviteIntent, bindInstallControls });
 })();

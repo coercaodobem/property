@@ -18,11 +18,12 @@
   <link rel="stylesheet" href="./link-preview.css?v=property-v1">
   <link rel="stylesheet" href="./message-scroll.css?v=property-v1">
   <link rel="stylesheet" href="./group-mentions.css?v=property-v2">
+  <link rel="stylesheet" href="./group-invites.css?v=property-v1">
   <link rel="stylesheet" href="./location-cards.css?v=property-v1">
   <link rel="stylesheet" href="./message-forwards.css?v=property-v1">
   <link rel="stylesheet" href="./typing-signals.css?v=property-v1">
-  <script defer src="./i18n.js?v=property-v70"></script>
-  <script defer src="./pwa.js?v=property-v35"></script>
+  <script defer src="./i18n.js?v=property-v71"></script>
+  <script defer src="./pwa.js?v=property-v36"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v34"></script>
   <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v26"></script>
@@ -60,13 +61,14 @@
   <script defer src="./link-preview.js?v=property-v1"></script>
   <script defer src="./message-scroll.js?v=property-v1"></script>
   <script defer src="./group-mentions.js?v=property-v2"></script>
+  <script defer src="./group-invites.js?v=property-v1"></script>
   <script defer src="./voice-messages.js?v=property-v1"></script>
   <script defer src="./audio-playback.js?v=property-v1"></script>
   <script defer src="./call-window.js?v=property-v1"></script>
   <script defer src="./file-transfers.js?v=property-v1"></script>
   <script defer src="./direct-file-envelope.js?v=property-v1"></script>
   <script defer src="./image-viewer.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v90"></script>
+  <script defer src="./app.js?v=property-v91"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -334,6 +336,18 @@
       <label class="field"><span>Local name on this device</span><input id="chat-local-name" maxlength="80" autocomplete="off" placeholder="Add an optional local name"></label>
       <button id="save-chat-local-name" class="button secondary full" type="button">Save local name</button>
       <p id="chat-group-details" class="fine-print" hidden></p>
+      <section id="group-invite-section" class="group-invite-section" aria-labelledby="group-invite-heading" hidden>
+        <h3 id="group-invite-heading">Invite one person</h3>
+        <p class="fine-print">This creates a new private room with everyone here and the invited person. Message history is not copied. NIP-17 has no group admin, invite revocation, or member removal; any participant can share another invitation. The link is encrypted for one public key and has no expiry. Each person still needs a published NIP-17 inbox list (kind 10050) to receive messages.</p>
+        <label class="field"><span>Invitee public npub or hex key</span><input id="group-invite-member-input" maxlength="5000" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="npub1…"></label>
+        <button id="group-invite-generate" class="button secondary full" type="button">Generate private invite link</button>
+        <div id="group-invite-result" hidden>
+          <label class="field"><span>Encrypted invitation link</span><textarea id="group-invite-link" class="group-invite-link" rows="4" readonly></textarea></label>
+          <div class="dialog-actions"><button id="group-invite-copy" class="button primary" type="button">Copy invite link</button><button id="group-invite-show-qr" class="button secondary" type="button">Show QR code</button></div>
+          <div id="group-invite-qr" class="group-invite-qr" hidden></div>
+        </div>
+        <p id="group-invite-status" class="fine-print" role="status" aria-live="polite"></p>
+      </section>
       <section id="chat-public-profile-section" class="chat-public-profile" aria-labelledby="chat-public-profile-heading">
         <p id="chat-public-profile-heading" class="eyebrow">PUBLIC NOSTR PROFILE</p>
         <p id="chat-profile-status" class="muted" role="status" aria-live="polite">No public profile has been loaded on this device yet.</p>
@@ -346,6 +360,19 @@
         <section id="chat-nip39-section" class="chat-identity-claims" aria-labelledby="chat-nip39-heading" hidden><h3 id="chat-nip39-heading">Linked identities · NIP-39</h3><p id="chat-nip39-status" class="fine-print" role="status" aria-live="polite"></p><div id="chat-nip39-list" class="identity-proof-list"></div><p class="fine-print">A signed Nostr claim links the profile to an account but does not by itself prove account ownership. GitHub checks happen only when you tap Verify; the request reveals your IP to GitHub. Other providers are shown as unverified claims.</p></section><button id="load-chat-public-profile" class="button primary full" type="button">Load latest public profile</button>
         <p class="fine-print">Property reads signed kind 0 profile events only from your saved relays and the relay hints for this conversation. Profile names and descriptions are self-described; a Nostr signature ties the event to this public key, not to a verified real-world identity. A NIP-05 check only runs when you tap the button, reveals your IP address to that domain, and checks only its mapping to a public key. Property does not load remote profile images.</p>
       </section>
+    </div>
+  </dialog>
+
+  <dialog id="group-invite-preview-dialog" class="dialog-card" aria-labelledby="group-invite-preview-title">
+    <form method="dialog" class="dialog-head"><div><p class="eyebrow">PRIVATE GROUP INVITATION</p><h2 id="group-invite-preview-title">Invitation to a private group</h2></div><button class="icon-button" aria-label="Close">×</button></form>
+    <div class="dialog-body">
+      <p id="group-invite-preview-from" class="muted"></p>
+      <p id="group-invite-preview-room" class="group-invite-preview-members-heading"></p>
+      <h3 class="group-invite-preview-members-heading">Group participants</h3>
+      <ul id="group-invite-preview-members" class="group-invite-preview-members"></ul>
+      <p class="fine-print">The signed invitation is encrypted for your public key. The displayed Nostr key verifies who signed it; it does not verify a real-world identity. Joining saves the new room on this device and sends nothing. It has no prior message history, and the link cannot be revoked or made to expire.</p>
+      <p id="group-invite-preview-status" class="error" role="status" aria-live="polite"></p>
+      <div class="dialog-actions"><button id="group-invite-decline" class="button secondary" type="button">Decline</button><button id="group-invite-accept" class="button primary" type="button">Join group</button></div>
     </div>
   </dialog>
 

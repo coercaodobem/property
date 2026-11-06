@@ -5,6 +5,7 @@
   const dec = new TextDecoder();
   const RelayDefaults = window.PropertyRelayDefaults;
   const Pwa = window.PropertyPwa;
+  const GroupInvites = window.PropertyGroupInvites;
   const ShareInbox = window.PropertyShareInbox;
   // Stable legacy database ID: preserve existing identities and sessions on this origin.
   const DB_NAME = 'liberdade-local-v1';
@@ -76,7 +77,7 @@
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, unseenMessageCount: 0, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', shareFileDraftId: '', shareFileDraftPeer: '', shareFileDraftFiles: [], pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0,
+    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, unseenMessageCount: 0, pendingLaunchAction: '', pendingContactIntent: '', pendingGroupInviteIntent: '', pendingGroupInvite: null, groupInviteDraft: null, contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', shareFileDraftId: '', shareFileDraftPeer: '', shareFileDraftFiles: [], pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0,
     linkPreview: null, linkPreviewUrl: '', linkPreviewSequence: 0, linkPreviewBusy: false, linkPreviewStatus: '',
     voiceRecorder: null, voiceRecorderPeer: '', voiceRecorderStartedAt: 0, voiceTimer: 0, voiceStopping: false, voiceSequence: 0,
     voiceDrafts: new Map(), voiceObjectUrls: new Map(), fileObjectUrls: new Map(), fileDraftObjectUrls: new Map(), fileDraftTransferIds: new Map(), fileDraftFiles: [], fileSendBusy: false, fileTransferSeen: new Set(), activeConversationAgent: false, activeConversationBlocked: false
@@ -1860,6 +1861,15 @@
     $('chat-details-title').textContent = conversationLabel(conversation);
     $('chat-local-name').value = conversation.title || '';
     $('chat-group-details').hidden = conversation.group !== true;
+    const groupMembers = Array.isArray(conversation.members) ? conversation.members : [];
+    $('group-invite-section').hidden = conversation.group !== true || groupMembers.length < 3 || groupMembers.length >= MAX_NIP17_GROUP_MEMBERS || !groupMembers.includes(state.pubkey);
+    $('group-invite-member-input').value = '';
+    $('group-invite-result').hidden = true;
+    $('group-invite-link').value = '';
+    $('group-invite-qr').replaceChildren();
+    $('group-invite-qr').hidden = true;
+    $('group-invite-status').textContent = '';
+    state.groupInviteDraft = null;
     $('chat-public-profile-section').hidden = conversation.group === true;
     $('load-chat-public-profile').disabled = conversation.group === true;
     if (conversation.group === true) {
@@ -2589,6 +2599,11 @@
       state.pendingContactIntent = '';
       state.pendingLaunchAction = '';
       openContactIntent(contact);
+    } else if (state.pendingGroupInviteIntent) {
+      const invite = state.pendingGroupInviteIntent;
+      state.pendingGroupInviteIntent = '';
+      state.pendingLaunchAction = '';
+      await showGroupInvitePreview(invite);
     } else if (state.pendingLaunchAction) {
       const action = state.pendingLaunchAction;
       state.pendingLaunchAction = '';
@@ -4481,6 +4496,77 @@
     await selectConversation(id);
     await renderConversations();
   }
+  function createGroupInviteLink() {
+    const conversation = state.chatDetailsPeer ? get('conversations', state.chatDetailsPeer) : Promise.resolve(null);
+    return Promise.resolve(conversation).then(group => {
+      if (!state.secret || !state.pubkey || group?.group !== true || !Array.isArray(group.members)) throw new Error('Invalid group invitation.');
+      const target = Contact.parsePublicKey($('group-invite-member-input').value).pubkey.toLowerCase();
+      if (group.members.some(member => member.toLowerCase() === target)) throw new Error('Invalid group invitation.');
+      const invite = GroupInvites.createInvitation({
+        baseUrl: window.location.href,
+        senderPubkey: state.pubkey,
+        inviteePubkey: target,
+        members: group.members,
+        title: group.title || localized('Private group', 'Grupo privado'),
+        createdAt: Math.floor(Date.now() / 1000),
+        sign: template => N.finalizeEvent(template, state.secret),
+        encrypt: (recipient, plaintext) => N.nip44.v2.encrypt(plaintext, N.nip44.v2.utils.getConversationKey(state.secret, recipient)),
+        verify: event => N.verifyEvent(event)
+      });
+      state.groupInviteDraft = invite;
+      $('group-invite-link').value = invite.url;
+      $('group-invite-result').hidden = false;
+      $('group-invite-qr').hidden = true;
+      $('group-invite-qr').replaceChildren();
+      $('group-invite-status').textContent = localized('Invitation created on this device. It is encrypted for the selected public key and has not been sent or published.', 'Convite criado neste aparelho. Ele é criptografado para a chave pública selecionada e não foi enviado nem publicado.');
+    });
+  }
+  async function showGroupInvitePreview(value) {
+    if (!state.secret || !state.pubkey) { state.pendingGroupInviteIntent = value; return; }
+    try {
+      const invite = GroupInvites.openInvitation(value, {
+        recipientPubkey: state.pubkey,
+        decrypt: (sender, ciphertext) => N.nip44.v2.decrypt(ciphertext, N.nip44.v2.utils.getConversationKey(state.secret, sender)),
+        verify: event => N.verifyEvent(event)
+      });
+      state.pendingGroupInvite = invite;
+      const senderNpub = N.nip19.npubEncode(invite.senderPubkey);
+      $('group-invite-preview-from').textContent = localized(`Signed by ${senderNpub}`, `Assinado por ${senderNpub}`);
+      $('group-invite-preview-room').textContent = invite.title;
+      const memberRows = await Promise.all(invite.members.map(async member => {
+        const local = member === state.pubkey ? null : await get('conversations', member).catch(() => null);
+        const profile = state.peerProfiles.get(member);
+        const name = member === state.pubkey ? localized('You', 'Você') : displayName(member, local?.title || profile?.displayName || profile?.name || '');
+        return `${name} · npub…${N.nip19.npubEncode(member).slice(-8)}`;
+      }));
+      const list = $('group-invite-preview-members');
+      list.replaceChildren(...memberRows.map(label => { const item = document.createElement('li'); item.textContent = label; return item; }));
+      $('group-invite-preview-status').textContent = '';
+      $('group-invite-preview-dialog').showModal();
+    } catch {
+      state.pendingGroupInvite = null;
+      showToast(localized('This group invitation is invalid, changed, or addressed to a different key.', 'Este convite de grupo é inválido, foi alterado ou foi enviado para outra chave.'));
+    }
+  }
+  async function acceptGroupInvite() {
+    const invite = state.pendingGroupInvite;
+    if (!invite || !state.secret || invite.recipientPubkey !== state.pubkey) {
+      $('group-invite-preview-status').textContent = localized('Unlock the invited identity and open the link again.', 'Desbloqueie a identidade convidada e abra o link novamente.');
+      return;
+    }
+    const id = groupConversationId(invite.members);
+    if (!id) {
+      $('group-invite-preview-status').textContent = localized('This participant list cannot form a private group.', 'Esta lista de participantes não pode formar um grupo privado.');
+      return;
+    }
+    const previous = await get('conversations', id) || { pubkey: id, lastAt: 0, lastMessage: '' };
+    await put('conversations', { ...previous, group: true, members: [...invite.members], title: previous.title || invite.title });
+    state.pendingGroupInvite = null;
+    $('group-invite-preview-dialog').close();
+    await selectConversation(id);
+    await renderConversations();
+    showToast(localized('Group added on this device. No message was sent.', 'Grupo adicionado neste aparelho. Nenhuma mensagem foi enviada.'));
+  }
   function setActiveView(view) {
     if (view !== 'messages' && state.voiceRecorder) cancelVoiceRecording({ notify: true });
     if (view !== 'messages') stopLocalPresence();
@@ -5073,7 +5159,8 @@
     clearTimeout(state.messageDayRolloverTimer); state.messageDayRolloverTimer = 0;
     if (state.secret) state.secret.fill(0);
     const clearAppBadgeOnLock = state.appBadgeEnabled || state.appBadgeLastCount !== null;
-    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.typingIndicatorsEnabled = false; state.readReceiptsEnabled = false; state.activeStatusEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = ''; state.appBadgeEnabled = false; state.appBadgeLastCount = clearAppBadgeOnLock ? 0 : null;
+    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.typingIndicatorsEnabled = false; state.readReceiptsEnabled = false; state.activeStatusEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = ''; state.pendingGroupInviteIntent = ''; state.pendingGroupInvite = null; state.groupInviteDraft = null; state.appBadgeEnabled = false; state.appBadgeLastCount = clearAppBadgeOnLock ? 0 : null;
+    if ($('group-invite-preview-dialog').open) $('group-invite-preview-dialog').close();
     if (clearAppBadgeOnLock) void queueAppBadge(0);
     state.conversationMessageSearchCache = null; state.conversationMessageSearchRevision++;
     state.replyingTo = null; updateReplyContext();
@@ -5153,7 +5240,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v72', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v73', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -5293,6 +5380,15 @@
       state.pendingLaunchAction = '';
       openContactIntent(contact);
     });
+    window.addEventListener('property-group-invite-intent', event => {
+      const invite = typeof event.detail?.value === 'string' ? event.detail.value : '';
+      if (!invite) return;
+      Pwa.consumeGroupInviteIntent();
+      if (!state.secret) { state.pendingGroupInviteIntent = invite; return; }
+      state.pendingGroupInviteIntent = '';
+      state.pendingLaunchAction = '';
+      void showGroupInvitePreview(invite);
+    });
     document.addEventListener('click', event => {
       const card = event.target?.closest?.('button[data-nostr-profile-code]');
       if (!card) return;
@@ -5388,6 +5484,39 @@
       $('notification-mute-status').textContent = localized('Could not update this local setting.', 'Não foi possível atualizar esta configuração local.');
     }));
     $('chat-details-button').addEventListener('click', () => openChatDetails().catch(error => showToast(error.message || localized('Could not open conversation details.', 'Não foi possível abrir os detalhes da conversa.'))));
+    $('group-invite-generate').addEventListener('click', () => createGroupInviteLink().catch(() => {
+      $('group-invite-status').textContent = localized('Check the public key and try again. The room was not changed.', 'Confira a chave pública e tente novamente. A sala não foi alterada.');
+    }));
+    $('group-invite-copy').addEventListener('click', async () => {
+      const value = $('group-invite-link').value;
+      if (!value) return;
+      try {
+        await navigator.clipboard.writeText(value);
+        showToast(localized('Encrypted group invite link copied.', 'Link de convite criptografado copiado.'));
+      } catch {
+        $('group-invite-link').focus();
+        $('group-invite-link').select();
+        $('group-invite-status').textContent = localized('Select the highlighted link and copy it from your browser menu.', 'Selecione o link destacado e copie pelo menu do navegador.');
+      }
+    });
+    $('group-invite-show-qr').addEventListener('click', () => {
+      try {
+        const link = $('group-invite-link').value;
+        if (!link) return;
+        $('group-invite-qr').replaceChildren(QrCode.createSvg(link, localized('QR code for an encrypted group invitation', 'QR code para convite de grupo criptografado')));
+        $('group-invite-qr').hidden = false;
+      } catch {
+        $('group-invite-status').textContent = localized('This invitation link is too large for a QR code. Copy the link instead.', 'Este link de convite é grande demais para um QR code. Copie o link.');
+      }
+    });
+    $('group-invite-accept').addEventListener('click', () => acceptGroupInvite().catch(() => {
+      $('group-invite-preview-status').textContent = localized('Could not save this group on the device.', 'Não foi possível salvar este grupo no aparelho.');
+    }));
+    $('group-invite-decline').addEventListener('click', () => {
+      state.pendingGroupInvite = null;
+      $('group-invite-preview-dialog').close();
+    });
+    $('group-invite-preview-dialog').addEventListener('close', () => { state.pendingGroupInvite = null; });
     $('load-chat-public-profile').addEventListener('click', () => loadChatPublicProfile());
     $('verify-profile-nip05').addEventListener('click', () => verifyOwnNip05());
     $('copy-github-proof-text').addEventListener('click', () => copyGitHubVerificationText().catch(() => {
@@ -5837,10 +5966,11 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.createPresence !== 'function' || typeof TypingSignals.createCallSignal !== 'function' || typeof TypingSignals.createFileSignal !== 'function' || typeof TypingSignals.unwrap !== 'function' || !Calls || typeof Calls.create !== 'function' || !DirectTransfer || typeof DirectTransfer.create !== 'function' || !DirectFileEnvelope || typeof DirectFileEnvelope.create !== 'function' || typeof DirectFileEnvelope.validate !== 'function' || !ImageViewer || typeof ImageViewer.create !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.createPresence !== 'function' || typeof TypingSignals.createCallSignal !== 'function' || typeof TypingSignals.createFileSignal !== 'function' || typeof TypingSignals.unwrap !== 'function' || !Calls || typeof Calls.create !== 'function' || !DirectTransfer || typeof DirectTransfer.create !== 'function' || !DirectFileEnvelope || typeof DirectFileEnvelope.create !== 'function' || typeof DirectFileEnvelope.validate !== 'function' || !ImageViewer || typeof ImageViewer.create !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || typeof Pwa.consumeGroupInviteIntent !== 'function' || !GroupInvites || typeof GroupInvites.createInvitation !== 'function' || typeof GroupInvites.openInvitation !== 'function' || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();
+    state.pendingGroupInviteIntent = Pwa.consumeGroupInviteIntent();
     state.bridgeRefreshTimer = window.setInterval(refreshBridgeSubscriptions, 60_000);
     registerOfflineShell();
     try {
