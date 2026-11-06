@@ -100,7 +100,7 @@ assert.match(browserG03Source, /local_relay_selection_unchanged_by_received_hint
   'G03 verifies that incoming profile hints do not replace the saved relay selection');
 assert.match(browserG03Source, /denied_proxy_limited_to_bundled_relays/,
   'G03 records blocked relay attempts separately from completed external requests');
-assert.match(runnerSource, /const g04Ids = \['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09', 'G04-11', 'G04-12', 'G04-13', 'G04-14', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20'\]/,
+assert.match(runnerSource, /const g04Ids = \['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09', 'G04-11', 'G04-12', 'G04-13', 'G04-14', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21'\]/,
   'runner records the direct-message browser cases, including the welcome actions');
 assert.match(plan, /G03-06 \|[^\n]*local deny proxy[^\n]*bundled relay list/,
   'G03-06 requires locally denied relay attempts and restricts them to bundled candidates');
@@ -118,10 +118,10 @@ await access(path.join(root, 'property/tests/offline/g08-ledger-smoke.mjs'));
 await access(path.join(root, 'property/relay/campaign-engine.mjs'));
 const cases = parsePlanCases(plan);
 const details = parsePlanCaseDetails(plan);
-assert.equal(cases.length, 94);
-assert.equal(details.size, 94);
+assert.equal(cases.length, 95);
+assert.equal(details.size, 95);
 assert.ok([...details.values()].every(value => value.trim().length > 0));
-assert.equal(new Set(cases).size, 94);
+assert.equal(new Set(cases).size, 95);
 assert.equal(cases[0], 'G00-01');
 assert.equal(cases.at(-1), 'G12-06');
 const registryStart = plan.indexOf('## 6. Mandatory cases by gate');

@@ -1,0 +1,15 @@
+.link-preview-trigger { font-size: 16px; }
+.link-preview-trigger:disabled { opacity: .4; cursor: not-allowed; }
+.link-preview-card { display: grid; gap: 4px; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin: 8px 0; background: var(--panel); min-width: 0; }
+.link-preview-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.link-preview-site, .link-preview-source { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
+.link-preview-title { color: var(--text); font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
+.link-preview-description { color: var(--muted); font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.link-preview-open { display: inline-block; width: fit-content; color: var(--accent); font-size: 12px; overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 2px; }
+.link-preview-remove { border: 0; padding: 0 5px; border-radius: 8px; background: transparent; color: var(--muted); font-size: 18px; }
+.link-preview-remove:hover { background: var(--line); color: var(--text); }
+.link-preview-draft { margin: 8px 0; }
+.link-preview-status { color: var(--muted); font-size: 12px; }
+.link-preview-consent-url { margin: 10px 0; padding: 9px; border-radius: 9px; background: var(--panel2); color: var(--accent); overflow-wrap: anywhere; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.message-bubble > .link-preview-card { margin-top: 10px; }
+@media (max-width: 600px) { .link-preview-card { padding: 9px 10px; } }

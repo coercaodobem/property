@@ -12,7 +12,7 @@ Property is an open project for decentralized communication and voluntary exchan
 
 **Browser access:** open the site on a compatible device and, if you like, add the PWA to your home screen. The app does not need to be distributed through the Play Store or App Store.
 
-**One app, one identity:** Property is the Nostr PWA at the link above. Ghostly is a UX reference; compatible conversation improvements, including the searchable offline emoji picker, are integrated into this same app and use the user's Property identity and selected Nostr relays.
+**One app, one identity:** Property is the Nostr PWA at the link above. Ghostly is a UX reference; compatible conversation improvements, including the searchable offline emoji picker and opt-in encrypted link previews, are integrated into this same app and use the user's Property identity and selected Nostr relays.
 
 **Voluntary exchange:** the marketplace lets people publish and discover offers. Purchases, checkout, and custody are not enabled in this version.
 
@@ -30,7 +30,7 @@ The platform goal includes Windows, macOS, Linux/Ubuntu, Android, and iOS. The c
 |---|---|---|
 | Web app | HTTPS PWA; runtime files ship in the same package | Full Android/iOS device validation and accessibility review |
 | Identity | Random local key, password-protected vault, persistent session, and encrypted backup | More recovery testing on real devices |
-| Messaging | Encrypted NIP-17 direct and group chats (up to 10 participants), locally pinned chats and folders, kind 10050 inbox lists, and offline protocol tests | Broader interoperability testing; groups have no admin, approval, or reliable member removal |
+| Messaging | Encrypted NIP-17 direct and group chats (up to 10 participants), sender-consented text-only link previews, locally pinned chats and folders, kind 10050 inbox lists, and offline protocol tests | Broader interoperability testing; groups have no admin, approval, or reliable member removal |
 | Agents | Direct NIP-17/MCP conversations by public key, with no Property invitation or approval; reversible local blocking | Human review, independent security review, external hosts, and other platforms |
 | PC relay | Geode with bundled runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon | Platform matrix and multi-relay G11-03 gate with 300 probes, three restarts, and nine partition events; see the [test plan status](property/docs/plano-de-testes-central.md) |
 | Volunteer bridge | Limited event forwarding between relays while the PWA is active | Continuous mobile operation is not supported by a PWA |

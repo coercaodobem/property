@@ -12,8 +12,9 @@
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
   <link rel="stylesheet" href="./styles.css?v=property-v57">
+  <link rel="stylesheet" href="./link-preview.css?v=property-v1">
   <link rel="stylesheet" href="./message-scroll.css?v=property-v1">
-  <script defer src="./i18n.js?v=property-v52"></script>
+  <script defer src="./i18n.js?v=property-v53"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -43,8 +44,9 @@
   <script defer src="./notification-preferences.js?v=property-v1"></script>
   <script defer src="./app-badge.js?v=property-v1"></script>
   <script defer src="./message-days.js?v=property-v1"></script>
+  <script defer src="./link-preview.js?v=property-v1"></script>
   <script defer src="./message-scroll.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v64"></script>
+  <script defer src="./app.js?v=property-v65"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -159,8 +161,10 @@
               <button class="format-button format-strike" type="button" data-format-marker="~~" aria-label="Strikethrough" title="Strikethrough">S</button>
               <button class="format-button" type="button" data-format-marker="`" aria-label="Inline code" title="Inline code">&lt;/&gt;</button>
               <button class="format-button format-spoiler" type="button" data-format-marker="||" aria-label="Spoiler" title="Spoiler">◉</button>
+              <button id="link-preview-button" class="format-button link-preview-trigger" type="button" aria-label="Create link preview" title="Create link preview" disabled>↗</button>
               <button id="emoji-picker-button" class="format-button emoji-picker-button" type="button" aria-label="Add emoji" title="Add emoji" aria-expanded="false" aria-controls="emoji-picker-panel">☺</button>
             </div>
+            <section id="link-preview-draft" class="link-preview-card link-preview-draft hidden" aria-live="polite"></section>
             <section id="emoji-picker-panel" class="emoji-picker-panel hidden" role="region" aria-labelledby="emoji-picker-title">
               <div class="emoji-picker-toolbar">
                 <h2 id="emoji-picker-title">Choose emoji</h2>
@@ -174,6 +178,12 @@
             </section>
             <div class="composer-input-row"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Write a private message…" aria-label="Message"></textarea><button class="send-button" type="submit" aria-label="Send message">↑</button></div>
           </form>
+          <dialog id="link-preview-consent-dialog" class="dialog-card" aria-labelledby="link-preview-consent-title">
+            <div class="dialog-head"><div><p class="eyebrow">PRIVATE MESSAGE</p><h2 id="link-preview-consent-title">Fetch a link preview?</h2></div><button id="link-preview-consent-close" class="icon-button small" type="button" aria-label="Close">×</button></div>
+            <p class="fine-print">Property will contact this HTTPS page from your device to read its title and description. The website may see your IP address. Some sites block browser previews; you can still send the link without one. Property sends no cookies or referrer, uses no proxy, and does not load remote images.</p>
+            <p id="link-preview-consent-url" class="link-preview-consent-url"></p>
+            <div class="dialog-actions"><button id="link-preview-consent-cancel" class="button secondary" type="button">Cancel</button><button id="link-preview-consent-fetch" class="button primary" type="button">Fetch preview</button></div>
+          </dialog>
           <dialog id="reaction-emoji-dialog" class="dialog-card emoji-reaction-dialog" aria-labelledby="reaction-emoji-title">
             <div class="dialog-head"><div><p class="eyebrow">MESSAGE REACTION</p><h2 id="reaction-emoji-title">Choose a reaction</h2></div><button id="reaction-emoji-close" class="icon-button small" type="button" aria-label="Close emoji picker" title="Close emoji picker">×</button></div>
             <div id="reaction-emoji-mount"></div>

@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -450,6 +450,17 @@ async function localRecord(page, storeName, id) {
     });
     db.close(); return result || null;
   }, { storeName, id });
+}
+async function localMessagePreview(page, peer, text) {
+  return page.evaluate(async ({ peer, text }) => {
+    const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    const rows = await new Promise((resolve, reject) => {
+      const request = db.transaction('messages').objectStore('messages').getAll();
+      request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return rows.filter(row => row.peer === peer && row.text === text).sort((left, right) => right.createdAt - left.createdAt)[0]?.linkPreview || null;
+  }, { peer, text });
 }
 async function localUnreadTotal(page) {
   return page.evaluate(async () => {
@@ -1453,6 +1464,90 @@ async function main() {
       explicit_verify_click_made_one_mocked_request: true, request_credentials_omitted: true, verified_result_rendered: true,
       relay_events_published_by_verification: 0, external_network_requests: 0 };
     mark('G04-20', 'PASS', 'A person copied the canonical verification text and explicitly published one signed kind 10011 GitHub claim. A contact loaded the signed claim without contacting GitHub; only tapping Verify made one mocked, credential-free request, rendered the matching proof as verified, and published no relay event.');
+
+    stage = 'G04-21: consented encrypted link preview';
+    await pageA.setViewportSize({ width: 1280, height: 800 });
+    await openConversation(pageA, c.npub, 'C preview');
+    await openConversation(pageC, a.npub, 'A preview');
+    await pageA.locator('#language-picker').selectOption('en');
+    assert.equal(await pageA.locator('#messages').getAttribute('data-peer'), c.pubkey, 'the direct test conversation with C is active');
+    const previewUrl = 'https://preview.example.test/story?id=4';
+    const previewTitle = 'A local fixture title';
+    await pageA.evaluate(() => {
+      window.__propertyPreviewFetches = [];
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = async (input, options = {}) => {
+        const url = typeof input === 'string' ? input : input?.url || String(input);
+        if (!url.startsWith('https://preview.example.test/')) return originalFetch(input, options);
+        window.__propertyPreviewFetches.push({ url, method: options.method, mode: options.mode, credentials: options.credentials,
+          cache: options.cache, redirect: options.redirect, referrerPolicy: options.referrerPolicy, accept: options.headers?.Accept });
+        const body = '<html><head><meta property="og:title" content="A local fixture title"><meta property="og:description" content="Fixture description"><meta property="og:site_name" content="Fixture News"></head><body><img src="https://tracker.example.test/pixel"></body></html>';
+        return new Response(body, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'content-length': String(body.length) } });
+      };
+    });
+    await pageC.evaluate(() => {
+      window.__propertyPreviewReceiveFetches = [];
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = async (input, options) => {
+        const url = typeof input === 'string' ? input : input?.url || String(input);
+        if (url.startsWith('https://preview.example.test/')) window.__propertyPreviewReceiveFetches.push(url);
+        return originalFetch(input, options);
+      };
+    });
+    const previewText = `Read this story: ${previewUrl}`;
+    await pageA.locator('#message-input').fill(previewText);
+    assert.equal(await pageA.evaluate(() => window.__propertyPreviewFetches.length), 0, 'typing a URL does not fetch it');
+    await pageA.locator('#link-preview-button').click();
+    await pageA.locator('#link-preview-consent-dialog').waitFor({ state: 'visible' });
+    assert.equal((await pageA.locator('#link-preview-consent-url').textContent()).trim(), previewUrl, 'the exact destination is shown before consent');
+    await pageA.locator('#link-preview-consent-cancel').click();
+    assert.equal(await pageA.evaluate(() => window.__propertyPreviewFetches.length), 0, 'canceling consent makes no request');
+    await pageA.locator('#link-preview-button').click();
+    await pageA.locator('#link-preview-consent-fetch').click();
+    await pageA.locator('#link-preview-draft .link-preview-title').filter({ hasText: previewTitle }).waitFor({ state: 'visible', timeout: 5000 });
+    const previewRequests = await pageA.evaluate(() => window.__propertyPreviewFetches);
+    assert.deepEqual(previewRequests, [{ url: previewUrl, method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer', accept: 'text/html' }]);
+    await pageA.setViewportSize({ width: 390, height: 844 });
+    await pageA.locator('#language-picker').selectOption('pt-BR');
+    await pageA.waitForFunction(() => document.querySelector('#link-preview-draft .link-preview-source')?.textContent.includes('fornecida por quem enviou'));
+    await pageA.screenshot({ path: path.join(options.output, 'g04-link-preview-composer-mobile-pt-BR.png') });
+    await pageA.locator('#language-picker').selectOption('en');
+    const previewEnvelopeIdsBefore = new Set((await wsQuery(relay0.url, { kinds: [1059], limit: 1000 })).map(event => event.id));
+    await pageA.locator('#send-form button[type="submit"]').click();
+    if (await pageA.locator('#secret-guard-dialog').isVisible()) await pageA.locator('#secret-guard-send-anyway').click();
+    await pageA.locator('#messages .message-bubble').filter({ hasText: previewText }).waitFor({ state: 'visible', timeout: 10000 }).catch(async error => {
+      const diagnostics = await pageA.evaluate(() => ({
+        peer: document.querySelector('#messages')?.dataset.peer || '', input: document.querySelector('#message-input')?.value || '',
+        sendDisabled: document.querySelector('#send-form button[type="submit"]')?.disabled ?? null,
+        secretDialogOpen: document.querySelector('#secret-guard-dialog')?.open ?? null,
+        toast: document.querySelector('#toast')?.textContent?.trim() || '',
+        previewFetches: window.__propertyPreviewFetches || [],
+        activeDialogs: [...document.querySelectorAll('dialog[open]')].map(dialog => dialog.id)
+      }));
+      report.failure_checks.link_preview_send = diagnostics;
+      throw new Error(`Sender did not save the preview message: ${JSON.stringify(diagnostics)}; ${error.message}`);
+    });
+    await pageC.locator('#messages .message-bubble').filter({ hasText: previewText }).waitFor({ state: 'visible', timeout: 15000 });
+    await pageC.locator('#messages .link-preview-title').filter({ hasText: previewTitle }).waitFor({ state: 'visible', timeout: 5000 });
+    await pageC.locator('#language-picker').selectOption('pt-BR');
+    await pageC.waitForFunction(() => document.querySelector('#messages .link-preview-source')?.textContent.includes('fornecida por quem enviou'));
+    assert.equal(await pageC.evaluate(() => window.__propertyPreviewReceiveFetches.length), 0, 'receiving and rendering the encrypted preview never fetches the destination');
+    const expectedPreview = { v: 1, url: previewUrl, title: previewTitle, description: 'Fixture description', site: 'Fixture News' };
+    assert.deepEqual(await localMessagePreview(pageA, c.pubkey, previewText), expectedPreview, 'sender stored the confirmed preview with the local message');
+    assert.deepEqual(await localMessagePreview(pageC, a.pubkey, previewText), expectedPreview, 'recipient recovered the preview metadata from the decrypted NIP-17 rumor');
+    const encryptedPreviewEnvelopes = await wsQuery(relay0.url, { kinds: [1059], limit: 1000 });
+    const previewEnvelopes = encryptedPreviewEnvelopes.filter(event => !previewEnvelopeIdsBefore.has(event.id)
+      && Array.isArray(event.tags) && event.tags.some(tag => tag[0] === 'p' && tag[1] === c.pubkey));
+    assert.equal(previewEnvelopes.length, 1, 'the local relay stored exactly one new gift-wrap envelope for the recipient');
+    const publicEnvelopeText = JSON.stringify(previewEnvelopes);
+    assert.equal(publicEnvelopeText.includes(previewUrl), false, 'the relay cannot read the link from the encrypted wrapper');
+    assert.equal(publicEnvelopeText.includes(previewTitle), false, 'the relay cannot read the preview title from the encrypted wrapper');
+    assert.equal(publicEnvelopeText.includes('property-link-preview-v1'), false, 'the custom preview tag is not exposed to the relay');
+    await pageC.locator('#language-picker').selectOption('en');
+    report.link_preview = { fixed_count: 1, fetch_requires_explicit_consent: true, canceled_consent_requests: 0, request_credentials_omitted: true,
+      referrer_omitted: true, redirects_rejected: true, recipient_fetches: 0, metadata_in_encrypted_nip17_rumor: true,
+      relay_plaintext_exposure: false, english_and_pt_br: true, remote_images_loaded: false };
+    mark('G04-21', 'PASS', 'Typing a link and canceling consent made zero requests. One explicit confirmation made exactly one mocked HTTPS metadata request without credentials/referrer or redirects. The sender attached one text-only preview tag to the NIP-17 rumor; the recipient rendered it in both languages without fetching the page, and the loopback relay saw no preview URL, title, or custom tag in its encrypted wrapper.');
 
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
     const browserRuntimeAttempts = proxy.attempts.filter(attempt => attempt.destination === 'aus5.mozilla.org:443');

@@ -27,6 +27,7 @@
   const AppBadge = window.PropertyAppBadge;
   const MessageDays = window.PropertyMessageDays;
   const MessageScroll = window.PropertyMessageScroll;
+  const LinkPreview = window.PropertyLinkPreview;
   const RichText = window.PropertyRichText;
   const MessageEdits = window.PropertyMessageEdits;
   const SecretGuard = window.PropertySecretGuard;
@@ -52,7 +53,8 @@
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, unseenMessageCount: 0, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0
+    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, unseenMessageCount: 0, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0,
+    linkPreview: null, linkPreviewUrl: '', linkPreviewSequence: 0, linkPreviewBusy: false, linkPreviewStatus: ''
   };
   const SHARE_LAUNCH_ACTIONS = new Set(['share', 'share-full', 'share-error']);
   let propertyTabChannel = null;
@@ -404,6 +406,61 @@
     state.toastTimer = setTimeout(() => node.classList.remove('show'), 2800);
   }
   function localized(en, pt) { return window.PropertyI18n?.language === 'pt-BR' ? pt : en; }
+  function renderLinkPreview(preview, { removable = false } = {}) {
+    const card = document.createElement('div'); card.className = 'link-preview-card';
+    const heading = document.createElement('div'); heading.className = 'link-preview-heading';
+    const copy = document.createElement('div');
+    const source = document.createElement('div'); source.className = 'link-preview-source'; source.textContent = localized('Link preview · provided by sender', 'Prévia do link · fornecida por quem enviou');
+    const site = document.createElement('div'); site.className = 'link-preview-site'; site.textContent = preview.site;
+    const title = document.createElement('div'); title.className = 'link-preview-title'; title.textContent = preview.title;
+    copy.append(source, site, title);
+    if (removable) {
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'link-preview-remove'; remove.textContent = '×';
+      remove.setAttribute('aria-label', localized('Remove link preview', 'Remover prévia do link'));
+      remove.title = remove.getAttribute('aria-label');
+      remove.addEventListener('click', clearLinkPreviewDraft);
+      heading.append(copy, remove);
+    } else heading.append(copy);
+    card.append(heading);
+    if (preview.description) { const description = document.createElement('div'); description.className = 'link-preview-description'; description.textContent = preview.description; card.append(description); }
+    const open = document.createElement('a'); open.className = 'link-preview-open'; open.href = preview.url; open.target = '_blank'; open.rel = 'noopener noreferrer'; open.referrerPolicy = 'no-referrer'; open.textContent = localized('Open linked page', 'Abrir página vinculada');
+    open.setAttribute('aria-label', `${open.textContent}: ${preview.url}`); card.append(open);
+    return card;
+  }
+  function clearLinkPreviewDraft() {
+    state.linkPreviewSequence++;
+    state.linkPreview = null; state.linkPreviewBusy = false; state.linkPreviewStatus = '';
+    updateLinkPreviewDraft();
+  }
+  function updateLinkPreviewDraft() {
+    const input = $('message-input'); const button = $('link-preview-button'); const panel = $('link-preview-draft');
+    if (!input || !button || !panel || !LinkPreview) return;
+    const candidate = LinkPreview.firstLink(input.value);
+    if (candidate !== state.linkPreviewUrl) {
+      state.linkPreviewSequence++; state.linkPreviewUrl = candidate || ''; state.linkPreview = null; state.linkPreviewBusy = false; state.linkPreviewStatus = '';
+    }
+    button.disabled = !candidate || Boolean(state.editingMessage) || state.linkPreviewBusy || input.disabled;
+    panel.replaceChildren(); panel.classList.toggle('hidden', !candidate || (!state.linkPreview && !state.linkPreviewBusy && !state.linkPreviewStatus));
+    if (state.linkPreview) panel.append(renderLinkPreview(state.linkPreview, { removable: true }));
+    else if (candidate && (state.linkPreviewBusy || state.linkPreviewStatus)) {
+      const status = document.createElement('p'); status.className = 'link-preview-status'; status.setAttribute('role', 'status'); status.textContent = state.linkPreviewBusy ? localized('Loading preview…', 'Carregando prévia…') : state.linkPreviewStatus; panel.append(status);
+    }
+  }
+  async function fetchComposerLinkPreview() {
+    const text = $('message-input').value; const url = LinkPreview?.firstLink(text); const peer = state.activePeer;
+    if (!url || !peer || state.editingMessage || state.linkPreviewBusy) return;
+    const generation = ++state.linkPreviewSequence;
+    state.linkPreviewUrl = url; state.linkPreview = null; state.linkPreviewStatus = ''; state.linkPreviewBusy = true; updateLinkPreviewDraft();
+    try {
+      const preview = await LinkPreview.fetchPreview(url);
+      if (generation !== state.linkPreviewSequence || state.activePeer !== peer || LinkPreview.firstLink($('message-input').value) !== url) return;
+      state.linkPreviewBusy = false;
+      state.linkPreview = preview;
+      state.linkPreviewStatus = preview ? '' : localized('Preview unavailable. You can still send the link without a preview.', 'Prévia indisponível. Você ainda pode enviar o link sem prévia.');
+    } finally {
+      if (generation === state.linkPreviewSequence) { state.linkPreviewBusy = false; updateLinkPreviewDraft(); }
+    }
+  }
   function receiveShareHandoff(action) {
     if (!SHARE_LAUNCH_ACTIONS.has(action)) return;
     pendingTabShareAction = action;
@@ -1203,6 +1260,7 @@
     }
     const fromAgent = Boolean(parsedAgentMessage || agentMessageError);
     if (edit && fromAgent) return;
+    const linkPreview = !edit && LinkPreview?.fromTags(rumor.tags, text) || null;
     const replyTag = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'e' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) : null;
     const eventId = rumor.id || event.id;
     const senderDirection = rumor.pubkey === state.pubkey ? 'sent' : 'received';
@@ -1211,7 +1269,7 @@
       const incoming = {
         id: `edit:${peer}:${edit.rootId}`, peer, text: rumor.content, senderPubkey: rumor.pubkey,
         createdAt: rumor.created_at * 1000, direction: senderDirection, status: 'delivered',
-        nostrEventId: eventId, edit,
+        nostrEventId: eventId, edit, linkPreview: null,
         ...(replyTag ? { replyToId: replyTag[1] } : {})
       };
       const result = MessageEdits.applyIncomingEdit(await all('messages'), incoming, state.pubkey);
@@ -1221,7 +1279,7 @@
     } else {
       const id = parsedAgentMessage ? `agent:${peer}:${parsedAgentMessage.messageId}` : eventId;
       if (await get('messages', id)) return;
-      const original = { id, peer, text, senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
+      const original = { id, peer, text, senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, linkPreview, ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
       const merged = MessageEdits.mergeOriginalBehindEdit(await all('messages'), original, state.pubkey);
       message = merged?.message || original;
       await put('messages', message);
@@ -1751,6 +1809,7 @@
     const changed = previousPeer !== pubkey;
     if (changed) {
       cancelMessageEdit();
+      clearLinkPreviewDraft();
       closeMessageSearch(false);
       if (previousPeer) await saveChatDraft(previousPeer, $('message-input').value).catch(() => {});
     }
@@ -1766,6 +1825,7 @@
         input.value = savedDraft;
         resizeMessageInput(input);
       }
+      if (state.activePeer === pubkey) updateLinkPreviewDraft();
     }
     state.currentConversation = null;
     state.replyingTo = null;
@@ -1795,6 +1855,7 @@
     $('message-input').disabled = blocked;
     document.querySelector('#send-form button[type="submit"]').disabled = blocked;
     $('message-input').placeholder = blocked ? 'Agente bloqueado neste aparelho' : 'Escreva uma mensagem privada…';
+    updateLinkPreviewDraft();
   }
   async function toggleAgentBlock() {
     const peer = state.activePeer;
@@ -2047,6 +2108,8 @@
         row.append(quote);
       }
       const bubble = document.createElement('div'); bubble.className = 'message-bubble'; RichText.renderInto(bubble, message.text, window.PropertyI18n?.language || 'en');
+      const safePreview = LinkPreview?.normalizePreview(message.linkPreview, message.text);
+      if (safePreview) bubble.append(renderLinkPreview(safePreview));
       bindReplySwipe(bubble, peer, message, eventId);
       const counts = reactionsByTarget.get(message.id);
       let reactionSummary = null;
@@ -2209,6 +2272,7 @@
     state.editingReplyingTo = null;
     updateEditContext();
     updateReplyContext();
+    clearLinkPreviewDraft();
     resizeMessageInput(input);
     if (restoreFocus) input.focus();
   }
@@ -2219,11 +2283,13 @@
     state.editingDraft = input.value;
     state.editingReplyingTo = state.replyingTo;
     state.editingMessage = { peer, message: { ...message } };
+    clearLinkPreviewDraft();
     state.replyingTo = null;
     updateReplyContext();
     updateEditContext();
     input.value = message.text;
     resizeMessageInput(input);
+    updateLinkPreviewDraft();
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   }
@@ -2282,7 +2348,7 @@
       catch { /* The replacement is already delivered; Property merges edits by their encrypted root tag. */ }
     }
     const localEdit = {
-      ...message, text: updatedText, senderPubkey: state.pubkey, direction: 'sent',
+      ...message, text: updatedText, linkPreview: null, senderPubkey: state.pubkey, direction: 'sent',
       status: confirmedRemote.length === remoteRecipients.length ? 'sent' : 'partial',
       nostrEventId: edit.editRumor.id, editRootId: edit.rootId, editSeq: edit.sequence,
       previousEventIds: MessageEdits.eventIds(message).filter(id => id !== edit.editRumor.id)
@@ -2301,11 +2367,11 @@
     await renderConversations();
     return { updated: true, confirmed: confirmedRemote.length, required: remoteRecipients.length };
   }
-  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false } = {}) {
+  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false } = {}, linkPreview = null) {
     if (!secretConfirmed && !(await requestSecretSendConfirmation(text, peer))) {
       return { savedLocally: false, cancelled: true, confirmedEnvelopeCount: 0, requiredEnvelopeCount: 0 };
     }
-    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true });
+    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true, linkPreview });
     const agentAccess = await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') throw new Error('Este contato está bloqueado neste aparelho.');
     if (!state.inboxRelays.length) {
@@ -2335,6 +2401,8 @@
     if (replyTo && !replyEventId) throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Esta mensagem não pode ser citada como resposta Nostr.' : 'This message cannot be referenced as a Nostr reply.');
     const rumorTags = [['p', peer]];
     if (replyEventId) rumorTags.push(['e', replyEventId, '', 'reply']);
+    const previewTag = LinkPreview?.toTag(linkPreview, text);
+    if (previewTag) rumorTags.push(previewTag);
     // Make one rumor and wrap that exact event for both participants, so NIP-17 reply IDs match on each device.
     const sentRumor = N.nip59.createRumor({ kind: 14, tags: rumorTags, content: wireContent }, state.secret);
     const wraps = [state.pubkey, peer].map(recipient => N.nip59.createWrap(N.nip59.createSeal(sentRumor, state.secret, recipient), recipient));
@@ -2342,7 +2410,7 @@
     if (!routePlan.ready) throw new Error('A mensagem NIP-17 não tem os dois envelopes válidos ou as listas de recebimento necessárias.');
     if (!Array.isArray(wraps) || wraps.length < 2 || wraps.some(event => event.kind !== 1059)) throw new Error('A biblioteca não gerou envelopes NIP-17 válidos.');
     const id = agentConversation ? `agent-out:${peer}:${agentMessageId}` : `${state.pubkey}:${crypto.randomUUID()}`;
-    const message = { id, peer, text, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
+    const message = { id, peer, text, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
     await put('messages', message);
     await put('conversations', { ...previous, ...(agentConversation ? { agent: true } : {}), lastMessage: text, lastAt: message.createdAt });
     if (state.activePeer === peer) await renderMessages(peer);
@@ -2360,7 +2428,7 @@
     else if (!quiet && sent < requiredEnvelopes) showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Entrega parcial: alguns envelopes NIP-17 não foram confirmados pelos relays.' : 'Partial delivery: some NIP-17 envelopes were not confirmed by relays.');
     return { savedLocally: true, confirmedEnvelopeCount: sent, requiredEnvelopeCount: requiredEnvelopes };
   }
-  async function sendPrivateGroupMessage(peer, text, replyTo = null, { quiet = false } = {}) {
+  async function sendPrivateGroupMessage(peer, text, replyTo = null, { quiet = false, linkPreview = null } = {}) {
     const previous = await get('conversations', peer);
     const members = [...new Set(previous?.members || [])].sort();
     if (members.length < 3 || members.length > MAX_NIP17_GROUP_MEMBERS || !members.includes(state.pubkey) || members.some(member => !/^[0-9a-f]{64}$/i.test(member))) {
@@ -2375,11 +2443,13 @@
     const rumorTags = members.filter(member => member !== state.pubkey).map(member => ['p', member]);
     if (title) rumorTags.push(['subject', title]);
     if (replyEventId) rumorTags.push(['e', replyEventId, '', 'reply']);
+    const previewTag = LinkPreview?.toTag(linkPreview, text);
+    if (previewTag) rumorTags.push(previewTag);
     const sentRumor = N.nip59.createRumor({ kind: 14, tags: rumorTags, content: text }, state.secret);
     const wraps = members.map(recipient => N.nip59.createWrap(N.nip59.createSeal(sentRumor, state.secret, recipient), recipient));
     const routePlan = Routing.planGroupGiftWraps(wraps, members, relayLists, N.verifyEvent);
     if (!routePlan.ready) throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Não foi possível preparar os envelopes do grupo. Confira as listas de recebimento NIP-17.' : 'Could not prepare the group envelopes. Check each participant’s NIP-17 inbox list.');
-    const message = { id: `${state.pubkey}:${crypto.randomUUID()}`, peer, text, senderPubkey: state.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, ...(replyEventId ? { replyToId: replyEventId } : {}) };
+    const message = { id: `${state.pubkey}:${crypto.randomUUID()}`, peer, text, senderPubkey: state.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(replyEventId ? { replyToId: replyEventId } : {}) };
     await put('messages', message);
     await put('conversations', { ...previous, group: true, members, lastMessage: text, lastAt: message.createdAt });
     if (state.activePeer === peer) await renderMessages(peer);
@@ -3043,6 +3113,7 @@
     state.draftLoadSequence++;
     $('message-input').value = '';
     resizeMessageInput();
+    clearLinkPreviewDraft();
     state.shareDraftId = ''; state.shareDraftPeer = '';
     if (preservePublicBridge && state.bridgeEnabled) await closeIdentityRelaySubscriptions();
     else {
@@ -3114,7 +3185,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v58', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v59', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -3328,6 +3399,22 @@
     $('secret-guard-send-anyway').addEventListener('click', () => settleSecretSendConfirmation(true));
     $('secret-guard-dialog').addEventListener('cancel', event => { event.preventDefault(); settleSecretSendConfirmation(false); });
     $('secret-guard-dialog').addEventListener('close', () => settleSecretSendConfirmation(false));
+    $('link-preview-button').addEventListener('click', () => {
+      const url = LinkPreview?.firstLink($('message-input').value);
+      if (!url || !state.activePeer || state.editingMessage) return;
+      $('link-preview-consent-url').textContent = url;
+      $('link-preview-consent-dialog').showModal();
+    });
+    $('link-preview-consent-close').addEventListener('click', () => $('link-preview-consent-dialog').close());
+    $('link-preview-consent-cancel').addEventListener('click', () => $('link-preview-consent-dialog').close());
+    $('link-preview-consent-dialog').addEventListener('cancel', event => { event.preventDefault(); $('link-preview-consent-dialog').close(); });
+    $('link-preview-consent-fetch').addEventListener('click', () => {
+      const consentedUrl = $('link-preview-consent-url').textContent;
+      const currentUrl = LinkPreview?.firstLink($('message-input').value);
+      $('link-preview-consent-dialog').close();
+      if (!consentedUrl || currentUrl !== consentedUrl) { updateLinkPreviewDraft(); return; }
+      void fetchComposerLinkPreview();
+    });
     $('send-form').addEventListener('submit', async event => {
       event.preventDefault(); const input = $('message-input'); const text = input.value.trim(); const peer = state.activePeer; const replyTo = state.replyingTo; if (!text || !peer) return;
       if (state.editingMessage) {
@@ -3356,9 +3443,10 @@
         return;
       }
       const sentShareId = state.shareDraftPeer === peer ? state.shareDraftId : '';
+      const previewForMessage = !state.editingMessage && state.linkPreviewUrl === LinkPreview?.firstLink(text) ? state.linkPreview : null;
       const submit = document.querySelector('#send-form button[type="submit"]'); submit.disabled = true;
       try {
-        const result = await sendPrivateMessage(peer, text, replyTo);
+        const result = await sendPrivateMessage(peer, text, replyTo, {}, previewForMessage);
         if (result.cancelled) return;
         if (sentShareId) {
           state.shareDraftId = ''; state.shareDraftPeer = '';
@@ -3373,6 +3461,7 @@
           if (input.value.trim() === text) {
             input.value = sentShareId ? await loadChatDraft(peer).catch(() => '') : '';
             resizeMessageInput(input);
+            clearLinkPreviewDraft();
           }
           await saveChatDraft(peer, input.value).catch(() => {});
         }
@@ -3407,6 +3496,7 @@
     });
     $('message-input').addEventListener('input', event => {
       resizeMessageInput(event.target);
+      updateLinkPreviewDraft();
       if (state.activePeer && !state.editingMessage) void saveChatDraft(state.activePeer, event.target.value).catch(() => {});
     });
     document.querySelectorAll('[data-format-marker]').forEach(button => button.addEventListener('click', () => {

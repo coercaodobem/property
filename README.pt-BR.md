@@ -12,7 +12,7 @@ O Property é um projeto aberto de comunicação descentralizada e trocas volunt
 
 **Acesso pelo navegador:** abra o site no dispositivo compatível e, se quiser, adicione a PWA à tela inicial. Não é preciso distribuir o app pela Play Store ou App Store. A interface abre em inglês; selecione **Português (Brasil)** no cabeçalho para mudar o idioma neste aparelho. A seleção é salva localmente. Mensagens, publicações, nomes e ofertas nunca são traduzidos.
 
-**Um app, uma identidade:** o Property é a PWA Nostr no link acima. O Ghostly é uma referência de UX; melhorias compatíveis de conversa, incluindo o seletor de emojis pesquisável e offline, são integradas neste mesmo app e usam a identidade Property e os relays Nostr escolhidos pela pessoa.
+**Um app, uma identidade:** o Property é a PWA Nostr no link acima. O Ghostly é uma referência de UX; melhorias compatíveis de conversa, incluindo o seletor de emojis pesquisável e offline e prévias de link criptografadas e opcionais, são integradas neste mesmo app e usam a identidade Property e os relays Nostr escolhidos pela pessoa.
 
 **Trocas voluntárias:** o marketplace permite publicar e descobrir ofertas. Compra, checkout e custódia ainda não estão habilitados nesta versão.
 
@@ -30,7 +30,7 @@ O objetivo de plataforma inclui Windows, macOS, Linux/Ubuntu, Android e iOS. A i
 |---|---|---|
 | Interface web | PWA publicada em HTTPS; arquivos de execução servidos do próprio pacote | Validação completa em Android/iOS e acessibilidade |
 | Identidade | Chave aleatória local, cofre cifrado por senha, sessão persistente e backup cifrado | Mais testes de recuperação e uso em aparelhos reais |
-| Mensagens | Conversas diretas e grupos NIP-17 criptografados (até 10 participantes), conversas fixadas e pastas locais, listas inbox kind 10050 e testes offline | Validação ampliada de interoperabilidade; grupos não têm administração, aprovação ou remoção confiável de membros |
+| Mensagens | Conversas diretas e grupos NIP-17 criptografados (até 10 participantes), prévias de link em texto com consentimento de quem envia, conversas fixadas e pastas locais, listas inbox kind 10050 e testes offline | Validação ampliada de interoperabilidade; grupos não têm administração, aprovação ou remoção confiável de membros |
 | Agentes | Conversas diretas via NIP-17/MCP por chave pública, sem convite nem aprovação do Property; bloqueio local reversível | Revisão humana, revisão independente de segurança, hosts externos e outras plataformas |
 | Relay de PC | Geode com runtime incluído para Linux x86_64, Windows x64 e macOS Apple Silicon | Matriz por plataforma e gate multi-relay G11-03 com 300 probes, três reinícios e nove eventos de partição; veja o [status do plano](property/docs/plano-de-testes-central.pt-BR.md) |
 | Ponte voluntária | Encaminhamento limitado entre relays enquanto a PWA está ativa | Operação móvel contínua não é suportada pela PWA |

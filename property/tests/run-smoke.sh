@@ -22,6 +22,7 @@ for test_file in \
   message-days-smoke.mjs \
   message-scroll-smoke.mjs \
   rich-text-smoke.mjs \
+  link-preview-smoke.mjs \
   nostr-entities-smoke.mjs \
   secret-guard-smoke.mjs \
   nip05-smoke.mjs \
