@@ -3,6 +3,20 @@
   const EN_TO_PT = new Map();
   const PT_TO_EN = new Map();
   const pairs = [
+    ['Apps', 'Aplicativos'], ['BUILT IN · PROPERTY', 'INCLUÍDO · PROPERTY'], ['BUILT IN', 'INCLUÍDO'],
+    ['Small experiences that open inside Property and use the conversations you already have.', 'Pequenas experiências que abrem dentro do Property e usam as conversas que você já tem.'],
+    ['Chess', 'Xadrez'], ['Play a private chess game with a person in an existing one-to-one conversation. Game updates use encrypted NIP-17 messages and stay out of the normal chat timeline.', 'Jogue uma partida privada de xadrez com alguém em uma conversa direta existente. As jogadas usam mensagens NIP-17 criptografadas e não aparecem na conversa normal.'],
+    ['This build runs apps included in Property. It does not load or execute app code from relays or remote stores.', 'Esta versão executa aplicativos incluídos no Property. Ela não carrega nem executa código de aplicativos recebido de relays ou lojas remotas.'],
+    ['Choose a conversation', 'Escolha uma conversa'], ['PROPERTY · BUILT IN APP', 'PROPERTY · APLICATIVO INCLUÍDO'],
+    ['Choose a person. The chess game uses encrypted messages in that conversation.', 'Escolha uma pessoa. A partida usa mensagens criptografadas nessa conversa.'],
+    ['Loading direct conversations…', 'Carregando conversas diretas…'],
+    ['There are no eligible one-to-one conversations on this device yet.', 'Ainda não há conversas diretas entre pessoas neste aparelho.'],
+    ['Start a conversation', 'Iniciar conversa'],
+    ['No direct conversations are available to launch this app.', 'Não há conversas diretas disponíveis para abrir este aplicativo.'],
+    ['Choose a direct human conversation to start a game.', 'Escolha uma conversa direta entre pessoas para iniciar uma partida.'],
+    ['Unlock Property before choosing a conversation.', 'Desbloqueie o Property antes de escolher uma conversa.'],
+    ['Could not load direct conversations. Close this window and try again.', 'Não foi possível carregar as conversas diretas. Feche esta janela e tente novamente.'],
+    ['Could not open the app contact picker.', 'Não foi possível abrir a seleção de contatos do aplicativo.'],
     ['Pin message', 'Fixar mensagem'], ['Unpin message', 'Desafixar mensagem'], ['Pinned message', 'Mensagem fixada'], ['Pinned item', 'Item fixado'],
     ['Pinned message is not in this device’s local history.', 'A mensagem fixada não está no histórico local deste aparelho.'],
     ['Pinned message shared with this conversation.', 'Mensagem fixada compartilhada com a conversa.'],

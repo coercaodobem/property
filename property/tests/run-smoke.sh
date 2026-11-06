@@ -20,6 +20,7 @@ for test_file in \
   call-controller-smoke.mjs \
   call-window-smoke.mjs \
   chess-controller-smoke.mjs \
+  app-directory-smoke.mjs \
   direct-file-envelope-smoke.mjs \
   direct-transfer-controller-smoke.mjs \
   image-viewer-smoke.mjs \

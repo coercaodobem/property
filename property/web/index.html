@@ -23,7 +23,8 @@
   <link rel="stylesheet" href="./location-cards.css?v=property-v1">
   <link rel="stylesheet" href="./message-forwards.css?v=property-v1">
   <link rel="stylesheet" href="./typing-signals.css?v=property-v1">
-  <script defer src="./i18n.js?v=property-v75"></script>
+  <link rel="stylesheet" href="./property-apps.css?v=property-v1">
+  <script defer src="./i18n.js?v=property-v76"></script>
   <script defer src="./pwa.js?v=property-v36"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v34"></script>
@@ -71,7 +72,8 @@
   <script defer src="./file-transfers.js?v=property-v1"></script>
   <script defer src="./direct-file-envelope.js?v=property-v1"></script>
   <script defer src="./image-viewer.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v97"></script>
+  <script defer src="./app-directory.js?v=property-v1"></script>
+  <script defer src="./app.js?v=property-v98"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -167,6 +169,7 @@
         <nav class="main-nav" aria-label="Property areas">
           <button class="nav-button active" data-view="messages"><span>▤</span><span>Messages</span></button>
           <button class="nav-button" data-view="hangout"><span>◌</span><span>Hangout</span></button>
+          <button class="nav-button" data-view="apps"><span>♟</span><span>Apps</span></button>
           <button class="nav-button" data-view="marketplace"><span>◇</span><span>Marketplace</span></button>
           <button class="nav-button" data-view="node"><span>⌘</span><span>My node</span></button>
           <button class="nav-button" data-view="saved"><span>☆</span><span>Saved</span></button>
@@ -330,8 +333,28 @@
         <div class="feature-header"><p class="eyebrow">PRIVATE · ON THIS DEVICE</p><h1>Saved messages</h1><p>Saved on this device. They are not published to relays.</p></div>
         <div id="saved-list" class="feature-list"><div class="empty-state compact"><div class="empty-symbol">☆</div><h2>No saved messages yet.</h2><p>Use a message’s actions to save it for later.</p></div></div>
       </section>
+      <section id="apps-view" class="content-view feature-view hidden" aria-labelledby="apps-title">
+        <div class="feature-header"><p class="eyebrow">BUILT IN · PROPERTY</p><h1 id="apps-title">Apps</h1><p>Small experiences that open inside Property and use the conversations you already have.</p></div>
+        <div class="product-grid">
+          <article class="product-card property-app-card">
+            <div class="property-app-heading"><div class="empty-symbol" aria-hidden="true">♟</div><div><p class="eyebrow">BUILT IN</p><h2>Chess</h2></div></div>
+            <p>Play a private chess game with a person in an existing one-to-one conversation. Game updates use encrypted NIP-17 messages and stay out of the normal chat timeline.</p>
+            <p class="fine-print">This build runs apps included in Property. It does not load or execute app code from relays or remote stores.</p>
+            <button id="property-app-chess-open" class="button primary" type="button">Choose a conversation</button>
+          </article>
+        </div>
+      </section>
     </section>
   </div>
+
+  <dialog id="property-app-chat-picker" class="dialog-card" aria-labelledby="property-app-chat-picker-title">
+    <div class="dialog-head"><div><p class="eyebrow">PROPERTY · BUILT IN APP</p><h2 id="property-app-chat-picker-title">Choose a conversation</h2></div><button id="property-app-chat-picker-close" class="icon-button" type="button" aria-label="Close">×</button></div>
+    <div class="dialog-body">
+      <p id="property-app-chat-picker-status" class="muted" role="status" aria-live="polite">Choose a person. The chess game uses encrypted messages in that conversation.</p>
+      <div id="property-app-chat-picker-list" class="property-app-chat-list"></div>
+      <div id="property-app-chat-picker-empty" hidden><p class="fine-print">There are no eligible one-to-one conversations on this device yet.</p><button id="property-app-chat-picker-new" class="button secondary full" type="button">Start a conversation</button></div>
+    </div>
+  </dialog>
 
   <dialog id="relay-dialog" class="dialog-card"><form method="dialog" class="dialog-head"><div><p class="eyebrow">DIRECT CONNECTION</p><h2>Your relays</h2></div><button class="icon-button" aria-label="Close">×</button></form><div class="dialog-body"><p id="relay-selection-note" class="muted">On first use, Property randomly selects two relays from a bundled public list and saves them on this device. You can replace them any time.</p><label class="field"><span>General relays (one per line)</span><textarea id="relay-input" rows="4" spellcheck="false"></textarea></label><label class="field"><span>NIP-17 inbox relays (1–3 URLs)</span><textarea id="dm-relay-input" rows="3" spellcheck="false" placeholder="wss://relay.example"></textarea></label><p id="inbox-relay-note" class="fine-print">If you have not set an inbox list, Property suggests your selected relays here. Publishing makes the relay URLs public as NIP-17 routing metadata; message contents remain encrypted.</p><div class="dialog-actions"><button id="save-relays" class="button primary" type="button">Save and connect</button><button id="publish-inbox-list" class="button secondary" type="button">Publish my NIP-17 inbox relays</button><button id="use-default-relays" class="button text" type="button">Choose another random pair</button></div><p class="fine-print">Public relays can see your IP address and public event metadata. Private message content remains end-to-end encrypted. Connecting starts when your Property identity is active.</p><p id="relay-error" class="error" role="alert"></p></div></dialog>
 

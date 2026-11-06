@@ -36,6 +36,7 @@
   const MessageForwards = window.PropertyMessageForwards;
   const RichText = window.PropertyRichText;
   const VoiceMessages = window.PropertyVoiceMessages;
+  const AppDirectory = window.PropertyAppDirectory;
   const FileTransfers = window.PropertyFileTransfers;
   const DirectFileEnvelope = window.PropertyDirectFileEnvelope;
   const ImageViewer = window.PropertyImageViewer;
@@ -344,6 +345,69 @@
       stopChessGame();
       if (dialog.open) dialog.close();
       throw error;
+    }
+  }
+
+  async function openPropertyAppChatPicker() {
+    if (!state.secret || !state.pubkey) throw new Error(localized('Unlock Property before choosing a conversation.', 'Desbloqueie o Property antes de escolher uma conversa.'));
+    const identity = state.pubkey;
+    const dialog = $('property-app-chat-picker');
+    const list = $('property-app-chat-picker-list');
+    const empty = $('property-app-chat-picker-empty');
+    const status = $('property-app-chat-picker-status');
+    list.replaceChildren();
+    empty.hidden = true;
+    status.textContent = localized('Loading direct conversations…', 'Carregando conversas diretas…');
+    if (!dialog.open) dialog.showModal();
+    try {
+      const [conversations, agentAccess] = await Promise.all([all('conversations'), all('agentAccess')]);
+      if (!dialog.open || state.pubkey !== identity || !state.secret) return;
+      const eligible = AppDirectory.directHumanConversations(conversations, identity, agentAccess);
+      eligible.sort((a, b) => {
+        const activeOrder = Number(b.pubkey === state.activePeer) - Number(a.pubkey === state.activePeer);
+        if (activeOrder) return activeOrder;
+        const recentOrder = (Number.isFinite(b.lastAt) ? b.lastAt : 0) - (Number.isFinite(a.lastAt) ? a.lastAt : 0);
+        return recentOrder || conversationLabel(a).localeCompare(conversationLabel(b), window.PropertyI18n?.locale() || 'en-US');
+      });
+      if (!eligible.length) {
+        status.textContent = localized('Choose a direct human conversation to start a game.', 'Escolha uma conversa direta entre pessoas para iniciar uma partida.');
+        empty.hidden = false;
+        return;
+      }
+      status.textContent = localized('Choose a person. The chess game uses encrypted messages in that conversation.', 'Escolha uma pessoa. A partida usa mensagens criptografadas nessa conversa.');
+      for (const conversation of eligible) {
+        const label = conversationLabel(conversation);
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'property-app-chat-option';
+        const avatar = document.createElement('span');
+        avatar.className = 'avatar';
+        avatar.setAttribute('aria-hidden', 'true');
+        avatar.textContent = label.trim().slice(0, 1).toUpperCase() || '?';
+        const details = document.createElement('span');
+        details.className = 'property-app-chat-option-details';
+        const name = document.createElement('strong');
+        name.dataset.userContent = '';
+        name.textContent = label;
+        const identityLabel = document.createElement('small');
+        identityLabel.textContent = N.nip19.npubEncode(conversation.pubkey);
+        details.append(name, identityLabel);
+        option.append(avatar, details);
+        option.addEventListener('click', () => {
+          option.disabled = true;
+          dialog.close();
+          setActiveView('messages');
+          void selectConversation(conversation.pubkey)
+            .then(() => openChessGame())
+            .catch(error => showToast(error.message || localized('Could not open Property Chess.', 'Não foi possível abrir o Xadrez do Property.')));
+        });
+        list.append(option);
+      }
+    } catch (error) {
+      if (!dialog.open || state.pubkey !== identity) return;
+      list.replaceChildren();
+      status.textContent = localized('Could not load direct conversations. Close this window and try again.', 'Não foi possível carregar as conversas diretas. Feche esta janela e tente novamente.');
+      console.warn('Property: could not load app conversation choices.', error);
     }
   }
 
@@ -4962,7 +5026,7 @@
     state.activeView = view;
     audioPlayback.setContext(state.activeView, state.activePeer);
     if (view !== 'messages') setMobileConversationListOpen(false);
-    for (const name of ['messages', 'hangout', 'marketplace', 'node', 'saved']) {
+    for (const name of ['messages', 'hangout', 'apps', 'marketplace', 'node', 'saved']) {
       $(`${name}-view`).classList.toggle('hidden', name !== view);
       document.querySelector(`.nav-button[data-view="${name}"]`).classList.toggle('active', name === view);
     }
@@ -5824,6 +5888,7 @@
   async function lockIdentity({ preservePublicBridge = false } = {}) {
     stopChessGame();
     if ($('chess-dialog')?.open) $('chess-dialog').close();
+    if ($('property-app-chat-picker')?.open) $('property-app-chat-picker').close();
     state.imageViewer?.close();
     state.callController?.dispose();
     state.callController = null;
@@ -5968,6 +6033,14 @@
       updatePeerNip05LookupButton();
       requestAnimationFrame(() => $('peer-input').focus());
     };
+    $('property-app-chess-open').addEventListener('click', () => openPropertyAppChatPicker().catch(error => showToast(error.message || localized('Could not open the app contact picker.', 'Não foi possível abrir a seleção de contatos do aplicativo.'))));
+    $('property-app-chat-picker-close').addEventListener('click', () => $('property-app-chat-picker').close());
+    $('property-app-chat-picker-new').addEventListener('click', () => {
+      $('property-app-chat-picker').close();
+      setActiveView('messages');
+      $('agent-mode').checked = false;
+      openNewChatDialog();
+    });
     $('peer-input').addEventListener('input', () => {
       peerNip05LookupId += 1;
       $('peer-nip05-status').textContent = '';
