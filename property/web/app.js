@@ -51,6 +51,9 @@
   const CallWindow = window.PropertyCallWindow;
   const DirectTransfer = window.PropertyDirectTransfer;
   const AudioPlayback = window.PropertyAudioPlayback;
+  const chessSubscribers = new Map();
+  let activeChess = null;
+  let chessOpening = null;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const MAX_FILE_BATCH_FILES = 5;
@@ -198,11 +201,158 @@
       ? `AGENT PROTOCOL · ${N.nip19.npubEncode(pubkey)}`
       : N.nip19.npubEncode(pubkey);
   }
+  function ensureChessLaunchButton(conversation, agentAccess) {
+    const header = document.querySelector('#conversation-pane .conversation-header');
+    if (!header) return;
+    let button = $('chess-launch-button');
+    if (!button) {
+      button = document.createElement('button');
+      button.id = 'chess-launch-button';
+      button.type = 'button';
+      button.className = 'icon-button small call-launch-button chess-launch-button';
+      button.textContent = '♟';
+      button.addEventListener('click', () => openChessGame().catch(error => showToast(error.message || localized('Could not open Property Chess.', 'Não foi possível abrir o Xadrez do Property.'))));
+      header.insertBefore(button, $('agent-block-button') || $('chat-details-button'));
+    }
+    const allowed = !conversation.group && conversation.agent !== true && agentAccess?.status !== 'approved' && agentAccess?.status !== 'blocked';
+    button.hidden = !allowed;
+    button.setAttribute('aria-label', localized('Play chess', 'Jogar xadrez'));
+    button.title = localized('Play chess', 'Jogar xadrez');
+  }
+
+  function ensureChessDialog() {
+    let dialog = $('chess-dialog');
+    if (dialog) return dialog;
+    const stylesheet = document.createElement('link');
+    stylesheet.id = 'property-chess-styles';
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = './chess/chess.css?v=property-v1';
+    document.head.append(stylesheet);
+
+    dialog = document.createElement('dialog');
+    dialog.id = 'chess-dialog';
+    dialog.className = 'dialog-card chess-dialog';
+    dialog.setAttribute('aria-labelledby', 'chess-dialog-title');
+    const head = document.createElement('div');
+    head.className = 'dialog-head';
+    const heading = document.createElement('div');
+    const eyebrow = document.createElement('p');
+    eyebrow.className = 'eyebrow';
+    eyebrow.textContent = 'PROPERTY · NIP-17';
+    const title = document.createElement('h2');
+    title.id = 'chess-dialog-title';
+    title.textContent = localized('Property Chess', 'Xadrez do Property');
+    heading.append(eyebrow, title);
+    const close = document.createElement('button');
+    close.id = 'chess-dialog-close';
+    close.type = 'button';
+    close.className = 'icon-button small';
+    close.setAttribute('aria-label', localized('Close chess', 'Fechar xadrez'));
+    close.textContent = '×';
+    close.addEventListener('click', () => dialog.close());
+    head.append(heading, close);
+    const body = document.createElement('div');
+    body.className = 'chess-dialog-body';
+    const note = document.createElement('p');
+    note.className = 'chess-dialog-note';
+    note.textContent = localized(
+      'Moves use end-to-end encrypted NIP-17 messages through your selected relays. Delivery can be delayed or partial.',
+      'Os lances usam mensagens NIP-17 criptografadas de ponta a ponta pelos relays selecionados. A entrega pode atrasar ou ser parcial.'
+    );
+    const root = document.createElement('div');
+    root.id = 'chess-game-root';
+    body.append(note, root);
+    dialog.append(head, body);
+    dialog.addEventListener('close', stopChessGame);
+    document.body.append(dialog);
+    return dialog;
+  }
+
+  function stopChessGame() {
+    if (!activeChess) return;
+    try { activeChess.instance.stop(); } catch {}
+    activeChess = null;
+  }
+
+  function createChessApi(peer) {
+    const identity = state.pubkey;
+    const storageId = key => `property-chess:${identity}:${peer}:${key}`;
+    return {
+      context: async () => ({
+        inChat: true,
+        peer: { open: true },
+        locale: window.PropertyI18n?.language === 'pt-BR' ? 'pt-BR' : 'en',
+        theme: 'dark'
+      }),
+      storage: {
+        get: async key => (await get('settings', storageId(key)))?.values,
+        set: async (key, value) => put('settings', { id: storageId(key), values: value }),
+        delete: async key => del('settings', storageId(key))
+      },
+      chat: {
+        send: async payload => {
+          if (state.pubkey !== identity || !state.secret) throw new Error('Unlock the same Property identity to continue this game.');
+          const wire = JSON.stringify(payload);
+          if (enc.encode(wire).byteLength > 16384) throw new Error('Chess message is too large.');
+          const result = await sendPrivateMessage(peer, '', null, { quiet: true, secretConfirmed: true, deferRender: true, chessPayload: payload });
+          if (result.confirmedEnvelopeCount < result.requiredEnvelopeCount) throw new Error('The relay did not confirm every encrypted chess message.');
+        },
+        on: (event, listener) => {
+          if (event !== 'message') return () => {};
+          const subscribers = chessSubscribers.get(peer) || new Set();
+          subscribers.add(listener);
+          chessSubscribers.set(peer, subscribers);
+          return () => {
+            subscribers.delete(listener);
+            if (!subscribers.size) chessSubscribers.delete(peer);
+          };
+        }
+      }
+    };
+  }
+
+  async function openChessGame() {
+    if (chessOpening) return chessOpening;
+    chessOpening = openChessGameOnce();
+    try { return await chessOpening; }
+    finally { chessOpening = null; }
+  }
+
+  async function openChessGameOnce() {
+    const peer = state.activePeer;
+    const identity = state.pubkey;
+    const conversation = peer ? await get('conversations', peer) : null;
+    const access = peer ? await get('agentAccess', peer) : null;
+    if (!state.secret || !state.pubkey) throw new Error(localized('Unlock Property before opening a game.', 'Desbloqueie o Property antes de abrir uma partida.'));
+    if (!conversation || conversation.group || conversation.agent === true || access?.status === 'approved' || access?.status === 'blocked') {
+      throw new Error(localized('Property Chess is available in direct conversations between people.', 'O Xadrez do Property está disponível em conversas diretas entre pessoas.'));
+    }
+    const dialog = ensureChessDialog();
+    if (!dialog.open) dialog.showModal();
+    if (activeChess?.peer === peer) return;
+    stopChessGame();
+    const root = $('chess-game-root');
+    root.replaceChildren();
+    try {
+      const runtime = await import('./chess/build/runtime.js');
+      if (!dialog.open) return;
+      if (state.activePeer !== peer || state.pubkey !== identity || state.pubkey !== state.account?.pubkey) throw new Error(localized('The conversation or identity changed before the game opened.', 'A conversa ou a identidade mudou antes de a partida abrir.'));
+      const instance = runtime.mountPropertyChess(root, createChessApi(peer), window.PropertyI18n?.language || 'en');
+      activeChess = { peer, instance };
+      await instance.ready;
+    } catch (error) {
+      stopChessGame();
+      if (dialog.open) dialog.close();
+      throw error;
+    }
+  }
+
   async function updateConversationHeader(conversation) {
     if (!conversation) return;
     state.currentConversation = conversation;
     const agentAccess = conversation.group ? null : await get('agentAccess', conversation.pubkey);
     state.activeConversationAgent = !conversation.group && (conversation.agent === true || agentAccess?.status === 'approved');
+    ensureChessLaunchButton(conversation, agentAccess);
     $('chat-title').dataset.userContent = '';
     $('chat-title').textContent = conversationLabel(conversation);
     $('chat-subtitle').textContent = conversationSubtitle(conversation, agentAccess);
@@ -2973,6 +3123,38 @@
       return;
     }
     if (rumor.pubkey === state.pubkey && !edit) return;
+    const chessTag = Array.isArray(rumor.tags)
+      ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'app' && tag[1] === 'property-chess')
+      : null;
+    if (chessTag) {
+      if (rumor.kind !== 14 || chessTag[2] !== '1' || group || existingConversation?.group || existingConversation?.agent || agentAccess?.status === 'approved') return;
+      if (enc.encode(rumor.content).byteLength > 16384) return;
+      let payload;
+      try { payload = JSON.parse(rumor.content); } catch { return; }
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload) || payload.p !== 'property-chess' || !Number.isInteger(payload.v) || typeof payload.k !== 'string') return;
+      const id = rumor.id || event.id;
+      if (!/^[0-9a-f]{64}$/i.test(id || '') || await get('messages', id)) return;
+      const createdAt = rumor.created_at * 1000;
+      const message = {
+        id, peer, text: localized('Chess game update', 'Atualização da partida de xadrez'), appId: 'property-chess', appPayload: payload,
+        hiddenFromChat: true, senderPubkey: rumor.pubkey, createdAt, direction: 'received', status: 'delivered', nostrEventId: id
+      };
+      await put('messages', message);
+      const previous = existingConversation || { pubkey: peer, title: '' };
+      const updatedConversation = createdAt >= (previous.lastAt || 0)
+        ? { ...previous, lastMessage: localized('♟ Chess game', '♟ Partida de xadrez'), lastAt: createdAt }
+        : previous;
+      await put('conversations', updatedConversation);
+      await renderConversations();
+      if (state.activePeer === peer) {
+        await updateConversationHeader(updatedConversation);
+        await renderMessages(peer);
+      }
+      for (const listener of chessSubscribers.get(peer) || []) {
+        try { listener(payload); } catch {}
+      }
+      return;
+    }
     if (rumor.kind === 7) {
       const targetTag = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'e' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) : null;
       if (!targetTag || !rumor.content || rumor.content.length > 64) return;
@@ -3486,7 +3668,7 @@
   async function readConversationSearchMessages() {
     const revision = state.conversationMessageSearchRevision;
     if (state.conversationMessageSearchCache?.revision === revision) return state.conversationMessageSearchCache.messages;
-    const messages = await all('messages');
+    const messages = (await all('messages')).filter(message => !message.hiddenFromChat);
     if (revision === state.conversationMessageSearchRevision) state.conversationMessageSearchCache = { revision, messages };
     return messages;
   }
@@ -3931,7 +4113,7 @@
     state.readReceiptObserver?.disconnect();
     state.readReceiptObserver = null;
     state.readReceiptCandidates.clear();
-    const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
+    const entries = (await all('messages')).filter(message => message.peer === peer && !message.hiddenFromChat).sort((a, b) => a.createdAt - b.createdAt);
     const messages = FileTransfers.coalesceMessages(entries.filter(message => message.kind !== 7));
     const activePlayback = audioPlayback.getState();
     if (activePlayback?.peer === peer) {
@@ -4379,7 +4561,7 @@
     state.loadingLastMessageEdit = true;
     try {
       const message = (await all('messages'))
-        .filter(item => item.peer === peer && item.direction === 'sent' && item.kind !== 7 && !item.fromAgent && !item.agentMessageId && !item.deleted && nostrEventId(item) && ['sent', 'partial'].includes(item.status))
+        .filter(item => item.peer === peer && !item.hiddenFromChat && item.direction === 'sent' && item.kind !== 7 && !item.fromAgent && !item.agentMessageId && !item.deleted && nostrEventId(item) && ['sent', 'partial'].includes(item.status))
         .sort((a, b) => b.createdAt - a.createdAt || String(b.id).localeCompare(String(a.id)))[0];
       if (message && state.activePeer === peer && !state.editingMessage) startMessageEdit(peer, message);
     } finally { state.loadingLastMessageEdit = false; }
@@ -4454,7 +4636,12 @@
     await renderConversations();
     return { updated: true, confirmed: confirmedRemote.length, required: remoteRecipients.length };
   }
-  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false, mentionTokens = [], forwardedHops = null, voiceRecording = null, fileChunk = null, deferRender = false } = {}, linkPreview = null) {
+  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false, mentionTokens = [], forwardedHops = null, voiceRecording = null, fileChunk = null, deferRender = false, chessPayload = null } = {}, linkPreview = null) {
+    if (chessPayload !== null) {
+      if (!secretConfirmed || !chessPayload || typeof chessPayload !== 'object' || Array.isArray(chessPayload) || chessPayload.p !== 'property-chess' || !Number.isInteger(chessPayload.v) || typeof chessPayload.k !== 'string') throw new TypeError('Invalid Property Chess message.');
+      if (replyTo || forwardedHops !== null || voiceRecording || fileChunk) throw new TypeError('Property Chess messages cannot be combined with chat attachments or replies.');
+      if (enc.encode(JSON.stringify(chessPayload)).byteLength > 16384) throw new TypeError('Property Chess message is too large.');
+    }
     if (!secretConfirmed && !(await requestSecretSendConfirmation(text, peer))) {
       return { savedLocally: false, cancelled: true, confirmedEnvelopeCount: 0, requiredEnvelopeCount: 0 };
     }
@@ -4465,7 +4652,10 @@
       if (!verified || verified.transferId !== fileChunk.transferId || verified.index !== fileChunk.index) throw new Error(localized('This file part failed its local integrity check. Select the file again.', 'Esta parte do arquivo falhou na verificação local. Selecione o arquivo novamente.'));
       fileChunk = verified;
     }
-    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true, linkPreview, mentionTokens, forwardedHops, voiceRecording, fileChunk, fileChunkTag, deferRender });
+    if ((await get('conversations', peer))?.group === true) {
+      if (chessPayload !== null) throw new Error('Property Chess is available only in direct conversations.');
+      return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true, linkPreview, mentionTokens, forwardedHops, voiceRecording, fileChunk, fileChunkTag, deferRender });
+    }
     const agentAccess = await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') throw new Error('Este contato está bloqueado neste aparelho.');
     if (!state.inboxRelays.length) {
@@ -4484,21 +4674,24 @@
     }
     const previous = await get('conversations', peer) || { pubkey: peer, title: '' };
     const agentConversation = previous.agent === true || agentAccess?.status === 'approved';
+    if (chessPayload !== null && agentConversation) throw new Error('Property Chess is available only in direct conversations between people.');
     if (voiceRecording && agentConversation) throw new Error(localized('Voice notes are not available in agent-protocol chats.', 'Mensagens de voz não estão disponíveis em conversas de protocolo de agente.'));
     if (fileChunk && agentConversation) throw new Error(localized('File attachments are not available in agent-protocol chats.', 'Anexos de arquivo não estão disponíveis em conversas de protocolo de agente.'));
     const agentMessageId = agentConversation ? AgentMessages.createMessageId() : null;
-    const messageText = fileChunk ? (fileChunk.caption || '') : text;
+    const isChessMessage = chessPayload !== null;
+    const messageText = isChessMessage ? localized('Chess game update', 'Atualização da partida de xadrez') : fileChunk ? (fileChunk.caption || '') : text;
     const wireContent = agentConversation ? AgentMessages.encodeEnvelope({
       conversationId: await AgentMessages.conversationId(state.pubkey, peer),
       messageId: agentMessageId,
       inReplyTo: replyTo ? (replyTo.agentMessageId || nostrEventId(replyTo)) : null,
       body: text,
-    }) : fileChunk ? fileChunkBody(fileChunk) : text;
+    }) : isChessMessage ? JSON.stringify(chessPayload) : fileChunk ? fileChunkBody(fileChunk) : text;
     const replyEventId = replyTo ? nostrEventId(replyTo) : '';
     if (replyTo && !replyEventId) throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Esta mensagem não pode ser citada como resposta Nostr.' : 'This message cannot be referenced as a Nostr reply.');
     const rumorTags = [['p', peer]];
     if (replyEventId) rumorTags.push(['e', replyEventId, '', 'reply']);
-    const previewTag = fileChunk ? null : LinkPreview?.toTag(linkPreview, text);
+    if (isChessMessage) rumorTags.push(['app', 'property-chess', '1']);
+    const previewTag = fileChunk || isChessMessage ? null : LinkPreview?.toTag(linkPreview, text);
     if (previewTag) rumorTags.push(previewTag);
     if (forwardedHops !== null) rumorTags.push(MessageForwards.toTag(forwardedHops));
     const voiceTag = voiceRecording ? await VoiceMessages.createTag(voiceRecording) : null;
@@ -4515,9 +4708,9 @@
     if (!routePlan.ready) throw new Error('A mensagem NIP-17 não tem os dois envelopes válidos ou as listas de recebimento necessárias.');
     if (!Array.isArray(wraps) || wraps.length < 2 || wraps.some(event => event.kind !== 1059)) throw new Error('A biblioteca não gerou envelopes NIP-17 válidos.');
     const id = agentConversation ? `agent-out:${peer}:${agentMessageId}` : `${state.pubkey}:${crypto.randomUUID()}`;
-    const message = { id, peer, text: messageText, ...(voicePayload ? { voiceMessage: voicePayload } : {}), ...(fileChunk ? { fileChunk } : {}), createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
+    const message = { id, peer, text: messageText, ...(isChessMessage ? { appId: 'property-chess', appPayload: chessPayload, hiddenFromChat: true } : {}), ...(voicePayload ? { voiceMessage: voicePayload } : {}), ...(fileChunk ? { fileChunk } : {}), createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
     await put('messages', message);
-    await put('conversations', { ...previous, ...(agentConversation ? { agent: true } : {}), lastMessage: fileChunk ? `📎 ${fileChunk.name}` : text, lastAt: message.createdAt });
+    await put('conversations', { ...previous, ...(agentConversation ? { agent: true } : {}), lastMessage: isChessMessage ? localized('♟ Chess game', '♟ Partida de xadrez') : fileChunk ? `📎 ${fileChunk.name}` : text, lastAt: message.createdAt });
     if (!deferRender && state.activePeer === peer) await renderMessages(peer);
     if (!deferRender) await renderConversations();
     let sent = 0;
@@ -4810,7 +5003,7 @@
   async function renderSavedMessages() {
     const list = $('saved-list');
     if (!list || !state.db) return;
-    const saved = FileTransfers.coalesceMessages((await all('messages')).filter(message => message.kind !== 7)).filter(message => message.saved === true).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+    const saved = FileTransfers.coalesceMessages((await all('messages')).filter(message => message.kind !== 7 && !message.hiddenFromChat)).filter(message => message.saved === true).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
     list.replaceChildren();
     if (!saved.length) {
       const empty = document.createElement('div'); empty.className = 'empty-state compact';
@@ -5629,6 +5822,8 @@
     setConnectionStatus();
   }
   async function lockIdentity({ preservePublicBridge = false } = {}) {
+    stopChessGame();
+    if ($('chess-dialog')?.open) $('chess-dialog').close();
     state.imageViewer?.close();
     state.callController?.dispose();
     state.callController = null;

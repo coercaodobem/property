@@ -1,0 +1,89 @@
+.property-chess-app {
+  --chess-board: min(calc(100vw - 52px), 520px, calc(100dvh - 270px));
+  --chess-light: #d9ddcb;
+  --chess-dark: #687052;
+  --chess-mark: rgb(255 214 0 / 45%);
+  --chess-last: rgb(255 214 0 / 34%);
+  --chess-check: rgb(255 92 76 / 72%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  color: var(--text);
+}
+.property-chess-app .status { min-height: 1.35em; margin: 0; text-align: center; font-weight: 650; }
+.property-chess-app .side { min-height: 1.2em; margin: 0; color: var(--muted); font-size: 13px; }
+.property-chess-app .board {
+  width: var(--chess-board);
+  min-width: min(240px, calc(100vw - 52px));
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-rows: repeat(8, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 35px #0005;
+  touch-action: manipulation;
+}
+.property-chess-app .rank { display: grid; grid-template-columns: repeat(8, 1fr); }
+.property-chess-app .sq {
+  all: unset;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", system-ui, sans-serif;
+  font-size: calc(max(var(--chess-board), 240px) / 8 * .78);
+  line-height: 1;
+  cursor: pointer;
+}
+.property-chess-app .sq.light { background: var(--chess-light); }
+.property-chess-app .sq.dark { background: var(--chess-dark); }
+.property-chess-app .sq.w { color: #fff; text-shadow: 0 0 1px #000, 0 0 1px #000, 0 1px 1px #000; }
+.property-chess-app .sq.b { color: #151713; text-shadow: 0 0 1px #fff8; }
+.property-chess-app .sq.last { box-shadow: inset 0 0 0 100vmax var(--chess-last); }
+.property-chess-app .sq.selected { box-shadow: inset 0 0 0 100vmax var(--chess-mark); }
+.property-chess-app .sq.check { box-shadow: inset 0 0 12px 4px var(--chess-check); }
+.property-chess-app .sq.target::after {
+  content: "";
+  position: absolute;
+  width: 28%;
+  height: 28%;
+  border-radius: 50%;
+  background: var(--chess-mark);
+  pointer-events: none;
+}
+.property-chess-app .sq.capture::after { width: 86%; height: 86%; background: none; border: 4px solid var(--chess-mark); }
+.property-chess-app .sq:focus-visible { z-index: 1; outline: 3px solid var(--accent); outline-offset: -3px; }
+.property-chess-app .board.locked .sq { cursor: default; }
+.property-chess-app .row { display: flex; min-height: 36px; flex-wrap: wrap; align-items: center; justify-content: center; gap: 7px; }
+.property-chess-app .act {
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel2);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.property-chess-app .act:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.property-chess-app .act:disabled { opacity: .55; cursor: default; }
+.property-chess-app .act.primary { border-color: var(--accent); background: var(--accent); color: #111; font-weight: 700; }
+.property-chess-app .act.danger { color: var(--danger); }
+.property-chess-app .act.piece { padding: 2px 10px; font-size: 26px; line-height: 1.2; }
+.property-chess-app .act.piece.w { color: #fff; text-shadow: 0 0 1px #000, 0 1px 1px #000; }
+.property-chess-app .act.piece.b { color: #151713; }
+.property-chess-app .offer { font-size: 14px; }
+.property-chess-app .notice { min-height: 1.35em; max-width: var(--chess-board); margin: 0; color: var(--muted); text-align: center; font-size: 13px; }
+.chess-dialog { width: min(600px, calc(100% - 24px)); max-height: min(94dvh, 820px); overflow: auto; }
+.chess-dialog[open] { display: flex; flex-direction: column; }
+.chess-dialog .dialog-head { position: sticky; top: -1px; z-index: 1; background: var(--panel); }
+.chess-dialog-body { display: grid; gap: 12px; padding: 0 18px 18px; }
+.chess-dialog-note { margin: 0; color: var(--muted); font-size: 12px; text-align: center; }
+@media (max-width: 420px) {
+  .property-chess-app { --chess-board: min(calc(100vw - 40px), calc(100dvh - 280px)); }
+  .chess-dialog-body { padding-inline: 10px; }
+}

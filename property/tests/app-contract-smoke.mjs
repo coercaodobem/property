@@ -12,6 +12,7 @@ const aboutPtBR = await readFile(join(root, 'web/about.pt-BR.html'), 'utf8');
 const ghostlyIntegration = await readFile(join(root, 'docs/ghostly-integration.md'), 'utf8');
 const ghostlyIntegrationPtBR = await readFile(join(root, 'docs/ghostly-integration.pt-BR.md'), 'utf8');
 const ghostlyLicense = await readFile(join(root, 'web/GHOSTLY-MIT-LICENSE.txt'), 'utf8');
+const chessNotice = await readFile(join(root, 'web/chess/NOTICE.md'), 'utf8');
 const manifest = JSON.parse(await readFile(join(root, 'web/manifest.webmanifest'), 'utf8'));
 const app = await readFile(join(root, 'web/app.js'), 'utf8');
 const chatGestures = await readFile(join(root, 'web/chat-gestures.js'), 'utf8');
@@ -278,7 +279,7 @@ assert.match(html, /\.\/message-pins\.css\?v=property-v1/);
 assert.match(html, /id="conversation-pin-bar"[^>]*hidden/);
 assert.match(html, /id="conversation-pin-jump"/);
 assert.match(html, /id="conversation-pin-unpin"/);
-assert.match(html, /\.\/app\.js\?v=property-v96/);
+assert.match(html, /\.\/app\.js\?v=property-v97/);
 assert.match(html, /id="group-invite-preview-dialog"/);
 assert.match(html, /id="group-invite-generate"/);
 assert.match(app, /GroupInvites\.createInvitation\(/, 'group invite links are signed and encrypted locally');
@@ -355,7 +356,7 @@ assert.match(sw, /group-invites\.css\?v=property-v1/);
 assert.match(sw, /community-groups\.js\?v=property-v2/);
 assert.match(sw, /message-pins\.js\?v=property-v1/);
 assert.match(sw, /message-pins\.css\?v=property-v1/);
-assert.match(sw, /app\.js\?v=property-v96/);
+assert.match(sw, /app\.js\?v=property-v97/);
 assert.match(sw, /payment-card\.js\?v=property-v1/);
 assert.match(sw, /payment-card\.css\?v=property-v3/);
 assert.match(sw, /audio-playback\.js\?v=property-v1/);
@@ -376,7 +377,7 @@ assert.match(sw, /message-forwards\.js\?v=property-v1/);
 assert.match(sw, /message-forwards\.css\?v=property-v1/);
 assert.match(sw, /typing-signals\.js\?v=property-v5/);
 assert.match(sw, /typing-signals\.css\?v=property-v1/);
-assert.match(sw, /property-shell-v102/);
+assert.match(sw, /property-shell-v103/);
 assert.match(html, /id="peer-input"[^>]*autocapitalize="off"[^>]*autocorrect="off"[^>]*inputmode="text"/);
 assert.match(html, /id="peer-name-input"[^>]*autocomplete="off"[^>]*autocorrect="off"/);
 assert.match(app, /IdentityProofs\.verifyGitHubClaim\(/, 'contact identity proofs are verified only from the explicit Verify action');
@@ -388,6 +389,21 @@ assert.match(html, /Checking someone else’s proof contacts GitHub and reveals 
 assert.match(html, /id="chat-nip39-status"[^>]*aria-live="polite"/);
 assert.match(sw, /styles\.css\?v=property-v70/);
 assert.match(app, /MessageDays\.dayLabel/);
+assert.match(app, /id = 'chess-launch-button'/, 'Property Chess launches from the existing direct-conversation header');
+assert.match(app, /import\('\.\/chess\/build\/runtime\.js'\)/, 'the local chess module is loaded only from the Property package');
+assert.match(app, /\['app', 'property-chess', '1'\]/, 'chess protocol messages are marked inside the encrypted NIP-17 rumor');
+assert.match(app, /hiddenFromChat: true/, 'raw chess protocol payloads are kept out of the visible conversation timeline');
+assert.match(chessNotice, /BSD-2-Clause/);
+assert.match(chessNotice, /MIT/);
+assert.match(ghostlyIntegration, /Property Chess is a built-in feature/);
+assert.match(ghostlyIntegrationPtBR, /O Xadrez do Property é um recurso integrado/);
+for (const localAsset of [
+  /\.\/chess\/chess\.css\?v=property-v1/,
+  /\.\/chess\/build\/runtime\.js/,
+  /\.\/chess\/build\/game\.js/,
+  /\.\/chess\/vendor\/chess\.js/,
+  /\.\/chess\/vendor\/noble-hashes\/sha2\.js/
+]) assert.match(sw, localAsset, 'the complete local chess runtime is cached for offline use');
 assert.match(app, /message-day-divider/);
 assert.match(messageDays, /function dayLabel/);
 assert.match(app, /document\.createTreeWalker\(node, NodeFilter\.SHOW_TEXT\)/, 'message search preserves and highlights the rich message DOM instead of flattening cards and formatting');
