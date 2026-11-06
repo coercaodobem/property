@@ -45,6 +45,14 @@
       ? mime : 'application/octet-stream';
   }
 
+  function previewKind(value) {
+    const mime = safeMime(value);
+    if (['image/avif', 'image/gif', 'image/jpeg', 'image/png', 'image/webp'].includes(mime)) return 'image';
+    if (['audio/aac', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm'].includes(mime)) return 'audio';
+    if (['video/mp4', 'video/webm'].includes(mime)) return 'video';
+    return '';
+  }
+
   function randomTransferId(cryptoImpl = globalThis.crypto) {
     const bytes = new Uint8Array(16);
     cryptoImpl.getRandomValues(bytes);
@@ -191,6 +199,6 @@
 
   globalThis.PropertyFileTransfers = Object.freeze({
     TAG, VERSION, CHUNK_BYTES, MAX_FILE_BYTES, MAX_CHUNKS, MAX_RELAY_EVENT_BYTES, MAX_NAME_CHARS, MAX_CAPTION_CHARS,
-    createTransfer, randomTransferId, fromTags, assemble, coalesceMessages, safeName, safeMime, expectedChunkCount, relayEventBytes, formatSize
+    createTransfer, randomTransferId, fromTags, assemble, coalesceMessages, safeName, safeMime, previewKind, expectedChunkCount, relayEventBytes, formatSize
   });
 })();

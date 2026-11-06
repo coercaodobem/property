@@ -2729,11 +2729,27 @@
           if (!fileUrl) {
             const assembled = await FileTransfers.assemble(transfer.chunks);
             if (assembled) {
-              fileUrl = URL.createObjectURL(new Blob([assembled.bytes], { type: 'application/octet-stream' }));
+              fileUrl = URL.createObjectURL(new Blob([assembled.bytes], { type: transfer.mime }));
               state.fileObjectUrls.set(transferKey, fileUrl);
             }
           }
           if (fileUrl) {
+            const previewKind = FileTransfers.previewKind(transfer.mime);
+            if (previewKind === 'image') {
+              const preview = document.createElement('img'); preview.className = 'file-transfer-image';
+              preview.src = fileUrl; preview.alt = FileTransfers.safeName(transfer.name); preview.loading = 'lazy'; preview.decoding = 'async';
+              card.append(preview);
+            } else if (previewKind === 'audio') {
+              const preview = document.createElement('audio'); preview.className = 'file-transfer-media';
+              preview.controls = true; preview.preload = 'none'; preview.src = fileUrl;
+              preview.setAttribute('aria-label', localized(`Play ${FileTransfers.safeName(transfer.name)}`, `Reproduzir ${FileTransfers.safeName(transfer.name)}`));
+              card.append(preview);
+            } else if (previewKind === 'video') {
+              const preview = document.createElement('video'); preview.className = 'file-transfer-media';
+              preview.controls = true; preview.preload = 'none'; preview.playsInline = true; preview.src = fileUrl;
+              preview.setAttribute('aria-label', localized(`Play ${FileTransfers.safeName(transfer.name)}`, `Reproduzir ${FileTransfers.safeName(transfer.name)}`));
+              card.append(preview);
+            }
             const download = document.createElement('a'); download.className = 'file-transfer-download';
             download.href = fileUrl; download.download = FileTransfers.safeName(transfer.name);
             download.rel = 'noopener noreferrer'; download.textContent = localized('Download verified file', 'Baixar arquivo verificado');
@@ -3917,7 +3933,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v60', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v61', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }

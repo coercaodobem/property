@@ -72,7 +72,8 @@ const result = await vm.runInContext(`(async () => {
     maximumFileAccepted: maximumFile.sizeBytes === files.MAX_FILE_BYTES && maximumFile.chunks.length === files.MAX_CHUNKS && maximumFile.chunks.every((chunk, index) => chunk.index === index),
     emptyFileSupported: Boolean(emptyAssembled && emptyAssembled.bytes.length === 0),
     nameSanitized: files.safeName('..\\secret/evil\u0000.txt') === 'evil.txt',
-    mimeSanitized: files.safeMime('text/html; charset=utf-8') === 'application/octet-stream'
+    mimeSanitized: files.safeMime('text/html; charset=utf-8') === 'application/octet-stream',
+    safeMediaPreviewTypes: files.previewKind('image/png') === 'image' && files.previewKind('audio/ogg') === 'audio' && files.previewKind('video/mp4') === 'video' && files.previewKind('image/svg+xml') === '' && files.previewKind('text/html') === ''
   };
 })()`, context, { timeout: 30000 });
 
@@ -97,4 +98,5 @@ assert.equal(result.maximumFileAccepted, true, 'the declared maximum file size i
 assert.equal(result.emptyFileSupported, true);
 assert.equal(result.nameSanitized, true);
 assert.equal(result.mimeSanitized, true);
+assert.equal(result.safeMediaPreviewTypes, true, 'only explicitly supported attachment types get inline previews');
 console.log(`PASS NIP-17 file transfer primitives: ${result.chunkCount} chunks, ${result.groupRecipientCount} wrappers, max ${Math.max(...result.wrapperSizes)} bytes`);
