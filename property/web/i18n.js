@@ -3,6 +3,7 @@
   const EN_TO_PT = new Map();
   const PT_TO_EN = new Map();
   const pairs = [
+    ['Show address QR', 'Mostrar QR do endereço'], ['QR code with the receiving address only', 'Código QR somente com o endereço de recebimento'], ['Address only. The amount is not encoded.', 'Somente o endereço. O valor não está codificado.'],
     ['Create link preview', 'Criar prévia do link'], ['Remove link preview', 'Remover prévia do link'], ['Fetch a link preview?', 'Buscar prévia do link?'],
     ['Property will contact this HTTPS page from your device to read its title and description. The website may see your IP address. Some sites block browser previews; you can still send the link without one. Property sends no cookies or referrer, uses no proxy, and does not load remote images.', 'O Property vai acessar esta página HTTPS pelo seu aparelho para ler o título e a descrição. O site poderá ver seu endereço IP. Alguns sites bloqueiam prévias no navegador; você ainda pode enviar o link sem prévia. O Property não envia cookies nem referenciador, não usa proxy e não carrega imagens remotas.'],
     ['Cancel', 'Cancelar'], ['Fetch preview', 'Buscar prévia'], ['Link preview · provided by sender', 'Prévia do link · fornecida por quem enviou'],

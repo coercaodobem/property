@@ -27,6 +27,11 @@
 .message-payment-card-amount{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
 .message-payment-card-label{color:var(--muted);font-size:11px;font-weight:700}
 .message-payment-card-address{display:block;max-height:6.5em;overflow:auto;border:1px solid var(--line);border-radius:9px;background:#090b0c;color:#e9e4ca;padding:9px;overflow-wrap:anywhere;white-space:pre-wrap;font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;user-select:text}
+.message-payment-card-qr{border-top:1px solid #39351f;padding-top:8px}
+.message-payment-card-qr summary{cursor:pointer;color:var(--accent);font-size:11px;font-weight:700}
+.message-payment-card-qr-content{display:grid;justify-items:start;gap:7px;padding-top:8px}
+.message-payment-card-qr-content svg{width:min(100%,168px);height:auto;border-radius:8px;background:#fff;padding:7px}
+.message-payment-card-qr-content span{color:var(--muted);font-size:10px}
 .message-payment-card-footer{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
 .message-payment-card-copy{min-height:34px;padding:6px 10px;font-size:11px}
 .message-payment-card-status{color:var(--muted);font-size:11px}

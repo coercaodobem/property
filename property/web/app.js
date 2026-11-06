@@ -344,6 +344,16 @@
     addressLabel.textContent = localized('Receiving address', 'Endereço de recebimento');
     const address = document.createElement('code'); address.className = 'message-payment-card-address'; address.textContent = data.address;
     card.append(addressLabel, address);
+    if (typeof QrCode?.createSvg === 'function') {
+      const disclosure = document.createElement('details'); disclosure.className = 'message-payment-card-qr';
+      const summary = document.createElement('summary'); summary.textContent = localized('Show address QR', 'Mostrar QR do endereço');
+      const qrContent = document.createElement('div'); qrContent.className = 'message-payment-card-qr-content';
+      const qrTitle = localized('QR code with the receiving address only', 'Código QR somente com o endereço de recebimento');
+      qrContent.append(QrCode.createSvg(data.address, qrTitle));
+      const qrNote = document.createElement('span'); qrNote.textContent = localized('Address only. The amount is not encoded.', 'Somente o endereço. O valor não está codificado.');
+      qrContent.append(qrNote);
+      disclosure.append(summary, qrContent); card.append(disclosure);
+    }
     if (data.note) { const note = document.createElement('p'); note.className = 'message-payment-card-note'; note.textContent = data.note; card.append(note); }
     const footer = document.createElement('div'); footer.className = 'message-payment-card-footer';
     const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'button secondary message-payment-card-copy';
@@ -5143,7 +5153,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v71', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v72', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
