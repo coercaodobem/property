@@ -179,10 +179,15 @@
     if (submit) submit.disabled = state.activeConversationBlocked || recording || draft;
     if (recording) {
       const elapsed = state.voiceRecorder.elapsed();
+      const paused = state.voiceRecorder.isPaused();
+      const pauseButton = $('voice-record-pause');
       $('voice-recording-time').textContent = VoiceMessages.formatDuration(elapsed);
       $('voice-recording-label').textContent = state.voiceRecorderStartedAt
-        ? localized('Recording', 'Gravando')
+        ? paused ? localized('Recording paused', 'Gravação pausada') : localized('Recording', 'Gravando')
         : localized('Waiting for microphone permission…', 'Aguardando permissão do microfone…');
+      pauseButton.textContent = paused ? localized('Resume recording', 'Retomar gravação') : localized('Pause recording', 'Pausar gravação');
+      pauseButton.setAttribute('aria-label', pauseButton.textContent);
+      pauseButton.disabled = !state.voiceRecorderStartedAt || state.voiceStopping || (!paused && elapsed >= VoiceMessages.MAX_DURATION_MS);
     }
     if (draft) {
       const audio = $('voice-preview-audio');
@@ -308,6 +313,7 @@
     const sequence = state.voiceSequence;
     const peer = state.voiceRecorderPeer;
     clearVoiceTimer();
+    renderVoiceComposer();
     try {
       const recording = await recorder.stop();
       if (sequence !== state.voiceSequence || state.activePeer !== peer) return;
@@ -326,6 +332,16 @@
         renderVoiceComposer();
         showToast(error.message || localized('Could not finish this recording.', 'Não foi possível concluir esta gravação.'));
       }
+    }
+  }
+  function toggleVoiceRecording() {
+    const recorder = state.voiceRecorder;
+    if (!recorder || state.voiceStopping) return;
+    try {
+      const changed = recorder.isPaused() ? recorder.resume() : recorder.pause();
+      if (changed) renderVoiceComposer();
+    } catch {
+      showToast(localized('Could not change the recording state.', 'Não foi possível alterar o estado da gravação.'));
     }
   }
   async function startVoiceRecording() {
@@ -4775,7 +4791,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v66', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v67', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -5076,6 +5092,7 @@
     $('secret-guard-dialog').addEventListener('cancel', event => { event.preventDefault(); settleSecretSendConfirmation(false); });
     $('secret-guard-dialog').addEventListener('close', () => settleSecretSendConfirmation(false));
     $('voice-record-button').addEventListener('click', () => startVoiceRecording());
+    $('voice-record-pause').addEventListener('click', () => toggleVoiceRecording());
     $('voice-record-stop').addEventListener('click', () => finishVoiceRecording());
     $('voice-record-cancel').addEventListener('click', () => cancelVoiceRecording({ notify: true }));
     $('voice-discard-button').addEventListener('click', () => clearVoiceDraft());

@@ -100,6 +100,8 @@ class FakeMediaRecorder extends EventTarget {
   static isTypeSupported(mime) { return mime === 'audio/webm;codecs=opus'; }
   constructor(stream, options) { super(); this.stream = stream; this.mimeType = options.mimeType; this.state = 'inactive'; }
   start() { this.state = 'recording'; }
+  pause() { if (this.state === 'recording') this.state = 'paused'; }
+  resume() { if (this.state === 'paused') this.state = 'recording'; }
   stop() {
     this.state = 'inactive';
     const data = new Event('dataavailable'); Object.defineProperty(data, 'data', { value: new Blob([new Uint8Array(128)], { type: 'audio/webm;codecs=opus' }) });
@@ -115,4 +117,25 @@ assert.equal(captured.durationMs, 1500, 'recording duration uses the injected lo
 assert.equal(captured.blob.size, 128);
 assert.equal(stoppedTracks, 1, 'the microphone track is released immediately after stop');
 
-console.log(`PASS: private NIP-17 voice payloads, direct (2) and group (3) recipient wrapping/isolation, ${result.wrapperSizes.length} bounded relay envelopes, integrity guards, and microphone release`);
+clock = 2000;
+const pausedRecorder = new context.PropertyVoiceMessages.Recorder({ mediaDevices: { getUserMedia: async () => stream }, RecorderClass: FakeMediaRecorder, now: () => clock });
+await pausedRecorder.start();
+clock += 1500;
+assert.equal(pausedRecorder.pause(), true);
+assert.equal(pausedRecorder.isPaused(), true);
+assert.equal(pausedRecorder.elapsed(), 1500);
+clock += 8000;
+assert.equal(pausedRecorder.elapsed(), 1500, 'time spent paused does not count toward the recording or its 10-second cap');
+assert.equal(pausedRecorder.resume(), true);
+clock += 1250;
+assert.equal(pausedRecorder.elapsed(), 2750);
+assert.equal(pausedRecorder.pause(), true);
+clock += 4000;
+const resumed = await pausedRecorder.stop();
+assert.equal(resumed.durationMs, 2750, 'stopping while paused keeps only recorded intervals');
+assert.equal(resumed.blob.size, 128);
+assert.equal(pausedRecorder.resume(), false, 'a stopped recorder cannot resume');
+assert.equal(stoppedTracks, 2, 'the microphone is released after a paused recording is stopped');
+assert.equal(pausedRecorder.pause(), false, 'a stopped recorder cannot pause');
+
+console.log(`PASS: private NIP-17 voice payloads, pause/resume excludes paused time, direct (2) and group (3) recipient wrapping/isolation, ${result.wrapperSizes.length} bounded relay envelopes, integrity guards, and microphone release`);

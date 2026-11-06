@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="./location-cards.css?v=property-v1">
   <link rel="stylesheet" href="./message-forwards.css?v=property-v1">
   <link rel="stylesheet" href="./typing-signals.css?v=property-v1">
-  <script defer src="./i18n.js?v=property-v65"></script>
+  <script defer src="./i18n.js?v=property-v66"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -60,7 +60,7 @@
   <script defer src="./file-transfers.js?v=property-v1"></script>
   <script defer src="./direct-file-envelope.js?v=property-v1"></script>
   <script defer src="./image-viewer.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v82"></script>
+  <script defer src="./app.js?v=property-v83"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -185,7 +185,7 @@
               <div id="voice-recording-progress" class="voice-recording-progress" hidden>
                 <span id="voice-recording-label" role="status" aria-live="polite">Waiting for microphone permission…</span>
                 <time id="voice-recording-time" role="timer" aria-live="off">0:00</time>
-                <div class="voice-recording-actions"><button id="voice-record-stop" class="button primary" type="button">Stop recording</button><button id="voice-record-cancel" class="button secondary" type="button">Cancel recording</button></div>
+                <div class="voice-recording-actions"><button id="voice-record-pause" class="button secondary" type="button" aria-label="Pause recording" disabled>Pause recording</button><button id="voice-record-stop" class="button primary" type="button">Stop recording</button><button id="voice-record-cancel" class="button secondary" type="button">Cancel recording</button></div>
               </div>
               <div id="voice-preview-review" class="voice-preview-review" hidden>
                 <p><strong>Voice message preview</strong> · <span id="voice-preview-duration">0:00</span></p>

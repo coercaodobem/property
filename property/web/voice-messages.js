@@ -91,6 +91,7 @@
       this.recorder = null;
       this.chunks = [];
       this.startedAt = null;
+      this.recordedMs = 0;
       this.closed = false;
     }
 
@@ -112,7 +113,29 @@
     }
 
     elapsed() {
-      return this.startedAt === null ? 0 : Math.max(0, Math.min(MAX_DURATION_MS, Math.round(this.now() - this.startedAt)));
+      const active = this.recorder?.state === 'recording' && this.startedAt !== null
+        ? Math.max(0, Math.round(this.now() - this.startedAt)) : 0;
+      return Math.max(0, Math.min(MAX_DURATION_MS, this.recordedMs + active));
+    }
+
+    isPaused() {
+      return this.recorder?.state === 'paused';
+    }
+
+    pause() {
+      if (!this.recorder || this.recorder.state !== 'recording' || typeof this.recorder.pause !== 'function') return false;
+      const now = this.now();
+      this.recorder.pause();
+      this.recordedMs = Math.max(0, Math.min(MAX_DURATION_MS, this.recordedMs + Math.max(0, Math.round(now - this.startedAt))));
+      this.startedAt = null;
+      return true;
+    }
+
+    resume() {
+      if (!this.recorder || this.recorder.state !== 'paused' || typeof this.recorder.resume !== 'function' || this.elapsed() >= MAX_DURATION_MS) return false;
+      this.recorder.resume();
+      this.startedAt = this.now();
+      return true;
     }
 
     async stop() {
@@ -153,6 +176,8 @@
       for (const track of this.stream?.getTracks?.() || []) { try { track.stop(); } catch {} }
       this.stream = null;
       this.chunks = [];
+      this.startedAt = null;
+      this.recordedMs = 0;
     }
   }
 
