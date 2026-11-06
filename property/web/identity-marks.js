@@ -17,5 +17,16 @@
     });
   }
 
-  window.PropertyIdentityMarks = Object.freeze({ checkKey, verifiedGitHubClaims });
+  function nip05CheckKey(peer, profile) {
+    if (!PUBLIC_KEY.test(peer || '') || !EVENT_ID.test(profile?.eventId || '') || typeof profile?.nip05 !== 'string' || !profile.nip05.trim()) return '';
+    return [peer, profile.eventId, 'nip05', profile.nip05.trim().toLowerCase()].join(':');
+  }
+
+  function verifiedNip05Profile(peer, profile, checks) {
+    if (!(checks instanceof Map)) return false;
+    const key = nip05CheckKey(peer, profile);
+    return Boolean(key && checks.get(key)?.status === 'verified' && checks.get(key)?.matches === true);
+  }
+
+  window.PropertyIdentityMarks = Object.freeze({ checkKey, verifiedGitHubClaims, nip05CheckKey, verifiedNip05Profile });
 })();

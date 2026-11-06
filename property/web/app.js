@@ -82,7 +82,7 @@
     directFileController: null, directFileTransfer: null, directFileSignalSequences: new Map(), pendingDirectFileOffer: null, imageViewer: null,
     pendingDirectFileRequest: null, directFileSendJob: null, directFileJobRunning: false, directFileOfferExpiryTimer: 0,
     callUiHadSession: false, callUiSequence: 0,
-    peerProfiles: new Map(), peerProfileLookupStatuses: new Map(), peerIdentityProofs: new Map(), identityProofChecks: new Map(), chatDetailsPeer: '', identityProofCheckId: 0,
+    peerProfiles: new Map(), peerProfileLookupStatuses: new Map(), peerIdentityProofs: new Map(), identityProofChecks: new Map(), peerNip05Checks: new Map(), chatDetailsPeer: '', identityProofCheckId: 0,
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
@@ -2211,7 +2211,7 @@
       if (isCurrent()) updatePeerNip05LookupButton();
     }
   }
-  async function performNip05Check(identifier, pubkey, status, button, isCurrent) {
+  async function performNip05Check(identifier, pubkey, status, button, isCurrent, onResult = null) {
     button.disabled = true;
     status.textContent = localized('Checking the domain mapping…', 'Consultando o vínculo do domínio…');
     try {
@@ -2220,6 +2220,8 @@
       status.textContent = result.matches
         ? localized('The domain mapping matches this Nostr key. This does not verify a real-world identity.', 'O domínio aponta para esta chave Nostr. Isso não verifica uma identidade no mundo real.')
         : localized('The domain mapping does not match this Nostr key.', 'O domínio não aponta para esta chave Nostr.');
+      onResult?.(result);
+      return result;
     } catch (error) {
       if (isCurrent()) status.textContent = nip05ErrorMessage(error);
     } finally {
@@ -2253,8 +2255,18 @@
     const identifier = profile?.nip05 || '';
     if (!peer || !identifier || !$('chat-details-dialog').open) return;
     const checkId = ++peerNip05CheckId;
+    const checkKey = window.PropertyIdentityMarks?.nip05CheckKey(peer, profile) || '';
+    const isCurrent = () => checkId === peerNip05CheckId && $('chat-details-dialog').open && state.chatDetailsPeer === peer &&
+      state.peerProfiles.get(peer)?.eventId === profile.eventId && state.peerProfiles.get(peer)?.nip05 === identifier;
     return performNip05Check(identifier, peer, $('chat-profile-nip05-status'), $('verify-chat-nip05'), () =>
-      checkId === peerNip05CheckId && $('chat-details-dialog').open && state.chatDetailsPeer === peer && state.peerProfiles.get(peer)?.nip05 === identifier
+      isCurrent(), result => {
+        if (!checkKey) return;
+        if (result.matches) {
+          state.peerNip05Checks.set(checkKey, { status: 'verified', matches: true });
+          while (state.peerNip05Checks.size > 64) state.peerNip05Checks.delete(state.peerNip05Checks.keys().next().value);
+        } else state.peerNip05Checks.delete(checkKey);
+        void renderConversations().catch(() => {});
+      }
     );
   }
   function renderPeerPublicProfile(profile) {
@@ -3998,12 +4010,24 @@
     if (!conversation.group && !conversation.agent && !agentAccess) {
       const identityRecord = state.peerIdentityProofs.get(conversation.pubkey);
       const verifiedClaims = window.PropertyIdentityMarks?.verifiedGitHubClaims(conversation.pubkey, identityRecord, state.identityProofChecks) || [];
-      if (verifiedClaims.length) {
+      const profile = state.peerProfiles.get(conversation.pubkey);
+      const verifiedNip05 = window.PropertyIdentityMarks?.verifiedNip05Profile(conversation.pubkey, profile, state.peerNip05Checks) || false;
+      if (verifiedClaims.length || verifiedNip05) {
         const marks = document.createElement('span'); marks.className = 'identity-marks'; marks.setAttribute('role', 'img');
-        marks.title = localized('GitHub proof checked in this session: the public Gist account and Nostr key match the signed claim. This does not verify a real-world identity.', 'Prova GitHub conferida nesta sessão: a conta da Gist pública e a chave Nostr correspondem à declaração assinada. Isso não verifica uma identidade no mundo real.');
+        const markLabels = [];
+        if (verifiedClaims.length) markLabels.push(localized('GitHub proof checked in this session: the public Gist account and Nostr key match the signed claim. This does not verify a real-world identity.', 'Prova GitHub conferida nesta sessão: a conta da Gist pública e a chave Nostr correspondem à declaração assinada. Isso não verifica uma identidade no mundo real.'));
+        if (verifiedNip05) markLabels.push(localized('NIP-05 checked in this session: the identifier in this signed profile mapped to this Nostr key. This does not verify a real-world identity.', 'NIP-05 consultado nesta sessão: o identificador deste perfil assinado apontou para esta chave Nostr. Isso não verifica uma identidade no mundo real.'));
+        marks.title = markLabels.join(' ');
         marks.setAttribute('aria-label', marks.title);
-        const mark = document.createElement('span'); mark.className = 'identity-mark'; mark.textContent = '✓'; mark.setAttribute('aria-hidden', 'true');
-        marks.append(mark); titleRow.append(marks);
+        if (verifiedClaims.length) {
+          const mark = document.createElement('span'); mark.className = 'identity-mark'; mark.textContent = '✓'; mark.setAttribute('aria-hidden', 'true');
+          marks.append(mark);
+        }
+        if (verifiedNip05) {
+          const mark = document.createElement('span'); mark.className = 'identity-mark'; mark.textContent = '5'; mark.setAttribute('aria-hidden', 'true');
+          marks.append(mark);
+        }
+        titleRow.append(marks);
       }
     }
     const preview = document.createElement('small'); preview.dataset.userContent = '';
@@ -6194,6 +6218,7 @@
     clearTimeout(state.messageDayRolloverTimer); state.messageDayRolloverTimer = 0;
     state.identityProofCheckId++;
     state.identityProofChecks.clear();
+    state.peerNip05Checks.clear();
     if (state.secret) state.secret.fill(0);
     const clearAppBadgeOnLock = state.appBadgeEnabled || state.appBadgeLastCount !== null;
     state.iceSettings = IceServers.normalize({}); state.iceSettingsInvalid = false; $('ice-server-credential').value = '';

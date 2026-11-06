@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 
 globalThis.window = {};
 await import('../web/identity-marks.js');
-const { checkKey, verifiedGitHubClaims } = window.PropertyIdentityMarks;
+const { checkKey, verifiedGitHubClaims, nip05CheckKey, verifiedNip05Profile } = window.PropertyIdentityMarks;
 
 const peer = 'a'.repeat(64);
 const eventId = 'b'.repeat(64);
@@ -22,4 +22,12 @@ assert.deepEqual(verifiedGitHubClaims(peer, record, null), [], 'missing check st
 assert.deepEqual(verifiedGitHubClaims('invalid', record, checks), [], 'invalid public keys never receive marks');
 assert.equal(checkKey(peer, record, verified), [peer, eventId, 'github', 'alice', 'gist:1234'].join(':'));
 
-console.log('PASS: identity marks require an explicit verified GitHub check for the exact signed claim and fail closed on stale or missing state');
+const profile = { eventId, nip05: 'Alice@Example.COM' };
+const nip05Checks = new Map([[nip05CheckKey(peer, profile), { status: 'verified', matches: true }]]);
+assert.equal(verifiedNip05Profile(peer, profile, nip05Checks), true, 'an explicit successful NIP-05 check can mark the exact signed profile for this session');
+assert.equal(verifiedNip05Profile(peer, { ...profile, eventId: 'c'.repeat(64) }, nip05Checks), false, 'a newer signed profile invalidates a previous NIP-05 mark');
+assert.equal(verifiedNip05Profile(peer, { ...profile, nip05: 'bob@example.com' }, nip05Checks), false, 'a different NIP-05 identifier cannot reuse a check');
+assert.equal(verifiedNip05Profile('invalid', profile, nip05Checks), false, 'invalid public keys never receive NIP-05 marks');
+assert.equal(verifiedNip05Profile(peer, profile, new Map([[nip05CheckKey(peer, profile), { status: 'verified', matches: false }]])), false, 'a non-matching lookup never receives a NIP-05 mark');
+
+console.log('PASS: identity marks require explicit successful checks for the exact signed GitHub claim or NIP-05 profile and fail closed on stale or missing state');
