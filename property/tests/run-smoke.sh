@@ -18,6 +18,7 @@ for test_file in \
   call-controller-smoke.mjs \
   direct-file-envelope-smoke.mjs \
   direct-transfer-controller-smoke.mjs \
+  image-viewer-smoke.mjs \
   chat-search-smoke.mjs \
   conversation-folders-smoke.mjs \
   chat-drafts-smoke.mjs \

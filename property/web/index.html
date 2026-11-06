@@ -11,14 +11,14 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v66">
+  <link rel="stylesheet" href="./styles.css?v=property-v67">
   <link rel="stylesheet" href="./link-preview.css?v=property-v1">
   <link rel="stylesheet" href="./message-scroll.css?v=property-v1">
   <link rel="stylesheet" href="./group-mentions.css?v=property-v2">
   <link rel="stylesheet" href="./location-cards.css?v=property-v1">
   <link rel="stylesheet" href="./message-forwards.css?v=property-v1">
   <link rel="stylesheet" href="./typing-signals.css?v=property-v1">
-  <script defer src="./i18n.js?v=property-v64"></script>
+  <script defer src="./i18n.js?v=property-v65"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -59,7 +59,8 @@
   <script defer src="./voice-messages.js?v=property-v1"></script>
   <script defer src="./file-transfers.js?v=property-v1"></script>
   <script defer src="./direct-file-envelope.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v81"></script>
+  <script defer src="./image-viewer.js?v=property-v1"></script>
+  <script defer src="./app.js?v=property-v82"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -209,6 +210,15 @@
             <dialog id="incoming-direct-file-dialog" class="dialog-card incoming-direct-file-dialog" aria-labelledby="incoming-direct-file-title" aria-describedby="incoming-direct-file-copy" role="alertdialog">
               <div class="dialog-head"><div><p class="eyebrow">PROPERTY · DIRECT FILE TRANSFER</p><h2 id="incoming-direct-file-title">Direct file transfer</h2></div></div>
               <div class="dialog-body"><p id="incoming-direct-file-name" class="incoming-call-name"></p><p id="incoming-direct-file-copy" class="muted">A contact wants to send these files directly.</p><ul id="incoming-direct-file-list" class="file-attachment-list"></ul><p id="incoming-direct-file-status" class="fine-print" role="status" aria-live="polite" hidden></p><p class="fine-print">Accepting can reveal your network IP address to this contact and the configured Google STUN servers. The encrypted file channel opens only after you accept. Keep Property open until the transfer finishes.</p><div class="dialog-actions"><button id="incoming-direct-file-decline" class="button danger" type="button">Decline</button><button id="incoming-direct-file-accept" class="button primary" type="button">Accept and receive</button><button id="incoming-direct-file-cancel" class="button danger" type="button" hidden>Cancel direct transfer</button></div></div>
+            </dialog>
+            <dialog id="image-viewer-dialog" class="image-viewer-dialog" aria-labelledby="image-viewer-title" aria-describedby="image-viewer-hint" tabindex="-1">
+              <div class="image-viewer-shell">
+                <header class="image-viewer-header"><h2 id="image-viewer-title"></h2><button id="image-viewer-close" class="icon-button" type="button" aria-label="Close image">×</button></header>
+                <div id="image-viewer-view" class="image-viewer-view" role="group" aria-label="Zoomable image" tabindex="0">
+                  <img id="image-viewer-image" class="image-viewer-image" alt="" draggable="false">
+                </div>
+                <p id="image-viewer-hint" class="image-viewer-hint">Pinch or double-tap to zoom · +/−/0 and arrow keys also work · Esc closes</p>
+              </div>
             </dialog>
             <section id="link-preview-draft" class="link-preview-card link-preview-draft hidden" aria-live="polite"></section>
             <section id="emoji-picker-panel" class="emoji-picker-panel hidden" role="region" aria-labelledby="emoji-picker-title">

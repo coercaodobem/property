@@ -35,6 +35,7 @@
   const VoiceMessages = window.PropertyVoiceMessages;
   const FileTransfers = window.PropertyFileTransfers;
   const DirectFileEnvelope = window.PropertyDirectFileEnvelope;
+  const ImageViewer = window.PropertyImageViewer;
   const MessageEdits = window.PropertyMessageEdits;
   const SecretGuard = window.PropertySecretGuard;
   const QrCode = window.PropertyQrCode;
@@ -64,7 +65,7 @@
     readReceiptsEnabled: false, readReceiptSent: new Set(), readReceipts: new Map(), readReceiptCandidates: new Map(), readReceiptObserver: null,
     activeStatusEnabled: false, localPresenceSession: null, remotePresence: new Map(), presenceTimers: new Map(), presenceSequences: new Map(),
     callController: null, call: null, pendingCallPeer: '', pendingCallVideo: false, callSignalSequences: new Map(),
-    directFileController: null, directFileTransfer: null, directFileSignalSequences: new Map(), pendingDirectFileOffer: null,
+    directFileController: null, directFileTransfer: null, directFileSignalSequences: new Map(), pendingDirectFileOffer: null, imageViewer: null,
     pendingDirectFileRequest: null, directFileSendJob: null, directFileJobRunning: false, directFileOfferExpiryTimer: 0,
     callUiHadSession: false, callUiSequence: 0,
     peerProfiles: new Map(), peerProfileLookupStatuses: new Map(), peerIdentityProofs: new Map(), identityProofChecks: new Map(), chatDetailsPeer: '', identityProofCheckId: 0,
@@ -3516,9 +3517,13 @@
           if (fileUrl) {
             const previewKind = FileTransfers.previewKind(transfer.mime);
             if (previewKind === 'image') {
+              const openImage = document.createElement('button'); openImage.type = 'button'; openImage.className = 'file-transfer-image-open';
+              openImage.setAttribute('aria-label', localized(`View image ${FileTransfers.safeName(transfer.name)}`, `Ver imagem ${FileTransfers.safeName(transfer.name)}`));
               const preview = document.createElement('img'); preview.className = 'file-transfer-image';
-              preview.src = fileUrl; preview.alt = FileTransfers.safeName(transfer.name); preview.loading = 'lazy'; preview.decoding = 'async';
-              card.append(preview);
+              preview.src = fileUrl; preview.alt = ''; preview.loading = 'lazy'; preview.decoding = 'async';
+              openImage.append(preview);
+              openImage.addEventListener('click', () => state.imageViewer?.open(fileUrl, FileTransfers.safeName(transfer.name), openImage));
+              card.append(openImage);
             } else if (previewKind === 'audio') {
               const preview = document.createElement('audio'); preview.className = 'file-transfer-media';
               preview.controls = true; preview.preload = 'none'; preview.src = fileUrl;
@@ -4640,6 +4645,7 @@
     setConnectionStatus();
   }
   async function lockIdentity({ preservePublicBridge = false } = {}) {
+    state.imageViewer?.close();
     state.callController?.dispose();
     state.callController = null;
     state.call = null;
@@ -4769,11 +4775,13 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v65', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v66', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
   function wireEvents() {
+    state.imageViewer = ImageViewer.create({ dialog: $('image-viewer-dialog'), view: $('image-viewer-view'),
+      image: $('image-viewer-image'), title: $('image-viewer-title'), closeButton: $('image-viewer-close') });
     const openNewChatDialog = () => {
       const dialog = $('new-chat-dialog');
       if (!dialog.open) dialog.showModal();
@@ -5380,7 +5388,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.createPresence !== 'function' || typeof TypingSignals.createCallSignal !== 'function' || typeof TypingSignals.createFileSignal !== 'function' || typeof TypingSignals.unwrap !== 'function' || !Calls || typeof Calls.create !== 'function' || !DirectTransfer || typeof DirectTransfer.create !== 'function' || !DirectFileEnvelope || typeof DirectFileEnvelope.create !== 'function' || typeof DirectFileEnvelope.validate !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.createPresence !== 'function' || typeof TypingSignals.createCallSignal !== 'function' || typeof TypingSignals.createFileSignal !== 'function' || typeof TypingSignals.unwrap !== 'function' || !Calls || typeof Calls.create !== 'function' || !DirectTransfer || typeof DirectTransfer.create !== 'function' || !DirectFileEnvelope || typeof DirectFileEnvelope.create !== 'function' || typeof DirectFileEnvelope.validate !== 'function' || !ImageViewer || typeof ImageViewer.create !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();
