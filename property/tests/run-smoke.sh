@@ -21,6 +21,7 @@ for test_file in \
   call-window-smoke.mjs \
   chess-controller-smoke.mjs \
   app-directory-smoke.mjs \
+  identity-marks-smoke.mjs \
   direct-file-envelope-smoke.mjs \
   direct-transfer-controller-smoke.mjs \
   image-viewer-smoke.mjs \

@@ -2147,6 +2147,7 @@
       state.identityProofChecks.set(checkKey, result);
       while (state.identityProofChecks.size > 64) state.identityProofChecks.delete(state.identityProofChecks.keys().next().value);
       renderPeerIdentityProofs(record);
+      void renderConversations().catch(() => {});
     } finally {
       if (checkId === state.identityProofCheckId && state.chatDetailsPeer === peer && $('chat-details-dialog').open && button.isConnected) button.disabled = false;
     }
@@ -2223,6 +2224,7 @@
         await put('settings', { id: identityProofSettingId(peer), event: identityRecord.event, checkedAt: Date.now() });
       }
       renderPeerIdentityProofs(identityRecord || priorIdentity);
+      if (identityRecord && identityRecord.eventId !== priorIdentity?.eventId) await renderConversations();
       if (!profile) {
         renderPeerPublicProfile(state.peerProfiles.get(peer));
         state.peerProfileLookupStatuses.set(peer, identityRecord?.claims?.length || priorIdentity?.claims?.length
@@ -3755,6 +3757,17 @@
     if (mute) {
       const muted = document.createElement('span'); muted.className = 'conversation-mute-indicator'; muted.textContent = '🔕';
       muted.title = localized('Notifications muted', 'Notificações silenciadas'); muted.setAttribute('aria-label', muted.title); titleRow.append(muted);
+    }
+    if (!conversation.group && !conversation.agent && !agentAccess) {
+      const identityRecord = state.peerIdentityProofs.get(conversation.pubkey);
+      const verifiedClaims = window.PropertyIdentityMarks?.verifiedGitHubClaims(conversation.pubkey, identityRecord, state.identityProofChecks) || [];
+      if (verifiedClaims.length) {
+        const marks = document.createElement('span'); marks.className = 'identity-marks'; marks.setAttribute('role', 'img');
+        marks.title = localized('GitHub proof checked in this session: the public Gist account and Nostr key match the signed claim. This does not verify a real-world identity.', 'Prova GitHub conferida nesta sessão: a conta da Gist pública e a chave Nostr correspondem à declaração assinada. Isso não verifica uma identidade no mundo real.');
+        marks.setAttribute('aria-label', marks.title);
+        const mark = document.createElement('span'); mark.className = 'identity-mark'; mark.textContent = '✓'; mark.setAttribute('aria-hidden', 'true');
+        marks.append(mark); titleRow.append(marks);
+      }
     }
     const preview = document.createElement('small'); preview.dataset.userContent = '';
     preview.textContent = messageMatch
@@ -5937,6 +5950,8 @@
     if (state.account) { const updated = { ...state.account }; delete updated.session; await put('vault', updated); state.account = updated; }
     clearTimeout(state.idleTimer);
     clearTimeout(state.messageDayRolloverTimer); state.messageDayRolloverTimer = 0;
+    state.identityProofCheckId++;
+    state.identityProofChecks.clear();
     if (state.secret) state.secret.fill(0);
     const clearAppBadgeOnLock = state.appBadgeEnabled || state.appBadgeLastCount !== null;
     state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.typingIndicatorsEnabled = false; state.readReceiptsEnabled = false; state.activeStatusEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = ''; state.pendingGroupInviteIntent = ''; state.pendingGroupInvite = null; state.groupInviteDraft = null; state.appBadgeEnabled = false; state.appBadgeLastCount = clearAppBadgeOnLock ? 0 : null;
