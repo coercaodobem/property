@@ -497,6 +497,9 @@ assert.match(app, /!RichText/, 'chat cannot boot if the local rich-text renderer
 assert.doesNotMatch(richText, /\binnerHTML\b/, 'message rendering never parses user text as HTML');
 assert.match(richText, /createTextNode\(/, 'plain message text is emitted through DOM text nodes');
 assert.doesNotMatch(html, /Property Direct|property\/direct/i, 'the shipped app has no separate Direct product or route');
+assert.doesNotMatch(html, /PROPERTY\s*[·-]\s*DIRECT/i, 'the Property product mark is not combined with Direct as a second name');
+assert.match(html, /PROPERTY · CALL/);
+assert.match(html, /PROPERTY · FILE TRANSFER/);
 assert.match(ghostlyArchiveReadme, /Archived Ghostly source reference/);
 assert.match(ghostlyArchiveReadme, /not built or published by the Property Pages workflow/);
 assert.doesNotMatch(ghostlyArchiveReadme, /Property Direct|property\/direct/i, 'archived Ghostly source is not described as another Property product');
