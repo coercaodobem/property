@@ -19,14 +19,14 @@
     return { rootId: tag[1].toLowerCase(), sequence };
   }
 
-  function createNip17Edit({ nostr, secret, selfPubkey, participants, rootId, priorEventIds, sequence, createdAt, replyToId = '', subject = '', text }) {
+  function createNip17Edit({ nostr, secret, selfPubkey, participants, rootId, priorEventIds, sequence, createdAt, replyToId = '', subject = '', text, maxTextLength = 4000 }) {
     const members = [...new Set((participants || []).map(value => String(value).toLowerCase()))].sort();
     if (!nostr?.nip59 || !secret || !EVENT_ID.test(selfPubkey || '') || !EVENT_ID.test(rootId || '') || !members.includes(selfPubkey.toLowerCase()) || members.length < 2 || members.length > 10 || members.some(value => !EVENT_ID.test(value))) {
       throw new TypeError('Invalid NIP-17 edit participants or root event.');
     }
     if (!Number.isSafeInteger(sequence) || sequence < 1 || sequence > MAX_EDITS) throw new RangeError('Message edit limit reached.');
     if (!Number.isSafeInteger(createdAt) || createdAt < 0) throw new RangeError('Invalid original message timestamp.');
-    if (typeof text !== 'string' || !text.trim() || text.length > 4000) throw new TypeError('Edited messages must contain 1–4000 characters.');
+    if (![4000, 5000].includes(maxTextLength) || typeof text !== 'string' || !text.trim() || text.length > maxTextLength) throw new TypeError(`Edited messages must contain 1–${maxTextLength} characters.`);
     const eventIdsToRemove = uniqueIds([rootId, ...(priorEventIds || [])]);
     if (!eventIdsToRemove.length) throw new TypeError('An edit must reference at least one prior event.');
     const recipients = members.filter(value => value !== selfPubkey.toLowerCase());

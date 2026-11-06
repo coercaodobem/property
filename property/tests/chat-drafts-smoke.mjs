@@ -22,9 +22,10 @@ assert.throws(() => drafts.createRecord(alice, 'not-a-conversation', 'text'), /I
 assert.throws(() => drafts.createRecord(alice, bob, null), /Chat draft must be text/);
 
 const group = `group:${alice}:${bob}:${carol}`;
-const groupRecord = drafts.createRecord(alice, group, 'group draft');
-assert.equal(drafts.readRecord(groupRecord, alice, group), 'group draft');
+const groupRecord = drafts.createRecord(alice, group, 'Hi @Bob', [{ pubkey: bob, label: 'Bob', start: 3 }]);
+assert.equal(drafts.readRecord(groupRecord, alice, group), 'Hi @Bob');
 assert.notEqual(record.id, groupRecord.id);
+assert.deepEqual(JSON.parse(JSON.stringify(drafts.readMentions(groupRecord, alice, group))), [{ pubkey: bob, label: 'Bob', start: 3 }], 'draft mention references survive local persistence');
 
 const bounded = drafts.createRecord(alice, bob, 'x'.repeat(drafts.MAX_DRAFT_CHARS + 1));
 assert.equal(bounded.text.length, drafts.MAX_DRAFT_CHARS, 'draft records stay within the composer character limit');

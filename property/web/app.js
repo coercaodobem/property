@@ -27,6 +27,7 @@
   const AppBadge = window.PropertyAppBadge;
   const MessageDays = window.PropertyMessageDays;
   const MessageScroll = window.PropertyMessageScroll;
+  const GroupMentions = window.PropertyGroupMentions;
   const LinkPreview = window.PropertyLinkPreview;
   const RichText = window.PropertyRichText;
   const MessageEdits = window.PropertyMessageEdits;
@@ -39,6 +40,7 @@
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const eventSourceHints = new WeakMap();
   let emojiPicker = null;
+  let groupMentionPicker = null;
   let reactionPickerSequence = 0;
   let ownNip05CheckId = 0;
   let peerNip05CheckId = 0;
@@ -47,7 +49,7 @@
     inboxRelays: [], peerInboxRelays: new Map(), peerRelayHints: new Map(),
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     currentConversation: null,
-    activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
+    activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingDraftMentions: [], editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
     peerProfiles: new Map(), peerProfileLookupStatuses: new Map(), peerIdentityProofs: new Map(), identityProofChecks: new Map(), chatDetailsPeer: '', identityProofCheckId: 0,
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
@@ -100,6 +102,7 @@
     $('chat-subtitle').textContent = conversationSubtitle(conversation, agentAccess);
     $('chat-avatar').classList.toggle('group-avatar', conversation.group === true);
     $('chat-avatar').textContent = conversation.group ? '◉' : $('chat-title').textContent.slice(0, 1).toUpperCase();
+    groupMentionPicker?.setEnabled();
     $('composer-note').textContent = conversation.group
       ? (state.inboxRelays.length
         ? localized('NIP-17 group · one encrypted copy goes to each participant’s inbox relays', 'Grupo NIP-17 · uma cópia criptografada vai para os relays de recebimento de cada participante')
@@ -859,21 +862,30 @@
   const all = store => dbRequest(store, 'getAll');
   const put = (store, value) => dbRequest(store, 'put', value);
   const del = (store, key) => dbRequest(store, 'delete', key);
-  async function saveChatDraft(peer, text) {
+  async function saveChatDraft(peer, text, mentionTokens = null) {
     if (!state.pubkey || !peer || (state.editingMessage && state.editingMessage.peer === peer) || (state.shareDraftId && state.shareDraftPeer === peer)) return;
     const id = ChatDrafts.idFor(state.pubkey, peer);
-    const record = ChatDrafts.createRecord(state.pubkey, peer, text);
+    const mentions = Array.isArray(mentionTokens) ? mentionTokens : peer === state.activePeer ? groupMentionPicker?.getMentions() || [] : [];
+    const record = ChatDrafts.createRecord(state.pubkey, peer, text, mentions);
     if (record) await put('drafts', record);
     else await del('drafts', id);
   }
-  async function loadChatDraft(peer) {
-    if (!state.pubkey || !peer) return '';
+  async function loadChatDraftDetails(peer) {
+    if (!state.pubkey || !peer) return { text: '', mentions: [] };
     const record = await get('drafts', ChatDrafts.idFor(state.pubkey, peer));
-    return ChatDrafts.readRecord(record, state.pubkey, peer);
+    return { text: ChatDrafts.readRecord(record, state.pubkey, peer), mentions: ChatDrafts.readMentions(record, state.pubkey, peer) };
+  }
+  async function loadChatDraft(peer) {
+    return (await loadChatDraftDetails(peer)).text;
   }
   function resizeMessageInput(input = $('message-input')) {
     input.style.height = 'auto';
     input.style.height = `${Math.min(input.scrollHeight, 150)}px`;
+  }
+  function trimmedComposerMentions(text) {
+    const raw = $('message-input').value;
+    const removedPrefix = raw.length - raw.trimStart().length;
+    return GroupMentions.validMentions(text, (groupMentionPicker?.getMentions() || []).map(mention => ({ ...mention, start: mention.start - removedPrefix })));
   }
   const toBase64 = Vault.toBase64;
   const fromBase64 = Vault.fromBase64;
@@ -896,6 +908,18 @@
     return parsed.secret;
   }
   function displayName(pubkey, local = '') { return local || `npub…${N.nip19.npubEncode(pubkey).slice(-8)}`; }
+  async function groupMentionCandidates() {
+    const conversation = state.currentConversation;
+    if (conversation?.group !== true || !Array.isArray(conversation.members)) return [];
+    const otherMembers = [...new Set(conversation.members.map(key => String(key).toLowerCase()))].filter(key => key !== state.pubkey && /^[0-9a-f]{64}$/i.test(key));
+    const localConversations = await Promise.all(otherMembers.map(pubkey => get('conversations', pubkey).catch(() => null)));
+    return otherMembers.map((pubkey, index) => {
+      const localConversation = localConversations[index];
+      const profile = state.peerProfiles.get(pubkey);
+      const name = displayName(pubkey, localConversation?.title || profile?.displayName || profile?.name || '');
+      return { name, pubkey, hint: `npub…${N.nip19.npubEncode(pubkey).slice(-8)}` };
+    });
+  }
   async function saveSessionChoice(remember) {
     if (!state.account || !state.secret) return;
     const updated = { ...state.account };
@@ -1244,6 +1268,19 @@
     const existingConversation = await get('conversations', peer);
     const subject = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'subject' && typeof tag[1] === 'string' && tag[1].trim() && tag[1].length <= 80)?.[1].trim() : '';
     let text = rumor.content;
+    let mentionTokens = [];
+    if (group && /nostr:(?:npub|nprofile)1/u.test(rumor.content)) {
+      const names = new Map();
+      const otherMembers = members.filter(member => member !== state.pubkey);
+      const localConversations = await Promise.all(otherMembers.map(member => get('conversations', member).catch(() => null)));
+      otherMembers.forEach((member, index) => {
+        const profile = state.peerProfiles.get(member);
+        names.set(member, localConversations[index]?.title || profile?.displayName || profile?.name || '');
+      });
+      const parsed = GroupMentions.fromWireContent(rumor.content, members, N.nip19.decode, pubkey => names.get(pubkey) || '');
+      text = parsed.text;
+      mentionTokens = parsed.mentions;
+    }
     let parsedAgentMessage = null;
     let agentMessageError = '';
     const isAgentProtocol = !group && rumor.content.includes(AgentMessages.PROTOCOL);
@@ -1267,7 +1304,7 @@
     let message;
     if (edit) {
       const incoming = {
-        id: `edit:${peer}:${edit.rootId}`, peer, text: rumor.content, senderPubkey: rumor.pubkey,
+        id: `edit:${peer}:${edit.rootId}`, peer, text, ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey,
         createdAt: rumor.created_at * 1000, direction: senderDirection, status: 'delivered',
         nostrEventId: eventId, edit, linkPreview: null,
         ...(replyTag ? { replyToId: replyTag[1] } : {})
@@ -1279,7 +1316,7 @@
     } else {
       const id = parsedAgentMessage ? `agent:${peer}:${parsedAgentMessage.messageId}` : eventId;
       if (await get('messages', id)) return;
-      const original = { id, peer, text, senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, linkPreview, ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
+      const original = { id, peer, text, ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, linkPreview, ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
       const merged = MessageEdits.mergeOriginalBehindEdit(await all('messages'), original, state.pubkey);
       message = merged?.message || original;
       await put('messages', message);
@@ -1818,11 +1855,12 @@
     if (changed) {
       const input = $('message-input');
       input.value = '';
+      groupMentionPicker?.setDraft('', []);
       resizeMessageInput(input);
       const loadSequence = ++state.draftLoadSequence;
-      const savedDraft = await loadChatDraft(pubkey).catch(() => '');
+      const savedDraft = await loadChatDraftDetails(pubkey).catch(() => ({ text: '', mentions: [] }));
       if (state.activePeer === pubkey && state.draftLoadSequence === loadSequence && !input.value) {
-        input.value = savedDraft;
+        groupMentionPicker?.setDraft(savedDraft.text, savedDraft.mentions);
         resizeMessageInput(input);
       }
       if (state.activePeer === pubkey) updateLinkPreviewDraft();
@@ -2265,10 +2303,11 @@
   function cancelMessageEdit({ restoreFocus = false } = {}) {
     if (!state.editingMessage) return;
     const input = $('message-input');
-    input.value = state.editingDraft;
+    groupMentionPicker?.setDraft(state.editingDraft, state.editingDraftMentions);
     state.replyingTo = state.editingReplyingTo;
     state.editingMessage = null;
     state.editingDraft = '';
+    state.editingDraftMentions = [];
     state.editingReplyingTo = null;
     updateEditContext();
     updateReplyContext();
@@ -2281,13 +2320,14 @@
     if (state.editingMessage) cancelMessageEdit();
     const input = $('message-input');
     state.editingDraft = input.value;
+    state.editingDraftMentions = groupMentionPicker?.getMentions() || [];
     state.editingReplyingTo = state.replyingTo;
     state.editingMessage = { peer, message: { ...message } };
     clearLinkPreviewDraft();
     state.replyingTo = null;
     updateReplyContext();
     updateEditContext();
-    input.value = message.text;
+    groupMentionPicker?.setDraft(message.text, message.mentions || []);
     resizeMessageInput(input);
     updateLinkPreviewDraft();
     input.focus();
@@ -2304,16 +2344,22 @@
       if (message && state.activePeer === peer && !state.editingMessage) startMessageEdit(peer, message);
     } finally { state.loadingLastMessageEdit = false; }
   }
-  async function editPrivateMessage(peer, message, text) {
+  async function editPrivateMessage(peer, message, text, mentionTokens = []) {
     const updatedText = text.trim();
     if (!updatedText || updatedText.length > 4000) throw new Error(localized('Messages must contain 1–4,000 characters.', 'As mensagens devem ter de 1 a 4.000 caracteres.'));
-    if (updatedText === message.text) return { unchanged: true };
-    if (!(await requestSecretSendConfirmation(updatedText, peer))) return { cancelled: true };
     if (peer !== state.activePeer || state.editingMessage?.message.id !== message.id) throw new Error(localized('This edit is no longer active.', 'Esta edição não está mais ativa.'));
     const conversation = await get('conversations', peer);
     if (!conversation || message.direction !== 'sent' || message.fromAgent || message.agentMessageId || message.kind === 7 || message.deleted || !['sent', 'partial'].includes(message.status)) {
       throw new Error(localized('Only your delivered private messages can be edited.', 'Só é possível editar suas mensagens privadas já entregues.'));
     }
+    const group = conversation.group === true;
+    const mentions = group ? GroupMentions.validMentions(updatedText, mentionTokens) : [];
+    if (group && mentions.length !== mentionTokens.length) throw new TypeError(localized('A group mention changed while editing. Select the member again before saving.', 'Uma menção do grupo mudou durante a edição. Selecione a pessoa novamente antes de salvar.'));
+    const previousMentions = group ? GroupMentions.validMentions(message.text, message.mentions || []) : [];
+    if (updatedText === message.text && JSON.stringify(mentions) === JSON.stringify(previousMentions)) return { unchanged: true };
+    if (!(await requestSecretSendConfirmation(updatedText, peer))) return { cancelled: true };
+    if (peer !== state.activePeer || state.editingMessage?.message.id !== message.id) throw new Error(localized('This edit is no longer active.', 'Esta edição não está mais ativa.'));
+    const wireText = group ? GroupMentions.toWireText(updatedText, mentions, N.nip19.npubEncode) : updatedText;
     const rootId = message.editRootId || nostrEventId(message);
     if (!rootId) throw new Error(localized('This message has no Nostr event reference and cannot be edited.', 'Esta mensagem não tem uma referência de evento Nostr e não pode ser editada.'));
     const members = conversation.group === true
@@ -2326,7 +2372,8 @@
       nostr: N, secret: state.secret, selfPubkey: state.pubkey, participants: members,
       rootId, priorEventIds: MessageEdits.eventIds(message), sequence: (message.editSeq || 0) + 1,
       createdAt: Math.floor((message.createdAt || Date.now()) / 1000),
-      replyToId: message.replyToId || '', subject: conversation.group ? conversation.title || '' : '', text: updatedText
+      replyToId: message.replyToId || '', subject: conversation.group ? conversation.title || '' : '', text: wireText,
+      maxTextLength: group ? GroupMentions.MAX_WIRE_CHARS : 4000
     });
     const planFor = wraps => conversation.group === true
       ? Routing.planGroupGiftWraps(wraps, members, relayLists, N.verifyEvent)
@@ -2348,7 +2395,7 @@
       catch { /* The replacement is already delivered; Property merges edits by their encrypted root tag. */ }
     }
     const localEdit = {
-      ...message, text: updatedText, linkPreview: null, senderPubkey: state.pubkey, direction: 'sent',
+      ...message, text: updatedText, ...(group ? { mentions } : {}), linkPreview: null, senderPubkey: state.pubkey, direction: 'sent',
       status: confirmedRemote.length === remoteRecipients.length ? 'sent' : 'partial',
       nostrEventId: edit.editRumor.id, editRootId: edit.rootId, editSeq: edit.sequence,
       previousEventIds: MessageEdits.eventIds(message).filter(id => id !== edit.editRumor.id)
@@ -2367,11 +2414,11 @@
     await renderConversations();
     return { updated: true, confirmed: confirmedRemote.length, required: remoteRecipients.length };
   }
-  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false } = {}, linkPreview = null) {
+  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false, mentionTokens = [] } = {}, linkPreview = null) {
     if (!secretConfirmed && !(await requestSecretSendConfirmation(text, peer))) {
       return { savedLocally: false, cancelled: true, confirmedEnvelopeCount: 0, requiredEnvelopeCount: 0 };
     }
-    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true, linkPreview });
+    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true, linkPreview, mentionTokens });
     const agentAccess = await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') throw new Error('Este contato está bloqueado neste aparelho.');
     if (!state.inboxRelays.length) {
@@ -2428,7 +2475,7 @@
     else if (!quiet && sent < requiredEnvelopes) showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Entrega parcial: alguns envelopes NIP-17 não foram confirmados pelos relays.' : 'Partial delivery: some NIP-17 envelopes were not confirmed by relays.');
     return { savedLocally: true, confirmedEnvelopeCount: sent, requiredEnvelopeCount: requiredEnvelopes };
   }
-  async function sendPrivateGroupMessage(peer, text, replyTo = null, { quiet = false, linkPreview = null } = {}) {
+  async function sendPrivateGroupMessage(peer, text, replyTo = null, { quiet = false, linkPreview = null, mentionTokens = [] } = {}) {
     const previous = await get('conversations', peer);
     const members = [...new Set(previous?.members || [])].sort();
     if (members.length < 3 || members.length > MAX_NIP17_GROUP_MEMBERS || !members.includes(state.pubkey) || members.some(member => !/^[0-9a-f]{64}$/i.test(member))) {
@@ -2440,16 +2487,19 @@
     const replyEventId = replyTo ? nostrEventId(replyTo) : '';
     if (replyTo && !replyEventId) throw new Error('This message cannot be referenced as a Nostr reply.');
     const title = (previous.title || '').trim().slice(0, 80);
+    const mentions = GroupMentions.validMentions(text, mentionTokens);
+    if (mentions.length !== mentionTokens.length) throw new TypeError(localized('A group mention changed in the draft. Select the member again before sending.', 'Uma menção do grupo mudou no rascunho. Selecione a pessoa novamente antes de enviar.'));
+    const wireText = GroupMentions.toWireText(text, mentions, N.nip19.npubEncode);
     const rumorTags = members.filter(member => member !== state.pubkey).map(member => ['p', member]);
     if (title) rumorTags.push(['subject', title]);
     if (replyEventId) rumorTags.push(['e', replyEventId, '', 'reply']);
     const previewTag = LinkPreview?.toTag(linkPreview, text);
     if (previewTag) rumorTags.push(previewTag);
-    const sentRumor = N.nip59.createRumor({ kind: 14, tags: rumorTags, content: text }, state.secret);
+    const sentRumor = N.nip59.createRumor({ kind: 14, tags: rumorTags, content: wireText }, state.secret);
     const wraps = members.map(recipient => N.nip59.createWrap(N.nip59.createSeal(sentRumor, state.secret, recipient), recipient));
     const routePlan = Routing.planGroupGiftWraps(wraps, members, relayLists, N.verifyEvent);
     if (!routePlan.ready) throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Não foi possível preparar os envelopes do grupo. Confira as listas de recebimento NIP-17.' : 'Could not prepare the group envelopes. Check each participant’s NIP-17 inbox list.');
-    const message = { id: `${state.pubkey}:${crypto.randomUUID()}`, peer, text, senderPubkey: state.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(replyEventId ? { replyToId: replyEventId } : {}) };
+    const message = { id: `${state.pubkey}:${crypto.randomUUID()}`, peer, text, ...(mentions.length ? { mentions } : {}), senderPubkey: state.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(replyEventId ? { replyToId: replyEventId } : {}) };
     await put('messages', message);
     await put('conversations', { ...previous, group: true, members, lastMessage: text, lastAt: message.createdAt });
     if (state.activePeer === peer) await renderMessages(peer);
@@ -3225,6 +3275,12 @@
     };
     Pwa.bindInstallControls(document.querySelectorAll('[data-install-property]'), $('install-app-dialog'), () => showToast('Property installed.'));
     emojiPicker = EmojiPicker.init({ owner: () => state.pubkey, onError: error => showToast(error?.message || 'Could not send reaction.') });
+    groupMentionPicker = GroupMentions.createPicker({
+      input: $('message-input'), panel: $('group-mention-picker'),
+      enabled: () => state.currentConversation?.group === true,
+      getCandidates: groupMentionCandidates,
+      localize: (english, portuguese) => localized(english, portuguese)
+    });
     $('messages').addEventListener('scroll', updateMessageScrollButton, { passive: true });
     $('message-scroll-bottom').addEventListener('click', () => {
       const container = $('messages');
@@ -3417,11 +3473,12 @@
     });
     $('send-form').addEventListener('submit', async event => {
       event.preventDefault(); const input = $('message-input'); const text = input.value.trim(); const peer = state.activePeer; const replyTo = state.replyingTo; if (!text || !peer) return;
+      const mentionTokens = state.currentConversation?.group === true ? trimmedComposerMentions(text) : [];
       if (state.editingMessage) {
         const editing = state.editingMessage;
         const submit = document.querySelector('#send-form button[type="submit"]'); submit.disabled = true;
         try {
-          const result = await editPrivateMessage(peer, editing.message, text);
+          const result = await editPrivateMessage(peer, editing.message, text, mentionTokens);
           if (result.cancelled) return;
           if (result.noRecipientAck) {
             showToast(localized('No recipient inbox relay confirmed the edit. The original message remains unchanged here.', 'Nenhum relay de recebimento confirmou a edição. A mensagem original continua neste aparelho.'));
@@ -3429,14 +3486,15 @@
           }
           if (result.unchanged) showToast(localized('The edited text is the same; nothing was sent.', 'O texto não mudou; nada foi enviado.'));
           const draft = state.editingDraft;
+          const draftMentions = state.editingDraftMentions;
           state.replyingTo = state.editingReplyingTo;
-          state.editingMessage = null; state.editingDraft = '';
+          state.editingMessage = null; state.editingDraft = ''; state.editingDraftMentions = [];
           state.editingReplyingTo = null;
           updateEditContext();
           updateReplyContext();
-          input.value = draft;
+          groupMentionPicker?.setDraft(draft, draftMentions);
           resizeMessageInput(input);
-          await saveChatDraft(peer, input.value).catch(() => {});
+          await saveChatDraft(peer, input.value, draftMentions).catch(() => {});
           if (result.updated && result.confirmed < result.required) showToast(localized('Message edit sent to some recipients; delivery was partial.', 'A edição foi enviada a alguns participantes; a entrega foi parcial.'));
         } catch (error) { showToast(error.message || localized('Could not edit this message.', 'Não foi possível editar esta mensagem.')); }
         finally { submit.disabled = false; }
@@ -3446,7 +3504,7 @@
       const previewForMessage = !state.editingMessage && state.linkPreviewUrl === LinkPreview?.firstLink(text) ? state.linkPreview : null;
       const submit = document.querySelector('#send-form button[type="submit"]'); submit.disabled = true;
       try {
-        const result = await sendPrivateMessage(peer, text, replyTo, {}, previewForMessage);
+        const result = await sendPrivateMessage(peer, text, replyTo, { mentionTokens }, previewForMessage);
         if (result.cancelled) return;
         if (sentShareId) {
           state.shareDraftId = ''; state.shareDraftPeer = '';
@@ -3459,7 +3517,8 @@
         }
         if (state.activePeer === peer) {
           if (input.value.trim() === text) {
-            input.value = sentShareId ? await loadChatDraft(peer).catch(() => '') : '';
+            const restoredDraft = sentShareId ? await loadChatDraftDetails(peer).catch(() => ({ text: '', mentions: [] })) : { text: '', mentions: [] };
+            groupMentionPicker?.setDraft(restoredDraft.text, restoredDraft.mentions);
             resizeMessageInput(input);
             clearLinkPreviewDraft();
           }
@@ -3488,6 +3547,7 @@
       }
     });
     $('message-input').addEventListener('keydown', event => {
+      if (groupMentionPicker?.handleKeyDown(event)) return;
       const input = $('message-input');
       const overlayOpen = Boolean(document.querySelector('dialog[open]')) || !($('emoji-picker-panel')?.classList.contains('hidden'));
       if (!ChatGestures.isEditLastShortcut(event, input.value, { editing: Boolean(state.editingMessage) || state.loadingLastMessageEdit, overlayOpen })) return;
@@ -3495,6 +3555,7 @@
       editLastMessage().catch(error => showToast(error.message || localized('Could not edit this message.', 'Não foi possível editar esta mensagem.')));
     });
     $('message-input').addEventListener('input', event => {
+      groupMentionPicker?.handleInput();
       resizeMessageInput(event.target);
       updateLinkPreviewDraft();
       if (state.activePeer && !state.editingMessage) void saveChatDraft(state.activePeer, event.target.value).catch(() => {});
@@ -3619,7 +3680,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();

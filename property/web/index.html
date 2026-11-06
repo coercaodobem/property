@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="./styles.css?v=property-v57">
   <link rel="stylesheet" href="./link-preview.css?v=property-v1">
   <link rel="stylesheet" href="./message-scroll.css?v=property-v1">
+  <link rel="stylesheet" href="./group-mentions.css?v=property-v2">
   <script defer src="./i18n.js?v=property-v53"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
@@ -46,7 +47,8 @@
   <script defer src="./message-days.js?v=property-v1"></script>
   <script defer src="./link-preview.js?v=property-v1"></script>
   <script defer src="./message-scroll.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v65"></script>
+  <script defer src="./group-mentions.js?v=property-v2"></script>
+  <script defer src="./app.js?v=property-v66"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -176,7 +178,10 @@
               <div id="emoji-picker-grid" class="emoji-picker-results"></div>
               <p id="emoji-picker-status" class="emoji-picker-status" role="status" aria-live="polite"></p>
             </section>
-            <div class="composer-input-row"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Write a private message…" aria-label="Message"></textarea><button class="send-button" type="submit" aria-label="Send message">↑</button></div>
+            <div class="composer-input-shell">
+              <div id="group-mention-picker" class="group-mention-picker" hidden></div>
+              <div class="composer-input-row"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Write a private message…" aria-label="Message"></textarea><button class="send-button" type="submit" aria-label="Send message">↑</button></div>
+            </div>
           </form>
           <dialog id="link-preview-consent-dialog" class="dialog-card" aria-labelledby="link-preview-consent-title">
             <div class="dialog-head"><div><p class="eyebrow">PRIVATE MESSAGE</p><h2 id="link-preview-consent-title">Fetch a link preview?</h2></div><button id="link-preview-consent-close" class="icon-button small" type="button" aria-label="Close">×</button></div>

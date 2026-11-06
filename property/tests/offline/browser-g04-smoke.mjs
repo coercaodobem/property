@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-22', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -756,6 +756,65 @@ async function main() {
       previews_newest_matching_message_per_chat: true, cache_invalidated_on_new_message: true,
       opens_exact_message: true, sends_no_search_event: true };
     mark('G04-14', 'PASS', 'Conversation-list search found older locally stored direct and group messages after newer nonmatching messages, identified each chat, and opened each exact match without a relay search event.');
+    stage = 'G04-22: group mention autocomplete and encrypted NIP-27 reference';
+    const mentionMarker = `property-g04-group-mention-${crypto.randomUUID()}`;
+    const mentionInput = pageA.locator('#message-input');
+    await mentionInput.fill(`${mentionMarker} @`);
+    const mentionOption = pageA.locator('#group-mention-picker .group-mention-option.is-active');
+    await mentionOption.waitFor({ state: 'visible', timeout: 5000 });
+    const originalViewport = pageA.viewportSize();
+    await pageA.setViewportSize({ width: 390, height: 844 });
+    await mentionOption.waitFor({ state: 'visible', timeout: 5000 });
+    const mobileMentionLayout = await pageA.evaluate(() => {
+      const picker = document.querySelector('#group-mention-picker').getBoundingClientRect();
+      const input = document.querySelector('#message-input').getBoundingClientRect();
+      return { pickerBottom: Math.round(picker.bottom), inputTop: Math.round(input.top) };
+    });
+    assert.ok(mobileMentionLayout.pickerBottom <= mobileMentionLayout.inputTop - 4,
+      `mobile suggestions must sit above and leave the draft visible: ${JSON.stringify(mobileMentionLayout)}`);
+    await pageA.screenshot({ path: path.join(options.output, 'g04-group-mention-picker-mobile-en.png') });
+    if (originalViewport) await pageA.setViewportSize(originalViewport);
+    await mentionInput.focus();
+    const senderMentionLabel = (await mentionOption.locator('.group-mention-name').textContent()).trim();
+    const mentionTargetPubkey = await mentionOption.getAttribute('data-pubkey');
+    const relayWrapIdsBeforeMention = (await wsQuery(relay0.url, { kinds: [1059], '#p': [mentionTargetPubkey], limit: 1000 })).map(event => event.id).sort();
+    await mentionInput.press('Enter');
+    const afterMentionSelection = await mentionInput.inputValue();
+    assert.ok(afterMentionSelection.includes(`${senderMentionLabel} `), `keyboard selection inserts the local member name and keeps the caret in the composer (label=${JSON.stringify(senderMentionLabel)}, value=${JSON.stringify(afterMentionSelection)})`);
+    await mentionInput.pressSequentially('received');
+    const visibleMentionMessage = await mentionInput.inputValue();
+    await pageA.locator('#send-form button[type="submit"]').click();
+    const senderMentionMessage = pageA.locator('#messages .message-row').filter({ hasText: mentionMarker });
+    const senderMentionVisible = await senderMentionMessage.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false);
+    if (!senderMentionVisible) report.group_mention_send_diagnostic = await pageA.evaluate(async marker => {
+      const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+      const rows = await new Promise((resolve, reject) => { const request = db.transaction('messages').objectStore('messages').getAll(); request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error); });
+      db.close(); const message = rows.find(row => row.text?.includes(marker));
+      return { input: document.querySelector('#message-input').value, toast: document.querySelector('#toast')?.textContent || '',
+        authError: document.querySelector('#auth-error')?.textContent || '', buttonDisabled: document.querySelector('#send-form button[type="submit"]').disabled,
+        activeTitle: document.querySelector('#chat-title')?.textContent || '', visibleMessages: document.querySelector('#messages')?.innerText?.slice(-1200) || '',
+        savedMessage: message ? { text: message.text, mentions: message.mentions || [], status: message.status } : null };
+    }, mentionMarker);
+    assert.ok(senderMentionVisible, `the sender stores and renders the group mention message: ${JSON.stringify(report.group_mention_send_diagnostic || {})}`);
+    const recipientGroupRow = pageB.locator('#conversation-list .conversation-row').filter({ hasText: 'C group search' });
+    await recipientGroupRow.waitFor({ state: 'visible', timeout: 15000 });
+    await recipientGroupRow.click();
+    await pageB.locator('#messages .message-row').filter({ hasText: mentionMarker }).waitFor({ state: 'visible', timeout: 10000 });
+    const recipientMentionRecord = await pageB.evaluate(async marker => {
+      const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+      const rows = await new Promise((resolve, reject) => { const request = db.transaction('messages').objectStore('messages').getAll(); request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error); });
+      db.close(); const message = rows.find(row => row.text?.includes(marker)); return message ? { text: message.text, mentions: message.mentions || [] } : null;
+    }, mentionMarker);
+    assert.ok(recipientMentionRecord?.text.includes('received'), 'the other participant decrypts and renders the group message');
+    assert.equal(recipientMentionRecord.mentions.find(mention => mention.pubkey === mentionTargetPubkey)?.pubkey, mentionTargetPubkey,
+      'the recipient resolves the NIP-27 profile reference to the intended group member');
+    const mentionRelayEvents = await wsQuery(relay0.url, { kinds: [1059], '#p': [mentionTargetPubkey], limit: 1000 });
+    const newMentionEnvelopes = mentionRelayEvents.filter(event => !relayWrapIdsBeforeMention.includes(event.id));
+    assert.equal(newMentionEnvelopes.length, 1, 'one new gift-wrap reached the mentioned member relay route');
+    assert.ok(newMentionEnvelopes.every(event => !JSON.stringify(event).includes(mentionMarker) && !JSON.stringify(event).includes(senderMentionLabel)),
+      'the local relay stores no readable group text or @name in the encrypted gift-wrap');
+    report.group_mentions = { sender_label: senderMentionLabel, mentioned_member_pubkey: mentionTargetPubkey, local_identity_binding: true, relay_plaintext_leak: false, mobile_screenshot: 'g04-group-mention-picker-mobile-en.png', mobile_layout: mobileMentionLayout, message_text: visibleMentionMessage };
+    mark('G04-22', 'PASS', 'The group composer offered local member autocomplete, Enter inserted a bound @name, NIP-27 profile references were carried inside encrypted NIP-17 content, the recipient resolved the correct member, and the relay exposed no message text.');
     await openConversation(pageA, b.npub, 'B privado');
 
     // G04-13: no relay configuration barrier on a fresh browser profile.

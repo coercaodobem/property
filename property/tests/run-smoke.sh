@@ -17,6 +17,7 @@ for test_file in \
   chat-search-smoke.mjs \
   conversation-folders-smoke.mjs \
   chat-drafts-smoke.mjs \
+  group-mentions-smoke.mjs \
   notification-preferences-smoke.mjs \
   app-badge-smoke.mjs \
   message-days-smoke.mjs \
