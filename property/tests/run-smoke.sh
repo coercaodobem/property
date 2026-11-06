@@ -27,6 +27,7 @@ for test_file in \
   location-cards-smoke.mjs \
   message-forwards-smoke.mjs \
   link-preview-smoke.mjs \
+  voice-messages-smoke.mjs \
   nostr-entities-smoke.mjs \
   secret-guard-smoke.mjs \
   nip05-smoke.mjs \

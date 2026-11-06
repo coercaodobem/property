@@ -32,6 +32,7 @@
   const LocationCards = window.PropertyLocationCards;
   const MessageForwards = window.PropertyMessageForwards;
   const RichText = window.PropertyRichText;
+  const VoiceMessages = window.PropertyVoiceMessages;
   const MessageEdits = window.PropertyMessageEdits;
   const SecretGuard = window.PropertySecretGuard;
   const QrCode = window.PropertyQrCode;
@@ -60,7 +61,9 @@
     conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
     storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, unseenMessageCount: 0, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0,
-    linkPreview: null, linkPreviewUrl: '', linkPreviewSequence: 0, linkPreviewBusy: false, linkPreviewStatus: ''
+    linkPreview: null, linkPreviewUrl: '', linkPreviewSequence: 0, linkPreviewBusy: false, linkPreviewStatus: '',
+    voiceRecorder: null, voiceRecorderPeer: '', voiceRecorderStartedAt: 0, voiceTimer: 0, voiceStopping: false, voiceSequence: 0,
+    voiceDrafts: new Map(), voiceObjectUrls: new Map(), activeConversationAgent: false, activeConversationBlocked: false
   };
   const SHARE_LAUNCH_ACTIONS = new Set(['share', 'share-full', 'share-error']);
   let propertyTabChannel = null;
@@ -101,6 +104,7 @@
     if (!conversation) return;
     state.currentConversation = conversation;
     const agentAccess = conversation.group ? null : await get('agentAccess', conversation.pubkey);
+    state.activeConversationAgent = !conversation.group && (conversation.agent === true || agentAccess?.status === 'approved');
     $('chat-title').dataset.userContent = '';
     $('chat-title').textContent = conversationLabel(conversation);
     $('chat-subtitle').textContent = conversationSubtitle(conversation, agentAccess);
@@ -115,6 +119,153 @@
       : (state.inboxRelays.length
         ? localized('NIP-17 · both people need a public inbox relay list (kind 10050)', 'NIP-17 · as duas pessoas precisam publicar uma lista de relays de recebimento (kind 10050)')
         : localized('Publish your suggested inbox relays in settings to start; the other person must publish theirs too.', 'Publique os relays de recebimento sugeridos nas configurações para começar; a outra pessoa também precisa publicar os dela.'));
+    renderVoiceComposer();
+  }
+
+  function clearVoiceTimer() {
+    if (state.voiceTimer) clearInterval(state.voiceTimer);
+    state.voiceTimer = 0;
+  }
+  function releaseVoiceObjectUrls() {
+    for (const url of state.voiceObjectUrls.values()) URL.revokeObjectURL(url);
+    state.voiceObjectUrls.clear();
+    for (const draft of state.voiceDrafts.values()) URL.revokeObjectURL(draft.url);
+    state.voiceDrafts.clear();
+  }
+  function clearVoiceDraft(peer = state.activePeer) {
+    const draft = state.voiceDrafts.get(peer);
+    if (draft) URL.revokeObjectURL(draft.url);
+    state.voiceDrafts.delete(peer);
+    renderVoiceComposer();
+  }
+  function renderVoiceComposer() {
+    const recordButton = $('voice-record-button');
+    const panel = $('voice-recording-panel');
+    if (!recordButton || !panel) return;
+    const recording = Boolean(state.voiceRecorder && state.voiceRecorderPeer === state.activePeer);
+    const voiceDraft = state.voiceDrafts.get(state.activePeer);
+    const draft = Boolean(voiceDraft);
+    const unavailable = !state.secret || !state.activePeer || state.activeConversationAgent || state.activeConversationBlocked;
+    recordButton.hidden = unavailable || Boolean(state.editingMessage);
+    recordButton.disabled = unavailable || recording || draft;
+    recordButton.setAttribute('aria-label', localized('Record a voice message', 'Gravar mensagem de voz'));
+    recordButton.title = localized('Record a voice message', 'Gravar mensagem de voz');
+    panel.hidden = !recording && !draft;
+    $('voice-recording-progress').hidden = !recording;
+    $('voice-preview-review').hidden = !draft;
+    $('message-input').disabled = state.activeConversationBlocked || recording || draft;
+    const submit = document.querySelector('#send-form button[type="submit"]');
+    if (submit) submit.disabled = state.activeConversationBlocked || recording || draft;
+    if (recording) {
+      const elapsed = state.voiceRecorder.elapsed();
+      $('voice-recording-time').textContent = VoiceMessages.formatDuration(elapsed);
+      $('voice-recording-label').textContent = state.voiceRecorderStartedAt
+        ? localized('Recording', 'Gravando')
+        : localized('Waiting for microphone permission…', 'Aguardando permissão do microfone…');
+    }
+    if (draft) {
+      const audio = $('voice-preview-audio');
+      audio.src = voiceDraft.url;
+      audio.setAttribute('aria-label', localized('Preview voice message', 'Ouvir prévia da mensagem de voz'));
+      $('voice-preview-duration').textContent = VoiceMessages.formatDuration(voiceDraft.recording.durationMs);
+      $('voice-send-button').disabled = false;
+    }
+  }
+  function cancelVoiceRecording({ notify = false } = {}) {
+    const recorder = state.voiceRecorder;
+    if (!recorder) return;
+    state.voiceSequence++;
+    state.voiceRecorder = null;
+    state.voiceRecorderPeer = '';
+    state.voiceRecorderStartedAt = 0;
+    state.voiceStopping = false;
+    clearVoiceTimer();
+    recorder.cancel();
+    renderVoiceComposer();
+    if (notify) showToast(localized('Recording discarded.', 'Gravação descartada.'));
+  }
+  async function finishVoiceRecording() {
+    const recorder = state.voiceRecorder;
+    if (!recorder || state.voiceStopping) return;
+    state.voiceStopping = true;
+    const sequence = state.voiceSequence;
+    const peer = state.voiceRecorderPeer;
+    clearVoiceTimer();
+    try {
+      const recording = await recorder.stop();
+      if (sequence !== state.voiceSequence || state.activePeer !== peer) return;
+      state.voiceRecorder = null;
+      state.voiceRecorderPeer = '';
+      state.voiceRecorderStartedAt = 0;
+      state.voiceStopping = false;
+      state.voiceDrafts.set(peer, { recording, url: URL.createObjectURL(recording.blob) });
+      renderVoiceComposer();
+    } catch (error) {
+      if (sequence === state.voiceSequence) {
+        state.voiceRecorder = null;
+        state.voiceRecorderPeer = '';
+        state.voiceRecorderStartedAt = 0;
+        state.voiceStopping = false;
+        renderVoiceComposer();
+        showToast(error.message || localized('Could not finish this recording.', 'Não foi possível concluir esta gravação.'));
+      }
+    }
+  }
+  async function startVoiceRecording() {
+    const peer = state.activePeer;
+    if (!peer || !state.secret || state.activeConversationAgent || state.activeConversationBlocked) return;
+    if ($('message-input').value.trim()) {
+      showToast(localized('Send or clear your text before recording a separate voice message.', 'Envie ou apague o texto antes de gravar uma mensagem de voz separada.'));
+      return;
+    }
+    if (state.voiceDrafts.has(peer)) {
+      showToast(localized('Send or discard the voice message preview first.', 'Envie ou descarte a prévia de voz primeiro.'));
+      return;
+    }
+    const recorder = new VoiceMessages.Recorder();
+    state.voiceRecorder = recorder;
+    state.voiceRecorderPeer = peer;
+    state.voiceRecorderStartedAt = 0;
+    state.voiceStopping = false;
+    const sequence = ++state.voiceSequence;
+    renderVoiceComposer();
+    try {
+      await recorder.start();
+      if (sequence !== state.voiceSequence || state.activePeer !== peer) { recorder.cancel(); return; }
+      state.voiceRecorderStartedAt = Date.now();
+      renderVoiceComposer();
+      state.voiceTimer = window.setInterval(() => {
+        if (state.voiceRecorder !== recorder) { clearVoiceTimer(); return; }
+        renderVoiceComposer();
+        if (recorder.elapsed() >= VoiceMessages.MAX_DURATION_MS) void finishVoiceRecording();
+      }, 250);
+    } catch (error) {
+      if (sequence === state.voiceSequence) {
+        state.voiceRecorder = null;
+        state.voiceRecorderPeer = '';
+        state.voiceRecorderStartedAt = 0;
+        renderVoiceComposer();
+        showToast(error.message || localized('Could not access the microphone.', 'Não foi possível acessar o microfone.'));
+      }
+    }
+  }
+  async function sendVoiceDraft() {
+    const peer = state.activePeer;
+    const draft = state.voiceDrafts.get(peer);
+    if (!peer || !draft) return;
+    const button = $('voice-send-button');
+    button.disabled = true;
+    try {
+      const result = await sendPrivateMessage(peer, VoiceMessages.FALLBACK_TEXT, state.replyingTo, { voiceRecording: draft.recording });
+      if (result.cancelled) return;
+      clearVoiceDraft();
+      if (state.activePeer === peer && state.replyingTo) { state.replyingTo = null; updateReplyContext(); }
+    } catch (error) {
+      showToast(error.message || localized('Could not send this voice message.', 'Não foi possível enviar esta mensagem de voz.'));
+    } finally {
+      if (state.voiceDrafts.has(peer)) button.disabled = false;
+      renderVoiceComposer();
+    }
   }
 
   function typingPreferenceId(pubkey = state.pubkey) { return `typing-indicators-${pubkey}`; }
@@ -1466,6 +1617,8 @@
     }
     const fromAgent = Boolean(parsedAgentMessage || agentMessageError);
     if (edit && fromAgent) return;
+    const voiceMessage = !edit && !fromAgent ? await VoiceMessages.fromTags(rumor.tags) : null;
+    if (voiceMessage) { text = VoiceMessages.FALLBACK_TEXT; mentionTokens = []; }
     const linkPreview = !edit && LinkPreview?.fromTags(rumor.tags, text) || null;
     const replyTag = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'e' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) : null;
     const forwardedHops = fromAgent ? null : MessageForwards.fromTags(rumor.tags);
@@ -1487,7 +1640,7 @@
     } else {
       const id = parsedAgentMessage ? `agent:${peer}:${parsedAgentMessage.messageId}` : eventId;
       if (await get('messages', id)) return;
-      const original = { id, peer, text, ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, linkPreview, ...(forwardedHops ? { forwarded: forwardedHops } : {}), ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
+      const original = { id, peer, text, ...(voiceMessage ? { voiceMessage } : {}), ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, linkPreview, ...(forwardedHops ? { forwarded: forwardedHops } : {}), ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
       const merged = MessageEdits.mergeOriginalBehindEdit(await all('messages'), original, state.pubkey);
       message = merged?.message || original;
       await put('messages', message);
@@ -2016,6 +2169,7 @@
     const previousPeer = state.activePeer;
     const changed = previousPeer !== pubkey;
     if (changed) {
+      if (state.voiceRecorder && state.voiceRecorderPeer === previousPeer) cancelVoiceRecording({ notify: true });
       stopLocalTyping();
       clearAllRemoteTyping();
       cancelMessageEdit();
@@ -2060,6 +2214,7 @@
     const agentConversation = conversation?.agent === true || access?.status === 'approved' || access?.status === 'blocked';
     const button = $('agent-block-button');
     const blocked = access?.status === 'blocked';
+    state.activeConversationBlocked = blocked;
     button.classList.toggle('hidden', conversation?.group === true || !agentConversation);
     const blockLabel = blocked ? localized('Unblock agent', 'Desbloquear agente') : localized('Block agent', 'Bloquear agente');
     button.setAttribute('aria-label', blockLabel);
@@ -2069,6 +2224,7 @@
     $('message-input').placeholder = blocked
       ? localized('Agent blocked on this device', 'Agente bloqueado neste aparelho')
       : localized('Write a private message…', 'Escreva uma mensagem privada…');
+    renderVoiceComposer();
     updateLinkPreviewDraft();
   }
   async function toggleAgentBlock() {
@@ -2248,6 +2404,12 @@
   async function renderMessages(peer, jumpToMessageId = '') {
     const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
     const messages = entries.filter(message => message.kind !== 7);
+    const activeVoiceIds = new Set(messages.filter(message => message.voiceMessage?.base64).map(message => message.id));
+    for (const [id, url] of state.voiceObjectUrls) {
+      if (activeVoiceIds.has(id)) continue;
+      URL.revokeObjectURL(url);
+      state.voiceObjectUrls.delete(id);
+    }
     const messageByEventId = new Map();
     for (const message of messages) for (const eventId of MessageEdits.eventIds(message)) messageByEventId.set(eventId, message);
     const latestReactions = new Map();
@@ -2321,7 +2483,29 @@
         });
         row.append(quote);
       }
-      const bubble = document.createElement('div'); bubble.className = 'message-bubble'; RichText.renderInto(bubble, message.text, window.PropertyI18n?.language || 'en');
+      const bubble = document.createElement('div'); bubble.className = 'message-bubble';
+      let voice = message.voiceMessage;
+      let audioUrl = state.voiceObjectUrls.get(message.id);
+      if (voice && !audioUrl) {
+        voice = await VoiceMessages.fromTags([[VoiceMessages.TAG, voice.mime, String(voice.durationMs), String(voice.sizeBytes), voice.sha256, voice.base64]]);
+        if (voice) {
+          const voiceBytes = VoiceMessages.bytesFromBase64(voice.base64);
+          if (voiceBytes) {
+            audioUrl = URL.createObjectURL(new Blob([voiceBytes], { type: voice.mime }));
+            state.voiceObjectUrls.set(message.id, audioUrl);
+          }
+        }
+      }
+      if (voice && audioUrl && ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg'].includes(voice.mime)) {
+        const label = document.createElement('span'); label.className = 'voice-message-label';
+        label.textContent = `${localized('Voice message', 'Mensagem de voz')} · ${VoiceMessages.formatDuration(voice.durationMs)}`;
+        const audio = document.createElement('audio'); audio.className = 'voice-message-audio'; audio.controls = true; audio.preload = 'none'; audio.src = audioUrl;
+        audio.setAttribute('aria-label', `${localized('Play voice message', 'Reproduzir mensagem de voz')} · ${VoiceMessages.formatDuration(voice.durationMs)}`);
+        audio.addEventListener('play', () => {
+          $('messages').querySelectorAll('audio.voice-message-audio').forEach(other => { if (other !== audio) other.pause(); });
+        });
+        bubble.append(label, audio);
+      } else RichText.renderInto(bubble, message.text, window.PropertyI18n?.language || 'en');
       const forwardedLabel = MessageForwards?.label(message.forwarded, window.PropertyI18n?.language || 'en');
       if (forwardedLabel) {
         const forwarded = document.createElement('span'); forwarded.className = 'message-forwarded';
@@ -2378,12 +2562,12 @@
       const menuItems = document.createElement('div'); menuItems.className = 'message-menu-items';
       const save = document.createElement('button'); save.type = 'button'; save.textContent = message.saved ? 'Remove saved message' : 'Save message';
       save.addEventListener('click', () => { menu.open = false; setMessageSaved(peer, message, !message.saved).catch(error => showToast(error.message || 'Could not update saved messages.')); });
-      if (message.direction === 'sent' && !message.fromAgent && !message.agentMessageId && message.kind !== 7 && !message.deleted && ['sent', 'partial'].includes(message.status) && eventId) {
+      if (message.direction === 'sent' && !message.voiceMessage && !message.fromAgent && !message.agentMessageId && message.kind !== 7 && !message.deleted && ['sent', 'partial'].includes(message.status) && eventId) {
         const editAction = document.createElement('button'); editAction.type = 'button'; editAction.textContent = localized('Edit message', 'Editar mensagem');
         editAction.addEventListener('click', () => { menu.open = false; startMessageEdit(peer, message); });
         menuItems.append(editAction);
       }
-      const canForward = typeof message.text === 'string' && Boolean(message.text.trim()) && message.kind !== 7 && !message.deleted && !message.fromAgent && !message.agentMessageId;
+      const canForward = typeof message.text === 'string' && Boolean(message.text.trim()) && !message.voiceMessage && message.kind !== 7 && !message.deleted && !message.fromAgent && !message.agentMessageId;
       const forward = document.createElement('button'); forward.type = 'button'; forward.textContent = localized('Forward', 'Encaminhar'); forward.disabled = !canForward;
       forward.addEventListener('click', () => { menu.open = false; openForwardDialog(message).catch(error => showToast(error.message || 'Could not open forwarding.')); });
       const details = document.createElement('button'); details.type = 'button'; details.textContent = localized('Details', 'Detalhes');
@@ -2597,11 +2781,11 @@
     await renderConversations();
     return { updated: true, confirmed: confirmedRemote.length, required: remoteRecipients.length };
   }
-  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false, mentionTokens = [], forwardedHops = null } = {}, linkPreview = null) {
+  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false, mentionTokens = [], forwardedHops = null, voiceRecording = null } = {}, linkPreview = null) {
     if (!secretConfirmed && !(await requestSecretSendConfirmation(text, peer))) {
       return { savedLocally: false, cancelled: true, confirmedEnvelopeCount: 0, requiredEnvelopeCount: 0 };
     }
-    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true, linkPreview, mentionTokens, forwardedHops });
+    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true, linkPreview, mentionTokens, forwardedHops, voiceRecording });
     const agentAccess = await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') throw new Error('Este contato está bloqueado neste aparelho.');
     if (!state.inboxRelays.length) {
@@ -2620,6 +2804,7 @@
     }
     const previous = await get('conversations', peer) || { pubkey: peer, title: '' };
     const agentConversation = previous.agent === true || agentAccess?.status === 'approved';
+    if (voiceRecording && agentConversation) throw new Error(localized('Voice notes are not available in agent-protocol chats.', 'Mensagens de voz não estão disponíveis em conversas de protocolo de agente.'));
     const agentMessageId = agentConversation ? AgentMessages.createMessageId() : null;
     const wireContent = agentConversation ? AgentMessages.encodeEnvelope({
       conversationId: await AgentMessages.conversationId(state.pubkey, peer),
@@ -2634,14 +2819,19 @@
     const previewTag = LinkPreview?.toTag(linkPreview, text);
     if (previewTag) rumorTags.push(previewTag);
     if (forwardedHops !== null) rumorTags.push(MessageForwards.toTag(forwardedHops));
+    const voiceTag = voiceRecording ? await VoiceMessages.createTag(voiceRecording) : null;
+    if (voiceTag) rumorTags.push(voiceTag);
+    const voicePayload = voiceTag ? await VoiceMessages.fromTags([voiceTag]) : null;
+    if (voiceTag && !voicePayload) throw new Error(localized('The voice recording failed its local integrity check.', 'A gravação de voz não passou pela verificação local de integridade.'));
     // Make one rumor and wrap that exact event for both participants, so NIP-17 reply IDs match on each device.
     const sentRumor = N.nip59.createRumor({ kind: 14, tags: rumorTags, content: wireContent }, state.secret);
     const wraps = [state.pubkey, peer].map(recipient => N.nip59.createWrap(N.nip59.createSeal(sentRumor, state.secret, recipient), recipient));
+    if (voiceTag && wraps.some(event => VoiceMessages.relayEventBytes(event) > VoiceMessages.MAX_RELAY_EVENT_BYTES)) throw new Error(localized('This voice recording would exceed the safe Nostr relay message size. Record a shorter message.', 'Esta gravação excederia o tamanho seguro para relays Nostr. Grave uma mensagem mais curta.'));
     const routePlan = Routing.planGiftWraps(wraps, state.pubkey, peer, state.inboxRelays, peerRelays, N.verifyEvent);
     if (!routePlan.ready) throw new Error('A mensagem NIP-17 não tem os dois envelopes válidos ou as listas de recebimento necessárias.');
     if (!Array.isArray(wraps) || wraps.length < 2 || wraps.some(event => event.kind !== 1059)) throw new Error('A biblioteca não gerou envelopes NIP-17 válidos.');
     const id = agentConversation ? `agent-out:${peer}:${agentMessageId}` : `${state.pubkey}:${crypto.randomUUID()}`;
-    const message = { id, peer, text, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
+    const message = { id, peer, text, ...(voicePayload ? { voiceMessage: voicePayload } : {}), createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
     await put('messages', message);
     await put('conversations', { ...previous, ...(agentConversation ? { agent: true } : {}), lastMessage: text, lastAt: message.createdAt });
     if (state.activePeer === peer) await renderMessages(peer);
@@ -2659,7 +2849,7 @@
     else if (!quiet && sent < requiredEnvelopes) showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Entrega parcial: alguns envelopes NIP-17 não foram confirmados pelos relays.' : 'Partial delivery: some NIP-17 envelopes were not confirmed by relays.');
     return { savedLocally: true, confirmedEnvelopeCount: sent, requiredEnvelopeCount: requiredEnvelopes };
   }
-  async function sendPrivateGroupMessage(peer, text, replyTo = null, { quiet = false, linkPreview = null, mentionTokens = [], forwardedHops = null } = {}) {
+  async function sendPrivateGroupMessage(peer, text, replyTo = null, { quiet = false, linkPreview = null, mentionTokens = [], forwardedHops = null, voiceRecording = null } = {}) {
     const previous = await get('conversations', peer);
     const members = [...new Set(previous?.members || [])].sort();
     if (members.length < 3 || members.length > MAX_NIP17_GROUP_MEMBERS || !members.includes(state.pubkey) || members.some(member => !/^[0-9a-f]{64}$/i.test(member))) {
@@ -2680,11 +2870,16 @@
     const previewTag = LinkPreview?.toTag(linkPreview, text);
     if (previewTag) rumorTags.push(previewTag);
     if (forwardedHops !== null) rumorTags.push(MessageForwards.toTag(forwardedHops));
+    const voiceTag = voiceRecording ? await VoiceMessages.createTag(voiceRecording) : null;
+    if (voiceTag) rumorTags.push(voiceTag);
+    const voicePayload = voiceTag ? await VoiceMessages.fromTags([voiceTag]) : null;
+    if (voiceTag && !voicePayload) throw new Error(localized('The voice recording failed its local integrity check.', 'A gravação de voz não passou pela verificação local de integridade.'));
     const sentRumor = N.nip59.createRumor({ kind: 14, tags: rumorTags, content: wireText }, state.secret);
     const wraps = members.map(recipient => N.nip59.createWrap(N.nip59.createSeal(sentRumor, state.secret, recipient), recipient));
+    if (voiceTag && wraps.some(event => VoiceMessages.relayEventBytes(event) > VoiceMessages.MAX_RELAY_EVENT_BYTES)) throw new Error(localized('This voice recording would exceed the safe Nostr relay message size. Record a shorter message.', 'Esta gravação excederia o tamanho seguro para relays Nostr. Grave uma mensagem mais curta.'));
     const routePlan = Routing.planGroupGiftWraps(wraps, members, relayLists, N.verifyEvent);
     if (!routePlan.ready) throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Não foi possível preparar os envelopes do grupo. Confira as listas de recebimento NIP-17.' : 'Could not prepare the group envelopes. Check each participant’s NIP-17 inbox list.');
-    const message = { id: `${state.pubkey}:${crypto.randomUUID()}`, peer, text, ...(mentions.length ? { mentions } : {}), senderPubkey: state.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}) };
+    const message = { id: `${state.pubkey}:${crypto.randomUUID()}`, peer, text, ...(voicePayload ? { voiceMessage: voicePayload } : {}), ...(mentions.length ? { mentions } : {}), senderPubkey: state.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}) };
     await put('messages', message);
     await put('conversations', { ...previous, group: true, members, lastMessage: text, lastAt: message.createdAt });
     if (state.activePeer === peer) await renderMessages(peer);
@@ -2808,6 +3003,7 @@
     await renderConversations();
   }
   function setActiveView(view) {
+    if (view !== 'messages' && state.voiceRecorder) cancelVoiceRecording({ notify: true });
     state.activeView = view;
     if (view !== 'messages') setMobileConversationListOpen(false);
     for (const name of ['messages', 'hangout', 'marketplace', 'node', 'saved']) {
@@ -3337,6 +3533,10 @@
     setConnectionStatus();
   }
   async function lockIdentity({ preservePublicBridge = false } = {}) {
+    cancelVoiceRecording();
+    releaseVoiceObjectUrls();
+    state.activeConversationAgent = false;
+    state.activeConversationBlocked = false;
     stopLocalTyping();
     clearAllRemoteTyping();
     state.typingSequences.clear();
@@ -3356,6 +3556,7 @@
     state.draftLoadSequence++;
     $('message-input').value = '';
     resizeMessageInput();
+    renderVoiceComposer();
     clearLinkPreviewDraft();
     state.shareDraftId = ''; state.shareDraftPeer = '';
     if (preservePublicBridge && state.bridgeEnabled) await closeIdentityRelaySubscriptions();
@@ -3660,6 +3861,11 @@
     $('secret-guard-send-anyway').addEventListener('click', () => settleSecretSendConfirmation(true));
     $('secret-guard-dialog').addEventListener('cancel', event => { event.preventDefault(); settleSecretSendConfirmation(false); });
     $('secret-guard-dialog').addEventListener('close', () => settleSecretSendConfirmation(false));
+    $('voice-record-button').addEventListener('click', () => startVoiceRecording());
+    $('voice-record-stop').addEventListener('click', () => finishVoiceRecording());
+    $('voice-record-cancel').addEventListener('click', () => cancelVoiceRecording({ notify: true }));
+    $('voice-discard-button').addEventListener('click', () => clearVoiceDraft());
+    $('voice-send-button').addEventListener('click', () => sendVoiceDraft());
     $('link-preview-button').addEventListener('click', () => {
       const url = LinkPreview?.firstLink($('message-input').value);
       if (!url || !state.activePeer || state.editingMessage) return;
@@ -3761,6 +3967,7 @@
       editLastMessage().catch(error => showToast(error.message || localized('Could not edit this message.', 'Não foi possível editar esta mensagem.')));
     });
     $('message-input').addEventListener('input', event => {
+      renderVoiceComposer();
       groupMentionPicker?.handleInput();
       resizeMessageInput(event.target);
       updateLinkPreviewDraft();
@@ -3879,18 +4086,20 @@
       }
     });
     document.addEventListener('visibilitychange', () => {
+      if (document.hidden && state.voiceRecorder) cancelVoiceRecording({ notify: true });
       if (document.hidden) stopLocalTyping();
       if (document.hidden && state.activePeer) void saveChatDraft(state.activePeer, $('message-input').value).catch(() => {});
       if (!document.hidden && state.pubkey) { resetIdleLock(); for (const url of effectiveRelayUrls()) connectRelay(url); }
     });
     window.addEventListener('pagehide', () => {
+      if (state.voiceRecorder) cancelVoiceRecording();
       stopLocalTyping();
       if (state.activePeer) void saveChatDraft(state.activePeer, $('message-input').value).catch(() => {});
     });
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.unwrap !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.unwrap !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();
