@@ -14,14 +14,14 @@
   <link rel="stylesheet" href="./styles.css?v=property-v67">
   <link rel="stylesheet" href="./audio-playback.css?v=property-v1">
   <link rel="stylesheet" href="./call-window.css?v=property-v1">
-  <link rel="stylesheet" href="./payment-card.css?v=property-v1">
+  <link rel="stylesheet" href="./payment-card.css?v=property-v2">
   <link rel="stylesheet" href="./link-preview.css?v=property-v1">
   <link rel="stylesheet" href="./message-scroll.css?v=property-v1">
   <link rel="stylesheet" href="./group-mentions.css?v=property-v2">
   <link rel="stylesheet" href="./location-cards.css?v=property-v1">
   <link rel="stylesheet" href="./message-forwards.css?v=property-v1">
   <link rel="stylesheet" href="./typing-signals.css?v=property-v1">
-  <script defer src="./i18n.js?v=property-v67"></script>
+  <script defer src="./i18n.js?v=property-v68"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -66,7 +66,7 @@
   <script defer src="./file-transfers.js?v=property-v1"></script>
   <script defer src="./direct-file-envelope.js?v=property-v1"></script>
   <script defer src="./image-viewer.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v87"></script>
+  <script defer src="./app.js?v=property-v88"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -256,7 +256,15 @@
             <div class="dialog-head"><div><p class="eyebrow">PRIVATE NOSTR CHAT</p><h2 id="payment-card-title">Share payment details</h2></div><button id="payment-card-close" class="icon-button small" type="button" aria-label="Close payment details">×</button></div>
             <div class="dialog-body">
               <p class="muted">Create a card for the other person to review. Property sends it as an end-to-end encrypted chat draft; it never sends or confirms a payment.</p>
-              <label class="field"><span>Currency</span><select id="payment-card-currency"><option value="BTC">BTC · Bitcoin</option><option value="XMR">XMR · Monero</option><option value="XNO">XNO · Nano</option></select></label>
+              <fieldset id="payment-card-currency-deck" class="payment-currency-deck" aria-labelledby="payment-card-currency-label">
+                <legend id="payment-card-currency-label">Payment currency</legend>
+                <div class="payment-currency-track" role="radiogroup" aria-labelledby="payment-card-currency-label">
+                  <label class="payment-currency-option is-selected" data-currency="BTC"><input type="radio" name="payment-card-currency" value="BTC" checked><span class="payment-currency-face payment-card-btc"><span class="payment-currency-mark" aria-hidden="true">₿</span><span class="payment-currency-copy"><strong>BTC</strong><small>Bitcoin</small></span></span></label>
+                  <label class="payment-currency-option" data-currency="XMR"><input type="radio" name="payment-card-currency" value="XMR"><span class="payment-currency-face payment-card-xmr"><span class="payment-currency-mark" aria-hidden="true">M</span><span class="payment-currency-copy"><strong>XMR</strong><small>Monero</small></span></span></label>
+                  <label class="payment-currency-option" data-currency="XNO"><input type="radio" name="payment-card-currency" value="XNO"><span class="payment-currency-face payment-card-xno"><span class="payment-currency-mark" aria-hidden="true">Ӿ</span><span class="payment-currency-copy"><strong>XNO</strong><small>Nano</small></span></span></label>
+                </div>
+                <div class="payment-currency-arrows"><button id="payment-card-prev" class="icon-button small" type="button" aria-label="Previous currency" title="Previous currency">←</button><span id="payment-card-position" class="payment-currency-position" aria-live="polite">1 / 3</span><button id="payment-card-next" class="icon-button small" type="button" aria-label="Next currency" title="Next currency">→</button></div>
+              </fieldset>
               <label class="field"><span>Network</span><select id="payment-card-network"></select></label>
               <label class="field"><span>Amount (optional)</span><input id="payment-card-amount" type="text" inputmode="decimal" maxlength="80" placeholder="0.01"></label>
               <label class="field"><span>Receiving address</span><input id="payment-card-address" type="text" maxlength="128" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Wallet address"></label>

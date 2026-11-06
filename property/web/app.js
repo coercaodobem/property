@@ -292,8 +292,16 @@
     }
   }
 
+  function selectedPaymentCurrency() {
+    return document.querySelector('input[name="payment-card-currency"]:checked')?.value || 'BTC';
+  }
+
   function updatePaymentCardNetworks() {
-    const currency = $('payment-card-currency').value;
+    const currency = selectedPaymentCurrency();
+    const inputs = [...document.querySelectorAll('input[name="payment-card-currency"]')];
+    const selectedIndex = Math.max(0, inputs.findIndex(input => input.checked));
+    for (const input of inputs) input.closest('.payment-currency-option')?.classList.toggle('is-selected', input.checked);
+    $('payment-card-position').textContent = `${selectedIndex + 1} / ${inputs.length}`;
     const select = $('payment-card-network');
     const previous = select.value;
     const networks = PaymentCard.NETWORKS[currency] || [];
@@ -304,6 +312,17 @@
       return option;
     }));
     if (networks.includes(previous)) select.value = previous;
+  }
+
+  function movePaymentCurrency(step) {
+    const inputs = [...document.querySelectorAll('input[name="payment-card-currency"]')];
+    if (!inputs.length) return;
+    const current = Math.max(0, inputs.findIndex(input => input.checked));
+    const next = inputs[(current + step + inputs.length) % inputs.length];
+    next.checked = true;
+    next.dispatchEvent(new Event('change', { bubbles: true }));
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    next.closest('.payment-currency-option')?.scrollIntoView?.({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'nearest', inline: 'center' });
   }
 
   function renderPaymentCard(target, content) {
@@ -349,7 +368,7 @@
     const error = $('payment-card-error'); error.textContent = '';
     try {
       const content = PaymentCard.build({
-        currency: $('payment-card-currency').value,
+        currency: selectedPaymentCurrency(),
         network: $('payment-card-network').value,
         amount: $('payment-card-amount').value,
         address: $('payment-card-address').value,
@@ -5413,7 +5432,9 @@
       updatePaymentCardNetworks();
       $('payment-card-dialog').showModal();
     });
-    $('payment-card-currency').addEventListener('change', updatePaymentCardNetworks);
+    for (const input of document.querySelectorAll('input[name="payment-card-currency"]')) input.addEventListener('change', updatePaymentCardNetworks);
+    $('payment-card-prev').addEventListener('click', () => movePaymentCurrency(-1));
+    $('payment-card-next').addEventListener('click', () => movePaymentCurrency(1));
     $('payment-card-close').addEventListener('click', () => $('payment-card-dialog').close());
     $('payment-card-cancel').addEventListener('click', () => $('payment-card-dialog').close());
     $('payment-card-insert').addEventListener('click', insertPaymentCardDraft);
