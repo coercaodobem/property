@@ -45,6 +45,7 @@
   const TypingSignals = window.PropertyTypingSignals;
   const Calls = window.PropertyCalls;
   const DirectTransfer = window.PropertyDirectTransfer;
+  const AudioPlayback = window.PropertyAudioPlayback;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const MAX_FILE_BATCH_FILES = 5;
@@ -78,6 +79,15 @@
     voiceRecorder: null, voiceRecorderPeer: '', voiceRecorderStartedAt: 0, voiceTimer: 0, voiceStopping: false, voiceSequence: 0,
     voiceDrafts: new Map(), voiceObjectUrls: new Map(), fileObjectUrls: new Map(), fileDraftObjectUrls: new Map(), fileDraftTransferIds: new Map(), fileDraftFiles: [], fileSendBusy: false, fileTransferSeen: new Set(), activeConversationAgent: false, activeConversationBlocked: false
   };
+  const persistentAudio = document.createElement('audio');
+  persistentAudio.preload = 'none';
+  persistentAudio.setAttribute('aria-hidden', 'true');
+  $('audio-player-host').append(persistentAudio);
+  const audioPlayback = AudioPlayback.create({
+    audio: persistentAudio,
+    onState: updateAudioPlaybackUI,
+    onError: () => showToast(localized('This audio could not be played. You can download it from its message.', 'Não foi possível reproduzir este áudio. Você pode baixá-lo na mensagem.'))
+  });
   const SHARE_LAUNCH_ACTIONS = new Set(['share', 'share-full', 'share-error']);
   let propertyTabChannel = null;
   let propertyTabIsOwner = false;
@@ -85,6 +95,69 @@
   let shareHandoffAnnounced = false;
   const N = window.NostrTools;
   const bridge = Bridge?.createBridge(event => N.verifyEvent(event));
+
+  function audioTimeLabel(seconds) {
+    const value = Number.isFinite(seconds) && seconds > 0 ? Math.floor(seconds) : 0;
+    return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`;
+  }
+  function updateAudioPlaybackUI(current = audioPlayback.getState()) {
+    const bar = $('now-playing-bar');
+    if (!bar) return;
+    const showBar = Boolean(current?.away && state.secret);
+    bar.hidden = !showBar;
+    bar.setAttribute('aria-label', localized('Now playing', 'Tocando agora'));
+    if (showBar) {
+      const conversation = conversationLabel(current.peer);
+      $('now-playing-from').textContent = current.from && current.from !== conversation ? `${current.from} · ${conversation}` : conversation;
+      $('now-playing-title').textContent = current.title;
+      $('now-playing-play').textContent = current.playing ? 'Ⅱ' : '▶';
+      $('now-playing-play').setAttribute('aria-label', current.playing
+        ? localized('Pause audio', 'Pausar áudio')
+        : localized('Play audio', 'Reproduzir áudio'));
+      $('now-playing-open').setAttribute('aria-label', localized(`Open conversation with ${conversationLabel(current.peer)}`, `Abrir conversa com ${conversationLabel(current.peer)}`));
+      $('now-playing-seek').max = String(Math.max(current.duration, 1));
+      $('now-playing-seek').value = String(Math.min(current.position, current.duration || 1));
+      $('now-playing-seek').disabled = !(current.duration > 0);
+      $('now-playing-seek').setAttribute('aria-label', localized(`Seek ${current.title}`, `Avançar em ${current.title}`));
+      $('now-playing-time').textContent = current.duration > 0
+        ? `${audioTimeLabel(current.position)} / ${audioTimeLabel(current.duration)}`
+        : audioTimeLabel(current.position);
+      $('now-playing-rate').textContent = `${current.playbackRate}×`;
+      $('now-playing-rate').setAttribute('aria-label', `${localized('Playback speed', 'Velocidade de reprodução')} ${current.playbackRate}×`);
+      $('now-playing-close').setAttribute('aria-label', localized('Stop audio', 'Parar áudio'));
+    }
+    for (const control of document.querySelectorAll('.audio-player-control')) {
+      const id = control.dataset.audioKey || '';
+      const active = Boolean(current && current.id === id);
+      const playing = active && current.playing;
+      const kind = control.dataset.audioKind === 'voice' ? 'voice' : 'audio';
+      const title = control.dataset.audioTitle || localized('Audio', 'Áudio');
+      const saved = audioPlayback.getPosition(id);
+      const total = active ? current.duration : Number(control.dataset.duration || 0);
+      const elapsed = active ? current.position : saved;
+      const play = control.querySelector('.audio-playback-button');
+      const seek = control.querySelector('.audio-playback-seek');
+      const time = control.querySelector('.audio-player-time');
+      const rateButton = control.querySelector('.voice-message-speed');
+      if (play) {
+        play.textContent = playing ? 'Ⅱ' : '▶';
+        const label = kind === 'voice' ? localized('voice message', 'mensagem de voz') : title;
+        play.setAttribute('aria-label', localized(`${playing ? 'Pause' : 'Play'} ${label}`, `${playing ? 'Pausar' : 'Reproduzir'} ${label}`));
+      }
+      if (seek) {
+        seek.max = String(Math.max(total, 1));
+        seek.value = String(Math.min(elapsed, total || 1));
+        seek.disabled = !active || !(total > 0);
+        seek.setAttribute('aria-label', localized(`Seek ${title}`, `Avançar em ${title}`));
+      }
+      if (time) time.textContent = total > 0 ? `${audioTimeLabel(elapsed)} / ${audioTimeLabel(total)}` : audioTimeLabel(elapsed);
+      if (rateButton) {
+        rateButton.textContent = `${audioPlayback.getRate()}×`;
+        rateButton.setAttribute('aria-label', `${localized('Playback speed', 'Velocidade de reprodução')} ${audioPlayback.getRate()}×`);
+      }
+      control.dataset.state = playing ? 'playing' : active ? 'paused' : 'idle';
+    }
+  }
 
   function groupConversationId(members) {
     return Routing.groupConversationId(members, MAX_NIP17_GROUP_MEMBERS);
@@ -144,6 +217,7 @@
     state.voiceTimer = 0;
   }
   function releaseVoiceObjectUrls() {
+    audioPlayback.clear();
     for (const url of state.voiceObjectUrls.values()) URL.revokeObjectURL(url);
     state.voiceObjectUrls.clear();
     for (const draft of state.voiceDrafts.values()) URL.revokeObjectURL(draft.url);
@@ -753,6 +827,7 @@
     state.pendingCallPeer = '';
     state.pendingCallVideo = false;
     $('call-consent-dialog').close();
+    audioPlayback.pause();
     try {
       const conversation = await get('conversations', peer);
       const access = await get('agentAccess', peer);
@@ -780,6 +855,7 @@
     if (!call || call.status !== 'incoming') return;
     if ($('incoming-call-dialog').open) $('incoming-call-dialog').close();
     $('call-session-dialog').showModal();
+    audioPlayback.pause();
     await ensureCallController().acceptIncoming(video).catch(() => false);
   }
   async function receiveCallSignal(signal, peer) {
@@ -3174,6 +3250,7 @@
     }
     if (state.shareDraftId && state.shareDraftPeer !== pubkey) { state.shareDraftId = ''; state.shareDraftPeer = ''; }
     state.activePeer = pubkey;
+    audioPlayback.setContext(state.activeView, state.activePeer);
     if (changed) {
       const input = $('message-input');
       input.value = '';
@@ -3403,21 +3480,82 @@
     const announcement = state.unseenMessageCount > 0 ? copy.ariaLabel : '';
     if (status.textContent !== announcement) status.textContent = announcement;
   }
+  function renderAudioPlaybackControl({ peer, conversation, message, kind, url, title, duration = 0, downloadName }) {
+    const id = kind === 'voice'
+      ? `voice:${peer}:${message.id}`
+      : `audio:${peer}:${message.fileTransfer.transferId}`;
+    const voice = kind === 'voice';
+    const titleText = title || localized('Audio', 'Áudio');
+    const from = message.direction === 'sent'
+      ? localized('You', 'Você')
+      : conversation?.group === true && message.senderPubkey
+        ? displayName(message.senderPubkey, localized('Group member', 'Participante do grupo'))
+        : '';
+    const track = {
+      id, kind, url, peer, messageId: message.id, title: titleText, from,
+      duration: duration / 1000,
+      voiceLabel: localized('Voice message', 'Mensagem de voz'),
+      audioLabel: localized('Audio', 'Áudio')
+    };
+    const control = document.createElement('div');
+    control.className = 'audio-player-control';
+    control.dataset.audioKey = id;
+    control.dataset.audioKind = kind;
+    control.dataset.audioTitle = titleText;
+    control.dataset.duration = String(duration / 1000);
+    const play = document.createElement('button');
+    play.type = 'button'; play.className = 'audio-playback-button'; play.textContent = '▶';
+    play.setAttribute('aria-label', voice
+      ? localized('Play voice message', 'Reproduzir mensagem de voz')
+      : localized(`Play ${titleText}`, `Reproduzir ${titleText}`));
+    play.addEventListener('click', () => { void audioPlayback.toggle(track); });
+    const seek = document.createElement('input');
+    seek.type = 'range'; seek.className = 'audio-playback-seek'; seek.min = '0'; seek.max = String(Math.max(duration / 1000, 1));
+    seek.step = '0.1'; seek.value = String(audioPlayback.getPosition(id)); seek.disabled = true;
+    seek.setAttribute('aria-label', localized(`Seek ${titleText}`, `Avançar em ${titleText}`));
+    seek.addEventListener('input', () => {
+      if (audioPlayback.getState()?.id === id) audioPlayback.seek(Number(seek.value));
+    });
+    const time = document.createElement('span');
+    time.className = 'audio-player-time'; time.textContent = duration > 0 ? `0:00 / ${audioTimeLabel(duration / 1000)}` : '0:00';
+    const speed = document.createElement('button');
+    speed.type = 'button'; speed.className = 'voice-message-speed'; speed.textContent = `${audioPlayback.getRate()}×`;
+    speed.setAttribute('aria-label', `${localized('Playback speed', 'Velocidade de reprodução')} ${audioPlayback.getRate()}×`);
+    speed.title = localized('Playback speed', 'Velocidade de reprodução');
+    speed.addEventListener('click', () => { audioPlayback.cycleRate(); });
+    const download = document.createElement('a');
+    download.className = 'audio-player-download'; download.href = url;
+    download.download = downloadName || 'property-voice-message.audio';
+    download.rel = 'noopener noreferrer'; download.textContent = localized('Download', 'Baixar');
+    control.append(play, seek, time, speed, download);
+    return control;
+  }
   async function renderMessages(peer, jumpToMessageId = '') {
     state.readReceiptObserver?.disconnect();
     state.readReceiptObserver = null;
     state.readReceiptCandidates.clear();
     const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
     const messages = FileTransfers.coalesceMessages(entries.filter(message => message.kind !== 7));
+    const activePlayback = audioPlayback.getState();
+    if (activePlayback?.peer === peer) {
+      const stillExists = messages.some(message =>
+        (activePlayback.kind === 'voice' && activePlayback.id === `voice:${peer}:${message.id}` && Boolean(message.voiceMessage?.base64)) ||
+        (activePlayback.kind === 'audio' && activePlayback.id === `audio:${peer}:${message.fileTransfer?.transferId}` && message.fileTransfer?.complete === true && !message.fileTransfer?.conflict)
+      );
+      if (!stillExists) audioPlayback.forget(activePlayback.id);
+    }
+    const playbackForCleanup = audioPlayback.getState();
     const activeVoiceIds = new Set(messages.filter(message => message.voiceMessage?.base64).map(message => message.id));
     for (const [id, url] of state.voiceObjectUrls) {
       if (activeVoiceIds.has(id)) continue;
+      if (playbackForCleanup?.kind === 'voice' && playbackForCleanup.id === `voice:${playbackForCleanup.peer}:${id}`) continue;
       URL.revokeObjectURL(url);
       state.voiceObjectUrls.delete(id);
     }
     const activeFileIds = new Set(messages.filter(message => message.fileTransfer?.complete).map(message => `${peer}:${message.fileTransfer.transferId}`));
     for (const [id, url] of state.fileObjectUrls) {
       if (activeFileIds.has(id)) continue;
+      if (playbackForCleanup?.kind === 'audio' && playbackForCleanup.id === `audio:${id}`) continue;
       URL.revokeObjectURL(url);
       state.fileObjectUrls.delete(id);
     }
@@ -3455,7 +3593,7 @@
     container.replaceChildren();
     scheduleMessageDayRollover(peer);
     if (!messages.length) {
-      const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = 'Esta conversa é privada. Envie uma mensagem para começar.'; container.append(empty); container.dataset.peer = peer; delete container.dataset.latestCreatedAt; state.unseenMessageCount = 0; updateMessageScrollButton(); refreshMessageSearch(); return;
+      const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = 'Esta conversa é privada. Envie uma mensagem para começar.'; container.append(empty); container.dataset.peer = peer; delete container.dataset.latestCreatedAt; state.unseenMessageCount = 0; updateMessageScrollButton(); refreshMessageSearch(); updateAudioPlaybackUI(); return;
     }
     let previousDay = NaN;
     let daySection = null;
@@ -3551,10 +3689,8 @@
               openImage.addEventListener('click', () => state.imageViewer?.open(fileUrl, FileTransfers.safeName(transfer.name), openImage));
               card.append(openImage);
             } else if (previewKind === 'audio') {
-              const preview = document.createElement('audio'); preview.className = 'file-transfer-media';
-              preview.controls = true; preview.preload = 'none'; preview.src = fileUrl;
-              preview.setAttribute('aria-label', localized(`Play ${FileTransfers.safeName(transfer.name)}`, `Reproduzir ${FileTransfers.safeName(transfer.name)}`));
-              card.append(preview);
+              const safeName = FileTransfers.safeName(transfer.name);
+              card.append(renderAudioPlaybackControl({ peer, conversation, message, kind: 'audio', url: fileUrl, title: safeName, downloadName: safeName }));
             } else if (previewKind === 'video') {
               const preview = document.createElement('video'); preview.className = 'file-transfer-media';
               preview.controls = true; preview.preload = 'none'; preview.playsInline = true; preview.src = fileUrl;
@@ -3564,7 +3700,7 @@
             const download = document.createElement('a'); download.className = 'file-transfer-download';
             download.href = fileUrl; download.download = FileTransfers.safeName(transfer.name);
             download.rel = 'noopener noreferrer'; download.textContent = localized('Download verified file', 'Baixar arquivo verificado');
-            card.append(download);
+            if (previewKind !== 'audio') card.append(download);
             if (message.direction === 'sent') {
               const confirmedChunks = new Set(entries.filter(entry => entry.fileChunk?.transferId === transfer.transferId && entry.status === 'sent').map(entry => entry.fileChunk.index)).size;
               if (confirmedChunks < transfer.totalChunks) {
@@ -3584,25 +3720,9 @@
       } else if (voice && audioUrl && ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg'].includes(voice.mime)) {
         const label = document.createElement('span'); label.className = 'voice-message-label';
         label.textContent = `${localized('Voice message', 'Mensagem de voz')} · ${VoiceMessages.formatDuration(voice.durationMs)}`;
-        const audio = document.createElement('audio'); audio.className = 'voice-message-audio'; audio.controls = true; audio.preload = 'none'; audio.src = audioUrl;
-        audio.setAttribute('aria-label', `${localized('Play voice message', 'Reproduzir mensagem de voz')} · ${VoiceMessages.formatDuration(voice.durationMs)}`);
-        audio.addEventListener('play', () => {
-          $('messages').querySelectorAll('audio.voice-message-audio').forEach(other => { if (other !== audio) other.pause(); });
-        });
-        const controls = document.createElement('div'); controls.className = 'voice-message-actions';
-        const speed = document.createElement('button'); speed.type = 'button'; speed.className = 'voice-message-speed'; speed.textContent = '1×';
-        speed.setAttribute('aria-label', `${localized('Playback speed', 'Velocidade de reprodução')} 1×`);
-        speed.title = localized('Playback speed', 'Velocidade de reprodução');
-        speed.addEventListener('click', () => {
-          audio.playbackRate = VoiceMessages.nextPlaybackRate(audio.playbackRate);
-          speed.textContent = `${audio.playbackRate}×`;
-          speed.setAttribute('aria-label', `${localized('Playback speed', 'Velocidade de reprodução')} ${audio.playbackRate}×`);
-        });
-        const download = document.createElement('a'); download.className = 'voice-message-download'; download.href = audioUrl;
-        download.download = `property-voice-message.${({ 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3' })[voice.mime] || 'audio'}`;
-        download.rel = 'noopener noreferrer'; download.textContent = localized('Download voice audio', 'Baixar áudio');
-        controls.append(speed, download);
-        bubble.append(label, audio, controls);
+        const downloadName = `property-voice-message.${({ 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3' })[voice.mime] || 'audio'}`;
+        const controls = renderAudioPlaybackControl({ peer, conversation, message, kind: 'voice', url: audioUrl, title: localized('Voice message', 'Mensagem de voz'), duration: voice.durationMs, downloadName });
+        bubble.append(label, controls);
       } else RichText.renderInto(bubble, message.text, window.PropertyI18n?.language || 'en');
       const forwardedLabel = MessageForwards?.label(message.forwarded, window.PropertyI18n?.language || 'en');
       if (forwardedLabel) {
@@ -3708,6 +3828,7 @@
     sendReadReceiptsForVisibleRows();
     updateMessageScrollButton();
     refreshMessageSearch();
+    updateAudioPlaybackUI();
   }
   function nostrEventId(message) {
     if (typeof message?.nostrEventId === 'string' && /^[0-9a-f]{64}$/i.test(message.nostrEventId)) return message.nostrEventId;
@@ -4134,6 +4255,7 @@
     if (view !== 'messages' && state.voiceRecorder) cancelVoiceRecording({ notify: true });
     if (view !== 'messages') stopLocalPresence();
     state.activeView = view;
+    audioPlayback.setContext(state.activeView, state.activePeer);
     if (view !== 'messages') setMobileConversationListOpen(false);
     for (const name of ['messages', 'hangout', 'marketplace', 'node', 'saved']) {
       $(`${name}-view`).classList.toggle('hidden', name !== view);
@@ -4801,7 +4923,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v68', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v69', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -5312,6 +5434,19 @@
     });
     $('message-search-older').addEventListener('click', () => moveMessageSearchResult(-1));
     $('message-search-newer').addEventListener('click', () => moveMessageSearchResult(1));
+    $('now-playing-play').addEventListener('click', () => {
+      const current = audioPlayback.getState();
+      if (current) void audioPlayback.toggle(current);
+    });
+    $('now-playing-open').addEventListener('click', () => {
+      const current = audioPlayback.getState();
+      if (!current?.peer) return;
+      setActiveView('messages');
+      void selectConversation(current.peer, current.messageId).catch(error => showToast(error.message || localized('Could not open that conversation.', 'Não foi possível abrir essa conversa.')));
+    });
+    $('now-playing-seek').addEventListener('input', event => audioPlayback.seek(Number(event.target.value)));
+    $('now-playing-rate').addEventListener('click', () => audioPlayback.cycleRate());
+    $('now-playing-close').addEventListener('click', () => audioPlayback.stop());
     document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => setActiveView(button.dataset.view)));
     $('refresh-hangout').addEventListener('click', () => refreshHangout().catch(error => showToast(error.message || 'Falha ao carregar o Hangout.')));
     $('show-node-campaigns').addEventListener('change', async event => {

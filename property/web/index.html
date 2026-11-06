@@ -12,6 +12,7 @@
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
   <link rel="stylesheet" href="./styles.css?v=property-v67">
+  <link rel="stylesheet" href="./audio-playback.css?v=property-v1">
   <link rel="stylesheet" href="./link-preview.css?v=property-v1">
   <link rel="stylesheet" href="./message-scroll.css?v=property-v1">
   <link rel="stylesheet" href="./group-mentions.css?v=property-v2">
@@ -57,10 +58,11 @@
   <script defer src="./message-scroll.js?v=property-v1"></script>
   <script defer src="./group-mentions.js?v=property-v2"></script>
   <script defer src="./voice-messages.js?v=property-v1"></script>
+  <script defer src="./audio-playback.js?v=property-v1"></script>
   <script defer src="./file-transfers.js?v=property-v1"></script>
   <script defer src="./direct-file-envelope.js?v=property-v1"></script>
   <script defer src="./image-viewer.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v84"></script>
+  <script defer src="./app.js?v=property-v85"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -82,6 +84,14 @@
       <button id="share-inbox-button" class="icon-button hidden" type="button" aria-label="Shared items" title="Shared items">↧</button>
       <button id="profile-button" class="profile-button" aria-label="Profile and settings"><span id="profile-initial">?</span></button>
     </header>
+    <section id="now-playing-bar" class="now-playing-bar" aria-label="Now playing" hidden>
+      <button id="now-playing-play" class="audio-playback-button" type="button" aria-label="Play audio">▶</button>
+      <div class="now-playing-details"><button id="now-playing-open" class="now-playing-open" type="button" aria-label="Open the conversation"><span id="now-playing-from" class="now-playing-from"></span><span id="now-playing-title" class="now-playing-title"></span></button><input id="now-playing-seek" class="audio-playback-seek" type="range" min="0" max="1" step="0.1" value="0" aria-label="Seek audio" disabled></div>
+      <span id="now-playing-time" class="audio-playback-time" aria-hidden="true">0:00 / 0:00</span>
+      <button id="now-playing-rate" class="voice-message-speed" type="button" aria-label="Playback speed">1×</button>
+      <button id="now-playing-close" class="audio-playback-close" type="button" aria-label="Stop audio">×</button>
+    </section>
+    <div id="audio-player-host" class="audio-player-host" aria-hidden="true"></div>
 
     <main id="auth-screen" class="auth-layout">
       <section class="intro-card">
