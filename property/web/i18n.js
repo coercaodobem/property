@@ -256,7 +256,13 @@
     ['Answering opens your microphone and can reveal your network IP address to this contact and to the configured Google STUN servers. Your browser asks permission before using media.', 'Atender ativa o microfone e pode revelar o IP de rede do aparelho para este contato e para os servidores Google STUN configurados. O navegador pede permissão antes de usar a mídia.'],
     ['Answer with audio', 'Atender com áudio'], ['Answer with video', 'Atender com vídeo'], ['Mute microphone', 'Silenciar microfone'], ['Unmute microphone', 'Ativar microfone'], ['Turn camera off', 'Desligar câmera'], ['Turn camera on', 'Ligar câmera'], ['End call', 'Encerrar chamada'], ['Connected. Audio and video travel directly between devices.', 'Conectado. Áudio e vídeo seguem diretamente entre os aparelhos.'],
     ['View image', 'Ver imagem'], ['Close image', 'Fechar imagem'], ['Zoomable image', 'Imagem com zoom'],
-    ['Pinch or double-tap to zoom · +/−/0 and arrow keys also work · Esc closes', 'Aproxime com pinça ou toque duplo · +/−/0 e setas também funcionam · Esc fecha']
+    ['Pinch or double-tap to zoom · +/−/0 and arrow keys also work · Esc closes', 'Aproxime com pinça ou toque duplo · +/−/0 e setas também funcionam · Esc fecha'],
+    ['RELAY-BASED GROUPS · NIP-29', 'GRUPOS BASEADOS EM RELAYS · NIP-29'], ['Communities', 'Comunidades'], ['Discover on my relays', 'Buscar nos meus relays'],
+    ['Public communities are readable by anyone. Posts are sent only to the relay hosting the selected community. If the same group ID appears on another relay, Property keeps each relay’s history separate because it may be a copy or a fork.', 'Qualquer pessoa pode ler comunidades públicas. As publicações vão somente para o relay que hospeda a comunidade selecionada. Se o mesmo ID de grupo aparecer em outro relay, o Property mantém cada histórico separado porque pode ser uma cópia ou uma ramificação.'],
+    ['Open a NIP-29 group link', 'Abrir um link de grupo NIP-29'], ['Open group', 'Abrir grupo'], ['Discover communities', 'Buscar comunidades'], ['Property searches the relays you have already selected.', 'O Property busca nos relays que você já selecionou.'],
+    ['PUBLIC NIP-29 GROUP', 'GRUPO PÚBLICO NIP-29'], ['All communities', 'Todas as comunidades'], ['Refresh', 'Atualizar'], ['Invite code (if required)', 'Código de convite (se necessário)'], ['Request to join', 'Solicitar entrada'], ['Leave group', 'Sair do grupo'],
+    ['Post publicly to this group', 'Publicar neste grupo'], ['Anyone who can read this relay may read your post.', 'Qualquer pessoa que leia este relay poderá ler sua publicação.'], ['Send public post', 'Enviar publicação pública'],
+    ['Nostr public event · sent to one relay · content is not encrypted.', 'Evento público Nostr · enviado a um relay · o conteúdo não é criptografado.'], ['naddr1…', 'naddr1…']
   ];
   for (const [english, portuguese] of pairs) {
     EN_TO_PT.set(english, portuguese);

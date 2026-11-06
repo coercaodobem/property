@@ -22,6 +22,8 @@ O Property é uma única PWA com uma identidade e transporte Nostr. O Ghostly é
 
 Rascunhos de chat ficam salvos localmente por conversa e identidade até serem enviados ou apagados. Veja as [notas de adaptação da UX do Ghostly](docs/ghostly-integration.pt-BR.md) para as escolhas específicas do Nostr e os recursos incompatíveis com este app.
 
+O Hangout também busca comunidades públicas NIP-29 nos relays selecionados. Antes de mostrar metadados de um grupo, o Property confere a identidade do relay pela chave `self` NIP-11; pedir entrada não garante aceitação, e as mensagens públicas não são criptografadas. Cada `(URL do relay, ID do grupo)` continua sendo uma sala separada, então históricos conflitantes nunca são mesclados sem aviso. A descoberta de migrações NIP-29 por `kind:10009` ainda está pendente.
+
 A opção **Ponte entre relays** encaminha eventos públicos assinados entre os relays que a pessoa selecionou. Gift wraps NIP-17 só são encaminhados para os inbox relays da própria identidade; o cliente não decifra o conteúdo para retransmiti-lo. Há limites locais de 60 eventos por minuto e 2 MB de tráfego de saída por minuto, contando o envio a cada relay. A ponte não funciona quando o navegador é suspenso e pode consumir dados móveis.
 
 ## Publicar no GitHub Pages

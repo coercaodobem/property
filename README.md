@@ -35,7 +35,7 @@ The platform goal includes Windows, macOS, Linux/Ubuntu, Android, and iOS. The c
 | PC relay | Geode with bundled runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon | Platform matrix and multi-relay G11-03 gate with 300 probes, three restarts, and nine partition events; see the [test plan status](property/docs/plano-de-testes-central.md) |
 | Volunteer bridge | Limited event forwarding between relays while the PWA is active | Continuous mobile operation is not supported by a PWA |
 | Marketplace and campaigns | Listings and an optional PWA reader; node campaign engine and BTC/XMR/XNO adapters tested on private local networks | Integrate node operations and review policies before activation; checkout remains out of MVP scope |
-| Hangout | Public kind 1 feed; automated reading, posting, and contact journey passed in the Ubuntu profile | Human usability review and validation on other platforms |
+| Hangout | Public kind 1 feed and public NIP-29 communities inside the same PWA; group posts stay on their hosting relay, and same-ID histories from separate relays are never silently merged | Human usability review, `kind:10009` migration discovery, and validation on other platforms |
 
 Publishing the app does not mean the full plan is complete. The Ubuntu offline profile recorded 70 PASS cases; the four native Windows, macOS, Android, and iOS/iPadOS cases remain PENDING. See the [test report and plan](property/docs/plano-de-testes-central.md) for results and limits. Marketplace checkout is unavailable, and node campaigns do not yet have a production operator/activation flow.
 

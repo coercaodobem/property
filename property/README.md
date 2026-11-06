@@ -20,6 +20,8 @@ Property is one PWA with one identity and Nostr transport. Ghostly is a UX refer
 
 Chat drafts are kept locally per conversation and identity until you send or clear them. See the [Ghostly UX adaptation notes](docs/ghostly-integration.md) for the Nostr-specific choices and features that do not fit this app.
 
+Hangout also discovers public NIP-29 communities on your selected relays. Relay identity is checked against its NIP-11 `self` key before group metadata is shown; joining is a request, not a promise of admission, and public group posts are not encrypted. Each `(relay URL, group id)` stays a separate room, so conflicting histories are never silently merged. NIP-29 migration discovery through `kind:10009` is still pending.
+
 The **Relay bridge** option forwards signed public events between relays selected by the user. NIP-17 gift wraps are forwarded only to the local identity's inbox relays; the client does not decrypt the content to forward it. Local limits are 60 events and 2 MB of outbound traffic per minute, counting each relay destination. The bridge stops when the browser is suspended and may use mobile data.
 
 ## GitHub Pages deployment

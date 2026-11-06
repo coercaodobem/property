@@ -6,6 +6,7 @@
   const RelayDefaults = window.PropertyRelayDefaults;
   const Pwa = window.PropertyPwa;
   const GroupInvites = window.PropertyGroupInvites;
+  const CommunityGroups = window.PropertyCommunityGroups;
   const ShareInbox = window.PropertyShareInbox;
   // Stable legacy database ID: preserve existing identities and sessions on this origin.
   const DB_NAME = 'liberdade-local-v1';
@@ -66,6 +67,7 @@
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     currentConversation: null,
     activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingDraftMentions: [], editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
+    communities: [], activeCommunity: null, activeCommunityEvents: [], activeCommunityModerators: new Set(), communityRelaySelf: new Map(), communityInviteCode: '',
     typingIndicatorsEnabled: true, typingSession: null, typingSequence: 0, typingRelayLookups: new Map(), remoteTyping: new Map(), typingTimers: new Map(), typingSequences: new Map(), typingSeenEvents: new Set(),
     readReceiptsEnabled: false, readReceiptSent: new Set(), readReceipts: new Map(), readReceiptCandidates: new Map(), readReceiptObserver: null,
     activeStatusEnabled: false, localPresenceSession: null, remotePresence: new Map(), presenceTimers: new Map(), presenceSequences: new Map(),
@@ -4914,6 +4916,238 @@
     if (!sent) throw new Error('Nenhum relay confirmou a publicação. Verifique a conexão.');
     $('hangout-text').value = ''; showToast('Publicação enviada aos relays conectados.'); await refreshHangout();
   }
+  async function communityRelaySelf(relayUrl) {
+    const relay = normalizeRelay(relayUrl);
+    if (!relay.startsWith('wss://')) throw new Error(localized('NIP-29 communities need a secure relay URL.', 'Comunidades NIP-29 precisam de um endereço de relay seguro.'));
+    const cached = state.communityRelaySelf.get(relay);
+    if (cached) return cached;
+    const task = (async () => {
+      const endpoint = new URL(relay);
+      endpoint.protocol = 'https:';
+      endpoint.search = '';
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4500);
+      try {
+        const response = await fetch(endpoint.href, {
+          headers: { Accept: 'application/nostr+json' }, mode: 'cors', credentials: 'omit', cache: 'no-store',
+          redirect: 'error', referrerPolicy: 'no-referrer', signal: controller.signal
+        });
+        if (!response.ok) throw new Error(localized('The relay did not provide its NIP-11 identity.', 'O relay não forneceu sua identidade NIP-11.'));
+        const declared = Number(response.headers.get('content-length'));
+        if (Number.isFinite(declared) && declared > 128 * 1024) throw new Error(localized('The relay information document is too large.', 'O documento de informações do relay é muito grande.'));
+        let text;
+        if (response.body?.getReader) {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          const parts = [];
+          let total = 0;
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              total += value.byteLength;
+              if (total > 128 * 1024) { await reader.cancel(); throw new Error(localized('The relay information document is too large.', 'O documento de informações do relay é muito grande.')); }
+              parts.push(decoder.decode(value, { stream: true }));
+            }
+            parts.push(decoder.decode());
+          } finally { reader.releaseLock(); }
+          text = parts.join('');
+        } else {
+          text = await response.text();
+          if (new TextEncoder().encode(text).byteLength > 128 * 1024) throw new Error(localized('The relay information document is too large.', 'O documento de informações do relay é muito grande.'));
+        }
+        let self;
+        try { self = CommunityGroups.parseRelaySelfDocument(text); } catch { self = null; }
+        if (!self) throw new Error(localized('The relay returned invalid NIP-11 information or has no valid self key.', 'O relay retornou informações NIP-11 inválidas ou não tem uma chave self válida.'));
+        return self;
+      } finally { clearTimeout(timer); }
+    })();
+    state.communityRelaySelf.set(relay, task);
+    try { return await task; }
+    catch (error) { if (state.communityRelaySelf.get(relay) === task) state.communityRelaySelf.delete(relay); throw error; }
+  }
+  function renderCommunityList() {
+    const list = $('community-list');
+    list.replaceChildren();
+    if (!state.communities.length) {
+      list.append(makeEmpty(localized('No public communities found', 'Nenhuma comunidade pública encontrada'), localized('Try another refresh after the selected relays are connected.', 'Tente atualizar quando os relays selecionados estiverem conectados.')));
+      return;
+    }
+    for (const community of state.communities) {
+      const card = document.createElement('button'); card.type = 'button'; card.className = 'community-card';
+      const name = document.createElement('strong'); name.textContent = community.name;
+      const about = document.createElement('span'); about.className = 'community-description'; about.textContent = community.about || localized('A public NIP-29 group.', 'Um grupo público NIP-29.');
+      const origin = document.createElement('small');
+      let host = community.relayUrl;
+      try { host = new URL(community.relayUrl).host; } catch {}
+      origin.textContent = `${host} · ${community.id}`;
+      card.append(name, about, origin);
+      if (community.parallelOrigin) {
+        const note = document.createElement('small'); note.className = 'community-parallel-label';
+        note.textContent = localized('Same ID on another relay · history kept separate', 'Mesmo ID em outro relay · histórico mantido separado');
+        card.append(note);
+      }
+      card.addEventListener('click', () => openCommunity({ ...community, selfPubkey: community.relayPubkey }).catch(error => showToast(error.message || localized('Could not open this community.', 'Não foi possível abrir esta comunidade.'))));
+      list.append(card);
+    }
+  }
+  async function discoverCommunities() {
+    const status = $('community-status');
+    if (!state.relays.length) {
+      status.textContent = localized('Select at least one relay in Settings before discovering communities.', 'Selecione pelo menos um relay nas Configurações antes de buscar comunidades.');
+      return;
+    }
+    status.textContent = localized('Checking relay identity and looking for public communities…', 'Conferindo a identidade dos relays e buscando comunidades públicas…');
+    $('community-list').replaceChildren(makeEmpty(localized('Searching selected relays', 'Buscando nos relays selecionados'), localized('Only communities with metadata signed by the relay’s NIP-11 self key are shown.', 'Só aparecem comunidades com metadados assinados pela chave self NIP-11 do relay.')));
+    const sources = await Promise.all(state.relays.map(async relayUrl => {
+      try {
+        const selfPubkey = await communityRelaySelf(relayUrl);
+        const events = await fetchEvents({ kinds: [39000], limit: 100 }, 7000, [relayUrl]);
+        return { relayUrl: normalizeRelay(relayUrl), selfPubkey, events };
+      } catch (error) { return { relayUrl: normalizeRelay(relayUrl), events: [], error: error.message || 'NIP-11 verification failed' }; }
+    }));
+    state.communities = CommunityGroups.markParallelOrigins(CommunityGroups.discoverableGroups(sources, (event, selfPubkey) =>
+      Boolean(selfPubkey && event.pubkey?.toLowerCase() === selfPubkey && N.verifyEvent(event))));
+    renderCommunityList();
+    const unavailable = sources.filter(source => source.error).length;
+    $('community-status').textContent = state.communities.length
+      ? localized(`${state.communities.length} public communities found on your selected relays.`, `${state.communities.length} comunidades públicas encontradas nos relays selecionados.`) +
+        (unavailable ? localized(` ${unavailable} relay identity could not be verified.`, ` Não foi possível verificar a identidade de ${unavailable} relay(s).`) : '')
+      : localized(`No verified public communities found.${unavailable ? ` ${unavailable} relay identity could not be verified.` : ''}`, `Nenhuma comunidade pública verificada encontrada.${unavailable ? ` Não foi possível verificar a identidade de ${unavailable} relay(s).` : ''}`);
+  }
+  async function openCommunityReference() {
+    const reference = CommunityGroups.parseGroupReference($('community-link-input').value, value => N.nip19.decode(value), normalizeRelay);
+    if (!reference) throw new Error(localized('Enter a valid NIP-29 naddr link.', 'Informe um link naddr NIP-29 válido.'));
+    const relayUrl = reference.relays[0] || state.relays[0];
+    if (!relayUrl) throw new Error(localized('This group link has no relay hint. Select a relay in Settings first.', 'Este link não indica um relay. Selecione um relay nas Configurações primeiro.'));
+    const selfPubkey = await communityRelaySelf(relayUrl);
+    if (selfPubkey !== reference.relayPubkey) throw new Error(localized('The group address does not match this relay’s NIP-11 self key.', 'O endereço do grupo não corresponde à chave self NIP-11 deste relay.'));
+    const events = await fetchEvents({ kinds: [39000], authors: [selfPubkey], '#d': [reference.groupId], limit: 20 }, 8000, [relayUrl]);
+    const latest = events.filter(event => event.kind === 39000 && event.pubkey?.toLowerCase() === selfPubkey && N.verifyEvent(event))
+      .sort((a, b) => b.created_at - a.created_at || String(b.id).localeCompare(String(a.id)))[0];
+    const community = latest ? CommunityGroups.parseMetadata(latest, relayUrl, event => event.pubkey?.toLowerCase() === selfPubkey && N.verifyEvent(event)) : null;
+    if (!community || community.id !== reference.groupId || community.private || community.hidden) {
+      throw new Error(localized('This relay does not provide a verified public group matching the link.', 'Este relay não forneceu um grupo público verificado que corresponda ao link.'));
+    }
+    const verifiedCommunity = { ...community, selfPubkey };
+    state.communities = CommunityGroups.markParallelOrigins([...state.communities.filter(item => item.key !== community.key), verifiedCommunity]);
+    renderCommunityList();
+    $('community-link-input').value = '';
+    await openCommunity(verifiedCommunity, reference.inviteCode);
+  }
+  async function openCommunity(community, inviteCode = '') {
+    if (!community || community.private || community.hidden || !community.selfPubkey) throw new Error(localized('This public community has not been verified by its relay.', 'Esta comunidade pública não foi verificada pelo relay.'));
+    state.activeCommunity = community;
+    state.activeCommunityEvents = [];
+    state.activeCommunityModerators = new Set([community.selfPubkey]);
+    state.communityInviteCode = inviteCode;
+    $('community-list').hidden = true;
+    $('community-room').classList.remove('hidden');
+    $('community-room-title').textContent = community.name;
+    $('community-room-origin').textContent = `${community.relayUrl} · ${community.id}`;
+    $('community-parallel-note').hidden = !community.parallelOrigin;
+    $('community-parallel-note').textContent = localized('This group ID also appears on another relay. Property keeps this relay’s rules and history separate; the other entry may be a backup, migration, or fork.', 'Este ID de grupo também aparece em outro relay. O Property mantém as regras e o histórico deste relay separados; a outra entrada pode ser uma cópia de segurança, migração ou ramificação.');
+    $('community-invite-code').value = inviteCode;
+    $('community-status').textContent = '';
+    $('community-room-feed').replaceChildren(makeEmpty(localized('Loading public group messages', 'Carregando mensagens públicas do grupo'), localized('Messages come only from this group’s relay.', 'As mensagens vêm somente do relay deste grupo.')));
+    await refreshCommunityRoom();
+  }
+  async function refreshCommunityRoom() {
+    const community = state.activeCommunity;
+    if (!community) return;
+    const [events, admins] = await Promise.all([
+      fetchEvents({ kinds: [1, 9000, 9001, 9021, 9022], '#h': [community.id], limit: 250 }, 8000, [community.relayUrl]),
+      fetchEvents({ kinds: [39001], '#d': [community.id], limit: 10 }, 6000, [community.relayUrl])
+    ]);
+    if (state.activeCommunity?.key !== community.key) return;
+    const currentEvents = events.filter(event => N.verifyEvent(event) && event.tags?.some(tag => Array.isArray(tag) && tag[0] === 'h' && tag[1] === community.id));
+    const verifiedAdmins = admins.filter(event => event.kind === 39001 && event.pubkey?.toLowerCase() === community.selfPubkey && N.verifyEvent(event) &&
+      event.tags?.some(tag => Array.isArray(tag) && tag[0] === 'd' && tag[1] === community.id))
+      .sort((a, b) => b.created_at - a.created_at || String(b.id).localeCompare(String(a.id)))[0];
+    const authorized = new Set([community.selfPubkey]);
+    for (const tag of verifiedAdmins?.tags || []) if (tag[0] === 'p' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) authorized.add(tag[1].toLowerCase());
+    const merged = new Map([...state.activeCommunityEvents, ...currentEvents].map(event => [event.id, event]));
+    state.activeCommunityEvents = [...merged.values()];
+    state.activeCommunityModerators = authorized;
+    renderCommunityRoom();
+  }
+  function renderCommunityRoom() {
+    const community = state.activeCommunity;
+    if (!community) return;
+    const events = state.activeCommunityEvents;
+    const membership = CommunityGroups.membership(events, community.id, state.pubkey, N.verifyEvent, state.activeCommunityModerators);
+    const pendingJoin = CommunityGroups.hasPendingJoin(events, community.id, state.pubkey, N.verifyEvent, state.activeCommunityModerators);
+    const pendingLeave = CommunityGroups.hasPendingLeave(events, community.id, state.pubkey, N.verifyEvent, state.activeCommunityModerators);
+    const status = membership === 'member'
+      ? localized('The relay reports that you are a member.', 'O relay informa que você é participante.')
+      : pendingLeave
+        ? localized('Leave request sent; waiting for the relay to remove your membership.', 'Pedido de saída enviado; aguardando o relay remover sua participação.')
+        : pendingJoin
+          ? localized('Join request sent; delivery does not mean the relay has admitted you.', 'Pedido de entrada enviado; a entrega não significa que o relay já aceitou sua participação.')
+          : community.closed
+            ? localized('This group is closed. A valid invite code is needed for a join request to be honored.', 'Este grupo é fechado. É necessário um código de convite válido para que o pedido de entrada seja considerado.')
+            : localized('You are not a confirmed member. This relay may require a join request before you can post.', 'Sua participação ainda não foi confirmada. Este relay pode exigir um pedido de entrada antes de você publicar.');
+    $('community-membership').textContent = `${status} ${localized('Membership status is based on signed group events from this relay.', 'O estado de participação usa eventos assinados deste relay.')}`;
+    $('community-join').hidden = membership === 'member' || pendingJoin;
+    $('community-join').disabled = community.closed && !$('community-invite-code').value.trim();
+    $('community-leave').hidden = membership !== 'member' && !pendingLeave;
+    const supportsText = community.supportedKinds === null || community.supportedKinds.includes(1);
+    const canPost = supportsText && (!community.restricted || membership === 'member');
+    $('community-composer').hidden = !canPost;
+    if (!supportsText) $('community-membership').textContent += localized(' This group does not advertise support for text posts.', ' Este grupo não anuncia suporte a mensagens de texto.');
+    else if (community.restricted && !canPost) $('community-membership').textContent += localized(' Only confirmed members can post here.', ' Somente participantes confirmados podem publicar aqui.');
+    const feed = $('community-room-feed');
+    feed.replaceChildren();
+    const posts = events.filter(event => event.kind === 1 && N.verifyEvent(event) && event.tags?.some(tag => Array.isArray(tag) && tag[0] === 'h' && tag[1] === community.id))
+      .sort((a, b) => b.created_at - a.created_at || String(b.id).localeCompare(String(a.id))).slice(0, 100);
+    if (!posts.length) feed.append(makeEmpty(localized('No text posts yet', 'Ainda não há mensagens de texto'), localized('This public group history is fetched from its hosting relay.', 'O histórico deste grupo público vem do relay que o hospeda.')));
+    for (const post of posts) {
+      const card = document.createElement('article'); card.className = 'community-post-card';
+      const body = document.createElement('p'); body.dataset.userContent = ''; body.textContent = post.content;
+      const author = document.createElement('small');
+      const encoded = N.nip19.npubEncode(post.pubkey);
+      author.textContent = `${encoded.slice(0, 15)}… · ${new Date(post.created_at * 1000).toLocaleString(window.PropertyI18n?.locale() || undefined)}`;
+      card.append(body, author); feed.append(card);
+    }
+  }
+  async function requestCommunityJoin() {
+    const community = state.activeCommunity;
+    if (!community) return;
+    const inviteCode = $('community-invite-code').value.trim();
+    if (community.closed && !inviteCode) throw new Error(localized('Enter an invite code for this closed group.', 'Informe um código de convite para este grupo fechado.'));
+    const unsigned = CommunityGroups.createJoinRequest({ pubkey: state.pubkey, groupId: community.id, inviteCode });
+    const event = finalize(unsigned.kind, unsigned.content, unsigned.tags);
+    if (!(await publishToRelays(event, [community.relayUrl]))) throw new Error(localized('The hosting relay did not confirm delivery of the join request.', 'O relay que hospeda o grupo não confirmou a entrega do pedido de entrada.'));
+    state.activeCommunityEvents.push(event);
+    renderCommunityRoom();
+    showToast(localized('Join request delivered. Relay acceptance is still required.', 'Pedido de entrada entregue. Ainda é necessária a aceitação do relay.'));
+  }
+  async function requestCommunityLeave() {
+    const community = state.activeCommunity;
+    if (!community) return;
+    const unsigned = CommunityGroups.createLeaveRequest({ pubkey: state.pubkey, groupId: community.id });
+    const event = finalize(unsigned.kind, unsigned.content, unsigned.tags);
+    if (!(await publishToRelays(event, [community.relayUrl]))) throw new Error(localized('The hosting relay did not confirm delivery of the leave request.', 'O relay que hospeda o grupo não confirmou a entrega do pedido de saída.'));
+    state.activeCommunityEvents.push(event);
+    renderCommunityRoom();
+    showToast(localized('Leave request delivered. The relay still needs to confirm removal.', 'Pedido de saída entregue. O relay ainda precisa confirmar a remoção.'));
+  }
+  async function publishCommunityPost() {
+    const community = state.activeCommunity;
+    if (!community) return;
+    const content = $('community-post-text').value.trim();
+    const membership = CommunityGroups.membership(state.activeCommunityEvents, community.id, state.pubkey, N.verifyEvent, state.activeCommunityModerators);
+    if (community.restricted && membership !== 'member') throw new Error(localized('This relay has not confirmed your membership, so Property will not post to this restricted group.', 'Este relay ainda não confirmou sua participação; o Property não vai publicar neste grupo restrito.'));
+    const previousIds = state.activeCommunityEvents.filter(event => event.kind === 1 && event.pubkey !== state.pubkey && N.verifyEvent(event))
+      .sort((a, b) => b.created_at - a.created_at).slice(0, 3).map(event => event.id);
+    const unsigned = CommunityGroups.createPublicPost({ pubkey: state.pubkey, groupId: community.id, content, previousIds, membershipStatus: membership, restricted: community.restricted });
+    const event = finalize(unsigned.kind, unsigned.content, unsigned.tags);
+    if (!(await publishToRelays(event, [community.relayUrl]))) throw new Error(localized('The hosting relay did not confirm the public post.', 'O relay que hospeda o grupo não confirmou a publicação.'));
+    state.activeCommunityEvents.push(event);
+    $('community-post-text').value = '';
+    renderCommunityRoom();
+    showToast(localized('Public post delivered to this group’s relay.', 'Publicação pública entregue ao relay deste grupo.'));
+  }
   async function ensureStall(name, currency) {
     const key = `stall-${currency}-${state.pubkey}`;
     let saved = await get('settings', key);
@@ -5968,6 +6202,27 @@
     $('now-playing-close').addEventListener('click', () => audioPlayback.stop());
     document.querySelectorAll('.nav-button').forEach(button => button.addEventListener('click', () => setActiveView(button.dataset.view)));
     $('refresh-hangout').addEventListener('click', () => refreshHangout().catch(error => showToast(error.message || 'Falha ao carregar o Hangout.')));
+    $('refresh-communities').addEventListener('click', () => discoverCommunities().catch(error => {
+      $('community-status').textContent = error.message || localized('Could not discover communities.', 'Não foi possível buscar comunidades.');
+      renderCommunityList();
+    }));
+    $('open-community-link').addEventListener('click', () => openCommunityReference().catch(error => {
+      $('community-status').textContent = error.message || localized('Could not open this group link.', 'Não foi possível abrir este link de grupo.');
+    }));
+    $('community-link-input').addEventListener('keydown', event => {
+      if (event.key === 'Enter') { event.preventDefault(); openCommunityReference().catch(error => { $('community-status').textContent = error.message; }); }
+    });
+    $('community-back').addEventListener('click', () => {
+      state.activeCommunity = null; state.activeCommunityEvents = []; state.activeCommunityModerators.clear(); state.communityInviteCode = '';
+      $('community-room').classList.add('hidden'); $('community-list').hidden = false; $('community-invite-code').value = ''; $('community-post-text').value = '';
+    });
+    $('community-refresh-room').addEventListener('click', () => refreshCommunityRoom().catch(error => showToast(error.message || localized('Could not refresh this community.', 'Não foi possível atualizar esta comunidade.'))));
+    $('community-invite-code').addEventListener('input', () => {
+      if (state.activeCommunity) $('community-join').disabled = state.activeCommunity.closed && !$('community-invite-code').value.trim();
+    });
+    $('community-join').addEventListener('click', () => requestCommunityJoin().catch(error => showToast(error.message || localized('Could not request to join.', 'Não foi possível solicitar entrada.'))));
+    $('community-leave').addEventListener('click', () => requestCommunityLeave().catch(error => showToast(error.message || localized('Could not request to leave.', 'Não foi possível solicitar saída.'))));
+    $('community-post-button').addEventListener('click', () => publishCommunityPost().catch(error => showToast(error.message || localized('Could not publish this post.', 'Não foi possível publicar esta mensagem.'))));
     $('show-node-campaigns').addEventListener('change', async event => {
       try {
         const settings = await getCampaignSettings();

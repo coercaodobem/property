@@ -27,6 +27,7 @@ for test_file in \
   chat-drafts-smoke.mjs \
   group-mentions-smoke.mjs \
   group-invites-smoke.mjs \
+  community-groups-smoke.mjs \
   notification-preferences-smoke.mjs \
   app-badge-smoke.mjs \
   message-days-smoke.mjs \
