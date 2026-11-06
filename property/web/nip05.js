@@ -26,9 +26,10 @@
     const labels = domain.split('.');
     if (domain.length > 253 || labels.length < 2 || labels.some(label => !DOMAIN_LABEL.test(label)) ||
         domain === 'localhost' || /^\d+(?:\.\d+){3}$/.test(domain)) throw problem('nip05-invalid-identifier');
+    const normalizedName = name.toLowerCase();
     const url = new URL(`https://${domain}/.well-known/nostr.json`);
-    url.searchParams.set('name', name);
-    return Object.freeze({ name, domain, url: url.href, identifier: `${name}@${domain}` });
+    url.searchParams.set('name', normalizedName);
+    return Object.freeze({ name: normalizedName, domain, url: url.href, identifier: `${normalizedName}@${domain}` });
   }
 
   async function boundedText(response) {
@@ -65,14 +66,12 @@
     }
   }
 
-  async function check(identifier, expectedPubkey, fetcher = globalThis.fetch) {
-    const parsed = parseIdentifier(identifier);
-    const pubkey = typeof expectedPubkey === 'string' ? expectedPubkey.toLowerCase() : '';
-    if (!HEX_PUBKEY.test(pubkey) || typeof fetcher !== 'function') throw problem('nip05-invalid-request');
+  async function fetchMapping(parsed, fetcher) {
+    if (typeof fetcher !== 'function') throw problem('nip05-invalid-request');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    let response;
     try {
+      let response;
       try {
         response = await fetcher(parsed.url, {
           method: 'GET',
@@ -99,13 +98,30 @@
       if (!data || typeof data !== 'object' || Array.isArray(data) || !data.names || typeof data.names !== 'object' || Array.isArray(data.names)) {
         throw problem('nip05-invalid-response');
       }
-      const value = data.names[parsed.name];
-      const matches = typeof value === 'string' && HEX_PUBKEY.test(value) && value === value.toLowerCase() && value === pubkey;
-      return Object.freeze({ matches, identifier: parsed.identifier, domain: parsed.domain });
+      return data;
     } finally {
       clearTimeout(timeout);
     }
   }
 
-  globalThis.PropertyNip05 = Object.freeze({ MAX_RESPONSE_BYTES, REQUEST_TIMEOUT_MS, parseIdentifier, check });
+  async function check(identifier, expectedPubkey, fetcher = globalThis.fetch) {
+    const parsed = parseIdentifier(identifier);
+    const pubkey = typeof expectedPubkey === 'string' ? expectedPubkey.toLowerCase() : '';
+    if (!HEX_PUBKEY.test(pubkey) || typeof fetcher !== 'function') throw problem('nip05-invalid-request');
+    const data = await fetchMapping(parsed, fetcher);
+    const value = data.names[parsed.name];
+    const matches = typeof value === 'string' && HEX_PUBKEY.test(value) && value === value.toLowerCase() && value === pubkey;
+    return Object.freeze({ matches, identifier: parsed.identifier, domain: parsed.domain });
+  }
+
+  async function resolve(identifier, fetcher = globalThis.fetch) {
+    const parsed = parseIdentifier(identifier);
+    const data = await fetchMapping(parsed, fetcher);
+    const value = data.names[parsed.name];
+    if (value === undefined) throw problem('nip05-not-found');
+    if (typeof value !== 'string' || !HEX_PUBKEY.test(value) || value !== value.toLowerCase()) throw problem('nip05-invalid-response');
+    return Object.freeze({ pubkey: value, identifier: parsed.identifier, domain: parsed.domain });
+  }
+
+  globalThis.PropertyNip05 = Object.freeze({ MAX_RESPONSE_BYTES, REQUEST_TIMEOUT_MS, parseIdentifier, check, resolve });
 })();

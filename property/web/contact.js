@@ -1,8 +1,8 @@
 (() => {
   const localized = (en, pt) => globalThis.PropertyI18n?.language === 'pt-BR' ? pt : en;
   const formatHelp = () => localized(
-    'This field does not search usernames. Paste an npub, nprofile, Property contact link, or 64-character hex public key.',
-    'Este campo não busca nomes de usuário. Cole um npub, nprofile, link de contato do Property ou chave pública hex de 64 caracteres.'
+    'Use a public npub, nprofile, Property contact link, or 64-character hex key. For a NIP-05 name@domain, tap Resolve NIP-05 first; a name alone is not unique.',
+    'Use um npub público, nprofile, link de contato do Property ou chave hex de 64 caracteres. Para NIP-05 name@domínio, toque em Resolver NIP-05; um nome sozinho não é único.'
   );
 
   function unwrapContact(value) {

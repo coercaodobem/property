@@ -25,7 +25,8 @@ assert.deepEqual(JSON.parse(JSON.stringify(parse(encodedNprofile))), { pubkey: h
 
 for (const [input, expected] of [
   ['', /Informe o contato público/],
-  ['coercaodobem', /não busca nomes de usuário/],
+  ['coercaodobem', /um nome sozinho não é único/],
+  ['alice@example.com', /toque em Resolver NIP-05/],
   ['nsec1secret', /chave privada nsec/],
   ['npub1truncated', /Não foi possível validar este npub/],
   ['nprofile1truncated', /Não foi possível validar este nprofile/]
@@ -33,7 +34,7 @@ for (const [input, expected] of [
   assert.throws(() => parse(input), expected, `safe Portuguese validation for ${input || 'empty input'}`);
 }
 
-assert.throws(() => parse('nprofile1valid', () => ({ type: 'nprofile', data: { pubkey: 'bad', relays: [] } })), /Este campo não busca nomes de usuário/);
+assert.throws(() => parse('nprofile1valid', () => ({ type: 'nprofile', data: { pubkey: 'bad', relays: [] } })), /Para NIP-05 name@domínio/);
 assert.throws(() => parse('nprofile1valid', () => ({ type: 'nprofile', data: { pubkey: hex, relays: 'wss://relay.example' } })), /lista de relays inválida/);
 assert.throws(() => parse('npub1truncated', () => { throw new Error('Letter "1" must be present between prefix and data only'); }), error => /Não foi possível validar este npub/.test(error.message) && !/Letter/.test(error.message));
 console.log('PASS: hex/npub/nprofile reais; nome livre, vazio, nsec, bech32 truncado e hints inválidos recebem validação segura em português');

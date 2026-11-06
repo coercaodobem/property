@@ -61,6 +61,7 @@
   let reactionPickerSequence = 0;
   let ownNip05CheckId = 0;
   let peerNip05CheckId = 0;
+  let peerNip05LookupId = 0;
   const state = {
     db: null, account: null, secret: null, pubkey: '', npub: '', relays: [],
     inboxRelays: [], peerInboxRelays: new Map(), peerRelayHints: new Map(),
@@ -1680,11 +1681,40 @@
   }
   function nip05ErrorMessage(error) {
     if (error?.code === 'nip05-invalid-identifier') return localized('Enter a valid name@domain identifier.', 'Informe um identificador name@domínio válido.');
+    if (error?.code === 'nip05-not-found') return localized('That domain did not publish a public key for this name.', 'Esse domínio não publicou uma chave pública para este nome.');
     if (error?.code === 'nip05-http-error') return localized('The domain returned an unusable response. Redirects are not accepted.', 'O domínio retornou uma resposta inválida. Redirecionamentos não são aceitos.');
     if (error?.code === 'nip05-response-too-large') return localized('The domain response exceeded the size limit.', 'A resposta do domínio excedeu o limite de tamanho.');
     if (error?.code === 'nip05-invalid-response') return localized('The domain did not return a valid NIP-05 response.', 'O domínio não retornou uma resposta NIP-05 válida.');
     if (error?.code === 'nip05-network-error') return localized('Could not check the domain. The browser may block the request, for example because of CORS.', 'Não foi possível consultar o domínio. O navegador pode bloquear a solicitação, por exemplo por CORS.');
     return localized('The NIP-05 check is unavailable.', 'A consulta NIP-05 está indisponível.');
+  }
+  function updatePeerNip05LookupButton() {
+    const value = $('peer-input').value.trim();
+    $('resolve-peer-nip05').disabled = !value.includes('@') || value.length > 160;
+  }
+  async function resolvePeerNip05() {
+    const identifier = $('peer-input').value.trim();
+    if (!identifier.includes('@') || identifier.length > 160) return;
+    const lookupId = ++peerNip05LookupId;
+    const button = $('resolve-peer-nip05');
+    const status = $('peer-nip05-status');
+    const isCurrent = () => lookupId === peerNip05LookupId && $('new-chat-dialog').open;
+    button.disabled = true;
+    status.textContent = localized('Looking up the public key. This request reveals your IP address to the domain…', 'Consultando a chave pública. Esta solicitação revela seu endereço IP ao domínio…');
+    try {
+      const result = await Nip05.resolve(identifier);
+      if (!isCurrent()) return;
+      $('peer-input').value = N.nip19.npubEncode(result.pubkey);
+      $('new-chat-error').textContent = '';
+      status.textContent = localized(
+        `Resolved ${result.identifier}. The domain mapping does not verify a real-world identity. Review the public npub, then open the conversation.`,
+        `Identificador ${result.identifier} resolvido. O vínculo do domínio não verifica uma identidade no mundo real. Confira o npub público antes de abrir a conversa.`
+      );
+    } catch (error) {
+      if (isCurrent()) status.textContent = nip05ErrorMessage(error);
+    } finally {
+      if (isCurrent()) updatePeerNip05LookupButton();
+    }
   }
   async function performNip05Check(identifier, pubkey, status, button, isCurrent) {
     button.disabled = true;
@@ -5677,7 +5707,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v74', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v75', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -5687,8 +5717,20 @@
     const openNewChatDialog = () => {
       const dialog = $('new-chat-dialog');
       if (!dialog.open) dialog.showModal();
+      updatePeerNip05LookupButton();
       requestAnimationFrame(() => $('peer-input').focus());
     };
+    $('peer-input').addEventListener('input', () => {
+      peerNip05LookupId += 1;
+      $('peer-nip05-status').textContent = '';
+      $('new-chat-error').textContent = '';
+      updatePeerNip05LookupButton();
+    });
+    $('new-chat-dialog').addEventListener('close', () => {
+      peerNip05LookupId += 1;
+      updatePeerNip05LookupButton();
+    });
+    $('resolve-peer-nip05').addEventListener('click', () => resolvePeerNip05());
     const openContactShareDialog = () => {
       try {
         state.contactShare = Contact.createShare({
@@ -6045,7 +6087,7 @@
         const hints = [...new Set([...profileHints, ...extraHints])];
         await addConversation(parsed.pubkey, $('peer-name-input').value, hints, $('agent-mode').checked);
         state.pendingShareForNewChat = '';
-        $('new-chat-dialog').close(); $('peer-input').value = ''; $('peer-name-input').value = ''; $('peer-relays-input').value = ''; $('agent-mode').checked = false; showError('new-chat-error');
+        $('new-chat-dialog').close(); $('peer-input').value = ''; $('peer-name-input').value = ''; $('peer-relays-input').value = ''; $('agent-mode').checked = false; $('peer-nip05-status').textContent = ''; updatePeerNip05LookupButton(); showError('new-chat-error');
         if (pendingShareId) {
           try { await prepareShareDraft(parsed.pubkey, pendingShareId); }
           catch { showToast(localized('The conversation opened, but the shared draft could not be loaded.', 'A conversa abriu, mas não foi possível carregar o rascunho compartilhado.')); }

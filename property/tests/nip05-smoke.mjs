@@ -18,6 +18,7 @@ assert.equal(parsed.identifier, 'alice@example.com');
 assert.equal(parsed.domain, 'example.com');
 assert.equal(new URL(parsed.url).pathname, '/.well-known/nostr.json');
 assert.equal(new URL(parsed.url).searchParams.get('name'), 'alice');
+assert.equal(nip05.parseIdentifier('Alice@Example.COM').identifier, 'alice@example.com', 'NIP-05 names are requested in lowercase');
 assert.throws(() => nip05.parseIdentifier('alice@example.com/path'), { code: 'nip05-invalid-identifier' });
 assert.throws(() => nip05.parseIdentifier('alice@localhost'), { code: 'nip05-invalid-identifier' });
 assert.throws(() => nip05.parseIdentifier('alice@example.com@evil.example'), { code: 'nip05-invalid-identifier' });
@@ -39,6 +40,22 @@ assert.equal(request.options.cache, 'no-store');
 assert.equal(request.options.redirect, 'manual');
 assert.equal(request.options.referrerPolicy, 'no-referrer');
 assert.equal(request.options.headers.Accept, 'application/json');
+
+let resolveRequest;
+const resolved = await nip05.resolve('Alice@Example.COM', async (url, options) => {
+  resolveRequest = { url, options };
+  return new Response(JSON.stringify({ names: { alice: pubkey } }), { status: 200, headers: { 'content-type': 'application/json' } });
+});
+assert.deepEqual(JSON.parse(JSON.stringify(resolved)), { pubkey, identifier: 'alice@example.com', domain: 'example.com' });
+assert.equal(new URL(resolveRequest.url).searchParams.get('name'), 'alice');
+assert.equal(resolveRequest.options.credentials, 'omit');
+assert.equal(resolveRequest.options.referrerPolicy, 'no-referrer');
+await assert.rejects(nip05.resolve('alice@example.com', async () =>
+  new Response(JSON.stringify({ names: {} }), { status: 200 })
+), { code: 'nip05-not-found' }, 'missing names are reported without guessing a key');
+await assert.rejects(nip05.resolve('alice@example.com', async () =>
+  new Response(JSON.stringify({ names: { alice: 'AB'.repeat(32) } }), { status: 200 })
+), { code: 'nip05-invalid-response' }, 'resolved keys must be lowercase hex');
 
 const mismatch = await nip05.check('alice@example.com', pubkey, async () =>
   new Response(JSON.stringify({ names: { alice: 'cd'.repeat(32) } }), { status: 200 })
