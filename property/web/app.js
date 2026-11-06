@@ -25,6 +25,7 @@
   const NotificationPrefs = window.PropertyNotificationPreferences;
   const AppBadge = window.PropertyAppBadge;
   const MessageDays = window.PropertyMessageDays;
+  const MessageScroll = window.PropertyMessageScroll;
   const RichText = window.PropertyRichText;
   const MessageEdits = window.PropertyMessageEdits;
   const SecretGuard = window.PropertySecretGuard;
@@ -50,7 +51,7 @@
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0
+    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, unseenMessageCount: 0, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0
   };
   const SHARE_LAUNCH_ACTIONS = new Set(['share', 'share-full', 'share-error']);
   let propertyTabChannel = null;
@@ -1817,6 +1818,24 @@
       if (state.activePeer === peer) void renderMessages(peer).catch(() => {});
     }, Math.max(1, nextDay - Date.now() + 50));
   }
+  function updateMessageScrollButton() {
+    const container = $('messages');
+    const button = $('message-scroll-bottom');
+    const status = $('message-scroll-status');
+    if (!container || !button || !status) return;
+    const atBottom = MessageScroll.isNearBottom({
+      scrollHeight: container.scrollHeight,
+      scrollTop: container.scrollTop,
+      clientHeight: container.clientHeight
+    });
+    if (atBottom) state.unseenMessageCount = 0;
+    button.hidden = atBottom;
+    const copy = MessageScroll.buttonCopy(state.unseenMessageCount, window.PropertyI18n?.language || 'en');
+    if (button.textContent !== copy.text) button.textContent = copy.text;
+    if (button.getAttribute('aria-label') !== copy.ariaLabel) button.setAttribute('aria-label', copy.ariaLabel);
+    const announcement = state.unseenMessageCount > 0 ? copy.ariaLabel : '';
+    if (status.textContent !== announcement) status.textContent = announcement;
+  }
   async function renderMessages(peer, jumpToMessageId = '') {
     const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
     const messages = entries.filter(message => message.kind !== 7);
@@ -1841,7 +1860,12 @@
     const conversation = await get('conversations', peer);
     const container = $('messages');
     const samePeer = container.dataset.peer === peer;
-    const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 72;
+    const wasAtBottom = MessageScroll.isNearBottom({ scrollHeight: container.scrollHeight, scrollTop: container.scrollTop, clientHeight: container.clientHeight });
+    const previousIds = new Set([...container.querySelectorAll('.message-row')].map(row => row.dataset.messageId).filter(Boolean));
+    const previousLatest = Number(container.dataset.latestCreatedAt);
+    const update = MessageScroll.classifyUpdate(messages, samePeer ? previousIds : new Set(), samePeer && Number.isFinite(previousLatest) ? previousLatest : null);
+    if (!samePeer || update.hasOutgoing) state.unseenMessageCount = 0;
+    else if (!wasAtBottom) state.unseenMessageCount += update.incomingCount;
     const bounds = container.getBoundingClientRect();
     const firstVisible = [...container.querySelectorAll('.message-row')].find(row => row.getBoundingClientRect().bottom > bounds.top);
     const anchor = samePeer && firstVisible ? { id: firstVisible.dataset.messageId, top: firstVisible.getBoundingClientRect().top } : null;
@@ -1849,7 +1873,7 @@
     container.replaceChildren();
     scheduleMessageDayRollover(peer);
     if (!messages.length) {
-      const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = 'Esta conversa é privada. Envie uma mensagem para começar.'; container.append(empty); container.dataset.peer = peer; refreshMessageSearch(); return;
+      const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = 'Esta conversa é privada. Envie uma mensagem para começar.'; container.append(empty); container.dataset.peer = peer; delete container.dataset.latestCreatedAt; state.unseenMessageCount = 0; updateMessageScrollButton(); refreshMessageSearch(); return;
     }
     let previousDay = NaN;
     let daySection = null;
@@ -1953,7 +1977,9 @@
       actions.append(reply, react, picker, menu); row.append(bubble); if (reactionSummary) row.append(reactionSummary); row.append(meta, actions); (daySection || container).append(row);
     }
     container.dataset.peer = peer;
-    if (!samePeer || wasAtBottom || !anchor) container.scrollTop = container.scrollHeight;
+    if (Number.isFinite(update.latestCreatedAt)) container.dataset.latestCreatedAt = String(update.latestCreatedAt);
+    else delete container.dataset.latestCreatedAt;
+    if (!samePeer || wasAtBottom || update.hasOutgoing || !anchor) container.scrollTop = container.scrollHeight;
     else {
       const restored = [...container.querySelectorAll('.message-row')].find(row => row.dataset.messageId === anchor.id);
       if (restored) container.scrollTop += restored.getBoundingClientRect().top - anchor.top;
@@ -1967,6 +1993,7 @@
         target.scrollIntoView({ block: 'center' });
       }
     }
+    updateMessageScrollButton();
     refreshMessageSearch();
   }
   function nostrEventId(message) {
@@ -2857,13 +2884,20 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v55', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v56', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
   function wireEvents() {
     Pwa.bindInstallControls(document.querySelectorAll('[data-install-property]'), $('install-app-dialog'), () => showToast('Property installed.'));
     emojiPicker = EmojiPicker.init({ owner: () => state.pubkey, onError: error => showToast(error?.message || 'Could not send reaction.') });
+    $('messages').addEventListener('scroll', updateMessageScrollButton, { passive: true });
+    $('message-scroll-bottom').addEventListener('click', () => {
+      const container = $('messages');
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      state.unseenMessageCount = 0;
+      updateMessageScrollButton();
+    });
     window.addEventListener('property-contact-intent', event => {
       const contact = typeof event.detail?.value === 'string' ? event.detail.value : '';
       if (!contact) return;
@@ -3246,7 +3280,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !RichText || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();

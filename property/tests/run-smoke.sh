@@ -20,6 +20,7 @@ for test_file in \
   notification-preferences-smoke.mjs \
   app-badge-smoke.mjs \
   message-days-smoke.mjs \
+  message-scroll-smoke.mjs \
   rich-text-smoke.mjs \
   nostr-entities-smoke.mjs \
   secret-guard-smoke.mjs \

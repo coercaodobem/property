@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-16', 'G04-17', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -1212,6 +1212,109 @@ async function main() {
       one_heading_per_day: true, relay_event_delta: 0, local_only: true
     };
     mark('G04-17', 'PASS', 'The existing chat shows one sticky date heading for each fixed local day, uses Today/Yesterday or Hoje/Ontem in the selected language, includes a full date for older messages, and does not alter message storage or publish relay events.');
+
+    stage = 'G04-18: new-message jump count';
+    await pageA.locator('#language-picker').selectOption('en');
+    await pageA.evaluate(async peer => {
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('liberdade-local-v1');
+        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      });
+      await new Promise((resolve, reject) => {
+        const transaction = db.transaction('messages', 'readwrite');
+        const store = transaction.objectStore('messages');
+        for (let index = 0; index < 20; index++) store.put({
+          id: 'property-g04-scroll-history-' + index,
+          peer,
+          text: 'Fixed old scroll-history fixture ' + (index + 1),
+          createdAt: new Date(2026, 10, 5, 8, index, 0).getTime(),
+          direction: 'received',
+          status: 'delivered'
+        });
+        transaction.oncomplete = resolve; transaction.onerror = () => reject(transaction.error);
+      });
+      db.close();
+    }, b.pubkey);
+    await pageA.locator('.conversation-row').filter({ hasText: 'B privado' }).first().locator('.conversation-item').click();
+    await pageA.waitForFunction(() => document.querySelectorAll('#messages .message-row').length >= 23);
+    await pageA.locator('#messages').evaluate(element => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+    await pageA.waitForFunction(() => {
+      const button = document.querySelector('#message-scroll-bottom');
+      return button && !button.hidden && button.getAttribute('aria-label') === 'Scroll to bottom';
+    });
+    const anchorBeforeNewMessages = await pageA.locator('#messages').evaluate(element => {
+      const bounds = element.getBoundingClientRect();
+      const row = [...element.querySelectorAll('.message-row')].find(candidate => candidate.getBoundingClientRect().bottom > bounds.top + 1);
+      return row ? { id: row.dataset.messageId, top: row.getBoundingClientRect().top } : null;
+    });
+    assert.ok(anchorBeforeNewMessages?.id, 'scroll history exposes a visible anchor row');
+    const scrollInboundOne = 'property-g04-scroll-inbound-one-' + crypto.randomUUID();
+    await sendMessage(pageB, scrollInboundOne);
+    await pageA.waitForFunction(text => [...document.querySelectorAll('#messages .message-row')].some(row => row.textContent.includes(text)), scrollInboundOne);
+    await pageA.waitForFunction(() => document.querySelector('#message-scroll-bottom')?.getAttribute('aria-label') === '1 new message, scroll to bottom');
+    await pageA.waitForFunction(() => document.querySelector('#message-scroll-status')?.textContent === '1 new message, scroll to bottom');
+    const scrollInboundTwo = 'property-g04-scroll-inbound-two-' + crypto.randomUUID();
+    await sendMessage(pageB, scrollInboundTwo);
+    await pageA.waitForFunction(text => [...document.querySelectorAll('#messages .message-row')].some(row => row.textContent.includes(text)), scrollInboundTwo);
+    await pageA.waitForFunction(() => document.querySelector('#message-scroll-bottom')?.getAttribute('aria-label') === '2 new messages, scroll to bottom');
+    await pageA.waitForFunction(() => document.querySelector('#message-scroll-status')?.textContent === '2 new messages, scroll to bottom');
+    const anchorAfterNewMessages = await pageA.locator('#messages').evaluate((element, id) => {
+      const row = [...element.querySelectorAll('.message-row')].find(candidate => candidate.dataset.messageId === id);
+      return row ? { id: row.dataset.messageId, top: row.getBoundingClientRect().top } : null;
+    }, anchorBeforeNewMessages.id);
+    assert.equal(anchorAfterNewMessages?.id, anchorBeforeNewMessages.id, 'incoming messages keep the same visible history anchor');
+    assert.ok(Math.abs(anchorAfterNewMessages.top - anchorBeforeNewMessages.top) < 1, 'the anchored message does not move');
+    await pageA.screenshot({ path: path.join(options.output, 'g04-message-scroll-english.png') });
+    await pageA.locator('#language-picker').selectOption('pt-BR');
+    await pageA.waitForFunction(() => document.querySelector('#message-scroll-bottom')?.getAttribute('aria-label') === '2 mensagens novas, rolar para o fim');
+    await pageA.waitForFunction(() => document.querySelector('#message-scroll-status')?.textContent === '2 mensagens novas, rolar para o fim');
+    const anchorAfterLanguageChange = await pageA.locator('#messages').evaluate((element, id) => {
+      const row = [...element.querySelectorAll('.message-row')].find(candidate => candidate.dataset.messageId === id);
+      return row ? { id: row.dataset.messageId, top: row.getBoundingClientRect().top } : null;
+    }, anchorBeforeNewMessages.id);
+    assert.ok(anchorAfterLanguageChange && Math.abs(anchorAfterLanguageChange.top - anchorBeforeNewMessages.top) < 1,
+      'language rerender preserves the reading anchor and does not recount existing messages');
+    await pageA.screenshot({ path: path.join(options.output, 'g04-message-scroll-pt-BR.png') });
+    await pageA.locator('#message-scroll-bottom').click();
+    await pageA.waitForFunction(() => {
+      const list = document.querySelector('#messages'), button = document.querySelector('#message-scroll-bottom');
+      return list && button?.hidden && list.scrollHeight - list.scrollTop - list.clientHeight < 72;
+    });
+    const scrollInboundThree = 'property-g04-scroll-inbound-three-' + crypto.randomUUID();
+    await sendMessage(pageB, scrollInboundThree);
+    await pageA.waitForFunction(text => [...document.querySelectorAll('#messages .message-row')].some(row => row.textContent.includes(text)), scrollInboundThree);
+    await pageA.waitForFunction(() => {
+      const list = document.querySelector('#messages'), button = document.querySelector('#message-scroll-bottom');
+      return list && button?.hidden && list.scrollHeight - list.scrollTop - list.clientHeight < 72;
+    });
+    await pageA.locator('#messages').evaluate(element => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+    const scrollOwnMessage = 'property-g04-scroll-own-' + crypto.randomUUID();
+    await sendMessage(pageA, scrollOwnMessage);
+    await pageA.waitForFunction(() => {
+      const list = document.querySelector('#messages'), button = document.querySelector('#message-scroll-bottom');
+      return list && button?.hidden && list.scrollHeight - list.scrollTop - list.clientHeight < 72;
+    });
+    await pageA.locator('#language-picker').selectOption('en');
+    await pageA.waitForFunction(() => document.querySelector('#language-picker')?.value === 'en'
+      && document.querySelector('#message-scroll-bottom')?.getAttribute('aria-label') === 'Scroll to bottom');
+    report.message_scroll_checks = {
+      fixed_old_history_rows: 20,
+      fixed_inbound_messages_while_scrolled: 2,
+      inbound_at_bottom: true,
+      outgoing_message_returns_to_bottom: true,
+      anchor_preserved: true,
+      english_count_label: '2 new messages, scroll to bottom',
+      portuguese_count_label: '2 mensagens novas, rolar para o fim',
+      count_cleared_on_jump: true,
+      relay_urls: [relay0.url]
+    };
+    mark('G04-18', 'PASS', 'When reading older messages, A keeps the visible anchor and counts two incoming messages in English and Portuguese. Returning to the bottom clears the count; a third incoming message stays at the bottom, and A’s own send returns to the bottom without being counted.');
 
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
     const browserRuntimeAttempts = proxy.attempts.filter(attempt => attempt.destination === 'aus5.mozilla.org:443');
