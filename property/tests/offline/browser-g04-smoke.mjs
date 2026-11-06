@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -1359,6 +1359,100 @@ async function main() {
     report.ghostly_empty_state_actions = { fixed_actions: 3, english_and_pt_br: true, mobile_viewport: '390x844', contact_link_qr: true,
       contact_nprofile: true, join_dialog_focuses_public_key: true, relay_events_published: 0, relay_url: relay0.url };
     mark('G04-19', 'PASS', 'The signed-in empty state offers New conversation, Join with a contact link/code, and Share my contact in English and Portuguese. On mobile, the buttons fit the viewport. Sharing creates the existing public contact URL, nprofile, and local QR; joining focuses the public-key field and opens a local conversation. Neither action publishes a relay event.');
+
+    stage = 'G04-20: NIP-39 GitHub identity claim and explicit proof check';
+    await pageA.locator('#language-picker').selectOption('en');
+    await pageA.locator('#profile-button').click();
+    await pageA.locator('#profile-dialog').waitFor({ state: 'visible' });
+    await pageA.evaluate(() => {
+      window.__propertyClipboardWrites = [];
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => window.__propertyClipboardWrites.push(text) } });
+    });
+    const githubUsername = 'property-offline-proof';
+    const gistId = '0123456789abcdef0123456789abcdef';
+    const identityEventsBeforePublish = await wsQuery(relay0.url, { kinds: [10011], authors: [a.pubkey], limit: 20 });
+    await pageA.locator('#profile-github-username').fill(githubUsername);
+    await pageA.locator('#profile-github-gist').fill(gistId);
+    await pageA.locator('#copy-github-proof-text').click();
+    const copiedProof = await pageA.evaluate(() => window.__propertyClipboardWrites.at(-1));
+    assert.equal(copiedProof, `Verifying that I control the following Nostr public key: ${a.npub}`, 'the copy action prepares the canonical public-key proof');
+    await pageA.setViewportSize({ width: 390, height: 844 });
+    await pageA.locator('#profile-nip39-heading').scrollIntoViewIfNeeded();
+    await pageA.screenshot({ path: path.join(options.output, 'g04-nip39-profile-mobile-en.png') });
+    await pageA.locator('#language-picker').selectOption('pt-BR');
+    await pageA.waitForFunction(() => document.querySelector('#profile-nip39-heading')?.textContent.trim() === 'Identidade vinculada · NIP-39'
+      && document.querySelector('#copy-github-proof-text')?.textContent.trim() === 'Copiar texto de verificação'
+      && document.querySelector('#publish-github-identity')?.textContent.trim() === 'Publicar vínculo de identidade');
+    await pageA.screenshot({ path: path.join(options.output, 'g04-nip39-profile-mobile-pt-BR.png') });
+    await pageA.locator('#language-picker').selectOption('en');
+    await pageA.locator('#publish-github-identity').click();
+    await pageA.waitForFunction(() => document.querySelector('#profile-nip39-status')?.textContent.includes('Signed GitHub identity link published.'), null, { timeout: 10000 });
+    const identityEventsAfterPublish = await wsQuery(relay0.url, { kinds: [10011], authors: [a.pubkey], limit: 20 });
+    const publishedIdentityEvents = identityEventsAfterPublish.filter(event => !identityEventsBeforePublish.some(before => before.id === event.id));
+    assert.equal(publishedIdentityEvents.length, 1, 'publishing an identity link creates exactly one kind 10011 event');
+    const identityEvent = publishedIdentityEvents[0];
+    assert.equal(identityEvent.kind, 10011);
+    assert.equal(identityEvent.pubkey, a.pubkey);
+    assert.deepEqual(identityEvent.tags.filter(tag => tag[0] === 'i').map(tag => tag.slice(1, 3)), [[`github:${githubUsername}`, gistId]]);
+    await pageA.locator('#profile-dialog button[aria-label="Close"]').click();
+    await pageA.locator('#profile-dialog').waitFor({ state: 'hidden' });
+
+    await defaultPage.locator('#language-picker').selectOption('en');
+    await defaultPage.evaluate(npub => {
+      window.__propertyIdentityProofFetches = [];
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = async (input, options = {}) => {
+        const url = typeof input === 'string' ? input : input?.url || String(input);
+        if (!url.startsWith('https://api.github.com/gists/')) return originalFetch(input, options);
+        window.__propertyIdentityProofFetches.push({
+          url, method: options.method, mode: options.mode, credentials: options.credentials,
+          cache: options.cache, redirect: options.redirect, referrerPolicy: options.referrerPolicy,
+          accept: options.headers?.Accept
+        });
+        const body = { public: true, owner: { login: 'property-offline-proof' }, files: { 'nostr.txt': { content: `Verifying that I control the following Nostr public key: ${npub}` } } };
+        const text = JSON.stringify(body);
+        return new Response(text, { status: 200, headers: { 'content-type': 'application/json', 'content-length': String(text.length) } });
+      };
+    }, a.npub);
+    await defaultPage.locator('#chat-details-button').click();
+    await defaultPage.locator('#chat-details-dialog').waitFor({ state: 'visible' });
+    await defaultPage.locator('#load-chat-public-profile').click();
+    await defaultPage.locator('#chat-nip39-section').waitFor({ state: 'visible', timeout: 10000 });
+    await defaultPage.locator('#chat-nip39-list .identity-proof-entry button').waitFor({ state: 'visible' });
+    assert.match(await defaultPage.locator('#chat-nip39-list .identity-proof-entry [role="status"]').textContent(), /Signed claim · not verified/i, 'the contact sees an unchecked signed claim');
+    assert.equal(await defaultPage.evaluate(() => window.__propertyIdentityProofFetches.length), 0, 'loading the signed claim does not contact GitHub');
+    await defaultPage.setViewportSize({ width: 390, height: 844 });
+    await defaultPage.locator('#chat-nip39-section').scrollIntoViewIfNeeded();
+    await defaultPage.locator('#language-picker').selectOption('pt-BR');
+    await defaultPage.waitForFunction(() => document.querySelector('#chat-nip39-heading')?.textContent.trim() === 'Identidades vinculadas · NIP-39'
+      && document.querySelector('#chat-nip39-list .identity-proof-entry button')?.textContent.trim() === 'Verificar no GitHub');
+    assert.match(await defaultPage.locator('#chat-nip39-list .identity-proof-entry [role="status"]').textContent(), /Declaração assinada · não verificada/i, 'contact claim status is translated to Portuguese');
+    assert.match(await defaultPage.locator('#chat-profile-status').textContent(), /Nenhum perfil assinado kind 0 foi encontrado/i, 'the missing-profile status is translated after changing language');
+    assert.match(await defaultPage.locator('#chat-nip39-section > .fine-print').last().textContent(), /Uma declaração Nostr assinada vincula este perfil/i, 'the identity-proof privacy explanation is translated');
+    await defaultPage.screenshot({ path: path.join(options.output, 'g04-nip39-contact-unverified-mobile-pt-BR.png') });
+    await defaultPage.locator('#language-picker').selectOption('en');
+    await defaultPage.locator('#chat-nip39-section').scrollIntoViewIfNeeded();
+    await defaultPage.screenshot({ path: path.join(options.output, 'g04-nip39-contact-unverified-mobile-en.png') });
+    const relayEventsBeforeProofCheck = (await wsQuery(relay0.url, { authors: [a.pubkey], limit: 100 })).map(event => event.id).sort();
+    await defaultPage.locator('#chat-nip39-list .identity-proof-entry button').click();
+    await defaultPage.waitForFunction(() => document.querySelector('#chat-nip39-list .identity-proof-entry [role="status"]')?.textContent.startsWith('Verified:'), null, { timeout: 5000 });
+    const proofFetches = await defaultPage.evaluate(() => window.__propertyIdentityProofFetches);
+    assert.equal(proofFetches.length, 1, 'GitHub is contacted only after the explicit Verify click');
+    assert.deepEqual(proofFetches[0], {
+      url: `https://api.github.com/gists/${gistId}`, method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store',
+      redirect: 'error', referrerPolicy: 'no-referrer', accept: 'application/vnd.github+json'
+    });
+    await defaultPage.screenshot({ path: path.join(options.output, 'g04-nip39-contact-verified-mobile-en.png') });
+    await defaultPage.locator('#language-picker').selectOption('pt-BR');
+    await defaultPage.waitForFunction(() => document.querySelector('#chat-nip39-list .identity-proof-entry [role="status"]')?.textContent.startsWith('Verificado:'));
+    await defaultPage.screenshot({ path: path.join(options.output, 'g04-nip39-contact-verified-mobile-pt-BR.png') });
+    await defaultPage.locator('#language-picker').selectOption('en');
+    const relayEventsAfterProofCheck = (await wsQuery(relay0.url, { authors: [a.pubkey], limit: 100 })).map(event => event.id).sort();
+    assert.deepEqual(relayEventsAfterProofCheck, relayEventsBeforeProofCheck, 'checking a proof publishes no relay event');
+    report.nip39_identity_proof = { signed_kind_10011_published: true, proof_text_copied: true, contact_claim_loaded_without_github_request: true,
+      explicit_verify_click_made_one_mocked_request: true, request_credentials_omitted: true, verified_result_rendered: true,
+      relay_events_published_by_verification: 0, external_network_requests: 0 };
+    mark('G04-20', 'PASS', 'A person copied the canonical verification text and explicitly published one signed kind 10011 GitHub claim. A contact loaded the signed claim without contacting GitHub; only tapping Verify made one mocked, credential-free request, rendered the matching proof as verified, and published no relay event.');
 
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
     const browserRuntimeAttempts = proxy.attempts.filter(attempt => attempt.destination === 'aus5.mozilla.org:443');

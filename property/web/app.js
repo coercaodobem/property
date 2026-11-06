@@ -18,6 +18,7 @@
   const Campaigns = window.PropertyCampaigns;
   const Contact = window.PropertyContact;
   const PublicProfile = window.PropertyPublicProfile;
+  const IdentityProofs = window.PropertyNip39;
   const AgentMessages = window.PropertyAgentMessages;
   const MessageSearch = window.PropertyMessageSearch;
   const FolderStore = window.PropertyConversationFolders;
@@ -46,7 +47,7 @@
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     currentConversation: null,
     activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
-    peerProfiles: new Map(), chatDetailsPeer: '',
+    peerProfiles: new Map(), peerProfileLookupStatuses: new Map(), peerIdentityProofs: new Map(), identityProofChecks: new Map(), chatDetailsPeer: '', identityProofCheckId: 0,
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
@@ -194,6 +195,108 @@
     fields.hidden = ![profile.displayName, profile.name, profile.about, profile.nip05, profile.website].some(Boolean);
     resetPeerNip05Check(profile);
   }
+  function renderPeerProfileLookupStatus(peer) {
+    const lookup = state.peerProfileLookupStatuses.get(peer);
+    if (lookup === 'missing-with-identity') $('chat-profile-status').textContent = localized('No signed kind 0 profile was found; linked identity claims were loaded.', 'Nenhum perfil assinado kind 0 foi encontrado; as declarações de identidade vinculadas foram carregadas.');
+    else if (lookup === 'missing') $('chat-profile-status').textContent = localized('No valid public profile or linked identity was found on these relays.', 'Nenhum perfil público ou identidade vinculada válida foi encontrada nestes relays.');
+    else if (lookup === 'saved-profile-stale') $('chat-profile-status').textContent = localized('No newer valid profile was found. The saved profile is still shown.', 'Nenhum perfil válido mais recente foi encontrado. O perfil salvo continua exibido.');
+  }
+  function identityProofSettingId(pubkey) { return `public-identity-proofs-${pubkey}`; }
+  function identityProofCheckKey(peer, record, claim) { return `${peer}:${record.eventId}:${claim.platform}:${claim.identity}:${claim.proof}`; }
+  function identityProofResultText(result) {
+    return result.status === 'verified'
+      ? localized('Verified: the public Gist belongs to this GitHub account and contains this Nostr key.', 'Verificado: a Gist pública pertence a esta conta do GitHub e contém esta chave Nostr.')
+      : result.status === 'unverified' && result.reason === 'owner'
+        ? localized('Not verified: the Gist author does not match the claimed GitHub account.', 'Não verificado: a autoria da Gist não corresponde à conta GitHub declarada.')
+        : result.status === 'unverified' && result.reason === 'npub-missing'
+          ? localized('Not verified: the Gist does not contain this Nostr key.', 'Não verificado: a Gist não contém esta chave Nostr.')
+          : result.status === 'unverified'
+            ? localized('Not verified: the Gist is private, incomplete, too large, or has an unsupported format.', 'Não verificado: a Gist é privada, incompleta, grande demais ou tem um formato não compatível.')
+            : result.status === 'invalid'
+              ? localized('The linked GitHub proof is malformed.', 'A prova GitHub vinculada está malformada.')
+              : result.status === 'checking'
+                ? localized('Checking the public GitHub Gist…', 'Consultando a Gist pública do GitHub…')
+                : localized('Could not check GitHub. The request may be blocked or unavailable.', 'Não foi possível consultar o GitHub. A solicitação pode estar bloqueada ou indisponível.');
+  }
+  function renderPeerIdentityProofs(record) {
+    const section = $('chat-nip39-section');
+    const list = $('chat-nip39-list');
+    const status = $('chat-nip39-status');
+    list.replaceChildren();
+    if (!record?.claims?.length) { section.hidden = true; return; }
+    section.hidden = false;
+    status.textContent = localized('Identity claims signed by this Nostr key.', 'Declarações de identidade assinadas por esta chave Nostr.');
+    record.claims.forEach(claim => {
+      const card = document.createElement('article');
+      card.className = 'identity-proof-entry';
+      const title = document.createElement('strong');
+      title.textContent = `${claim.platform}:${claim.identity}`;
+      const proof = document.createElement('code');
+      proof.textContent = claim.proof;
+      const result = document.createElement('p');
+      result.className = 'fine-print';
+      result.setAttribute('role', 'status');
+      result.setAttribute('aria-live', 'polite');
+      const checkKey = identityProofCheckKey(state.chatDetailsPeer, record, claim);
+      const previousCheck = state.identityProofChecks.get(checkKey);
+      result.textContent = previousCheck
+        ? identityProofResultText(previousCheck)
+        : localized('Signed claim · not verified', 'Declaração assinada · não verificada');
+      card.append(title, proof);
+      const url = claim.platform === 'github' ? IdentityProofs.githubGistUrl(claim) : '';
+      if (url) {
+        const actions = document.createElement('div');
+        actions.className = 'identity-proof-actions';
+        const link = document.createElement('a');
+        link.className = 'button text';
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = localized('Open proof', 'Abrir prova');
+        const verify = document.createElement('button');
+        verify.type = 'button';
+        verify.className = 'button secondary';
+        verify.textContent = localized('Verify on GitHub', 'Verificar no GitHub');
+        verify.addEventListener('click', () => verifyPeerGitHubIdentity(record, claim, result, verify));
+        actions.append(link, verify);
+        card.append(actions);
+      } else {
+        result.textContent = localized('Property does not verify this provider yet.', 'O Property ainda não verifica este provedor.');
+      }
+      card.append(result);
+      list.append(card);
+    });
+  }
+  function renderChatDetailsForCurrentLanguage() {
+    const peer = state.chatDetailsPeer;
+    if (!$('chat-details-dialog').open || !peer || $('chat-public-profile-section').hidden) return;
+    renderPeerPublicProfile(state.peerProfiles.get(peer) || null);
+    renderPeerProfileLookupStatus(peer);
+    renderPeerIdentityProofs(state.peerIdentityProofs.get(peer) || null);
+  }
+  async function verifyPeerGitHubIdentity(record, claim, status, button) {
+    const peer = state.chatDetailsPeer;
+    if (!peer || !$('chat-details-dialog').open || state.peerIdentityProofs.get(peer)?.eventId !== record.eventId) return;
+    const checkId = ++state.identityProofCheckId;
+    const checkKey = identityProofCheckKey(peer, record, claim);
+    state.identityProofChecks.set(checkKey, { status: 'checking' });
+    button.disabled = true;
+    status.textContent = localized('Checking the public GitHub Gist…', 'Consultando a Gist pública do GitHub…');
+    try {
+      let result;
+      try { result = await IdentityProofs.verifyGitHubClaim(claim, N.nip19.npubEncode(peer)); }
+      catch { result = { status: 'unavailable', reason: 'network' }; }
+      if (checkId !== state.identityProofCheckId || state.chatDetailsPeer !== peer || !$('chat-details-dialog').open || state.peerIdentityProofs.get(peer)?.eventId !== record.eventId) {
+        state.identityProofChecks.delete(checkKey);
+        return;
+      }
+      state.identityProofChecks.set(checkKey, result);
+      while (state.identityProofChecks.size > 64) state.identityProofChecks.delete(state.identityProofChecks.keys().next().value);
+      renderPeerIdentityProofs(record);
+    } finally {
+      if (checkId === state.identityProofCheckId && state.chatDetailsPeer === peer && $('chat-details-dialog').open && button.isConnected) button.disabled = false;
+    }
+  }
   async function openChatDetails() {
     const peer = state.activePeer;
     if (!peer) return;
@@ -212,6 +315,7 @@
         `Private NIP-17 group · ${count} members. Group membership and removal controls are not available in this app.`,
         `Grupo privado NIP-17 · ${count} participantes. Este app não oferece controles de associação ou remoção de membros.`
       );
+      renderPeerIdentityProofs(null);
     } else {
       let profile = state.peerProfiles.get(peer);
       if (!profile) {
@@ -219,6 +323,14 @@
         if (cached) { profile = cached; state.peerProfiles.set(peer, cached); }
       }
       renderPeerPublicProfile(profile);
+      renderPeerProfileLookupStatus(peer);
+      let identityRecord = state.peerIdentityProofs.get(peer);
+      if (!identityRecord) {
+        const cached = await get('settings', identityProofSettingId(peer));
+        identityRecord = cached?.event ? IdentityProofs.parseEvent(cached.event, peer, event => N.verifyEvent(event)) : null;
+        if (identityRecord) state.peerIdentityProofs.set(peer, identityRecord);
+      }
+      renderPeerIdentityProofs(identityRecord);
     }
     $('chat-details-dialog').showModal();
   }
@@ -234,17 +346,30 @@
       const conversation = await get('conversations', peer);
       const hints = state.peerRelayHints.get(peer) || conversation?.relayHints || [];
       const urls = [...new Set([...state.relays, ...hints.map(normalizeRelay)])];
-      const events = await fetchEvents({ kinds: [0], authors: [peer], limit: 20 }, 7000, urls);
+      const events = await fetchEvents({ kinds: [0, IdentityProofs.KIND], authors: [peer], limit: 40 }, 7000, urls);
+      if (state.chatDetailsPeer !== peer || !$('chat-details-dialog').open) return;
       const profile = PublicProfile.latest(events, peer, event => N.verifyEvent(event));
+      let priorIdentity = state.peerIdentityProofs.get(peer) || null;
+      if (!priorIdentity) {
+        const cached = await get('settings', identityProofSettingId(peer));
+        priorIdentity = cached?.event ? IdentityProofs.parseEvent(cached.event, peer, event => N.verifyEvent(event)) : null;
+      }
+      const identityRecord = IdentityProofs.latestRecord([...(priorIdentity?.event ? [priorIdentity.event] : []), ...events], peer, event => N.verifyEvent(event));
+      if (identityRecord) {
+        state.peerIdentityProofs.set(peer, identityRecord);
+        await put('settings', { id: identityProofSettingId(peer), event: identityRecord.event, checkedAt: Date.now() });
+      }
+      renderPeerIdentityProofs(identityRecord || priorIdentity);
       if (!profile) {
         renderPeerPublicProfile(state.peerProfiles.get(peer));
-        status.textContent = state.peerProfiles.has(peer)
-          ? localized('No newer valid profile was found. The saved profile is still shown.', 'Nenhum perfil válido mais recente foi encontrado. O perfil salvo continua exibido.')
-          : localized('No valid public profile was found on these relays.', 'Nenhum perfil público válido foi encontrado nestes relays.');
+        state.peerProfileLookupStatuses.set(peer, identityRecord?.claims?.length || priorIdentity?.claims?.length
+          ? 'missing-with-identity' : state.peerProfiles.has(peer) ? 'saved-profile-stale' : 'missing');
+        renderPeerProfileLookupStatus(peer);
         return;
       }
       profile.checkedAt = Date.now();
       state.peerProfiles.set(peer, profile);
+      state.peerProfileLookupStatuses.set(peer, 'loaded');
       await put('settings', { id: publicProfileSettingId(peer), ...profile });
       renderPeerPublicProfile(profile);
       if (state.activePeer === peer) await updateConversationHeader(await get('conversations', peer));
@@ -252,6 +377,7 @@
     } catch (error) {
       renderPeerPublicProfile(state.peerProfiles.get(peer));
       status.textContent = localized(`Could not load a profile: ${error.message || 'relay error'}`, `Não foi possível carregar o perfil: ${error.message || 'erro de relay'}`);
+      state.peerProfileLookupStatuses.set(peer, 'error');
     } finally {
       button.disabled = false;
       button.textContent = localized('Load latest public profile', 'Carregar perfil público mais recente');
@@ -804,6 +930,14 @@
     $('profile-nip05').value = profile.nip05 || '';
     $('profile-initial').textContent = profile.name?.slice(0, 1)?.toUpperCase() || 'L';
     resetOwnNip05Check();
+    const cachedIdentity = await get('settings', identityProofSettingId(state.pubkey));
+    const identityRecord = cachedIdentity?.event ? IdentityProofs.parseEvent(cachedIdentity.event, state.pubkey, event => N.verifyEvent(event)) : null;
+    const github = identityRecord?.claims.find(claim => claim.platform === 'github');
+    $('profile-github-username').value = github?.identity || '';
+    $('profile-github-gist').value = github?.proof || '';
+    $('profile-nip39-status').textContent = github
+      ? localized('A signed GitHub link is saved on this device. Load from relays to refresh it.', 'Um vínculo GitHub assinado está salvo neste aparelho. Carregue dos relays para atualizá-lo.')
+      : '';
   }
   function openContactIntent(value) {
     $('peer-input').value = value;
@@ -2736,26 +2870,45 @@
       ? localized('Profile saved locally and published to relays.', 'Perfil salvo localmente e publicado nos relays.')
       : localized('Profile saved on this device; no relay confirmed the profile.', 'Perfil salvo neste aparelho; nenhum relay confirmou o perfil.'));
   }
-  async function readOwnPublicProfile() {
+  async function readOwnPublicProfile(pubkey = state.pubkey) {
     const relays = [...new Set(state.relays.map(normalizeRelay))];
     for (const url of relays) connectRelay(url);
     const reachable = (await Promise.all(relays.map(async url => await waitForOpen(url) ? url : null))).filter(Boolean);
-    if (!reachable.length) return { reachable: false, record: null };
-    const events = await fetchEvents({ kinds: [0], authors: [state.pubkey], limit: 20 }, 7000, reachable);
-    return { reachable: true, record: PublicProfile.latestRecord(events, state.pubkey, N.verifyEvent) };
+    if (!reachable.length) return { reachable: false, record: null, identityRecord: null };
+    const events = await fetchEvents({ kinds: [0, IdentityProofs.KIND], authors: [pubkey], limit: 40 }, 7000, reachable);
+    return {
+      reachable: true,
+      record: PublicProfile.latestRecord(events, pubkey, N.verifyEvent),
+      identityRecord: IdentityProofs.latestRecord(events, pubkey, N.verifyEvent)
+    };
   }
   async function loadOwnPublicProfile() {
+    const pubkey = state.pubkey;
     const button = $('load-public-profile');
     const status = $('profile-save-status');
     button.disabled = true;
     showError('profile-error');
     status.textContent = localized('Loading the latest profile from your saved relays…', 'Carregando o perfil mais recente dos relays salvos…');
     try {
-      const result = await readOwnPublicProfile();
+      const result = await readOwnPublicProfile(pubkey);
+      if (!pubkey || state.pubkey !== pubkey || !$('profile-dialog').open) return;
       if (!result.reachable) {
         status.textContent = localized('Could not reach your saved relays. Nothing was loaded.', 'Não foi possível acessar seus relays salvos. Nada foi carregado.');
         return;
       }
+      if (result.identityRecord) {
+        await put('settings', { id: identityProofSettingId(state.pubkey), event: result.identityRecord.event, checkedAt: Date.now() });
+      } else {
+        await del('settings', identityProofSettingId(state.pubkey));
+      }
+      const github = result.identityRecord?.claims.find(claim => claim.platform === 'github');
+      $('profile-github-username').value = github?.identity || '';
+      $('profile-github-gist').value = github?.proof || '';
+      $('profile-nip39-status').textContent = github
+        ? localized('Signed GitHub link loaded from a saved relay.', 'Vínculo GitHub assinado carregado de um relay salvo.')
+        : result.identityRecord?.claims.length
+          ? localized('Other identity claims were loaded and will be preserved when you publish this link.', 'Outras declarações de identidade foram carregadas e serão preservadas ao publicar este vínculo.')
+          : '';
       if (!result.record) {
         $('profile-name').value = '';
         $('profile-about').value = '';
@@ -2763,7 +2916,9 @@
         $('profile-picture').value = '';
         $('profile-nip05').value = '';
         resetOwnNip05Check();
-        status.textContent = localized('No signed public profile was found on your saved relays.', 'Nenhum perfil público assinado foi encontrado nos seus relays salvos.');
+        status.textContent = result.identityRecord?.claims.length
+          ? localized('No signed kind 0 profile was found; linked identity claims were loaded.', 'Nenhum perfil assinado kind 0 foi encontrado; as declarações de identidade vinculadas foram carregadas.')
+          : localized('No signed public profile was found on your saved relays.', 'Nenhum perfil público assinado foi encontrado nos seus relays salvos.');
         return;
       }
       const { profile, metadata } = result.record;
@@ -2776,6 +2931,81 @@
       status.textContent = localized('Profile loaded from a saved relay. Review it before saving.', 'Perfil carregado de um relay salvo. Confira antes de salvar.');
     } finally {
       button.disabled = false;
+    }
+  }
+  async function copyGitHubVerificationText() {
+    if (!state.npub) return;
+    const text = IdentityProofs.verificationText(state.npub);
+    try {
+      await navigator.clipboard.writeText(text);
+      $('profile-github-proof-text').hidden = true;
+      $('profile-nip39-status').textContent = localized('Verification text copied. Paste it into one public Gist file.', 'Texto de verificação copiado. Cole-o em um arquivo de uma Gist pública.');
+    } catch {
+      const field = $('profile-github-proof-text');
+      field.value = text;
+      field.hidden = false;
+      field.focus();
+      field.select();
+      $('profile-nip39-status').textContent = localized('Copy was blocked. Select the verification text above and copy it manually.', 'A cópia foi bloqueada. Selecione o texto de verificação acima e copie manualmente.');
+    }
+  }
+  async function publishGitHubIdentity() {
+    const button = $('publish-github-identity');
+    const status = $('profile-nip39-status');
+    const pubkey = state.pubkey;
+    if (!pubkey || !state.secret) { status.textContent = localized('Unlock this identity before publishing.', 'Desbloqueie esta identidade antes de publicar.'); return; }
+    const username = $('profile-github-username').value.trim();
+    const gistId = $('profile-github-gist').value.trim();
+    let github = null;
+    if (username || gistId) {
+      try { github = IdentityProofs.githubClaim(username, gistId); }
+      catch (error) {
+        status.textContent = error.code === 'nip39-invalid-github-username'
+          ? localized('Enter a valid GitHub username.', 'Informe um nome de usuário GitHub válido.')
+          : localized('Enter the public Gist ID.', 'Informe o ID da Gist pública.');
+        return;
+      }
+    }
+    button.disabled = true;
+    status.textContent = localized('Checking saved relays before publishing…', 'Consultando os relays salvos antes de publicar…');
+    try {
+      const current = await readOwnPublicProfile(pubkey);
+      if (state.pubkey !== pubkey || !state.secret || !$('profile-dialog').open) return;
+      if (!current.reachable) {
+        status.textContent = localized('Could not reach a saved relay. Nothing was published.', 'Não foi possível acessar um relay salvo. Nada foi publicado.');
+        return;
+      }
+      const claims = current.identityRecord?.claims || [];
+      const existingGitHub = claims.some(claim => claim.platform === 'github');
+      if (!github && !existingGitHub) {
+        status.textContent = localized('No published GitHub link was found to remove.', 'Nenhum vínculo GitHub publicado foi encontrado para remover.');
+        return;
+      }
+      const nextClaims = claims.filter(claim => claim.platform !== 'github');
+      if (github) nextClaims.push(github);
+      const event = finalize(IdentityProofs.KIND, '', IdentityProofs.eventTags(nextClaims));
+      status.textContent = localized('Publishing the signed identity link to your saved relays…', 'Publicando o vínculo de identidade assinado nos relays salvos…');
+      const sent = await publishToRelays(event);
+      if (state.pubkey !== pubkey || !state.secret || !$('profile-dialog').open) return;
+      if (!sent) {
+        status.textContent = localized('No relay confirmed the public identity link. It remains unpublished.', 'Nenhum relay confirmou o vínculo público. Ele não foi marcado como publicado.');
+        return;
+      }
+      const record = IdentityProofs.parseEvent(event, pubkey, signed => N.verifyEvent(signed));
+      if (!record) throw new Error('The signed NIP-39 event could not be verified locally.');
+      await put('settings', { id: identityProofSettingId(pubkey), event, checkedAt: Date.now() });
+      $('profile-github-username').value = github?.identity || '';
+      $('profile-github-gist').value = github?.proof || '';
+      $('profile-github-proof-text').hidden = true;
+      status.textContent = github
+        ? localized('Signed GitHub identity link published. It is a public claim until a contact verifies the Gist.', 'Vínculo GitHub assinado publicado. É uma declaração pública até que um contato verifique a Gist.')
+        : localized('The public GitHub identity link was removed.', 'O vínculo público com o GitHub foi removido.');
+    } catch (error) {
+      status.textContent = error?.code?.startsWith?.('nip39-')
+        ? localized('The identity link could not be published because it is invalid.', 'O vínculo de identidade não pôde ser publicado porque é inválido.')
+        : localized('Could not publish the identity link. No claim was marked as published.', 'Não foi possível publicar o vínculo de identidade. Nenhuma declaração foi marcada como publicada.');
+    } finally {
+      if (state.pubkey === pubkey) button.disabled = false;
     }
   }
   async function closeIdentityRelaySubscriptions() {
@@ -2884,7 +3114,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v57', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v58', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -2996,6 +3226,10 @@
     $('chat-details-button').addEventListener('click', () => openChatDetails().catch(error => showToast(error.message || localized('Could not open conversation details.', 'Não foi possível abrir os detalhes da conversa.'))));
     $('load-chat-public-profile').addEventListener('click', () => loadChatPublicProfile());
     $('verify-profile-nip05').addEventListener('click', () => verifyOwnNip05());
+    $('copy-github-proof-text').addEventListener('click', () => copyGitHubVerificationText().catch(() => {
+      $('profile-nip39-status').textContent = localized('Could not prepare the verification text.', 'Não foi possível preparar o texto de verificação.');
+    }));
+    $('publish-github-identity').addEventListener('click', () => publishGitHubIdentity());
     $('profile-nip05').addEventListener('input', resetOwnNip05Check);
     $('verify-chat-nip05').addEventListener('click', () => verifyPeerNip05());
     $('save-chat-local-name').addEventListener('click', () => saveConversationLocalName().catch(error => showToast(error.message || localized('Could not save the local name.', 'Não foi possível salvar o nome local.'))));
@@ -3022,6 +3256,9 @@
     $('mobile-open-settings').addEventListener('click', openRelaySettings);
     $('first-use-open-relays').addEventListener('click', openRelaySettings);
     $('language-picker').addEventListener('change', renderFirstUseRelaySuggestions);
+    $('language-picker').addEventListener('change', () => {
+      renderChatDetailsForCurrentLanguage();
+    });
     $('create-folder-button').addEventListener('click', () => openFolderEditor());
     $('folder-save').addEventListener('click', () => saveFolderEditor());
     $('folder-name-input').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); saveFolderEditor(); } });

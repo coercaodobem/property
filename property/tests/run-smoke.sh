@@ -25,6 +25,7 @@ for test_file in \
   nostr-entities-smoke.mjs \
   secret-guard-smoke.mjs \
   nip05-smoke.mjs \
+  nip39-smoke.mjs \
   vault-smoke.mjs \
   forwarding-smoke.mjs \
   sw-update-smoke.mjs \

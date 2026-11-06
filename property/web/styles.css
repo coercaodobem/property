@@ -91,3 +91,5 @@
 
 .empty-state{max-width:540px}.empty-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:460px;margin:18px auto 8px}.empty-actions .button{width:100%;min-height:44px;white-space:normal}.empty-state>.button.text{margin-top:2px}.empty-state>.fine-print{max-width:420px;margin:10px auto 0}
 @media(max-width:520px){.empty-actions{grid-template-columns:1fr;max-width:360px}}
+.nip39-identities .dialog-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.nip39-identities .dialog-actions .button{white-space:normal}.identity-proof-list{display:grid;gap:10px;margin:10px 0}.identity-proof-entry{display:grid;gap:7px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#111a22;overflow-wrap:anywhere}.identity-proof-entry>code{font-size:12px;color:#d6e0e5}.identity-proof-entry>.fine-print{margin:0}.identity-proof-actions{display:flex;flex-wrap:wrap;gap:7px}.identity-proof-actions .button{min-height:38px}.chat-identity-claims h3{margin:12px 0 4px;font-size:15px}
+@media(max-width:520px){.nip39-identities .dialog-actions{grid-template-columns:1fr}}
