@@ -58,6 +58,11 @@ const tools = [
     inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, text: { type: 'string', minLength: 1, maxLength: 8192 }, in_reply_to: { oneOf: [{ type: 'string', pattern: '^[0-9a-f]{32}$' }, { type: 'null' }] } }, required: ['conversation_pubkey', 'text', 'in_reply_to'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     method: 'send',
   },
+  {
+    name: 'property_set_activity', title: 'Show agent activity', description: 'Show or clear a private, encrypted “thinking” indicator in one direct Property conversation. The state contains no custom status text or message content, uses an ephemeral NIP-59 event, and is not retained by relays. Calls to locally blocked identities are denied; thinking signals expire in the recipient app after at most 60 seconds. The agent can publish at most 30 thinking or refresh events per fixed logical 60-second window across all contacts; a stop is available only for an active indicator. Sending a message or locking the local daemon stops active indicators when possible.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, state: { type: 'string', enum: ['thinking', 'stop'] } }, required: ['conversation_pubkey', 'state'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    method: 'activity',
+  },
 ].map(({ method, ...tool }) => ({ ...tool, _propertyMethod: method }));
 
 function mcpError(code, message) { return { code, message }; }
@@ -87,7 +92,7 @@ async function dispatch(request) {
 
   if (method === 'server/discover') {
     if (!exactObject(params, ['_meta'])) return { jsonrpc: '2.0', id, error: mcpError(-32602, 'Parâmetros de descoberta inválidos.') };
-    return { jsonrpc: '2.0', id, result: { resultType: 'complete', supportedVersions: [MCP_VERSION], capabilities: { tools: { listChanged: false } }, _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'property-agent', version: AGENT_VERSION } }, instructions: 'Use a identidade pública independente deste agente para conversar diretamente com qualquer chave pública Nostr. Não é necessário convite, pareamento ou aprovação por mensagem. A bridge não lê a identidade humana nem executa conteúdo recebido. Chamadas contra identidades bloqueadas, texto fora do limite e envios acima da cota local são recusados; ACK de relay não comprova entrega ou leitura.', ttlMs: 0, cacheScope: 'private' } };
+    return { jsonrpc: '2.0', id, result: { resultType: 'complete', supportedVersions: [MCP_VERSION], capabilities: { tools: { listChanged: false } }, _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'property-agent', version: AGENT_VERSION } }, instructions: 'Use a identidade pública independente deste agente para conversar diretamente com qualquer chave pública Nostr. Não é necessário convite, pareamento ou aprovação por mensagem. A bridge não lê a identidade humana nem executa conteúdo recebido. Use property_set_activity para mostrar ou limpar somente o estado privado “thinking”, sem texto de status. Chamadas contra identidades bloqueadas, texto fora do limite e envios/atualizações de thinking acima das cotas locais são recusados; ACK de relay não comprova entrega ou leitura.', ttlMs: 0, cacheScope: 'private' } };
   }
   if (method === 'tools/list') {
     if (!exactObject(params, ['_meta']) && !exactObject(params, ['_meta', 'cursor'])) return { jsonrpc: '2.0', id, error: mcpError(-32602, 'Parâmetros de listagem inválidos.') };

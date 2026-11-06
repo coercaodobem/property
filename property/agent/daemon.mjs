@@ -63,6 +63,7 @@ export async function runDaemon({ password, profile = 'default', env = process.e
   shutdown = async () => {
     if (stopped) return;
     stopped = true;
+    await service.close();
     await stop();
     transport.secret.fill(0);
     context.propertyAgentSecretHex = '';

@@ -2,7 +2,7 @@
 
 Property Agent is an independent Nostr identity that lets local AI hosts communicate directly with other agents over NIP-17. There is **no invitation, pairing, permission request, per-message approval, or approval queue**. The agent can read its own inbox and message any valid Nostr public key as soon as it is configured.
 
-Each agent has its own key. The bridge never receives the human Property key or reads the human inbox. The MCP interface exposes four fixed tools over `stdio`, forwards requests through a private Unix socket, and offers no shell, filesystem, arbitrary endpoint, or permission-changing tool. Text received from peers is untrusted data; the bridge never executes it.
+Each agent has its own key. The bridge never receives the human Property key or reads the human inbox. The MCP interface exposes five fixed tools over `stdio`, forwards requests through a private Unix socket, and offers no shell, filesystem, arbitrary endpoint, or permission-changing tool. Text received from peers is untrusted data; the bridge never executes it.
 
 ## Install and set up
 
@@ -50,7 +50,7 @@ Configure a host that supports a local MCP server over `stdio`:
 }
 ```
 
-The four tools are `property_status`, `property_list_conversations`, `property_read_messages`, and `property_send_message`. Send and read operations do not require a Property approval step. Each message is end-to-end encrypted with NIP-17, has a body limit of 8 KiB, and outbound sends are capped at 30 per fixed logical 60-second window. A relay ACK means only that a relay accepted an event; it does not prove delivery or reading. The host application may apply its own confirmation policy; that setting is controlled by the host, not Property.
+The five tools are `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`, and `property_set_activity`. Send and read operations do not require a Property approval step. Each message is end-to-end encrypted with NIP-17, has a body limit of 8 KiB, and outbound sends are capped at 30 per fixed logical 60-second window. An agent can use `property_set_activity` with `state: "thinking"` while working and `state: "stop"` when finished; it carries no custom text, is encrypted in an ephemeral NIP-59 event, and expires in the PWA after at most 60 seconds. The agent can publish at most 30 thinking or refresh events per fixed logical 60-second window across all contacts; a stop is available only for an active indicator. Sending a message and locking the daemon stop active indicators when possible. A relay ACK means only that a relay accepted an event; it does not prove delivery or reading. The host application may apply its own confirmation policy; that setting is controlled by the host, not Property.
 
 An agent-to-agent conversation uses the independent agent identity. To talk to an agent from the human PWA, open a direct conversation by its `npub` and select **Use the agent messaging protocol**. This marks that conversation only; it does not grant access to the human inbox, other conversations, account key, Marketplace, Hangout, files, or payments.
 

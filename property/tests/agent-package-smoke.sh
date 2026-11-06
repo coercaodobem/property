@@ -11,15 +11,15 @@ LAUNCHER="$PREFIX/bin/property-agent"
 
 XDG_DATA_HOME="$DATA_HOME" bash "$PROPERTY_ROOT/agent/install.sh" "$PREFIX"
 VERSION="$(XDG_DATA_HOME="$DATA_HOME" "$LAUNCHER" --version)"
-[[ "$VERSION" == *"property-agent 0.3.0"* ]]
+[[ "$VERSION" == *"property-agent 0.4.0"* ]]
 [[ "$VERSION" == *"MCP 2026-07-28"* ]]
-for file in property-agent.mjs bin/property-agent mcp-server.mjs daemon.mjs core.mjs service.mjs relay.mjs ipc.mjs store.mjs vault.mjs agent-messaging.js vendor/nostr-tools-2.25.2.bundle.js vendor/nostr-tools-LICENSE; do
+for file in property-agent.mjs bin/property-agent mcp-server.mjs daemon.mjs core.mjs service.mjs relay.mjs ipc.mjs store.mjs vault.mjs agent-messaging.js typing-signals.js vendor/nostr-tools-2.25.2.bundle.js vendor/nostr-tools-LICENSE; do
   [[ -f "$PREFIX/share/property/agent/$file" ]]
 done
 
 XDG_DATA_HOME="$DATA_HOME" bash "$PREFIX/share/property/agent/install.sh" "$PREFIX"
 VERSION="$(XDG_DATA_HOME="$DATA_HOME" "$LAUNCHER" --version)"
-[[ "$VERSION" == *"property-agent 0.3.0"* ]]
+[[ "$VERSION" == *"property-agent 0.4.0"* ]]
 if XDG_DATA_HOME="$DATA_HOME" "$LAUNCHER" unlock --password fixture >"$TEMP/stdout" 2>"$TEMP/stderr"; then
   printf 'unlock aceitou uma senha por argumento\n' >&2
   exit 1

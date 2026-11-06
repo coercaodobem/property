@@ -1,6 +1,6 @@
 {
   "name": "property-agent-local",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "platformsImplemented": ["linux-x64"],
   "platformsPending": ["windows", "macos", "android", "ios"],
   "node": ">=22",
@@ -26,6 +26,7 @@
     "store.mjs",
     "vault.mjs",
     "agent-messaging.js",
+    "typing-signals.js",
     "vendor/nostr-tools-2.25.2.bundle.js",
     "vendor/nostr-tools-LICENSE"
   ]

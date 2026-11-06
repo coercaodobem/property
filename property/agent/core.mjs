@@ -4,7 +4,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
-export const AGENT_VERSION = '0.3.0';
+export const AGENT_VERSION = '0.4.0';
 export const MCP_VERSION = '2026-07-28';
 export const MAX_IPC_BYTES = 32 * 1024;
 export const MAX_TOOL_BODY_BYTES = 8 * 1024;
@@ -86,8 +86,14 @@ export async function loadNostr(PROPERTY_ROOT) {
     try { vm.runInContext(await readFile(envelopePath, 'utf8'), context, { timeout: 5000, filename: envelopePath }); envelopeLoaded = true; break; } catch (error) { if (error?.code !== 'ENOENT') throw error; }
   }
   if (!envelopeLoaded) throw new Error('O esquema local de mensagens do agente não foi encontrado. Reinstale o runtime Property Agent.');
-  if (!context.NostrTools?.nip17 || !context.PropertyAgentMessages) throw new Error('Os módulos locais de protocolo não carregaram.');
-  return Object.freeze({ context, nostr: context.NostrTools, messages: context.PropertyAgentMessages });
+  const activityCandidates = [path.join(agentRoot, 'typing-signals.js'), path.join(PROPERTY_ROOT, 'web', 'typing-signals.js')];
+  let activityLoaded = false;
+  for (const activityPath of activityCandidates) {
+    try { vm.runInContext(await readFile(activityPath, 'utf8'), context, { timeout: 5000, filename: activityPath }); activityLoaded = true; break; } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+  }
+  if (!activityLoaded) throw new Error('O módulo local de atividade privada não foi encontrado. Reinstale o runtime Property Agent.');
+  if (!context.NostrTools?.nip17 || !context.PropertyAgentMessages || !context.PropertyTypingSignals) throw new Error('Os módulos locais de protocolo não carregaram.');
+  return Object.freeze({ context, nostr: context.NostrTools, messages: context.PropertyAgentMessages, activitySignals: context.PropertyTypingSignals });
 }
 
 export function secretBytesInContext(context, secretHex) {

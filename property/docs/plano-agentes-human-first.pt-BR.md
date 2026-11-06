@@ -24,7 +24,7 @@ A escolha do protocolo não entrega ao agente a chave humana, as outras conversa
 
 ### Fluxo agente
 
-O host MCP usa uma identidade Nostr independente, configura seus inbox relays e chama quatro tools locais. `property_send_message` endereça qualquer chave pública válida sem cadastro prévio. `property_read_messages` consulta somente o inbox da identidade do agente. O daemon usa socket Unix local; MCP usa stdio.
+O host MCP usa uma identidade Nostr independente, configura seus inbox relays e chama cinco tools locais. `property_send_message` endereça qualquer chave pública válida sem cadastro prévio. `property_read_messages` consulta somente o inbox da identidade do agente. `property_set_activity` envia um estado `thinking`/`stop`, sem texto, à conversa direta no Property por um evento efêmero NIP-59 criptografado. O daemon usa socket Unix local; MCP usa stdio.
 
 ## 2. Arquitetura e limites
 
@@ -33,7 +33,7 @@ O host MCP usa uma identidade Nostr independente, configura seus inbox relays e 
 - **Envelope:** `property-agent-message/v1` com campos estritos para versão, conversa, mensagem, correlação e corpo de texto. Corpo até 8 KiB; envelope até 16 KiB.
 - **Cota:** até 30 envios por agente por janela lógica fixa de 60 segundos. Ensaios avançam relógio lógico e contagem; não esperam a passagem de tempo real.
 - **Bloqueio:** local ao aparelho/daemon. Não é aprovação nem cadastro obrigatório; bloqueia leitura/envio futuros e pode ser revertido. Não remove cópias anteriores de relays ou hosts.
-- **MCP:** quatro tools fixas: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`. Nenhuma tool de aprovação, expansão de permissão, shell, filesystem, browser ou assinatura arbitrária.
+- **MCP:** cinco tools fixas: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`, `property_set_activity`. Atividade aceita somente `thinking` ou `stop`, sem estado textual livre. Nenhuma tool de aprovação, expansão de permissão, shell, filesystem, browser ou assinatura arbitrária.
 - **Privacidade:** chave humana nunca vai à bridge. Relays podem observar metadados do protocolo. O texto que um host de IA leu pode ser mantido pelo próprio host.
 - **Plataformas:** neste plano, resultados Linux/Ubuntu não provam Windows, macOS, Android ou iOS. Sistemas não executados ficam `PENDING`.
 
@@ -81,11 +81,11 @@ Gates devem ser executados em ordem, com evidência completa, contagens fixas e 
 
 ### G4 — MCP local
 
-**Ensaio offline:** dois processos agentes, dois clientes MCP fixture, um Geode loopback. Inventário fechado com quatro tools.
+**Ensaio offline:** dois processos agentes, dois clientes MCP fixture, um Geode loopback. Inventário fechado com cinco tools.
 
-**Contagens:** por agente, 25 leituras e 25 envios; 10 leituras diretas sem cadastro; ao menos um envio a uma identidade válida ainda não cadastrada; duas chamadas simultâneas; 10 chamadas de tools inexistentes; 10 ciclos de reinício stdio; 10 erros de relay indisponível; bloquear/desbloquear e verificar leitura/envio.
+**Contagens:** por agente, 25 leituras e 25 envios; 12 eventos thinking/stop (cinco pares de início/fim mais um estado thinking encerrado pelo lock do daemon); 10 leituras diretas sem cadastro; ao menos um envio a uma identidade válida ainda não cadastrada; duas chamadas simultâneas; 10 chamadas de tools inexistentes; 10 ciclos de reinício stdio; 10 erros de relay indisponível; bloquear/desbloquear e verificar leitura/envio.
 
-**Aceite:** identidade pública independente, sem segredos; inbox consulta somente mensagens recebidas por aquela identidade; envio não requer aprovação Property; nenhuma fila/tool de aprovação ou allowlist; sem listener TCP. ACK só é relatado como aceitação do relay. Hosts comerciais não são simulados.
+**Aceite:** identidade pública independente, sem segredos; inbox consulta somente mensagens recebidas por aquela identidade; envio não requer aprovação Property; sinais de atividade contêm somente o estado fixo, são criptografados e efêmeros, limitados a 30 estados/renovações `thinking` por agente por janela lógica fixa de 60 segundos, param após mensagem/bloqueio do daemon quando possível e não ficam retidos no relay; nenhuma fila/tool de aprovação ou allowlist; sem listener TCP. ACK só é relatado como aceitação do relay. Hosts comerciais não são simulados.
 
 ### G5 — Segurança adversarial
 

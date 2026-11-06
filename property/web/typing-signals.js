@@ -5,6 +5,7 @@
   const MAX_PARTICIPANTS = 10;
   const TWO_DAYS_SECONDS = 2 * 24 * 60 * 60;
   const MAX_SIGNAL_AGE_SECONDS = 8;
+  const MAX_THINKING_AGE_SECONDS = 60;
   const KEY_RE = /^[0-9a-f]{64}$/i;
 
   function participantsFromRumor(rumor) {
@@ -22,7 +23,7 @@
         !nostr?.nip44?.getConversationKey || !nostr?.generateSecretKey || !nostr?.finalizeEvent) {
       throw new TypeError('Nostr tools do not support encrypted ephemeral typing signals.');
     }
-    if (!['typing', 'stop'].includes(action) || !Number.isSafeInteger(sequence) || sequence < 1) {
+    if (!['typing', 'thinking', 'stop'].includes(action) || !Number.isSafeInteger(sequence) || sequence < 1) {
       throw new TypeError('Invalid typing signal action or sequence.');
     }
     const sender = nostr.getPublicKey(secret).toLowerCase();
@@ -67,18 +68,19 @@
       const messageKey = nostr.nip44.getConversationKey(secret, seal.pubkey);
       const rumor = JSON.parse(nostr.nip44.decrypt(seal.content, messageKey));
       if (!rumor || rumor.kind !== RUMOR_KIND || rumor.pubkey !== seal.pubkey || rumor.id !== nostr.getEventHash(rumor) ||
-          typeof rumor.created_at !== 'number' || rumor.created_at > nowSeconds + 5 ||
-          nowSeconds - rumor.created_at > MAX_SIGNAL_AGE_SECONDS || typeof rumor.content !== 'string') return null;
+          typeof rumor.created_at !== 'number' || rumor.created_at > nowSeconds + 5 || typeof rumor.content !== 'string') return null;
       const participants = participantsFromRumor(rumor);
       if (!participants.includes(recipient) || participants.length < 2) return null;
       const payload = JSON.parse(rumor.content);
-      if (payload?.v !== 1 || !['typing', 'stop'].includes(payload.action) ||
+      if (payload?.v !== 1 || !['typing', 'thinking', 'stop'].includes(payload.action) ||
           !Number.isSafeInteger(payload.sequence) || payload.sequence < 1) return null;
-      return { sender: rumor.pubkey.toLowerCase(), participants, action: payload.action, sequence: payload.sequence };
+      const maxAgeSeconds = payload.action === 'thinking' ? MAX_THINKING_AGE_SECONDS : MAX_SIGNAL_AGE_SECONDS;
+      if (nowSeconds - rumor.created_at > maxAgeSeconds) return null;
+      return { sender: rumor.pubkey.toLowerCase(), participants, action: payload.action, sequence: payload.sequence, maxAgeSeconds };
     } catch {
       return null;
     }
   }
 
-  window.PropertyTypingSignals = Object.freeze({ RUMOR_KIND, EPHEMERAL_GIFT_WRAP_KIND, MAX_SIGNAL_AGE_SECONDS, create, unwrap });
+  window.PropertyTypingSignals = Object.freeze({ RUMOR_KIND, EPHEMERAL_GIFT_WRAP_KIND, MAX_SIGNAL_AGE_SECONDS, MAX_THINKING_AGE_SECONDS, create, unwrap });
 })();

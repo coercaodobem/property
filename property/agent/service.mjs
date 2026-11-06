@@ -1,6 +1,9 @@
 import { MAX_TOOL_BODY_BYTES, PUBKEY, SEND_LIMIT, SEND_WINDOW_SECONDS, exactObject, normalizeRelay, validateToolText, validateConfig } from './core.mjs';
 
 const HEX_ID = /^[0-9a-f]{32}$/;
+const ACTIVITY_LIMIT = 30;
+const ACTIVITY_WINDOW_SECONDS = 60;
+const ACTIVITY_TTL_SECONDS = 60;
 
 export class AgentService {
   constructor({ pubkey, loadConfig, saveConfig, transport, now = () => Math.floor(Date.now() / 1000) }) {
@@ -11,6 +14,8 @@ export class AgentService {
     this.transport = transport;
     this.now = now;
     this.mutationQueue = Promise.resolve();
+    this.activeThinking = new Map();
+    this.activityQuota = null;
   }
 
   #serialize(task) {
@@ -25,6 +30,7 @@ export class AgentService {
       case 'list': return this.list(params);
       case 'read': return this.read(params);
       case 'send': return this.send(params);
+      case 'activity': return this.activity(params);
       case 'relay.add': return this.addInboxRelay(params);
       case 'agent.block': return this.changeBlockedAgent(params, true);
       case 'agent.unblock': return this.changeBlockedAgent(params, false);
@@ -66,6 +72,44 @@ export class AgentService {
     return this.#serialize(() => this.#performSend(params));
   }
 
+  async activity(params) {
+    return this.#serialize(() => this.#performActivity(params));
+  }
+
+  #expireThinking(current) {
+    for (const [peer, activity] of this.activeThinking) {
+      if (activity.expiresAt <= current) this.activeThinking.delete(peer);
+    }
+  }
+
+  #consumeActivityQuota(current) {
+    if (!Number.isSafeInteger(current) || current < 0) throw new Error('invalid-logical-clock');
+    const window = Math.floor(current / ACTIVITY_WINDOW_SECONDS);
+    const previous = this.activityQuota;
+    if (previous && window < previous.window) throw new Error('logical-clock-rollback');
+    const count = previous?.window === window ? previous.count : 0;
+    if (count >= ACTIVITY_LIMIT) throw new Error('activity-quota-exceeded');
+    this.activityQuota = { window, count: count + 1 };
+  }
+
+  async #performActivity(params) {
+    if (!exactObject(params, ['conversation_pubkey', 'state']) || !PUBKEY.test(params.conversation_pubkey) || params.conversation_pubkey === this.pubkey || !['thinking', 'stop'].includes(params.state)) throw new Error('invalid-arguments');
+    const peer = params.conversation_pubkey;
+    const config = validateConfig(await this.loadConfig());
+    if (config.blocked_pubkeys.includes(peer)) throw new Error('agent-blocked-locally');
+    if (!config.inbox_relays.length) throw new Error('relay-not-configured');
+    const current = this.now();
+    if (!Number.isSafeInteger(current) || current < 0) throw new Error('invalid-logical-clock');
+    this.#expireThinking(current);
+    const wasThinking = this.activeThinking.has(peer);
+    if (params.state === 'stop' && !wasThinking) return { state: 'stop', changed: false, relay_acks: 0, relay_attempts: 0 };
+    if (params.state === 'thinking') this.#consumeActivityQuota(current);
+    const result = await this.transport.sendActivity(peer, params.state, config.inbox_relays);
+    if (params.state === 'thinking') this.activeThinking.set(peer, { relays: [...config.inbox_relays], expiresAt: current + ACTIVITY_TTL_SECONDS });
+    else this.activeThinking.delete(peer);
+    return { ...result, changed: params.state === 'thinking' ? !wasThinking : wasThinking, renewed: params.state === 'thinking' && wasThinking };
+  }
+
   async #performSend(params) {
     if (!exactObject(params, ['conversation_pubkey', 'text', 'in_reply_to']) || !PUBKEY.test(params.conversation_pubkey) || params.conversation_pubkey === this.pubkey || !(params.in_reply_to === null || HEX_ID.test(params.in_reply_to))) throw new Error('invalid-arguments');
     const body = validateToolText(params.text);
@@ -74,13 +118,32 @@ export class AgentService {
     if (!config.inbox_relays.length) throw new Error('relay-not-configured');
     const current = this.now();
     if (!Number.isSafeInteger(current) || current < 0) throw new Error('invalid-logical-clock');
+    this.#expireThinking(current);
     const window = Math.floor(current / SEND_WINDOW_SECONDS);
     if (config.quota.window !== null && window < config.quota.window) throw new Error('logical-clock-rollback');
     const count = config.quota.window === window ? config.quota.count : 0;
     if (count >= SEND_LIMIT) throw new Error('send-quota-exceeded');
     config.quota = { window, count: count + 1 };
     await this.saveConfig(config);
-    return await this.transport.sendMessage(params.conversation_pubkey, body, params.in_reply_to, config.inbox_relays);
+    const result = await this.transport.sendMessage(params.conversation_pubkey, body, params.in_reply_to, config.inbox_relays);
+    await this.#stopThinkingAfterMessage(params.conversation_pubkey, config.inbox_relays);
+    return result;
+  }
+
+  async #stopThinkingAfterMessage(peer, relays) {
+    if (!this.activeThinking.has(peer)) return;
+    this.activeThinking.delete(peer);
+    try { await this.transport.sendActivity(peer, 'stop', relays); } catch { /* the remote indicator expires locally if this stop cannot be delivered */ }
+  }
+
+  async close() {
+    const current = this.now();
+    if (Number.isSafeInteger(current) && current >= 0) this.#expireThinking(current);
+    const active = [...this.activeThinking.entries()];
+    this.activeThinking.clear();
+    await Promise.all(active.map(async ([peer, activity]) => {
+      try { await this.transport.sendActivity(peer, 'stop', activity.relays); } catch { /* the remote indicator expires locally */ }
+    }));
   }
 
   async addInboxRelay(params) {
@@ -105,6 +168,7 @@ export class AgentService {
       const alreadyBlocked = blocked.has(params.pubkey);
       if (block) blocked.add(params.pubkey); else blocked.delete(params.pubkey);
       if (blocked.size > 500) throw new Error('agent-block-limit-reached');
+      if (block) this.activeThinking.delete(params.pubkey);
       config.blocked_pubkeys = [...blocked].sort();
       await this.saveConfig(config);
       return { pubkey: params.pubkey, blocked: block, changed: block !== alreadyBlocked };

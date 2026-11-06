@@ -19,9 +19,11 @@
     "geodeSha256": "9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7"
   },
   "counts": {
-    "mcpTools": 4,
+    "mcpTools": 5,
     "readsPerAgent": 25,
     "sendsPerAgent": 25,
+    "activityTransitionsPerAgent": 12,
+    "daemonLockActivityStopsPerAgent": 1,
     "unpairedDirectReads": 10,
     "unpairedDirectSends": 1,
     "localBlockDenials": 2,
@@ -30,7 +32,7 @@
     "relayDisconnectedErrors": 10,
     "permissionRequestTools": 0,
     "concurrentSends": 2,
-    "cases": 29
+    "cases": 32
   },
   "evidence": {
     "encryptedVaultWith600000Iterations": true,
@@ -49,6 +51,11 @@
       "idempotentHint": false,
       "openWorldHint": true
     },
+    "privateThinkingSignalEncrypted": true,
+    "thinkingSignalContainsNoStatusText": true,
+    "thinkingSignalExpiresLocally": true,
+    "thinkingSignalStopsOnDaemonLock": true,
+    "ephemeralThinkingSignalNotRetained": true,
     "noSecretReturnedByTools": true,
     "relayAcknowledgementMeansOnlyLocalRelayAcceptance": true,
     "allMcpStdoutIsJsonRpc": true,
@@ -93,6 +100,10 @@
     },
     {
       "id": "host-b-fixed-tool-inventory-and-empty-unpaired-inbox",
+      "result": "PASS"
+    },
+    {
+      "id": "10-encrypted-ephemeral-thinking-and-stop-signals-per-agent-not-retained",
       "result": "PASS"
     },
     {
@@ -165,6 +176,14 @@
     },
     {
       "id": "10-relay-disconnected-send-errors-not-reported-as-success",
+      "result": "PASS"
+    },
+    {
+      "id": "isolated-relay-restarted-for-daemon-lock-cleanup",
+      "result": "PASS"
+    },
+    {
+      "id": "thinking-state-stops-on-local-daemon-lock-for-both-agents",
       "result": "PASS"
     },
     {

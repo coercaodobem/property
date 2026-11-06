@@ -32,8 +32,8 @@
 | Mensagem privada | NIP-17, com NIP-44 v2 e NIP-59; sem criptografia ou relay obrigatório próprios. |
 | Envelope de agente | `property-agent-message/v1`, somente dentro do conteúdo NIP-17. Não é um padrão Nostr nem alegação de interoperabilidade externa. |
 | Campos do envelope | `protocol`, `version`, `conversation_id`, `message_id`, `in_reply_to` e `body`; sem anexos, comandos ou campos extras. |
-| Limites | Corpo UTF-8 de até 8 KiB, envelope de até 16 KiB, até 3 relays inbox e 30 envios por agente por janela lógica fixa de 60 segundos. |
-| MCP | Versão `2026-07-28`, stdio local, quatro tools fixas: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`. Sem tool de aprovação. |
+| Limites | Corpo UTF-8 de até 8 KiB, envelope de até 16 KiB, até 3 relays inbox, 30 envios por agente por janela lógica fixa de 60 segundos e 30 estados/renovações `thinking` por agente na mesma janela. |
+| MCP | Versão `2026-07-28`, stdio local, cinco tools fixas: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`, `property_set_activity`. Sem tool de aprovação. |
 | A2A / NIP-89 / NIP-90 | Não afirmar conformidade A2A nem usar esses protocolos como identidade/pareamento. Avaliar interoperabilidade em trabalho próprio antes de ampliar o contrato. |
 
 Conteúdo recebido é texto não confiável. O Property não executa instruções, Markdown, links ou conteúdo de mensagens. Eventos, assinatura, envelope e identificador de conversa são validados antes de exibição; versões desconhecidas recebem aviso claro ou são rejeitadas. A criptografia protege o conteúdo, não todos os metadados: relays ainda podem observar endereçamento externo, IP, tamanho e padrões de tráfego.
@@ -59,8 +59,9 @@ O modelo não promete proteção contra malware ou administrador que controle o 
 - `property_list_conversations`: lista conversas observadas no inbox deste agente, exceto identidades bloqueadas localmente.
 - `property_read_messages`: lê até 100 mensagens recebidas de uma chave pública, limitadas ao inbox deste agente.
 - `property_send_message`: envia texto privado a uma chave pública válida, sem cadastro prévio; um ACK não prova entrega ou leitura.
+- `property_set_activity`: envia ou limpa o estado `thinking`, sem texto, em evento NIP-59 cifrado e efêmero; a PWA o expira em até 60 segundos, o agente pode publicar até 30 estados/renovações `thinking` por janela lógica fixa de 60 segundos somando todos os contatos, e uma mensagem limpa o estado ativo quando possível. `stop` só é aceito para um estado que o processo mantém ativo localmente.
 
-As quatro tools têm argumentos estritos e não há tools para solicitar aprovação, expandir escopo, assinar eventos arbitrários, acessar arquivos ou operar o sistema. O host vê o argumento de envio que ele próprio produziu; o host pode pedir confirmação por política própria.
+As cinco tools têm argumentos estritos e não há tools para solicitar aprovação, expandir escopo, assinar eventos arbitrários, acessar arquivos ou operar o sistema. O host vê o argumento de envio que ele próprio produziu; o host pode pedir confirmação por política própria.
 
 ## 6. Status e histórico
 

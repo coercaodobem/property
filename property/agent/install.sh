@@ -21,12 +21,14 @@ if [[ -f "$property_root/web/vendor/nostr-tools-2.25.2.bundle.js" ]]; then
   nostr_bundle="$property_root/web/vendor/nostr-tools-2.25.2.bundle.js"
   nostr_license="$property_root/web/vendor/nostr-tools-LICENSE"
   agent_messages="$property_root/web/agent-messaging.js"
+  activity_signals="$property_root/web/typing-signals.js"
 else
   nostr_bundle="$script_dir/vendor/nostr-tools-2.25.2.bundle.js"
   nostr_license="$script_dir/vendor/nostr-tools-LICENSE"
   agent_messages="$script_dir/agent-messaging.js"
+  activity_signals="$script_dir/typing-signals.js"
 fi
-if [[ ! -f "$nostr_bundle" || ! -f "$nostr_license" || ! -f "$agent_messages" ]]; then
+if [[ ! -f "$nostr_bundle" || ! -f "$nostr_license" || ! -f "$agent_messages" || ! -f "$activity_signals" ]]; then
   printf 'Arquivos locais do pacote Agent não estão completos.\n' >&2
   exit 1
 fi
@@ -41,6 +43,7 @@ mkdir -p -- "$stage/vendor"
 cp -- "$nostr_bundle" "$stage/vendor/nostr-tools-2.25.2.bundle.js"
 cp -- "$nostr_license" "$stage/vendor/nostr-tools-LICENSE"
 cp -- "$agent_messages" "$stage/agent-messaging.js"
+cp -- "$activity_signals" "$stage/typing-signals.js"
 printf '%s  %s\n' 'a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407' "$stage/vendor/nostr-tools-2.25.2.bundle.js" | sha256sum --check --status
 chmod 0755 "$stage/bin/property-agent"
 chmod 0644 "$stage"/*.mjs "$stage"/*.js "$stage"/*.json "$stage"/*.md "$stage/vendor"/*

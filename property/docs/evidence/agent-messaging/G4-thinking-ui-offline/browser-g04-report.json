@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G04-25",
+      "status": "PASS",
+      "reason": "B’s typing status appeared in A’s active conversation in both languages and cleared on blur. A decrypted the signed kind-21059 start/stop signals. A separate text-free thinking state appeared in English and Portuguese and cleared on stop. The per-identity typing opt-out persisted; wrappers exposed only A’s route, contained no unsent draft, created no message, and were not retained by either isolated relay."
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28470",
+      "process_id": 3429948,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28471",
+      "process_id": 3430481,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/"
+  ],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "inbox_checks": {},
+  "message_checks": {},
+  "failure_checks": {},
+  "reconciliation": {},
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0",
+    "browser_executable_sha256": "26e4198abe0dfb93c339239297008b1319711575d8cbae8e2d5122d2017b29a1"
+  },
+  "local_origin": "http://127.0.0.1:44113",
+  "typing_indicators": {
+    "locale_runs": [
+      {
+        "language": "en",
+        "signals": 2,
+        "localized": true,
+        "explicit_stop": true,
+        "screenshot": "g04-typing-indicator-mobile-en.png"
+      },
+      {
+        "language": "pt-BR",
+        "signals": 2,
+        "localized": true,
+        "explicit_stop": true,
+        "screenshot": "g04-typing-indicator-mobile-pt-BR.png"
+      }
+    ],
+    "agent_thinking": {
+      "localized_en": true,
+      "localized_pt_BR": true,
+      "decrypted_thinking_and_stop": true,
+      "no_custom_text": true,
+      "explicit_stop": true,
+      "screenshots": [
+        "g04-agent-thinking-mobile-en.png",
+        "g04-agent-thinking-mobile-pt-BR.png"
+      ]
+    },
+    "opt_out_persisted_per_identity": true,
+    "opt_out_blocks_human_typing": true,
+    "draft_sent": false,
+    "visible_message_delta": 0,
+    "outer_route_only": true,
+    "recipients_decrypted_start_and_stop": true,
+    "ephemeral_event_retained": false
+  },
+  "browser_runtime_attempts_blocked": [],
+  "result": "PASS"
+}

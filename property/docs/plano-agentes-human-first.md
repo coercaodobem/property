@@ -25,7 +25,7 @@ Selecting the protocol does not give the agent the human key, other conversation
 
 ### Agent flow
 
-The MCP host uses an independent Nostr identity, configures inbox relays, and calls four local tools. `property_send_message` can address any valid public key without prior registration. `property_read_messages` reads only that agent identity's inbox. The daemon uses a local Unix socket; MCP uses stdio.
+The MCP host uses an independent Nostr identity, configures inbox relays, and calls five local tools. `property_send_message` can address any valid public key without prior registration. `property_read_messages` reads only that agent identity's inbox. `property_set_activity` sends a text-free, encrypted `thinking`/`stop` state to a direct Property conversation through an ephemeral NIP-59 event. The daemon uses a local Unix socket; MCP uses stdio.
 
 ## 2. Architecture and limits
 
@@ -34,7 +34,7 @@ The MCP host uses an independent Nostr identity, configures inbox relays, and ca
 - **Envelope:** `property-agent-message/v1` with strict fields for version, conversation, message, correlation, and text body. Body up to 8 KiB; envelope up to 16 KiB.
 - **Quota:** at most 30 sends per agent per fixed logical 60-second window. Trials advance logical time and counts; they do not wait in real time.
 - **Blocking:** local to the device/daemon. It is not approval or required registration; it blocks future local reads/sends and is reversible. It cannot remove prior copies from relays or hosts.
-- **MCP:** four fixed tools: `property_status`, `property_list_conversations`, `property_read_messages`, and `property_send_message`. No approval, permission expansion, shell, filesystem, browser, or arbitrary-signing tool.
+- **MCP:** five fixed tools: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`, and `property_set_activity`. Activity accepts only `thinking` or `stop`; it has no free-text status. No approval, permission expansion, shell, filesystem, browser, or arbitrary-signing tool.
 - **Privacy:** the human key never reaches the bridge. Relays can observe protocol metadata. An AI host may retain text it has read.
 - **Platforms:** Ubuntu/Linux results do not prove Windows, macOS, Android, or iOS. Untested systems remain `PENDING`.
 
@@ -83,11 +83,11 @@ Run gates in order with complete evidence, fixed counts, and negative cases. Do 
 
 ### G4 — Local MCP
 
-**Offline setup:** two agent processes, two MCP fixture clients, and one loopback Geode relay. The tool inventory is fixed at four.
+**Offline setup:** two agent processes, two MCP fixture clients, and one loopback Geode relay. The tool inventory is fixed at five.
 
-**Counts:** per agent, 25 reads and 25 sends; 10 reads without prior registration; at least one send to a valid, unsaved identity; two simultaneous calls; 10 calls to nonexistent tools; 10 stdio restart cycles; 10 relay-unavailable errors; block/unblock followed by read/send checks.
+**Counts:** per agent, 25 reads and 25 sends; 12 thinking/stop activity events (five start/stop pairs plus one thinking state cleared by daemon lock); 10 reads without prior registration; at least one send to a valid, unsaved identity; two simultaneous calls; 10 calls to nonexistent tools; 10 stdio restart cycles; 10 relay-unavailable errors; block/unblock followed by read/send checks.
 
-**Acceptance:** independent public identity, no secrets; inbox reads only messages received by that identity; sending requires no Property approval; no approval queue/tool or allowlist; no TCP listener. An ACK is reported only as relay acceptance. Do not simulate commercial hosts.
+**Acceptance:** independent public identity, no secrets; inbox reads only messages received by that identity; sending requires no Property approval; activity signals contain only the fixed state, are encrypted and ephemeral, are limited to 30 thinking/refresh events per agent per fixed logical 60-second window, stop on message/lock when possible, and are not retained by the relay; no approval queue/tool or allowlist; no TCP listener. An ACK is reported only as relay acceptance. Do not simulate commercial hosts.
 
 ### G5 — Adversarial security
 

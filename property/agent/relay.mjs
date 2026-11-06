@@ -25,6 +25,9 @@ export class NostrAgentTransport {
     this.pubkey = pubkey;
     this.inboxRelays = inboxRelays.map(normalizeRelay);
     this.onSent = onSent;
+    this.activitySignals = context.PropertyTypingSignals;
+    this.activitySequence = 0;
+    if (!this.activitySignals?.create) throw new Error('activity-module-unavailable');
   }
 
   async listConversations(limit = 100, blockedPubkeys = []) {
@@ -108,6 +111,25 @@ export class NostrAgentTransport {
     this.onSent({ message_id: id, accepted, attempts });
     if (accepted === 0) throw new Error('relay-disconnected');
     return { status: accepted === attempts ? 'relay_accepted' : 'partial_relay_acceptance', message_id: id, relay_acks: accepted, relay_attempts: attempts };
+  }
+
+  async sendActivity(peer, action, senderRelays = this.inboxRelays) {
+    if (!PUBKEY.test(peer) || peer === this.pubkey || !['thinking', 'stop'].includes(action)) throw new Error('invalid-arguments');
+    const myRelays = [...new Set(senderRelays.map(normalizeRelay))].slice(0, 3);
+    if (!myRelays.length) throw new Error('relay-not-configured');
+    const recipientRelays = await this.#discoverInboxRelays(peer, myRelays);
+    const sequence = Math.max(this.activitySequence + 1, Date.now() * 1000);
+    this.activitySequence = sequence;
+    const delivery = this.activitySignals.create(this.nostr, this.secret, [this.pubkey, peer], action, sequence)
+      .find(item => item.recipient === peer);
+    if (!delivery?.event) throw new Error('activity-event-creation-failed');
+    const urls = [...new Set(recipientRelays.map(normalizeRelay))];
+    let accepted = 0;
+    for (const url of urls) {
+      try { if (await this.#publish(url, delivery.event)) accepted++; } catch { /* relay ACK aggregate reflects unavailable destinations */ }
+    }
+    if (accepted === 0) throw new Error('relay-disconnected');
+    return { status: accepted === urls.length ? 'relay_accepted' : 'partial_relay_acceptance', state: action, relay_acks: accepted, relay_attempts: urls.length };
   }
 
   async #discoverInboxRelays(peer, lookupRelays) {

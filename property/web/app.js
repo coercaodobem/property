@@ -125,14 +125,19 @@
     if (!senders.length) { output.textContent = ''; output.hidden = true; return; }
     output.hidden = false;
     if (senders.length > 1) {
-      output.textContent = localized('Several people are typing…', 'Várias pessoas estão digitando…');
+      const allThinking = senders.every(item => item.action === 'thinking');
+      output.textContent = allThinking
+        ? localized('Several people are thinking…', 'Várias pessoas estão pensando…')
+        : localized('Several people are typing…', 'Várias pessoas estão digitando…');
       return;
     }
     const sender = senders[0].sender;
     const profile = state.peerProfiles.get(sender);
     const conversationName = state.currentConversation?.group === true ? '' : state.currentConversation?.title || '';
     const name = displayName(sender, conversationName || profile?.displayName || profile?.name || '');
-    output.textContent = `${name} ${localized('is typing…', 'está digitando…')}`;
+    output.textContent = `${name} ${senders[0].action === 'thinking'
+      ? localized('is thinking…', 'está pensando…')
+      : localized('is typing…', 'está digitando…')}`;
   }
   function clearRemoteTypingKey(key) {
     clearTimeout(state.typingTimers.get(key));
@@ -263,11 +268,11 @@
     clearTimeout(state.typingTimers.get(key));
     state.typingTimers.delete(key);
     state.remoteTyping.delete(key);
-    if (signal.action === 'typing') {
-      state.remoteTyping.set(key, { peer, sender: signal.sender, sequence: signal.sequence });
+    if (signal.action === 'typing' || signal.action === 'thinking') {
+      state.remoteTyping.set(key, { peer, sender: signal.sender, sequence: signal.sequence, action: signal.action });
       state.typingTimers.set(key, setTimeout(() => {
         if (state.remoteTyping.get(key)?.sequence === signal.sequence) clearRemoteTypingKey(key);
-      }, TypingSignals.MAX_SIGNAL_AGE_SECONDS * 1000));
+      }, signal.maxAgeSeconds * 1000));
     }
     renderRemoteTyping();
   }
@@ -2056,11 +2061,14 @@
     const button = $('agent-block-button');
     const blocked = access?.status === 'blocked';
     button.classList.toggle('hidden', conversation?.group === true || !agentConversation);
-    button.setAttribute('aria-label', blocked ? 'Desbloquear agente' : 'Bloquear agente');
-    button.title = blocked ? 'Desbloquear agente' : 'Bloquear agente';
+    const blockLabel = blocked ? localized('Unblock agent', 'Desbloquear agente') : localized('Block agent', 'Bloquear agente');
+    button.setAttribute('aria-label', blockLabel);
+    button.title = blockLabel;
     $('message-input').disabled = blocked;
     document.querySelector('#send-form button[type="submit"]').disabled = blocked;
-    $('message-input').placeholder = blocked ? 'Agente bloqueado neste aparelho' : 'Escreva uma mensagem privada…';
+    $('message-input').placeholder = blocked
+      ? localized('Agent blocked on this device', 'Agente bloqueado neste aparelho')
+      : localized('Write a private message…', 'Escreva uma mensagem privada…');
     updateLinkPreviewDraft();
   }
   async function toggleAgentBlock() {
@@ -2069,10 +2077,10 @@
     const current = await get('agentAccess', peer);
     if (current?.status === 'blocked') {
       await del('agentAccess', peer);
-      showToast('Agente desbloqueado neste aparelho.');
+      showToast(localized('Agent unblocked on this device.', 'Agente desbloqueado neste aparelho.'));
     } else {
       await put('agentAccess', { pubkey: peer, status: 'blocked', blockedAt: Date.now() });
-      showToast('Agente bloqueado neste aparelho. O histórico foi mantido.');
+      showToast(localized('Agent blocked on this device. Conversation history was kept.', 'Agente bloqueado neste aparelho. O histórico foi mantido.'));
     }
     await updateAgentBlockControl(peer);
     await renderConversations();

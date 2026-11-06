@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createInterface } from 'node:readline';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { access, chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runDaemon } from '../../agent/daemon.mjs';
 import { callUnixJson } from '../../agent/ipc.mjs';
-import { loadNostr, createEmptyConfig } from '../../agent/core.mjs';
+import { loadNostr, createEmptyConfig, eventInContext, secretBytesInContext } from '../../agent/core.mjs';
 import { createVault, unlockVault } from '../../agent/vault.mjs';
 import { ensurePrivateDirectory, resolvePaths, writePrivateJson } from '../../agent/store.mjs';
 
@@ -185,6 +185,60 @@ async function makeAgent(profile, pubkey, secret, nostr, context) {
 
 function toolJson(raw) { return JSON.parse(raw.value.content[0].text); }
 
+async function watchEphemeral(url, recipient) {
+  const socket = new WebSocket(url);
+  const subscription = `property-g4-activity-${randomUUID()}`;
+  const queue = [];
+  const waiters = [];
+  let closed = false;
+  const ready = new Promise((resolve, reject) => {
+    const watchdog = setTimeout(() => { socket.close(); reject(new Error('Activity watcher did not reach EOSE.')); }, 10000);
+    socket.addEventListener('open', () => socket.send(JSON.stringify(['REQ', subscription, { kinds: [21059], '#p': [recipient] }])));
+    socket.addEventListener('message', event => {
+      let frame; try { frame = JSON.parse(event.data); } catch { return; }
+      if (frame[0] === 'EOSE' && frame[1] === subscription) { clearTimeout(watchdog); resolve(); }
+      if (frame[0] === 'EVENT' && frame[1] === subscription && frame[2]?.kind === 21059) {
+        const waiter = waiters.shift();
+        if (waiter) waiter.resolve(frame[2]); else queue.push(frame[2]);
+      }
+    });
+    socket.addEventListener('error', () => { clearTimeout(watchdog); reject(new Error('Activity watcher WebSocket failed.')); }, { once: true });
+  });
+  await ready;
+  return {
+    next() {
+      if (queue.length) return Promise.resolve(queue.shift());
+      if (closed) return Promise.reject(new Error('Activity watcher is closed.'));
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          const index = waiters.findIndex(item => item.resolve === wrappedResolve);
+          if (index >= 0) waiters.splice(index, 1);
+          reject(new Error('Expected an ephemeral activity event.'));
+        }, 10000);
+        const wrappedResolve = event => { clearTimeout(timer); resolve(event); };
+        waiters.push({ resolve: wrappedResolve, reject });
+      });
+    },
+    close() { closed = true; try { socket.send(JSON.stringify(['CLOSE', subscription])); } catch {} socket.close(); },
+  };
+}
+
+async function queryRelay(url, filter) {
+  const socket = new WebSocket(url);
+  const subscription = `property-g4-query-${randomUUID()}`;
+  return await new Promise((resolve, reject) => {
+    const events = [];
+    const watchdog = setTimeout(() => { socket.close(); reject(new Error('Relay query did not reach EOSE.')); }, 10000);
+    socket.addEventListener('open', () => socket.send(JSON.stringify(['REQ', subscription, filter])));
+    socket.addEventListener('message', event => {
+      let frame; try { frame = JSON.parse(event.data); } catch { return; }
+      if (frame[0] === 'EVENT' && frame[1] === subscription && frame[2]?.id) events.push(frame[2]);
+      if (frame[0] === 'EOSE' && frame[1] === subscription) { clearTimeout(watchdog); socket.close(); resolve(events); }
+    });
+    socket.addEventListener('error', () => { clearTimeout(watchdog); reject(new Error('Relay query WebSocket failed.')); }, { once: true });
+  });
+}
+
 async function main() {
   const parts = await Promise.all(Array.from({ length: PART_COUNT }, (_, index) => readFile(path.join(PARTS_ROOT, `part-${String(index).padStart(3, '0')}`))));
   const archive = Buffer.concat(parts);
@@ -226,12 +280,46 @@ async function main() {
     const listed = await host.tool('property_list_conversations');
     assert.equal(listed.isError, false); assert.equal(listed.value.conversations.length, 0);
     const inventory = await host.call('tools/list');
-    assert.equal(inventory.result.tools.length, 4);
-    assert.deepEqual(inventory.result.tools.map(tool => tool.name), ['property_status', 'property_list_conversations', 'property_read_messages', 'property_send_message']);
+    assert.equal(inventory.result.tools.length, 5);
+    assert.deepEqual(inventory.result.tools.map(tool => tool.name), ['property_status', 'property_list_conversations', 'property_read_messages', 'property_send_message', 'property_set_activity']);
     const sendTool = inventory.result.tools.find(tool => tool.name === 'property_send_message');
     assert.deepEqual(sendTool.annotations, { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true });
     record(`${host.name}-fixed-tool-inventory-and-empty-unpaired-inbox`);
   }
+
+  const betaSignalSecret = secretBytesInContext(context, unlockVault(JSON.parse(await readFile(beta.paths.vaultPath, 'utf8')), PASSWORD, nostr, context).secretHex);
+  const alphaSignalSecret = secretBytesInContext(context, unlockVault(JSON.parse(await readFile(alpha.paths.vaultPath, 'utf8')), PASSWORD, nostr, context).secretHex);
+  const activityCounts = { alpha_to_beta: 0, beta_to_alpha: 0 };
+  for (const [sender, recipient, host, recipientSecret, direction] of [
+    [alphaPub, betaPub, hostA, betaSignalSecret, 'alpha_to_beta'],
+    [betaPub, alphaPub, hostB, alphaSignalSecret, 'beta_to_alpha'],
+  ]) {
+    const watcher = await watchEphemeral(geode.url, recipient);
+    try {
+      for (let repetition = 0; repetition < 5; repetition++) {
+        for (const state of ['thinking', 'stop']) {
+          const result = await host.tool('property_set_activity', { conversation_pubkey: recipient, state });
+          assert.equal(result.isError, false, `${direction} ${state} call succeeds`);
+          assert.equal(result.value.state, state);
+          const event = await watcher.next();
+          assert.equal(event.kind, 21059);
+          const eventInNostrContext = eventInContext(context, event);
+          assert.equal(nostr.getEventHash(eventInNostrContext), event.id, 'ephemeral wrapper id matches its canonical event hash');
+          assert.equal(nostr.verifyEvent(eventInNostrContext), true, 'ephemeral wrapper signature verifies');
+          assert.deepEqual(event.tags, [['p', recipient]], 'only the intended recipient is routed');
+          assert.equal(event.content.includes(`"action":"${state}"`), false, 'state is not plaintext in the wrapper');
+          const opened = context.PropertyTypingSignals.unwrap(nostr, eventInNostrContext, recipientSecret);
+          assert.equal(opened?.sender, sender); assert.equal(opened?.action, state);
+          assert.equal(opened?.maxAgeSeconds, state === 'thinking' ? 60 : 8);
+          activityCounts[direction]++;
+        }
+      }
+    } finally { watcher.close(); }
+  }
+  assert.deepEqual(activityCounts, { alpha_to_beta: 10, beta_to_alpha: 10 });
+  const retainedActivity = await queryRelay(geode.url, { kinds: [21059], '#p': [alphaPub, betaPub], limit: 100 });
+  assert.deepEqual(retainedActivity, [], 'the relay does not retain ephemeral activity wrappers');
+  record('10-encrypted-ephemeral-thinking-and-stop-signals-per-agent-not-retained');
 
   const send = (host, peer, direction, index) => host.tool('property_send_message', { conversation_pubkey: peer, text: `${direction}-${String(index).padStart(2, '0')}`, in_reply_to: null });
   const read = (host, peer) => host.tool('property_read_messages', { conversation_pubkey: peer, limit: 100 });
@@ -305,6 +393,7 @@ async function main() {
   record('10-stdio-shutdown-restart-cycles-across-two-hosts');
 
   logicalNow = FIXED_NOW + 60;
+  const relayPort = geode.port;
   await stopGeode(geode); geode = null;
   for (let index = 0; index < 10; index++) {
     const host = index % 2 ? hostA : hostB; const peer = index % 2 ? betaPub : alphaPub;
@@ -312,6 +401,38 @@ async function main() {
     assert.equal(out.isError, true); assert.equal(out.value.error, 'relay-disconnected');
   }
   record('10-relay-disconnected-send-errors-not-reported-as-success');
+  geode = await startGeode(relayPort);
+  record('isolated-relay-restarted-for-daemon-lock-cleanup');
+
+  const lockActivityCounts = { alpha_to_beta: 0, beta_to_alpha: 0 };
+  for (const [profile, host, sender, recipient, recipientSecret, direction] of [
+    ['alpha', hostA, alphaPub, betaPub, betaSignalSecret, 'alpha_to_beta'],
+    ['beta', hostB, betaPub, alphaPub, alphaSignalSecret, 'beta_to_alpha'],
+  ]) {
+    const watcher = await watchEphemeral(geode.url, recipient);
+    try {
+      const thinking = await host.tool('property_set_activity', { conversation_pubkey: recipient, state: 'thinking' });
+      assert.equal(thinking.isError, false, `${direction} thinking state succeeds before daemon lock`);
+      const startEvent = await watcher.next();
+      const startInContext = eventInContext(context, startEvent);
+      const openedStart = context.PropertyTypingSignals.unwrap(nostr, startInContext, recipientSecret);
+      assert.equal(openedStart?.sender, sender); assert.equal(openedStart?.action, 'thinking');
+      const locked = await callUnixJson(resolvePaths(profile, env).socketPath, 'daemon.lock', {});
+      assert.equal(locked.locked, true, `${profile} daemon accepts a local lock`);
+      const stopEvent = await watcher.next();
+      const stopInContext = eventInContext(context, stopEvent);
+      assert.equal(nostr.verifyEvent(stopInContext), true, 'the daemon lock publishes a signed stop wrapper');
+      const openedStop = context.PropertyTypingSignals.unwrap(nostr, stopInContext, recipientSecret);
+      assert.equal(openedStop?.sender, sender); assert.equal(openedStop?.action, 'stop');
+      assert.deepEqual(stopEvent.tags, [['p', recipient]], 'the lock stop routes only to its recipient');
+      lockActivityCounts[direction]++;
+    } finally { watcher.close(); }
+  }
+  assert.deepEqual(lockActivityCounts, { alpha_to_beta: 1, beta_to_alpha: 1 });
+  const retainedLockActivity = await queryRelay(geode.url, { kinds: [21059], '#p': [alphaPub, betaPub], limit: 100 });
+  assert.deepEqual(retainedLockActivity, [], 'daemon-lock stop wrappers are not retained by the relay');
+  alphaSignalSecret.fill(0); betaSignalSecret.fill(0);
+  record('thinking-state-stops-on-local-daemon-lock-for-both-agents');
 
   assert.deepEqual(hostA.extraneousStdout, []); assert.deepEqual(hostB.extraneousStdout, []);
   assert.equal(hostA.stderr.includes(PASSWORD), false); assert.equal(hostB.stderr.includes(PASSWORD), false);
@@ -322,8 +443,8 @@ async function main() {
   const report = {
     gate: 'G4', status: 'PASS_TECHNICAL_OFFLINE', seed: SEED, logicalNow: FIXED_NOW,
     environment: { os: 'linux/x64', node: process.version, mcpProtocol: '2026-07-28', externalConnections: 0, externalModels: 0, realParticipants: 0, agents: 2, mcpHostFixtures: ['host-a', 'host-b'], isolatedGeodeRelays: 1, geodeSha256: GEODE_SHA256 },
-    counts: { mcpTools: 4, readsPerAgent: 25, sendsPerAgent: 25, unpairedDirectReads: 10, unpairedDirectSends: 1, localBlockDenials: 2, nonexistentTools: 10, stdioShutdownRestarts: 10, relayDisconnectedErrors: 10, permissionRequestTools: 0, concurrentSends: 2, cases: cases.length },
-    evidence: { encryptedVaultWith600000Iterations: true, vaultMode0600: true, dataDirectoriesMode0700: true, unixSocketsMode0600: true, noTcpListener: true, directReadSendWithoutPairing: true, arbitraryUnpairedConversationAllowed: true, localBlocklistEnforced: true, permissionRequestToolAndQueueRemoved: true, propertyDoesNotRequestPerCallApproval: true, sendToolAnnotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }, noSecretReturnedByTools: true, relayAcknowledgementMeansOnlyLocalRelayAcceptance: true, allMcpStdoutIsJsonRpc: true, externalTraffic: false },
+    counts: { mcpTools: 5, readsPerAgent: 25, sendsPerAgent: 25, activityTransitionsPerAgent: 12, daemonLockActivityStopsPerAgent: 1, unpairedDirectReads: 10, unpairedDirectSends: 1, localBlockDenials: 2, nonexistentTools: 10, stdioShutdownRestarts: 10, relayDisconnectedErrors: 10, permissionRequestTools: 0, concurrentSends: 2, cases: cases.length },
+    evidence: { encryptedVaultWith600000Iterations: true, vaultMode0600: true, dataDirectoriesMode0700: true, unixSocketsMode0600: true, noTcpListener: true, directReadSendWithoutPairing: true, arbitraryUnpairedConversationAllowed: true, localBlocklistEnforced: true, permissionRequestToolAndQueueRemoved: true, propertyDoesNotRequestPerCallApproval: true, sendToolAnnotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }, privateThinkingSignalEncrypted: true, thinkingSignalContainsNoStatusText: true, thinkingSignalExpiresLocally: true, thinkingSignalStopsOnDaemonLock: true, ephemeralThinkingSignalNotRetained: true, noSecretReturnedByTools: true, relayAcknowledgementMeansOnlyLocalRelayAcceptance: true, allMcpStdoutIsJsonRpc: true, externalTraffic: false },
     cases,
   };
   await writeFile(path.join(PROPERTY_ROOT, 'docs/evidence/agent-messaging/G4-direct-offline-report.json'), `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });

@@ -519,6 +519,7 @@ async function runTypingIndicatorCase({ pageA, pageB, a, b, relay0, relay1, runt
   const localeRuns = [];
   const originalViewport = pageA.viewportSize();
   await pageA.setViewportSize({ width: 390, height: 844 });
+  assert.deepEqual(pageA.viewportSize(), { width: 390, height: 844 }, 'the typing and thinking indicators are inspected at the fixed mobile viewport');
   for (const [language, marker, expectedText, screenshot] of [
     ['en', 'property-g04-private-typing-draft-en-001', /is typing/u, 'g04-typing-indicator-mobile-en.png'],
     ['pt-BR', 'property-g04-private-typing-draft-pt-BR-001', /está digitando/u, 'g04-typing-indicator-mobile-pt-BR.png']
@@ -553,7 +554,6 @@ async function runTypingIndicatorCase({ pageA, pageB, a, b, relay0, relay1, runt
     assert.ok(opened.every((signal, index) => index === 0 || signal.sequence > opened[index - 1].sequence), 'each repeated status has a strictly increasing sequence');
     localeRuns.push({ language, signals: events.length, localized: true, explicit_stop: true, screenshot });
   }
-  if (originalViewport) await pageA.setViewportSize(originalViewport);
   await pageA.locator('#language-picker').selectOption(languageBeforeTyping);
   await pageB.locator('#message-input').fill(draftBeforeTyping);
   assert.equal(await pageA.locator('#messages .message-row').count(), messageRowsBeforeTyping, 'typing creates no message row');
@@ -584,15 +584,65 @@ async function runTypingIndicatorCase({ pageA, pageB, a, b, relay0, relay1, runt
   }, b.pubkey);
   await pageB.locator('#profile-dialog button[aria-label="Close"]').click();
   await pageB.locator('#profile-dialog').waitFor({ state: 'hidden' });
+  await pageA.locator('#language-picker').selectOption('en');
+  const createActivityEvent = (action, sequence) => pageB.evaluate(async ({ password, recipient, action, sequence }) => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('liberdade-local-v1');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const vault = await new Promise((resolve, reject) => {
+      const request = db.transaction('vault').objectStore('vault').get('account');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    const secret = await PropertyVault.unlockVault(vault, password, NostrTools.getPublicKey);
+    try {
+      const sender = NostrTools.getPublicKey(secret);
+      const delivery = PropertyTypingSignals.create(NostrTools, secret, [sender, recipient], action, sequence)
+        .find(item => item.recipient === recipient);
+      if (!delivery?.event) throw new Error('Could not create the private activity fixture.');
+      return delivery.event;
+    } finally { secret.fill(0); }
+  }, { password: PASSWORD, recipient: a.pubkey, action, sequence });
+  const agentActivityEvents = [];
+  const firstThinking = await createActivityEvent('thinking', Math.floor(Date.now() * 1000));
+  assert.equal(runtime.nostrVerify(firstThinking), true, 'the synthetic agent activity fixture is correctly signed');
+  assert.deepEqual(firstThinking.tags, [['p', a.pubkey]], 'agent activity routes only to its recipient');
+  assert.equal((await publishEvent(relay0.url, firstThinking)).accepted, true, 'the isolated relay accepts the encrypted thinking signal');
+  agentActivityEvents.push(firstThinking);
+  await pageA.locator('#chat-activity').waitFor({ state: 'visible', timeout: 10000 });
+  assert.match(await pageA.locator('#chat-activity').textContent(), /is thinking/u, 'the active conversation shows the English agent state');
+  await pageA.screenshot({ path: path.join(options.output, 'g04-agent-thinking-mobile-en.png') });
+  await pageA.locator('#language-picker').selectOption('pt-BR');
+  await pageA.waitForFunction(() => /está pensando/u.test(document.querySelector('#chat-activity')?.textContent || ''), null, { timeout: 5000 });
+  await pageA.screenshot({ path: path.join(options.output, 'g04-agent-thinking-mobile-pt-BR.png') });
+  const stopThinking = await createActivityEvent('stop', Math.floor(Date.now() * 1000) + 1);
+  assert.equal(runtime.nostrVerify(stopThinking), true, 'the synthetic agent stop fixture is correctly signed');
+  assert.equal((await publishEvent(relay0.url, stopThinking)).accepted, true, 'the isolated relay accepts the encrypted stop signal');
+  agentActivityEvents.push(stopThinking);
+  await pageA.locator('#chat-activity').waitFor({ state: 'hidden', timeout: 10000 });
+  if (originalViewport) await pageA.setViewportSize(originalViewport);
+  const openedAgentActivity = await pageA.evaluate(({ events, secretHex }) => {
+    const secret = Uint8Array.from(secretHex.match(/.{2}/g), byte => parseInt(byte, 16));
+    try { return events.map(event => PropertyTypingSignals.unwrap(NostrTools, event, secret)); }
+    finally { secret.fill(0); }
+  }, { events: agentActivityEvents, secretHex: secretForDecode });
+  assert.deepEqual(openedAgentActivity.map(signal => signal?.action), ['thinking', 'stop'], 'the recipient decrypts the fixed thinking and stop states');
+  await pageA.locator('#language-picker').selectOption(languageBeforeTyping);
   const storedEphemeral = [];
   for (const relay of [relay0, relay1]) storedEphemeral.push(...await wsQuery(relay.url, { kinds: [21059], '#p': [a.pubkey], limit: 100 }));
   assert.deepEqual(storedEphemeral, [], 'the isolated relays do not retain ephemeral typing events');
   const storedMessages = [];
   for (const relay of [relay0, relay1]) storedMessages.push(...await wsQuery(relay.url, { kinds: [1059], '#p': [a.pubkey], limit: 1000 }));
   assert.ok(storedMessages.every(event => !JSON.stringify(event).includes('property-g04-private-typing-')), 'stored message wrappers contain no typing draft');
-  report.typing_indicators = { locale_runs: localeRuns, opt_out_persisted_per_identity: true, opt_out_blocks_signals: true, draft_sent: false, visible_message_delta: 0,
+  assert.equal(await pageA.locator('#messages .message-row').count(), messageRowsBeforeTyping, 'agent activity also creates no message row');
+  report.typing_indicators = { locale_runs: localeRuns, agent_thinking: { localized_en: true, localized_pt_BR: true, decrypted_thinking_and_stop: true,
+    no_custom_text: true, explicit_stop: true, screenshots: ['g04-agent-thinking-mobile-en.png', 'g04-agent-thinking-mobile-pt-BR.png'] },
+    opt_out_persisted_per_identity: true, opt_out_blocks_human_typing: true, draft_sent: false, visible_message_delta: 0,
     outer_route_only: true, recipients_decrypted_start_and_stop: true, ephemeral_event_retained: false };
-  mark('G04-25', 'PASS', 'B’s typing status appeared in A’s active conversation in both languages and cleared on blur. A decrypted the signed kind-21059 start/stop signals. The per-identity opt-out persisted and prevented publication; wrappers exposed only A’s route, contained no unsent draft, created no message, and were not retained by either isolated relay.');
+  mark('G04-25', 'PASS', 'B’s typing status appeared in A’s active conversation in both languages and cleared on blur. A decrypted the signed kind-21059 start/stop signals. A separate text-free thinking state appeared in English and Portuguese and cleared on stop. The per-identity typing opt-out persisted; wrappers exposed only A’s route, contained no unsent draft, created no message, and were not retained by either isolated relay.');
 }
 async function localRecord(page, storeName, id) {
   return page.evaluate(async ({ storeName, id }) => {

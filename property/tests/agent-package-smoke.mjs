@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const PROPERTY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(await readFile(path.join(PROPERTY_ROOT, 'agent/manifest.json'), 'utf8'));
-const packageFiles = ['property-agent.mjs', 'bin/property-agent', 'mcp-server.mjs', 'daemon.mjs', 'core.mjs', 'service.mjs', 'relay.mjs', 'ipc.mjs', 'store.mjs', 'vault.mjs', 'agent-messaging.js', 'vendor/nostr-tools-2.25.2.bundle.js', 'vendor/nostr-tools-LICENSE'];
+const packageFiles = ['property-agent.mjs', 'bin/property-agent', 'mcp-server.mjs', 'daemon.mjs', 'core.mjs', 'service.mjs', 'relay.mjs', 'ipc.mjs', 'store.mjs', 'vault.mjs', 'agent-messaging.js', 'typing-signals.js', 'vendor/nostr-tools-2.25.2.bundle.js', 'vendor/nostr-tools-LICENSE'];
 assert.equal(manifest.name, 'property-agent-local');
 assert.equal(manifest.mcpProtocol, '2026-07-28');
 assert.deepEqual(manifest.externalNodeDependencies, []);
