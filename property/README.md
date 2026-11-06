@@ -26,7 +26,7 @@ The **Relay bridge** option forwards signed public events between relays selecte
 
 The app is published at [coercaodobem.github.io/property](https://coercaodobem.github.io/property/) from the public `coercaodobem/property` repository. The `.github/workflows/property-pages.yml` workflow publishes only `property/web` when those files or the workflow change on `modelo-mvp`; it also supports manual runs. Pages uses the **GitHub Actions** source, and the `github-pages` environment allows the `modelo-mvp` branch. Workflow actions are pinned to commit SHAs; the workflow does not change repository settings.
 
-The earlier publication under the previous name was validated by workflow [41130981007](https://github.com/coercaodobem/property/actions/runs/41130981007), by opening the start screen in a browser, and by comparing SHA-256 hashes of the 16 public files with commit `e525f3028391cea6133fe7982b4e342ee576f449`. See the [validation record](docs/evidence/pages-2026-10-30.json). This does not complete the other test-plan gates.
+The current `modelo-mvp` publication was deployed successfully by workflow [42197116511](https://github.com/coercaodobem/property/actions/runs/42197116511) from commit `cda49f41d09d9313532cc2ea76bdf17380854358`. The public start page and service worker returned HTTP 200 and matched the source files byte-for-byte by SHA-256. See the [current Pages verification record](docs/evidence/pages-2026-11-06.json). This verifies publication of the PWA, not the other test-plan gates.
 
 ## Start a relay on Ubuntu
 

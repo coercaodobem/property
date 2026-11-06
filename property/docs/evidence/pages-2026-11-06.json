@@ -1,0 +1,32 @@
+{
+  "checked_at": "2026-11-06T09:48:23Z",
+  "base_url": "https://coercaodobem.github.io/property/",
+  "source_commit": "cda49f41d09d9313532cc2ea76bdf17380854358",
+  "workflow": {
+    "run_id": 42197116511,
+    "url": "https://github.com/coercaodobem/property/actions/runs/42197116511",
+    "branch": "modelo-mvp",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "files": [
+    {
+      "path": "index.html",
+      "http_status": 200,
+      "source_sha256": "30b6c9d29150cadd5d57092ed5da46e2a488c5f56b0afaf6410d573c75fe2d45",
+      "served_sha256": "30b6c9d29150cadd5d57092ed5da46e2a488c5f56b0afaf6410d573c75fe2d45",
+      "matches_source": true
+    },
+    {
+      "path": "sw.js",
+      "http_status": 200,
+      "source_sha256": "57f37aa835831dbc4fefe1d9edbf5402bd39470f565af2ba8940bd38e7da6f0c",
+      "served_sha256": "57f37aa835831dbc4fefe1d9edbf5402bd39470f565af2ba8940bd38e7da6f0c",
+      "matches_source": true
+    }
+  ],
+  "limits": [
+    "Verifies the latest workflow deployment and these two fetched public files only.",
+    "Does not complete the remaining offline test-plan gates or device compatibility checks."
+  ]
+}
