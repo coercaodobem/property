@@ -35,7 +35,11 @@
         localMedia: session.localMedia,
         status: session.status,
         microphoneEnabled: session.localStream?.getAudioTracks().some(track => track.enabled) ?? false,
-        cameraEnabled: session.localStream?.getVideoTracks().some(track => track.enabled) ?? false,
+        cameraEnabled: !session.screenTrack && (session.localStream?.getVideoTracks().some(track => track.enabled) ?? false),
+        screenSharing: Boolean(session.screenTrack),
+        screenShareBusy: session.screenTransition === true,
+        screenShareAvailable: session.localMedia === 'video' && session.videoNegotiated === true &&
+          typeof mediaDevices?.getDisplayMedia === 'function' && typeof session.videoSender?.replaceTrack === 'function',
         error: session.error || ''
       });
     }
@@ -48,6 +52,16 @@
     }
 
     function releaseMedia(session) {
+      if (session.screenTrack) {
+        session.screenTrack.onended = null;
+        try { session.screenTrack.stop(); } catch { /* A stopped browser track needs no further action. */ }
+      }
+      for (const track of session.screenStream?.getTracks?.() || []) {
+        try { track.stop(); } catch { /* A stopped browser track needs no further action. */ }
+      }
+      session.screenTrack = null;
+      session.screenStream = null;
+      session.videoSender = null;
       for (const track of session.localStream?.getTracks?.() || []) {
         try { track.stop(); } catch { /* A stopped browser track needs no further action. */ }
       }
@@ -123,6 +137,16 @@
       return pc;
     }
 
+    function addLocalTracks(session, pc) {
+      for (const track of session.localStream.getTracks()) {
+        const sender = pc.addTrack(track, session.localStream);
+        if (track.kind === 'video') {
+          session.videoSender = sender;
+          session.cameraTrack = track;
+        }
+      }
+    }
+
     async function prepareLocalDescription(session, description, signalAction, media) {
       const pc = session.peerConnection;
       await pc.setLocalDescription(description);
@@ -140,14 +164,14 @@
         if (current && !['ended', 'failed', 'no-path', 'busy', 'declined'].includes(current.status)) throw new Error('A call is already active.');
       if (current) dismiss();
       if (!validCallId(callId) || typeof peer !== 'string' || !/^[0-9a-f]{64}$/i.test(peer)) throw new TypeError('Invalid call recipient or identifier.');
-      const session = current = { callId, peer: peer.toLowerCase(), outgoing: true, requestedMedia: video ? 'video' : 'audio', localMedia: video ? 'video' : 'audio', status: 'requesting-media', peerConnection: null, localStream: null, remoteStream: null, error: '' };
+      const session = current = { callId, peer: peer.toLowerCase(), outgoing: true, requestedMedia: video ? 'video' : 'audio', localMedia: video ? 'video' : 'audio', videoNegotiated: false, videoSender: null, cameraTrack: null, screenTrack: null, screenStream: null, screenTransition: false, cameraEnabledBeforeShare: true, status: 'requesting-media', peerConnection: null, localStream: null, remoteStream: null, error: '' };
       update(session, 'requesting-media');
       try {
         session.localStream = await getLocalStream(video);
         if (current !== session) { for (const track of session.localStream.getTracks()) track.stop(); return false; }
         onLocalStream(session.localStream);
         const pc = makePeerConnection(session);
-        for (const track of session.localStream.getTracks()) pc.addTrack(track, session.localStream);
+        addLocalTracks(session, pc);
         const offer = await pc.createOffer();
         await prepareLocalDescription(session, offer, 'call-offer', session.requestedMedia);
         if (current === session && session.status !== 'no-path') update(session, 'ringing');
@@ -163,7 +187,7 @@
           !['audio', 'video'].includes(media) || !validDescription('offer', sdp, media)) return false;
       if (current && !['ended', 'failed', 'no-path', 'busy', 'declined'].includes(current.status)) return false;
       if (current) dismiss();
-      const session = current = { callId, peer: peer.toLowerCase(), outgoing: false, requestedMedia: media, localMedia: '', remoteOffer: sdp, status: 'incoming', peerConnection: null, localStream: null, remoteStream: null, error: '' };
+      const session = current = { callId, peer: peer.toLowerCase(), outgoing: false, requestedMedia: media, localMedia: '', videoNegotiated: false, videoSender: null, cameraTrack: null, screenTrack: null, screenStream: null, screenTransition: false, cameraEnabledBeforeShare: true, remoteOffer: sdp, status: 'incoming', peerConnection: null, localStream: null, remoteStream: null, error: '' };
       update(session, 'incoming');
       return true;
     }
@@ -179,10 +203,11 @@
         if (current !== session) { for (const track of session.localStream.getTracks()) track.stop(); return false; }
         onLocalStream(session.localStream);
         const pc = makePeerConnection(session);
-        for (const track of session.localStream.getTracks()) pc.addTrack(track, session.localStream);
+        addLocalTracks(session, pc);
         await pc.setRemoteDescription({ type: 'offer', sdp: session.remoteOffer });
         const answer = await pc.createAnswer();
         await prepareLocalDescription(session, answer, 'call-answer', session.localMedia);
+        session.videoNegotiated = session.localMedia === 'video';
         if (current === session && session.status !== 'no-path') update(session, 'connecting');
         return current === session;
       } catch (error) {
@@ -201,7 +226,10 @@
           !validDescription('answer', sdp, media) || !session.peerConnection) return false;
       try {
         await session.peerConnection.setRemoteDescription({ type: 'answer', sdp });
-        if (current === session) update(session, 'connecting');
+        if (current === session) {
+          session.videoNegotiated = media === 'video';
+          update(session, 'connecting');
+        }
         return true;
       } catch (error) {
         terminal(session, 'failed', error?.message || 'The other person’s answer could not be opened.');
@@ -237,11 +265,93 @@
 
     function setCameraEnabled(enabled) {
       if (typeof enabled !== 'boolean' || !current?.localStream || current.localMedia !== 'video') return false;
+      if (current.screenTrack) return false;
       const tracks = current.localStream.getVideoTracks();
       if (!tracks.length) return false;
       for (const track of tracks) track.enabled = enabled;
       onState(snapshot());
       return true;
+    }
+
+    async function startScreenSharing() {
+      const session = current;
+      if (!session || session.status !== 'connected' || session.screenTransition || session.screenTrack ||
+          session.localMedia !== 'video' || !session.videoNegotiated ||
+          typeof mediaDevices?.getDisplayMedia !== 'function' || typeof session.videoSender?.replaceTrack !== 'function') return false;
+
+      session.screenTransition = true;
+      update(session, session.status);
+      let stream;
+      try {
+        stream = await mediaDevices.getDisplayMedia({ video: true, audio: false });
+        const track = stream?.getVideoTracks?.().find(candidate => candidate?.readyState !== 'ended');
+        if (!track || typeof track.stop !== 'function') throw new Error('The browser did not provide a screen video track.');
+        if (current !== session || ['ended', 'failed', 'no-path', 'busy', 'declined'].includes(session.status)) {
+          for (const item of stream.getTracks?.() || []) item.stop?.();
+          return false;
+        }
+        session.screenStream = stream;
+        session.screenTrack = track;
+        session.cameraEnabledBeforeShare = session.cameraTrack?.enabled ?? false;
+        if (session.cameraTrack) session.cameraTrack.enabled = false;
+        await session.videoSender.replaceTrack(track);
+        if (current !== session || session.screenTrack !== track) return false;
+        track.onended = () => { void stopScreenSharing(); };
+        onLocalStream(stream);
+        update(session, session.status, '');
+        if (track.readyState === 'ended') void stopScreenSharing();
+        return true;
+      } catch (error) {
+        if (current === session) {
+          if (session.cameraTrack) session.cameraTrack.enabled = session.cameraEnabledBeforeShare;
+          session.screenTrack = null;
+          session.screenStream = null;
+          for (const track of stream?.getTracks?.() || []) {
+            try { track.stop(); } catch { /* A stopped browser track needs no further action. */ }
+          }
+          onLocalStream(session.localStream);
+          update(session, session.status, error?.message || 'Could not start screen sharing.');
+        }
+        return false;
+      } finally {
+        if (current === session) {
+          session.screenTransition = false;
+          onState(snapshot(session));
+        }
+      }
+    }
+
+    async function stopScreenSharing() {
+      const session = current;
+      const screenTrack = session?.screenTrack;
+      if (!session || !screenTrack || session.screenTransition) return false;
+      session.screenTransition = true;
+      update(session, session.status);
+      screenTrack.onended = null;
+      try {
+        await session.videoSender.replaceTrack(session.cameraTrack || null);
+        if (current !== session || session.screenTrack !== screenTrack) return false;
+        if (session.cameraTrack) session.cameraTrack.enabled = session.cameraEnabledBeforeShare;
+        session.screenTrack = null;
+        for (const track of session.screenStream?.getTracks?.() || []) {
+          try { track.stop(); } catch { /* A stopped browser track needs no further action. */ }
+        }
+        session.screenStream = null;
+        onLocalStream(session.localStream);
+        update(session, session.status, '');
+        return true;
+      } catch (error) {
+        if (current === session) {
+          screenTrack.onended = () => { void stopScreenSharing(); };
+          update(session, session.status, error?.message || 'Could not stop screen sharing.');
+        }
+        return false;
+      } finally {
+        if (current === session) {
+          session.screenTransition = false;
+          onState(snapshot(session));
+        }
+      }
     }
 
     function dismiss() {
@@ -271,6 +381,8 @@
       end,
       setMicrophoneEnabled,
       setCameraEnabled,
+      startScreenSharing,
+      stopScreenSharing,
       dismiss,
       dispose,
       getState: () => snapshot()

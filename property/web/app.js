@@ -658,11 +658,21 @@
     $('call-microphone-toggle').textContent = call.microphoneEnabled
       ? localized('Mute microphone', 'Silenciar microfone')
       : localized('Unmute microphone', 'Ativar microfone');
-    $('call-camera-toggle').hidden = terminal || call.localMedia !== 'video';
+    $('call-camera-toggle').hidden = terminal || call.localMedia !== 'video' || call.screenSharing;
     $('call-camera-toggle').disabled = !call.cameraEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status);
     $('call-camera-toggle').textContent = call.cameraEnabled
       ? localized('Turn camera off', 'Desligar câmera')
       : localized('Turn camera on', 'Ligar câmera');
+    $('call-screen-share-toggle').hidden = terminal || !call.screenShareAvailable;
+    $('call-screen-share-toggle').disabled = call.screenShareBusy || (!call.screenSharing && call.status !== 'connected');
+    $('call-screen-share-toggle').textContent = call.screenSharing
+      ? localized('Stop sharing', 'Parar compartilhamento')
+      : localized('Share screen', 'Compartilhar tela');
+    $('call-screen-share-help').hidden = terminal || !call.screenShareAvailable;
+    $('call-screen-share-help').textContent = localized(
+      'Sharing sends the selected screen, window, or tab directly to the other person. Notifications may be visible. Stop sharing here or in your browser controls.',
+      'O compartilhamento envia a tela, janela ou aba selecionada diretamente para a outra pessoa. Notificações podem aparecer. Pare por aqui ou nos controles do navegador.'
+    );
     $('call-audio-avatar').textContent = callPeerLabel(call.peer).slice(0, 1).toUpperCase() || 'P';
 
     if (call.status === 'incoming') {
@@ -4791,7 +4801,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v67', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v68', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -4868,6 +4878,14 @@
     $('call-camera-toggle').addEventListener('click', () => {
       const call = state.call;
       if (call) state.callController?.setCameraEnabled(!call.cameraEnabled);
+    });
+    $('call-screen-share-toggle').addEventListener('click', () => {
+      const call = state.call;
+      if (!call) return;
+      const operation = call.screenSharing
+        ? state.callController?.stopScreenSharing()
+        : state.callController?.startScreenSharing();
+      operation?.catch(error => showToast(error?.message || localized('Could not change screen sharing.', 'Não foi possível alterar o compartilhamento de tela.')));
     });
     emojiPicker = EmojiPicker.init({ owner: () => state.pubkey, onError: error => showToast(error?.message || 'Could not send reaction.') });
     groupMentionPicker = GroupMentions.createPicker({
