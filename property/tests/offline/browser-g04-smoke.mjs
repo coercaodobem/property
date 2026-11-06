@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-16', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -440,6 +440,22 @@ async function localRecord(page, storeName, id) {
     db.close(); return result || null;
   }, { storeName, id });
 }
+async function localUnreadTotal(page) {
+  return page.evaluate(async () => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('liberdade-local-v1');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const records = await new Promise((resolve, reject) => {
+      const request = db.transaction('conversations').objectStore('conversations').getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return Math.min(9999, records.reduce((total, item) => total + (Number.isSafeInteger(item.unreadCount) && item.unreadCount > 0 ? item.unreadCount : 0), 0));
+  });
+}
 async function messageAudit(page, peer) {
   return await page.evaluate(async peerKey => {
     const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
@@ -499,6 +515,13 @@ async function main() {
         close() {}
       }
       Object.defineProperty(window, 'Notification', { configurable: true, writable: true, value: FakeNotification });
+      window.__propertyBadgeProbe = { calls: [] };
+      Object.defineProperty(navigator, 'setAppBadge', { configurable: true, value: async count => {
+        window.__propertyBadgeProbe.calls.push({ type: 'set', count });
+      } });
+      Object.defineProperty(navigator, 'clearAppBadge', { configurable: true, value: async () => {
+        window.__propertyBadgeProbe.calls.push({ type: 'clear' });
+      } });
     });
     stage = 'G04-01: open A'; let pageA = await openApp(contextA, origin);
     stage = 'G04-01: open B'; let pageB = await openApp(contextB, origin);
@@ -1047,6 +1070,70 @@ async function main() {
       hidden_inbound_unread_count: conversationAfterMute.unreadCount, relay_event_delta_from_global_opt_in: 0, relay_event_delta_from_chat_mute: 0
     };
     mark('G04-15', 'PASS', 'Browser notification permission was requested only after a tap; a hidden-page notice contained no message or sender data; the visible chat produced no duplicate notice; a local 15-minute mute suppressed a third notice while unread counts remained, and settings published zero relay events.');
+
+    stage = 'G04-16: optional local unread app badge';
+    const relayIdsBeforeBadgeSettings = (await wsQuery(relay0.url, { limit: 1000 })).map(event => event.id).sort();
+    assert.deepEqual(await pageA.evaluate(() => window.__propertyBadgeProbe.calls), [],
+      'the badge API remains untouched until the person explicitly opts in');
+    const unreadBeforeBadge = await localUnreadTotal(pageA);
+    assert.ok(unreadBeforeBadge >= 2, 'the synthetic inbox has two hidden unread messages before enabling the badge');
+    await pageA.locator('#profile-button').click();
+    await pageA.locator('#profile-app-badge-toggle').waitFor({ state: 'visible' });
+    assert.equal(await pageA.evaluate(() => window.__propertyNotificationProbe.permissionRequests), 1,
+      'opening the badge setting does not request notification permission');
+    await mkdir(options.output, { recursive: true, mode: 0o700 });
+    await pageA.screenshot({ path: path.join(options.output, 'g04-profile-app-badge.png') });
+    await pageA.locator('#profile-app-badge-toggle').click();
+    await pageA.waitForFunction(() => window.__propertyBadgeProbe.calls.length >= 1);
+    const badgeSetting = await localRecord(pageA, 'settings', `property-app-badge:${a.pubkey}`);
+    assert.equal(badgeSetting?.enabled, true, 'badge opt-in is stored locally for this identity');
+    const badgeCallsAfterEnable = await pageA.evaluate(() => window.__propertyBadgeProbe.calls);
+    assert.deepEqual(badgeCallsAfterEnable.at(-1), { type: 'set', count: unreadBeforeBadge },
+      'badge equals the total local unread count across conversations');
+    assert.equal(await pageA.evaluate(() => window.__propertyNotificationProbe.permissionRequests), 1,
+      'enabling the app icon badge never requests notification permission');
+    await pageA.locator('#profile-dialog [aria-label="Close"]').click();
+    const peerRowAfterBadge = pageA.locator('.conversation-row').filter({ hasText: 'B privado' }).first();
+    await pageA.evaluate(() => Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }));
+    await peerRowAfterBadge.locator('.conversation-item').click();
+    await pageA.waitForFunction(async peer => {
+      const request = indexedDB.open('liberdade-local-v1');
+      const db = await new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+      const conversation = await new Promise((resolve, reject) => {
+        const get = db.transaction('conversations').objectStore('conversations').get(peer);
+        get.onsuccess = () => resolve(get.result); get.onerror = () => reject(get.error);
+      });
+      db.close(); return conversation?.unreadCount === 0;
+    }, b.pubkey);
+    const unreadAfterOpeningChat = await localUnreadTotal(pageA);
+    await pageA.waitForFunction(expected => {
+      const last = window.__propertyBadgeProbe.calls.at(-1);
+      return expected > 0 ? last?.type === 'set' && last.count === expected : last?.type === 'clear';
+    }, unreadAfterOpeningChat);
+    const badgeCallsAfterRead = await pageA.evaluate(() => window.__propertyBadgeProbe.calls);
+    assert.notDeepEqual(badgeCallsAfterRead.at(-1), badgeCallsAfterEnable.at(-1),
+      'opening the unread conversation updates or clears the app badge');
+    const relayIdsAfterBadgeEnableAndRead = (await wsQuery(relay0.url, { limit: 1000 })).map(event => event.id).sort();
+    assert.deepEqual(relayIdsAfterBadgeEnableAndRead, relayIdsBeforeBadgeSettings,
+      'app badge preferences and unread reconciliation publish zero relay events');
+    await pageA.locator('#profile-button').click();
+    await pageA.locator('#profile-app-badge-toggle').click();
+    await pageA.waitForFunction(() => window.__propertyBadgeProbe.calls.at(-1)?.type === 'clear');
+    const disabledBadgeSetting = await localRecord(pageA, 'settings', `property-app-badge:${a.pubkey}`);
+    assert.equal(disabledBadgeSetting?.enabled, false, 'the person can turn off and clear the icon badge');
+    assert.equal(await pageA.evaluate(() => window.__propertyNotificationProbe.permissionRequests), 1,
+      'badge toggles remain separate from browser notifications');
+    report.badge_checks = {
+      badge_calls_before_explicit_opt_in: 0,
+      identity_scoped_opt_in_saved_locally: true,
+      unread_before_enable: unreadBeforeBadge,
+      unread_after_opening_chat: unreadAfterOpeningChat,
+      badge_updated_after_read: true,
+      disable_cleared_badge: true,
+      notification_permission_requests: 1,
+      relay_event_delta: 0
+    };
+    mark('G04-16', 'PASS', 'The app icon badge remained inactive before opt-in, then reflected the local aggregate unread count. Opening the unread conversation updated the count, disabling cleared it, the preference stayed in this identity, and none of these actions requested browser notification permission or published a relay event.');
 
 
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');

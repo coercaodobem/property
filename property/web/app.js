@@ -23,6 +23,7 @@
   const FolderStore = window.PropertyConversationFolders;
   const ChatDrafts = window.PropertyChatDrafts;
   const NotificationPrefs = window.PropertyNotificationPreferences;
+  const AppBadge = window.PropertyAppBadge;
   const RichText = window.PropertyRichText;
   const MessageEdits = window.PropertyMessageEdits;
   const SecretGuard = window.PropertySecretGuard;
@@ -48,7 +49,7 @@
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0
+    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0
   };
   const SHARE_LAUNCH_ACTIONS = new Set(['share', 'share-full', 'share-error']);
   let propertyTabChannel = null;
@@ -734,6 +735,9 @@
     state.npub = N.nip19.npubEncode(state.pubkey);
     const notificationSetting = await get('settings', NotificationPrefs.notificationsId(state.pubkey));
     state.notificationsEnabled = notificationSetting?.enabled === true && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+    const appBadgeSetting = await get('settings', AppBadge.preferenceId(state.pubkey));
+    state.appBadgeEnabled = appBadgeSetting?.enabled === true && AppBadge.canBadge(navigator);
+    state.appBadgeLastCount = null;
     const mutePrefix = `property-notification-mute:${state.pubkey}:`;
     state.notificationMutes = new Map((await all('settings')).filter(record => typeof record.id === 'string' && record.id.startsWith(mutePrefix))
       .map(record => [record.id.slice(mutePrefix.length), record]));
@@ -1397,6 +1401,60 @@
       $('profile-notifications-status').textContent = localized('Could not update this local notification setting.', 'Não foi possível atualizar esta configuração local de notificações.');
     }
   }
+  function queueAppBadge(count) {
+    state.appBadgeQueue = state.appBadgeQueue.catch(() => false).then(() => AppBadge.apply(count, navigator));
+    return state.appBadgeQueue;
+  }
+  function updateAppBadge(conversations) {
+    if (!state.pubkey || !state.appBadgeEnabled || !AppBadge.canBadge(navigator)) return;
+    const count = AppBadge.unreadCount(conversations);
+    if (count === state.appBadgeLastCount) return;
+    state.appBadgeLastCount = count;
+    const identity = state.pubkey;
+    void queueAppBadge(count).then(applied => {
+      if (!applied && state.pubkey === identity && state.appBadgeLastCount === count) state.appBadgeLastCount = null;
+    });
+  }
+  async function renderAppBadgeSettings() {
+    const button = $('profile-app-badge-toggle');
+    const status = $('profile-app-badge-status');
+    if (!state.pubkey) {
+      button.disabled = true;
+      button.textContent = localized('Unlock to manage the app icon badge', 'Desbloqueie para configurar o selo do ícone');
+      status.textContent = localized('The choice is saved separately for each identity on this device.', 'A opção fica salva separadamente para cada identidade neste aparelho.');
+      return;
+    }
+    if (!AppBadge.canBadge(navigator)) {
+      button.disabled = true;
+      button.textContent = localized('App icon badge unavailable', 'Selo do ícone indisponível');
+      status.textContent = localized('This browser or installation cannot show an app icon badge. Unread counts remain available inside Property.', 'Este navegador ou instalação não pode mostrar um selo no ícone. As contagens continuam disponíveis dentro do Property.');
+      return;
+    }
+    button.disabled = false;
+    button.textContent = state.appBadgeEnabled
+      ? localized('Turn off app icon badge', 'Desativar selo do ícone')
+      : localized('Show unread count on app icon', 'Mostrar não lidas no ícone');
+    status.textContent = state.appBadgeEnabled
+      ? localized('The installed app icon shows the local unread total. This never sends a count to relays.', 'O ícone do app instalado mostra o total local de mensagens não lidas. Essa contagem nunca é enviada aos relays.')
+      : localized('Optional and off by default. An unread count may be visible on your home screen; enabling this sends nothing to relays.', 'Opcional e desligado por padrão. Uma contagem de não lidas poderá aparecer na tela inicial; ativar não envia nada aos relays.');
+  }
+  async function toggleAppBadge() {
+    if (!state.pubkey || !AppBadge.canBadge(navigator)) return renderAppBadgeSettings();
+    try {
+      const enabled = !state.appBadgeEnabled;
+      await put('settings', { id: AppBadge.preferenceId(state.pubkey), enabled });
+      state.appBadgeEnabled = enabled;
+      state.appBadgeLastCount = null;
+      if (enabled) updateAppBadge(await all('conversations'));
+      else {
+        state.appBadgeLastCount = 0;
+        await queueAppBadge(0);
+      }
+      await renderAppBadgeSettings();
+    } catch {
+      $('profile-app-badge-status').textContent = localized('Could not update this local setting.', 'Não foi possível atualizar esta configuração local.');
+    }
+  }
   function conversationSearchSnippet(text, query) {
     const plain = RichText.preview(text || '');
     if (plain.length <= 112) return plain;
@@ -1482,6 +1540,8 @@
   async function renderConversations() {
     const renderSequence = ++state.conversationListRenderSequence;
     const conversations = FolderStore.sortConversations(await all('conversations'));
+    if (renderSequence !== state.conversationListRenderSequence) return;
+    updateAppBadge(conversations);
     const rawSearch = $('conversation-search').value.trim();
     const search = MessageSearch.foldText(rawSearch).trim();
     const latestMatches = new Map();
@@ -2693,7 +2753,9 @@
     if (state.account) { const updated = { ...state.account }; delete updated.session; await put('vault', updated); state.account = updated; }
     clearTimeout(state.idleTimer);
     if (state.secret) state.secret.fill(0);
-    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = '';
+    const clearAppBadgeOnLock = state.appBadgeEnabled || state.appBadgeLastCount !== null;
+    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = ''; state.appBadgeEnabled = false; state.appBadgeLastCount = clearAppBadgeOnLock ? 0 : null;
+    if (clearAppBadgeOnLock) void queueAppBadge(0);
     state.conversationMessageSearchCache = null; state.conversationMessageSearchRevision++;
     state.replyingTo = null; updateReplyContext();
     state.draftLoadSequence++;
@@ -2770,7 +2832,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v53', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v54', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -2828,8 +2890,10 @@
     $('profile-button').addEventListener('click', () => {
       $('profile-dialog').showModal();
       renderNotificationSettings().catch(() => {});
+      renderAppBadgeSettings().catch(() => {});
     });
     $('profile-notifications-toggle').addEventListener('click', () => toggleBrowserNotifications());
+    $('profile-app-badge-toggle').addEventListener('click', () => toggleAppBadge());
     $('notification-mute-dialog').addEventListener('close', () => { state.notificationMutePeer = ''; });
     document.querySelectorAll('[data-notification-mute-choice]').forEach(button => {
       button.addEventListener('click', () => setConversationMute(button.dataset.notificationMuteChoice));
@@ -3157,7 +3221,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !RichText || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !RichText || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();
