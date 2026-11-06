@@ -73,11 +73,16 @@
 
   function create(nostr, secret, participantKeys, action, sequence) {
     validateCrypto(nostr);
-    if (!['typing', 'thinking', 'stop'].includes(action) || !Number.isSafeInteger(sequence) || sequence < 1) {
+    if (!['typing', 'recording', 'thinking', 'stop'].includes(action) || !Number.isSafeInteger(sequence) || sequence < 1) {
       throw new TypeError('Invalid typing signal action or sequence.');
     }
     const { sender, participants } = normalizeParticipants(nostr, secret, participantKeys);
     return createEnvelopes(nostr, secret, sender, participants, { v: 1, action, sequence }, participants.filter(key => key !== sender));
+  }
+
+  function summarizeActivity(actions) {
+    if (!Array.isArray(actions) || !actions.length || actions.some(action => !['typing', 'recording', 'thinking'].includes(action))) return null;
+    return actions.every(action => action === actions[0]) ? actions[0] : 'typing';
   }
 
   function createReadReceipt(nostr, secret, participantKeys, recipientKey, messageId, sequence, group = false) {
@@ -205,7 +210,7 @@
       const participants = participantsFromRumor(rumor);
       if (!participants.includes(recipient) || participants.length < 2) return null;
       const payload = JSON.parse(rumor.content);
-      if (payload?.v !== 1 || !['typing', 'thinking', 'stop', 'read', 'presence', 'call-offer', 'call-answer', 'call-decline', 'call-busy', 'call-hangup', 'file-offer', 'file-answer', 'file-reject', 'file-cancel'].includes(payload.action) ||
+      if (payload?.v !== 1 || !['typing', 'recording', 'thinking', 'stop', 'read', 'presence', 'call-offer', 'call-answer', 'call-decline', 'call-busy', 'call-hangup', 'file-offer', 'file-answer', 'file-reject', 'file-cancel'].includes(payload.action) ||
           !Number.isSafeInteger(payload.sequence) || payload.sequence < 1) return null;
       if (payload.action === 'read' && (!EVENT_ID_RE.test(payload.messageId || '') || typeof payload.group !== 'boolean')) return null;
       if (payload.action === 'presence' && (typeof payload.active !== 'boolean' || participants.length !== 2)) return null;
@@ -242,5 +247,5 @@
     }
   }
 
-  window.PropertyTypingSignals = Object.freeze({ RUMOR_KIND, EPHEMERAL_GIFT_WRAP_KIND, MAX_SIGNAL_AGE_SECONDS, MAX_THINKING_AGE_SECONDS, MAX_READ_AGE_SECONDS, MAX_PRESENCE_AGE_SECONDS, MAX_CALL_SIGNAL_AGE_SECONDS, MAX_FILE_SIGNAL_AGE_SECONDS, MAX_CALL_SDP_CHARS, MAX_FILE_BYTES, MAX_FILE_BATCH_BYTES, MAX_FILE_BATCH_COUNT, FILE_CHUNK_BYTES, normalizeFileManifests, validDataChannelDescription, create, createReadReceipt, createPresence, createCallSignal, createFileSignal, unwrap });
+  window.PropertyTypingSignals = Object.freeze({ RUMOR_KIND, EPHEMERAL_GIFT_WRAP_KIND, MAX_SIGNAL_AGE_SECONDS, MAX_THINKING_AGE_SECONDS, MAX_READ_AGE_SECONDS, MAX_PRESENCE_AGE_SECONDS, MAX_CALL_SIGNAL_AGE_SECONDS, MAX_FILE_SIGNAL_AGE_SECONDS, MAX_CALL_SDP_CHARS, MAX_FILE_BYTES, MAX_FILE_BATCH_BYTES, MAX_FILE_BATCH_COUNT, FILE_CHUNK_BYTES, normalizeFileManifests, validDataChannelDescription, create, summarizeActivity, createReadReceipt, createPresence, createCallSignal, createFileSignal, unwrap });
 })();

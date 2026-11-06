@@ -9,3 +9,8 @@
 .chat-activity[hidden] {
   display: none;
 }
+
+.conversation-preview small.conversation-activity-preview {
+  color: var(--accent);
+  font-weight: 650;
+}

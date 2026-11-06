@@ -87,7 +87,7 @@
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
     storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, unseenMessageCount: 0, pendingLaunchAction: '', pendingContactIntent: '', pendingGroupInviteIntent: '', pendingGroupInvite: null, groupInviteDraft: null, contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', shareFileDraftId: '', shareFileDraftPeer: '', shareFileDraftFiles: [], pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0,
     linkPreview: null, linkPreviewUrl: '', linkPreviewSequence: 0, linkPreviewBusy: false, linkPreviewStatus: '',
-    voiceRecorder: null, voiceRecorderPeer: '', voiceRecorderStartedAt: 0, voiceTimer: 0, voiceStopping: false, voiceSequence: 0,
+    voiceRecorder: null, voiceRecorderPeer: '', voiceRecorderStartedAt: 0, voiceActivitySession: null, voiceTimer: 0, voiceStopping: false, voiceSequence: 0,
     voiceDrafts: new Map(), voiceObjectUrls: new Map(), fileObjectUrls: new Map(), fileDraftObjectUrls: new Map(), fileDraftTransferIds: new Map(), fileDraftFiles: [], fileSendBusy: false, fileTransferSeen: new Set(), activeConversationAgent: false, activeConversationBlocked: false
   };
   const callWindow = CallWindow.create({ element: $('call-mini-window'), handle: $('call-mini-drag-handle') });
@@ -704,6 +704,7 @@
   }
   function cancelVoiceRecording({ notify = false } = {}) {
     const recorder = state.voiceRecorder;
+    stopLocalRecordingSignal();
     if (!recorder) return;
     state.voiceSequence++;
     state.voiceRecorder = null;
@@ -718,6 +719,7 @@
   async function finishVoiceRecording() {
     const recorder = state.voiceRecorder;
     if (!recorder || state.voiceStopping) return;
+    stopLocalRecordingSignal();
     state.voiceStopping = true;
     const sequence = state.voiceSequence;
     const peer = state.voiceRecorderPeer;
@@ -748,7 +750,11 @@
     if (!recorder || state.voiceStopping) return;
     try {
       const changed = recorder.isPaused() ? recorder.resume() : recorder.pause();
-      if (changed) renderVoiceComposer();
+      if (changed) {
+        if (recorder.isPaused()) stopLocalRecordingSignal();
+        else startLocalRecordingSignal(state.voiceRecorderPeer);
+        renderVoiceComposer();
+      }
     } catch {
       showToast(localized('Could not change the recording state.', 'Não foi possível alterar o estado da gravação.'));
     }
@@ -775,6 +781,7 @@
       await recorder.start();
       if (sequence !== state.voiceSequence || state.activePeer !== peer) { recorder.cancel(); return; }
       state.voiceRecorderStartedAt = Date.now();
+      startLocalRecordingSignal(peer);
       renderVoiceComposer();
       state.voiceTimer = window.setInterval(() => {
         if (state.voiceRecorder !== recorder) { clearVoiceTimer(); return; }
@@ -915,7 +922,46 @@
   function activeStatusPreferenceId(pubkey = state.pubkey) { return `property-active-status:${pubkey}`; }
   function readReceiptRecordPrefix(pubkey = state.pubkey) { return `property-read-receipt:${pubkey}:`; }
   function readReceiptRecordId(pubkey, messageId) { return `${readReceiptRecordPrefix(pubkey)}${messageId}`; }
+  function typingActivityVerb(action) {
+    if (action === 'recording') return localized('is recording audio…', 'está gravando áudio…');
+    if (action === 'thinking') return localized('is thinking…', 'está pensando…');
+    return localized('is typing…', 'está digitando…');
+  }
+  function typingActivityMany(action, count = null) {
+    const subject = count === null
+      ? localized('Several people', 'Várias pessoas')
+      : `${count} ${localized('people', 'pessoas')}`;
+    if (action === 'recording') return `${subject} ${localized('are recording audio…', 'estão gravando áudio…')}`;
+    if (action === 'thinking') return `${subject} ${localized('are thinking…', 'estão pensando…')}`;
+    return `${subject} ${localized('are typing…', 'estão digitando…')}`;
+  }
+  function typingActivityPreviewText(peer, group, hasSearchMatch = false) {
+    if (hasSearchMatch) return '';
+    const senders = [...state.remoteTyping.values()].filter(item => item.peer === peer);
+    if (!senders.length) return '';
+    const action = TypingSignals.summarizeActivity(senders.map(item => item.action)) || 'typing';
+    if (senders.length > 1) return typingActivityMany(action, senders.length);
+    if (group) {
+      const profile = state.peerProfiles.get(senders[0].sender);
+      const name = displayName(senders[0].sender, profile?.displayName || profile?.name || localized('Someone', 'Alguém'));
+      return `${name} ${typingActivityVerb(action)}`;
+    }
+    if (action === 'recording') return localized('Recording audio…', 'Gravando áudio…');
+    if (action === 'thinking') return localized('Thinking…', 'Pensando…');
+    return localized('Typing…', 'Digitando…');
+  }
+  function renderConversationActivityPreviews() {
+    const list = $('conversation-list');
+    if (!list) return;
+    for (const preview of list.querySelectorAll('[data-conversation-preview]')) {
+      const activity = typingActivityPreviewText(preview.dataset.conversationPreview,
+        preview.dataset.conversationGroup === 'true', preview.dataset.hasSearchMatch === 'true');
+      preview.textContent = activity || preview.dataset.messagePreview || '';
+      preview.classList.toggle('conversation-activity-preview', Boolean(activity));
+    }
+  }
   function renderRemoteTyping() {
+    renderConversationActivityPreviews();
     const output = $('chat-activity');
     if (!output) return;
     const senders = [...state.remoteTyping.values()].filter(item => item.peer === state.activePeer);
@@ -930,19 +976,15 @@
     }
     output.hidden = false;
     if (senders.length > 1) {
-      const allThinking = senders.every(item => item.action === 'thinking');
-      output.textContent = allThinking
-        ? localized('Several people are thinking…', 'Várias pessoas estão pensando…')
-        : localized('Several people are typing…', 'Várias pessoas estão digitando…');
+      const action = TypingSignals.summarizeActivity(senders.map(item => item.action)) || 'typing';
+      output.textContent = typingActivityMany(action);
       return;
     }
     const sender = senders[0].sender;
     const profile = state.peerProfiles.get(sender);
     const conversationName = state.currentConversation?.group === true ? '' : state.currentConversation?.title || '';
     const name = displayName(sender, conversationName || profile?.displayName || profile?.name || '');
-    output.textContent = `${name} ${senders[0].action === 'thinking'
-      ? localized('is thinking…', 'está pensando…')
-      : localized('is typing…', 'está digitando…')}`;
+    output.textContent = `${name} ${typingActivityVerb(senders[0].action)}`;
   }
   function clearRemoteTypingKey(key) {
     clearTimeout(state.typingTimers.get(key));
@@ -1679,7 +1721,7 @@
     const senderPubkey = state.pubkey;
     const secret = state.secret;
     if (!senderPubkey || !secret || session.senderPubkey !== senderPubkey ||
-        (action === 'typing' && !state.typingIndicatorsEnabled)) return;
+        (['typing', 'recording'].includes(action) && !state.typingIndicatorsEnabled)) return;
     let deliveries;
     try { deliveries = TypingSignals.create(N, secret, session.participants, action, nextTypingSequence()); }
     catch { return; }
@@ -1688,6 +1730,38 @@
       if (!relays.length || state.pubkey !== senderPubkey || state.secret !== secret) return;
       await publishEphemeralToRelays(event, relays).catch(() => {});
     }));
+  }
+  function scheduleVoiceActivityHeartbeat(session, delay = 3000) {
+    clearTimeout(session.heartbeatTimer);
+    session.heartbeatTimer = setTimeout(() => {
+      session.heartbeatTimer = 0;
+      if (state.voiceActivitySession !== session) return;
+      if (!state.voiceRecorder || state.voiceRecorderPeer !== session.peer || state.voiceRecorder.isPaused()) {
+        stopLocalRecordingSignal(session);
+        return;
+      }
+      void sendTypingSignal(session, 'recording');
+      scheduleVoiceActivityHeartbeat(session);
+    }, delay);
+  }
+  function startLocalRecordingSignal(peer) {
+    stopLocalTyping();
+    stopLocalRecordingSignal();
+    if (!state.typingIndicatorsEnabled || !state.secret || !peer || peer !== state.activePeer ||
+        state.activeConversationAgent || state.activeConversationBlocked) return;
+    const participants = typingParticipants(peer);
+    if (!participants.length) return;
+    const session = { peer, participants, senderPubkey: state.pubkey, sent: true, heartbeatTimer: 0 };
+    state.voiceActivitySession = session;
+    void sendTypingSignal(session, 'recording');
+    scheduleVoiceActivityHeartbeat(session);
+  }
+  function stopLocalRecordingSignal(expected = state.voiceActivitySession) {
+    if (!expected || state.voiceActivitySession !== expected) return;
+    clearTimeout(expected.heartbeatTimer);
+    expected.heartbeatTimer = 0;
+    state.voiceActivitySession = null;
+    if (expected.sent) void sendTypingSignal(expected, 'stop');
   }
   function canShareActiveStatus(peer) {
     return Boolean(state.activeStatusEnabled && state.secret && state.pubkey && peer && peer === state.activePeer &&
@@ -1871,7 +1945,8 @@
     const peer = group ? groupConversationId(signal.participants) : signal.participants.find(member => member !== identityPubkey);
     const callSignal = signal.action.startsWith('call-');
     const fileSignal = signal.action.startsWith('file-');
-    if (!peer || (!callSignal && !fileSignal && signal.action !== 'read' && peer !== state.activePeer)) return;
+    const activitySignal = ['typing', 'recording', 'thinking', 'stop'].includes(signal.action);
+    if (!peer || (!callSignal && !fileSignal && signal.action !== 'read' && !activitySignal && peer !== state.activePeer)) return;
     const conversation = await get('conversations', peer).catch(() => null);
     if (state.secret !== identitySecret || state.pubkey !== identityPubkey) return;
     if (!conversation || (conversation.group === true) !== group) return;
@@ -1879,6 +1954,11 @@
       const knownMembers = [...new Set((conversation.members || []).map(key => String(key).toLowerCase()))].sort();
       if (knownMembers.length !== signal.participants.length || knownMembers.some((key, index) => key !== signal.participants[index])) return;
     } else if (conversation.pubkey !== signal.sender) return;
+    if (signal.action === 'recording' && !group) {
+      const access = await get('agentAccess', peer).catch(() => null);
+      if (state.secret !== identitySecret || state.pubkey !== identityPubkey || conversation.agent === true ||
+          access?.status === 'approved' || access?.status === 'blocked') return;
+    }
     if (callSignal) {
       const access = await get('agentAccess', peer).catch(() => null);
       if (state.secret !== identitySecret || state.pubkey !== identityPubkey || group || conversation.agent === true || access?.status === 'approved' || access?.status === 'blocked') return;
@@ -1921,11 +2001,18 @@
     const key = `${peer}:${signal.sender}`;
     if (signal.sequence <= (state.typingSequences.get(key) || 0)) return;
     state.typingSequences.set(key, signal.sequence);
+    while (state.typingSequences.size > 500) state.typingSequences.delete(state.typingSequences.keys().next().value);
     clearTimeout(state.typingTimers.get(key));
     state.typingTimers.delete(key);
     state.remoteTyping.delete(key);
-    if (signal.action === 'typing' || signal.action === 'thinking') {
+    if (signal.action === 'typing' || signal.action === 'recording' || signal.action === 'thinking') {
       state.remoteTyping.set(key, { peer, sender: signal.sender, sequence: signal.sequence, action: signal.action });
+      while (state.remoteTyping.size > 500) {
+        const oldestKey = state.remoteTyping.keys().next().value;
+        clearTimeout(state.typingTimers.get(oldestKey));
+        state.typingTimers.delete(oldestKey);
+        state.remoteTyping.delete(oldestKey);
+      }
       state.typingTimers.set(key, setTimeout(() => {
         if (state.remoteTyping.get(key)?.sequence === signal.sequence) clearRemoteTypingKey(key);
       }, signal.maxAgeSeconds * 1000));
@@ -3770,9 +3857,15 @@
       }
     }
     const preview = document.createElement('small'); preview.dataset.userContent = '';
-    preview.textContent = messageMatch
+    preview.dataset.conversationPreview = conversation.pubkey;
+    preview.dataset.conversationGroup = String(conversation.group === true);
+    preview.dataset.hasSearchMatch = String(Boolean(messageMatch));
+    preview.dataset.messagePreview = messageMatch
       ? conversationSearchSnippet(messageMatch.text, search)
       : RichText.preview(conversation.lastMessage || (conversation.group ? `${conversation.members?.length || 0} ${window.PropertyI18n?.language === 'pt-BR' ? 'participantes' : 'members'}` : conversation.pubkey.slice(0, 16)));
+    const activityPreview = typingActivityPreviewText(conversation.pubkey, conversation.group === true, Boolean(messageMatch));
+    preview.textContent = activityPreview || preview.dataset.messagePreview;
+    preview.classList.toggle('conversation-activity-preview', Boolean(activityPreview));
     info.append(titleRow);
     if (conversation.agent || agentAccess?.status === 'approved') { const agentBadge = document.createElement('small'); agentBadge.className = 'agent-chat-badge'; agentBadge.textContent = localized('AGENT PROTOCOL', 'PROTOCOLO DE AGENTE'); info.append(agentBadge); }
     if (messageMatch) {
@@ -3897,7 +3990,6 @@
       stopLocalPresence();
       clearAllRemotePresence();
       stopLocalTyping();
-      clearAllRemoteTyping();
       cancelMessageEdit();
       clearLinkPreviewDraft();
       closeMessageSearch(false);
@@ -6292,7 +6384,10 @@
       state.typingIndicatorsEnabled = enabled;
       try {
         await put('settings', { id: typingPreferenceId(), enabled });
-        if (!enabled) stopLocalTyping();
+        if (!enabled) { stopLocalTyping(); stopLocalRecordingSignal(); }
+        else if (state.voiceRecorder && state.voiceRecorderPeer === state.activePeer && !state.voiceRecorder.isPaused()) {
+          startLocalRecordingSignal(state.voiceRecorderPeer);
+        }
       } catch {
         state.typingIndicatorsEnabled = !enabled;
         event.target.checked = !enabled;
@@ -6839,7 +6934,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.createPresence !== 'function' || typeof TypingSignals.createCallSignal !== 'function' || typeof TypingSignals.createFileSignal !== 'function' || typeof TypingSignals.unwrap !== 'function' || !Calls || typeof Calls.create !== 'function' || !DirectTransfer || typeof DirectTransfer.create !== 'function' || !DirectFileEnvelope || typeof DirectFileEnvelope.create !== 'function' || typeof DirectFileEnvelope.validate !== 'function' || !ImageViewer || typeof ImageViewer.create !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || typeof Pwa.consumeGroupInviteIntent !== 'function' || !GroupInvites || typeof GroupInvites.createInvitation !== 'function' || typeof GroupInvites.openInvitation !== 'function' || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.summarizeActivity !== 'function' || typeof TypingSignals.createPresence !== 'function' || typeof TypingSignals.createCallSignal !== 'function' || typeof TypingSignals.createFileSignal !== 'function' || typeof TypingSignals.unwrap !== 'function' || !Calls || typeof Calls.create !== 'function' || !DirectTransfer || typeof DirectTransfer.create !== 'function' || !DirectFileEnvelope || typeof DirectFileEnvelope.create !== 'function' || typeof DirectFileEnvelope.validate !== 'function' || !ImageViewer || typeof ImageViewer.create !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || typeof Pwa.consumeGroupInviteIntent !== 'function' || !GroupInvites || typeof GroupInvites.createInvitation !== 'function' || typeof GroupInvites.openInvitation !== 'function' || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();

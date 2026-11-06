@@ -19,8 +19,9 @@ const result = vm.runInContext(`(() => {
   const bPub = nostr.getPublicKey(b);
   const cPub = nostr.getPublicKey(c);
   const start = PropertyTypingSignals.create(nostr, a, [aPub, bPub], 'typing', 101);
-  const stop = PropertyTypingSignals.create(nostr, a, [aPub, bPub], 'stop', 102);
-  const thinking = PropertyTypingSignals.create(nostr, a, [aPub, bPub], 'thinking', 103);
+  const recording = PropertyTypingSignals.create(nostr, a, [aPub, bPub], 'recording', 102);
+  const stop = PropertyTypingSignals.create(nostr, a, [aPub, bPub], 'stop', 103);
+  const thinking = PropertyTypingSignals.create(nostr, a, [aPub, bPub], 'thinking', 104);
   const messageId = 'ab'.repeat(32);
   const groupReceipt = PropertyTypingSignals.createReadReceipt(nostr, a, [aPub, bPub, cPub], bPub, messageId, 105, true);
   const activePresence = PropertyTypingSignals.createPresence(nostr, a, [aPub, bPub], true, 107);
@@ -37,13 +38,19 @@ const result = vm.runInContext(`(() => {
   const fileAnswer = PropertyTypingSignals.createFileSignal(nostr, b, [aPub, bPub], aPub, transferId, 'file-answer', 118, { sdp: dataSdp });
   const fileReject = PropertyTypingSignals.createFileSignal(nostr, b, [aPub, bPub], aPub, transferId, 'file-reject', 119);
   const startEvent = start[0].event;
+  const recordingEvent = recording[0].event;
   const stopEvent = stop[0].event;
   const openedStart = PropertyTypingSignals.unwrap(nostr, startEvent, b);
+  const openedRecording = PropertyTypingSignals.unwrap(nostr, recordingEvent, b);
   const openedStop = PropertyTypingSignals.unwrap(nostr, stopEvent, b);
   const openedThinking = PropertyTypingSignals.unwrap(nostr, thinking[0].event, b);
   const staleThinking = PropertyTypingSignals.unwrap(nostr, thinking[0].event, b, Math.floor(Date.now() / 1000) + 63);
-  const group = PropertyTypingSignals.create(nostr, a, [aPub, bPub, cPub], 'typing', 104);
+  const staleRecording = PropertyTypingSignals.unwrap(nostr, recordingEvent, b, Math.floor(Date.now() / 1000) + PropertyTypingSignals.MAX_SIGNAL_AGE_SECONDS + 3);
+  const group = PropertyTypingSignals.create(nostr, a, [aPub, bPub, cPub], 'typing', 105);
+  const groupRecording = PropertyTypingSignals.create(nostr, a, [aPub, bPub, cPub], 'recording', 106);
   const openedGroup = group.map(item => PropertyTypingSignals.unwrap(nostr, item.event,
+    item.recipient === bPub ? b : c));
+  const openedGroupRecording = groupRecording.map(item => PropertyTypingSignals.unwrap(nostr, item.event,
     item.recipient === bPub ? b : c));
   const openedReceipt = PropertyTypingSignals.unwrap(nostr, groupReceipt[0].event, b);
   const openedPresence = PropertyTypingSignals.unwrap(nostr, activePresence[0].event, b);
@@ -94,6 +101,11 @@ const result = vm.runInContext(`(() => {
     recipientTagOnly: JSON.stringify(startEvent.tags) === JSON.stringify([['p', bPub]]),
     contentHasNoPlainStatus: !startEvent.content.includes('"action":"typing"'),
     startAction: openedStart?.action,
+    recordingAction: openedRecording?.action,
+    recordingPayloadEncrypted: !recordingEvent.content.includes('"action":"recording"'),
+    recordingMaxAge: openedRecording?.maxAgeSeconds,
+    maxSignalAge: PropertyTypingSignals.MAX_SIGNAL_AGE_SECONDS,
+    staleRecordingRejected: staleRecording === null,
     stopAction: openedStop?.action,
     thinkingAction: openedThinking?.action,
     thinkingExpiresAfter60Seconds: staleThinking === null,
@@ -102,6 +114,12 @@ const result = vm.runInContext(`(() => {
     senderMatches: openedStart?.sender === aPub,
     groupWrapCount: group.length,
     groupParticipants: openedGroup.every(item => item?.participants.length === 3),
+    groupRecordingWrapCount: groupRecording.length,
+    groupRecordingActions: openedGroupRecording.every(item => item?.action === 'recording'),
+    uniformRecordingSummary: PropertyTypingSignals.summarizeActivity(['recording', 'recording']),
+    mixedActivitySummary: PropertyTypingSignals.summarizeActivity(['recording', 'typing']),
+    invalidActivitySummary: PropertyTypingSignals.summarizeActivity(['read']),
+    emptyActivitySummary: PropertyTypingSignals.summarizeActivity([]),
     groupReceiptWrapCount: groupReceipt.length,
     receiptRecipientOnly: groupReceipt[0].recipient === bPub && JSON.stringify(groupReceipt[0].event.tags) === JSON.stringify([['p', bPub]]),
     receiptPayloadEncrypted: !groupReceipt[0].event.content.includes(messageId),
@@ -159,6 +177,10 @@ assert.equal(result.signatureValid, true, 'both wrappers have valid signatures')
 assert.equal(result.recipientTagOnly, true, 'the outer wrapper routes only to its intended recipient');
 assert.equal(result.contentHasNoPlainStatus, true, 'the outer event does not reveal the typing status');
 assert.equal(result.startAction, 'typing');
+assert.equal(result.recordingAction, 'recording');
+assert.equal(result.recordingPayloadEncrypted, true, 'the outer event does not expose the recording state');
+assert.equal(result.recordingMaxAge, result.maxSignalAge, 'recording presence expires after the same short activity window');
+assert.equal(result.staleRecordingRejected, true, 'old recording states are rejected without sleeping');
 assert.equal(result.stopAction, 'stop');
 assert.equal(result.thinkingAction, 'thinking');
 assert.equal(result.thinkingExpiresAfter60Seconds, true, 'a lost agent stop cannot leave the status visible indefinitely');
@@ -167,6 +189,12 @@ assert.equal(result.sequenceIncreases, true, 'the receiver can reject reordered 
 assert.equal(result.senderMatches, true);
 assert.equal(result.groupWrapCount, 2, 'a three-person room gets one wrapper per other participant');
 assert.equal(result.groupParticipants, true, 'each group recipient decrypts the same participant set');
+assert.equal(result.groupRecordingWrapCount, 2, 'group recording status is wrapped separately to each other participant');
+assert.equal(result.groupRecordingActions, true);
+assert.equal(result.uniformRecordingSummary, 'recording');
+assert.equal(result.mixedActivitySummary, 'typing', 'mixed activity summaries avoid claiming that everyone is doing the same thing');
+assert.equal(result.invalidActivitySummary, null);
+assert.equal(result.emptyActivitySummary, null);
 assert.equal(result.groupReceiptWrapCount, 1, 'a group receipt is wrapped only for the author of the viewed message');
 assert.equal(result.receiptRecipientOnly, true, 'the outer wrapper routes the receipt only to that author');
 assert.equal(result.receiptPayloadEncrypted, true, 'the outer event does not reveal which message was viewed');
