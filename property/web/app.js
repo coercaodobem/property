@@ -30,6 +30,7 @@
   const GroupMentions = window.PropertyGroupMentions;
   const LinkPreview = window.PropertyLinkPreview;
   const LocationCards = window.PropertyLocationCards;
+  const MessageForwards = window.PropertyMessageForwards;
   const RichText = window.PropertyRichText;
   const MessageEdits = window.PropertyMessageEdits;
   const SecretGuard = window.PropertySecretGuard;
@@ -1300,6 +1301,7 @@
     if (edit && fromAgent) return;
     const linkPreview = !edit && LinkPreview?.fromTags(rumor.tags, text) || null;
     const replyTag = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'e' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) : null;
+    const forwardedHops = fromAgent ? null : MessageForwards.fromTags(rumor.tags);
     const eventId = rumor.id || event.id;
     const senderDirection = rumor.pubkey === state.pubkey ? 'sent' : 'received';
     let message;
@@ -1308,6 +1310,7 @@
         id: `edit:${peer}:${edit.rootId}`, peer, text, ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey,
         createdAt: rumor.created_at * 1000, direction: senderDirection, status: 'delivered',
         nostrEventId: eventId, edit, linkPreview: null,
+        ...(forwardedHops ? { forwarded: forwardedHops } : {}),
         ...(replyTag ? { replyToId: replyTag[1] } : {})
       };
       const result = MessageEdits.applyIncomingEdit(await all('messages'), incoming, state.pubkey);
@@ -1317,7 +1320,7 @@
     } else {
       const id = parsedAgentMessage ? `agent:${peer}:${parsedAgentMessage.messageId}` : eventId;
       if (await get('messages', id)) return;
-      const original = { id, peer, text, ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, linkPreview, ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
+      const original = { id, peer, text, ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, linkPreview, ...(forwardedHops ? { forwarded: forwardedHops } : {}), ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
       const merged = MessageEdits.mergeOriginalBehindEdit(await all('messages'), original, state.pubkey);
       message = merged?.message || original;
       await put('messages', message);
@@ -2147,6 +2150,11 @@
         row.append(quote);
       }
       const bubble = document.createElement('div'); bubble.className = 'message-bubble'; RichText.renderInto(bubble, message.text, window.PropertyI18n?.language || 'en');
+      const forwardedLabel = MessageForwards?.label(message.forwarded, window.PropertyI18n?.language || 'en');
+      if (forwardedLabel) {
+        const forwarded = document.createElement('span'); forwarded.className = 'message-forwarded';
+        forwarded.textContent = forwardedLabel; forwarded.setAttribute('aria-label', forwardedLabel); bubble.prepend(forwarded);
+      }
       const safePreview = LinkPreview?.normalizePreview(message.linkPreview, message.text);
       if (safePreview) bubble.append(renderLinkPreview(safePreview));
       const locationCard = LocationCards?.render(RichText.locationText(message.text), window.PropertyI18n?.language || 'en');
@@ -2203,7 +2211,8 @@
         editAction.addEventListener('click', () => { menu.open = false; startMessageEdit(peer, message); });
         menuItems.append(editAction);
       }
-      const forward = document.createElement('button'); forward.type = 'button'; forward.textContent = 'Forward';
+      const canForward = typeof message.text === 'string' && Boolean(message.text.trim()) && message.kind !== 7 && !message.deleted && !message.fromAgent && !message.agentMessageId;
+      const forward = document.createElement('button'); forward.type = 'button'; forward.textContent = localized('Forward', 'Encaminhar'); forward.disabled = !canForward;
       forward.addEventListener('click', () => { menu.open = false; openForwardDialog(message).catch(error => showToast(error.message || 'Could not open forwarding.')); });
       const details = document.createElement('button'); details.type = 'button'; details.textContent = localized('Details', 'Detalhes');
       details.addEventListener('click', () => {
@@ -2416,11 +2425,11 @@
     await renderConversations();
     return { updated: true, confirmed: confirmedRemote.length, required: remoteRecipients.length };
   }
-  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false, mentionTokens = [] } = {}, linkPreview = null) {
+  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false, mentionTokens = [], forwardedHops = null } = {}, linkPreview = null) {
     if (!secretConfirmed && !(await requestSecretSendConfirmation(text, peer))) {
       return { savedLocally: false, cancelled: true, confirmedEnvelopeCount: 0, requiredEnvelopeCount: 0 };
     }
-    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true, linkPreview, mentionTokens });
+    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true, linkPreview, mentionTokens, forwardedHops });
     const agentAccess = await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') throw new Error('Este contato está bloqueado neste aparelho.');
     if (!state.inboxRelays.length) {
@@ -2452,6 +2461,7 @@
     if (replyEventId) rumorTags.push(['e', replyEventId, '', 'reply']);
     const previewTag = LinkPreview?.toTag(linkPreview, text);
     if (previewTag) rumorTags.push(previewTag);
+    if (forwardedHops !== null) rumorTags.push(MessageForwards.toTag(forwardedHops));
     // Make one rumor and wrap that exact event for both participants, so NIP-17 reply IDs match on each device.
     const sentRumor = N.nip59.createRumor({ kind: 14, tags: rumorTags, content: wireContent }, state.secret);
     const wraps = [state.pubkey, peer].map(recipient => N.nip59.createWrap(N.nip59.createSeal(sentRumor, state.secret, recipient), recipient));
@@ -2459,7 +2469,7 @@
     if (!routePlan.ready) throw new Error('A mensagem NIP-17 não tem os dois envelopes válidos ou as listas de recebimento necessárias.');
     if (!Array.isArray(wraps) || wraps.length < 2 || wraps.some(event => event.kind !== 1059)) throw new Error('A biblioteca não gerou envelopes NIP-17 válidos.');
     const id = agentConversation ? `agent-out:${peer}:${agentMessageId}` : `${state.pubkey}:${crypto.randomUUID()}`;
-    const message = { id, peer, text, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
+    const message = { id, peer, text, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
     await put('messages', message);
     await put('conversations', { ...previous, ...(agentConversation ? { agent: true } : {}), lastMessage: text, lastAt: message.createdAt });
     if (state.activePeer === peer) await renderMessages(peer);
@@ -2477,7 +2487,7 @@
     else if (!quiet && sent < requiredEnvelopes) showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Entrega parcial: alguns envelopes NIP-17 não foram confirmados pelos relays.' : 'Partial delivery: some NIP-17 envelopes were not confirmed by relays.');
     return { savedLocally: true, confirmedEnvelopeCount: sent, requiredEnvelopeCount: requiredEnvelopes };
   }
-  async function sendPrivateGroupMessage(peer, text, replyTo = null, { quiet = false, linkPreview = null, mentionTokens = [] } = {}) {
+  async function sendPrivateGroupMessage(peer, text, replyTo = null, { quiet = false, linkPreview = null, mentionTokens = [], forwardedHops = null } = {}) {
     const previous = await get('conversations', peer);
     const members = [...new Set(previous?.members || [])].sort();
     if (members.length < 3 || members.length > MAX_NIP17_GROUP_MEMBERS || !members.includes(state.pubkey) || members.some(member => !/^[0-9a-f]{64}$/i.test(member))) {
@@ -2497,11 +2507,12 @@
     if (replyEventId) rumorTags.push(['e', replyEventId, '', 'reply']);
     const previewTag = LinkPreview?.toTag(linkPreview, text);
     if (previewTag) rumorTags.push(previewTag);
+    if (forwardedHops !== null) rumorTags.push(MessageForwards.toTag(forwardedHops));
     const sentRumor = N.nip59.createRumor({ kind: 14, tags: rumorTags, content: wireText }, state.secret);
     const wraps = members.map(recipient => N.nip59.createWrap(N.nip59.createSeal(sentRumor, state.secret, recipient), recipient));
     const routePlan = Routing.planGroupGiftWraps(wraps, members, relayLists, N.verifyEvent);
     if (!routePlan.ready) throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Não foi possível preparar os envelopes do grupo. Confira as listas de recebimento NIP-17.' : 'Could not prepare the group envelopes. Check each participant’s NIP-17 inbox list.');
-    const message = { id: `${state.pubkey}:${crypto.randomUUID()}`, peer, text, ...(mentions.length ? { mentions } : {}), senderPubkey: state.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(replyEventId ? { replyToId: replyEventId } : {}) };
+    const message = { id: `${state.pubkey}:${crypto.randomUUID()}`, peer, text, ...(mentions.length ? { mentions } : {}), senderPubkey: state.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}) };
     await put('messages', message);
     await put('conversations', { ...previous, group: true, members, lastMessage: text, lastAt: message.createdAt });
     if (state.activePeer === peer) await renderMessages(peer);
@@ -2692,6 +2703,9 @@
     }
   }
   async function openForwardDialog(message) {
+    if (!message || typeof message.text !== 'string' || !message.text.trim() || message.kind === 7 || message.deleted || message.fromAgent || message.agentMessageId) {
+      throw new Error(localized('This message cannot be forwarded.', 'Esta mensagem não pode ser encaminhada.'));
+    }
     state.forwardingMessage = message;
     $('forward-error').textContent = '';
     const list = $('forward-list'); list.replaceChildren();
@@ -2699,7 +2713,7 @@
     const available = [];
     for (const conversation of conversations) if (conversation.group || (await get('agentAccess', conversation.pubkey))?.status !== 'blocked') available.push(conversation);
     if (!available.length) {
-      const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = 'No conversations to forward to.'; list.append(empty);
+      const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = localized('No conversations to forward to.', 'Nenhuma conversa disponível para encaminhar.'); list.append(empty);
     } else {
       for (const conversation of available) {
         const label = document.createElement('label'); label.className = 'forward-option';
@@ -2727,8 +2741,8 @@
     const message = state.forwardingMessage;
     const peers = [...$('forward-list').querySelectorAll('input[type="checkbox"]:checked')].map(input => input.value);
     if (!message || peers.length < 1 || peers.length > 5) return;
-    const marker = window.PropertyI18n?.language === 'pt-BR' ? 'Encaminhada:' : 'Forwarded:';
-    const text = `${marker}\n${message.text}`;
+    const text = message.text;
+    const forwardedHops = MessageForwards.next(message.forwarded);
     $('forward-send').disabled = true;
     const finding = SecretGuard.findSecret(text);
     if (finding) {
@@ -2743,7 +2757,7 @@
     let relayConfirmed = 0;
     for (const peer of peers) {
       try {
-        const result = await sendPrivateMessage(peer, text, null, { quiet: true, secretConfirmed: Boolean(finding) });
+        const result = await sendPrivateMessage(peer, text, null, { quiet: true, secretConfirmed: Boolean(finding), forwardedHops }, message.linkPreview);
         if (result.savedLocally) savedLocally += 1;
         relayConfirmed += result.confirmedEnvelopeCount;
       } catch { /* The final summary distinguishes local saves from relay confirmations. */ }
@@ -3682,7 +3696,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();

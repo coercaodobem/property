@@ -97,7 +97,9 @@
       (message.senderPubkey === incoming.senderPubkey || (!message.senderPubkey && message.direction === 'sent' && incoming.senderPubkey === selfPubkey)) &&
       (message.editSeq || 0) > 0);
     if (!existing) return null;
-    const updated = { ...existing, previousEventIds: uniqueIds([...(existing.previousEventIds || []), originalId]), createdAt: incoming.createdAt || existing.createdAt };
+    const validForwarded = value => Number.isSafeInteger(value) && value >= 1 && value <= 255;
+    const forwarded = validForwarded(existing.forwarded) ? existing.forwarded : validForwarded(incoming.forwarded) ? incoming.forwarded : null;
+    const updated = { ...existing, ...(forwarded === null ? {} : { forwarded }), previousEventIds: uniqueIds([...(existing.previousEventIds || []), originalId]), createdAt: incoming.createdAt || existing.createdAt };
     return { existing, message: updated };
   }
 

@@ -1512,7 +1512,7 @@ async function runCoreProfile(profile, manifest, outputDir, cases, inventory, is
     return;
   }
 
-  const g04Ids = ['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09', 'G04-11', 'G04-12', 'G04-13', 'G04-14', 'G04-22', 'G04-23', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21'];
+  const g04Ids = ['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09', 'G04-11', 'G04-12', 'G04-13', 'G04-14', 'G04-22', 'G04-23', 'G04-24', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21'];
   if (!browserConfig) {
     for (const id of g04Ids) setCase(cases, id, {
       status: 'BLOCKED', gate_eligible: false, command: null, started_utc: null, ended_utc: null,

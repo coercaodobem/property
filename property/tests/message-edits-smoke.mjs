@@ -109,6 +109,9 @@ const merged = edits.mergeOriginalBehindEdit([outOfOrder.message], originalMessa
 assert.ok(merged, 'a late original is merged into the existing edited row');
 assert.equal(merged.message.text, 'Edited encrypted copy');
 assert.ok(edits.eventIds(merged.message).includes(original.id));
+const forwardedOriginal = { ...originalMessage, forwarded: 2 };
+const mergedForwarded = edits.mergeOriginalBehindEdit([outOfOrder.message], forwardedOriginal, bobPub);
+assert.equal(mergedForwarded.message.forwarded, 2, 'an out-of-order original preserves its private forwarding badge');
 assert.equal(edits.editDescriptor({ tags: [['edit', 'broken', '1']] }), null, 'malformed edit tags are ignored');
 assert.throws(() => prepareEdit(101, 'too many edits'), /limit/i, 'edit sequence is bounded');
 

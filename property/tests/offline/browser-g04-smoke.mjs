@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-22', 'G04-23', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-22', 'G04-23', 'G04-24', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -890,6 +890,64 @@ async function main() {
       external_requests_before_map_activation: 0, map_tiles_loaded: false, explicit_open_link: true,
       languages: ['en', 'pt-BR'], mobile_layout: mobileLocationLayout, mobile_screenshot: 'g04-location-card-mobile-pt-BR.png' };
     mark('G04-23', 'PASS', 'Both Property clients rendered a local location card from the encrypted NIP-17 message. No map image or external request was made; loopback relays saw no readable coordinates or place name. The map link is explicit, uses the parsed coordinates, and its privacy notice is localized.');
+
+    // G04-24: a forwarded message keeps its body and carries only a private hop marker.
+    stage = 'G04-24: private forward marker';
+    await openConversation(pageA, c.npub, 'C forwarding target');
+    await openConversation(pageC, a.npub, 'A forwarding source');
+    await openConversation(pageA, b.npub, 'B private');
+    const sourceForwardRow = pageA.locator('#messages .message-row').filter({ hasText: response }).last();
+    await sourceForwardRow.locator('.message-menu summary').click();
+    await sourceForwardRow.getByRole('button', { name: 'Forward', exact: true }).click();
+    await pageA.locator('#forward-dialog').waitFor({ state: 'visible', timeout: 5000 });
+    const cWrapIdsBeforeForward = new Set((await wsQuery(relay0.url, { kinds: [1059], '#p': [c.pubkey], limit: 1000 })).map(event => event.id));
+    await pageA.locator(`#forward-list input[value="${c.pubkey}"]`).check();
+    await pageA.locator('#forward-send').click();
+    await pageA.locator('#forward-dialog').waitFor({ state: 'hidden', timeout: 10000 });
+    await openConversation(pageA, c.npub, 'C forwarding target');
+    const senderForwardRow = pageA.locator('#messages .message-row').filter({ hasText: response }).last();
+    await senderForwardRow.locator('.message-forwarded').waitFor({ state: 'visible', timeout: 10000 });
+    assert.equal((await senderForwardRow.locator('.message-forwarded').textContent()).trim(), 'Forwarded');
+    assert.equal((await senderForwardRow.locator('.message-rich-block').last().textContent()).trim(), response,
+      'forwarding keeps the message body unchanged rather than inserting an unauthenticated text prefix');
+    const recipientForwardRow = pageC.locator('#messages .message-row').filter({ hasText: response }).last();
+    await recipientForwardRow.locator('.message-forwarded').waitFor({ state: 'visible', timeout: 15000 });
+    assert.equal((await recipientForwardRow.locator('.message-forwarded').textContent()).trim(), 'Forwarded');
+    assert.equal((await recipientForwardRow.locator('.message-rich-block').last().textContent()).trim(), response);
+    await pageC.locator('#language-picker').selectOption('pt-BR');
+    await pageC.waitForFunction(() => document.querySelector('.message-forwarded')?.textContent === 'Encaminhada');
+    assert.equal((await recipientForwardRow.locator('.message-forwarded').textContent()).trim(), 'Encaminhada',
+      'the recipient sees the forwarding badge in the selected app language');
+    await recipientForwardRow.locator('.message-menu summary').click();
+    assert.equal(await recipientForwardRow.getByRole('button', { name: 'Encaminhar', exact: true }).count(), 1,
+      'the message action menu is localized with the selected app language');
+    await recipientForwardRow.locator('.message-menu summary').click();
+    const recipientViewport = pageC.viewportSize();
+    await pageC.setViewportSize({ width: 390, height: 844 });
+    await pageC.locator('#messages').evaluate(element => { element.scrollTop = element.scrollHeight; });
+    await pageC.screenshot({ path: path.join(options.output, 'g04-forwarded-message-mobile-pt-BR.png') });
+    if (recipientViewport) await pageC.setViewportSize(recipientViewport);
+    const recipientForwardRecord = await pageC.evaluate(async marker => {
+      const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+      const rows = await new Promise((resolve, reject) => { const request = db.transaction('messages').objectStore('messages').getAll(); request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error); });
+      db.close(); const row = rows.find(item => item.text === marker); return row ? { forwarded: row.forwarded, text: row.text } : null;
+    }, response);
+    assert.deepEqual(recipientForwardRecord, { forwarded: 1, text: response }, 'the recipient decrypts the hop marker with the NIP-17 rumor');
+    const cWrapsAfterForward = await wsQuery(relay0.url, { kinds: [1059], '#p': [c.pubkey], limit: 1000 });
+    const newForwardWraps = cWrapsAfterForward.filter(event => !cWrapIdsBeforeForward.has(event.id));
+    assert.equal(newForwardWraps.length, 1, 'one private gift wrap reaches the selected recipient');
+    assert.ok(newForwardWraps.every(event => !JSON.stringify(event).includes(response) && !event.tags.some(tag => tag[0] === 'forwarded')),
+      'the relay sees neither message text nor the encrypted inner forward marker');
+    const forwardViewport = pageA.viewportSize();
+    await pageA.setViewportSize({ width: 390, height: 844 });
+    await pageA.locator('#messages').evaluate(element => { element.scrollTop = element.scrollHeight; });
+    await pageA.screenshot({ path: path.join(options.output, 'g04-forwarded-message-mobile-en.png') });
+    if (forwardViewport) await pageA.setViewportSize(forwardViewport);
+    report.forwarded_messages = { sender_and_recipient_show_marker: true, body_unchanged: true, recipient_hop_count: 1,
+      original_author_not_exposed: true, relay_plaintext_leak: false, outer_forward_marker: false,
+      languages: ['en', 'pt-BR'], mobile_screenshots: ['g04-forwarded-message-mobile-en.png', 'g04-forwarded-message-mobile-pt-BR.png'] };
+    mark('G04-24', 'PASS', 'The forwarded NIP-17 message kept its body unchanged and showed a private “Forwarded” label to sender and recipient. The relay stored one encrypted gift wrap with neither plaintext nor the inner hop marker.');
+    await openConversation(pageA, b.npub, 'B private');
 
     // G04-13: no relay configuration barrier on a fresh browser profile.
     stage = 'G04-13: automatic first-use relay selection';

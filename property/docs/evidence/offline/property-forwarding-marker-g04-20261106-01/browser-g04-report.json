@@ -1,0 +1,296 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G04-01",
+      "status": "PASS",
+      "reason": "A, B and C published signed kind-10050 inbox lists through the UI; independent relay queries verified signatures and B’s two authorized inboxes."
+    },
+    {
+      "case": "G04-02",
+      "status": "PASS",
+      "reason": "A and B exchanged real NIP-17 messages through Geode; both UI contexts decrypted the intended text, C received none, and relay storage contained only valid encrypted gift wraps."
+    },
+    {
+      "case": "G04-11",
+      "status": "PASS",
+      "reason": "A fixed rightward touch swipe selected its exact reply target; ArrowUp edited the latest eligible own message only with an empty composer; cancel preserved the draft and neither shortcut published a relay event."
+    },
+    {
+      "case": "G04-12",
+      "status": "PASS",
+      "reason": "Valid npub/nprofile references rendered as bounded Property cards; duplicate, invalid, nsec-looking, code-span and URL references stayed literal. Local search highlighted a profile code without flattening its card; tapping a card prefilled the existing contact dialog and relay hints without creating a conversation or publishing an event."
+    },
+    {
+      "case": "G04-14",
+      "status": "PASS",
+      "reason": "Conversation-list search found older locally stored direct and group messages after newer nonmatching messages, identified each chat, and opened each exact match without a relay search event."
+    },
+    {
+      "case": "G04-22",
+      "status": "PASS",
+      "reason": "The group composer offered local member autocomplete, Enter inserted a bound @name, NIP-27 profile references were carried inside encrypted NIP-17 content, the recipient resolved the correct member, and the relay exposed no message text."
+    },
+    {
+      "case": "G04-23",
+      "status": "PASS",
+      "reason": "Both Property clients rendered a local location card from the encrypted NIP-17 message. No map image or external request was made; loopback relays saw no readable coordinates or place name. The map link is explicit, uses the parsed coordinates, and its privacy notice is localized."
+    },
+    {
+      "case": "G04-24",
+      "status": "PASS",
+      "reason": "The forwarded NIP-17 message kept its body unchanged and showed a private “Forwarded” label to sender and recipient. The relay stored one encrypted gift wrap with neither plaintext nor the inner hop marker."
+    },
+    {
+      "case": "G04-15",
+      "status": "FAIL",
+      "reason": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#messages .message-bubble').filter({ hasText: 'property-g04-offline-a877a6bf-3b46-4fcf-b864-197b55c6b622' }) to be visible\u001b[22m\n"
+    },
+    {
+      "case": "G04-16",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    },
+    {
+      "case": "G04-17",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    },
+    {
+      "case": "G04-18",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    },
+    {
+      "case": "G04-19",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    },
+    {
+      "case": "G04-20",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    },
+    {
+      "case": "G04-21",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    },
+    {
+      "case": "G04-13",
+      "status": "PASS",
+      "reason": "A fresh profile received two distinct bundled relay suggestions, saved them locally, and could create or import an identity without configuring relays. Settings remained optional and no relay connection started before identity activation."
+    },
+    {
+      "case": "G04-03",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    },
+    {
+      "case": "G04-04",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    },
+    {
+      "case": "G04-05",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    },
+    {
+      "case": "G04-06",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    },
+    {
+      "case": "G04-09",
+      "status": "BLOCKED",
+      "reason": "A prior G04 case failed; dependent end-to-end flow was not started."
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28470",
+      "process_id": 2465069,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28471",
+      "process_id": 2465635,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/"
+  ],
+  "denied_proxy_attempts": [
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    }
+  ],
+  "page_errors": [],
+  "inbox_checks": {
+    "A": {
+      "signed": true,
+      "newest": true,
+      "relays": [
+        "ws://127.0.0.1:28470"
+      ]
+    },
+    "B": {
+      "signed": true,
+      "newest": true,
+      "relays": [
+        "ws://127.0.0.1:28470",
+        "ws://127.0.0.1:28471"
+      ]
+    },
+    "C": {
+      "signed": true,
+      "relays": [
+        "ws://127.0.0.1:28470"
+      ]
+    },
+    "invalid_or_ambiguous_destinations": "none used"
+  },
+  "message_checks": {
+    "first_a_to_b_visible": true,
+    "response_b_to_a_visible": true,
+    "relay_events_signature_valid": true,
+    "recipient_c_received_none": true,
+    "plaintext_absent_from_relay_envelopes": true,
+    "relay_addresses": [
+      "ws://127.0.0.1:28470",
+      "ws://127.0.0.1:28471"
+    ]
+  },
+  "failure_checks": {},
+  "reconciliation": {},
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0",
+    "browser_executable_sha256": "26e4198abe0dfb93c339239297008b1319711575d8cbae8e2d5122d2017b29a1"
+  },
+  "local_origin": "http://127.0.0.1:46209",
+  "message_gestures": {
+    "reply_target": "property-g04-b-a-653298b0-babf-43c9-b3a1-edcc6ab0de18",
+    "right_swipe_px": 96,
+    "vertical_delta_px": 12,
+    "arrow_up_edit_text_matches_latest_own_message": true,
+    "nonempty_draft_preserved": true,
+    "cancel_restored_empty_draft": true,
+    "relay_event_delta": 0
+  },
+  "nostr_profile_cards": {
+    "valid_unique_cards": 3,
+    "duplicate_canonical_profile_deduplicated": true,
+    "invalid_code_literal": true,
+    "prefilled_public_identity": true,
+    "relay_hints_shown_for_review": true,
+    "search_kept_cards_interactive": true,
+    "search_highlighted_profile_code": true,
+    "closing_search_preserved_cards": true,
+    "conversation_created_before_confirmation": false,
+    "relay_event_delta": 0
+  },
+  "message_search": {
+    "searches_saved_direct_and_group_history": true,
+    "ignores_case_and_accents": true,
+    "previews_newest_matching_message_per_chat": true,
+    "cache_invalidated_on_new_message": true,
+    "opens_exact_message": true,
+    "sends_no_search_event": true
+  },
+  "group_mentions": {
+    "sender_label": "@B privado",
+    "mentioned_member_pubkey": "7ba985a8a478043f1bfafd02a419f49aacc0f875d2ba917380656ca4977576f0",
+    "local_identity_binding": true,
+    "relay_plaintext_leak": false,
+    "mobile_screenshot": "g04-group-mention-picker-mobile-en.png",
+    "mobile_layout": {
+      "pickerBottom": 597,
+      "inputTop": 605
+    },
+    "message_text": "property-g04-group-mention-23bb0d5c-8e32-49ed-88ed-612a11783cdd @B privado received"
+  },
+  "location_cards": {
+    "sender_coordinates": "38.69160, -9.21600",
+    "recipient_rendered": true,
+    "relay_plaintext_leak": false,
+    "external_requests_before_map_activation": 0,
+    "map_tiles_loaded": false,
+    "explicit_open_link": true,
+    "languages": [
+      "en",
+      "pt-BR"
+    ],
+    "mobile_layout": {
+      "card_top": 333,
+      "card_bottom": 468,
+      "composer_top": 532
+    },
+    "mobile_screenshot": "g04-location-card-mobile-pt-BR.png"
+  },
+  "forwarded_messages": {
+    "sender_and_recipient_show_marker": true,
+    "body_unchanged": true,
+    "recipient_hop_count": 1,
+    "original_author_not_exposed": true,
+    "relay_plaintext_leak": false,
+    "outer_forward_marker": false
+  },
+  "first_use_relay_suggestions": {
+    "selected_count": 2,
+    "distinct": true,
+    "from_bundled_candidates": true,
+    "persisted_locally": true,
+    "identity_creation_available_without_settings": true,
+    "no_relay_connections_before_identity": true
+  },
+  "result": "FAIL",
+  "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#messages .message-bubble').filter({ hasText: 'property-g04-offline-a877a6bf-3b46-4fcf-b864-197b55c6b622' }) to be visible\u001b[22m\n",
+  "current_stage": "G04-03: close B and deliver queued message",
+  "relay_process_output": [
+    {
+      "pid": 2465069,
+      "tail": "Iniciando relay Property em 127.0.0.1:28470\nDados: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.DeynHZ/property-g04-t89WeU/relay zero data\nCtrl+C encerra o processo.\nSLF4J(W): No SLF4J providers were found.\nSLF4J(W): Defaulting to no-operation (NOP) logger implementation\nSLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.\ngeode listening on ws://127.0.0.1:28470/\nNIP-11 info doc: curl -H 'Accept: application/nostr+json' http://127.0.0.1:28470/\n"
+    },
+    {
+      "pid": 2465635,
+      "tail": "Iniciando relay Property em 127.0.0.1:28471\nDados: /home/<USER>/Liberdade/amethyst-upstream/property/docs/evidence/offline/.scratch/run.DeynHZ/property-g04-t89WeU/relay one data\nCtrl+C encerra o processo.\nSLF4J(W): No SLF4J providers were found.\nSLF4J(W): Defaulting to no-operation (NOP) logger implementation\nSLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.\ngeode listening on ws://127.0.0.1:28471/\nNIP-11 info doc: curl -H 'Accept: application/nostr+json' http://127.0.0.1:28471/\n"
+    }
+  ]
+}

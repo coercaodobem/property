@@ -24,6 +24,7 @@ for test_file in \
   message-scroll-smoke.mjs \
   rich-text-smoke.mjs \
   location-cards-smoke.mjs \
+  message-forwards-smoke.mjs \
   link-preview-smoke.mjs \
   nostr-entities-smoke.mjs \
   secret-guard-smoke.mjs \

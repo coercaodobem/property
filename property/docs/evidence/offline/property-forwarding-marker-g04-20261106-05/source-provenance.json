@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "run_id": "property-forwarding-marker-g04-20261106-05",
+  "base_commit": "405e32de49c924c474f877af0a3d158d22679709",
+  "branch": "modelo-mvp",
+  "candidate_state": "Modified working tree; source file hashes below identify the tested implementation before commit.",
+  "command": "bash property/tests/offline/run-isolated.sh node property/tests/offline/browser-g04-smoke.mjs with the pinned Firefox/Playwright arguments recorded in browser-g04-report.json",
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0",
+    "browser_executable_sha256": "26e4198abe0dfb93c339239297008b1319711575d8cbae8e2d5122d2017b29a1"
+  },
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28470",
+      "process_id": 2549159,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28471",
+      "process_id": 2549700,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests_observed": 0,
+  "case_counts": {
+    "PASS": 21
+  },
+  "case_ids": [
+    "G04-01",
+    "G04-02",
+    "G04-11",
+    "G04-12",
+    "G04-14",
+    "G04-22",
+    "G04-23",
+    "G04-24",
+    "G04-15",
+    "G04-16",
+    "G04-17",
+    "G04-18",
+    "G04-19",
+    "G04-20",
+    "G04-21",
+    "G04-13",
+    "G04-03",
+    "G04-04",
+    "G04-05",
+    "G04-06",
+    "G04-09"
+  ],
+  "first_attempt_correction": {
+    "report": "property-forwarding-marker-g04-20261106-01/browser-g04-report.json",
+    "cause": "The harness left identity A in conversation C before the following B offline-delivery case; the fixture now restores B."
+  },
+  "source_files_sha256": {
+    "property/web/app.js": "877b13f12c0e38abd95442f3ada9062f267d56c78e01d622a7c171a3336332ee",
+    "property/web/index.html": "4bdd2b07d7a37483a854f76d38cf441850c1a72dc3f572fe721e749b82fe23cb",
+    "property/web/sw.js": "da466b101914ea6c3a92fe3f5a867ffba83def943fdf6ed3528b195cd5dda288",
+    "property/web/message-edits.js": "a6c03cbe744d9a92d0dbd12193481d9831aeb98d9467b70ff60836726e791f21",
+    "property/web/message-forwards.js": "303a8dba59941fd7b2efb5dc449fe2a292ac5e7770aec5fa59bae65e13a06fe0",
+    "property/web/message-forwards.css": "21316a26790885957a61674e41fb9c2fe0ef3fdfcbe57bb89b4d3963afcf6fed",
+    "property/tests/app-contract-smoke.mjs": "542e6fe0e2f11aa30d637d0cf60d52ada571ca0b9d85078853ac031758a96827",
+    "property/tests/message-edits-smoke.mjs": "390fba73cdc3cada259f28cc998fa8a5baecc1490b17a0ab6dd55a5f1977fc5c",
+    "property/tests/message-forwards-smoke.mjs": "97364140f95727788e1285d2ead3c3a0e7da052a36091fce9fea51b8b149ef15",
+    "property/tests/offline/browser-g04-smoke.mjs": "7858a33b74c657fbdc7e7326c7d14256bf52abc51bba98d9ff5ffa67b02eeced",
+    "property/tests/offline/run-offline.mjs": "05abec0f3e5ad1e98b45015b3117284f9fda797c1362cc6d6b350cc3f10e7378",
+    "property/tests/offline/runner-contract-smoke.mjs": "838ddda6c657896a45c06e081677beaa979c3978d2609c3040767fa1784150d9",
+    "property/tests/run-smoke.sh": "a1ad32725b72b10f9916e12c5b60ba4620547268b2bca05eb89420f1b956b29e"
+  }
+}
