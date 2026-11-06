@@ -47,12 +47,14 @@ const manifests = files => files.map(({ transferId, name, mime, sizeBytes, total
 const signalSets = [[], []];
 const states = [[], []];
 const received = [];
+const peerConnections = [];
 const normalizeFileManifests = list => Array.isArray(list) && list.length > 0 && list.length <= 5 &&
   list.every(item => Number.isSafeInteger(item.sizeBytes) && item.sizeBytes >= 0 && item.sizeBytes <= 2 * 1024 * 1024) &&
   list.reduce((sum, item) => sum + item.sizeBytes, 0) <= 4 * 1024 * 1024
   ? list.map(item => Object.freeze({ ...item })) : null;
 const first = Direct.create({
-  createPeerConnection: configuration => new FakePeerConnection(configuration), normalizeFileManifests,
+  getIceConfiguration: () => ({ iceServers: [{ urls: ['turn:turn.example:3478'], username: 'u', credential: 'c' }], iceTransportPolicy: 'relay' }),
+  createPeerConnection: configuration => { const peerConnection = new FakePeerConnection(configuration); peerConnections.push(peerConnection); return peerConnection; }, normalizeFileManifests,
   async onSignal(signal) { signalSets[0].push(signal); }, onState(value) { states[0].push(value); }
 });
 const second = Direct.create({
@@ -62,6 +64,8 @@ const second = Direct.create({
 });
 
 assert.equal(await first.startOutgoing({ peer, transferId, files }), true);
+assert.equal(peerConnections[0].configuration.iceTransportPolicy, 'relay', 'direct file setup honors relay-only routing');
+assert.equal(peerConnections[0].configuration.iceServers[0].credential, 'c');
 assert.equal(first.getState().status, 'offered');
 assert.equal(signalSets[0][0].action, 'file-offer');
 assert.equal(second.receiveOffer({ peer: '98'.repeat(32), ...signalSets[0][0] }), true, 'receiver identifies the offer sender independently');

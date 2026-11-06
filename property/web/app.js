@@ -48,6 +48,7 @@
   const EmojiPicker = window.PropertyEmojiPicker;
   const ChatGestures = window.PropertyChatGestures;
   const TypingSignals = window.PropertyTypingSignals;
+  const IceServers = window.PropertyIceServers;
   const Calls = window.PropertyCalls;
   const CallWindow = window.PropertyCallWindow;
   const DirectTransfer = window.PropertyDirectTransfer;
@@ -77,6 +78,7 @@
     readReceiptsEnabled: false, readReceiptSent: new Set(), readReceipts: new Map(), readReceiptCandidates: new Map(), readReceiptObserver: null,
     activeStatusEnabled: false, localPresenceSession: null, remotePresence: new Map(), presenceTimers: new Map(), presenceSequences: new Map(),
     callController: null, call: null, pendingCallPeer: '', pendingCallVideo: false, callSignalSequences: new Map(),
+    iceSettings: { urls: '', username: '', credential: '', relayOnly: false }, iceSettingsInvalid: false,
     directFileController: null, directFileTransfer: null, directFileSignalSequences: new Map(), pendingDirectFileOffer: null, imageViewer: null,
     pendingDirectFileRequest: null, directFileSendJob: null, directFileJobRunning: false, directFileOfferExpiryTimer: 0,
     callUiHadSession: false, callUiSequence: 0,
@@ -1059,11 +1061,116 @@
     if (call.status === 'connecting') return localized('Setting up the direct media path…', 'Conectando a mídia diretamente…');
     if (call.status === 'connected') return localized('Connected. Audio and video travel directly between devices.', 'Conectado. Áudio e vídeo seguem diretamente entre os aparelhos.');
     if (call.status === 'reconnecting') return localized('The direct path paused. Trying to reconnect…', 'A conexão direta foi interrompida. Tentando reconectar…');
-    if (call.status === 'no-path') return localized('No direct media path was found. This network may require a TURN server, which Property does not provide.', 'Não foi encontrada uma conexão direta de mídia. Esta rede pode exigir um servidor TURN, que o Property não fornece.');
+    if (call.status === 'no-path') return localized('No direct media path was found. Configure a compatible TURN server in Relay settings and try again.', 'Não foi encontrada uma conexão direta de mídia. Configure um servidor TURN compatível em Relays e tente novamente.');
     if (call.status === 'busy') return localized('The other person is already on a call.', 'A outra pessoa já está em uma chamada.');
     if (call.status === 'declined') return localized('The call was declined.', 'A chamada foi recusada.');
     if (call.status === 'ended') return localized('Call ended.', 'Chamada encerrada.');
     return call.error || localized('The call could not be started.', 'Não foi possível iniciar a chamada.');
+  }
+  function webRtcPeerConfiguration() {
+    if (state.iceSettingsInvalid) throw new Error(localized(
+      'Saved WebRTC settings are locked or damaged. Re-enter or clear them in Relay settings before connecting.',
+      'As configurações WebRTC salvas estão bloqueadas ou danificadas. Digite-as de novo ou limpe-as em Relays antes de conectar.'
+    ));
+    return IceServers.peerConfiguration(state.iceSettings);
+  }
+  function webRtcSettingsErrorText(error) {
+    const message = error?.message || localized('Could not save WebRTC settings.', 'Não foi possível salvar as configurações WebRTC.');
+    const pt = {
+      'Enter a valid STUN or TURN server address.': 'Informe um endereço de servidor STUN ou TURN válido.',
+      'Use a STUN/TURN URL such as turn:turn.example.org:3478?transport=udp.': 'Use um endereço STUN/TURN, por exemplo turn:turn.example.org:3478?transport=udp.',
+      'The STUN/TURN server address is invalid.': 'O endereço do servidor STUN/TURN é inválido.',
+      'The STUN/TURN port must be between 1 and 65535.': 'A porta STUN/TURN deve estar entre 1 e 65535.',
+      'Use no more than 8 STUN/TURN URLs.': 'Use no máximo 8 endereços STUN/TURN.',
+      'Remove duplicate STUN/TURN URLs.': 'Remova os endereços STUN/TURN duplicados.',
+      'WebRTC settings are invalid.': 'As configurações WebRTC são inválidas.',
+      'Server URLs, username, and credential must be text.': 'Os endereços, o nome de usuário e a credencial do servidor precisam ser texto.',
+      'The TURN username or credential is too long or contains control characters.': 'O nome de usuário ou a credencial TURN é muito longo ou contém caracteres de controle.',
+      'A TURN server needs both a username and a credential.': 'Um servidor TURN exige nome de usuário e credencial.',
+      'Add a TURN URL before entering TURN credentials.': 'Adicione um endereço TURN antes de informar as credenciais.',
+      'Relay-only mode must be on or off.': 'O modo somente relay precisa estar ligado ou desligado.',
+      'Relay-only mode requires a configured TURN server.': 'O modo somente relay exige um servidor TURN configurado.'
+    };
+    return localized(message, pt[message] || message);
+  }
+  function webRtcDisclosureText() {
+    if (state.iceSettingsInvalid) return localized(
+      'Saved WebRTC settings could not be decrypted. Calls and direct file transfers stay blocked until you re-enter or clear them in Relay settings.',
+      'Não foi possível decifrar as configurações WebRTC salvas. Chamadas e transferências diretas ficam bloqueadas até você digitá-las de novo ou limpá-las em Relays.'
+    );
+    const mode = IceServers.classify(state.iceSettings);
+    if (mode.relayOnly) return localized(
+      'Relay-only is on: this connection uses only your configured TURN server and does not fall back to a direct path. The contact sees the TURN server address; its operator sees your IP and encrypted WebRTC packets. If TURN is unavailable, the connection fails.',
+      'Somente relay está ativo: esta conexão usa apenas o servidor TURN configurado e não tenta uma rota direta. A outra pessoa vê o endereço do TURN; quem o opera vê seu IP e os pacotes WebRTC criptografados. Se o TURN estiver indisponível, a conexão falha.'
+    );
+    if (mode.usesDefaultStun) return localized(
+      'Direct WebRTC may reveal your network IP to the other person. The bundled Google STUN servers also see your IP. A TURN server can relay encrypted packets; configure one in Relay settings. Relay-only routing is available when TURN is configured.',
+      'O WebRTC direto pode revelar seu IP de rede à outra pessoa. Os servidores STUN do Google incluídos também veem seu IP. Um servidor TURN pode retransmitir pacotes criptografados; configure um em Relays. O modo somente relay fica disponível quando há TURN configurado.'
+    );
+    if (mode.hasTurn) return localized(
+      'Your configured ICE servers may use a direct path or TURN. Direct candidates can reveal your IP to the other person; STUN operators see your IP, and the TURN operator sees your IP and encrypted packets. Enable relay-only in Relay settings to avoid direct candidates; it will not fall back if TURN fails.',
+      'Os servidores ICE configurados podem usar uma rota direta ou TURN. Candidatos diretos podem revelar seu IP à outra pessoa; operadores STUN veem seu IP, e o operador TURN vê seu IP e pacotes criptografados. Ative somente relay em Relays para evitar candidatos diretos; não haverá fallback se o TURN falhar.'
+    );
+    return localized(
+      'Your configured STUN server sees your public IP, and a direct WebRTC path may reveal it to the other person. No TURN relay is configured, so some networks cannot connect.',
+      'O servidor STUN configurado vê seu IP público, e uma conexão WebRTC direta pode revelá-lo à outra pessoa. Não há relay TURN configurado, então algumas redes não conseguem conectar.'
+    );
+  }
+  function renderIceSettings() {
+    if (!$('ice-server-urls')) return;
+    $('ice-server-urls').value = state.iceSettings.urls;
+    $('ice-server-username').value = state.iceSettings.username;
+    $('ice-server-credential').value = '';
+    $('ice-server-credential').placeholder = state.iceSettings.credential
+      ? localized('Saved locally; leave blank to keep it', 'Salva localmente; deixe vazio para mantê-la')
+      : localized('Required by your TURN server', 'Exigida pelo servidor TURN');
+    $('ice-relay-only').checked = state.iceSettings.relayOnly;
+    let hasTurn = false;
+    try { hasTurn = IceServers.classify(state.iceSettings).hasTurn; } catch {}
+    $('ice-relay-only').disabled = !hasTurn || state.iceSettingsInvalid;
+    $('ice-settings-status').textContent = state.iceSettingsInvalid
+      ? localized('Saved settings could not be decrypted. Re-enter or clear them before starting calls or direct transfers.', 'Não foi possível decifrar as configurações salvas. Digite-as de novo ou limpe-as antes de iniciar chamadas ou transferências diretas.')
+      : state.iceSettings.urls
+        ? localized('Custom ICE servers are saved on this device for this identity.', 'Os servidores ICE personalizados estão salvos neste aparelho para esta identidade.')
+        : localized('Using the bundled public STUN servers. No TURN server is configured.', 'Usando os servidores STUN públicos incluídos. Nenhum servidor TURN está configurado.');
+    $('ice-settings-error').textContent = '';
+  }
+  async function saveIceSettings() {
+    const saveButton = $('save-ice-settings');
+    saveButton.disabled = true;
+    $('ice-settings-error').textContent = '';
+    try {
+      const secret = state.secret;
+      const pubkey = state.pubkey;
+      if (!secret || !pubkey) throw new Error(localized('Unlock Property before saving WebRTC settings.', 'Desbloqueie o Property antes de salvar configurações WebRTC.'));
+      const urlsInput = $('ice-server-urls').value;
+      const usernameInput = $('ice-server-username').value.trim();
+      const normalizedUrlInput = urlsInput.trim() ? urlsInput.trim().split(/[\s,]+/).join('\n') : '';
+      let credential = $('ice-server-credential').value;
+      if (!credential && !state.iceSettingsInvalid && normalizedUrlInput === state.iceSettings.urls && usernameInput === state.iceSettings.username) {
+        credential = state.iceSettings.credential;
+      }
+      const next = IceServers.normalize({ urls: urlsInput, username: usernameInput, credential, relayOnly: $('ice-relay-only').checked });
+      const activeCall = state.call && !callTerminal(state.call.status);
+      const activeTransfer = state.directFileTransfer && !['completed', 'cancelled', 'declined', 'failed'].includes(state.directFileTransfer.status);
+      if (next.relayOnly !== state.iceSettings.relayOnly && (activeCall || activeTransfer)) {
+        throw new Error(localized('End the active call or direct file transfer before changing relay-only routing.', 'Encerre a chamada ou transferência direta ativa antes de mudar o roteamento somente por relay.'));
+      }
+      const id = IceServers.iceSettingsId(pubkey);
+      const record = next.urls ? IceServers.seal(N, secret, pubkey, next) : null;
+      if (state.pubkey !== pubkey || state.secret !== secret) throw new Error(localized('The identity was locked before these settings could be saved.', 'A identidade foi bloqueada antes que as configurações fossem salvas.'));
+      if (record) await put('settings', record);
+      else await del('settings', id);
+      if (state.pubkey !== pubkey || state.secret !== secret) return;
+      state.iceSettings = next;
+      state.iceSettingsInvalid = false;
+      renderIceSettings();
+      $('ice-settings-status').textContent = localized('WebRTC settings saved on this device. New calls and direct transfers will use them.', 'Configurações WebRTC salvas neste aparelho. Novas chamadas e transferências diretas vão usá-las.');
+    } catch (error) {
+      $('ice-settings-error').textContent = webRtcSettingsErrorText(error);
+    } finally {
+      saveButton.disabled = false;
+    }
   }
   function renderCallMedia(stream, local = false) {
     const videos = (local ? ['call-local-video', 'call-mini-local-video'] : ['call-remote-video', 'call-mini-remote-video']).map($);
@@ -1170,6 +1277,7 @@
     $('incoming-call-copy').textContent = call.requestedMedia === 'video'
       ? localized('They are asking to start a video call.', 'A pessoa está iniciando uma chamada de vídeo.')
       : localized('They are asking to start an audio call.', 'A pessoa está iniciando uma chamada de áudio.');
+    $('incoming-call-network-copy').textContent = webRtcDisclosureText();
     $('incoming-call-video').hidden = call.requestedMedia !== 'video';
     const terminal = callTerminal(call.status);
     $('call-mini-status').textContent = callStatusText(call);
@@ -1263,6 +1371,7 @@
       state.callController = Calls.create({
         mediaDevices: navigator.mediaDevices,
         remoteAudioElement: $('call-remote-audio'),
+        getIceConfiguration: webRtcPeerConfiguration,
         onSignal: sendCallSignal,
         onState: updateCallState,
         onRemoteStream: stream => renderCallMedia(stream),
@@ -1311,6 +1420,7 @@
     $('call-consent-copy').textContent = video
       ? localized('Property will request camera and microphone access, then try a direct video call with the person in this conversation.', 'O Property solicitará acesso à câmera e ao microfone e tentará uma chamada de vídeo direta com a pessoa desta conversa.')
       : localized('Property will request microphone access, then try a direct audio call with the person in this conversation.', 'O Property solicitará acesso ao microfone e tentará uma chamada de áudio direta com a pessoa desta conversa.');
+    $('call-consent-network-copy').textContent = webRtcDisclosureText();
     $('call-consent-error').textContent = '';
     $('call-consent-dialog').showModal();
   }
@@ -1318,10 +1428,7 @@
     const peer = state.pendingCallPeer;
     const video = state.pendingCallVideo;
     const secret = state.secret;
-    state.pendingCallPeer = '';
-    state.pendingCallVideo = false;
-    $('call-consent-dialog').close();
-    audioPlayback.pause();
+    $('call-consent-error').textContent = '';
     try {
       const conversation = await get('conversations', peer);
       const access = await get('agentAccess', peer);
@@ -1329,13 +1436,19 @@
           access?.status === 'approved' || access?.status === 'blocked') {
         throw new Error(localized('This conversation cannot start calls.', 'Esta conversa não pode iniciar chamadas.'));
       }
+      webRtcPeerConfiguration();
+      state.pendingCallPeer = '';
+      state.pendingCallVideo = false;
+      $('call-consent-dialog').close();
+      audioPlayback.pause();
       $('call-audio-avatar').textContent = callPeerLabel(peer).slice(0, 1).toUpperCase() || 'P';
       $('call-session-error').textContent = '';
       $('call-session-dialog').showModal();
       await ensureCallController().startOutgoing({ peer, callId: createCallId(), video });
     } catch (error) {
       $('call-consent-error').textContent = error.message || localized('Could not start this call.', 'Não foi possível iniciar a chamada.');
-      if (!$('call-session-dialog').open) $('call-consent-dialog').showModal();
+      if (peer) { state.pendingCallPeer = peer; state.pendingCallVideo = video; }
+      if (!$('call-session-dialog').open && !$('call-consent-dialog').open) $('call-consent-dialog').showModal();
     }
   }
   async function declineIncomingCall() {
@@ -1347,6 +1460,8 @@
   async function answerIncomingCall(video) {
     const call = state.call;
     if (!call || call.status !== 'incoming') return;
+    try { webRtcPeerConfiguration(); }
+    catch (error) { showToast(error.message || localized('Could not use the saved WebRTC settings.', 'Não foi possível usar as configurações WebRTC salvas.')); return; }
     if ($('incoming-call-dialog').open) $('incoming-call-dialog').close();
     $('call-session-dialog').showModal();
     audioPlayback.pause();
@@ -1399,6 +1514,7 @@
       `${callPeerLabel(offer.peer)} wants to send these files directly.`,
       `${callPeerLabel(offer.peer)} quer enviar estes arquivos diretamente.`
     );
+    $('incoming-direct-file-network-copy').textContent = webRtcDisclosureText();
     const list = $('incoming-direct-file-list');
     list.replaceChildren();
     $('incoming-direct-file-status').textContent = '';
@@ -1463,6 +1579,7 @@
   function ensureDirectFileController() {
     if (!state.directFileController) {
       state.directFileController = DirectTransfer.create({
+        getIceConfiguration: webRtcPeerConfiguration,
         normalizeFileManifests: TypingSignals.normalizeFileManifests,
         onSignal: sendDirectFileSignal,
         onState: updateDirectFileTransferState,
@@ -1564,7 +1681,10 @@
       showToast(localized('End the current call before starting a direct file transfer.', 'Encerre a chamada antes de iniciar uma transferência direta de arquivos.'));
       return;
     }
+    try { webRtcPeerConfiguration(); }
+    catch (error) { showToast(error.message || localized('Could not use the saved WebRTC settings.', 'Não foi possível usar as configurações WebRTC salvas.')); return; }
     state.pendingDirectFileRequest = { peer, pubkey: state.pubkey, secret: state.secret, files, caption: $('file-attachment-caption').value.trim() };
+    $('file-direct-network-copy').textContent = webRtcDisclosureText();
     $('file-direct-consent-dialog').showModal();
   }
   async function beginDirectFileSend() {
@@ -1576,6 +1696,8 @@
       showToast(localized('The conversation or selected files changed. Review the draft and try again.', 'A conversa ou os arquivos mudaram. Confira o rascunho e tente novamente.'));
       return;
     }
+    try { webRtcPeerConfiguration(); }
+    catch (error) { showToast(error.message || localized('Could not use the saved WebRTC settings.', 'Não foi possível usar as configurações WebRTC salvas.')); return; }
     state.fileSendBusy = true;
     renderFileDrafts(); renderVoiceComposer();
     const transfers = [];
@@ -1686,6 +1808,12 @@
   async function acceptIncomingDirectFiles() {
     const offer = state.pendingDirectFileOffer;
     if (!offer || offer.expiresAt < Date.now()) { await declineIncomingDirectFiles({ expired: true }); return; }
+    try { webRtcPeerConfiguration(); }
+    catch (error) {
+      $('incoming-direct-file-status').hidden = false;
+      $('incoming-direct-file-status').textContent = error.message || localized('Could not use the saved WebRTC settings.', 'Não foi possível usar as configurações WebRTC salvas.');
+      return;
+    }
     clearTimeout(state.directFileOfferExpiryTimer);
     state.pendingDirectFileOffer = null;
     const accepted = await ensureDirectFileController().acceptIncoming();
@@ -2928,6 +3056,15 @@
     resetIdleLock();
     state.pubkey = N.getPublicKey(secret);
     state.npub = N.nip19.npubEncode(state.pubkey);
+    const iceRecord = await get('settings', IceServers.iceSettingsId(state.pubkey));
+    try {
+      state.iceSettings = IceServers.open(N, state.secret, state.pubkey, iceRecord);
+      state.iceSettingsInvalid = false;
+    } catch {
+      state.iceSettings = IceServers.normalize({});
+      state.iceSettingsInvalid = true;
+    }
+    renderIceSettings();
     const notificationSetting = await get('settings', NotificationPrefs.notificationsId(state.pubkey));
     state.notificationsEnabled = notificationSetting?.enabled === true && typeof Notification !== 'undefined' && Notification.permission === 'granted';
     const typingSetting = await get('settings', typingPreferenceId(state.pubkey));
@@ -6046,6 +6183,7 @@
     state.identityProofChecks.clear();
     if (state.secret) state.secret.fill(0);
     const clearAppBadgeOnLock = state.appBadgeEnabled || state.appBadgeLastCount !== null;
+    state.iceSettings = IceServers.normalize({}); state.iceSettingsInvalid = false; $('ice-server-credential').value = '';
     state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.typingIndicatorsEnabled = false; state.readReceiptsEnabled = false; state.activeStatusEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = ''; state.pendingGroupInviteIntent = ''; state.pendingGroupInvite = null; state.groupInviteDraft = null; state.appBadgeEnabled = false; state.appBadgeLastCount = clearAppBadgeOnLock ? 0 : null;
     if ($('group-invite-preview-dialog').open) $('group-invite-preview-dialog').close();
     if (clearAppBadgeOnLock) void queueAppBadge(0);
@@ -6490,6 +6628,7 @@
       $('relay-selection-note').textContent = state.autoSelectedRelays
         ? (window.PropertyI18n?.language === 'pt-BR' ? 'O Property escolheu estes relays aleatoriamente da lista incluída no app. Eles ficam salvos neste aparelho; troque-os quando quiser.' : 'Property picked these relays randomly from its bundled list. They are saved on this device; replace them any time.')
         : (window.PropertyI18n?.language === 'pt-BR' ? 'Estes são os relays salvos neste aparelho. Troque a seleção quando quiser.' : 'These relays are saved on this device. Replace the selection any time.');
+      renderIceSettings();
       $('relay-dialog').showModal();
     };
     $('open-settings').addEventListener('click', openRelaySettings);
@@ -6498,6 +6637,7 @@
     $('language-picker').addEventListener('change', renderFirstUseRelaySuggestions);
     $('language-picker').addEventListener('change', () => {
       renderChatDetailsForCurrentLanguage();
+      renderIceSettings();
     });
     $('create-folder-button').addEventListener('click', () => openFolderEditor());
     $('folder-save').addEventListener('click', () => saveFolderEditor());
@@ -6508,6 +6648,7 @@
       try { await saveRelaySettings(parseRelayList($('relay-input').value)); $('relay-dialog').close(); showError('relay-error'); }
       catch (error) { showError('relay-error', error.message); }
     });
+    $('save-ice-settings').addEventListener('click', () => saveIceSettings());
     $('publish-inbox-list').addEventListener('click', () => publishInboxRelayList().catch(error => showError('relay-error', error.message || 'Falha ao publicar a lista NIP-17.')));
     $('use-default-relays').addEventListener('click', () => {
       const selection = RelayDefaults.pick();

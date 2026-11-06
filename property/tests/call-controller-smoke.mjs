@@ -51,9 +51,11 @@ const remoteStreams = [];
 const localStreams = [];
 const streams = [];
 const peers = [];
+let iceConfiguration = { iceServers: [{ urls: 'stun:first.example' }] };
 const mediaDevices = { async getUserMedia({ video }) { const stream = new FakeStream(video); streams.push(stream); return stream; } };
 const controller = Calls.create({
   mediaDevices,
+  getIceConfiguration() { return iceConfiguration; },
   createPeerConnection(configuration) { const pc = new FakePeerConnection(configuration); peers.push(pc); return pc; },
   async onSignal(signal) { signals.push(signal); },
   onState(state) { states.push(state); },
@@ -92,12 +94,15 @@ assert.equal(remoteStreams.at(-1), null);
 assert.equal(localStreams.at(-1), null);
 assert.equal(controller.dismiss(), true);
 
+iceConfiguration = { iceServers: [{ urls: 'turn:turn.example:3478', username: 'u', credential: 'c' }], iceTransportPolicy: 'relay' };
 assert.equal(await controller.startOutgoing({ peer, callId: '56'.repeat(16), video: true }), true);
 assert.equal(controller.getState().status, 'ringing');
 assert.equal(signals.at(-1).action, 'call-offer');
 assert.equal(signals.at(-1).media, 'video');
 assert.equal(signals.at(-1).sdp.includes('m=video'), true);
-assert.equal(peers[1].configuration.iceServers.length, 2);
+assert.equal(peers[0].configuration.iceServers[0].urls, 'stun:first.example');
+assert.equal(peers[1].configuration.iceTransportPolicy, 'relay', 'the latest relay-only setting applies to the next call');
+assert.equal(peers[1].configuration.iceServers[0].credential, 'c');
 assert.equal(controller.setMicrophoneEnabled(false), true);
 assert.equal(controller.getState().microphoneEnabled, false);
 assert.equal(streams[1].getAudioTracks()[0].enabled, false);

@@ -18,6 +18,7 @@ for test_file in \
   message-pins-smoke.mjs \
   typing-signals-smoke.mjs \
   call-controller-smoke.mjs \
+  ice-servers-smoke.mjs \
   call-window-smoke.mjs \
   chess-controller-smoke.mjs \
   app-directory-smoke.mjs \

@@ -29,6 +29,16 @@
     const iceServers = Array.isArray(options.iceServers) ? options.iceServers : DEFAULT_ICE_SERVERS;
     let current = null;
 
+    function peerConnectionConfiguration() {
+      if (typeof options.getIceConfiguration !== 'function') return { iceServers };
+      const configuration = options.getIceConfiguration();
+      if (!configuration || !Array.isArray(configuration.iceServers)) throw new TypeError('Invalid WebRTC ICE configuration.');
+      return {
+        iceServers: configuration.iceServers,
+        ...(configuration.iceTransportPolicy === 'relay' ? { iceTransportPolicy: 'relay' } : {})
+      };
+    }
+
     function manifestSummary(files) {
       return { files: files.length, totalChunks: files.reduce((sum, file) => sum + file.totalChunks, 0),
         totalBytes: files.reduce((sum, file) => sum + file.sizeBytes, 0) };
@@ -122,7 +132,7 @@
       if (typeof createPeerConnection !== 'function' || (!options.createPeerConnection && typeof PeerConnection !== 'function')) {
         throw new Error('This browser does not support direct file transfer.');
       }
-      const pc = createPeerConnection({ iceServers });
+      const pc = createPeerConnection(peerConnectionConfiguration());
       session.peerConnection = pc;
       pc.ondatachannel = event => attachChannel(session, event.channel);
       const changed = () => {
