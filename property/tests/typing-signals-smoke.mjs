@@ -21,6 +21,8 @@ const result = vm.runInContext(`(() => {
   const start = PropertyTypingSignals.create(nostr, a, [aPub, bPub], 'typing', 101);
   const stop = PropertyTypingSignals.create(nostr, a, [aPub, bPub], 'stop', 102);
   const thinking = PropertyTypingSignals.create(nostr, a, [aPub, bPub], 'thinking', 103);
+  const messageId = 'ab'.repeat(32);
+  const groupReceipt = PropertyTypingSignals.createReadReceipt(nostr, a, [aPub, bPub, cPub], bPub, messageId, 105, true);
   const startEvent = start[0].event;
   const stopEvent = stop[0].event;
   const openedStart = PropertyTypingSignals.unwrap(nostr, startEvent, b);
@@ -30,6 +32,10 @@ const result = vm.runInContext(`(() => {
   const group = PropertyTypingSignals.create(nostr, a, [aPub, bPub, cPub], 'typing', 104);
   const openedGroup = group.map(item => PropertyTypingSignals.unwrap(nostr, item.event,
     item.recipient === bPub ? b : c));
+  const openedReceipt = PropertyTypingSignals.unwrap(nostr, groupReceipt[0].event, b);
+  const wrongReceiptRecipient = PropertyTypingSignals.unwrap(nostr, groupReceipt[0].event, c);
+  const staleReceipt = PropertyTypingSignals.unwrap(nostr, groupReceipt[0].event, b,
+    Math.floor(Date.now() / 1000) + PropertyTypingSignals.MAX_READ_AGE_SECONDS + 3);
   const wrongRecipient = PropertyTypingSignals.unwrap(nostr, startEvent, c);
   const tampered = JSON.parse(JSON.stringify(startEvent));
   tampered.content = tampered.content.slice(0, -1) + (tampered.content.endsWith('A') ? 'B' : 'A');
@@ -37,6 +43,8 @@ const result = vm.runInContext(`(() => {
   const tooOld = PropertyTypingSignals.unwrap(nostr, startEvent, b, Math.floor(Date.now() / 1000) + 11);
   let invalidActionRejected = false;
   try { PropertyTypingSignals.create(nostr, a, [aPub, bPub], 'read', 105); } catch { invalidActionRejected = true; }
+  let invalidReceiptMessageRejected = false;
+  try { PropertyTypingSignals.createReadReceipt(nostr, a, [aPub, bPub], bPub, 'not-an-event-id', 106); } catch { invalidReceiptMessageRejected = true; }
   return {
     wrapperKind: startEvent.kind,
     signatureValid: nostr.verifyEvent(startEvent) && nostr.verifyEvent(stopEvent),
@@ -51,6 +59,15 @@ const result = vm.runInContext(`(() => {
     senderMatches: openedStart?.sender === aPub,
     groupWrapCount: group.length,
     groupParticipants: openedGroup.every(item => item?.participants.length === 3),
+    groupReceiptWrapCount: groupReceipt.length,
+    receiptRecipientOnly: groupReceipt[0].recipient === bPub && JSON.stringify(groupReceipt[0].event.tags) === JSON.stringify([['p', bPub]]),
+    receiptPayloadEncrypted: !groupReceipt[0].event.content.includes(messageId),
+    receiptMessageId: openedReceipt?.messageId,
+    receiptGroupFlag: openedReceipt?.group,
+    receiptParticipants: openedReceipt?.participants.length,
+    wrongReceiptRecipientRejected: wrongReceiptRecipient === null,
+    staleReceiptRejected: staleReceipt === null,
+    invalidReceiptMessageRejected,
     wrongRecipientRejected: wrongRecipient === null,
     tamperingRejected: tamperedResult === null,
     staleSignalRejected: tooOld === null,
@@ -71,6 +88,15 @@ assert.equal(result.sequenceIncreases, true, 'the receiver can reject reordered 
 assert.equal(result.senderMatches, true);
 assert.equal(result.groupWrapCount, 2, 'a three-person room gets one wrapper per other participant');
 assert.equal(result.groupParticipants, true, 'each group recipient decrypts the same participant set');
+assert.equal(result.groupReceiptWrapCount, 1, 'a group receipt is wrapped only for the author of the viewed message');
+assert.equal(result.receiptRecipientOnly, true, 'the outer wrapper routes the receipt only to that author');
+assert.equal(result.receiptPayloadEncrypted, true, 'the outer event does not reveal which message was viewed');
+assert.equal(result.receiptMessageId, 'ab'.repeat(32));
+assert.equal(result.receiptGroupFlag, true);
+assert.equal(result.receiptParticipants, 3, 'the encrypted receipt retains the conversation membership for validation');
+assert.equal(result.wrongReceiptRecipientRejected, true);
+assert.equal(result.staleReceiptRejected, true);
+assert.equal(result.invalidReceiptMessageRejected, true);
 assert.equal(result.wrongRecipientRejected, true);
 assert.equal(result.tamperingRejected, true);
 assert.equal(result.staleSignalRejected, true);

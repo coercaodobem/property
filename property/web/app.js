@@ -58,6 +58,7 @@
     currentConversation: null,
     activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingDraftMentions: [], editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
     typingIndicatorsEnabled: true, typingSession: null, typingSequence: 0, typingRelayLookups: new Map(), remoteTyping: new Map(), typingTimers: new Map(), typingSequences: new Map(), typingSeenEvents: new Set(),
+    readReceiptsEnabled: false, readReceiptSent: new Set(), readReceipts: new Map(), readReceiptCandidates: new Map(), readReceiptObserver: null,
     peerProfiles: new Map(), peerProfileLookupStatuses: new Map(), peerIdentityProofs: new Map(), identityProofChecks: new Map(), chatDetailsPeer: '', identityProofCheckId: 0,
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
@@ -457,6 +458,9 @@
   }
 
   function typingPreferenceId(pubkey = state.pubkey) { return `typing-indicators-${pubkey}`; }
+  function readReceiptsPreferenceId(pubkey = state.pubkey) { return `property-read-receipts:${pubkey}`; }
+  function readReceiptRecordPrefix(pubkey = state.pubkey) { return `property-read-receipt:${pubkey}:`; }
+  function readReceiptRecordId(pubkey, messageId) { return `${readReceiptRecordPrefix(pubkey)}${messageId}`; }
   function renderRemoteTyping() {
     const output = $('chat-activity');
     if (!output) return;
@@ -519,10 +523,12 @@
   }
   async function publishEphemeralToRelays(event, targetRelays) {
     const urls = [...new Set((targetRelays || []).map(normalizeRelay))];
-    if (!urls.length) return;
+    if (!urls.length) return 0;
     for (const url of urls) connectRelay(url);
     const opened = await Promise.all(urls.map(async url => await waitForOpen(url) ? url : null));
-    for (const url of opened) if (url) relayMessage(url, ['EVENT', event]);
+    let published = 0;
+    for (const url of opened) if (url) { relayMessage(url, ['EVENT', event]); published += 1; }
+    return published;
   }
   async function sendTypingSignal(session, action) {
     const senderPubkey = state.pubkey;
@@ -537,6 +543,80 @@
       if (!relays.length || state.pubkey !== senderPubkey || state.secret !== secret) return;
       await publishEphemeralToRelays(event, relays).catch(() => {});
     }));
+  }
+  async function sendReadReceiptForMessage(peer, message, messageId) {
+    if (!state.readReceiptsEnabled || !state.secret || !state.pubkey || !hasVisibleConversation(peer) ||
+        message?.direction === 'sent' || message?.fromAgent || message?.agentMessageId ||
+        !/^[0-9a-f]{64}$/i.test(messageId || '')) return;
+    const recipient = String(message.senderPubkey || peer).toLowerCase();
+    const participants = typingParticipants(peer);
+    if (recipient === state.pubkey || !participants.includes(recipient)) return;
+    const recordKey = `${state.pubkey}:${messageId.toLowerCase()}`;
+    if (state.readReceiptSent.has(recordKey)) return;
+    state.readReceiptSent.add(recordKey);
+    const secret = state.secret;
+    try {
+      const deliveries = TypingSignals.createReadReceipt(N, secret, participants, recipient, messageId, nextTypingSequence(), state.currentConversation?.group === true);
+      let openRelayCount = 0;
+      await Promise.all(deliveries.map(async ({ recipient: target, event }) => {
+        const relays = await resolveTypingRelays(target);
+        if (!relays.length || state.pubkey !== N.getPublicKey(secret) || state.secret !== secret || !state.readReceiptsEnabled) return;
+        openRelayCount += await publishEphemeralToRelays(event, relays).catch(() => 0);
+      }));
+      if (!openRelayCount) state.readReceiptSent.delete(recordKey);
+    } catch {
+      state.readReceiptSent.delete(recordKey);
+    }
+  }
+  function observeReadReceiptRows(container = $('messages')) {
+    state.readReceiptObserver?.disconnect();
+    state.readReceiptObserver = null;
+    if (!state.readReceiptsEnabled || typeof IntersectionObserver !== 'function' || !container) return;
+    state.readReceiptObserver = new IntersectionObserver(entries => {
+      if (!hasVisibleConversation(state.activePeer)) return;
+      for (const entry of entries) {
+        const messageId = entry.target.dataset.readReceiptId;
+        const visibleEnough = entry.intersectionRect.height >= Math.max(8, Math.min(32, entry.boundingClientRect.height * 0.25));
+        if (!entry.isIntersecting || !visibleEnough || !messageId) continue;
+        const candidate = state.readReceiptCandidates.get(messageId);
+        if (candidate) void sendReadReceiptForMessage(candidate.peer, candidate.message, messageId);
+      }
+    }, { root: container, threshold: 0 });
+    for (const row of container.querySelectorAll('.message-row[data-read-receipt-id]')) state.readReceiptObserver.observe(row);
+  }
+  function sendReadReceiptsForVisibleRows() {
+    if (!state.readReceiptsEnabled || !hasVisibleConversation(state.activePeer)) return;
+    const container = $('messages');
+    if (!container) return;
+    const bounds = container.getBoundingClientRect();
+    for (const row of container.querySelectorAll('.message-row[data-read-receipt-id]')) {
+      const rect = row.getBoundingClientRect();
+      const visibleHeight = Math.max(0, Math.min(rect.bottom, bounds.bottom) - Math.max(rect.top, bounds.top));
+      const visibleEnough = visibleHeight >= Math.max(8, Math.min(32, rect.height * 0.25));
+      const candidate = state.readReceiptCandidates.get(row.dataset.readReceiptId);
+      if (visibleEnough && candidate) void sendReadReceiptForMessage(candidate.peer, candidate.message, row.dataset.readReceiptId);
+    }
+  }
+  async function recordReadReceipt(signal, peer) {
+    if (!state.pubkey || !/^[0-9a-f]{64}$/i.test(signal.messageId || '') || signal.sender === state.pubkey) return;
+    const entries = await all('messages');
+    const message = entries.find(item => item.peer === peer && item.direction === 'sent' && nostrEventId(item)?.toLowerCase() === signal.messageId.toLowerCase());
+    if (!message || message.fromAgent || message.agentMessageId) return;
+    const readers = state.readReceipts.get(signal.messageId) || new Set();
+    if (readers.has(signal.sender)) return;
+    readers.add(signal.sender);
+    state.readReceipts.set(signal.messageId, readers);
+    await put('settings', {
+      id: readReceiptRecordId(state.pubkey, signal.messageId),
+      messageId: signal.messageId,
+      readers: [...readers],
+      updatedAt: Date.now()
+    }).catch(() => {});
+    const prefix = readReceiptRecordPrefix(state.pubkey);
+    const saved = (await all('settings')).filter(item => typeof item.id === 'string' && item.id.startsWith(prefix))
+      .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
+    for (const stale of saved.slice(500)) { await del('settings', stale.id).catch(() => {}); if (typeof stale.messageId === 'string') state.readReceipts.delete(stale.messageId.toLowerCase()); }
+    if (state.activePeer === peer) await renderMessages(peer).catch(() => {});
   }
   function scheduleTypingHeartbeat(session, delay = 3000) {
     clearTimeout(session.heartbeatTimer);
@@ -592,15 +672,19 @@
     if (!signal || signal.sender === state.pubkey) return;
     state.typingSeenEvents.add(event.id);
     if (state.typingSeenEvents.size > 500) state.typingSeenEvents.delete(state.typingSeenEvents.values().next().value);
-    const group = signal.participants.length > 2;
+    const group = signal.action === 'read' ? signal.group : signal.participants.length > 2;
     const peer = group ? groupConversationId(signal.participants) : signal.participants.find(member => member !== state.pubkey);
-    if (!peer || peer !== state.activePeer) return;
+    if (!peer || (signal.action !== 'read' && peer !== state.activePeer)) return;
     const conversation = await get('conversations', peer).catch(() => null);
     if (!conversation || (conversation.group === true) !== group) return;
     if (group) {
       const knownMembers = [...new Set((conversation.members || []).map(key => String(key).toLowerCase()))].sort();
       if (knownMembers.length !== signal.participants.length || knownMembers.some((key, index) => key !== signal.participants[index])) return;
     } else if (conversation.pubkey !== signal.sender) return;
+    if (signal.action === 'read') {
+      await recordReadReceipt(signal, peer);
+      return;
+    }
     const key = `${peer}:${signal.sender}`;
     if (signal.sequence <= (state.typingSequences.get(key) || 0)) return;
     state.typingSequences.set(key, signal.sequence);
@@ -1450,6 +1534,15 @@
     const typingSetting = await get('settings', typingPreferenceId(state.pubkey));
     state.typingIndicatorsEnabled = typingSetting?.enabled !== false;
     $('typing-indicators-enabled').checked = state.typingIndicatorsEnabled;
+    const readReceiptsSetting = await get('settings', readReceiptsPreferenceId(state.pubkey));
+    state.readReceiptsEnabled = readReceiptsSetting?.enabled === true;
+    $('read-receipts-enabled').checked = state.readReceiptsEnabled;
+    state.readReceiptSent.clear();
+    state.readReceiptCandidates.clear();
+    const readReceiptPrefix = readReceiptRecordPrefix(state.pubkey);
+    state.readReceipts = new Map((await all('settings'))
+      .filter(record => typeof record.id === 'string' && record.id.startsWith(readReceiptPrefix) && /^[0-9a-f]{64}$/i.test(record.messageId || '') && Array.isArray(record.readers))
+      .map(record => [record.messageId.toLowerCase(), new Set(record.readers.filter(key => /^[0-9a-f]{64}$/i.test(key || '') && key.toLowerCase() !== state.pubkey))]));
     const appBadgeSetting = await get('settings', AppBadge.preferenceId(state.pubkey));
     state.appBadgeEnabled = appBadgeSetting?.enabled === true && AppBadge.canBadge(navigator);
     state.appBadgeLastCount = null;
@@ -2049,8 +2142,8 @@
   }
   function unreadCountLabel(count) {
     return window.PropertyI18n?.language === 'pt-BR'
-      ? `${count} ${count === 1 ? 'mensagem não lida' : 'mensagens não lidas'} neste aparelho. Nenhum recibo de leitura é enviado.`
-      : `${count} unread ${count === 1 ? 'message' : 'messages'} on this device. No read receipt is sent.`;
+      ? `${count} ${count === 1 ? 'mensagem não lida' : 'mensagens não lidas'} neste aparelho. Recibos de leitura são uma configuração opcional separada.`
+      : `${count} unread ${count === 1 ? 'message' : 'messages'} on this device. Read receipts are a separate optional setting.`;
   }
   function hasVisibleConversation(peer) {
     return state.activePeer === peer && state.activeView === 'messages' && document.visibilityState !== 'hidden';
@@ -2407,6 +2500,7 @@
       setActiveView('messages');
       setMobileConversationListOpen(false, { restoreFocus: true });
     }
+    if (state.activeView === 'messages') sendReadReceiptsForVisibleRows();
     if (state.activeView === 'messages') await markConversationRead(pubkey);
     await renderConversations();
   }
@@ -2604,6 +2698,9 @@
     if (status.textContent !== announcement) status.textContent = announcement;
   }
   async function renderMessages(peer, jumpToMessageId = '') {
+    state.readReceiptObserver?.disconnect();
+    state.readReceiptObserver = null;
+    state.readReceiptCandidates.clear();
     const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
     const messages = FileTransfers.coalesceMessages(entries.filter(message => message.kind !== 7));
     const activeVoiceIds = new Set(messages.filter(message => message.voiceMessage?.base64).map(message => message.id));
@@ -2672,6 +2769,10 @@
       row.dataset.messageId = message.id;
       const eventId = nostrEventId(message);
       if (eventId) row.dataset.nostrEventId = eventId;
+      if (message.direction === 'received' && eventId && !message.fromAgent && !message.agentMessageId) {
+        row.dataset.readReceiptId = eventId;
+        state.readReceiptCandidates.set(eventId, { peer, message });
+      }
       row.dataset.eventIds = MessageEdits.eventIds(message).join(',');
       if (message.fromAgent) { const author = document.createElement('span'); author.className = 'agent-message-author'; author.textContent = message.agentMessageError ? 'Protocolo de agente · mensagem não reconhecida' : 'Protocolo de agente · identidade Nostr'; row.append(author); }
       if (conversation?.group && message.direction !== 'sent') { const author = document.createElement('span'); author.className = 'group-message-author'; author.textContent = displayName(message.senderPubkey || '', ''); row.append(author); }
@@ -2814,6 +2915,17 @@
       const delivery = message.status === 'pending' ? ' · aguardando relay' : message.status === 'partial' ? ' · entrega parcial' : '';
       const meta = document.createElement('span'); meta.className = 'message-meta'; meta.append(document.createTextNode(`${new Date(message.createdAt).toLocaleString(window.PropertyI18n?.locale() || undefined)}${delivery}`));
       if (message.editSeq > 0) { const edited = document.createElement('span'); edited.className = 'message-edited'; edited.textContent = localized('Edited', 'Editada'); meta.append(edited); }
+      const readers = message.direction === 'sent' && eventId && !message.fromAgent && !message.agentMessageId
+        ? [...(state.readReceipts.get(eventId.toLowerCase()) || [])] : [];
+      if (readers.length) {
+        const seen = document.createElement('span'); seen.className = 'message-read-receipt';
+        const names = readers.map(pubkey => displayName(pubkey, ''));
+        seen.textContent = conversation?.group
+          ? localized(`Seen by ${names.join(', ')}`, `Visto por ${names.join(', ')}`)
+          : localized('Seen', 'Visualizada');
+        seen.setAttribute('aria-label', seen.textContent);
+        meta.append(seen);
+      }
       const actions = document.createElement('div'); actions.className = 'message-actions';
       const reply = document.createElement('button'); reply.type = 'button'; reply.className = 'message-reply'; reply.textContent = 'Reply'; reply.disabled = !eventId; reply.title = eventId ? 'Reply to this message' : 'This older message has no Nostr event reference';
       reply.addEventListener('click', () => {
@@ -2882,6 +2994,8 @@
         target.scrollIntoView({ block: 'center' });
       }
     }
+    observeReadReceiptRows(container);
+    sendReadReceiptsForVisibleRows();
     updateMessageScrollButton();
     refreshMessageSearch();
   }
@@ -3859,6 +3973,11 @@
     state.typingSequences.clear();
     state.typingSeenEvents.clear();
     state.typingRelayLookups.clear();
+    state.readReceiptObserver?.disconnect();
+    state.readReceiptObserver = null;
+    state.readReceiptSent.clear();
+    state.readReceiptCandidates.clear();
+    state.readReceipts.clear();
     cancelMessageEdit();
     if (state.activePeer) await saveChatDraft(state.activePeer, $('message-input').value).catch(() => {});
     if (state.account) { const updated = { ...state.account }; delete updated.session; await put('vault', updated); state.account = updated; }
@@ -3866,7 +3985,7 @@
     clearTimeout(state.messageDayRolloverTimer); state.messageDayRolloverTimer = 0;
     if (state.secret) state.secret.fill(0);
     const clearAppBadgeOnLock = state.appBadgeEnabled || state.appBadgeLastCount !== null;
-    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.typingIndicatorsEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = ''; state.appBadgeEnabled = false; state.appBadgeLastCount = clearAppBadgeOnLock ? 0 : null;
+    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.typingIndicatorsEnabled = false; state.readReceiptsEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = ''; state.appBadgeEnabled = false; state.appBadgeLastCount = clearAppBadgeOnLock ? 0 : null;
     if (clearAppBadgeOnLock) void queueAppBadge(0);
     state.conversationMessageSearchCache = null; state.conversationMessageSearchRevision++;
     state.replyingTo = null; updateReplyContext();
@@ -3946,7 +4065,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v62', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v63', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -4063,6 +4182,20 @@
       } catch {
         state.typingIndicatorsEnabled = !enabled;
         event.target.checked = !enabled;
+        showToast(localized('Could not update this local setting.', 'Não foi possível atualizar esta configuração local.'));
+      }
+    });
+    $('read-receipts-enabled').addEventListener('change', async event => {
+      const enabled = event.target.checked;
+      state.readReceiptsEnabled = enabled;
+      try {
+        await put('settings', { id: readReceiptsPreferenceId(), enabled });
+        observeReadReceiptRows();
+        if (enabled) sendReadReceiptsForVisibleRows();
+      } catch {
+        state.readReceiptsEnabled = !enabled;
+        event.target.checked = !enabled;
+        observeReadReceiptRows();
         showToast(localized('Could not update this local setting.', 'Não foi possível atualizar esta configuração local.'));
       }
     });
@@ -4323,6 +4456,7 @@
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'hidden' && state.activeView === 'messages' && state.activePeer) {
         markConversationRead(state.activePeer).then(changed => changed && renderConversations()).catch(() => {});
+        sendReadReceiptsForVisibleRows();
       }
     });
     $('message-input').addEventListener('keydown', event => {
