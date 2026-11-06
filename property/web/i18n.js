@@ -262,7 +262,14 @@
     ['Open a NIP-29 group link', 'Abrir um link de grupo NIP-29'], ['Open group', 'Abrir grupo'], ['Discover communities', 'Buscar comunidades'], ['Property searches the relays you have already selected.', 'O Property busca nos relays que você já selecionou.'],
     ['PUBLIC NIP-29 GROUP', 'GRUPO PÚBLICO NIP-29'], ['All communities', 'Todas as comunidades'], ['Refresh', 'Atualizar'], ['Invite code (if required)', 'Código de convite (se necessário)'], ['Request to join', 'Solicitar entrada'], ['Leave group', 'Sair do grupo'],
     ['Post publicly to this group', 'Publicar neste grupo'], ['Anyone who can read this relay may read your post.', 'Qualquer pessoa que leia este relay poderá ler sua publicação.'], ['Send public post', 'Enviar publicação pública'],
-    ['Nostr public event · sent to one relay · content is not encrypted.', 'Evento público Nostr · enviado a um relay · o conteúdo não é criptografado.'], ['naddr1…', 'naddr1…']
+    ['Nostr public event · sent to one relay · content is not encrypted.', 'Evento público Nostr · enviado a um relay · o conteúdo não é criptografado.'], ['naddr1…', 'naddr1…'],
+    ['A known group admin’s public list points to the same group ID on another relay. This could be a migration or a fork; histories and membership stay separate until you inspect it.', 'A lista pública de um administrador conhecido aponta o mesmo ID de grupo em outro relay. Pode ser uma migração ou ramificação; histórico e participação continuam separados até você inspecionar.'],
+    ['Checking known admins’ public group lists for another relay origin…', 'Conferindo as listas públicas de grupo dos administradores conhecidos em busca de outra origem…'],
+    ['Could not check admin group lists on the selected relays.', 'Não foi possível consultar as listas dos administradores nos relays selecionados.'],
+    ['Inspect separate copy', 'Inspecionar cópia separada'], ['Add this relay in Settings to inspect', 'Adicione este relay nas Configurações para inspecionar'],
+    ['Select this relay in Settings before inspecting it.', 'Selecione este relay nas Configurações antes de inspecioná-lo.'],
+    ['No verified public group matching this admin list entry was found on that relay.', 'Não foi encontrado nesse relay um grupo público verificado que corresponda à lista do administrador.'],
+    ['Could not inspect this group copy.', 'Não foi possível inspecionar esta cópia do grupo.']
   ];
   for (const [english, portuguese] of pairs) {
     EN_TO_PT.set(english, portuguese);

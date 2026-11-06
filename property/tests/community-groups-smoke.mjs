@@ -80,6 +80,34 @@ const parallel = Groups.markParallelOrigins(discovered);
 assert.deepEqual(JSON.parse(JSON.stringify(parallel.map(group => group.parallelOrigin))), [true, true], 'same id on disconnected relays remains two explicit relay-scoped origins');
 assert.equal(Groups.markParallelOrigins([groupA])[0].parallelOrigin, false);
 
+const adminPubkey = N.getPublicKey(relayKeys.get(relayA));
+const alternatePubkey = N.getPublicKey(relayKeys.get(relayB));
+const savedOriginal = makeEvent(10009, relayKeys.get(relayA), [['group', groupId, relayA, 'Original name'], ['r', relayB]], '', 250);
+const savedCopy = makeEvent(10009, relayKeys.get(relayB), [['group', groupId, relayB, 'Possible fork'], ['group', 'other-group', relayA, 'Other'], ['r', relayA]], '', 251);
+const savedOlder = makeEvent(10009, relayKeys.get(relayB), [['group', groupId, relayA, 'Old relay']], '', 249);
+const forgedSavedCopy = { ...savedCopy, content: 'tampered' };
+const savedUnknown = makeEvent(10009, keys[0], [['group', groupId, relayB, 'Unknown author']], '', 252);
+const trustedGroupLists = Groups.groupListReferences(
+  [savedOriginal, savedCopy, savedOlder, forgedSavedCopy, savedUnknown], new Set([adminPubkey, alternatePubkey]), verify,
+  value => { if (!value.startsWith('wss://')) throw new TypeError('insecure relay'); return new URL(value).toString().replace(/\/$/, ''); }
+);
+assert.equal(trustedGroupLists.length, 3, 'latest signed replaceable group lists from trusted admins are parsed, while forged and unknown authors are ignored');
+const alternateGroups = Groups.migrationCandidates(
+  [savedOriginal, savedCopy, savedOlder, forgedSavedCopy, savedUnknown], groupA, new Set([adminPubkey, alternatePubkey]), verify,
+  value => { if (!value.startsWith('wss://')) throw new TypeError('insecure relay'); return new URL(value).toString().replace(/\/$/, ''); }
+);
+assert.equal(alternateGroups.length, 1, 'only a matching group tag on another relay is a possible migration or fork');
+assert.equal(alternateGroups[0].relayUrl, relayB);
+assert.equal(alternateGroups[0].name, 'Possible fork');
+assert.equal(alternateGroups[0].possibleMigrationOrFork, true);
+assert.deepEqual(JSON.parse(JSON.stringify(Groups.migrationCandidates([savedOriginal], groupA, new Set([adminPubkey]), verify, value => value))), [], 'same-relay references do not create migration alerts');
+const manyPossibleCopies = makeEvent(10009, relayKeys.get(relayB), Array.from({ length: 21 }, (_, index) => ['group', groupId, `wss://copy-${index}.example`, `Copy ${index}`]), '', 260);
+assert.equal(Groups.migrationCandidates([manyPossibleCopies], groupA, [alternatePubkey], verify, value => new URL(value).toString().replace(/\/$/, '')).length, 20, 'migration hint rendering has a fixed cap');
+const oversizedHintList = makeEvent(10009, relayKeys.get(relayB), [...Array.from({ length: 500 }, (_, index) => ['unknown', String(index)]), ['group', groupId, relayB]], '', 261);
+assert.deepEqual(JSON.parse(JSON.stringify(Groups.migrationCandidates([oversizedHintList], groupA, [alternatePubkey], verify, value => value))), [], 'group-list processing is bounded to its first 500 tags');
+const insecureGroupList = makeEvent(10009, relayKeys.get(relayB), [['group', groupId, 'ws://outside.example', 'Insecure']], '', 253);
+assert.deepEqual(JSON.parse(JSON.stringify(Groups.groupListReferences([insecureGroupList], [alternatePubkey], verify, value => value))), [], 'unsecured non-local relay hints are not accepted');
+
 const conflictingA = makeEvent(9000, relayKeys.get(relayA), [['h', groupId], ['p', pubs[0]]], '', 150);
 const conflictingB = makeEvent(9001, relayKeys.get(relayB), [['h', groupId], ['p', pubs[0]]], '', 151);
 const adminsA = new Set([N.getPublicKey(relayKeys.get(relayA))]);
@@ -122,4 +150,4 @@ assert.equal(signedPost.content, 'Hello group');
 assert.deepEqual(JSON.parse(JSON.stringify(signedPost.tags)), [['h', groupId], ['previous', 'abababab', 'cdcdcdcd', 'efefefef']]);
 assert.throws(() => Groups.createPublicPost({ pubkey: pubs[0], groupId, content: 'No membership', restricted: true, membershipStatus: 'pending' }), /Membership is not confirmed/);
 
-console.log('PASS: NIP-29 public discovery, relay-scoped forks, pending membership, and group-local post references.');
+console.log('PASS: NIP-29 public discovery, relay-scoped forks, pending membership, NIP-51 migration hints, and group-local post references.');

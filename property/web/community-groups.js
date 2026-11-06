@@ -166,8 +166,48 @@
     return (groups || []).map(group => Object.freeze({ ...group, parallelOrigin: (byId.get(group.id)?.size || 0) > 1 }));
   }
 
+  function groupListReferences(events, trustedAuthors, verifyEvent, normalizeRelay) {
+    const trusted = new Set([...(trustedAuthors || [])].map(value => String(value || '').toLowerCase()).filter(value => HEX_32.test(value)));
+    if (!trusted.size || typeof verifyEvent !== 'function' || typeof normalizeRelay !== 'function') return [];
+    const latestByAuthor = new Map();
+    for (const event of events || []) {
+      const author = String(event?.pubkey || '').toLowerCase();
+      if (event?.kind !== 10009 || !trusted.has(author) || !Number.isSafeInteger(event.created_at) || event.created_at < 0 || !verifyEvent(event)) continue;
+      const previous = latestByAuthor.get(author);
+      if (!previous || event.created_at > previous.created_at || (event.created_at === previous.created_at && String(event.id || '') > String(previous.id || ''))) latestByAuthor.set(author, event);
+    }
+    const references = new Map();
+    for (const [author, event] of latestByAuthor) {
+      for (const tag of (Array.isArray(event.tags) ? event.tags.slice(0, 500) : [])) {
+        if (!Array.isArray(tag) || tag[0] !== 'group' || (tag.length !== 3 && tag.length !== 4) || !validGroupId(tag[1])) continue;
+        let relayUrl;
+        try { relayUrl = normalizeRelay(tag[2]); } catch { continue; }
+        if (typeof relayUrl !== 'string' || !relayUrl.startsWith('wss://')) continue;
+        const key = groupKey(relayUrl, tag[1]);
+        const reference = {
+          key, id: tag[1], relayUrl, name: typeof tag[3] === 'string' ? tag[3].slice(0, 120) : '',
+          author, eventId: String(event.id || '').toLowerCase(), createdAt: event.created_at
+        };
+        const current = references.get(key);
+        if (!current || reference.createdAt > current.createdAt || (reference.createdAt === current.createdAt && reference.eventId > current.eventId)) references.set(key, Object.freeze(reference));
+      }
+    }
+    return [...references.values()].sort((a, b) => a.relayUrl.localeCompare(b.relayUrl) || a.id.localeCompare(b.id) || a.author.localeCompare(b.author));
+  }
+
+  function migrationCandidates(events, group, trustedAuthors, verifyEvent, normalizeRelay) {
+    if (!group || !validGroupId(group.id) || typeof group.relayUrl !== 'string') return [];
+    let currentRelay;
+    try { currentRelay = normalizeRelay(group.relayUrl); } catch { return []; }
+    return groupListReferences(events, trustedAuthors, verifyEvent, normalizeRelay)
+      .filter(reference => reference.id === group.id && reference.relayUrl !== currentRelay)
+      .slice(0, 20)
+      .map(reference => Object.freeze({ ...reference, possibleMigrationOrFork: true }));
+  }
+
   globalThis.PropertyCommunityGroups = Object.freeze({
     MAX_GROUP_ID_LENGTH, MAX_POST_LENGTH, validGroupId, groupKey, parseGroupReference, parseRelaySelfDocument, parseMetadata, discoverableGroups,
-    createJoinRequest, createLeaveRequest, membership, hasPendingJoin, hasPendingLeave, createPublicPost, markParallelOrigins
+    createJoinRequest, createLeaveRequest, membership, hasPendingJoin, hasPendingLeave, createPublicPost, markParallelOrigins,
+    groupListReferences, migrationCandidates
   });
 })();

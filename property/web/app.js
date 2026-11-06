@@ -67,7 +67,7 @@
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     currentConversation: null,
     activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingDraftMentions: [], editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
-    communities: [], activeCommunity: null, activeCommunityEvents: [], activeCommunityModerators: new Set(), communityRelaySelf: new Map(), communityInviteCode: '',
+    communities: [], activeCommunity: null, activeCommunityEvents: [], activeCommunityModerators: new Set(), communityMigrationAdmins: new Set(), communityMigrationCandidates: [], communityMigrationStatus: '', communityRelaySelf: new Map(), communityInviteCode: '',
     typingIndicatorsEnabled: true, typingSession: null, typingSequence: 0, typingRelayLookups: new Map(), remoteTyping: new Map(), typingTimers: new Map(), typingSequences: new Map(), typingSeenEvents: new Set(),
     readReceiptsEnabled: false, readReceiptSent: new Set(), readReceipts: new Map(), readReceiptCandidates: new Map(), readReceiptObserver: null,
     activeStatusEnabled: false, localPresenceSession: null, remotePresence: new Map(), presenceTimers: new Map(), presenceSequences: new Map(),
@@ -5040,6 +5040,11 @@
     state.activeCommunity = community;
     state.activeCommunityEvents = [];
     state.activeCommunityModerators = new Set([community.selfPubkey]);
+    const cachedAdmins = await get('settings', communityAdminCacheId(community)).catch(() => null);
+    if (state.activeCommunity?.key !== community.key) return;
+    state.communityMigrationAdmins = new Set((Array.isArray(cachedAdmins?.admins) ? cachedAdmins.admins.slice(0, 50) : []).map(value => String(value || '').toLowerCase()).filter(value => /^[0-9a-f]{64}$/.test(value)));
+    state.communityMigrationCandidates = [];
+    state.communityMigrationStatus = '';
     state.communityInviteCode = inviteCode;
     $('community-list').hidden = true;
     $('community-room').classList.remove('hidden');
@@ -5052,12 +5057,15 @@
     $('community-room-feed').replaceChildren(makeEmpty(localized('Loading public group messages', 'Carregando mensagens públicas do grupo'), localized('Messages come only from this group’s relay.', 'As mensagens vêm somente do relay deste grupo.')));
     await refreshCommunityRoom();
   }
+  function communityAdminCacheId(community) {
+    return `community-admins:${state.pubkey}:${community.relayUrl}:${community.id}`;
+  }
   async function refreshCommunityRoom() {
     const community = state.activeCommunity;
     if (!community) return;
     const [events, admins] = await Promise.all([
-      fetchEvents({ kinds: [1, 9000, 9001, 9021, 9022], '#h': [community.id], limit: 250 }, 8000, [community.relayUrl]),
-      fetchEvents({ kinds: [39001], '#d': [community.id], limit: 10 }, 6000, [community.relayUrl])
+      fetchEvents({ kinds: [1, 9000, 9001, 9021, 9022], '#h': [community.id], limit: 250 }, 8000, [community.relayUrl]).catch(() => []),
+      fetchEvents({ kinds: [39001], '#d': [community.id], limit: 10 }, 6000, [community.relayUrl]).catch(() => [])
     ]);
     if (state.activeCommunity?.key !== community.key) return;
     const currentEvents = events.filter(event => N.verifyEvent(event) && event.tags?.some(tag => Array.isArray(tag) && tag[0] === 'h' && tag[1] === community.id));
@@ -5065,11 +5073,94 @@
       event.tags?.some(tag => Array.isArray(tag) && tag[0] === 'd' && tag[1] === community.id))
       .sort((a, b) => b.created_at - a.created_at || String(b.id).localeCompare(String(a.id)))[0];
     const authorized = new Set([community.selfPubkey]);
-    for (const tag of verifiedAdmins?.tags || []) if (tag[0] === 'p' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) authorized.add(tag[1].toLowerCase());
+    const listedAdmins = new Set();
+    for (const tag of verifiedAdmins?.tags || []) if (listedAdmins.size < 50 && tag[0] === 'p' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) {
+      authorized.add(tag[1].toLowerCase());
+      listedAdmins.add(tag[1].toLowerCase());
+    }
     const merged = new Map([...state.activeCommunityEvents, ...currentEvents].map(event => [event.id, event]));
     state.activeCommunityEvents = [...merged.values()];
     state.activeCommunityModerators = authorized;
+    if (listedAdmins.size) {
+      const cacheId = communityAdminCacheId(community);
+      await put('settings', { id: cacheId, admins: [...listedAdmins] }).catch(() => {});
+    }
+    if (state.activeCommunity?.key !== community.key) return;
+    state.communityMigrationAdmins = new Set([...listedAdmins, ...state.communityMigrationAdmins].slice(0, 50));
     renderCommunityRoom();
+    void refreshCommunityMigrationHints(community);
+  }
+  async function refreshCommunityMigrationHints(community) {
+    if (!state.communityMigrationAdmins.size) return;
+    state.communityMigrationStatus = 'checking';
+    renderCommunityMigrationNotice();
+    let adminLists = [];
+    try {
+      adminLists = await fetchEvents({ kinds: [10009], authors: [...state.communityMigrationAdmins].slice(0, 50), limit: 100 }, 7000, state.relays);
+    } catch {
+      if (state.activeCommunity?.key === community.key) {
+        state.communityMigrationStatus = 'unavailable';
+        renderCommunityMigrationNotice();
+      }
+      return;
+    }
+    if (state.activeCommunity?.key !== community.key) return;
+    state.communityMigrationCandidates = CommunityGroups.migrationCandidates(adminLists, community, state.communityMigrationAdmins, N.verifyEvent, normalizeRelay);
+    state.communityMigrationStatus = '';
+    renderCommunityMigrationNotice();
+  }
+  function renderCommunityMigrationNotice() {
+    const notice = $('community-migration-notice');
+    notice.replaceChildren();
+    const candidates = state.communityMigrationCandidates || [];
+    notice.hidden = !candidates.length && !state.communityMigrationStatus;
+    if (!candidates.length && state.communityMigrationStatus === 'checking') {
+      const progress = document.createElement('p');
+      progress.textContent = localized('Checking known admins’ public group lists for another relay origin…', 'Conferindo as listas públicas de grupo dos administradores conhecidos em busca de outra origem…');
+      notice.append(progress);
+      return;
+    }
+    if (!candidates.length && state.communityMigrationStatus === 'unavailable') {
+      const unavailable = document.createElement('p');
+      unavailable.textContent = localized('Could not check admin group lists on the selected relays.', 'Não foi possível consultar as listas dos administradores nos relays selecionados.');
+      notice.append(unavailable);
+      return;
+    }
+    if (!candidates.length) return;
+    const description = document.createElement('p');
+    description.textContent = localized(
+      'A known group admin’s public list points to the same group ID on another relay. This could be a migration or a fork; histories and membership stay separate until you inspect it.',
+      'A lista pública de um administrador conhecido aponta o mesmo ID de grupo em outro relay. Pode ser uma migração ou ramificação; histórico e participação continuam separados até você inspecionar.'
+    );
+    notice.append(description);
+    for (const candidate of candidates) {
+      const row = document.createElement('div'); row.className = 'community-migration-candidate';
+      const label = document.createElement('span');
+      label.textContent = `${candidate.name || candidate.id} · ${candidate.relayUrl}`;
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'button secondary';
+      const selected = state.relays.includes(candidate.relayUrl);
+      button.textContent = selected
+        ? localized('Inspect separate copy', 'Inspecionar cópia separada')
+        : localized('Add this relay in Settings to inspect', 'Adicione este relay nas Configurações para inspecionar');
+      button.disabled = !selected;
+      if (selected) button.addEventListener('click', () => inspectCommunityCandidate(candidate).catch(error => showToast(error.message || localized('Could not inspect this group copy.', 'Não foi possível inspecionar esta cópia do grupo.'))));
+      row.append(label, button); notice.append(row);
+    }
+  }
+  async function inspectCommunityCandidate(candidate) {
+    if (!candidate || !state.relays.includes(candidate.relayUrl)) throw new Error(localized('Select this relay in Settings before inspecting it.', 'Selecione este relay nas Configurações antes de inspecioná-lo.'));
+    const selfPubkey = await communityRelaySelf(candidate.relayUrl);
+    const events = await fetchEvents({ kinds: [39000], authors: [selfPubkey], '#d': [candidate.id], limit: 20 }, 8000, [candidate.relayUrl]);
+    const latest = events.filter(event => event.kind === 39000 && event.pubkey?.toLowerCase() === selfPubkey && N.verifyEvent(event))
+      .sort((a, b) => b.created_at - a.created_at || String(b.id).localeCompare(String(a.id)))[0];
+    const community = latest ? CommunityGroups.parseMetadata(latest, candidate.relayUrl, event => event.pubkey?.toLowerCase() === selfPubkey && N.verifyEvent(event)) : null;
+    if (!community || community.id !== candidate.id || community.private || community.hidden) {
+      throw new Error(localized('No verified public group matching this admin list entry was found on that relay.', 'Não foi encontrado nesse relay um grupo público verificado que corresponda à lista do administrador.'));
+    }
+    const separate = { ...community, selfPubkey, parallelOrigin: true };
+    state.communities = CommunityGroups.markParallelOrigins([...state.communities.filter(item => item.key !== community.key), separate]);
+    renderCommunityList();
+    await openCommunity({ ...separate, parallelOrigin: true });
   }
   function renderCommunityRoom() {
     const community = state.activeCommunity;
@@ -5088,6 +5179,7 @@
             ? localized('This group is closed. A valid invite code is needed for a join request to be honored.', 'Este grupo é fechado. É necessário um código de convite válido para que o pedido de entrada seja considerado.')
             : localized('You are not a confirmed member. This relay may require a join request before you can post.', 'Sua participação ainda não foi confirmada. Este relay pode exigir um pedido de entrada antes de você publicar.');
     $('community-membership').textContent = `${status} ${localized('Membership status is based on signed group events from this relay.', 'O estado de participação usa eventos assinados deste relay.')}`;
+    renderCommunityMigrationNotice();
     $('community-join').hidden = membership === 'member' || pendingJoin;
     $('community-join').disabled = community.closed && !$('community-invite-code').value.trim();
     $('community-leave').hidden = membership !== 'member' && !pendingLeave;
