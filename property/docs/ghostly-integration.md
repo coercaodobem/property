@@ -54,6 +54,8 @@
 
 Reply tags and Chat Rooms follow the current [NIP-17 definition](https://github.com/nostr-protocol/nips/blob/master/17.md), including its guidance to use a more suitable protocol for rooms larger than 10 people. Message bodies and local quote previews remain encrypted or local; relays do not receive their plaintext.
 
+- A `geo:` URI or coordinate-bearing Google Maps, Apple Maps, or OpenStreetMap link in a message produces a local location card with the place name and coordinates. The card is parsed on-device; Property does not load map tiles, geocode the place, or contact a map site while rendering. The person must tap Open in map, which opens OpenStreetMap and shares the coordinates and device IP with that service. The original message remains in the encrypted NIP-17 rumor.
+
 ## Not claimed as integrated
 
 Calls, voice messages, peer-to-peer file transfer, Nostr-aware typing/presence and read receipts, background push notifications, identity proofs beyond NIP-05 mapping and the explicit NIP-39 GitHub Gist check, wallet cards/payments, and signed mini-apps are not claimed as integrated. Each needs a Nostr-compatible design, security review, and fixed-count validation; the existing share target only queues text and links locally and is not file transfer. The share target is limited to browsers/operating systems that expose PWA Web Share Target; platform-specific availability remains pending until tested. Ghostly's independent P2P transport is not part of Property. A mobile PWA may be suspended by the operating system and is not an always-on relay.

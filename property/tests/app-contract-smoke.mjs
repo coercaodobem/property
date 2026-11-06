@@ -80,6 +80,8 @@ assert.match(html, /\.\/message-scroll\.css\?v=property-v1/);
 assert.match(html, /id="group-mention-picker"[^>]*hidden/);
 assert.match(html, /\.\/group-mentions\.css\?v=property-v2/);
 assert.match(html, /\.\/group-mentions\.js\?v=property-v2/);
+assert.match(html, /\.\/location-cards\.css\?v=property-v1/);
+assert.match(html, /\.\/location-cards\.js\?v=property-v1/);
 assert.match(html, /\.\/conversation-folders\.js\?v=property-v36/);
 assert.match(html, /\.\/chat-drafts\.js\?v=property-v38/);
 assert.match(html, /\.\/nostr-entities\.js\?v=property-v1/);
@@ -93,7 +95,7 @@ assert.match(html, /\.\/chat-gestures\.js\?v=property-v1/);
 assert.match(html, /\.\/app-badge\.js\?v=property-v1/);
 assert.match(html, /\.\/message-days\.js\?v=property-v1/);
 assert.match(html, /\.\/message-scroll\.js\?v=property-v1/);
-assert.match(html, /\.\/app\.js\?v=property-v66/);
+assert.match(html, /\.\/app\.js\?v=property-v67/);
 assert.match(html, /id="message-scroll-bottom"[^>]*aria-label="Scroll to bottom"[^>]*hidden/);
 assert.match(html, /id="message-scroll-status"[^>]*role="status"[^>]*aria-live="polite"/);
 assert.match(html, /id="empty-new-chat"/);
@@ -131,10 +133,12 @@ assert.match(sw, /app-badge\.js\?v=property-v1/);
 assert.match(sw, /message-days\.js\?v=property-v1/);
 assert.match(sw, /message-scroll\.js\?v=property-v1/);
 assert.match(sw, /message-scroll\.css\?v=property-v1/);
-assert.match(sw, /app\.js\?v=property-v66/);
+assert.match(sw, /app\.js\?v=property-v67/);
 assert.match(sw, /group-mentions\.js\?v=property-v2/);
 assert.match(sw, /group-mentions\.css\?v=property-v2/);
-assert.match(sw, /property-shell-v69/);
+assert.match(sw, /location-cards\.js\?v=property-v1/);
+assert.match(sw, /location-cards\.css\?v=property-v1/);
+assert.match(sw, /property-shell-v70/);
 assert.match(app, /IdentityProofs\.verifyGitHubClaim\(/, 'contact identity proofs are verified only from the explicit Verify action');
 assert.match(app, /\$\('publish-github-identity'\)\.addEventListener\('click'/, 'publishing a public NIP-39 claim requires an explicit click');
 assert.match(nip39, /https:\/\/api\.github\.com\/gists\//, 'GitHub proof checks use only the public Gist API endpoint');
@@ -500,7 +504,7 @@ assert.doesNotMatch(`${app}\n${sw}`, /\bimport\s*\(\s*["']https?:/i,
   'the app and service worker cannot import remote executable code');
 assert.match(sw, /importScripts\('\.\/share-inbox\.js\?v=property-v33'\);/,
   'the service worker imports only Property local source for the share inbox');
-for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './vendor/QR-CODE-GENERATOR-LICENSE.txt', './vendor/licenses/emoji-mart-data-MIT.txt', './vendor/emoji-data-15.json', './vendor/licenses/secret-guard/README.md', './styles.css', './group-mentions.css', './group-mentions.js', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './chat-drafts.js', './nostr-entities.js', './rich-text.js', './emoji-picker.js', './secret-guard.js', './nip05.js', './nip39.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './vendor/qr-code-generator.js', './app.js']) {
+for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './vendor/QR-CODE-GENERATOR-LICENSE.txt', './vendor/licenses/emoji-mart-data-MIT.txt', './vendor/emoji-data-15.json', './vendor/licenses/secret-guard/README.md', './styles.css', './group-mentions.css', './group-mentions.js', './location-cards.css', './location-cards.js', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './chat-drafts.js', './nostr-entities.js', './rich-text.js', './emoji-picker.js', './secret-guard.js', './nip05.js', './nip39.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './vendor/qr-code-generator.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }
 await access(join(root, 'relay/dist-parts/manifest.txt'));

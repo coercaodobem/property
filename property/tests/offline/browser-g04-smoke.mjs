@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-22', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-22', 'G04-23', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -796,10 +796,27 @@ async function main() {
         savedMessage: message ? { text: message.text, mentions: message.mentions || [], status: message.status } : null };
     }, mentionMarker);
     assert.ok(senderMentionVisible, `the sender stores and renders the group mention message: ${JSON.stringify(report.group_mention_send_diagnostic || {})}`);
+    const senderGroupKey = await pageA.locator('#messages').getAttribute('data-peer');
+    await waitForMessageStatus(pageA, senderGroupKey, visibleMentionMessage, 'sent');
+    const mentionRelayEvents = await wsQuery(relay0.url, { kinds: [1059], '#p': [mentionTargetPubkey], limit: 1000 });
+    const newMentionEnvelopes = mentionRelayEvents.filter(event => !relayWrapIdsBeforeMention.includes(event.id));
+    assert.equal(newMentionEnvelopes.length, 1, 'one confirmed gift-wrap reached the mentioned member relay route');
+    assert.ok(newMentionEnvelopes.every(event => !JSON.stringify(event).includes(mentionMarker) && !JSON.stringify(event).includes(senderMentionLabel)),
+      'the local relay stores no readable group text or @name in the encrypted gift-wrap');
     const recipientGroupRow = pageB.locator('#conversation-list .conversation-row').filter({ hasText: 'C group search' });
     await recipientGroupRow.waitFor({ state: 'visible', timeout: 15000 });
     await recipientGroupRow.click();
-    await pageB.locator('#messages .message-row').filter({ hasText: mentionMarker }).waitFor({ state: 'visible', timeout: 10000 });
+    const recipientMentionMessage = pageB.locator('#messages .message-row').filter({ hasText: mentionMarker });
+    const recipientMentionVisible = await recipientMentionMessage.waitFor({ state: 'visible', timeout: 15000 }).then(() => true, () => false);
+    if (!recipientMentionVisible) report.group_mention_recipient_diagnostic = await pageB.evaluate(async marker => {
+      const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+      const rows = await new Promise((resolve, reject) => { const request = db.transaction('messages').objectStore('messages').getAll(); request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error); });
+      const connections = [...document.querySelectorAll('.relay-connection')].map(node => node.textContent).filter(Boolean);
+      db.close();
+      return { savedMarkerMessage: rows.some(row => row.text?.includes(marker)), connection: document.querySelector('#connection-label')?.textContent || '',
+        groupTitle: document.querySelector('#chat-title')?.textContent || '', visibleText: document.querySelector('#messages')?.innerText?.slice(-800) || '', connections };
+    }, mentionMarker);
+    assert.ok(recipientMentionVisible, `the other group participant receives and renders the message: ${JSON.stringify(report.group_mention_recipient_diagnostic || {})}`);
     const recipientMentionRecord = await pageB.evaluate(async marker => {
       const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
       const rows = await new Promise((resolve, reject) => { const request = db.transaction('messages').objectStore('messages').getAll(); request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error); });
@@ -808,14 +825,71 @@ async function main() {
     assert.ok(recipientMentionRecord?.text.includes('received'), 'the other participant decrypts and renders the group message');
     assert.equal(recipientMentionRecord.mentions.find(mention => mention.pubkey === mentionTargetPubkey)?.pubkey, mentionTargetPubkey,
       'the recipient resolves the NIP-27 profile reference to the intended group member');
-    const mentionRelayEvents = await wsQuery(relay0.url, { kinds: [1059], '#p': [mentionTargetPubkey], limit: 1000 });
-    const newMentionEnvelopes = mentionRelayEvents.filter(event => !relayWrapIdsBeforeMention.includes(event.id));
-    assert.equal(newMentionEnvelopes.length, 1, 'one new gift-wrap reached the mentioned member relay route');
-    assert.ok(newMentionEnvelopes.every(event => !JSON.stringify(event).includes(mentionMarker) && !JSON.stringify(event).includes(senderMentionLabel)),
-      'the local relay stores no readable group text or @name in the encrypted gift-wrap');
     report.group_mentions = { sender_label: senderMentionLabel, mentioned_member_pubkey: mentionTargetPubkey, local_identity_binding: true, relay_plaintext_leak: false, mobile_screenshot: 'g04-group-mention-picker-mobile-en.png', mobile_layout: mobileMentionLayout, message_text: visibleMentionMessage };
     mark('G04-22', 'PASS', 'The group composer offered local member autocomplete, Enter inserted a bound @name, NIP-27 profile references were carried inside encrypted NIP-17 content, the recipient resolved the correct member, and the relay exposed no message text.');
     await openConversation(pageA, b.npub, 'B privado');
+
+    // G04-23: location cards are parsed locally and do not load map data.
+    stage = 'G04-23: local location card and consent-first map link';
+    const locationMarker = `property-g04-location-${crypto.randomUUID()}`;
+    const locationMessage = `${locationMarker} geo:0,0?q=38.6916,-9.2160(Torre%20de%20Bel%C3%A9m)`;
+    const locationRequestsBefore = report.external_requests.length;
+    const locationRelayIdsBefore = new Set();
+    for (const relay of [relay0, relay1]) {
+      for (const event of await wsQuery(relay.url, { kinds: [1059], limit: 1000 })) locationRelayIdsBefore.add(event.id);
+    }
+    await sendMessage(pageA, locationMessage);
+    const senderLocationRow = pageA.locator('#messages .message-row').filter({ hasText: locationMarker });
+    await senderLocationRow.locator('.message-location-card').waitFor({ state: 'visible', timeout: 10000 });
+    assert.equal((await senderLocationRow.locator('.message-location-title').textContent()).trim(), 'Torre de Belém');
+    assert.equal((await senderLocationRow.locator('.message-location-coordinates').textContent()).trim(), '38.69160, -9.21600');
+    assert.equal(await senderLocationRow.locator('.message-location-card img').count(), 0, 'rendering a location does not fetch map tiles or remote images');
+    const senderMapLink = senderLocationRow.locator('.message-location-open');
+    assert.equal((await senderMapLink.textContent()).trim(), 'Open in map');
+    assert.equal(await senderMapLink.getAttribute('target'), '_blank');
+    assert.equal(await senderMapLink.getAttribute('rel'), 'noopener noreferrer');
+    assert.equal(await senderMapLink.getAttribute('referrerpolicy'), 'no-referrer');
+    assert.match(await senderMapLink.getAttribute('href'), /mlat=38\.691600&mlon=-9\.216000#map=16\/38\.691600\/-9\.216000/u);
+    assert.match((await senderLocationRow.locator('.message-location-privacy').textContent()), /IP address/u);
+    assert.equal(report.external_requests.length, locationRequestsBefore, 'displaying a location card makes zero external requests');
+    const locationRelayEvents = [];
+    for (const relay of [relay0, relay1]) {
+      for (const event of await wsQuery(relay.url, { kinds: [1059], limit: 1000 })) {
+        if (!locationRelayIdsBefore.has(event.id)) locationRelayEvents.push(event);
+      }
+    }
+    assert.ok(locationRelayEvents.length > 0, 'at least one encrypted NIP-17 gift-wrap reaches the loopback relays');
+    assert.ok(locationRelayEvents.every(event => {
+      const serialized = JSON.stringify(event);
+      return !serialized.includes(locationMarker) && !serialized.includes('Torre de Belém') && !serialized.includes('38.6916,-9.2160');
+    }), 'the relay sees no readable location message or coordinates');
+
+    await openConversation(pageB, a.npub, 'A privada');
+    const recipientLocationRow = pageB.locator('#messages .message-row').filter({ hasText: locationMarker });
+    await recipientLocationRow.locator('.message-location-card').waitFor({ state: 'visible', timeout: 10000 });
+    assert.equal((await recipientLocationRow.locator('.message-location-title').textContent()).trim(), 'Torre de Belém');
+    await pageB.locator('#language-picker').selectOption('pt-BR');
+    await pageB.waitForFunction(() => document.querySelector('.message-location-open')?.textContent === 'Abrir no mapa');
+    assert.match((await recipientLocationRow.locator('.message-location-privacy').textContent()), /IP/u);
+    await pageB.setViewportSize({ width: 390, height: 844 });
+    await pageB.locator('#messages').evaluate(element => { element.scrollTop = element.scrollHeight; });
+    const mobileLocationLayout = await pageB.waitForFunction(() => {
+      const messages = document.querySelector('#messages');
+      const card = document.querySelector('.message-location-card');
+      const composer = document.querySelector('.composer');
+      if (!messages || !card || !composer) return null;
+      const viewport = messages.getBoundingClientRect(), location = card.getBoundingClientRect(), composerRect = composer.getBoundingClientRect();
+      return location.top >= viewport.top && location.bottom <= composerRect.top - 4
+        ? { card_top: Math.round(location.top), card_bottom: Math.round(location.bottom), composer_top: Math.round(composerRect.top) }
+        : null;
+    }, null, { timeout: 5000 }).then(handle => handle.jsonValue());
+    assert.ok(mobileLocationLayout, 'the entire location card stays above the mobile composer');
+    await pageB.screenshot({ path: path.join(options.output, 'g04-location-card-mobile-pt-BR.png') });
+    assert.equal(report.external_requests.length, locationRequestsBefore, 'both send and receive render the card without external requests');
+    report.location_cards = { sender_coordinates: '38.69160, -9.21600', recipient_rendered: true, relay_plaintext_leak: false,
+      external_requests_before_map_activation: 0, map_tiles_loaded: false, explicit_open_link: true,
+      languages: ['en', 'pt-BR'], mobile_layout: mobileLocationLayout, mobile_screenshot: 'g04-location-card-mobile-pt-BR.png' };
+    mark('G04-23', 'PASS', 'Both Property clients rendered a local location card from the encrypted NIP-17 message. No map image or external request was made; loopback relays saw no readable coordinates or place name. The map link is explicit, uses the parsed coordinates, and its privacy notice is localized.');
 
     // G04-13: no relay configuration barrier on a fresh browser profile.
     stage = 'G04-13: automatic first-use relay selection';

@@ -1,0 +1,529 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "G04-01",
+      "status": "PASS",
+      "reason": "A, B and C published signed kind-10050 inbox lists through the UI; independent relay queries verified signatures and B’s two authorized inboxes."
+    },
+    {
+      "case": "G04-02",
+      "status": "PASS",
+      "reason": "A and B exchanged real NIP-17 messages through Geode; both UI contexts decrypted the intended text, C received none, and relay storage contained only valid encrypted gift wraps."
+    },
+    {
+      "case": "G04-11",
+      "status": "PASS",
+      "reason": "A fixed rightward touch swipe selected its exact reply target; ArrowUp edited the latest eligible own message only with an empty composer; cancel preserved the draft and neither shortcut published a relay event."
+    },
+    {
+      "case": "G04-12",
+      "status": "PASS",
+      "reason": "Valid npub/nprofile references rendered as bounded Property cards; duplicate, invalid, nsec-looking, code-span and URL references stayed literal. Local search highlighted a profile code without flattening its card; tapping a card prefilled the existing contact dialog and relay hints without creating a conversation or publishing an event."
+    },
+    {
+      "case": "G04-14",
+      "status": "PASS",
+      "reason": "Conversation-list search found older locally stored direct and group messages after newer nonmatching messages, identified each chat, and opened each exact match without a relay search event."
+    },
+    {
+      "case": "G04-22",
+      "status": "PASS",
+      "reason": "The group composer offered local member autocomplete, Enter inserted a bound @name, NIP-27 profile references were carried inside encrypted NIP-17 content, the recipient resolved the correct member, and the relay exposed no message text."
+    },
+    {
+      "case": "G04-23",
+      "status": "PASS",
+      "reason": "Both Property clients rendered a local location card from the encrypted NIP-17 message. No map image or external request was made; loopback relays saw no readable coordinates or place name. The map link is explicit, uses the parsed coordinates, and its privacy notice is localized."
+    },
+    {
+      "case": "G04-15",
+      "status": "PASS",
+      "reason": "Browser notification permission was requested only after a tap; a hidden-page notice contained no message or sender data; the visible chat produced no duplicate notice; a local 15-minute mute suppressed a third notice while unread counts remained, and settings published zero relay events."
+    },
+    {
+      "case": "G04-16",
+      "status": "PASS",
+      "reason": "The app icon badge remained inactive before opt-in, then reflected the local aggregate unread count. Opening the unread conversation updated the count, disabling cleared it, the preference stayed in this identity, and none of these actions requested browser notification permission or published a relay event."
+    },
+    {
+      "case": "G04-17",
+      "status": "PASS",
+      "reason": "The existing chat shows one sticky date heading for each fixed local day, uses Today/Yesterday or Hoje/Ontem in the selected language, includes a full date for older messages, and does not alter message storage or publish relay events."
+    },
+    {
+      "case": "G04-18",
+      "status": "PASS",
+      "reason": "When reading older messages, A keeps the visible anchor and counts two incoming messages in English and Portuguese. Returning to the bottom clears the count; a third incoming message stays at the bottom, and A’s own send returns to the bottom without being counted."
+    },
+    {
+      "case": "G04-19",
+      "status": "PASS",
+      "reason": "The signed-in empty state offers New conversation, Join with a contact link/code, and Share my contact in English and Portuguese. On mobile, the buttons fit the viewport. Sharing creates the existing public contact URL, nprofile, and local QR; joining focuses the public-key field and opens a local conversation. Neither action publishes a relay event."
+    },
+    {
+      "case": "G04-20",
+      "status": "PASS",
+      "reason": "A person copied the canonical verification text and explicitly published one signed kind 10011 GitHub claim. A contact loaded the signed claim without contacting GitHub; only tapping Verify made one mocked, credential-free request, rendered the matching proof as verified, and published no relay event."
+    },
+    {
+      "case": "G04-21",
+      "status": "PASS",
+      "reason": "Typing a link and canceling consent made zero requests. One explicit confirmation made exactly one mocked HTTPS metadata request without credentials/referrer or redirects. The sender attached one text-only preview tag to the NIP-17 rumor; the recipient rendered it in both languages without fetching the page, and the loopback relay saw no preview URL, title, or custom tag in its encrypted wrapper."
+    },
+    {
+      "case": "G04-13",
+      "status": "PASS",
+      "reason": "A fresh profile received two distinct bundled relay suggestions, saved them locally, and could create or import an identity without configuring relays. Settings remained optional and no relay connection started before identity activation."
+    },
+    {
+      "case": "G04-03",
+      "status": "PASS",
+      "reason": "B closed, A sent through the real relay, and B recovered the queued NIP-17 message after two browser restarts with one UI copy."
+    },
+    {
+      "case": "G04-04",
+      "status": "PASS",
+      "reason": "The live inbox carried messages when the second relay was down; all-inbox outage stayed pending; relay restart restored delivery; an intentional false ACK was caught by an independent query."
+    },
+    {
+      "case": "G04-05",
+      "status": "PASS",
+      "reason": "The UI refused to send without the sender’s kind-10050 inbox list, emitted no fallback, and a real relay rejected a post-signature envelope mutation without storing it."
+    },
+    {
+      "case": "G04-06",
+      "status": "PASS",
+      "reason": "The delivered corpus reconciled one-for-one in both browser databases and real relay storage; no plaintext, duplicate UI copy, third-party recipient or read receipt was observed."
+    },
+    {
+      "case": "G04-09",
+      "status": "PASS",
+      "reason": "Direct and group chats pin locally in the existing list, retain order after reload, remain unpinned in a clean profile with the same identity, and produce zero relay events."
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28470",
+      "process_id": 2310632,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28471",
+      "process_id": 2311206,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:46441/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28471/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:46441/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/",
+    "ws://127.0.0.1:28470/"
+  ],
+  "denied_proxy_attempts": [
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    }
+  ],
+  "page_errors": [],
+  "inbox_checks": {
+    "A": {
+      "signed": true,
+      "newest": true,
+      "relays": [
+        "ws://127.0.0.1:28470"
+      ]
+    },
+    "B": {
+      "signed": true,
+      "newest": true,
+      "relays": [
+        "ws://127.0.0.1:28470",
+        "ws://127.0.0.1:28471"
+      ]
+    },
+    "C": {
+      "signed": true,
+      "relays": [
+        "ws://127.0.0.1:28470"
+      ]
+    },
+    "invalid_or_ambiguous_destinations": "none used"
+  },
+  "message_checks": {
+    "first_a_to_b_visible": true,
+    "response_b_to_a_visible": true,
+    "relay_events_signature_valid": true,
+    "recipient_c_received_none": true,
+    "plaintext_absent_from_relay_envelopes": true,
+    "relay_addresses": [
+      "ws://127.0.0.1:28470",
+      "ws://127.0.0.1:28471"
+    ],
+    "offline_delivery": {
+      "B_closed_before_send": true,
+      "recovered_after_restart": true,
+      "duplicate_count_after_two_reopens": 1
+    }
+  },
+  "failure_checks": {
+    "one_of_two_inboxes_down_delivered_over_remaining_relay": true,
+    "both_inboxes_down_marked_pending": true,
+    "recovered_after_relay_restart": true,
+    "false_ack_event_ids": [
+      "a4bc1284234775742d1e4752d6e904d3d3c726689386ebb885bb94a11a49df66"
+    ],
+    "false_ack_independent_query_count": 0,
+    "false_ack_client_status_after_ack": "sent",
+    "false_ack_detected_by_independent_query": true,
+    "false_ack_cache_clear": {
+      "deleted": true
+    },
+    "false_ack_fixture": {
+      "connections": 2,
+      "frames": {
+        "EVENT": 8,
+        "recipientEnvelope": 8,
+        "otherEventKind": 0,
+        "REQ": 3,
+        "CLOSE": 0,
+        "other": 0
+      },
+      "protocolErrors": 0,
+      "event_ids": [
+        "a4bc1284234775742d1e4752d6e904d3d3c726689386ebb885bb94a11a49df66"
+      ],
+      "websocket_url_observed": true
+    },
+    "no_kind10050": {
+      "send_refused": true,
+      "relay_event_count_unchanged": true,
+      "no_public_fallback": true
+    },
+    "tampered_signature": {
+      "relay_ack": {
+        "accepted": false,
+        "message": "invalid: bad signature or id"
+      },
+      "independent_query_count": 0,
+      "recipient_plaintext_received": false
+    },
+    "d_identity_pubkey": "757e8882bf8789ab94d110e15cdab3798ee7e9fbe7dbdfe32d6b8dd5fc0ce9c5"
+  },
+  "reconciliation": {
+    "message_texts": [
+      "property-g04-a-b-f8536af1-cefe-48e3-817d-1559d8fa3124",
+      "property-g04-b-a-b97f76fd-d728-443d-aae4-32bf97d83c5f",
+      "property-g04-offline-6622f22c-276c-4043-b80a-741e53cc5691",
+      "property-g04-one-inbox-down-2eca9073-4517-49e8-8220-c1689efd2ab2",
+      "property-g04-reconnect-1ffeb2de-644f-4079-b724-d1de9d89bbc1"
+    ],
+    "browser_database_counts": {
+      "property-g04-a-b-f8536af1-cefe-48e3-817d-1559d8fa3124": {
+        "A": 1,
+        "B": 1
+      },
+      "property-g04-b-a-b97f76fd-d728-443d-aae4-32bf97d83c5f": {
+        "A": 1,
+        "B": 1
+      },
+      "property-g04-offline-6622f22c-276c-4043-b80a-741e53cc5691": {
+        "A": 1,
+        "B": 1
+      },
+      "property-g04-one-inbox-down-2eca9073-4517-49e8-8220-c1689efd2ab2": {
+        "A": 1,
+        "B": 1
+      },
+      "property-g04-reconnect-1ffeb2de-644f-4079-b724-d1de9d89bbc1": {
+        "A": 1,
+        "B": 1
+      }
+    },
+    "retained_relay_event_count": 30,
+    "plaintext_found_in_relay": false,
+    "false_ack_message_delivered": false,
+    "read_receipt_protocol_present": false
+  },
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0",
+    "browser_executable_sha256": "26e4198abe0dfb93c339239297008b1319711575d8cbae8e2d5122d2017b29a1"
+  },
+  "local_origin": "http://127.0.0.1:38545",
+  "message_gestures": {
+    "reply_target": "property-g04-b-a-b97f76fd-d728-443d-aae4-32bf97d83c5f",
+    "right_swipe_px": 96,
+    "vertical_delta_px": 12,
+    "arrow_up_edit_text_matches_latest_own_message": true,
+    "nonempty_draft_preserved": true,
+    "cancel_restored_empty_draft": true,
+    "relay_event_delta": 0
+  },
+  "nostr_profile_cards": {
+    "valid_unique_cards": 3,
+    "duplicate_canonical_profile_deduplicated": true,
+    "invalid_code_literal": true,
+    "prefilled_public_identity": true,
+    "relay_hints_shown_for_review": true,
+    "search_kept_cards_interactive": true,
+    "search_highlighted_profile_code": true,
+    "closing_search_preserved_cards": true,
+    "conversation_created_before_confirmation": false,
+    "relay_event_delta": 0
+  },
+  "message_search": {
+    "searches_saved_direct_and_group_history": true,
+    "ignores_case_and_accents": true,
+    "previews_newest_matching_message_per_chat": true,
+    "cache_invalidated_on_new_message": true,
+    "opens_exact_message": true,
+    "sends_no_search_event": true
+  },
+  "group_mentions": {
+    "sender_label": "@B privado",
+    "mentioned_member_pubkey": "26a9f27cd7b2e0144316a3fb10c66d30ecd5c431b932089ec1abb984b0111416",
+    "local_identity_binding": true,
+    "relay_plaintext_leak": false,
+    "mobile_screenshot": "g04-group-mention-picker-mobile-en.png",
+    "mobile_layout": {
+      "pickerBottom": 597,
+      "inputTop": 605
+    },
+    "message_text": "property-g04-group-mention-6087c350-5e56-480a-9793-771b2c237b6d @B privado received"
+  },
+  "location_cards": {
+    "sender_coordinates": "38.69160, -9.21600",
+    "recipient_rendered": true,
+    "relay_plaintext_leak": false,
+    "external_requests_before_map_activation": 0,
+    "map_tiles_loaded": false,
+    "explicit_open_link": true,
+    "languages": [
+      "en",
+      "pt-BR"
+    ],
+    "mobile_layout": {
+      "card_top": 333,
+      "card_bottom": 468,
+      "composer_top": 532
+    },
+    "mobile_screenshot": "g04-location-card-mobile-pt-BR.png"
+  },
+  "first_use_relay_suggestions": {
+    "selected_count": 2,
+    "distinct": true,
+    "from_bundled_candidates": true,
+    "persisted_locally": true,
+    "identity_creation_available_without_settings": true,
+    "no_relay_connections_before_identity": true
+  },
+  "local_pins": {
+    "fixed_activity_order": {
+      "before": [
+        "G04 direct C",
+        "G04 private group",
+        "G04 direct B"
+      ],
+      "pinned": [
+        "G04 private group",
+        "G04 direct B",
+        "G04 direct C"
+      ],
+      "after_unpin": [
+        "G04 direct B",
+        "G04 direct C",
+        "G04 private group"
+      ]
+    },
+    "survived_one_reload": true,
+    "second_profile_same_identity": true,
+    "second_profile_pins_synced": false,
+    "relay_event_ids_before": [],
+    "relay_event_ids_after": [],
+    "relay_event_delta": 0
+  },
+  "notification_checks": {
+    "permission_requests_before_explicit_tap": 0,
+    "permission_requests_after_tap": 1,
+    "identity_scoped_opt_in_saved_locally": true,
+    "visible_notice_count": 0,
+    "hidden_generic_notice_count": 1,
+    "notice_contains_message_or_sender": false,
+    "per_chat_mute_choice": "15m",
+    "muted_notice_count": 1,
+    "hidden_inbound_unread_count": 2,
+    "relay_event_delta_from_global_opt_in": 0,
+    "relay_event_delta_from_chat_mute": 0
+  },
+  "badge_checks": {
+    "badge_calls_before_explicit_opt_in": 0,
+    "identity_scoped_opt_in_saved_locally": true,
+    "unread_before_enable": 2,
+    "unread_after_opening_chat": 0,
+    "badge_updated_after_read": true,
+    "disable_cleared_badge": true,
+    "notification_permission_requests": 1,
+    "relay_event_delta": 0
+  },
+  "message_day_checks": {
+    "fixed_local_days": 3,
+    "english_labels": [
+      "Tuesday, November 3",
+      "Yesterday",
+      "Today"
+    ],
+    "portuguese_labels": [
+      "terça-feira, 3 de novembro",
+      "Ontem",
+      "Hoje"
+    ],
+    "one_heading_per_day": true,
+    "relay_event_delta": 0,
+    "local_only": true
+  },
+  "message_scroll_checks": {
+    "fixed_old_history_rows": 20,
+    "fixed_inbound_messages_while_scrolled": 2,
+    "inbound_at_bottom": true,
+    "outgoing_message_returns_to_bottom": true,
+    "anchor_preserved": true,
+    "english_count_label": "2 new messages, scroll to bottom",
+    "portuguese_count_label": "2 mensagens novas, rolar para o fim",
+    "count_cleared_on_jump": true,
+    "relay_urls": [
+      "ws://127.0.0.1:28470"
+    ]
+  },
+  "ghostly_empty_state_actions": {
+    "fixed_actions": 3,
+    "english_and_pt_br": true,
+    "mobile_viewport": "390x844",
+    "contact_link_qr": true,
+    "contact_nprofile": true,
+    "join_dialog_focuses_public_key": true,
+    "relay_events_published": 0,
+    "relay_url": "ws://127.0.0.1:28470"
+  },
+  "nip39_identity_proof": {
+    "signed_kind_10011_published": true,
+    "proof_text_copied": true,
+    "contact_claim_loaded_without_github_request": true,
+    "explicit_verify_click_made_one_mocked_request": true,
+    "request_credentials_omitted": true,
+    "verified_result_rendered": true,
+    "relay_events_published_by_verification": 0,
+    "external_network_requests": 0
+  },
+  "link_preview": {
+    "fixed_count": 1,
+    "fetch_requires_explicit_consent": true,
+    "canceled_consent_requests": 0,
+    "request_credentials_omitted": true,
+    "referrer_omitted": true,
+    "redirects_rejected": true,
+    "recipient_fetches": 0,
+    "metadata_in_encrypted_nip17_rumor": true,
+    "relay_plaintext_exposure": false,
+    "english_and_pt_br": true,
+    "remote_images_loaded": false
+  },
+  "browser_runtime_attempts_blocked": [
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "aus5.mozilla.org:443"
+    }
+  ],
+  "result": "PASS"
+}

@@ -316,6 +316,35 @@
     return parseMessage(source).map(plainBlock).join('\n');
   }
 
+  function appendLocationText(segments, output) {
+    for (const segment of segments) {
+      if (segment.type === 'text' || segment.type === 'link') output.push(segment.text);
+      else if (segment.type === 'span' && segment.style !== 'spoiler') appendLocationText(segment.children, output);
+    }
+  }
+
+  function locationText(source) {
+    const output = [];
+    const appendLines = lines => {
+      for (const line of lines || []) {
+        const segments = tokenizeInline(line);
+        appendLocationText(segments, output);
+        output.push('\n');
+      }
+    };
+    const appendList = list => {
+      for (const item of list.items || []) {
+        appendLines(item.lines);
+        for (const child of item.children || []) appendList(child);
+      }
+    };
+    for (const block of parseMessage(source)) {
+      if (['paragraph', 'heading', 'quote'].includes(block.type)) appendLines(block.lines);
+      else if (block.type === 'list') appendList(block);
+    }
+    return output.join('');
+  }
+
   function appendInline(parent, segments, doc, language) {
     for (const segment of segments) {
       if (segment.type === 'text') parent.append(doc.createTextNode(segment.text));
@@ -412,5 +441,5 @@
     return true;
   }
 
-  window.PropertyRichText = Object.freeze({ parseMessage, tokenizeInline, plainText, preview, renderInto, wrapSelection, MAX_FORMATTED_CHARS, SPOILER_PREVIEW });
+  window.PropertyRichText = Object.freeze({ parseMessage, tokenizeInline, plainText, locationText, preview, renderInto, wrapSelection, MAX_FORMATTED_CHARS, SPOILER_PREVIEW });
 })();
