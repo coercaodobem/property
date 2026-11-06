@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const html = await readFile(join(root, 'web/index.html'), 'utf8');
 const about = await readFile(join(root, 'web/about.html'), 'utf8');
+const aboutPtBR = await readFile(join(root, 'web/about.pt-BR.html'), 'utf8');
 const ghostlyLicense = await readFile(join(root, 'web/GHOSTLY-MIT-LICENSE.txt'), 'utf8');
 const manifest = JSON.parse(await readFile(join(root, 'web/manifest.webmanifest'), 'utf8'));
 const app = await readFile(join(root, 'web/app.js'), 'utf8');
@@ -126,7 +127,7 @@ assert.match(sw, /message-days\.js\?v=property-v1/);
 assert.match(sw, /message-scroll\.js\?v=property-v1/);
 assert.match(sw, /message-scroll\.css\?v=property-v1/);
 assert.match(sw, /app\.js\?v=property-v65/);
-assert.match(sw, /property-shell-v66/);
+assert.match(sw, /property-shell-v67/);
 assert.match(app, /IdentityProofs\.verifyGitHubClaim\(/, 'contact identity proofs are verified only from the explicit Verify action');
 assert.match(app, /\$\('publish-github-identity'\)\.addEventListener\('click'/, 'publishing a public NIP-39 claim requires an explicit click');
 assert.match(nip39, /https:\/\/api\.github\.com\/gists\//, 'GitHub proof checks use only the public Gist API endpoint');
@@ -186,6 +187,12 @@ assert.match(html, /id="link-preview-button"/);
 assert.match(html, /id="link-preview-consent-dialog"/);
 assert.match(html, /id="link-preview-consent-fetch"/);
 assert.match(html, /Some sites block browser previews/);
+assert.match(about, /optional text-only link previews/i, 'the English product page lists integrated link previews');
+assert.match(about, /site may see their IP/i, 'the English product page explains preview request privacy');
+assert.doesNotMatch(about, /link previews, external identity proofs, wallet cards/u, 'the English product page does not list link previews as missing');
+assert.match(aboutPtBR, /prévias de links opcionais em texto/u, 'the Portuguese product page lists integrated link previews');
+assert.match(aboutPtBR, /poderá ver seu IP/u, 'the Portuguese product page explains preview request privacy');
+assert.doesNotMatch(aboutPtBR, /confirmação de leitura, prévias de links/u, 'the Portuguese product page does not list link previews as missing');
 assert.match(html, /link-preview\.js\?v=property-v1/);
 assert.match(html, /link-preview\.css\?v=property-v1/);
 assert.match(linkPreview, /credentials: 'omit'.*redirect: 'error'/);
@@ -419,7 +426,7 @@ const pagesBase = new URL('https://coercaodobem.github.io/property/');
 const shellMatch = sw.match(/const SHELL = \[(.*?)\];/s);
 assert.ok(shellMatch, 'service worker declares its offline shell');
 const shellPaths = [...shellMatch[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
-const pagePaths = [...`${html}\n${about}`.matchAll(/(?:src|href)="([^"]+)"/g)].map(match => match[1]);
+const pagePaths = [...`${html}\n${about}\n${aboutPtBR}`.matchAll(/(?:src|href)="([^"]+)"/g)].map(match => match[1]);
 assert.deepEqual(manifest.shortcuts.map(shortcut => shortcut.url), ['./?launch=new-chat', './?launch=marketplace', './?launch=hangout']);
 const manifestPaths = [manifest.start_url, manifest.scope, ...manifest.icons.map(icon => icon.src),
   ...manifest.shortcuts.flatMap(shortcut => [shortcut.url, ...shortcut.icons.map(icon => icon.src)])];
@@ -462,6 +469,7 @@ for (const path of new Set([manifest.start_url, './index.html', './about.html'])
 const staticReferences = new Set([
   ...collectStaticReferences(html),
   ...collectStaticReferences(about),
+  ...collectStaticReferences(aboutPtBR),
   ...manifest.icons.map(icon => icon.src),
   ...[...css.matchAll(/url\(\s*(?:["']([^"']+)["']|([^)'"\s]+))\s*\)/gi)].map(match => match[1] || match[2]),
   ...[...css.matchAll(/@import\s+(?:url\()?\s*["']([^"']+)["']/gi)].map(match => match[1])
