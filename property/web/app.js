@@ -33,6 +33,7 @@
   const MessageForwards = window.PropertyMessageForwards;
   const RichText = window.PropertyRichText;
   const VoiceMessages = window.PropertyVoiceMessages;
+  const FileTransfers = window.PropertyFileTransfers;
   const MessageEdits = window.PropertyMessageEdits;
   const SecretGuard = window.PropertySecretGuard;
   const QrCode = window.PropertyQrCode;
@@ -42,6 +43,8 @@
   const TypingSignals = window.PropertyTypingSignals;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
+  const MAX_FILE_BATCH_FILES = 5;
+  const MAX_FILE_BATCH_BYTES = 4 * 1024 * 1024;
   const eventSourceHints = new WeakMap();
   let emojiPicker = null;
   let groupMentionPicker = null;
@@ -63,7 +66,7 @@
     storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, unseenMessageCount: 0, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0,
     linkPreview: null, linkPreviewUrl: '', linkPreviewSequence: 0, linkPreviewBusy: false, linkPreviewStatus: '',
     voiceRecorder: null, voiceRecorderPeer: '', voiceRecorderStartedAt: 0, voiceTimer: 0, voiceStopping: false, voiceSequence: 0,
-    voiceDrafts: new Map(), voiceObjectUrls: new Map(), activeConversationAgent: false, activeConversationBlocked: false
+    voiceDrafts: new Map(), voiceObjectUrls: new Map(), fileObjectUrls: new Map(), fileDraftObjectUrls: new Map(), fileDraftTransferIds: new Map(), fileDraftFiles: [], fileSendBusy: false, fileTransferSeen: new Set(), activeConversationAgent: false, activeConversationBlocked: false
   };
   const SHARE_LAUNCH_ACTIONS = new Set(['share', 'share-full', 'share-error']);
   let propertyTabChannel = null;
@@ -75,6 +78,10 @@
 
   function groupConversationId(members) {
     return Routing.groupConversationId(members, MAX_NIP17_GROUP_MEMBERS);
+  }
+  function fileChunkBody(chunk) {
+    if (!chunk || chunk.index !== 0) return '';
+    return `📎 ${chunk.name}${chunk.caption ? `\n${chunk.caption}` : ''}`;
   }
   function rumorParticipants(rumor) {
     return Routing.groupParticipants(rumor, MAX_NIP17_GROUP_MEMBERS);
@@ -132,6 +139,10 @@
     for (const draft of state.voiceDrafts.values()) URL.revokeObjectURL(draft.url);
     state.voiceDrafts.clear();
   }
+  function releaseFileObjectUrls() {
+    for (const url of state.fileObjectUrls.values()) URL.revokeObjectURL(url);
+    state.fileObjectUrls.clear();
+  }
   function clearVoiceDraft(peer = state.activePeer) {
     const draft = state.voiceDrafts.get(peer);
     if (draft) URL.revokeObjectURL(draft.url);
@@ -170,6 +181,93 @@
       $('voice-preview-duration').textContent = VoiceMessages.formatDuration(voiceDraft.recording.durationMs);
       $('voice-send-button').disabled = false;
     }
+    const attachButton = $('attach-file-button');
+    if (attachButton) {
+      const unavailable = !state.secret || !state.activePeer || state.activeConversationAgent || state.activeConversationBlocked || Boolean(state.editingMessage);
+      attachButton.hidden = unavailable;
+      attachButton.disabled = unavailable || state.fileSendBusy;
+      attachButton.setAttribute('aria-label', localized('Attach files', 'Anexar arquivos'));
+      attachButton.title = localized('Attach files', 'Anexar arquivos');
+    }
+  }
+
+  function setFileAttachmentStatus(message = '') {
+    const status = $('file-attachment-status');
+    if (!status) return;
+    status.textContent = message;
+    status.hidden = !message;
+  }
+
+  function renderFileDrafts() {
+    const list = $('file-attachment-list');
+    const send = $('file-attachment-send');
+    const add = $('file-attachment-add');
+    if (!list || !send || !add) return;
+    const close = $('file-attachment-close');
+    const cancel = $('file-attachment-cancel');
+    list.classList.toggle('multi', state.fileDraftFiles.length > 1);
+    list.replaceChildren();
+    state.fileDraftFiles.forEach((file, index) => {
+      const isPreviewableImage = ['image/avif', 'image/gif', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type);
+      const item = document.createElement('li');
+      item.className = `file-attachment-item${state.fileDraftFiles.length === 1 && isPreviewableImage ? ' single-image' : ''}`;
+      let icon;
+      if (isPreviewableImage) {
+        let previewUrl = state.fileDraftObjectUrls.get(file);
+        if (!previewUrl) { previewUrl = URL.createObjectURL(file); state.fileDraftObjectUrls.set(file, previewUrl); }
+        icon = document.createElement('img'); icon.className = 'file-attachment-thumb'; icon.src = previewUrl;
+        icon.alt = localized('Local image preview', 'Prévia local da imagem'); icon.loading = 'lazy';
+      } else {
+        icon = document.createElement('span'); icon.className = 'file-attachment-file-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = '▤';
+      }
+      const details = document.createElement('span');
+      const name = document.createElement('strong'); name.textContent = FileTransfers.safeName(file.name);
+      const size = document.createElement('small'); size.textContent = `${FileTransfers.formatSize(file.size, window.PropertyI18n?.language || 'en')} · ${file.type || 'application/octet-stream'}`;
+      details.append(name, size);
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'icon-button small'; remove.textContent = '×';
+      remove.setAttribute('aria-label', localized(`Remove ${FileTransfers.safeName(file.name)}`, `Remover ${FileTransfers.safeName(file.name)}`));
+      remove.disabled = state.fileSendBusy;
+      remove.addEventListener('click', () => {
+        if (state.fileSendBusy) return;
+        const previewUrl = state.fileDraftObjectUrls.get(file);
+        if (previewUrl) { URL.revokeObjectURL(previewUrl); state.fileDraftObjectUrls.delete(file); }
+        state.fileDraftFiles.splice(index, 1); renderFileDrafts();
+      });
+      item.append(icon, details, remove); list.append(item);
+    });
+    send.disabled = state.fileSendBusy || state.fileDraftFiles.length === 0;
+    add.disabled = state.fileSendBusy || state.fileDraftFiles.length >= MAX_FILE_BATCH_FILES;
+    if (close) close.disabled = state.fileSendBusy;
+    if (cancel) cancel.disabled = state.fileSendBusy;
+  }
+
+  function addFileDrafts(fileList) {
+    if (!state.activePeer) { showToast(localized('Open a conversation before attaching files.', 'Abra uma conversa antes de anexar arquivos.')); return false; }
+    if (state.activeConversationAgent || state.activeConversationBlocked) { showToast(localized('Files are unavailable in this conversation.', 'Arquivos não estão disponíveis nesta conversa.')); return false; }
+    const incoming = Array.from(fileList || []);
+    if (!incoming.length) return false;
+    const combined = [...state.fileDraftFiles, ...incoming];
+    if (combined.length > MAX_FILE_BATCH_FILES) { showToast(localized(`Choose no more than ${MAX_FILE_BATCH_FILES} files at a time.`, `Escolha no máximo ${MAX_FILE_BATCH_FILES} arquivos por envio.`)); return false; }
+    if (combined.some(file => !Number.isSafeInteger(file.size) || file.size > FileTransfers.MAX_FILE_BYTES)) {
+      showToast(localized('Each file must be 2 MiB or smaller.', 'Cada arquivo precisa ter no máximo 2 MiB.')); return false;
+    }
+    if (combined.reduce((total, file) => total + file.size, 0) > MAX_FILE_BATCH_BYTES) {
+      showToast(localized('The combined file size must be 4 MiB or smaller.', 'O tamanho total dos arquivos precisa ser de no máximo 4 MiB.')); return false;
+    }
+    state.fileDraftFiles = combined;
+    renderFileDrafts();
+    if (!$('file-attachment-dialog').open) $('file-attachment-dialog').showModal();
+    return true;
+  }
+
+  function clearFileDrafts() {
+    for (const url of state.fileDraftObjectUrls.values()) URL.revokeObjectURL(url);
+    state.fileDraftObjectUrls.clear();
+    state.fileDraftTransferIds.clear();
+    state.fileDraftFiles = [];
+    $('file-attachment-caption').value = '';
+    setFileAttachmentStatus('');
+    renderFileDrafts();
   }
   function cancelVoiceRecording({ notify = false } = {}) {
     const recorder = state.voiceRecorder;
@@ -264,6 +362,96 @@
       showToast(error.message || localized('Could not send this voice message.', 'Não foi possível enviar esta mensagem de voz.'));
     } finally {
       if (state.voiceDrafts.has(peer)) button.disabled = false;
+      renderVoiceComposer();
+    }
+  }
+  async function prepareFileRelayRoutes(peer) {
+    await resolveInboxRelaysFor(state.pubkey);
+    const conversation = await get('conversations', peer);
+    if (conversation?.group === true) {
+      const members = [...new Set(conversation.members || [])].sort();
+      if (members.length < 3 || members.length > MAX_NIP17_GROUP_MEMBERS || !members.includes(state.pubkey)) throw new Error(localized('This group cannot receive file attachments.', 'Este grupo não pode receber anexos de arquivo.'));
+      for (const member of members) await resolveInboxRelaysFor(member);
+    } else await resolveInboxRelaysFor(peer);
+    await connectAllRelays();
+  }
+  async function sendFileDrafts() {
+    const peer = state.activePeer;
+    const files = [...state.fileDraftFiles];
+    const caption = $('file-attachment-caption').value.trim();
+    if (!peer || !files.length || state.fileSendBusy) return;
+    if (state.activeConversationAgent || state.activeConversationBlocked) {
+      showToast(localized('Files are unavailable in this conversation.', 'Arquivos não estão disponíveis nesta conversa.'));
+      return;
+    }
+    state.fileSendBusy = true;
+    renderFileDrafts();
+    renderVoiceComposer();
+    const sendButton = $('file-attachment-send');
+    sendButton.disabled = true;
+    let savedParts = 0;
+    let confirmed = 0;
+    let required = 0;
+    const failures = [];
+    const transfers = [];
+    let totalChunks = 0;
+    try {
+      setFileAttachmentStatus(localized('Preparing encrypted delivery…', 'Preparando a entrega criptografada…'));
+      await prepareFileRelayRoutes(peer);
+      for (let index = 0; index < files.length; index += 1) {
+        setFileAttachmentStatus(localized(`Preparing file ${index + 1} of ${files.length}…`, `Preparando arquivo ${index + 1} de ${files.length}…`));
+        let retry = state.fileDraftTransferIds.get(files[index]);
+        if (!retry || retry.caption !== caption) {
+          retry = { caption, transferId: FileTransfers.randomTransferId() };
+          state.fileDraftTransferIds.set(files[index], retry);
+        }
+        transfers.push(await FileTransfers.createTransfer(files[index], { transferId: retry.transferId, caption }));
+      }
+      totalChunks = transfers.reduce((total, transfer) => total + transfer.chunks.length, 0);
+      let completedChunks = 0;
+      sendingFiles: for (let fileIndex = 0; fileIndex < transfers.length; fileIndex += 1) {
+        const transfer = transfers[fileIndex];
+        for (const chunk of transfer.chunks) {
+          completedChunks += 1;
+          setFileAttachmentStatus(localized(
+            `Encrypting and sending file ${fileIndex + 1} of ${transfers.length} · part ${chunk.index + 1} of ${chunk.totalChunks} (${completedChunks} of ${totalChunks} total)`,
+            `Criptografando e enviando arquivo ${fileIndex + 1} de ${transfers.length} · parte ${chunk.index + 1} de ${chunk.totalChunks} (${completedChunks} de ${totalChunks} no total)`
+          ));
+          try {
+            const result = await sendPrivateMessage(peer, caption, state.replyingTo, {
+              quiet: true, secretConfirmed: true, fileChunk: chunk, deferRender: true
+            });
+            if (!result.savedLocally) throw new Error(localized('A file part was not saved locally.', 'Uma parte do arquivo não foi salva neste aparelho.'));
+            savedParts += 1;
+            confirmed += result.confirmedEnvelopeCount;
+            required += result.requiredEnvelopeCount;
+          } catch (error) { failures.push(error); break sendingFiles; }
+        }
+      }
+      if (state.activePeer === peer) await renderMessages(peer);
+      await renderConversations();
+      const complete = !failures.length && savedParts === totalChunks && confirmed >= required;
+      if (complete) {
+        clearFileDrafts();
+        $('file-attachment-dialog').close();
+        if (state.replyingTo) { state.replyingTo = null; updateReplyContext(); }
+        showToast(localized('Encrypted file parts were confirmed by the inbox relays. This does not confirm that the recipient has downloaded the file.', 'Os relays de recebimento confirmaram as partes criptografadas. Isso não confirma que a outra pessoa baixou o arquivo.'));
+      } else {
+        setFileAttachmentStatus(localized(
+          `${savedParts} of ${totalChunks} parts were saved here; ${confirmed} of ${required} relay acknowledgements arrived. Press Send files to retry this same attachment.`,
+          `${savedParts} de ${totalChunks} partes foram salvas aqui; chegaram ${confirmed} de ${required} confirmações dos relays. Toque em Enviar arquivos para tentar novamente este mesmo anexo.`
+        ));
+        showToast(localized(
+          'The attachment is not fully confirmed. Its draft is kept so you can retry; some parts may already be on relays.',
+          'O anexo ainda não foi totalmente confirmado. O rascunho foi mantido para você tentar novamente; algumas partes podem já estar nos relays.'
+        ));
+      }
+    } catch (error) {
+      setFileAttachmentStatus(error.message || localized('Could not prepare these files.', 'Não foi possível preparar estes arquivos.'));
+      showToast(error.message || localized('Could not prepare these files.', 'Não foi possível preparar estes arquivos.'));
+    } finally {
+      state.fileSendBusy = false;
+      renderFileDrafts();
       renderVoiceComposer();
     }
   }
@@ -1587,6 +1775,7 @@
     if (rumor.kind === 14 && rumor.pubkey !== state.pubkey) clearRemoteTyping(peer, rumor.pubkey);
     const existingConversation = await get('conversations', peer);
     const subject = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'subject' && typeof tag[1] === 'string' && tag[1].trim() && tag[1].length <= 80)?.[1].trim() : '';
+    const fileTagPresent = Array.isArray(rumor.tags) && rumor.tags.some(tag => Array.isArray(tag) && tag[0] === FileTransfers.TAG);
     let text = rumor.content;
     let mentionTokens = [];
     if (group && /nostr:(?:npub|nprofile)1/u.test(rumor.content)) {
@@ -1603,7 +1792,7 @@
     }
     let parsedAgentMessage = null;
     let agentMessageError = '';
-    const isAgentProtocol = !group && rumor.content.includes(AgentMessages.PROTOCOL);
+    const isAgentProtocol = !group && !fileTagPresent && rumor.content.includes(AgentMessages.PROTOCOL);
     if (isAgentProtocol) {
       try {
         parsedAgentMessage = AgentMessages.decodeEnvelope(rumor.content);
@@ -1619,6 +1808,19 @@
     if (edit && fromAgent) return;
     const voiceMessage = !edit && !fromAgent ? await VoiceMessages.fromTags(rumor.tags) : null;
     if (voiceMessage) { text = VoiceMessages.FALLBACK_TEXT; mentionTokens = []; }
+    const fileChunk = !edit && !fromAgent ? await FileTransfers.fromTags(rumor.tags) : null;
+    if (fileTagPresent && !fileChunk) return;
+    if (fileChunk && (voiceMessage || fromAgent || existingConversation?.agent || agentAccess?.status === 'approved')) return;
+    if (fileChunk) { text = fileChunk.caption || ''; mentionTokens = []; }
+    let fileTransferAlreadyStored = false;
+    if (fileChunk) {
+      const seenKey = `${peer}:${rumor.pubkey}:${fileChunk.transferId}`;
+      fileTransferAlreadyStored = state.fileTransferSeen.has(seenKey);
+      if (!fileTransferAlreadyStored) {
+        fileTransferAlreadyStored = (await all('messages')).some(item => item.peer === peer && item.senderPubkey === rumor.pubkey && item.fileChunk?.transferId === fileChunk.transferId);
+        state.fileTransferSeen.add(seenKey);
+      }
+    }
     const linkPreview = !edit && LinkPreview?.fromTags(rumor.tags, text) || null;
     const replyTag = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'e' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) : null;
     const forwardedHops = fromAgent ? null : MessageForwards.fromTags(rumor.tags);
@@ -1640,7 +1842,7 @@
     } else {
       const id = parsedAgentMessage ? `agent:${peer}:${parsedAgentMessage.messageId}` : eventId;
       if (await get('messages', id)) return;
-      const original = { id, peer, text, ...(voiceMessage ? { voiceMessage } : {}), ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, linkPreview, ...(forwardedHops ? { forwarded: forwardedHops } : {}), ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
+      const original = { id, peer, text, ...(voiceMessage ? { voiceMessage } : {}), ...(fileChunk ? { fileChunk } : {}), ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, linkPreview, ...(forwardedHops ? { forwarded: forwardedHops } : {}), ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
       const merged = MessageEdits.mergeOriginalBehindEdit(await all('messages'), original, state.pubkey);
       message = merged?.message || original;
       await put('messages', message);
@@ -1649,16 +1851,16 @@
     const isLatest = !previous.lastAt || message.createdAt >= previous.lastAt;
     const previousUnreadCount = conversationUnreadCount(previous);
     const visibleConversation = hasVisibleConversation(peer);
-    const unreadCount = edit
+    const unreadCount = edit || fileTransferAlreadyStored
       ? previousUnreadCount
       : senderDirection === 'received' && !visibleConversation
         ? Math.min(9999, previousUnreadCount + 1)
         : visibleConversation ? 0 : previousUnreadCount;
-    const updatedConversation = { ...previous, unreadCount, ...(group ? { group: true, members } : {}), ...(subject ? { title: subject } : {}), ...(fromAgent ? { agent: true } : {}), ...(isLatest ? { lastMessage: message.text, lastAt: message.createdAt } : {}) };
+    const updatedConversation = { ...previous, unreadCount, ...(group ? { group: true, members } : {}), ...(subject ? { title: subject } : {}), ...(fromAgent ? { agent: true } : {}), ...(isLatest ? { lastMessage: fileChunk ? `📎 ${fileChunk.name}` : message.text, lastAt: message.createdAt } : {}) };
     await put('conversations', updatedConversation);
     await renderConversations();
     if (state.activePeer === peer) { await updateConversationHeader(updatedConversation); await updateAgentBlockControl(peer); await renderMessages(peer); }
-    if (!edit && senderDirection === 'received' && !visibleConversation) await notifyIncomingMessage(peer);
+    if (!edit && senderDirection === 'received' && !visibleConversation && !fileTransferAlreadyStored) await notifyIncomingMessage(peer);
   }
   function finishFetchSub(id, fromSocketClose) {
     const subscription = state.fetchSubs.get(id);
@@ -2403,15 +2605,21 @@
   }
   async function renderMessages(peer, jumpToMessageId = '') {
     const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
-    const messages = entries.filter(message => message.kind !== 7);
+    const messages = FileTransfers.coalesceMessages(entries.filter(message => message.kind !== 7));
     const activeVoiceIds = new Set(messages.filter(message => message.voiceMessage?.base64).map(message => message.id));
     for (const [id, url] of state.voiceObjectUrls) {
       if (activeVoiceIds.has(id)) continue;
       URL.revokeObjectURL(url);
       state.voiceObjectUrls.delete(id);
     }
+    const activeFileIds = new Set(messages.filter(message => message.fileTransfer?.complete).map(message => `${peer}:${message.fileTransfer.transferId}`));
+    for (const [id, url] of state.fileObjectUrls) {
+      if (activeFileIds.has(id)) continue;
+      URL.revokeObjectURL(url);
+      state.fileObjectUrls.delete(id);
+    }
     const messageByEventId = new Map();
-    for (const message of messages) for (const eventId of MessageEdits.eventIds(message)) messageByEventId.set(eventId, message);
+    for (const message of messages) for (const eventId of [...MessageEdits.eventIds(message), ...(message.fileTransfer?.eventIds || [])]) messageByEventId.set(eventId, message);
     const latestReactions = new Map();
     for (const reaction of entries.filter(message => message.kind === 7)) {
       if (!/^[0-9a-f]{64}$/i.test(reaction.targetEventId || '')) continue;
@@ -2471,7 +2679,8 @@
         const parent = byEventId.get(message.replyToId);
         const quote = document.createElement('button'); quote.className = 'reply-reference'; quote.type = 'button';
         const author = parent?.direction === 'sent' ? (window.PropertyI18n?.language === 'pt-BR' ? 'Você' : 'You') : displayName(parent?.senderPubkey || peer, conversation?.group ? '' : conversation?.title || '');
-        quote.textContent = parent ? `${author}: ${RichText.preview(parent.text).slice(0, 120)}` : localized('Reply to a message', 'Responder a uma mensagem');
+        const parentText = parent?.fileTransfer ? `📎 ${parent.fileTransfer.name}${parent.text ? ` · ${parent.text}` : ''}` : RichText.preview(parent?.text || '');
+        quote.textContent = parent ? `${author}: ${parentText.slice(0, 120)}` : localized('Reply to a message', 'Responder a uma mensagem');
         const quoteLabel = parent
           ? `${window.PropertyI18n?.language === 'pt-BR' ? 'Ir para a mensagem respondida' : 'Go to replied message'}: ${quote.textContent}`
           : (window.PropertyI18n?.language === 'pt-BR' ? 'A mensagem respondida não está neste histórico local' : 'Replied message is not in this local history');
@@ -2496,7 +2705,56 @@
           }
         }
       }
-      if (voice && audioUrl && ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg'].includes(voice.mime)) {
+      if (message.fileTransfer) {
+        const transfer = message.fileTransfer;
+        const card = document.createElement('div'); card.className = 'file-transfer-card';
+        const heading = document.createElement('div'); heading.className = 'file-transfer-heading';
+        const icon = document.createElement('span'); icon.className = 'file-transfer-icon'; icon.setAttribute('aria-hidden', 'true'); icon.textContent = '▤';
+        const name = document.createElement('span'); name.className = 'file-transfer-name'; name.textContent = FileTransfers.safeName(transfer.name);
+        heading.append(icon, name); card.append(heading);
+        const details = document.createElement('span'); details.className = 'file-transfer-details';
+        details.textContent = `${FileTransfers.formatSize(transfer.sizeBytes, window.PropertyI18n?.language || 'en')} · ${transfer.mime}`;
+        card.append(details);
+        const transferKey = `${peer}:${transfer.transferId}`;
+        let fileUrl = state.fileObjectUrls.get(transferKey);
+        if (transfer.conflict) {
+          const status = document.createElement('span'); status.className = 'file-transfer-status';
+          status.textContent = localized('Conflicting file parts were received. Download is disabled.', 'Foram recebidas partes conflitantes. O download está desativado.');
+          card.append(status);
+        } else if (!transfer.complete) {
+          const status = document.createElement('span'); status.className = 'file-transfer-status';
+          status.textContent = localized(`Waiting for encrypted parts · ${transfer.receivedChunks} of ${transfer.totalChunks} received`, `Aguardando partes criptografadas · ${transfer.receivedChunks} de ${transfer.totalChunks} recebidas`);
+          card.append(status);
+        } else {
+          if (!fileUrl) {
+            const assembled = await FileTransfers.assemble(transfer.chunks);
+            if (assembled) {
+              fileUrl = URL.createObjectURL(new Blob([assembled.bytes], { type: 'application/octet-stream' }));
+              state.fileObjectUrls.set(transferKey, fileUrl);
+            }
+          }
+          if (fileUrl) {
+            const download = document.createElement('a'); download.className = 'file-transfer-download';
+            download.href = fileUrl; download.download = FileTransfers.safeName(transfer.name);
+            download.rel = 'noopener noreferrer'; download.textContent = localized('Download verified file', 'Baixar arquivo verificado');
+            card.append(download);
+            if (message.direction === 'sent') {
+              const confirmedChunks = new Set(entries.filter(entry => entry.fileChunk?.transferId === transfer.transferId && entry.status === 'sent').map(entry => entry.fileChunk.index)).size;
+              if (confirmedChunks < transfer.totalChunks) {
+                const status = document.createElement('span'); status.className = 'file-transfer-status';
+                status.textContent = localized(`${confirmedChunks} of ${transfer.totalChunks} parts were confirmed by inbox relays.`, `${confirmedChunks} de ${transfer.totalChunks} partes foram confirmadas pelos relays de recebimento.`);
+                card.append(status);
+              }
+            }
+          } else {
+            const status = document.createElement('span'); status.className = 'file-transfer-status';
+            status.textContent = localized('File integrity verification failed. Download is disabled.', 'A verificação de integridade do arquivo falhou. O download está desativado.');
+            card.append(status);
+          }
+        }
+        bubble.append(card);
+        if (message.text) { const caption = document.createElement('div'); caption.className = 'file-transfer-caption'; RichText.renderInto(caption, message.text, window.PropertyI18n?.language || 'en'); bubble.append(caption); }
+      } else if (voice && audioUrl && ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg'].includes(voice.mime)) {
         const label = document.createElement('span'); label.className = 'voice-message-label';
         label.textContent = `${localized('Voice message', 'Mensagem de voz')} · ${VoiceMessages.formatDuration(voice.durationMs)}`;
         const audio = document.createElement('audio'); audio.className = 'voice-message-audio'; audio.controls = true; audio.preload = 'none'; audio.src = audioUrl;
@@ -2562,12 +2820,12 @@
       const menuItems = document.createElement('div'); menuItems.className = 'message-menu-items';
       const save = document.createElement('button'); save.type = 'button'; save.textContent = message.saved ? 'Remove saved message' : 'Save message';
       save.addEventListener('click', () => { menu.open = false; setMessageSaved(peer, message, !message.saved).catch(error => showToast(error.message || 'Could not update saved messages.')); });
-      if (message.direction === 'sent' && !message.voiceMessage && !message.fromAgent && !message.agentMessageId && message.kind !== 7 && !message.deleted && ['sent', 'partial'].includes(message.status) && eventId) {
+      if (message.direction === 'sent' && !message.voiceMessage && !message.fileTransfer && !message.fromAgent && !message.agentMessageId && message.kind !== 7 && !message.deleted && ['sent', 'partial'].includes(message.status) && eventId) {
         const editAction = document.createElement('button'); editAction.type = 'button'; editAction.textContent = localized('Edit message', 'Editar mensagem');
         editAction.addEventListener('click', () => { menu.open = false; startMessageEdit(peer, message); });
         menuItems.append(editAction);
       }
-      const canForward = typeof message.text === 'string' && Boolean(message.text.trim()) && !message.voiceMessage && message.kind !== 7 && !message.deleted && !message.fromAgent && !message.agentMessageId;
+      const canForward = typeof message.text === 'string' && Boolean(message.text.trim()) && !message.voiceMessage && !message.fileTransfer && message.kind !== 7 && !message.deleted && !message.fromAgent && !message.agentMessageId;
       const forward = document.createElement('button'); forward.type = 'button'; forward.textContent = localized('Forward', 'Encaminhar'); forward.disabled = !canForward;
       forward.addEventListener('click', () => { menu.open = false; openForwardDialog(message).catch(error => showToast(error.message || 'Could not open forwarding.')); });
       const details = document.createElement('button'); details.type = 'button'; details.textContent = localized('Details', 'Detalhes');
@@ -2734,7 +2992,7 @@
       : [state.pubkey, peer].sort();
     const relayLists = Object.create(null);
     for (const member of members) relayLists[member] = await resolveInboxRelaysFor(member);
-    await connectAllRelays();
+    if (!deferRender) await connectAllRelays();
     const edit = MessageEdits.createNip17Edit({
       nostr: N, secret: state.secret, selfPubkey: state.pubkey, participants: members,
       rootId, priorEventIds: MessageEdits.eventIds(message), sequence: (message.editSeq || 0) + 1,
@@ -2781,11 +3039,18 @@
     await renderConversations();
     return { updated: true, confirmed: confirmedRemote.length, required: remoteRecipients.length };
   }
-  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false, mentionTokens = [], forwardedHops = null, voiceRecording = null } = {}, linkPreview = null) {
+  async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false, mentionTokens = [], forwardedHops = null, voiceRecording = null, fileChunk = null, deferRender = false } = {}, linkPreview = null) {
     if (!secretConfirmed && !(await requestSecretSendConfirmation(text, peer))) {
       return { savedLocally: false, cancelled: true, confirmedEnvelopeCount: 0, requiredEnvelopeCount: 0 };
     }
-    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true, linkPreview, mentionTokens, forwardedHops, voiceRecording });
+    let fileChunkTag = null;
+    if (fileChunk) {
+      fileChunkTag = fileChunk.tag;
+      const verified = await FileTransfers.fromTags([fileChunkTag]);
+      if (!verified || verified.transferId !== fileChunk.transferId || verified.index !== fileChunk.index) throw new Error(localized('This file part failed its local integrity check. Select the file again.', 'Esta parte do arquivo falhou na verificação local. Selecione o arquivo novamente.'));
+      fileChunk = verified;
+    }
+    if ((await get('conversations', peer))?.group === true) return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true, linkPreview, mentionTokens, forwardedHops, voiceRecording, fileChunk, fileChunkTag, deferRender });
     const agentAccess = await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') throw new Error('Este contato está bloqueado neste aparelho.');
     if (!state.inboxRelays.length) {
@@ -2805,37 +3070,41 @@
     const previous = await get('conversations', peer) || { pubkey: peer, title: '' };
     const agentConversation = previous.agent === true || agentAccess?.status === 'approved';
     if (voiceRecording && agentConversation) throw new Error(localized('Voice notes are not available in agent-protocol chats.', 'Mensagens de voz não estão disponíveis em conversas de protocolo de agente.'));
+    if (fileChunk && agentConversation) throw new Error(localized('File attachments are not available in agent-protocol chats.', 'Anexos de arquivo não estão disponíveis em conversas de protocolo de agente.'));
     const agentMessageId = agentConversation ? AgentMessages.createMessageId() : null;
+    const messageText = fileChunk ? (fileChunk.caption || '') : text;
     const wireContent = agentConversation ? AgentMessages.encodeEnvelope({
       conversationId: await AgentMessages.conversationId(state.pubkey, peer),
       messageId: agentMessageId,
       inReplyTo: replyTo ? (replyTo.agentMessageId || nostrEventId(replyTo)) : null,
       body: text,
-    }) : text;
+    }) : fileChunk ? fileChunkBody(fileChunk) : text;
     const replyEventId = replyTo ? nostrEventId(replyTo) : '';
     if (replyTo && !replyEventId) throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Esta mensagem não pode ser citada como resposta Nostr.' : 'This message cannot be referenced as a Nostr reply.');
     const rumorTags = [['p', peer]];
     if (replyEventId) rumorTags.push(['e', replyEventId, '', 'reply']);
-    const previewTag = LinkPreview?.toTag(linkPreview, text);
+    const previewTag = fileChunk ? null : LinkPreview?.toTag(linkPreview, text);
     if (previewTag) rumorTags.push(previewTag);
     if (forwardedHops !== null) rumorTags.push(MessageForwards.toTag(forwardedHops));
     const voiceTag = voiceRecording ? await VoiceMessages.createTag(voiceRecording) : null;
     if (voiceTag) rumorTags.push(voiceTag);
+    if (fileChunk) rumorTags.push(fileChunkTag);
     const voicePayload = voiceTag ? await VoiceMessages.fromTags([voiceTag]) : null;
     if (voiceTag && !voicePayload) throw new Error(localized('The voice recording failed its local integrity check.', 'A gravação de voz não passou pela verificação local de integridade.'));
     // Make one rumor and wrap that exact event for both participants, so NIP-17 reply IDs match on each device.
     const sentRumor = N.nip59.createRumor({ kind: 14, tags: rumorTags, content: wireContent }, state.secret);
     const wraps = [state.pubkey, peer].map(recipient => N.nip59.createWrap(N.nip59.createSeal(sentRumor, state.secret, recipient), recipient));
     if (voiceTag && wraps.some(event => VoiceMessages.relayEventBytes(event) > VoiceMessages.MAX_RELAY_EVENT_BYTES)) throw new Error(localized('This voice recording would exceed the safe Nostr relay message size. Record a shorter message.', 'Esta gravação excederia o tamanho seguro para relays Nostr. Grave uma mensagem mais curta.'));
+    if (fileChunk && wraps.some(event => FileTransfers.relayEventBytes(event) > FileTransfers.MAX_RELAY_EVENT_BYTES)) throw new Error(localized('This file part exceeds the safe Nostr relay message size. Choose a smaller file.', 'Esta parte do arquivo excede o tamanho seguro para relays Nostr. Escolha um arquivo menor.'));
     const routePlan = Routing.planGiftWraps(wraps, state.pubkey, peer, state.inboxRelays, peerRelays, N.verifyEvent);
     if (!routePlan.ready) throw new Error('A mensagem NIP-17 não tem os dois envelopes válidos ou as listas de recebimento necessárias.');
     if (!Array.isArray(wraps) || wraps.length < 2 || wraps.some(event => event.kind !== 1059)) throw new Error('A biblioteca não gerou envelopes NIP-17 válidos.');
     const id = agentConversation ? `agent-out:${peer}:${agentMessageId}` : `${state.pubkey}:${crypto.randomUUID()}`;
-    const message = { id, peer, text, ...(voicePayload ? { voiceMessage: voicePayload } : {}), createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
+    const message = { id, peer, text: messageText, ...(voicePayload ? { voiceMessage: voicePayload } : {}), ...(fileChunk ? { fileChunk } : {}), createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
     await put('messages', message);
-    await put('conversations', { ...previous, ...(agentConversation ? { agent: true } : {}), lastMessage: text, lastAt: message.createdAt });
-    if (state.activePeer === peer) await renderMessages(peer);
-    await renderConversations();
+    await put('conversations', { ...previous, ...(agentConversation ? { agent: true } : {}), lastMessage: fileChunk ? `📎 ${fileChunk.name}` : text, lastAt: message.createdAt });
+    if (!deferRender && state.activePeer === peer) await renderMessages(peer);
+    if (!deferRender) await renderConversations();
     let sent = 0;
     const requiredEnvelopes = routePlan.deliveries.length;
     for (const delivery of routePlan.deliveries) {
@@ -2844,12 +3113,12 @@
     }
     message.status = sent === requiredEnvelopes ? 'sent' : sent > 0 ? 'partial' : 'pending';
     await put('messages', message);
-    if (state.activePeer === peer) await renderMessages(peer);
+    if (!deferRender && state.activePeer === peer) await renderMessages(peer);
     if (!quiet && !sent) showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Mensagem cifrada salva neste aparelho; nenhum relay confirmou o envio.' : 'Encrypted message saved on this device; no relay confirmed it.');
     else if (!quiet && sent < requiredEnvelopes) showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Entrega parcial: alguns envelopes NIP-17 não foram confirmados pelos relays.' : 'Partial delivery: some NIP-17 envelopes were not confirmed by relays.');
     return { savedLocally: true, confirmedEnvelopeCount: sent, requiredEnvelopeCount: requiredEnvelopes };
   }
-  async function sendPrivateGroupMessage(peer, text, replyTo = null, { quiet = false, linkPreview = null, mentionTokens = [], forwardedHops = null, voiceRecording = null } = {}) {
+  async function sendPrivateGroupMessage(peer, text, replyTo = null, { quiet = false, linkPreview = null, mentionTokens = [], forwardedHops = null, voiceRecording = null, fileChunk = null, fileChunkTag = null, deferRender = false } = {}) {
     const previous = await get('conversations', peer);
     const members = [...new Set(previous?.members || [])].sort();
     if (members.length < 3 || members.length > MAX_NIP17_GROUP_MEMBERS || !members.includes(state.pubkey) || members.some(member => !/^[0-9a-f]{64}$/i.test(member))) {
@@ -2861,9 +3130,9 @@
     const replyEventId = replyTo ? nostrEventId(replyTo) : '';
     if (replyTo && !replyEventId) throw new Error('This message cannot be referenced as a Nostr reply.');
     const title = (previous.title || '').trim().slice(0, 80);
-    const mentions = GroupMentions.validMentions(text, mentionTokens);
+    const mentions = fileChunk ? [] : GroupMentions.validMentions(text, mentionTokens);
     if (mentions.length !== mentionTokens.length) throw new TypeError(localized('A group mention changed in the draft. Select the member again before sending.', 'Uma menção do grupo mudou no rascunho. Selecione a pessoa novamente antes de enviar.'));
-    const wireText = GroupMentions.toWireText(text, mentions, N.nip19.npubEncode);
+    const wireText = fileChunk ? fileChunkBody(fileChunk) : GroupMentions.toWireText(text, mentions, N.nip19.npubEncode);
     const rumorTags = members.filter(member => member !== state.pubkey).map(member => ['p', member]);
     if (title) rumorTags.push(['subject', title]);
     if (replyEventId) rumorTags.push(['e', replyEventId, '', 'reply']);
@@ -2872,18 +3141,24 @@
     if (forwardedHops !== null) rumorTags.push(MessageForwards.toTag(forwardedHops));
     const voiceTag = voiceRecording ? await VoiceMessages.createTag(voiceRecording) : null;
     if (voiceTag) rumorTags.push(voiceTag);
+    if (fileChunk) {
+      const verified = await FileTransfers.fromTags([fileChunkTag]);
+      if (!verified || verified.transferId !== fileChunk.transferId || verified.index !== fileChunk.index) throw new Error(localized('This file part failed its local integrity check. Select the file again.', 'Esta parte do arquivo falhou na verificação local. Selecione o arquivo novamente.'));
+      rumorTags.push(fileChunkTag);
+    }
     const voicePayload = voiceTag ? await VoiceMessages.fromTags([voiceTag]) : null;
     if (voiceTag && !voicePayload) throw new Error(localized('The voice recording failed its local integrity check.', 'A gravação de voz não passou pela verificação local de integridade.'));
     const sentRumor = N.nip59.createRumor({ kind: 14, tags: rumorTags, content: wireText }, state.secret);
     const wraps = members.map(recipient => N.nip59.createWrap(N.nip59.createSeal(sentRumor, state.secret, recipient), recipient));
     if (voiceTag && wraps.some(event => VoiceMessages.relayEventBytes(event) > VoiceMessages.MAX_RELAY_EVENT_BYTES)) throw new Error(localized('This voice recording would exceed the safe Nostr relay message size. Record a shorter message.', 'Esta gravação excederia o tamanho seguro para relays Nostr. Grave uma mensagem mais curta.'));
+    if (fileChunk && wraps.some(event => FileTransfers.relayEventBytes(event) > FileTransfers.MAX_RELAY_EVENT_BYTES)) throw new Error(localized('This file part exceeds the safe Nostr relay message size. Choose a smaller file.', 'Esta parte do arquivo excede o tamanho seguro para relays Nostr. Escolha um arquivo menor.'));
     const routePlan = Routing.planGroupGiftWraps(wraps, members, relayLists, N.verifyEvent);
     if (!routePlan.ready) throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Não foi possível preparar os envelopes do grupo. Confira as listas de recebimento NIP-17.' : 'Could not prepare the group envelopes. Check each participant’s NIP-17 inbox list.');
-    const message = { id: `${state.pubkey}:${crypto.randomUUID()}`, peer, text, ...(voicePayload ? { voiceMessage: voicePayload } : {}), ...(mentions.length ? { mentions } : {}), senderPubkey: state.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}) };
+    const message = { id: `${state.pubkey}:${crypto.randomUUID()}`, peer, text: fileChunk ? (fileChunk.caption || '') : text, ...(voicePayload ? { voiceMessage: voicePayload } : {}), ...(fileChunk ? { fileChunk } : {}), ...(mentions.length ? { mentions } : {}), senderPubkey: state.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}) };
     await put('messages', message);
-    await put('conversations', { ...previous, group: true, members, lastMessage: text, lastAt: message.createdAt });
-    if (state.activePeer === peer) await renderMessages(peer);
-    await renderConversations();
+    await put('conversations', { ...previous, group: true, members, lastMessage: fileChunk ? `📎 ${fileChunk.name}` : text, lastAt: message.createdAt });
+    if (!deferRender && state.activePeer === peer) await renderMessages(peer);
+    if (!deferRender) await renderConversations();
     let sent = 0;
     for (const delivery of routePlan.deliveries) {
       try { if (await publishToRelays(delivery.event, delivery.relays)) sent += 1; }
@@ -2891,7 +3166,7 @@
     }
     message.status = sent === routePlan.deliveries.length ? 'sent' : sent > 0 ? 'partial' : 'pending';
     await put('messages', message);
-    if (state.activePeer === peer) await renderMessages(peer);
+    if (!deferRender && state.activePeer === peer) await renderMessages(peer);
     if (!quiet && !sent) showToast('Encrypted group message saved on this device; no relay confirmed sending.');
     else if (!quiet && sent < routePlan.deliveries.length) showToast('Partial delivery: some group inbox relays did not confirm their envelopes.');
     return { savedLocally: true, confirmedEnvelopeCount: sent, requiredEnvelopeCount: routePlan.deliveries.length };
@@ -3030,6 +3305,14 @@
     }
   }
   async function setMessageSaved(peer, message, saved) {
+    if (message.fileTransfer) {
+      const entries = (await all('messages')).filter(item => item.peer === peer && item.fileChunk?.transferId === message.fileTransfer.transferId &&
+        (!message.senderPubkey || item.senderPubkey === message.senderPubkey || item.direction === 'sent'));
+      for (const entry of entries) await put('messages', { ...entry, saved, ...(saved ? { savedAt: Date.now() } : { savedAt: 0 }) });
+      if (state.activePeer === peer) await renderMessages(peer);
+      await renderSavedMessages();
+      return;
+    }
     const updated = { ...message, saved, ...(saved ? { savedAt: Date.now() } : { savedAt: 0 }) };
     await put('messages', updated);
     if (state.activePeer === peer) await renderMessages(peer);
@@ -3038,7 +3321,7 @@
   async function renderSavedMessages() {
     const list = $('saved-list');
     if (!list || !state.db) return;
-    const saved = (await all('messages')).filter(message => message.kind !== 7 && message.saved === true).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+    const saved = FileTransfers.coalesceMessages((await all('messages')).filter(message => message.kind !== 7)).filter(message => message.saved === true).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
     list.replaceChildren();
     if (!saved.length) {
       const empty = document.createElement('div'); empty.className = 'empty-state compact';
@@ -3054,7 +3337,7 @@
       const name = document.createElement('strong'); name.textContent = conversationLabel(conversation || message.peer);
       const date = document.createElement('small'); date.textContent = new Date(message.createdAt).toLocaleString(window.PropertyI18n?.locale() || undefined);
       heading.append(name, date);
-      const excerpt = document.createElement('div'); excerpt.className = 'saved-message-text'; RichText.renderInto(excerpt, message.text, window.PropertyI18n?.language || 'en');
+      const excerpt = document.createElement('div'); excerpt.className = 'saved-message-text'; RichText.renderInto(excerpt, message.fileTransfer ? `📎 ${message.fileTransfer.name}` : message.text, window.PropertyI18n?.language || 'en');
       const actions = document.createElement('div'); actions.className = 'dialog-actions';
       const open = document.createElement('button'); open.type = 'button'; open.className = 'button secondary'; open.textContent = 'Open message';
       open.addEventListener('click', async () => {
@@ -3535,6 +3818,11 @@
   async function lockIdentity({ preservePublicBridge = false } = {}) {
     cancelVoiceRecording();
     releaseVoiceObjectUrls();
+    releaseFileObjectUrls();
+    state.fileSendBusy = false;
+    state.fileTransferSeen.clear();
+    clearFileDrafts();
+    if ($('file-attachment-dialog').open) $('file-attachment-dialog').close();
     state.activeConversationAgent = false;
     state.activeConversationBlocked = false;
     stopLocalTyping();
@@ -3629,7 +3917,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v59', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v60', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -3866,6 +4154,56 @@
     $('voice-record-cancel').addEventListener('click', () => cancelVoiceRecording({ notify: true }));
     $('voice-discard-button').addEventListener('click', () => clearVoiceDraft());
     $('voice-send-button').addEventListener('click', () => sendVoiceDraft());
+    $('attach-file-button').addEventListener('click', () => $('attach-file-input').click());
+    $('file-attachment-add').addEventListener('click', () => $('attach-file-input').click());
+    $('attach-file-input').addEventListener('change', event => {
+      const files = event.target.files;
+      if (files?.length) addFileDrafts(files);
+      event.target.value = '';
+    });
+    const closeFileDialog = () => {
+      if (state.fileSendBusy) return;
+      clearFileDrafts();
+      $('file-attachment-dialog').close();
+      $('attach-file-button').focus();
+    };
+    $('file-attachment-close').addEventListener('click', closeFileDialog);
+    $('file-attachment-cancel').addEventListener('click', closeFileDialog);
+    $('file-attachment-send').addEventListener('click', () => sendFileDrafts());
+    $('file-attachment-dialog').addEventListener('cancel', event => {
+      if (state.fileSendBusy) { event.preventDefault(); return; }
+      clearFileDrafts();
+    });
+    $('file-attachment-dialog').addEventListener('close', () => {
+      if (!state.fileSendBusy && state.fileDraftFiles.length) clearFileDrafts();
+    });
+    $('message-input').addEventListener('paste', event => {
+      const files = event.clipboardData?.files;
+      if (!files?.length) return;
+      event.preventDefault();
+      if (addFileDrafts(files)) {
+        const pastedText = event.clipboardData.getData('text/plain').trim();
+        if (pastedText && !$('file-attachment-caption').value) $('file-attachment-caption').value = pastedText.slice(0, FileTransfers.MAX_CAPTION_CHARS);
+      }
+    });
+    $('file-attachment-dialog').addEventListener('paste', event => {
+      const files = event.clipboardData?.files;
+      if (!files?.length) return;
+      event.preventDefault();
+      if (addFileDrafts(files)) {
+        const pastedText = event.clipboardData.getData('text/plain').trim();
+        if (pastedText && !$('file-attachment-caption').value) $('file-attachment-caption').value = pastedText.slice(0, FileTransfers.MAX_CAPTION_CHARS);
+      }
+    });
+    $('messages-view').addEventListener('dragover', event => {
+      if ([...(event.dataTransfer?.types || [])].includes('Files')) event.preventDefault();
+    });
+    $('messages-view').addEventListener('drop', event => {
+      const files = event.dataTransfer?.files;
+      if (!files?.length) return;
+      event.preventDefault();
+      addFileDrafts(files);
+    });
     $('link-preview-button').addEventListener('click', () => {
       const url = LinkPreview?.firstLink($('message-input').value);
       if (!url || !state.activePeer || state.editingMessage) return;
@@ -4099,7 +4437,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.unwrap !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.unwrap !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();

@@ -28,6 +28,7 @@ for test_file in \
   message-forwards-smoke.mjs \
   link-preview-smoke.mjs \
   voice-messages-smoke.mjs \
+  file-transfers-smoke.mjs \
   nostr-entities-smoke.mjs \
   secret-guard-smoke.mjs \
   nip05-smoke.mjs \
