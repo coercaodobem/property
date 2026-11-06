@@ -7,6 +7,7 @@ cd -- "$REPO_ROOT"
 
 for test_file in \
   money-smoke.mjs \
+  payment-card-smoke.mjs \
   nano-units-smoke.mjs \
   marketplace-smoke.mjs \
   campaigns-smoke.mjs \

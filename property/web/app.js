@@ -14,6 +14,7 @@
   const Bridge = window.PropertyRelayBridge;
   const Nano = window.PropertyNanoUnits;
   const Money = window.PropertyMoney;
+  const PaymentCard = window.PropertyPaymentCard;
   const Marketplace = window.PropertyMarketplace;
   const Campaigns = window.PropertyCampaigns;
   const Contact = window.PropertyContact;
@@ -279,6 +280,89 @@
       attachButton.disabled = unavailable || state.fileSendBusy;
       attachButton.setAttribute('aria-label', localized('Attach files', 'Anexar arquivos'));
       attachButton.title = localized('Attach files', 'Anexar arquivos');
+    }
+    const paymentButton = $('payment-card-button');
+    if (paymentButton) {
+      const unavailable = !state.secret || !state.activePeer || state.activeConversationAgent || state.activeConversationBlocked ||
+        Boolean(state.currentConversation?.group) || Boolean(state.editingMessage);
+      paymentButton.hidden = unavailable;
+      paymentButton.disabled = unavailable || recording || draft || state.fileSendBusy;
+      paymentButton.setAttribute('aria-label', localized('Share payment details', 'Compartilhar dados de pagamento'));
+      paymentButton.title = paymentButton.getAttribute('aria-label');
+    }
+  }
+
+  function updatePaymentCardNetworks() {
+    const currency = $('payment-card-currency').value;
+    const select = $('payment-card-network');
+    const previous = select.value;
+    const networks = PaymentCard.NETWORKS[currency] || [];
+    select.replaceChildren(...networks.map(network => {
+      const option = document.createElement('option');
+      option.value = network;
+      option.textContent = PaymentCard.networkLabel(network);
+      return option;
+    }));
+    if (networks.includes(previous)) select.value = previous;
+  }
+
+  function renderPaymentCard(target, content) {
+    const data = PaymentCard?.parse(content);
+    if (!data) return false;
+    const card = document.createElement('section');
+    card.className = 'message-payment-card';
+    card.setAttribute('aria-label', localized('Payment details', 'Dados de pagamento'));
+    const head = document.createElement('div'); head.className = 'message-payment-card-head';
+    const title = document.createElement('strong'); title.textContent = localized('Payment details', 'Dados de pagamento');
+    const rail = document.createElement('span'); rail.className = `payment-card-currency payment-card-${data.currency.toLowerCase()}`;
+    rail.textContent = `${data.currency} · ${PaymentCard.networkLabel(data.network)}`;
+    head.append(title, rail); card.append(head);
+    if (data.amount) {
+      const amount = document.createElement('p'); amount.className = 'message-payment-card-amount';
+      amount.textContent = `${localized('Amount', 'Valor')}: ${data.amount} ${data.currency}`; card.append(amount);
+    }
+    const addressLabel = document.createElement('span'); addressLabel.className = 'message-payment-card-label';
+    addressLabel.textContent = localized('Receiving address', 'Endereço de recebimento');
+    const address = document.createElement('code'); address.className = 'message-payment-card-address'; address.textContent = data.address;
+    card.append(addressLabel, address);
+    if (data.note) { const note = document.createElement('p'); note.className = 'message-payment-card-note'; note.textContent = data.note; card.append(note); }
+    const footer = document.createElement('div'); footer.className = 'message-payment-card-footer';
+    const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'button secondary message-payment-card-copy';
+    copy.textContent = localized('Copy address', 'Copiar endereço');
+    const status = document.createElement('span'); status.className = 'message-payment-card-status'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+    copy.addEventListener('click', async () => {
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+        await navigator.clipboard.writeText(data.address);
+        status.textContent = localized('Address copied.', 'Endereço copiado.');
+      } catch { status.textContent = localized('Could not copy the address here.', 'Não foi possível copiar o endereço aqui.'); }
+    });
+    footer.append(copy, status); card.append(footer);
+    const caution = document.createElement('p'); caution.className = 'message-payment-card-caution';
+    caution.textContent = localized('Property does not send or verify payments. Check the address and network before paying.', 'O Property não envia nem confirma pagamentos. Confira o endereço e a rede antes de pagar.');
+    card.append(caution);
+    target.replaceChildren(card);
+    return true;
+  }
+
+  function insertPaymentCardDraft() {
+    const error = $('payment-card-error'); error.textContent = '';
+    try {
+      const content = PaymentCard.build({
+        currency: $('payment-card-currency').value,
+        network: $('payment-card-network').value,
+        amount: $('payment-card-amount').value,
+        address: $('payment-card-address').value,
+        note: $('payment-card-note').value
+      });
+      const input = $('message-input');
+      input.value = [input.value.trimEnd(), content].filter(Boolean).join('\n\n');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      $('payment-card-dialog').close();
+      input.focus();
+      showToast(localized('Payment details were added to your draft. Review before sending.', 'Os dados de pagamento foram adicionados ao rascunho. Confira antes de enviar.'));
+    } catch (failure) {
+      error.textContent = failure.message || localized('Check the payment details and try again.', 'Confira os dados de pagamento e tente novamente.');
     }
   }
 
@@ -3779,7 +3863,7 @@
         const downloadName = `property-voice-message.${({ 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3' })[voice.mime] || 'audio'}`;
         const controls = renderAudioPlaybackControl({ peer, conversation, message, kind: 'voice', url: audioUrl, title: localized('Voice message', 'Mensagem de voz'), duration: voice.durationMs, downloadName });
         bubble.append(label, controls);
-      } else RichText.renderInto(bubble, message.text, window.PropertyI18n?.language || 'en');
+      } else if (!renderPaymentCard(bubble, message.text)) RichText.renderInto(bubble, message.text, window.PropertyI18n?.language || 'en');
       const forwardedLabel = MessageForwards?.label(message.forwarded, window.PropertyI18n?.language || 'en');
       if (forwardedLabel) {
         const forwarded = document.createElement('span'); forwarded.className = 'message-forwarded';
@@ -5324,6 +5408,21 @@
     $('voice-record-cancel').addEventListener('click', () => cancelVoiceRecording({ notify: true }));
     $('voice-discard-button').addEventListener('click', () => clearVoiceDraft());
     $('voice-send-button').addEventListener('click', () => sendVoiceDraft());
+    $('payment-card-button').addEventListener('click', () => {
+      $('payment-card-error').textContent = '';
+      updatePaymentCardNetworks();
+      $('payment-card-dialog').showModal();
+    });
+    $('payment-card-currency').addEventListener('change', updatePaymentCardNetworks);
+    $('payment-card-close').addEventListener('click', () => $('payment-card-dialog').close());
+    $('payment-card-cancel').addEventListener('click', () => $('payment-card-dialog').close());
+    $('payment-card-insert').addEventListener('click', insertPaymentCardDraft);
+    $('payment-card-dialog').addEventListener('close', () => {
+      $('payment-card-address').value = '';
+      $('payment-card-amount').value = '';
+      $('payment-card-note').value = '';
+      $('payment-card-error').textContent = '';
+    });
     $('attach-file-button').addEventListener('click', () => $('attach-file-input').click());
     $('file-attachment-add').addEventListener('click', () => $('attach-file-input').click());
     $('attach-file-input').addEventListener('change', event => {

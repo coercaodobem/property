@@ -14,13 +14,14 @@
   <link rel="stylesheet" href="./styles.css?v=property-v67">
   <link rel="stylesheet" href="./audio-playback.css?v=property-v1">
   <link rel="stylesheet" href="./call-window.css?v=property-v1">
+  <link rel="stylesheet" href="./payment-card.css?v=property-v1">
   <link rel="stylesheet" href="./link-preview.css?v=property-v1">
   <link rel="stylesheet" href="./message-scroll.css?v=property-v1">
   <link rel="stylesheet" href="./group-mentions.css?v=property-v2">
   <link rel="stylesheet" href="./location-cards.css?v=property-v1">
   <link rel="stylesheet" href="./message-forwards.css?v=property-v1">
   <link rel="stylesheet" href="./typing-signals.css?v=property-v1">
-  <script defer src="./i18n.js?v=property-v66"></script>
+  <script defer src="./i18n.js?v=property-v67"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -30,6 +31,7 @@
   <script defer src="./forwarding.js?v=property-v26"></script>
   <script defer src="./nano.js?v=property-v26"></script>
   <script defer src="./money.js?v=property-v26"></script>
+  <script defer src="./payment-card.js?v=property-v1"></script>
   <script defer src="./marketplace.js?v=property-v26"></script>
   <script defer src="./campaigns.js?v=property-v26"></script>
   <script defer src="./contact.js?v=property-v26"></script>
@@ -64,7 +66,7 @@
   <script defer src="./file-transfers.js?v=property-v1"></script>
   <script defer src="./direct-file-envelope.js?v=property-v1"></script>
   <script defer src="./image-viewer.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v86"></script>
+  <script defer src="./app.js?v=property-v87"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -191,6 +193,7 @@
               <button id="emoji-picker-button" class="format-button emoji-picker-button" type="button" aria-label="Add emoji" title="Add emoji" aria-expanded="false" aria-controls="emoji-picker-panel">☺</button>
               <button id="attach-file-button" class="format-button file-attach-button" type="button" aria-label="Attach files" title="Attach files" hidden>＋</button>
               <button id="voice-record-button" class="format-button voice-record-button" type="button" aria-label="Record a voice message" title="Record a voice message" hidden>🎙</button>
+              <button id="payment-card-button" class="format-button payment-card-trigger" type="button" aria-label="Share payment details" title="Share payment details" hidden>¤</button>
               <input id="attach-file-input" type="file" multiple hidden aria-label="Choose files to attach">
             </div>
             <section id="voice-recording-panel" class="voice-recording-panel" hidden>
@@ -249,6 +252,20 @@
               <div class="composer-input-row"><textarea id="message-input" rows="1" maxlength="4000" placeholder="Write a private message…" aria-label="Message"></textarea><button class="send-button" type="submit" aria-label="Send message">↑</button></div>
             </div>
           </form>
+          <dialog id="payment-card-dialog" class="dialog-card payment-card-dialog" aria-labelledby="payment-card-title">
+            <div class="dialog-head"><div><p class="eyebrow">PRIVATE NOSTR CHAT</p><h2 id="payment-card-title">Share payment details</h2></div><button id="payment-card-close" class="icon-button small" type="button" aria-label="Close payment details">×</button></div>
+            <div class="dialog-body">
+              <p class="muted">Create a card for the other person to review. Property sends it as an end-to-end encrypted chat draft; it never sends or confirms a payment.</p>
+              <label class="field"><span>Currency</span><select id="payment-card-currency"><option value="BTC">BTC · Bitcoin</option><option value="XMR">XMR · Monero</option><option value="XNO">XNO · Nano</option></select></label>
+              <label class="field"><span>Network</span><select id="payment-card-network"></select></label>
+              <label class="field"><span>Amount (optional)</span><input id="payment-card-amount" type="text" inputmode="decimal" maxlength="80" placeholder="0.01"></label>
+              <label class="field"><span>Receiving address</span><input id="payment-card-address" type="text" maxlength="128" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Wallet address"></label>
+              <label class="field"><span>Note (optional)</span><input id="payment-card-note" type="text" maxlength="140" placeholder="For the agreed offer"></label>
+              <p class="fine-print">Property checks the field format and amount precision only. It cannot verify that the address belongs to you or matches the selected network. Check it before sharing. Recipients must verify details themselves; Property does not send, settle, or track payments.</p>
+              <p id="payment-card-error" class="error" role="alert"></p>
+              <div class="dialog-actions"><button id="payment-card-insert" class="button primary" type="button">Insert into message for review</button><button id="payment-card-cancel" class="button secondary" type="button">Cancel</button></div>
+            </div>
+          </dialog>
           <dialog id="link-preview-consent-dialog" class="dialog-card" aria-labelledby="link-preview-consent-title">
             <div class="dialog-head"><div><p class="eyebrow">PRIVATE MESSAGE</p><h2 id="link-preview-consent-title">Fetch a link preview?</h2></div><button id="link-preview-consent-close" class="icon-button small" type="button" aria-label="Close">×</button></div>
             <p class="fine-print">Property will contact this HTTPS page from your device to read its title and description. The website may see your IP address. Some sites block browser previews; you can still send the link without one. Property sends no cookies or referrer, uses no proxy, and does not load remote images.</p>
