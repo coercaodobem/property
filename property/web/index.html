@@ -11,9 +11,9 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v55">
+  <link rel="stylesheet" href="./styles.css?v=property-v56">
   <link rel="stylesheet" href="./message-scroll.css?v=property-v1">
-  <script defer src="./i18n.js?v=property-v50"></script>
+  <script defer src="./i18n.js?v=property-v51"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -43,7 +43,7 @@
   <script defer src="./app-badge.js?v=property-v1"></script>
   <script defer src="./message-days.js?v=property-v1"></script>
   <script defer src="./message-scroll.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v62"></script>
+  <script defer src="./app.js?v=property-v63"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -140,7 +140,7 @@
       <button id="mobile-conversation-backdrop" class="mobile-conversation-backdrop hidden" type="button" aria-label="Close conversations" tabindex="-1"></button>
 
       <section id="messages-view" class="content-view messages-view">
-        <div id="empty-conversation" class="empty-state"><div class="empty-symbol">✳</div><h2>Your conversations, without a middleman</h2><p>Start a private conversation using the other person’s npub.</p><button id="empty-new-chat" class="button primary">New conversation</button></div>
+        <div id="empty-conversation" class="empty-state"><div class="empty-symbol" aria-hidden="true">✳</div><p class="eyebrow">PRIVATE NOSTR CHAT</p><h2>Your conversations, without a middleman</h2><p>Start with a public Nostr key or Property contact link. Your messages stay encrypted; Property selects relays automatically when none are saved.</p><div class="empty-actions"><button id="empty-new-chat" class="button primary" type="button">New conversation</button><button id="empty-join-chat" class="button secondary" type="button">Join with a contact link or code</button></div><button id="empty-share-contact" class="button text" type="button">Share my contact</button><p class="fine-print">Both people need to publish a public kind 10050 inbox list to exchange NIP-17 messages.</p></div>
         <div id="conversation-pane" class="conversation-pane hidden">
           <header class="conversation-header"><button id="mobile-open-conversations" class="icon-button small mobile-conversation-toggle" type="button" aria-label="Show conversations" title="Show conversations" aria-expanded="false" aria-controls="conversation-list">☰</button><div class="avatar" id="chat-avatar">?</div><div class="person-details"><h2 id="chat-title">Conversation</h2><span id="chat-subtitle" class="muted"></span></div><button id="message-search-button" class="icon-button small" type="button" aria-label="Search in this conversation" title="Search in this conversation" aria-expanded="false">⌕</button><button id="agent-block-button" class="icon-button small hidden" type="button" aria-label="Block agent" title="Block agent">⊘</button><button id="chat-details-button" class="icon-button" aria-label="Conversation details">···</button></header>
           <div id="message-search-bar" class="message-search-bar hidden" role="search"><span aria-hidden="true">⌕</span><input id="message-search-input" type="search" autocomplete="off" placeholder="Search in this conversation" aria-label="Search in this conversation"><span id="message-search-count" class="message-search-count" role="status" aria-live="polite"></span><button id="message-search-older" class="icon-button small" type="button" aria-label="Older match" title="Older match" disabled>↑</button><button id="message-search-newer" class="icon-button small" type="button" aria-label="Newer match" title="Newer match" disabled>↓</button><button id="message-search-close" class="icon-button small" type="button" aria-label="Close search" title="Close search">×</button></div>

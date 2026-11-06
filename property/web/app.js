@@ -2884,11 +2884,44 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v56', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v57', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
   function wireEvents() {
+    const openNewChatDialog = () => {
+      const dialog = $('new-chat-dialog');
+      if (!dialog.open) dialog.showModal();
+      requestAnimationFrame(() => $('peer-input').focus());
+    };
+    const openContactShareDialog = () => {
+      try {
+        state.contactShare = Contact.createShare({
+          pubkey: state.pubkey,
+          relayUrls: state.relays,
+          nprofileEncode: N.nip19.nprofileEncode,
+          npubEncode: N.nip19.npubEncode,
+          baseUrl: window.location.href
+        });
+        const qr = QrCode.createSvg(state.contactShare.url, localized('QR code to open this Property contact', 'QR code para abrir este contato Property'));
+        $('contact-share-link').textContent = state.contactShare.url;
+        $('contact-share-nprofile').textContent = state.contactShare.nprofile;
+        $('contact-share-fallback').hidden = true;
+        $('contact-share-fallback').value = state.contactShare.url;
+        $('contact-share-error').textContent = '';
+        $('contact-share-relays').textContent = state.contactShare.relayHints.length
+          ? state.contactShare.relayHints.join('\n')
+          : localized('No secure relay hints are selected. The recipient can still use your public key.', 'Nenhum relay seguro está selecionado como dica. A outra pessoa ainda pode usar sua chave pública.');
+        $('share-contact-native').hidden = typeof navigator.share !== 'function';
+        $('contact-share-qr').replaceChildren(qr);
+        $('profile-dialog').close();
+        $('contact-share-dialog').showModal();
+      } catch (error) {
+        const message = error.message || localized('Could not create the contact link.', 'Não foi possível criar o link de contato.');
+        if ($('profile-dialog').open) showError('profile-error', message);
+        else showToast(message);
+      }
+    };
     Pwa.bindInstallControls(document.querySelectorAll('[data-install-property]'), $('install-app-dialog'), () => showToast('Property installed.'));
     emojiPicker = EmojiPicker.init({ owner: () => state.pubkey, onError: error => showToast(error?.message || 'Could not send reaction.') });
     $('messages').addEventListener('scroll', updateMessageScrollButton, { passive: true });
@@ -3004,8 +3037,8 @@
       $('relay-input').value = selection.join('\n');
       if (!state.inboxRelays.length) $('dm-relay-input').value = selection.slice(0, 3).join('\n');
     });
-    $('new-chat-button').addEventListener('click', () => $('new-chat-dialog').showModal());
-    $('mobile-new-chat-button').addEventListener('click', () => $('new-chat-dialog').showModal());
+    $('new-chat-button').addEventListener('click', openNewChatDialog);
+    $('mobile-new-chat-button').addEventListener('click', openNewChatDialog);
     $('mobile-open-conversations').addEventListener('click', () => setMobileConversationListOpen(true, { focus: true }));
     $('close-mobile-conversations').addEventListener('click', () => setMobileConversationListOpen(false, { restoreFocus: true }));
     $('mobile-conversation-backdrop').addEventListener('click', () => setMobileConversationListOpen(false, { restoreFocus: true }));
@@ -3018,7 +3051,9 @@
     window.addEventListener('resize', () => {
       if (window.innerWidth > 800) setMobileConversationListOpen(false);
     });
-    $('empty-new-chat').addEventListener('click', () => $('new-chat-dialog').showModal());
+    $('empty-new-chat').addEventListener('click', openNewChatDialog);
+    $('empty-join-chat').addEventListener('click', openNewChatDialog);
+    $('empty-share-contact').addEventListener('click', openContactShareDialog);
     $('open-group-dialog').addEventListener('click', () => {
       state.pendingShareForNewChat = '';
       $('new-chat-dialog').close(); showError('group-error'); $('group-dialog').showModal();
@@ -3184,30 +3219,7 @@
         showToast(localized('Message metadata copied. No message text or private key was included.', 'Metadados copiados. O texto da mensagem e a chave privada não foram incluídos.'));
       } catch { showToast(localized('Clipboard access is unavailable in this browser.', 'A área de transferência não está disponível neste navegador.')); }
     });
-    $('share-contact').addEventListener('click', () => {
-      try {
-        state.contactShare = Contact.createShare({
-          pubkey: state.pubkey,
-          relayUrls: state.relays,
-          nprofileEncode: N.nip19.nprofileEncode,
-          npubEncode: N.nip19.npubEncode,
-          baseUrl: window.location.href
-        });
-        const qr = QrCode.createSvg(state.contactShare.url, localized('QR code to open this Property contact', 'QR code para abrir este contato Property'));
-        $('contact-share-link').textContent = state.contactShare.url;
-        $('contact-share-nprofile').textContent = state.contactShare.nprofile;
-        $('contact-share-fallback').hidden = true;
-        $('contact-share-fallback').value = state.contactShare.url;
-        $('contact-share-error').textContent = '';
-        $('contact-share-relays').textContent = state.contactShare.relayHints.length
-          ? state.contactShare.relayHints.join('\n')
-          : localized('No secure relay hints are selected. The recipient can still use your public key.', 'Nenhum relay seguro está selecionado como dica. A outra pessoa ainda pode usar sua chave pública.');
-        $('share-contact-native').hidden = typeof navigator.share !== 'function';
-        $('contact-share-qr').replaceChildren(qr);
-        $('profile-dialog').close();
-        $('contact-share-dialog').showModal();
-      } catch (error) { showError('profile-error', error.message || 'Não foi possível criar o link de contato.'); }
-    });
+    $('share-contact').addEventListener('click', openContactShareDialog);
     $('copy-contact-link').addEventListener('click', async () => {
       if (!state.contactShare) return;
       try {

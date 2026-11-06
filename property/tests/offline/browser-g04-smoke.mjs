@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -1315,6 +1315,50 @@ async function main() {
       relay_urls: [relay0.url]
     };
     mark('G04-18', 'PASS', 'When reading older messages, A keeps the visible anchor and counts two incoming messages in English and Portuguese. Returning to the bottom clears the count; a third incoming message stays at the bottom, and A’s own send returns to the bottom without being counted.');
+
+    stage = 'G04-19: Ghostly-style empty conversation actions';
+    await saveRelaysBeforeIdentity(defaultPage, [relay0.url]);
+    const welcomeIdentity = await createIdentity(defaultPage);
+    await defaultPage.locator('#empty-conversation').waitFor({ state: 'visible', timeout: 10000 });
+    for (const id of ['empty-new-chat', 'empty-join-chat', 'empty-share-contact']) {
+      assert.equal(await defaultPage.locator(`#${id}`).isVisible(), true, `${id} is available from the empty conversation screen`);
+    }
+    const englishWelcome = await defaultPage.locator('#empty-conversation').innerText();
+    assert.match(englishWelcome, /Property selects relays automatically when none are saved/);
+    await defaultPage.screenshot({ path: path.join(options.output, 'g04-empty-actions-english.png') });
+    await defaultPage.setViewportSize({ width: 390, height: 844 });
+    await defaultPage.screenshot({ path: path.join(options.output, 'g04-empty-actions-mobile.png') });
+    await defaultPage.setViewportSize({ width: 1280, height: 720 });
+    await defaultPage.locator('#language-picker').selectOption('pt-BR');
+    await defaultPage.waitForFunction(() => document.querySelector('#empty-join-chat')?.textContent.trim() === 'Entrar com link de contato ou código'
+      && document.querySelector('#empty-share-contact')?.textContent.trim() === 'Compartilhar meu contato');
+    await defaultPage.screenshot({ path: path.join(options.output, 'g04-empty-actions-pt-BR.png') });
+    const relayEventsBeforeWelcomeActions = await wsQuery(relay0.url, { authors: [welcomeIdentity.pubkey], limit: 100 });
+    await defaultPage.locator('#empty-share-contact').click();
+    await defaultPage.locator('#contact-share-dialog').waitFor({ state: 'visible' });
+    const sharePreview = await defaultPage.evaluate(() => ({
+      link: document.querySelector('#contact-share-link')?.textContent || '',
+      nprofile: document.querySelector('#contact-share-nprofile')?.textContent || '',
+      qrCount: document.querySelectorAll('#contact-share-qr svg').length
+    }));
+    assert.ok(sharePreview.link.length > 20, 'sharing opens the existing Property contact URL');
+    assert.match(sharePreview.nprofile, /^nprofile1/, 'sharing includes the public Nostr profile code');
+    assert.equal(sharePreview.qrCount, 1, 'sharing renders the existing local QR code');
+    await defaultPage.locator('#contact-share-dialog .dialog-head button').click();
+    await defaultPage.locator('#contact-share-dialog').waitFor({ state: 'hidden' });
+    await defaultPage.locator('#empty-join-chat').click();
+    await defaultPage.locator('#new-chat-dialog').waitFor({ state: 'visible' });
+    await defaultPage.waitForFunction(() => document.activeElement?.id === 'peer-input', null, { timeout: 5000 });
+    await defaultPage.locator('#peer-input').fill(a.npub);
+    await defaultPage.locator('#start-chat-button').click();
+    await defaultPage.locator('#new-chat-dialog').waitFor({ state: 'hidden' });
+    await defaultPage.locator('#conversation-pane').waitFor({ state: 'visible' });
+    const relayEventsAfterWelcomeActions = await wsQuery(relay0.url, { authors: [welcomeIdentity.pubkey], limit: 100 });
+    assert.deepEqual(relayEventsAfterWelcomeActions.map(event => event.id).sort(), relayEventsBeforeWelcomeActions.map(event => event.id).sort(),
+      'sharing a contact and opening a conversation publish no relay events');
+    report.ghostly_empty_state_actions = { fixed_actions: 3, english_and_pt_br: true, mobile_viewport: '390x844', contact_link_qr: true,
+      contact_nprofile: true, join_dialog_focuses_public_key: true, relay_events_published: 0, relay_url: relay0.url };
+    mark('G04-19', 'PASS', 'The signed-in empty state offers New conversation, Join with a contact link/code, and Share my contact in English and Portuguese. On mobile, the buttons fit the viewport. Sharing creates the existing public contact URL, nprofile, and local QR; joining focuses the public-key field and opens a local conversation. Neither action publishes a relay event.');
 
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
     const browserRuntimeAttempts = proxy.attempts.filter(attempt => attempt.destination === 'aus5.mozilla.org:443');
