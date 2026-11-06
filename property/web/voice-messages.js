@@ -76,6 +76,12 @@
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   }
 
+  function nextPlaybackRate(rate) {
+    const rates = [1, 1.5, 2];
+    const index = rates.indexOf(rate);
+    return rates[index < 0 ? 0 : (index + 1) % rates.length];
+  }
+
   class Recorder {
     constructor({ mediaDevices = globalThis.navigator?.mediaDevices, RecorderClass = globalThis.MediaRecorder, now = () => globalThis.performance?.now?.() ?? Date.now() } = {}) {
       this.mediaDevices = mediaDevices;
@@ -152,6 +158,6 @@
 
   globalThis.PropertyVoiceMessages = Object.freeze({
     TAG, FALLBACK_TEXT, MAX_DURATION_MS, MIN_DURATION_MS, MAX_AUDIO_BYTES, MAX_RELAY_EVENT_BYTES,
-    preferredMimeType, createTag, fromTags, bytesFromBase64, relayEventBytes, formatDuration, Recorder
+    preferredMimeType, createTag, fromTags, bytesFromBase64, relayEventBytes, formatDuration, nextPlaybackRate, Recorder
   });
 })();

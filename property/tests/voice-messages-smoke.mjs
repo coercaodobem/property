@@ -70,7 +70,8 @@ const result = await vm.runInContext(`(async () => {
     shortRecordingRejected,
     badMimeRejected,
     largeRecordingRejected,
-    formatDuration: voice.formatDuration(5400)
+    formatDuration: voice.formatDuration(5400),
+    playbackRates: [voice.nextPlaybackRate(1), voice.nextPlaybackRate(1.5), voice.nextPlaybackRate(2), voice.nextPlaybackRate(99)]
   };
 })()`, context, { timeout: 30000 });
 
@@ -91,6 +92,7 @@ assert.equal(result.shortRecordingRejected, true);
 assert.equal(result.badMimeRejected, true);
 assert.equal(result.largeRecordingRejected, true);
 assert.equal(result.formatDuration, '0:05');
+assert.deepEqual(Array.from(result.playbackRates), [1.5, 2, 1, 1]);
 
 let clock = 1000;
 let stoppedTracks = 0;

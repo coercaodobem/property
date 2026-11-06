@@ -2778,7 +2778,20 @@
         audio.addEventListener('play', () => {
           $('messages').querySelectorAll('audio.voice-message-audio').forEach(other => { if (other !== audio) other.pause(); });
         });
-        bubble.append(label, audio);
+        const controls = document.createElement('div'); controls.className = 'voice-message-actions';
+        const speed = document.createElement('button'); speed.type = 'button'; speed.className = 'voice-message-speed'; speed.textContent = '1×';
+        speed.setAttribute('aria-label', `${localized('Playback speed', 'Velocidade de reprodução')} 1×`);
+        speed.title = localized('Playback speed', 'Velocidade de reprodução');
+        speed.addEventListener('click', () => {
+          audio.playbackRate = VoiceMessages.nextPlaybackRate(audio.playbackRate);
+          speed.textContent = `${audio.playbackRate}×`;
+          speed.setAttribute('aria-label', `${localized('Playback speed', 'Velocidade de reprodução')} ${audio.playbackRate}×`);
+        });
+        const download = document.createElement('a'); download.className = 'voice-message-download'; download.href = audioUrl;
+        download.download = `property-voice-message.${({ 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3' })[voice.mime] || 'audio'}`;
+        download.rel = 'noopener noreferrer'; download.textContent = localized('Download voice audio', 'Baixar áudio');
+        controls.append(speed, download);
+        bubble.append(label, audio, controls);
       } else RichText.renderInto(bubble, message.text, window.PropertyI18n?.language || 'en');
       const forwardedLabel = MessageForwards?.label(message.forwarded, window.PropertyI18n?.language || 'en');
       if (forwardedLabel) {
@@ -3933,7 +3946,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v61', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v62', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -4453,7 +4466,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.unwrap !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.unwrap !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();
