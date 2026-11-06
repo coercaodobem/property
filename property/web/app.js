@@ -44,6 +44,7 @@
   const ChatGestures = window.PropertyChatGestures;
   const TypingSignals = window.PropertyTypingSignals;
   const Calls = window.PropertyCalls;
+  const CallWindow = window.PropertyCallWindow;
   const DirectTransfer = window.PropertyDirectTransfer;
   const AudioPlayback = window.PropertyAudioPlayback;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
@@ -79,6 +80,7 @@
     voiceRecorder: null, voiceRecorderPeer: '', voiceRecorderStartedAt: 0, voiceTimer: 0, voiceStopping: false, voiceSequence: 0,
     voiceDrafts: new Map(), voiceObjectUrls: new Map(), fileObjectUrls: new Map(), fileDraftObjectUrls: new Map(), fileDraftTransferIds: new Map(), fileDraftFiles: [], fileSendBusy: false, fileTransferSeen: new Set(), activeConversationAgent: false, activeConversationBlocked: false
   };
+  const callWindow = CallWindow.create({ element: $('call-mini-window'), handle: $('call-mini-drag-handle') });
   const persistentAudio = document.createElement('audio');
   persistentAudio.preload = 'none';
   persistentAudio.setAttribute('aria-hidden', 'true');
@@ -679,37 +681,45 @@
     return call.error || localized('The call could not be started.', 'Não foi possível iniciar a chamada.');
   }
   function renderCallMedia(stream, local = false) {
-    const video = $(local ? 'call-local-video' : 'call-remote-video');
+    const videos = (local ? ['call-local-video', 'call-mini-local-video'] : ['call-remote-video', 'call-mini-remote-video']).map($);
     if (local) {
-      video.srcObject = stream || null;
-      video.hidden = !stream || !stream.getVideoTracks?.().length;
-      if (stream && !video.hidden) video.play().catch(() => {});
+      for (const video of videos) {
+        video.srcObject = stream || null;
+        video.hidden = !stream || !stream.getVideoTracks?.().length;
+        if (stream && !video.hidden) video.play().catch(() => {});
+      }
       return;
     }
     const audio = $('call-remote-audio');
     audio.srcObject = stream || null;
     if (stream) audio.play().catch(() => {});
     const hasVideo = Boolean(stream?.getVideoTracks?.().length);
-    video.srcObject = hasVideo ? stream : null;
-    video.hidden = !hasVideo;
+    for (const video of videos) {
+      video.srcObject = hasVideo ? stream : null;
+      video.hidden = !hasVideo;
+      if (hasVideo) video.play().catch(() => {});
+    }
     $('call-audio-avatar').hidden = hasVideo;
-    if (hasVideo) video.play().catch(() => {});
+    $('call-mini-avatar').hidden = hasVideo;
   }
   async function setCallPeerLabels(call) {
     const sequence = ++state.callUiSequence;
     const fallback = callPeerLabel(call.peer);
     $('call-session-title').textContent = fallback;
     $('incoming-call-name').textContent = fallback;
+    $('call-mini-title').textContent = fallback;
     const conversation = await get('conversations', call.peer).catch(() => null);
     if (sequence !== state.callUiSequence || state.call?.callId !== call.callId) return;
     const label = conversationLabel(conversation || call.peer);
     $('call-session-title').textContent = label;
     $('incoming-call-name').textContent = label;
+    $('call-mini-title').textContent = label;
   }
   function updateCallState(call) {
     const previous = state.call;
     state.call = call;
     if (!call) {
+      callWindow.hide();
       state.callUiHadSession = false;
       state.callUiSequence++;
       for (const id of ['incoming-call-dialog', 'call-session-dialog', 'call-consent-dialog']) if ($(id).open) $(id).close();
@@ -717,6 +727,7 @@
       renderCallMedia(null, true);
       return;
     }
+    if (previous?.callId !== call.callId) callWindow.hide();
     void setCallPeerLabels(call);
     $('call-session-status').textContent = callStatusText(call);
     $('call-session-error').textContent = call.error || '';
@@ -725,7 +736,15 @@
       : localized('They are asking to start an audio call.', 'A pessoa está iniciando uma chamada de áudio.');
     $('incoming-call-video').hidden = call.requestedMedia !== 'video';
     const terminal = callTerminal(call.status);
+    $('call-mini-status').textContent = callStatusText(call);
+    $('call-mini-title').textContent = callPeerLabel(call.peer);
+    $('call-mini-brand').textContent = localized('PROPERTY · CALL', 'PROPERTY · CHAMADA');
+    $('call-session-minimize').setAttribute('aria-label', localized('Minimize call', 'Minimizar chamada'));
+    $('call-session-minimize').title = localized('Minimize call', 'Minimizar chamada');
+    $('call-mini-restore').setAttribute('aria-label', localized('Return to call', 'Voltar à chamada'));
+    $('call-mini-restore').title = localized('Return to call', 'Voltar à chamada');
     $('call-session-close').hidden = !terminal;
+    $('call-session-minimize').hidden = terminal || call.status === 'incoming';
     $('call-end-button').hidden = terminal;
     $('call-microphone-toggle').hidden = terminal || call.status === 'incoming';
     $('call-microphone-toggle').disabled = !call.microphoneEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status);
@@ -748,8 +767,35 @@
       'O compartilhamento envia a tela, janela ou aba selecionada diretamente para a outra pessoa. Notificações podem aparecer. Pare por aqui ou nos controles do navegador.'
     );
     $('call-audio-avatar').textContent = callPeerLabel(call.peer).slice(0, 1).toUpperCase() || 'P';
+    $('call-mini-avatar').textContent = $('call-audio-avatar').textContent;
+    const miniMicrophone = $('call-mini-microphone');
+    miniMicrophone.hidden = terminal || call.status === 'incoming';
+    miniMicrophone.disabled = !call.microphoneEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status);
+    miniMicrophone.textContent = call.microphoneEnabled ? localized('Mute', 'Silenciar') : localized('Unmute', 'Ativar');
+    miniMicrophone.setAttribute('aria-label', call.microphoneEnabled ? localized('Mute microphone', 'Silenciar microfone') : localized('Unmute microphone', 'Ativar microfone'));
+    miniMicrophone.title = miniMicrophone.getAttribute('aria-label');
+    const miniCamera = $('call-mini-camera');
+    miniCamera.hidden = terminal || call.localMedia !== 'video';
+    miniCamera.disabled = !call.cameraEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status);
+    miniCamera.textContent = call.cameraEnabled ? localized('Camera off', 'Câmera off') : localized('Camera on', 'Câmera on');
+    miniCamera.setAttribute('aria-label', call.cameraEnabled ? localized('Turn camera off', 'Desligar câmera') : localized('Turn camera on', 'Ligar câmera'));
+    miniCamera.title = miniCamera.getAttribute('aria-label');
+    const miniScreenShare = $('call-mini-screen-share');
+    miniScreenShare.hidden = terminal || !call.screenShareAvailable;
+    miniScreenShare.disabled = call.screenShareBusy || (!call.screenSharing && call.status !== 'connected');
+    miniScreenShare.textContent = call.screenSharing ? localized('Stop share', 'Parar') : localized('Share', 'Tela');
+    miniScreenShare.setAttribute('aria-label', call.screenSharing ? localized('Stop sharing', 'Parar compartilhamento') : localized('Share screen', 'Compartilhar tela'));
+    miniScreenShare.title = miniScreenShare.getAttribute('aria-label');
+    $('call-mini-end').hidden = terminal || call.status === 'incoming';
+    $('call-mini-end').textContent = localized('End', 'Encerrar');
+    $('call-mini-end').setAttribute('aria-label', localized('End call', 'Encerrar chamada'));
+    $('call-mini-end').title = $('call-mini-end').getAttribute('aria-label');
+    $('call-mini-dismiss').hidden = !terminal;
+    $('call-mini-dismiss').setAttribute('aria-label', localized('Dismiss call status', 'Dispensar status da chamada'));
+    $('call-mini-dismiss').title = localized('Dismiss', 'Dispensar');
 
     if (call.status === 'incoming') {
+      callWindow.hide();
       state.callUiHadSession = false;
       if (!$('incoming-call-dialog').open) $('incoming-call-dialog').showModal();
       return;
@@ -757,8 +803,18 @@
     if ($('incoming-call-dialog').open) $('incoming-call-dialog').close();
     if (!terminal) {
       state.callUiHadSession = true;
-      if (!$('call-session-dialog').open) $('call-session-dialog').showModal();
+      if (callWindow.isMinimized()) {
+        if ($('call-session-dialog').open) $('call-session-dialog').close();
+        callWindow.show();
+      } else {
+        callWindow.hide();
+        if (!$('call-session-dialog').open) $('call-session-dialog').showModal();
+      }
+    } else if (callWindow.isMinimized()) {
+      if ($('call-session-dialog').open) $('call-session-dialog').close();
+      callWindow.show();
     } else if (state.callUiHadSession || (previous?.callId === call.callId && previous.status !== 'incoming')) {
+      callWindow.hide();
       if (!$('call-session-dialog').open) $('call-session-dialog').showModal();
       state.callUiHadSession = true;
     } else {
@@ -4923,7 +4979,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v69', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v70', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -4987,6 +5043,37 @@
       state.callController?.end().catch(error => showToast(error.message || localized('Could not end the call cleanly.', 'Não foi possível encerrar a chamada corretamente.')));
     });
     $('call-session-close').addEventListener('click', () => state.callController?.dismiss());
+    $('call-session-minimize').addEventListener('click', () => {
+      if (!state.call || callTerminal(state.call.status)) return;
+      callWindow.minimize();
+      $('call-session-dialog').close();
+    });
+    $('call-mini-restore').addEventListener('click', () => {
+      if (!state.call) return;
+      callWindow.restore();
+      $('call-session-dialog').showModal();
+    });
+    $('call-mini-microphone').addEventListener('click', () => {
+      const call = state.call;
+      if (call && !callTerminal(call.status)) state.callController?.setMicrophoneEnabled(!call.microphoneEnabled);
+    });
+    $('call-mini-camera').addEventListener('click', () => {
+      const call = state.call;
+      if (call && !callTerminal(call.status)) state.callController?.setCameraEnabled(!call.cameraEnabled);
+    });
+    $('call-mini-screen-share').addEventListener('click', () => {
+      const call = state.call;
+      if (!call || callTerminal(call.status)) return;
+      const operation = call.screenSharing
+        ? state.callController?.stopScreenSharing()
+        : state.callController?.startScreenSharing();
+      operation?.catch(error => showToast(error?.message || localized('Could not change screen sharing.', 'Não foi possível alterar o compartilhamento de tela.')));
+    });
+    $('call-mini-end').addEventListener('click', () => {
+      if (!state.call || callTerminal(state.call.status)) return;
+      state.callController?.end().catch(error => showToast(error.message || localized('Could not end the call cleanly.', 'Não foi possível encerrar a chamada corretamente.')));
+    });
+    $('call-mini-dismiss').addEventListener('click', () => state.callController?.dismiss());
     $('call-session-dialog').addEventListener('cancel', event => {
       if (state.call && !callTerminal(state.call.status)) {
         event.preventDefault();
@@ -5393,6 +5480,7 @@
       updateReplyContext(); await renderConversations();
       if (state.activePeer) await renderMessages(state.activePeer);
       if (state.activeView === 'saved') await renderSavedMessages();
+      if (state.call) updateCallState(state.call);
     }));
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'hidden' && state.activeView === 'messages' && state.activePeer) {

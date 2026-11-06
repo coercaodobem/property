@@ -16,6 +16,7 @@ for test_file in \
   message-edits-smoke.mjs \
   typing-signals-smoke.mjs \
   call-controller-smoke.mjs \
+  call-window-smoke.mjs \
   direct-file-envelope-smoke.mjs \
   direct-transfer-controller-smoke.mjs \
   image-viewer-smoke.mjs \
