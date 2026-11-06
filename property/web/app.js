@@ -1396,7 +1396,12 @@
       throw new Error(localized('Calls are available only with an unblocked person in a direct conversation.', 'Chamadas só estão disponíveis para uma pessoa desbloqueada em uma conversa direta.'));
     }
     const members = [sender.toLowerCase(), peer].sort();
-    const details = signal.sdp ? { media: signal.media, sdp: signal.sdp } : {};
+    const details = signal.sdp ? {
+      media: signal.media,
+      sdp: signal.sdp,
+      ...(signal.restartIce === true ? { restartIce: true } : {}),
+      ...(Number.isSafeInteger(signal.restartId) ? { restartId: signal.restartId } : {})
+    } : {};
     const deliveries = TypingSignals.createCallSignal(N, secret, members, peer, signal.callId, signal.action, nextTypingSequence(), details);
     const relays = await resolveTypingRelays(peer);
     if (!relays.length || state.pubkey !== sender || state.secret !== secret) {
@@ -1478,12 +1483,20 @@
         await sendCallSignal({ action: 'call-busy', callId: signal.callId, peer }).catch(() => {});
         return;
       }
-      const accepted = controller.receiveOffer({ peer, callId: signal.callId, media: signal.media, sdp: signal.sdp });
+      const accepted = controller.receiveOffer({ peer, callId: signal.callId, media: signal.media, sdp: signal.sdp, restartIce: signal.restartIce });
       if (!accepted) await sendCallSignal({ action: 'call-busy', callId: signal.callId, peer }).catch(() => {});
       return;
     }
     if (signal.action === 'call-answer') {
-      await controller.receiveAnswer({ peer, callId: signal.callId, media: signal.media, sdp: signal.sdp });
+      await controller.receiveAnswer({ peer, callId: signal.callId, media: signal.media, sdp: signal.sdp, restartIce: signal.restartIce });
+      return;
+    }
+    if (signal.action === 'call-restart-offer') {
+      await controller.receiveRestartOffer({ peer, callId: signal.callId, media: signal.media, sdp: signal.sdp, restartId: signal.restartId });
+      return;
+    }
+    if (signal.action === 'call-restart-answer') {
+      await controller.receiveRestartAnswer({ peer, callId: signal.callId, media: signal.media, sdp: signal.sdp, restartId: signal.restartId });
       return;
     }
     controller.receiveEnd({ peer, callId: signal.callId, action: signal.action });

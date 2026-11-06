@@ -2,6 +2,10 @@
 (() => {
   const MAX_SDP_CHARS = 16_384;
   const ICE_GATHERING_WATCHDOG_MS = 12_000;
+  const ICE_RESTART_GRACE_MS = 1_000;
+  const ICE_RESTART_REPLY_MS = 8_000;
+  const ICE_RECONNECT_LIMIT_MS = 24_000;
+  const MAX_ICE_RESTARTS = 3;
   const DEFAULT_ICE_SERVERS = Object.freeze([
     Object.freeze({ urls: 'stun:stun.l.google.com:19302' }),
     Object.freeze({ urls: 'stun:stun1.l.google.com:19302' })
@@ -24,6 +28,8 @@
     const onLocalStream = typeof options.onLocalStream === 'function' ? options.onLocalStream : () => {};
     const remoteAudioElement = options.remoteAudioElement || null;
     const iceServers = Array.isArray(options.iceServers) ? options.iceServers : DEFAULT_ICE_SERVERS;
+    const schedule = options.setTimeout || globalThis.setTimeout.bind(globalThis);
+    const unschedule = options.clearTimeout || globalThis.clearTimeout.bind(globalThis);
     let current = null;
 
     function peerConnectionConfiguration() {
@@ -70,6 +76,7 @@
     }
 
     function releaseMedia(session) {
+      clearRestartTimers(session);
       if (session.screenTrack) {
         session.screenTrack.onended = null;
         try { session.screenTrack.stop(); } catch { /* A stopped browser track needs no further action. */ }
@@ -99,6 +106,88 @@
       releaseMedia(session);
       update(session, status, error);
       return true;
+    }
+
+    function clearRestartTimers(session) {
+      for (const key of ['restartGraceTimer', 'restartReplyTimer', 'reconnectLimitTimer']) {
+        if (session[key] !== null && session[key] !== undefined) unschedule(session[key]);
+        session[key] = null;
+      }
+    }
+
+    function noPath(session) {
+      if (current !== session) return false;
+      clearRestartTimers(session);
+      return terminal(session, 'no-path', 'The direct media path could not be restored.');
+    }
+
+    function restartCapability(session) {
+      return session?.localRestartIce === true && session.peerRestartIce === true &&
+        typeof session.peerConnection?.createOffer === 'function';
+    }
+
+    function scheduleIceRestart(session, immediate = false) {
+      if (current !== session || !session.everConnected || !session.outgoing || session.restartInFlight ||
+          !restartCapability(session) || ['ended', 'failed', 'no-path', 'busy', 'declined'].includes(session.status)) return false;
+      if (session.reconnectLimitTimer === null) {
+        session.reconnectLimitTimer = schedule(() => noPath(session), ICE_RECONNECT_LIMIT_MS);
+      }
+      if (session.restartGraceTimer !== null) return true;
+      session.restartGraceTimer = schedule(() => {
+        session.restartGraceTimer = null;
+        void restartIce(session);
+      }, immediate ? 0 : ICE_RESTART_GRACE_MS);
+      return true;
+    }
+
+    async function restartIce(session) {
+      if (current !== session || !session.everConnected || !session.outgoing || session.restartInFlight ||
+          !restartCapability(session) || ['ended', 'failed', 'no-path', 'busy', 'declined'].includes(session.status)) return false;
+      if (session.restartAttempts >= MAX_ICE_RESTARTS) return noPath(session);
+      const pc = session.peerConnection;
+      if (!pc || (pc.signalingState && pc.signalingState !== 'stable')) {
+        scheduleIceRestart(session);
+        return false;
+      }
+      session.restartAttempts += 1;
+      const restartId = session.restartAttempts;
+      session.pendingRestartId = restartId;
+      session.restartInFlight = true;
+      update(session, 'reconnecting');
+      try {
+        const offer = await pc.createOffer({ iceRestart: true });
+        if (current !== session || session.pendingRestartId !== restartId) return false;
+        await prepareLocalDescription(session, offer, 'call-restart-offer', session.requestedMedia, { restartId });
+        if (current !== session || session.pendingRestartId !== restartId) return false;
+        session.restartReplyTimer = schedule(async () => {
+          session.restartReplyTimer = null;
+          if (current !== session || session.pendingRestartId !== restartId) return;
+          if (session.restartAttempts >= MAX_ICE_RESTARTS) {
+            noPath(session);
+            return;
+          }
+          try {
+            await pc.setLocalDescription({ type: 'rollback' });
+          } catch {
+            noPath(session);
+            return;
+          }
+          if (current !== session || session.pendingRestartId !== restartId) return;
+          session.pendingRestartId = 0;
+          session.restartInFlight = false;
+          scheduleIceRestart(session, true);
+        }, ICE_RESTART_REPLY_MS);
+        return true;
+      } catch (error) {
+        if (current === session && session.pendingRestartId === restartId) {
+          session.pendingRestartId = 0;
+          session.restartInFlight = false;
+          session.error = error?.message || 'Could not restart the direct media path.';
+          if (session.restartAttempts >= MAX_ICE_RESTARTS) noPath(session);
+          else scheduleIceRestart(session, true);
+        }
+        return false;
+      }
     }
 
     async function getLocalStream(video) {
@@ -148,10 +237,42 @@
       };
       const connectionChanged = () => {
         if (current !== session) return;
-        const state = pc.connectionState || pc.iceConnectionState;
-        if (state === 'connected' || state === 'completed') update(session, 'connected');
-        else if (state === 'disconnected') update(session, 'reconnecting');
-        else if (state === 'failed') terminal(session, 'no-path', 'No direct media path was found.');
+        const connection = pc.connectionState;
+        const ice = pc.iceConnectionState;
+        if (connection === 'failed' || ice === 'failed') {
+          if (!session.everConnected) {
+            terminal(session, 'no-path', 'No direct media path was found.');
+            return;
+          }
+          update(session, 'reconnecting');
+          if (session.outgoing) {
+            if (!restartCapability(session)) noPath(session);
+            else scheduleIceRestart(session, true);
+          } else if (!restartCapability(session)) noPath(session);
+          else if (session.reconnectLimitTimer === null) session.reconnectLimitTimer = schedule(() => noPath(session), ICE_RECONNECT_LIMIT_MS);
+          return;
+        }
+        if (connection === 'disconnected' || ice === 'disconnected') {
+          if (!session.everConnected) {
+            update(session, 'connecting');
+            return;
+          }
+          update(session, 'reconnecting');
+          if (session.outgoing) {
+            if (!restartCapability(session)) noPath(session);
+            else scheduleIceRestart(session);
+          } else if (!restartCapability(session)) noPath(session);
+          else if (session.reconnectLimitTimer === null) session.reconnectLimitTimer = schedule(() => noPath(session), ICE_RECONNECT_LIMIT_MS);
+          return;
+        }
+        if (connection === 'connected' || connection === 'completed' || ice === 'connected' || ice === 'completed') {
+          session.everConnected = true;
+          clearRestartTimers(session);
+          session.restartAttempts = 0;
+          session.pendingRestartId = 0;
+          session.restartInFlight = false;
+          update(session, 'connected');
+        }
       };
       pc.onconnectionstatechange = connectionChanged;
       pc.oniceconnectionstatechange = connectionChanged;
@@ -174,16 +295,17 @@
       session.audioOutputId = remoteAudioElement?.sinkId || '';
     }
 
-    async function prepareLocalDescription(session, description, signalAction, media) {
+    async function prepareLocalDescription(session, description, signalAction, media, details = {}) {
       const pc = session.peerConnection;
       await pc.setLocalDescription(description);
       await waitForIceGathering(session);
       if (current !== session || session.status === 'ended') return false;
       const sdp = pc.localDescription?.sdp;
-      if (!validDescription(signalAction === 'call-offer' ? 'offer' : 'answer', sdp, media)) {
+      const offerAction = signalAction === 'call-offer' || signalAction === 'call-restart-offer';
+      if (!validDescription(offerAction ? 'offer' : 'answer', sdp, media)) {
         throw new Error('The browser produced an invalid call description.');
       }
-      await emitSignal({ action: signalAction, callId: session.callId, peer: session.peer, media, sdp });
+      await emitSignal({ action: signalAction, callId: session.callId, peer: session.peer, media, sdp, ...details });
       return current === session;
     }
 
@@ -191,7 +313,7 @@
         if (current && !['ended', 'failed', 'no-path', 'busy', 'declined'].includes(current.status)) throw new Error('A call is already active.');
       if (current) dismiss();
       if (!validCallId(callId) || typeof peer !== 'string' || !/^[0-9a-f]{64}$/i.test(peer)) throw new TypeError('Invalid call recipient or identifier.');
-      const session = current = { callId, peer: peer.toLowerCase(), outgoing: true, requestedMedia: video ? 'video' : 'audio', localMedia: video ? 'video' : 'audio', videoNegotiated: false, audioSender: null, audioTrack: null, audioInputId: '', audioOutputId: '', videoSender: null, cameraTrack: null, videoInputId: '', deviceTransition: false, screenTrack: null, screenStream: null, screenTransition: false, cameraEnabledBeforeShare: true, status: 'requesting-media', peerConnection: null, localStream: null, remoteStream: null, error: '' };
+      const session = current = { callId, peer: peer.toLowerCase(), outgoing: true, requestedMedia: video ? 'video' : 'audio', localMedia: video ? 'video' : 'audio', videoNegotiated: false, localRestartIce: true, peerRestartIce: false, restartAttempts: 0, pendingRestartId: 0, lastRemoteRestartId: 0, restartInFlight: false, restartGraceTimer: null, restartReplyTimer: null, reconnectLimitTimer: null, everConnected: false, audioSender: null, audioTrack: null, audioInputId: '', audioOutputId: '', videoSender: null, cameraTrack: null, videoInputId: '', deviceTransition: false, screenTrack: null, screenStream: null, screenTransition: false, cameraEnabledBeforeShare: true, status: 'requesting-media', peerConnection: null, localStream: null, remoteStream: null, error: '' };
       update(session, 'requesting-media');
       try {
         session.localStream = await getLocalStream(video);
@@ -200,7 +322,7 @@
         const pc = makePeerConnection(session);
         addLocalTracks(session, pc);
         const offer = await pc.createOffer();
-        await prepareLocalDescription(session, offer, 'call-offer', session.requestedMedia);
+        await prepareLocalDescription(session, offer, 'call-offer', session.requestedMedia, { restartIce: true });
         if (current === session && session.status !== 'no-path') update(session, 'ringing');
         return current === session;
       } catch (error) {
@@ -209,12 +331,12 @@
       }
     }
 
-    function receiveOffer({ peer, callId, media, sdp }) {
+    function receiveOffer({ peer, callId, media, sdp, restartIce: peerRestartIce = false }) {
       if (!validCallId(callId) || typeof peer !== 'string' || !/^[0-9a-f]{64}$/i.test(peer) ||
-          !['audio', 'video'].includes(media) || !validDescription('offer', sdp, media)) return false;
+          !['audio', 'video'].includes(media) || !validDescription('offer', sdp, media) || typeof peerRestartIce !== 'boolean') return false;
       if (current && !['ended', 'failed', 'no-path', 'busy', 'declined'].includes(current.status)) return false;
       if (current) dismiss();
-      const session = current = { callId, peer: peer.toLowerCase(), outgoing: false, requestedMedia: media, localMedia: '', videoNegotiated: false, audioSender: null, audioTrack: null, audioInputId: '', audioOutputId: '', videoSender: null, cameraTrack: null, videoInputId: '', deviceTransition: false, screenTrack: null, screenStream: null, screenTransition: false, cameraEnabledBeforeShare: true, remoteOffer: sdp, status: 'incoming', peerConnection: null, localStream: null, remoteStream: null, error: '' };
+      const session = current = { callId, peer: peer.toLowerCase(), outgoing: false, requestedMedia: media, localMedia: '', videoNegotiated: false, localRestartIce: true, peerRestartIce, restartAttempts: 0, pendingRestartId: 0, lastRemoteRestartId: 0, restartInFlight: false, restartGraceTimer: null, restartReplyTimer: null, reconnectLimitTimer: null, everConnected: false, audioSender: null, audioTrack: null, audioInputId: '', audioOutputId: '', videoSender: null, cameraTrack: null, videoInputId: '', deviceTransition: false, screenTrack: null, screenStream: null, screenTransition: false, cameraEnabledBeforeShare: true, remoteOffer: sdp, status: 'incoming', peerConnection: null, localStream: null, remoteStream: null, error: '' };
       update(session, 'incoming');
       return true;
     }
@@ -233,7 +355,7 @@
         addLocalTracks(session, pc);
         await pc.setRemoteDescription({ type: 'offer', sdp: session.remoteOffer });
         const answer = await pc.createAnswer();
-        await prepareLocalDescription(session, answer, 'call-answer', session.localMedia);
+        await prepareLocalDescription(session, answer, 'call-answer', session.localMedia, { restartIce: true });
         session.videoNegotiated = session.localMedia === 'video';
         if (current === session && session.status !== 'no-path') update(session, 'connecting');
         return current === session;
@@ -246,20 +368,74 @@
       }
     }
 
-    async function receiveAnswer({ peer, callId, media, sdp }) {
+    async function receiveAnswer({ peer, callId, media, sdp, restartIce: peerRestartIce = false }) {
       const session = current;
       if (!session || !session.outgoing || session.callId !== callId || session.peer !== String(peer || '').toLowerCase() ||
           !['audio', 'video'].includes(media) || (session.requestedMedia === 'audio' && media !== 'audio') ||
-          !validDescription('answer', sdp, media) || !session.peerConnection) return false;
+          !validDescription('answer', sdp, media) || !session.peerConnection || typeof peerRestartIce !== 'boolean') return false;
       try {
         await session.peerConnection.setRemoteDescription({ type: 'answer', sdp });
         if (current === session) {
           session.videoNegotiated = media === 'video';
+          session.peerRestartIce = peerRestartIce;
           update(session, 'connecting');
+          if (session.everConnected && !restartCapability(session)) noPath(session);
         }
         return true;
       } catch (error) {
         terminal(session, 'failed', error?.message || 'The other person’s answer could not be opened.');
+        return false;
+      }
+    }
+
+    async function receiveRestartOffer({ peer, callId, media, sdp, restartId }) {
+      const session = current;
+      if (!session || session.outgoing || session.callId !== callId || session.peer !== String(peer || '').toLowerCase() ||
+          !session.everConnected || !restartCapability(session) || !Number.isSafeInteger(restartId) ||
+          restartId <= session.lastRemoteRestartId || restartId > MAX_ICE_RESTARTS || media !== session.requestedMedia ||
+          !validDescription('offer', sdp, media) || !session.peerConnection ||
+          ['ended', 'failed', 'no-path', 'busy', 'declined'].includes(session.status)) return false;
+      session.lastRemoteRestartId = restartId;
+      session.restartInFlight = true;
+      update(session, 'reconnecting');
+      try {
+        await session.peerConnection.setRemoteDescription({ type: 'offer', sdp });
+        if (current !== session || session.lastRemoteRestartId !== restartId) return false;
+        const answer = await session.peerConnection.createAnswer();
+        await prepareLocalDescription(session, answer, 'call-restart-answer', media, { restartId });
+        if (current !== session || session.lastRemoteRestartId !== restartId) return false;
+        session.restartInFlight = false;
+        return true;
+      } catch (error) {
+        if (current === session) {
+          session.restartInFlight = false;
+          session.error = error?.message || 'Could not answer the ICE restart.';
+        }
+        return false;
+      }
+    }
+
+    async function receiveRestartAnswer({ peer, callId, media, sdp, restartId }) {
+      const session = current;
+      if (!session || !session.outgoing || session.callId !== callId || session.peer !== String(peer || '').toLowerCase() ||
+          !session.everConnected || !restartCapability(session) || session.pendingRestartId !== restartId ||
+          !Number.isSafeInteger(restartId) || restartId < 1 || restartId > MAX_ICE_RESTARTS || media !== session.requestedMedia ||
+          !validDescription('answer', sdp, media) || !session.peerConnection) return false;
+      try {
+        await session.peerConnection.setRemoteDescription({ type: 'answer', sdp });
+        if (current !== session || session.pendingRestartId !== restartId) return false;
+        if (session.restartReplyTimer !== null) unschedule(session.restartReplyTimer);
+        session.restartReplyTimer = null;
+        session.pendingRestartId = 0;
+        session.restartInFlight = false;
+        update(session, 'reconnecting');
+        return true;
+      } catch (error) {
+        if (current === session) {
+          session.error = error?.message || 'The ICE restart answer could not be applied.';
+          if (session.restartAttempts >= MAX_ICE_RESTARTS) noPath(session);
+          else scheduleIceRestart(session, true);
+        }
         return false;
       }
     }
@@ -531,6 +707,8 @@
       receiveAnswer,
       receiveEnd,
       end,
+      receiveRestartOffer,
+      receiveRestartAnswer,
       setMicrophoneEnabled,
       setCameraEnabled,
       startScreenSharing,

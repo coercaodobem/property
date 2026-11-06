@@ -9,6 +9,7 @@
   const MAX_READ_AGE_SECONDS = 120;
   const MAX_PRESENCE_AGE_SECONDS = 75;
   const MAX_CALL_SIGNAL_AGE_SECONDS = 120;
+  const MAX_ICE_RESTARTS = 3;
   const MAX_FILE_SIGNAL_AGE_SECONDS = 120;
   const MAX_EPHEMERAL_CONTENT_CHARS = 32768;
   const CALL_ID_RE = /^[0-9a-f]{32}$/i;
@@ -170,22 +171,39 @@
 
   function createCallSignal(nostr, secret, participantKeys, recipientKey, callId, action, sequence, details = {}) {
     validateCrypto(nostr);
+    if (!details || typeof details !== 'object' || Array.isArray(details)) throw new TypeError('Invalid call signal details.');
     if (!CALL_ID_RE.test(callId || '') || !Number.isSafeInteger(sequence) || sequence < 1 ||
-        !['call-offer', 'call-answer', 'call-decline', 'call-busy', 'call-hangup'].includes(action)) {
+        !['call-offer', 'call-answer', 'call-restart-offer', 'call-restart-answer', 'call-decline', 'call-busy', 'call-hangup'].includes(action)) {
       throw new TypeError('Invalid call signal action or identifier.');
+    }
+    const descriptionAction = ['call-offer', 'call-answer', 'call-restart-offer', 'call-restart-answer'].includes(action);
+    const restartAction = action === 'call-restart-offer' || action === 'call-restart-answer';
+    const allowedDetails = restartAction ? ['media', 'sdp', 'restartId'] : descriptionAction
+      ? ['media', 'sdp', ...(action === 'call-offer' || action === 'call-answer' ? ['restartIce'] : [])] : [];
+    if (Object.keys(details || {}).some(key => !allowedDetails.includes(key))) {
+      throw new TypeError('Call signal contains unsupported fields.');
     }
     const { sender, participants } = normalizeParticipants(nostr, secret, participantKeys);
     if (participants.length !== 2) throw new TypeError('Calls are available only in direct conversations.');
     const recipient = String(recipientKey || '').toLowerCase();
     if (recipient === sender || !participants.includes(recipient)) throw new TypeError('Invalid call signal recipient.');
     const payload = { v: 1, action, callId: callId.toLowerCase(), sequence };
-    if (action === 'call-offer' || action === 'call-answer') {
-      const type = action === 'call-offer' ? 'offer' : 'answer';
+    if (['call-offer', 'call-answer', 'call-restart-offer', 'call-restart-answer'].includes(action)) {
+      const type = action === 'call-offer' || action === 'call-restart-offer' ? 'offer' : 'answer';
       if (!['audio', 'video'].includes(details.media) || !validCallDescription(type, details.sdp, details.media)) {
         throw new TypeError('Invalid call media or session description.');
       }
       payload.media = details.media;
       payload.sdp = details.sdp;
+      if (restartAction) {
+        if (!Number.isSafeInteger(details.restartId) || details.restartId < 1 || details.restartId > MAX_ICE_RESTARTS) {
+          throw new TypeError('Invalid ICE restart identifier.');
+        }
+        payload.restartId = details.restartId;
+      } else if (details.restartIce !== undefined) {
+        if (typeof details.restartIce !== 'boolean') throw new TypeError('Invalid ICE restart capability.');
+        if (details.restartIce) payload.restartIce = true;
+      }
     } else if (details && Object.keys(details).length) {
       throw new TypeError('Call ending signals cannot contain extra data.');
     }
@@ -210,16 +228,25 @@
       const participants = participantsFromRumor(rumor);
       if (!participants.includes(recipient) || participants.length < 2) return null;
       const payload = JSON.parse(rumor.content);
-      if (payload?.v !== 1 || !['typing', 'recording', 'thinking', 'stop', 'read', 'presence', 'call-offer', 'call-answer', 'call-decline', 'call-busy', 'call-hangup', 'file-offer', 'file-answer', 'file-reject', 'file-cancel'].includes(payload.action) ||
+      if (payload?.v !== 1 || !['typing', 'recording', 'thinking', 'stop', 'read', 'presence', 'call-offer', 'call-answer', 'call-restart-offer', 'call-restart-answer', 'call-decline', 'call-busy', 'call-hangup', 'file-offer', 'file-answer', 'file-reject', 'file-cancel'].includes(payload.action) ||
           !Number.isSafeInteger(payload.sequence) || payload.sequence < 1) return null;
       if (payload.action === 'read' && (!EVENT_ID_RE.test(payload.messageId || '') || typeof payload.group !== 'boolean')) return null;
       if (payload.action === 'presence' && (typeof payload.active !== 'boolean' || participants.length !== 2)) return null;
       const callAction = payload.action.startsWith('call-');
+      const callDescriptionAction = ['call-offer', 'call-answer', 'call-restart-offer', 'call-restart-answer'].includes(payload.action);
+      const restartAction = payload.action === 'call-restart-offer' || payload.action === 'call-restart-answer';
       const fileAction = payload.action.startsWith('file-');
       if (callAction && (participants.length !== 2 || !CALL_ID_RE.test(payload.callId || ''))) return null;
-      if ((payload.action === 'call-offer' || payload.action === 'call-answer') &&
-          (!['audio', 'video'].includes(payload.media) || !validCallDescription(payload.action === 'call-offer' ? 'offer' : 'answer', payload.sdp, payload.media))) return null;
-      if (callAction && !['call-offer', 'call-answer'].includes(payload.action) && Object.keys(payload).some(key => !['v', 'action', 'callId', 'sequence'].includes(key))) return null;
+      if (callDescriptionAction &&
+          (!['audio', 'video'].includes(payload.media) || !validCallDescription(payload.action === 'call-offer' || payload.action === 'call-restart-offer' ? 'offer' : 'answer', payload.sdp, payload.media))) return null;
+      if (restartAction && (!Number.isSafeInteger(payload.restartId) || payload.restartId < 1 || payload.restartId > MAX_ICE_RESTARTS)) return null;
+      if (!restartAction && callDescriptionAction && payload.restartIce !== undefined && typeof payload.restartIce !== 'boolean') return null;
+      if (callAction) {
+        const allowed = restartAction ? ['v', 'action', 'callId', 'sequence', 'media', 'sdp', 'restartId']
+          : callDescriptionAction ? ['v', 'action', 'callId', 'sequence', 'media', 'sdp', 'restartIce']
+          : ['v', 'action', 'callId', 'sequence'];
+        if (Object.keys(payload).some(key => !allowed.includes(key))) return null;
+      }
       if (fileAction && (participants.length !== 2 || !FILE_TRANSFER_ID_RE.test(payload.transferId || ''))) return null;
       if (payload.action === 'file-offer' && (!normalizeFileManifests(payload.files) || !validDataChannelDescription('offer', payload.sdp))) return null;
       if (payload.action === 'file-answer' && !validDataChannelDescription('answer', payload.sdp)) return null;
@@ -238,7 +265,9 @@
         ...(payload.action === 'read' ? { messageId: payload.messageId.toLowerCase(), group: payload.group } : {}),
         ...(payload.action === 'presence' ? { active: payload.active } : {}),
         ...(callAction ? { callId: payload.callId.toLowerCase() } : {}),
-        ...(['call-offer', 'call-answer'].includes(payload.action) ? { media: payload.media, sdp: payload.sdp } : {}),
+        ...(callDescriptionAction ? { media: payload.media, sdp: payload.sdp } : {}),
+        ...(restartAction ? { restartId: payload.restartId } : {}),
+        ...(['call-offer', 'call-answer'].includes(payload.action) ? { restartIce: payload.restartIce === true } : {}),
         ...(fileAction ? { transferId: payload.transferId.toLowerCase() } : {}),
         ...(payload.action === 'file-offer' ? { files: normalizeFileManifests(payload.files), sdp: payload.sdp } : {}),
         ...(payload.action === 'file-answer' ? { sdp: payload.sdp } : {}) };
@@ -247,5 +276,5 @@
     }
   }
 
-  window.PropertyTypingSignals = Object.freeze({ RUMOR_KIND, EPHEMERAL_GIFT_WRAP_KIND, MAX_SIGNAL_AGE_SECONDS, MAX_THINKING_AGE_SECONDS, MAX_READ_AGE_SECONDS, MAX_PRESENCE_AGE_SECONDS, MAX_CALL_SIGNAL_AGE_SECONDS, MAX_FILE_SIGNAL_AGE_SECONDS, MAX_CALL_SDP_CHARS, MAX_FILE_BYTES, MAX_FILE_BATCH_BYTES, MAX_FILE_BATCH_COUNT, FILE_CHUNK_BYTES, normalizeFileManifests, validDataChannelDescription, create, summarizeActivity, createReadReceipt, createPresence, createCallSignal, createFileSignal, unwrap });
+  window.PropertyTypingSignals = Object.freeze({ RUMOR_KIND, EPHEMERAL_GIFT_WRAP_KIND, MAX_SIGNAL_AGE_SECONDS, MAX_THINKING_AGE_SECONDS, MAX_READ_AGE_SECONDS, MAX_PRESENCE_AGE_SECONDS, MAX_CALL_SIGNAL_AGE_SECONDS, MAX_FILE_SIGNAL_AGE_SECONDS, MAX_CALL_SDP_CHARS, MAX_ICE_RESTARTS, MAX_FILE_BYTES, MAX_FILE_BATCH_BYTES, MAX_FILE_BATCH_COUNT, FILE_CHUNK_BYTES, normalizeFileManifests, validDataChannelDescription, create, summarizeActivity, createReadReceipt, createPresence, createCallSignal, createFileSignal, unwrap });
 })();

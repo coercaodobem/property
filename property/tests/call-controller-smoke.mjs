@@ -24,22 +24,22 @@ class FakeStream {
 }
 
 class FakePeerConnection {
-  constructor(configuration) { this.configuration = configuration; this.iceGatheringState = 'complete'; this.connectionState = 'new'; this.closed = false; }
+  constructor(configuration) { this.configuration = configuration; this.iceGatheringState = 'complete'; this.connectionState = 'new'; this.signalingState = 'stable'; this.closed = false; }
   addTrack(track) {
     (this.tracks ||= []).push(track);
     const sender = { track, replacements: [], async replaceTrack(nextTrack) { if (this.failNextReplacement) { this.failNextReplacement = false; throw new Error('replaceTrack failed'); } this.track = nextTrack; this.replacements.push(nextTrack); } };
     (this.senders ||= []).push(sender);
     return sender;
   }
-  async createOffer() { return { type: 'offer', sdp: 'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n' + (this.tracks?.some(track => track.kind === 'video') ? 'm=video 9 UDP/TLS/RTP/SAVPF 96\r\n' : '') }; }
+  async createOffer(options) { this.lastOfferOptions = options; return { type: 'offer', sdp: 'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n' + (this.tracks?.some(track => track.kind === 'video') ? 'm=video 9 UDP/TLS/RTP/SAVPF 96\r\n' : '') }; }
   async createAnswer() {
     const acceptsVideo = this.tracks?.some(track => track.kind === 'video') && this.remoteDescription?.sdp.includes('m=video');
     const refusesVideo = !this.tracks?.some(track => track.kind === 'video') && this.remoteDescription?.sdp.includes('m=video');
     return { type: 'answer', sdp: 'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n' +
       (acceptsVideo ? 'm=video 9 UDP/TLS/RTP/SAVPF 96\r\n' : refusesVideo ? 'm=video 0 UDP/TLS/RTP/SAVPF 96\r\na=inactive\r\n' : '') };
   }
-  async setLocalDescription(value) { this.localDescription = value; }
-  async setRemoteDescription(value) { this.remoteDescription = value; }
+  async setLocalDescription(value) { this.localDescription = value; this.signalingState = value.type === 'offer' ? 'have-local-offer' : 'stable'; }
+  async setRemoteDescription(value) { this.remoteDescription = value; this.signalingState = value.type === 'offer' ? 'have-remote-offer' : 'stable'; }
   addEventListener() {}
   removeEventListener() {}
   close() { this.closed = true; }
@@ -128,6 +128,118 @@ assert.equal(controller.receiveEnd({ peer, callId: 'ab'.repeat(16), action: 'cal
 assert.equal(await controller.startOutgoing({ peer, callId: 'cd'.repeat(16) }), true, 'terminal busy calls do not block a new call');
 assert.equal(await controller.receiveAnswer({ peer, callId: 'cd'.repeat(16), media: 'video', sdp: 'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\n' }), false, 'an audio-only offer cannot be answered with video');
 controller.dispose();
+
+const restartSignals = [];
+const restartPeers = [];
+const restartTimers = [];
+const restartMediaDevices = { async getUserMedia({ video }) { return new FakeStream(video); } };
+const restartController = Calls.create({
+  mediaDevices: restartMediaDevices,
+  createPeerConnection(configuration) { const pc = new FakePeerConnection(configuration); restartPeers.push(pc); return pc; },
+  setTimeout(callback, delay) { const task = { callback, delay, cancelled: false }; restartTimers.push(task); return task; },
+  clearTimeout(task) { if (task) task.cancelled = true; },
+  async onSignal(signal) { restartSignals.push(signal); }
+});
+async function runNextRestartTimer(queue = restartTimers) {
+  const available = queue.filter(task => !task.cancelled);
+  if (!available.length) return;
+  const nextDelay = Math.min(...available.map(task => task.delay));
+  const pending = available.filter(task => task.delay === nextDelay);
+  for (const task of pending) { task.cancelled = true; task.callback(); }
+  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setImmediate(resolve));
+}
+const restartCallId = 'ef'.repeat(16);
+const restartSdp = 'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n';
+assert.equal(await restartController.startOutgoing({ peer, callId: restartCallId }), true);
+assert.equal(restartSignals[0].restartIce, true, 'new callers advertise restart support in their encrypted offer');
+const restartPc = restartPeers[0];
+assert.equal(await restartController.receiveAnswer({ peer, callId: restartCallId, media: 'audio', sdp: restartSdp, restartIce: true }), true);
+restartPc.connectionState = 'connected';
+restartPc.onconnectionstatechange();
+assert.equal(restartController.getState().status, 'connected');
+restartPc.connectionState = 'failed';
+restartPc.onconnectionstatechange();
+assert.equal(restartController.getState().status, 'reconnecting');
+await runNextRestartTimer();
+const restartOffer = restartSignals.at(-1);
+assert.equal(restartOffer.action, 'call-restart-offer', 'the caller renegotiates ICE on the existing peer connection');
+assert.equal(restartOffer.restartId, 1);
+assert.equal(restartPc.lastOfferOptions?.iceRestart, true, 'the existing peer connection receives an ICE restart request');
+
+const calleeSignals = [];
+const calleePeers = [];
+const calleeController = Calls.create({
+  mediaDevices: restartMediaDevices,
+  createPeerConnection(configuration) { const pc = new FakePeerConnection(configuration); calleePeers.push(pc); return pc; },
+  async onSignal(signal) { calleeSignals.push(signal); }
+});
+assert.equal(calleeController.receiveOffer({ peer, callId: restartCallId, media: 'audio', sdp: restartSdp, restartIce: true }), true);
+assert.equal(await calleeController.acceptIncoming(false), true);
+assert.equal(calleeSignals[0].restartIce, true, 'the callee advertises restart support in its encrypted answer');
+calleePeers[0].connectionState = 'connected';
+calleePeers[0].onconnectionstatechange();
+assert.equal(await calleeController.receiveRestartOffer({ peer, callId: restartCallId, media: 'audio', sdp: restartOffer.sdp, restartId: 1 }), true);
+assert.equal(calleeSignals.at(-1).action, 'call-restart-answer');
+assert.equal(calleeSignals.at(-1).restartId, 1, 'the encrypted answer is bound to the current restart attempt');
+assert.equal(await restartController.receiveRestartAnswer({ peer, callId: restartCallId, media: 'audio', sdp: calleeSignals.at(-1).sdp, restartId: 1 }), true);
+assert.equal(await restartController.receiveRestartAnswer({ peer, callId: restartCallId, media: 'audio', sdp: calleeSignals.at(-1).sdp, restartId: 1 }), false, 'duplicate restart answers are ignored');
+restartPc.connectionState = 'connected';
+restartPc.onconnectionstatechange();
+assert.equal(restartController.getState().status, 'connected', 'the same call recovers without replacing its peer connection');
+assert.equal(restartPc.closed, false);
+restartController.dispose();
+calleeController.dispose();
+
+const boundedSignals = [];
+const boundedPeers = [];
+const boundedTimers = [];
+const boundedController = Calls.create({
+  mediaDevices: restartMediaDevices,
+  createPeerConnection(configuration) { const pc = new FakePeerConnection(configuration); boundedPeers.push(pc); return pc; },
+  setTimeout(callback, delay) { const task = { callback, delay, cancelled: false }; boundedTimers.push(task); return task; },
+  clearTimeout(task) { if (task) task.cancelled = true; },
+  async onSignal(signal) { boundedSignals.push(signal); }
+});
+const boundedCallId = '01'.repeat(16);
+assert.equal(await boundedController.startOutgoing({ peer, callId: boundedCallId }), true);
+assert.equal(await boundedController.receiveAnswer({ peer, callId: boundedCallId, media: 'audio', sdp: restartSdp, restartIce: true }), true);
+boundedPeers[0].connectionState = 'connected';
+boundedPeers[0].onconnectionstatechange();
+boundedPeers[0].connectionState = 'failed';
+boundedPeers[0].onconnectionstatechange();
+await runNextRestartTimer(boundedTimers);
+assert.equal(boundedSignals.at(-1).restartId, 1);
+await runNextRestartTimer(boundedTimers);
+assert.equal(boundedPeers[0].signalingState, 'stable', 'a missing restart answer rolls back the outstanding offer before retry');
+await runNextRestartTimer(boundedTimers);
+assert.equal(boundedSignals.at(-1).restartId, 2);
+await runNextRestartTimer(boundedTimers);
+await runNextRestartTimer(boundedTimers);
+assert.equal(boundedSignals.at(-1).restartId, 3);
+await runNextRestartTimer(boundedTimers);
+assert.equal(boundedController.getState().status, 'no-path', 'three unanswered restarts end with a bounded, visible failure');
+assert.equal(boundedSignals.filter(signal => signal.action === 'call-restart-offer').length, 3);
+assert.equal(boundedPeers[0].closed, true);
+boundedController.dispose();
+
+const legacySignals = [];
+const legacyPeers = [];
+const legacyController = Calls.create({
+  mediaDevices: restartMediaDevices,
+  createPeerConnection(configuration) { const pc = new FakePeerConnection(configuration); legacyPeers.push(pc); return pc; },
+  async onSignal(signal) { legacySignals.push(signal); }
+});
+const legacyCallId = '02'.repeat(16);
+assert.equal(await legacyController.startOutgoing({ peer, callId: legacyCallId }), true);
+assert.equal(await legacyController.receiveAnswer({ peer, callId: legacyCallId, media: 'audio', sdp: restartSdp }), true);
+legacyPeers[0].connectionState = 'connected';
+legacyPeers[0].onconnectionstatechange();
+legacyPeers[0].connectionState = 'failed';
+legacyPeers[0].onconnectionstatechange();
+assert.equal(legacyController.getState().status, 'no-path', 'clients that did not advertise ICE restart support do not receive renegotiation signals');
+assert.equal(legacySignals.some(signal => signal.action === 'call-restart-offer'), false);
+legacyController.dispose();
 
 const screenStreams = [];
 const screenLocalStreams = [];
@@ -296,4 +408,4 @@ assert.equal(await deniedAnswer.acceptIncoming(false), false);
 assert.equal(deniedSignals[0].action, 'call-decline', 'permission failure tells the caller the answer could not proceed');
 assert.equal(deniedAnswer.getState().status, 'failed');
 
-console.log('PASS: WebRTC call controller covers calls, media-device selection, screen sharing and cleanup');
+console.log('PASS: WebRTC calls cover ICE restart negotiation, media selection, screen sharing and cleanup');
