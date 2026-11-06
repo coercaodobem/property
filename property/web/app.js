@@ -39,6 +39,7 @@
   const DirectFileEnvelope = window.PropertyDirectFileEnvelope;
   const ImageViewer = window.PropertyImageViewer;
   const MessageEdits = window.PropertyMessageEdits;
+  const MessagePins = window.PropertyMessagePins;
   const SecretGuard = window.PropertySecretGuard;
   const QrCode = window.PropertyQrCode;
   const Nip05 = window.PropertyNip05;
@@ -2869,9 +2870,24 @@
     if (!peer) return;
     const edit = rumor.kind === 14 ? MessageEdits.editDescriptor(rumor) : null;
     if (rumor.kind === 5) return; // NIP-17 edit tombstones are control events; the replacement carries the visible text.
-    if (rumor.pubkey === state.pubkey && !edit) return;
     const agentAccess = group ? null : await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') return;
+    const existingConversation = await get('conversations', peer);
+    if (MessagePins?.hasTag(rumor)) {
+      const pin = MessagePins.recordFromRumor(rumor);
+      if (!pin || rumor.pubkey === state.pubkey || existingConversation?.agent || agentAccess?.status === 'approved') return;
+      if (group && existingConversation?.members?.length && groupConversationId(existingConversation.members) !== peer) return;
+      if (!group && existingConversation?.group) return;
+      if (group && !existingConversation) {
+        await put('conversations', { pubkey: peer, title: localized('Private group', 'Grupo privado'), group: true, members, lastMessage: '', lastAt: 0 });
+      } else if (!group && !existingConversation) {
+        await put('conversations', { pubkey: peer, title: '', lastMessage: '', lastAt: 0 });
+      }
+      await applyIncomingMessagePin(peer, pin);
+      await renderConversations();
+      return;
+    }
+    if (rumor.pubkey === state.pubkey && !edit) return;
     if (rumor.kind === 7) {
       const targetTag = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'e' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) : null;
       if (!targetTag || !rumor.content || rumor.content.length > 64) return;
@@ -2884,7 +2900,6 @@
       return;
     }
     if (rumor.kind === 14 && rumor.pubkey !== state.pubkey) clearRemoteTyping(peer, rumor.pubkey);
-    const existingConversation = await get('conversations', peer);
     const subject = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'subject' && typeof tag[1] === 'string' && tag[1].trim() && tag[1].length <= 80)?.[1].trim() : '';
     const fileTagPresent = Array.isArray(rumor.tags) && rumor.tags.some(tag => Array.isArray(tag) && tag[0] === FileTransfers.TAG);
     let text = rumor.content;
@@ -3073,6 +3088,58 @@
         resolve(false);
       }
     });
+  }
+  function messagePinSettingId(peer) { return `message-pin:${state.pubkey}:${peer}`; }
+  async function applyIncomingMessagePin(peer, pin) {
+    const key = messagePinSettingId(peer);
+    const current = await get('settings', key);
+    const result = MessagePins.applyPinRecord(current || null, pin);
+    if (!result.applied) return false;
+    await put('settings', { id: key, ...result.record });
+    if (state.activePeer === peer) await renderMessages(peer);
+    return true;
+  }
+  async function sendConversationPin(peer, targetEventId, action) {
+    const conversation = await get('conversations', peer);
+    if (!state.pubkey || !conversation || conversation.agent || (await get('agentAccess', peer))?.status === 'approved') {
+      throw new Error(localized('Message pins are available in private person-to-person chats and groups.', 'Fixar mensagens está disponível em conversas privadas e grupos.'));
+    }
+    const members = conversation.group === true
+      ? [...new Set(conversation.members || [])].map(value => String(value).toLowerCase()).sort()
+      : [...new Set([state.pubkey, peer].map(value => String(value).toLowerCase()))].sort();
+    const minimumMembers = conversation.group === true ? 3 : 2;
+    if (members.length < minimumMembers || members.length > MAX_NIP17_GROUP_MEMBERS || !members.includes(state.pubkey) || members.some(member => !/^[0-9a-f]{64}$/i.test(member))) {
+      throw new Error(localized(`This conversation must have 2–${MAX_NIP17_GROUP_MEMBERS} valid participants.`, `Esta conversa precisa ter de 2 a ${MAX_NIP17_GROUP_MEMBERS} participantes válidos.`));
+    }
+    const relayLists = Object.create(null);
+    for (const member of members) relayLists[member] = await resolveInboxRelaysFor(member);
+    await connectAllRelays();
+    const prepared = MessagePins.createNip17Pin({ nostr: N, secret: state.secret, selfPubkey: state.pubkey, participants: members, action, targetEventId });
+    const peerPubkey = members.find(member => member !== state.pubkey);
+    const routePlan = members.length === 2
+      ? Routing.planGiftWraps(prepared.wraps, state.pubkey, peerPubkey, relayLists[state.pubkey], relayLists[peerPubkey], N.verifyEvent)
+      : Routing.planGroupGiftWraps(prepared.wraps, members, relayLists, N.verifyEvent);
+    if (!routePlan.ready) throw new Error(localized('Could not prepare the private message pin envelopes. Check the conversation inbox relays.', 'Não foi possível preparar os envelopes privados da mensagem fixada. Confira os relays de recebimento da conversa.'));
+    let confirmed = 0;
+    for (const delivery of routePlan.deliveries) {
+      try { if (await publishToRelays(delivery.event, delivery.relays)) confirmed += 1; }
+      catch { /* Keep trying the other participant envelopes. */ }
+    }
+    if (confirmed) {
+      const record = MessagePins.recordFromRumor(prepared.rumor);
+      await applyIncomingMessagePin(peer, record);
+    }
+    if (confirmed === routePlan.deliveries.length) {
+      showToast(action === 'pin'
+        ? localized('Pinned message shared with this conversation.', 'Mensagem fixada compartilhada com a conversa.')
+        : localized('Pinned message removed for this conversation.', 'Mensagem fixada removida para a conversa.'));
+    } else if (confirmed) {
+      showToast(localized('The pin reached only some participant relays.', 'A fixação chegou apenas a alguns relays dos participantes.'));
+    } else {
+      showToast(localized('No participant relay confirmed the pin update.', 'Nenhum relay dos participantes confirmou a atualização da fixação.'));
+    }
+    if (state.activePeer === peer) await renderMessages(peer);
+    return { confirmedEnvelopeCount: confirmed, requiredEnvelopeCount: routePlan.deliveries.length };
   }
   function conversationFolderSettingsId() { return `conversation-folders-${state.pubkey}`; }
   async function loadConversationFolders() {
@@ -3823,6 +3890,8 @@
       reactionsByTarget.set(canonicalTarget, counts);
     }
     const conversation = await get('conversations', peer);
+    const currentPin = conversation?.agent ? null : await get('settings', messagePinSettingId(peer));
+    renderConversationPinBar(peer, messages, currentPin);
     const container = $('messages');
     const samePeer = container.dataset.peer === peer;
     const wasAtBottom = MessageScroll.isNearBottom({ scrollHeight: container.scrollHeight, scrollTop: container.scrollTop, clientHeight: container.clientHeight });
@@ -4036,6 +4105,15 @@
       const menuItems = document.createElement('div'); menuItems.className = 'message-menu-items';
       const save = document.createElement('button'); save.type = 'button'; save.textContent = message.saved ? 'Remove saved message' : 'Save message';
       save.addEventListener('click', () => { menu.open = false; setMessageSaved(peer, message, !message.saved).catch(error => showToast(error.message || 'Could not update saved messages.')); });
+      if (eventId && message.kind !== 7 && !message.fromAgent && !message.agentMessageId && !conversation?.agent) {
+        const isPinned = currentPin?.active === true && MessageEdits.eventIds(message).includes(currentPin.targetEventId);
+        const pin = document.createElement('button'); pin.type = 'button'; pin.textContent = localized(isPinned ? 'Unpin message' : 'Pin message', isPinned ? 'Desafixar mensagem' : 'Fixar mensagem');
+        pin.addEventListener('click', () => {
+          menu.open = false;
+          sendConversationPin(peer, eventId, isPinned ? 'unpin' : 'pin').catch(error => showToast(error.message || localized('Could not update the pinned message.', 'Não foi possível atualizar a mensagem fixada.')));
+        });
+        menuItems.append(pin);
+      }
       if (message.direction === 'sent' && !message.voiceMessage && !message.fileTransfer && !message.fromAgent && !message.agentMessageId && message.kind !== 7 && !message.deleted && ['sent', 'partial'].includes(message.status) && eventId) {
         const editAction = document.createElement('button'); editAction.type = 'button'; editAction.textContent = localized('Edit message', 'Editar mensagem');
         editAction.addEventListener('click', () => { menu.open = false; startMessageEdit(peer, message); });
@@ -4074,6 +4152,39 @@
     updateMessageScrollButton();
     refreshMessageSearch();
     updateAudioPlaybackUI();
+  }
+  function renderConversationPinBar(peer, messages, pinRecord) {
+    const bar = $('conversation-pin-bar');
+    const jump = $('conversation-pin-jump');
+    const label = $('conversation-pin-label');
+    const unpin = $('conversation-pin-unpin');
+    if (!bar || !jump || !label || !unpin) return;
+    const active = pinRecord?.active === true && /^[0-9a-f]{64}$/i.test(pinRecord.targetEventId || '');
+    bar.hidden = !active;
+    if (!active) return;
+    const pinned = messages.find(message => MessageEdits.eventIds(message).includes(pinRecord.targetEventId));
+    const preview = pinned
+      ? pinned.fileTransfer?.name ? `📎 ${FileTransfers.safeName(pinned.fileTransfer.name)}`
+        : pinned.voiceMessage ? localized('Voice message', 'Mensagem de voz')
+          : String(pinned.text || '').trim().slice(0, 120) || localized('Pinned item', 'Item fixado')
+      : localized('Pinned message is not in this device’s local history.', 'A mensagem fixada não está no histórico local deste aparelho.');
+    label.textContent = preview;
+    jump.setAttribute('aria-label', `${localized('Pinned message', 'Mensagem fixada')}: ${preview}`);
+    jump.title = preview;
+    jump.onclick = () => {
+      if (state.activePeer !== peer) return;
+      const target = [...$('messages').querySelectorAll('.message-row')].find(row => row.dataset.eventIds?.split(',').includes(pinRecord.targetEventId));
+      if (!target) { showToast(localized('The pinned message is not in this device’s local history.', 'A mensagem fixada não está no histórico local deste aparelho.')); return; }
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      target.classList.add('message-highlight');
+      setTimeout(() => target.classList.remove('message-highlight'), 900);
+    };
+    unpin.onclick = () => {
+      unpin.disabled = true;
+      sendConversationPin(peer, pinRecord.targetEventId, 'unpin')
+        .catch(error => showToast(error.message || localized('Could not remove the pinned message.', 'Não foi possível remover a mensagem fixada.')))
+        .finally(() => { unpin.disabled = false; });
+    };
   }
   function nostrEventId(message) {
     if (typeof message?.nostrEventId === 'string' && /^[0-9a-f]{64}$/i.test(message.nostrEventId)) return message.nostrEventId;
@@ -5240,7 +5351,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v73', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v74', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }

@@ -3,6 +3,17 @@
   const EN_TO_PT = new Map();
   const PT_TO_EN = new Map();
   const pairs = [
+    ['Pin message', 'Fixar mensagem'], ['Unpin message', 'Desafixar mensagem'], ['Pinned message', 'Mensagem fixada'], ['Pinned item', 'Item fixado'],
+    ['Pinned message is not in this device’s local history.', 'A mensagem fixada não está no histórico local deste aparelho.'],
+    ['Pinned message shared with this conversation.', 'Mensagem fixada compartilhada com a conversa.'],
+    ['Pinned message removed for this conversation.', 'Mensagem fixada removida para a conversa.'],
+    ['The pin reached only some participant relays.', 'A fixação chegou apenas a alguns relays dos participantes.'],
+    ['No participant relay confirmed the pin update.', 'Nenhum relay dos participantes confirmou a atualização da fixação.'],
+    ['Message pins are available in private person-to-person chats and groups.', 'Fixar mensagens está disponível em conversas privadas e grupos.'],
+    ['This conversation must have 2–10 valid participants.', 'Esta conversa precisa ter de 2 a 10 participantes válidos.'],
+    ['Could not prepare the private message pin envelopes. Check the conversation inbox relays.', 'Não foi possível preparar os envelopes privados da mensagem fixada. Confira os relays de recebimento da conversa.'],
+    ['Could not update the pinned message.', 'Não foi possível atualizar a mensagem fixada.'],
+    ['Could not remove the pinned message.', 'Não foi possível remover a mensagem fixada.'],
     ['Show address QR', 'Mostrar QR do endereço'], ['QR code with the receiving address only', 'Código QR somente com o endereço de recebimento'], ['Address only. The amount is not encoded.', 'Somente o endereço. O valor não está codificado.'],
     ['Create link preview', 'Criar prévia do link'], ['Remove link preview', 'Remover prévia do link'], ['Fetch a link preview?', 'Buscar prévia do link?'],
     ['Property will contact this HTTPS page from your device to read its title and description. The website may see your IP address. Some sites block browser previews; you can still send the link without one. Property sends no cookies or referrer, uses no proxy, and does not load remote images.', 'O Property vai acessar esta página HTTPS pelo seu aparelho para ler o título e a descrição. O site poderá ver seu endereço IP. Alguns sites bloqueiam prévias no navegador; você ainda pode enviar o link sem prévia. O Property não envia cookies nem referenciador, não usa proxy e não carrega imagens remotas.'],

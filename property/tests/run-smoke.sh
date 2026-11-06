@@ -15,6 +15,7 @@ for test_file in \
   ledger-rpc-smoke.mjs \
   protocol-smoke.mjs \
   message-edits-smoke.mjs \
+  message-pins-smoke.mjs \
   typing-signals-smoke.mjs \
   call-controller-smoke.mjs \
   call-window-smoke.mjs \
