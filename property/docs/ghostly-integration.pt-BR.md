@@ -68,4 +68,18 @@ O compositor da conversa pode inserir um cartão opcional de dados de pagamento 
 
 ## Não declarado como integrado
 
-Presença sempre ativa, notificações push em segundo plano, provas de identidade além do vínculo NIP-05 e da verificação explícita de Gist GitHub NIP-39, integração com carteiras de custódia própria e liquidação de pagamentos, e mini-apps assinados ainda não estão integrados. Cada recurso restante precisa de desenho compatível com Nostr, revisão de segurança e validação com contagens fixas. O alvo de compartilhamento só funciona em navegadores/sistemas que oferecem PWA Web Share Target; disponibilidade por plataforma ainda precisa ser testada. O sistema operacional pode suspender uma PWA móvel; ela não é um relay sempre ativo.
+A [lista pública de recursos do Ghostly](https://github.com/MiguelMedeiros/ghostly#features) é mais ampla que a PWA Property atual. Este registro separa as interações adaptadas dos recursos que ainda precisam de um desenho compatível com Nostr:
+
+| Área do Ghostly | Cobertura no Property |
+| --- | --- |
+| Chat | Adaptado às conversas NIP-17 existentes: respostas, edições, reações, encaminhamentos, mensagens salvas, áudios, busca local e revisão antes de compartilhar. |
+| Chamadas | Chamadas de áudio/vídeo usam WebRTC com sinalização Nostr. Não há serviço TURN; testes entre redes e aparelhos continuam pendentes. |
+| Arquivos | Blocos NIP-17 limitados e retomáveis, com verificação de integridade e reprodução local. O Property limita cada arquivo a 2 MiB e cada lote a 4 MiB; arquivos sem limite não são suportados. |
+| Grupos | Salas privadas NIP-17 aceitam até 10 participantes e não têm aprovação de entrada nem remoção confiável. Comunidades e salas maiores não estão implementadas. O NIP-17 recomenda outro esquema de mensagens acima de 10 participantes. |
+| Carteiras | Cartões de pagamento BTC/XMR/XNO e QR local contendo somente o endereço estão disponíveis. Conexão com carteiras, custódia, execução e liquidação de pagamentos não estão implementadas. |
+| Identidades | Perfis Nostr, consulta NIP-05 explícita e provas NIP-39 por Gist pública do GitHub estão disponíveis. O Property não verifica outros provedores de prova. |
+| Apps e jogos | Execução de mini-apps assinados não está implementada. O Property não executa código carregado de relays ou de outras fontes remotas. |
+| Serviços compartilhados | Compartilhar um serviço local não está implementado; expor um serviço do aparelho precisa de desenho compatível com Nostr, consentimento e segurança. |
+| CLI e agentes de IA | O Property Agent CLI local e as conversas criptografadas entre agentes estão integrados; usam a identidade e os caminhos de relay existentes no Property. |
+
+Presença sempre ativa e notificações push em segundo plano também não estão integradas. O alvo de compartilhamento funciona apenas em navegadores/sistemas que oferecem PWA Web Share Target; a disponibilidade em cada plataforma continua pendente até ser testada. O sistema operacional pode suspender uma PWA móvel; ela não é um relay sempre ativo. Outros recursos precisam de desenho compatível, revisão de segurança e validação com contagens fixas antes da implementação.

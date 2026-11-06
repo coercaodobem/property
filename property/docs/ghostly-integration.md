@@ -69,4 +69,18 @@ The chat composer can insert an optional payment-details card for BTC, XMR, or X
 
 ## Not claimed as integrated
 
-Always-on presence, background push notifications, identity proofs beyond NIP-05 mapping and the explicit NIP-39 GitHub Gist check, self-custody wallet integrations and payment settlement, and signed mini-apps are not claimed as integrated. Each remaining feature needs a Nostr-compatible design, security review, and fixed-count validation. The share target is limited to browsers/operating systems that expose PWA Web Share Target; platform-specific availability remains pending until tested. A mobile PWA may be suspended by the operating system and is not an always-on relay.
+The upstream [Ghostly feature list](https://github.com/MiguelMedeiros/ghostly#features) is broader than the current Property PWA. This parity record distinguishes adapted interactions from features that still need a compatible Nostr design:
+
+| Ghostly area | Property coverage |
+| --- | --- |
+| Chat | Adapted inside the existing NIP-17 conversations: replies, edits, reactions, forwards, saved messages, voice notes, local search and share review. |
+| Calls | Audio/video calls use WebRTC with Nostr signaling. There is no TURN service; cross-network and device checks remain pending. |
+| Files | Bounded, resumable NIP-17 chunks with integrity checks and local playback. Property limits files to 2 MiB each and batches to 4 MiB; unbounded files are not supported. |
+| Groups | Private NIP-17 rooms support up to 10 participants and have no membership approval or reliable removal. Communities and larger rooms are not implemented. NIP-17 recommends a more suitable messaging scheme above 10 participants. |
+| Wallets | BTC/XMR/XNO payment cards and an address-only local QR are available. Wallet connections, custody, payment execution and settlement are not implemented. |
+| Identities | Nostr profiles, explicit NIP-05 checks and NIP-39 GitHub Gist proofs are supported. Other proof providers are not verified by Property. |
+| Apps and games | Signed mini-app execution is not implemented. Property does not execute code loaded from relays or other remote sources. |
+| Shared services | Sharing a localhost service is not implemented; exposing a device service needs a Nostr-compatible consent and security design. |
+| CLI and AI agents | A local Property Agent CLI and encrypted agent conversations are integrated; they use Property's existing identity and relay paths. |
+
+Always-on presence and background push notifications are also not claimed as integrated. The share target is limited to browsers/operating systems that expose PWA Web Share Target; platform-specific availability remains pending until tested. A mobile PWA may be suspended by the operating system and is not an always-on relay. Remaining candidates require a compatible design, security review, and fixed-count validation before implementation.
