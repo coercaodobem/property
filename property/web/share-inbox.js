@@ -3,7 +3,11 @@
   const DB_NAME = 'property-share-inbox-v1';
   const STORE_NAME = 'shares';
   const MAX_PENDING = 10;
-  const MAX_REQUEST_BYTES = 64 * 1024;
+  const MAX_FILE_COUNT = 5;
+  const MAX_FILE_BYTES = 2 * 1024 * 1024;
+  const MAX_BATCH_BYTES = 4 * 1024 * 1024;
+  const MAX_PENDING_BYTES = 8 * 1024 * 1024;
+  const MAX_REQUEST_BYTES = MAX_BATCH_BYTES + 64 * 1024;
   const MAX_MESSAGE_BYTES = 8 * 1024;
   const MAX_MESSAGE_CHARS = 4000;
 
@@ -15,11 +19,43 @@
     return { value: result, truncated: result.length < cleaned.length };
   }
 
+  function cleanFileName(value) {
+    const leaf = String(value || '').split(/[\\/]/).pop() || 'shared-file';
+    const cleaned = Array.from(leaf.replace(/[\u0000-\u001F\u007F]/g, '').trim()).slice(0, 120).join('');
+    return cleaned || 'shared-file';
+  }
+
+  function normalizeFiles(input) {
+    const source = Array.isArray(input.files) ? input.files : [];
+    const files = [];
+    const warnings = [];
+    let totalBytes = 0;
+    const warn = value => {
+      if (warnings.length < 8) warnings.push(cleanFileName(value));
+      else if (warnings.length === 8) warnings.push('…');
+    };
+    for (const file of source) {
+      const name = cleanFileName(file?.name);
+      if (!file || typeof file.arrayBuffer !== 'function' || !Number.isSafeInteger(file.size) || file.size <= 0) {
+        warn(name);
+        continue;
+      }
+      if (files.length >= MAX_FILE_COUNT || file.size > MAX_FILE_BYTES || totalBytes + file.size > MAX_BATCH_BYTES) {
+        warn(name);
+        continue;
+      }
+      files.push(file);
+      totalBytes += file.size;
+    }
+    return { files, warnings };
+  }
+
   function normalize(input = {}) {
     if (input.tooLarge === true) return { title: '', text: '', url: '', tooLarge: true, truncated: false };
     const title = cleanField(input.title, 240);
     const text = cleanField(input.text, 12000);
     const url = cleanField(input.url, 2048);
+    const sharedFiles = normalizeFiles(input);
     const result = {
       title: title.value,
       text: text.value,
@@ -27,6 +63,8 @@
       tooLarge: false,
       truncated: title.truncated || text.truncated || url.truncated
     };
+    if (sharedFiles.files.length) result.files = sharedFiles.files;
+    if (sharedFiles.warnings.length) result.fileWarnings = sharedFiles.warnings;
     result.truncated ||= composeText(result).trim() !== formatText(result);
     return result;
   }
@@ -36,7 +74,8 @@
       const value = formData?.get?.(name);
       return typeof value === 'string' ? value : '';
     };
-    return normalize({ title: field('title'), text: field('text'), url: field('url') });
+    const files = formData?.getAll?.('files');
+    return normalize({ title: field('title'), text: field('text'), url: field('url'), files: Array.isArray(files) ? files : [] });
   }
 
   function byteLength(value) { return new TextEncoder().encode(String(value)).length; }
@@ -94,14 +133,17 @@
         transaction.onabort = () => reject(transaction.error || new Error('Could not read the local share inbox.'));
       }));
     }
-    function enqueue(record, limit) {
+    function enqueue(record, limit, byteLimit) {
       return open().then(db => new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
         let result = { accepted: false, item: null };
-        const request = store.count();
+        const request = store.getAll();
         request.onsuccess = () => {
-          if (request.result >= limit) return;
+          const pending = request.result || [];
+          const pendingBytes = pending.reduce((total, item) => total + (item.files || []).reduce((sum, file) => sum + (Number.isSafeInteger(file?.size) ? file.size : 0), 0), 0);
+          const itemBytes = (record.files || []).reduce((total, file) => total + (Number.isSafeInteger(file?.size) ? file.size : 0), 0);
+          if (pending.length >= limit || pendingBytes + itemBytes > byteLimit) return;
           const add = store.add(record);
           add.onsuccess = () => { result = { accepted: true, item: { ...record, id: add.result } }; };
           add.onerror = () => reject(add.error || new Error('Could not queue this shared item.'));
@@ -128,8 +170,8 @@
     return Object.freeze({
       async enqueue(input) {
         const item = normalize(input);
-        if (!item.tooLarge && !item.title && !item.text && !item.url) return { accepted: false, item: null, empty: true };
-        return storage.enqueue(item, MAX_PENDING);
+        if (!item.tooLarge && !item.title && !item.text && !item.url && !item.files?.length && !item.fileWarnings?.length) return { accepted: false, item: null, empty: true };
+        return storage.enqueue(item, MAX_PENDING, MAX_PENDING_BYTES);
       },
       list: () => storage.all(),
       remove: id => storage.remove(id)
@@ -145,6 +187,10 @@
     formatText,
     byteLength,
     MAX_PENDING,
+    MAX_FILE_COUNT,
+    MAX_FILE_BYTES,
+    MAX_BATCH_BYTES,
+    MAX_PENDING_BYTES,
     MAX_REQUEST_BYTES,
     MAX_MESSAGE_BYTES,
     MAX_MESSAGE_CHARS

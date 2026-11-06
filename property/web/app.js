@@ -76,7 +76,7 @@
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, unseenMessageCount: 0, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0,
+    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, unseenMessageCount: 0, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', shareFileDraftId: '', shareFileDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0,
     linkPreview: null, linkPreviewUrl: '', linkPreviewSequence: 0, linkPreviewBusy: false, linkPreviewStatus: '',
     voiceRecorder: null, voiceRecorderPeer: '', voiceRecorderStartedAt: 0, voiceTimer: 0, voiceStopping: false, voiceSequence: 0,
     voiceDrafts: new Map(), voiceObjectUrls: new Map(), fileObjectUrls: new Map(), fileDraftObjectUrls: new Map(), fileDraftTransferIds: new Map(), fileDraftFiles: [], fileSendBusy: false, fileTransferSeen: new Set(), activeConversationAgent: false, activeConversationBlocked: false
@@ -649,6 +649,16 @@
         clearFileDrafts();
         $('file-attachment-dialog').close();
         if (state.replyingTo) { state.replyingTo = null; updateReplyContext(); }
+        const sentShareId = state.shareFileDraftPeer === peer ? state.shareFileDraftId : '';
+        if (sentShareId) {
+          try {
+            await ShareInbox.remove(sentShareId);
+            state.shareFileDraftId = ''; state.shareFileDraftPeer = '';
+            await renderShareInbox();
+          } catch {
+            showToast(localized('Files were sent, but the shared item remains in the local inbox.', 'Os arquivos foram enviados, mas o item compartilhado continua na caixa local.'));
+          }
+        }
         showToast(localized('Encrypted file parts were confirmed by the inbox relays. This does not confirm that the recipient has downloaded the file.', 'Os relays de recebimento confirmaram as partes criptografadas. Isso não confirma que a outra pessoa baixou o arquivo.'));
       } else {
         setFileAttachmentStatus(localized(
@@ -1323,6 +1333,16 @@
         if (state.activePeer === job.peer) await renderMessages(job.peer);
         await renderConversations();
         clearFileDrafts();
+        const sentShareId = state.shareFileDraftPeer === job.peer ? state.shareFileDraftId : '';
+        if (sentShareId) {
+          try {
+            await ShareInbox.remove(sentShareId);
+            state.shareFileDraftId = ''; state.shareFileDraftPeer = '';
+            await renderShareInbox();
+          } catch {
+            showToast(localized('Files were sent, but the shared item remains in the local inbox.', 'Os arquivos foram enviados, mas o item compartilhado continua na caixa local.'));
+          }
+        }
         if ($('file-attachment-dialog').open) $('file-attachment-dialog').close();
         showToast(localized('Direct file transfer completed and confirmed by the recipient.', 'Transferência direta concluída e confirmada por quem recebeu.'));
       } else if (failure) {
@@ -2225,7 +2245,8 @@
         const option = document.createElement('option');
         option.value = String(item.id);
         option.dataset.userContent = '';
-        const label = item.tooLarge ? localized('Oversized shared item', 'Item compartilhado grande demais') : (item.title || ShareInbox.formatText(item).split('\n')[0] || localized(`Shared item ${index + 1}`, `Item compartilhado ${index + 1}`));
+        const firstFileName = item.files?.length ? FileTransfers.safeName(item.files[0].name) : '';
+        const label = item.tooLarge ? localized('Oversized shared item', 'Item compartilhado grande demais') : (item.title || ShareInbox.formatText(item).split('\n')[0] || firstFileName || localized(`Shared item ${index + 1}`, `Item compartilhado ${index + 1}`));
         option.textContent = label.slice(0, 120);
         itemSelect.append(option);
       }
@@ -2256,11 +2277,33 @@
     const preview = $('share-item-preview');
     const note = $('share-item-note');
     const notice = $('share-overflow-notice');
+    const fileList = $('share-file-preview');
+    const fileWarning = $('share-file-warning');
     const tooLarge = item?.tooLarge === true;
     preview.textContent = item && !tooLarge ? ShareInbox.formatText(item) : '';
-    note.textContent = item?.truncated
-      ? localized('The shared content was shortened to fit a private message. Review it before sending.', 'O conteúdo foi encurtado para caber em uma mensagem privada. Revise antes de enviar.')
+    preview.hidden = !preview.textContent;
+    fileList.replaceChildren();
+    const files = !tooLarge && Array.isArray(item?.files) ? item.files : [];
+    fileList.hidden = files.length === 0;
+    for (const file of files) {
+      const row = document.createElement('li');
+      row.className = 'file-attachment-item';
+      const details = document.createElement('span');
+      const name = document.createElement('strong'); name.textContent = FileTransfers.safeName(file.name);
+      const size = document.createElement('small'); size.textContent = `${FileTransfers.formatSize(file.size, window.PropertyI18n?.language || 'en')} · ${file.type || 'application/octet-stream'}`;
+      details.append(name, size); row.append(details); fileList.append(row);
+    }
+    const warningNames = !tooLarge && Array.isArray(item?.fileWarnings) ? item.fileWarnings : [];
+    fileWarning.textContent = warningNames.length
+      ? localized(`Some shared files were left out because of file count or size limits: ${warningNames.join(', ')}.`, `Alguns arquivos compartilhados ficaram de fora por limites de quantidade ou tamanho: ${warningNames.join(', ')}.`)
       : '';
+    fileWarning.classList.toggle('hidden', warningNames.length === 0);
+    const noteParts = [];
+    if (item?.truncated) noteParts.push(localized('The shared text was shortened to fit a private message. Review it before sending.', 'O texto compartilhado foi encurtado para caber em uma mensagem privada. Revise antes de enviar.'));
+    if (files.length && ShareInbox.formatText(item).length > FileTransfers.MAX_CAPTION_CHARS) {
+      noteParts.push(localized('The file caption will be shortened to 1,000 characters. You can edit it before sending.', 'A legenda dos arquivos será reduzida para 1.000 caracteres. Você poderá editá-la antes de enviar.'));
+    }
+    note.textContent = noteParts.join(' ');
     if (tooLarge) {
       notice.textContent = localized('This shared item exceeded the size limit. Its content was not stored.', 'Este item compartilhado excedeu o limite de tamanho. O conteúdo não foi armazenado.');
       notice.classList.remove('hidden');
@@ -2268,7 +2311,7 @@
       notice.textContent = '';
       notice.classList.add('hidden');
     }
-    const usable = !!item && !tooLarge && !!ShareInbox.formatText(item);
+    const usable = !!item && !tooLarge && (!!ShareInbox.formatText(item) || files.length > 0);
     $('share-use-draft').disabled = !usable || !$('share-conversation-select').value;
     $('share-new-chat').disabled = !usable;
     $('share-discard').disabled = !item;
@@ -2282,7 +2325,7 @@
         $('share-dialog-status').textContent = localized('Property could not save this shared item locally. Check device storage and try again.', 'O Property não conseguiu salvar este item localmente. Verifique o armazenamento do aparelho e tente novamente.');
       } else {
         $('share-dialog-status').textContent = state.shareItems.length
-          ? localized('Choose a conversation, review the text, then send it yourself.', 'Escolha uma conversa, revise o texto e envie quando quiser.')
+          ? localized('Choose a conversation and review the shared text or files. Nothing is sent until you send it.', 'Escolha uma conversa e revise o texto ou os arquivos compartilhados. Nada é enviado até você decidir enviar.')
           : localized('No shared content is waiting on this device.', 'Não há conteúdo compartilhado aguardando neste aparelho.');
       }
       renderSelectedShare();
@@ -2296,8 +2339,23 @@
     const item = state.shareItems.find(candidate => String(candidate.id) === String(id)) || (await ShareInbox.list()).find(candidate => String(candidate.id) === String(id));
     if (!item || item.tooLarge) return;
     const text = ShareInbox.formatText(item);
-    if (!text) return;
+    const files = Array.isArray(item.files) ? item.files : [];
+    if (!text && !files.length) return;
+    if (files.length && state.fileDraftFiles.length) {
+      showToast(localized('Finish or cancel the current file draft before opening shared files.', 'Conclua ou cancele o rascunho de arquivos atual antes de abrir os arquivos compartilhados.'));
+      return;
+    }
     await selectConversation(peer);
+    if (files.length) {
+      if (!addFileDrafts(files)) return;
+      state.shareFileDraftId = item.id;
+      state.shareFileDraftPeer = peer;
+      $('file-attachment-caption').value = Array.from(text).slice(0, FileTransfers.MAX_CAPTION_CHARS).join('');
+      renderFileDrafts();
+      $('share-dialog').close();
+      showToast(localized('Shared files are ready. Review the files and caption, then send when you choose.', 'Os arquivos compartilhados estão prontos. Revise os arquivos e a legenda e envie quando decidir.'));
+      return;
+    }
     await saveChatDraft(peer, $('message-input').value).catch(() => {});
     state.shareDraftId = item.id;
     state.shareDraftPeer = peer;
@@ -3408,6 +3466,7 @@
       if (previousPeer) await saveChatDraft(previousPeer, $('message-input').value).catch(() => {});
     }
     if (state.shareDraftId && state.shareDraftPeer !== pubkey) { state.shareDraftId = ''; state.shareDraftPeer = ''; }
+    if (state.shareFileDraftId && state.shareFileDraftPeer !== pubkey) { state.shareFileDraftId = ''; state.shareFileDraftPeer = ''; }
     state.activePeer = pubkey;
     audioPlayback.setContext(state.activeView, state.activePeer);
     if (changed) {
@@ -5011,7 +5070,7 @@
     resizeMessageInput();
     renderVoiceComposer();
     clearLinkPreviewDraft();
-    state.shareDraftId = ''; state.shareDraftPeer = '';
+    state.shareDraftId = ''; state.shareDraftPeer = ''; state.shareFileDraftId = ''; state.shareFileDraftPeer = '';
     if (preservePublicBridge && state.bridgeEnabled) await closeIdentityRelaySubscriptions();
     else {
       if (state.bridgeEnabled) {
@@ -5082,7 +5141,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v70', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v71', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }

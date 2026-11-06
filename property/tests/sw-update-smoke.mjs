@@ -12,7 +12,7 @@ let claimed = false;
 const importedScripts = [];
 const provideWorkerImports = target => {
   target.importScripts = (...paths) => importedScripts.push(...paths);
-  target.PropertyShareInbox = { MAX_REQUEST_BYTES: 64 * 1024 };
+  target.PropertyShareInbox = { MAX_REQUEST_BYTES: 4 * 1024 * 1024 + 64 * 1024 };
 };
 const serviceWorkerSource = await readFile(new URL('../web/sw.js', import.meta.url), 'utf8');
 const shellCache = /const CACHE = '([^']+)'/.exec(serviceWorkerSource)?.[1];
@@ -47,7 +47,7 @@ listeners.activate({ waitUntil(promise) { pending = promise; } });
 await pending;
 assert.deepEqual(deleted.sort(), ['liberdade-shell-v4', 'property-shell-v5']);
 assert.equal(claimed, true);
-assert.equal(importedScripts[0], './share-inbox.js?v=property-v33', 'the update harness records the worker local inbox dependency');
+assert.equal(importedScripts[0], './share-inbox.js?v=property-v34', 'the update harness records the worker local inbox dependency');
 
 const failedListeners = {};
 const failedDeletes = [];
