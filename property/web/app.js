@@ -45,8 +45,9 @@
     peerProfiles: new Map(), chatDetailsPeer: '',
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
+    conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, activeWorkspaceReady: false, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false
+    storageReady: false, activeWorkspaceReady: false, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0
   };
   const SHARE_LAUNCH_ACTIONS = new Set(['share', 'share-full', 'share-error']);
   let propertyTabChannel = null;
@@ -656,7 +657,13 @@
       const tx = state.db.transaction(store, operation === 'get' || operation === 'getAll' ? 'readonly' : 'readwrite');
       const objectStore = tx.objectStore(store);
       const request = operation === 'get' ? objectStore.get(value) : operation === 'getAll' ? objectStore.getAll() : objectStore[operation](value);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        if (store === 'messages' && operation !== 'get' && operation !== 'getAll') {
+          state.conversationMessageSearchCache = null;
+          state.conversationMessageSearchRevision++;
+        }
+        resolve(request.result);
+      };
       request.onerror = () => reject(request.error);
       tx.onabort = () => reject(tx.error || new Error('Falha no armazenamento local.'));
     });
@@ -1262,7 +1269,22 @@
     await put('conversations', { ...conversation, unreadCount: 0 });
     return true;
   }
-  async function renderConversationRow(conversation) {
+  function conversationSearchSnippet(text, query) {
+    const plain = RichText.preview(text || '');
+    if (plain.length <= 112) return plain;
+    const firstMatch = MessageSearch.matchRanges(plain, query)[0];
+    const start = Math.max(0, (firstMatch?.[0] ?? 0) - 32);
+    const end = Math.min(plain.length, start + 112);
+    return `${start > 0 ? '…' : ''}${plain.slice(start, end)}${end < plain.length ? '…' : ''}`;
+  }
+  async function readConversationSearchMessages() {
+    const revision = state.conversationMessageSearchRevision;
+    if (state.conversationMessageSearchCache?.revision === revision) return state.conversationMessageSearchCache.messages;
+    const messages = await all('messages');
+    if (revision === state.conversationMessageSearchRevision) state.conversationMessageSearchCache = { revision, messages };
+    return messages;
+  }
+  async function renderConversationRow(conversation, messageMatch = null, search = '') {
     const row = document.createElement('div'); row.className = 'conversation-row';
     const button = document.createElement('button'); button.className = `conversation-item${conversation.pubkey === state.activePeer ? ' active' : ''}`; button.type = 'button';
     const label = conversationLabel(conversation);
@@ -1274,10 +1296,17 @@
       const pin = document.createElement('span'); pin.className = 'conversation-pin-indicator'; pin.textContent = '📌';
       pin.title = localized('Pinned conversation', 'Conversa fixada'); pin.setAttribute('aria-label', pin.title); titleRow.append(pin);
     }
-    const preview = document.createElement('small'); preview.dataset.userContent = ''; preview.textContent = RichText.preview(conversation.lastMessage || (conversation.group ? `${conversation.members?.length || 0} ${window.PropertyI18n?.language === 'pt-BR' ? 'participantes' : 'members'}` : conversation.pubkey.slice(0, 16)));
+    const preview = document.createElement('small'); preview.dataset.userContent = '';
+    preview.textContent = messageMatch
+      ? conversationSearchSnippet(messageMatch.text, search)
+      : RichText.preview(conversation.lastMessage || (conversation.group ? `${conversation.members?.length || 0} ${window.PropertyI18n?.language === 'pt-BR' ? 'participantes' : 'members'}` : conversation.pubkey.slice(0, 16)));
     info.append(titleRow);
     const agentAccess = conversation.group ? null : await get('agentAccess', conversation.pubkey);
     if (conversation.agent || agentAccess?.status === 'approved') { const agentBadge = document.createElement('small'); agentBadge.className = 'agent-chat-badge'; agentBadge.textContent = localized('AGENT PROTOCOL', 'PROTOCOLO DE AGENTE'); info.append(agentBadge); }
+    if (messageMatch) {
+      const matchLabel = document.createElement('small'); matchLabel.className = 'conversation-search-match-label';
+      matchLabel.textContent = localized('Message match', 'Correspondência na mensagem'); info.append(matchLabel);
+    }
     info.append(preview); button.append(avatar, info);
     const unreadCount = conversationUnreadCount(conversation);
     if (unreadCount > 0) {
@@ -1286,7 +1315,7 @@
       unreadBadge.title = unreadCountLabel(unreadCount); unreadBadge.setAttribute('aria-label', unreadCountLabel(unreadCount));
       button.append(unreadBadge);
     }
-    button.addEventListener('click', () => selectConversation(conversation.pubkey));
+    button.addEventListener('click', () => selectConversation(conversation.pubkey, messageMatch?.id || ''));
     const details = document.createElement('details'); details.className = 'conversation-folder-actions';
     const summary = document.createElement('summary'); summary.textContent = '···'; summary.setAttribute('aria-label', localized('Conversation options', 'Opções da conversa')); summary.title = summary.getAttribute('aria-label');
     const menu = document.createElement('div'); menu.className = 'folder-actions-menu';
@@ -1309,12 +1338,23 @@
     }
   }
   async function renderConversations() {
+    const renderSequence = ++state.conversationListRenderSequence;
     const conversations = FolderStore.sortConversations(await all('conversations'));
-    const search = $('conversation-search').value.trim().toLowerCase();
+    const rawSearch = $('conversation-search').value.trim();
+    const search = MessageSearch.foldText(rawSearch).trim();
+    const latestMatches = new Map();
+    if (search) {
+      const matches = MessageSearch.findLatestMatchesByPeer(await readConversationSearchMessages(), rawSearch);
+      for (const match of matches) latestMatches.set(match.peer, match);
+    }
+    if (renderSequence !== state.conversationListRenderSequence) return;
     const list = $('conversation-list');
     list.replaceChildren();
-    const filtered = conversations.filter(item => (conversationLabel(item) + item.lastMessage).toLowerCase().includes(search));
+    const filtered = conversations.filter(item => !search
+      || MessageSearch.matchesText(`${conversationLabel(item)} ${item.pubkey || ''} ${item.lastMessage || ''}`, rawSearch)
+      || latestMatches.has(item.pubkey));
     const config = await loadConversationFolders();
+    if (renderSequence !== state.conversationListRenderSequence) return;
     if (!filtered.length && search) {
       const empty = document.createElement('p'); empty.className = 'conversation-empty'; empty.textContent = localized('No conversations found.', 'Nenhuma conversa encontrada.'); list.append(empty); return;
     }
@@ -1355,7 +1395,11 @@
         if (section.isFolder && !section.conversations.length && filtered.length) {
           const empty = document.createElement('p'); empty.className = 'conversation-empty folder-empty'; empty.textContent = localized('No conversations in this folder yet.', 'Ainda não há conversas nesta pasta.'); sectionNode.append(empty);
         } else {
-          for (const conversation of section.conversations) sectionNode.append(await renderConversationRow(conversation));
+          for (const conversation of section.conversations) {
+            const row = await renderConversationRow(conversation, latestMatches.get(conversation.pubkey), rawSearch);
+            if (renderSequence !== state.conversationListRenderSequence) return;
+            sectionNode.append(row);
+          }
         }
       }
       list.append(sectionNode);
@@ -1364,7 +1408,7 @@
       const empty = document.createElement('p'); empty.className = 'conversation-empty'; empty.textContent = localized('Your conversations will appear here.', 'Suas conversas aparecerão aqui.'); list.append(empty);
     }
   }
-  async function selectConversation(pubkey) {
+  async function selectConversation(pubkey, jumpToMessageId = '') {
     const previousPeer = state.activePeer;
     const changed = previousPeer !== pubkey;
     if (changed) {
@@ -1393,7 +1437,7 @@
     const conversation = await get('conversations', pubkey);
     await updateConversationHeader(conversation);
     await updateAgentBlockControl(pubkey);
-    await renderMessages(pubkey);
+    await renderMessages(pubkey, jumpToMessageId);
     if (window.innerWidth <= 800) {
       setActiveView('messages');
       setMobileConversationListOpen(false, { restoreFocus: true });
@@ -1561,7 +1605,7 @@
     });
     bubble.addEventListener('pointercancel', event => { if (start?.pointerId === event.pointerId) clear(); });
   }
-  async function renderMessages(peer) {
+  async function renderMessages(peer, jumpToMessageId = '') {
     const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
     const messages = entries.filter(message => message.kind !== 7);
     const messageByEventId = new Map();
@@ -1687,6 +1731,15 @@
     else {
       const restored = [...container.children].find(row => row.dataset.messageId === anchor.id);
       if (restored) container.scrollTop += restored.getBoundingClientRect().top - anchor.top;
+    }
+    if (jumpToMessageId) {
+      const target = [...container.children].find(row => row.dataset.messageId === jumpToMessageId);
+      if (target) {
+        target.classList.add('conversation-search-target');
+        target.tabIndex = -1;
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ block: 'center' });
+      }
     }
     refreshMessageSearch();
   }
@@ -2499,6 +2552,7 @@
     clearTimeout(state.idleTimer);
     if (state.secret) state.secret.fill(0);
     state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false;
+    state.conversationMessageSearchCache = null; state.conversationMessageSearchRevision++;
     state.replyingTo = null; updateReplyContext();
     state.draftLoadSequence++;
     $('message-input').value = '';

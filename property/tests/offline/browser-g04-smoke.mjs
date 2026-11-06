@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -251,7 +251,9 @@ async function openApp(context, origin) {
         const ready = registration?.active?.state === 'activated' && navigator.serviceWorker?.controller?.state === 'activated';
         const appVisible = !document.querySelector('#auth-choice')?.classList.contains('hidden')
           || !document.querySelector('#workspace')?.classList.contains('hidden');
-        return ready && appVisible;
+        const appStorageReady = !document.querySelector('#workspace')?.classList.contains('hidden')
+          || (document.querySelector('#auth-choice') && document.querySelector('#create-account-button')?.disabled === false);
+        return ready && appVisible && appStorageReady;
       }, null, { timeout: 20000 });
       return page;
     } catch (error) {
@@ -624,6 +626,61 @@ async function main() {
       search_kept_cards_interactive: true, search_highlighted_profile_code: true, closing_search_preserved_cards: true,
       conversation_created_before_confirmation: false, relay_event_delta: relayEventsAfterCard.length - relayEventsBeforeCard.length };
     mark('G04-12', 'PASS', 'Valid npub/nprofile references rendered as bounded Property cards; duplicate, invalid, nsec-looking, code-span and URL references stayed literal. Local search highlighted a profile code without flattening its card; tapping a card prefilled the existing contact dialog and relay hints without creating a conversation or publishing an event.');
+
+    // G04-14: conversation-list search finds older local messages and opens the exact matching message.
+    stage = 'G04-14: local search across conversation history';
+    await openConversation(pageA, c.npub, 'C search');
+    const olderSearchHit = `property-cross-chat-history-${crypto.randomUUID()}`;
+    await sendMessage(pageA, olderSearchHit);
+    await pageA.locator('#conversation-search').fill(olderSearchHit);
+    const searchResult = pageA.locator('#conversation-list .conversation-row').filter({ hasText: 'C search' });
+    await searchResult.waitFor({ state: 'visible', timeout: 5000 });
+    assert.ok((await searchResult.locator('.conversation-preview').textContent()).includes(olderSearchHit),
+      'the first query finds a message before a new matching conversation cache exists');
+    const latestSearchMessage = `property-later-message-${crypto.randomUUID()}`;
+    await sendMessage(pageA, latestSearchMessage);
+    await searchResult.waitFor({ state: 'visible', timeout: 5000 });
+    const relayEventsBeforeSearch = (await wsQuery(relay0.url, { kinds: [1059], authors: [a.pubkey], limit: 1000 })).map(event => event.id).sort();
+    assert.equal(await pageA.locator('#conversation-list .conversation-item').count(), 1,
+      'a new-message write invalidates the search cache and keeps the older matching conversation visible');
+    assert.equal((await searchResult.locator('.conversation-search-match-label').textContent()).trim(), 'Message match');
+    const resultPreview = (await searchResult.locator('.conversation-preview').textContent()).trim();
+    assert.ok(resultPreview.includes(olderSearchHit), 'the result previews the matching older message');
+    assert.ok(!resultPreview.includes(latestSearchMessage), 'the result does not mistake the latest nonmatching message for the hit');
+    await searchResult.locator('.conversation-item').click();
+    const searchTarget = pageA.locator('#messages .message-row.conversation-search-target');
+    await searchTarget.waitFor({ state: 'visible', timeout: 5000 });
+    assert.ok((await searchTarget.textContent()).includes(olderSearchHit), 'opening a result lands on the exact historical message');
+    assert.equal(await pageA.locator('#conversation-search').inputValue(), olderSearchHit,
+      'the local query remains available after opening the conversation');
+    const relayEventsAfterSearch = (await wsQuery(relay0.url, { kinds: [1059], authors: [a.pubkey], limit: 1000 })).map(event => event.id).sort();
+    assert.deepEqual(relayEventsAfterSearch, relayEventsBeforeSearch, 'search sends no relay event');
+    await openGroupConversation(pageA, 'C group search', [b.npub, c.npub]);
+    const olderGroupSearchHit = `property-group-history-${crypto.randomUUID()}`;
+    await sendMessage(pageA, olderGroupSearchHit);
+    await pageA.locator('#conversation-search').fill(olderGroupSearchHit);
+    const groupSearchResult = pageA.locator('#conversation-list .conversation-row').filter({ hasText: 'C group search' });
+    await groupSearchResult.waitFor({ state: 'visible', timeout: 5000 });
+    assert.ok((await groupSearchResult.locator('.conversation-preview').textContent()).includes(olderGroupSearchHit),
+      'the group history index finds the saved older message');
+    const latestGroupSearchMessage = `property-group-later-${crypto.randomUUID()}`;
+    await sendMessage(pageA, latestGroupSearchMessage);
+    await groupSearchResult.waitFor({ state: 'visible', timeout: 5000 });
+    const groupRelayEventsBeforeSearch = (await wsQuery(relay0.url, { kinds: [1059], authors: [a.pubkey], limit: 1000 })).map(event => event.id).sort();
+    const groupResultPreview = (await groupSearchResult.locator('.conversation-preview').textContent()).trim();
+    assert.ok(groupResultPreview.includes(olderGroupSearchHit), 'the group result previews the matching historical message');
+    assert.ok(!groupResultPreview.includes(latestGroupSearchMessage), 'the group result does not show the newer nonmatching message');
+    await groupSearchResult.locator('.conversation-item').click();
+    const groupSearchTarget = pageA.locator('#messages .message-row.conversation-search-target');
+    await groupSearchTarget.waitFor({ state: 'visible', timeout: 5000 });
+    assert.ok((await groupSearchTarget.textContent()).includes(olderGroupSearchHit), 'opening the group result lands on its exact historical message');
+    const groupRelayEventsAfterSearch = (await wsQuery(relay0.url, { kinds: [1059], authors: [a.pubkey], limit: 1000 })).map(event => event.id).sort();
+    assert.deepEqual(groupRelayEventsAfterSearch, groupRelayEventsBeforeSearch, 'searching group history sends no relay event');
+    report.message_search = { searches_saved_direct_and_group_history: true, ignores_case_and_accents: true,
+      previews_newest_matching_message_per_chat: true, cache_invalidated_on_new_message: true,
+      opens_exact_message: true, sends_no_search_event: true };
+    mark('G04-14', 'PASS', 'Conversation-list search found older locally stored direct and group messages after newer nonmatching messages, identified each chat, and opened each exact match without a relay search event.');
+    await openConversation(pageA, b.npub, 'B privado');
 
     // G04-13: no relay configuration barrier on a fresh browser profile.
     stage = 'G04-13: automatic first-use relay selection';

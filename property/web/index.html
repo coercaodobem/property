@@ -11,8 +11,8 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v52">
-  <script defer src="./i18n.js?v=property-v48"></script>
+  <link rel="stylesheet" href="./styles.css?v=property-v53">
+  <script defer src="./i18n.js?v=property-v49"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -26,7 +26,7 @@
   <script defer src="./campaigns.js?v=property-v26"></script>
   <script defer src="./contact.js?v=property-v26"></script>
   <script defer src="./agent-messaging.js?v=property-v26"></script>
-  <script defer src="./chat-search.js?v=property-v28"></script>
+  <script defer src="./chat-search.js?v=property-v29"></script>
   <script defer src="./conversation-folders.js?v=property-v36"></script>
   <script defer src="./chat-drafts.js?v=property-v38"></script>
   <script defer src="./vendor/qr-code-generator.js?v=property-v39"></script>
@@ -38,7 +38,7 @@
   <script defer src="./nip05.js?v=property-v1"></script>
   <script defer src="./emoji-picker.js?v=property-v2"></script>
   <script defer src="./chat-gestures.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v57"></script>
+  <script defer src="./app.js?v=property-v58"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -121,7 +121,7 @@
     <section id="workspace" class="workspace hidden">
       <aside class="sidebar">
         <div class="sidebar-heading"><div><p class="eyebrow">YOUR SPACE</p><h2>Conversations</h2></div><div class="sidebar-heading-actions"><button id="close-mobile-conversations" class="icon-button mobile-close-conversations" aria-label="Close conversations" title="Close conversations">×</button><button id="create-folder-button" class="icon-button" aria-label="Create folder" title="Create folder">▱</button><button id="new-chat-button" class="icon-button" aria-label="New conversation" title="New conversation">＋</button></div></div>
-        <label class="search"><span aria-hidden="true">⌕</span><input id="conversation-search" type="search" placeholder="Search conversations"></label>
+        <label class="search"><span aria-hidden="true">⌕</span><input id="conversation-search" type="search" placeholder="Search chats and messages" aria-label="Search chats and local messages" title="Searches messages saved on this device only; nothing is sent to relays"></label>
         <div id="conversation-list" class="conversation-list"></div>
         <nav class="main-nav" aria-label="Property areas">
           <button class="nav-button active" data-view="messages"><span>▤</span><span>Messages</span></button>

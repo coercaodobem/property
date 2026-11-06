@@ -1,11 +1,28 @@
 'use strict';
 (() => {
+  const foldedMessageCache = new WeakMap();
+
   function foldText(value) {
     return String(value ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
   }
 
+  function foldedMessageText(message) {
+    const cached = foldedMessageCache.get(message);
+    if (cached?.source === message.text) return cached.folded;
+    const folded = foldText(message.text);
+    foldedMessageCache.set(message, { source: message.text, folded });
+    return folded;
+  }
+
   function termsFor(query) {
     return foldText(query).trim().split(/\s+/u).filter(Boolean);
+  }
+
+  function matchesText(value, query) {
+    const terms = termsFor(query);
+    if (!terms.length) return false;
+    const folded = foldText(value);
+    return terms.every(term => folded.includes(term));
   }
 
   function foldedTextWithOffsets(text) {
@@ -27,9 +44,28 @@
     const terms = termsFor(query);
     if (!terms.length || !Array.isArray(messages)) return [];
     return messages
-      .filter(message => message && message.kind !== 7 && typeof message.text === 'string' && terms.every(term => foldText(message.text).includes(term)))
+      .filter(message => message && message.kind !== 7 && typeof message.text === 'string' && terms.every(term => foldedMessageText(message).includes(term)))
       .map(message => String(message.id ?? ''))
       .filter(Boolean);
+  }
+
+  function findLatestMatchesByPeer(messages, query) {
+    const terms = termsFor(query);
+    if (!terms.length || !Array.isArray(messages)) return [];
+    const latest = new Map();
+    for (const message of messages) {
+      if (!message || message.kind === 7 || message.deleted === true || typeof message.text !== 'string') continue;
+      const peer = typeof message.peer === 'string' ? message.peer : '';
+      const id = typeof message.id === 'string' ? message.id : '';
+      if (!peer || !id) continue;
+      const folded = foldedMessageText(message);
+      if (!terms.every(term => folded.includes(term))) continue;
+      const createdAt = Number.isFinite(message.createdAt) ? message.createdAt : 0;
+      const previous = latest.get(peer);
+      if (previous && (previous.createdAt > createdAt || (previous.createdAt === createdAt && previous.id >= id))) continue;
+      latest.set(peer, { peer, id, text: message.text, createdAt });
+    }
+    return Array.from(latest.values());
   }
 
   function matchRanges(value, query) {
@@ -64,5 +100,5 @@
     return merged;
   }
 
-  window.PropertyMessageSearch = Object.freeze({ findMessageIds, foldText, matchRanges });
+  window.PropertyMessageSearch = Object.freeze({ findLatestMatchesByPeer, findMessageIds, foldText, matchRanges, matchesText });
 })();

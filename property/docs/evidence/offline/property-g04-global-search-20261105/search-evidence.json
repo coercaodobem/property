@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "suite": "Property G04 offline browser and local Geode relay harness",
+  "source_base_commit": "282db5524ddf3017c6a1c6fb709c8f81321fa1cc",
+  "result": "PASS",
+  "browser": {
+    "playwright_version": "1.62.1",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_version": "153.0",
+    "browser_executable_sha256": "26e4198abe0dfb93c339239297008b1319711575d8cbae8e2d5122d2017b29a1"
+  },
+  "test_identity_scope": "ephemeral synthetic Nostr identities in disposable browser profiles; no real participants",
+  "relay_scope": {
+    "implementation": "Geode",
+    "count": 2,
+    "transport_scope": "loopback-only local relays",
+    "public_relays_used": false
+  },
+  "cases": [
+    {
+      "case": "G04-01",
+      "status": "PASS"
+    },
+    {
+      "case": "G04-02",
+      "status": "PASS"
+    },
+    {
+      "case": "G04-11",
+      "status": "PASS"
+    },
+    {
+      "case": "G04-12",
+      "status": "PASS"
+    },
+    {
+      "case": "G04-14",
+      "status": "PASS"
+    },
+    {
+      "case": "G04-13",
+      "status": "PASS"
+    },
+    {
+      "case": "G04-03",
+      "status": "PASS"
+    },
+    {
+      "case": "G04-04",
+      "status": "PASS"
+    },
+    {
+      "case": "G04-05",
+      "status": "PASS"
+    },
+    {
+      "case": "G04-06",
+      "status": "PASS"
+    },
+    {
+      "case": "G04-09",
+      "status": "PASS"
+    }
+  ],
+  "conversation_search": {
+    "searches_saved_direct_and_group_history": true,
+    "ignores_case_and_accents": true,
+    "previews_newest_matching_message_per_chat": true,
+    "cache_invalidated_on_new_message": true,
+    "opens_exact_message": true,
+    "sends_no_search_event": true
+  },
+  "first_use_relay_suggestions": {
+    "selected_count": 2,
+    "distinct": true,
+    "from_bundled_candidates": true,
+    "persisted_locally": true,
+    "identity_creation_available_without_settings": true,
+    "no_relay_connections_before_identity": true,
+    "random_without_replacement": true
+  },
+  "external_request_count": 0,
+  "page_error_count": 0,
+  "plan_scope_note": "G04-07 and G04-08 are outside this browser harness run and remain unverified here."
+}
