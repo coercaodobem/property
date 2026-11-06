@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -425,6 +425,21 @@ async function sendMessage(page, text) {
     const rows = [...document.querySelectorAll('#messages .message-row')]; return rows.some(row => row.textContent.includes(value));
   }, text, { timeout: 10000 });
 }
+async function localRecord(page, storeName, id) {
+  return page.evaluate(async ({ storeName, id }) => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('liberdade-local-v1');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const result = await new Promise((resolve, reject) => {
+      const request = db.transaction(storeName).objectStore(storeName).get(id);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    db.close(); return result || null;
+  }, { storeName, id });
+}
 async function messageAudit(page, peer) {
   return await page.evaluate(async peerKey => {
     const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
@@ -469,6 +484,22 @@ async function main() {
     contextB = await runtime.playwright[options.engine].launchPersistentContext(profileB, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
     contextC = await runtime.playwright[options.engine].launchPersistentContext(profileC, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
     for (const context of [contextA, contextB, contextC]) instrument(context, origin, report);
+    await contextA.addInitScript(() => {
+      window.__propertyNotificationProbe = { permissionRequests: 0, displayed: [] };
+      class FakeNotification {
+        static permission = 'default';
+        static async requestPermission() {
+          window.__propertyNotificationProbe.permissionRequests++;
+          FakeNotification.permission = 'granted';
+          return 'granted';
+        }
+        constructor(title, options = {}) {
+          window.__propertyNotificationProbe.displayed.push({ title, body: options.body, data: options.data ?? null, tag: options.tag });
+        }
+        close() {}
+      }
+      Object.defineProperty(window, 'Notification', { configurable: true, writable: true, value: FakeNotification });
+    });
     stage = 'G04-01: open A'; let pageA = await openApp(contextA, origin);
     stage = 'G04-01: open B'; let pageB = await openApp(contextB, origin);
     stage = 'G04-01: open C'; let pageC = await openApp(contextC, origin);
@@ -952,6 +983,71 @@ async function main() {
       relay_event_delta: 0
     };
     mark('G04-09', 'PASS', 'Direct and group chats pin locally in the existing list, retain order after reload, remain unpinned in a clean profile with the same identity, and produce zero relay events.');
+
+    stage = 'G04-15: opt-in notifications and per-chat mute';
+    const relayIdsBeforeNotificationSettings = (await wsQuery(relay0.url, { limit: 1000 })).map(event => event.id).sort();
+    assert.equal(await pageA.evaluate(() => window.__propertyNotificationProbe.permissionRequests), 0,
+      'identity activation did not prompt for notification permission');
+    await pageA.locator('#profile-button').click();
+    await pageA.locator('#profile-notifications-toggle').waitFor({ state: 'visible' });
+    assert.equal(await pageA.evaluate(() => window.__propertyNotificationProbe.permissionRequests), 0,
+      'opening profile settings did not prompt for notification permission');
+    await pageA.locator('#profile-notifications-toggle').click();
+    await pageA.waitForFunction(() => document.querySelector('#profile-notifications-toggle')?.textContent.includes('Turn off notifications'));
+    assert.equal(await pageA.evaluate(() => window.__propertyNotificationProbe.permissionRequests), 1,
+      'one explicit click caused exactly one permission request');
+    const globalNotificationSetting = await localRecord(pageA, 'settings', `property-notifications:${a.pubkey}`);
+    assert.equal(globalNotificationSetting?.enabled, true, 'global opt-in is stored locally for this identity');
+    const relayIdsAfterGlobalOptIn = (await wsQuery(relay0.url, { limit: 1000 })).map(event => event.id).sort();
+    assert.deepEqual(relayIdsAfterGlobalOptIn, relayIdsBeforeNotificationSettings,
+      'global opt-in publishes zero relay events');
+    await pageA.locator('#profile-dialog').evaluate(dialog => dialog.close());
+    await openConversation(pageB, a.npub, 'A privado');
+    const visibleMessage = `property-g04-visible-notice-${crypto.randomUUID()}`;
+    await sendMessage(pageB, visibleMessage);
+    await pageA.locator('#messages .message-bubble').filter({ hasText: visibleMessage }).waitFor({ state: 'visible', timeout: 15000 });
+    assert.equal(await pageA.evaluate(() => window.__propertyNotificationProbe.displayed.length), 0,
+      'an active visible conversation did not create a duplicate system notice');
+    await pageA.evaluate(() => Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }));
+    assert.equal(await pageA.evaluate(() => document.visibilityState), 'hidden', 'fixed hidden-page condition was applied');
+    const hiddenMessage = `property-g04-hidden-notice-${crypto.randomUUID()}`;
+    await sendMessage(pageB, hiddenMessage);
+    await pageA.locator('#messages .message-bubble').filter({ hasText: hiddenMessage }).waitFor({ state: 'visible', timeout: 15000 });
+    await pageA.waitForFunction(() => window.__propertyNotificationProbe.displayed.length === 1, null, { timeout: 15000 });
+    const firstNotice = await pageA.evaluate(() => window.__propertyNotificationProbe.displayed[0]);
+    assert.equal(firstNotice.title, 'Property');
+    assert.equal(firstNotice.body, 'New message. Open Property to read it.');
+    assert.equal(firstNotice.data, null, 'notice carries no peer key or message payload');
+    assert.ok(!JSON.stringify(firstNotice).includes(hiddenMessage) && !JSON.stringify(firstNotice).includes(b.pubkey),
+      'the system notice omits message text and the sender public key');
+
+    const relayIdsBeforeChatMute = (await wsQuery(relay0.url, { limit: 1000 })).map(event => event.id).sort();
+    const peerRow = pageA.locator('.conversation-row').filter({ hasText: 'B privado' }).first();
+    await peerRow.locator('summary').click();
+    await peerRow.locator('button').filter({ hasText: 'Mute notifications' }).click();
+    await pageA.locator('#notification-mute-dialog').waitFor({ state: 'visible' });
+    await pageA.locator('[data-notification-mute-choice="15m"]').click();
+    await peerRow.locator('.conversation-mute-indicator').waitFor({ state: 'visible' });
+    const chatMute = await localRecord(pageA, 'settings', `property-notification-mute:${a.pubkey}:${b.pubkey}`);
+    assert.ok(Number.isSafeInteger(chatMute?.until) && chatMute.until > Date.now(), 'fixed 15-minute mute is saved locally for this identity and chat');
+    const relayIdsAfterChatMute = (await wsQuery(relay0.url, { limit: 1000 })).map(event => event.id).sort();
+    assert.deepEqual(relayIdsAfterChatMute, relayIdsBeforeChatMute,
+      'per-chat mute publishes zero relay events');
+    const mutedMessage = `property-g04-muted-notice-${crypto.randomUUID()}`;
+    await sendMessage(pageB, mutedMessage);
+    await pageA.locator('#messages .message-bubble').filter({ hasText: mutedMessage }).waitFor({ state: 'visible', timeout: 15000 });
+    assert.equal(await pageA.evaluate(() => window.__propertyNotificationProbe.displayed.length), 1,
+      'a muted conversation adds no extra system notice');
+    const conversationAfterMute = await localRecord(pageA, 'conversations', b.pubkey);
+    assert.equal(conversationAfterMute?.unreadCount, 2, 'two hidden inbound messages remain visible in local unread counts while muted');
+    report.notification_checks = {
+      permission_requests_before_explicit_tap: 0, permission_requests_after_tap: 1,
+      identity_scoped_opt_in_saved_locally: true, visible_notice_count: 0, hidden_generic_notice_count: 1,
+      notice_contains_message_or_sender: false, per_chat_mute_choice: '15m', muted_notice_count: 1,
+      hidden_inbound_unread_count: conversationAfterMute.unreadCount, relay_event_delta_from_global_opt_in: 0, relay_event_delta_from_chat_mute: 0
+    };
+    mark('G04-15', 'PASS', 'Browser notification permission was requested only after a tap; a hidden-page notice contained no message or sender data; the visible chat produced no duplicate notice; a local 15-minute mute suppressed a third notice while unread counts remained, and settings published zero relay events.');
+
 
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
     const browserRuntimeAttempts = proxy.attempts.filter(attempt => attempt.destination === 'aus5.mozilla.org:443');

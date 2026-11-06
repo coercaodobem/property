@@ -17,6 +17,7 @@ for test_file in \
   chat-search-smoke.mjs \
   conversation-folders-smoke.mjs \
   chat-drafts-smoke.mjs \
+  notification-preferences-smoke.mjs \
   rich-text-smoke.mjs \
   nostr-entities-smoke.mjs \
   secret-guard-smoke.mjs \

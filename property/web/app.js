@@ -22,6 +22,7 @@
   const MessageSearch = window.PropertyMessageSearch;
   const FolderStore = window.PropertyConversationFolders;
   const ChatDrafts = window.PropertyChatDrafts;
+  const NotificationPrefs = window.PropertyNotificationPreferences;
   const RichText = window.PropertyRichText;
   const MessageEdits = window.PropertyMessageEdits;
   const SecretGuard = window.PropertySecretGuard;
@@ -47,7 +48,7 @@
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, activeWorkspaceReady: false, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0
+    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0
   };
   const SHARE_LAUNCH_ACTIONS = new Set(['share', 'share-full', 'share-error']);
   let propertyTabChannel = null;
@@ -731,6 +732,11 @@
     resetIdleLock();
     state.pubkey = N.getPublicKey(secret);
     state.npub = N.nip19.npubEncode(state.pubkey);
+    const notificationSetting = await get('settings', NotificationPrefs.notificationsId(state.pubkey));
+    state.notificationsEnabled = notificationSetting?.enabled === true && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+    const mutePrefix = `property-notification-mute:${state.pubkey}:`;
+    state.notificationMutes = new Map((await all('settings')).filter(record => typeof record.id === 'string' && record.id.startsWith(mutePrefix))
+      .map(record => [record.id.slice(mutePrefix.length), record]));
     $('profile-initial').textContent = (await get('settings', `profile-${state.pubkey}`))?.name?.slice(0, 1)?.toUpperCase() || 'L';
     $('profile-npub').textContent = state.npub;
     $('auth-screen').classList.add('hidden');
@@ -987,6 +993,31 @@
       console.warn('Relay notice:', url, id.slice(0, 160));
     }
   }
+  async function notifyIncomingMessage(peer) {
+    if (!state.notificationsEnabled || !state.pubkey || typeof Notification === 'undefined') return;
+    const permission = Notification.permission;
+    const mute = currentConversationMute(peer);
+    const muted = NotificationPrefs.isMuted(mute, Date.now());
+    if (!NotificationPrefs.shouldNotify({ enabled: state.notificationsEnabled, permission,
+      pageHidden: document.visibilityState === 'hidden', muted })) return;
+    try {
+      const identity = state.pubkey;
+      const notice = new Notification('Property', {
+        body: localized('New message. Open Property to read it.', 'Nova mensagem. Abra o Property para ler.'),
+        icon: './assets/property-icon-192.png',
+        badge: './assets/property-icon-192.png',
+        tag: `property-message-${crypto.randomUUID()}`
+      });
+      notice.onclick = () => {
+        notice.close();
+        window.focus();
+        if (state.secret && state.pubkey === identity) {
+          setActiveView('messages');
+          selectConversation(peer).catch(error => showToast(error.message || localized('Could not open this conversation.', 'Não foi possível abrir esta conversa.')));
+        }
+      };
+    } catch { /* Browser notification support can disappear between the permission check and display. */ }
+  }
   async function receiveGiftWrap(event) {
     if (!N.verifyEvent(event)) return;
     const rumor = N.nip17.unwrapEvent(event, state.secret);
@@ -1068,6 +1099,7 @@
     await put('conversations', updatedConversation);
     await renderConversations();
     if (state.activePeer === peer) { await updateConversationHeader(updatedConversation); await updateAgentBlockControl(peer); await renderMessages(peer); }
+    if (!edit && senderDirection === 'received' && !visibleConversation) await notifyIncomingMessage(peer);
   }
   function finishFetchSub(id, fromSocketClose) {
     const subscription = state.fetchSubs.get(id);
@@ -1269,6 +1301,102 @@
     await put('conversations', { ...conversation, unreadCount: 0 });
     return true;
   }
+  function currentConversationMute(peer) {
+    if (!state.pubkey || !peer) return null;
+    const record = state.notificationMutes.get(peer);
+    if (!record) return null;
+    if (NotificationPrefs.isMuted(record)) return record;
+    state.notificationMutes.delete(peer);
+    del('settings', NotificationPrefs.chatMuteId(state.pubkey, peer)).catch(() => {});
+    return null;
+  }
+  async function openConversationMuteDialog(peer) {
+    if (!state.pubkey || !peer) return;
+    state.notificationMutePeer = peer;
+    const conversation = await get('conversations', peer);
+    const mute = await currentConversationMute(peer);
+    $('notification-mute-chat').textContent = conversationLabel(conversation || peer);
+    $('notification-mute-status').textContent = mute
+      ? mute.until === 'forever'
+        ? localized('Notifications are muted until you turn them back on.', 'As notificações estão silenciadas até você reativá-las.')
+        : localized(`Notifications are muted until ${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(mute.until))}.`, `As notificações estão silenciadas até ${new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(mute.until))}.`)
+      : localized('Notifications can be muted on this device. Unread counts remain visible; nothing is sent to relays.', 'Você pode silenciar notificações neste aparelho. As mensagens não lidas continuam visíveis; nada é enviado aos relays.');
+    $('notification-mute-unmute').classList.toggle('hidden', !mute);
+    $('notification-mute-dialog').showModal();
+  }
+  async function setConversationMute(choice) {
+    const peer = state.notificationMutePeer;
+    if (!state.pubkey || !peer) return;
+    try {
+      const record = NotificationPrefs.createMuteRecord(state.pubkey, peer, choice);
+      await put('settings', record);
+      state.notificationMutes.set(peer, record);
+      $('notification-mute-dialog').close();
+      state.notificationMutePeer = '';
+      await renderConversations();
+      showToast(localized('Notifications muted on this device.', 'Notificações silenciadas neste aparelho.'));
+    } catch (error) { $('notification-mute-status').textContent = error.message || localized('Could not save this local setting.', 'Não foi possível salvar esta configuração local.'); }
+  }
+  async function clearConversationMute(peer = state.notificationMutePeer) {
+    if (!state.pubkey || !peer) return;
+    await del('settings', NotificationPrefs.chatMuteId(state.pubkey, peer));
+    state.notificationMutes.delete(peer);
+    if ($('notification-mute-dialog').open) $('notification-mute-dialog').close();
+    state.notificationMutePeer = '';
+    await renderConversations();
+    showToast(localized('Notifications unmuted on this device.', 'Notificações reativadas neste aparelho.'));
+  }
+  async function renderNotificationSettings() {
+    const button = $('profile-notifications-toggle');
+    const status = $('profile-notifications-status');
+    if (!state.pubkey) {
+      button.disabled = true;
+      button.textContent = localized('Unlock to manage notifications', 'Desbloqueie para configurar notificações');
+      status.textContent = localized('Unlock this identity first. Notification preferences are saved separately for each identity on this device.', 'Desbloqueie esta identidade primeiro. As preferências ficam salvas separadamente para cada identidade neste aparelho.');
+      return;
+    }
+    if (typeof Notification === 'undefined') {
+      button.disabled = true;
+      button.textContent = localized('Browser notifications unavailable', 'Notificações do navegador indisponíveis');
+      status.textContent = localized('This browser cannot show Property notifications.', 'Este navegador não pode mostrar notificações do Property.');
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      state.notificationsEnabled = false;
+      button.disabled = true;
+      button.textContent = localized('Blocked in browser settings', 'Bloqueadas nas configurações do navegador');
+      status.textContent = localized('Property cannot request permission again. Change this site’s permission in your browser settings.', 'O Property não pode pedir permissão novamente. Altere a permissão deste site nas configurações do navegador.');
+      return;
+    }
+    button.disabled = false;
+    button.textContent = state.notificationsEnabled
+      ? localized('Turn off notifications', 'Desativar notificações')
+      : localized('Enable browser notifications', 'Ativar notificações do navegador');
+    status.textContent = state.notificationsEnabled
+      ? localized('When this app is open but hidden, new messages may show a generic system notice. Message text and contact names are not included. The operating system may suspend the app.', 'Quando este app estiver aberto, mas em segundo plano, novas mensagens podem gerar um aviso genérico do sistema. O texto e o nome do contato não aparecem. O sistema operacional pode suspender o app.')
+      : localized('Optional. Property asks for permission only when you tap the button. It uses no push service and never includes message text in a notice.', 'Opcional. O Property pede permissão somente quando você toca no botão. Não usa serviço push e nunca inclui o texto da mensagem no aviso.');
+  }
+  async function toggleBrowserNotifications() {
+    if (typeof Notification === 'undefined') return renderNotificationSettings();
+    try {
+      if (state.notificationsEnabled) {
+        state.notificationsEnabled = false;
+        await put('settings', { id: NotificationPrefs.notificationsId(state.pubkey), enabled: false });
+      } else {
+        const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+        if (permission !== 'granted') {
+          state.notificationsEnabled = false;
+          $('profile-notifications-status').textContent = localized('Permission was not granted; Property did not enable notifications.', 'A permissão não foi concedida; o Property não ativou notificações.');
+          return renderNotificationSettings();
+        }
+        await put('settings', { id: NotificationPrefs.notificationsId(state.pubkey), enabled: true });
+        state.notificationsEnabled = true;
+      }
+      await renderNotificationSettings();
+    } catch {
+      $('profile-notifications-status').textContent = localized('Could not update this local notification setting.', 'Não foi possível atualizar esta configuração local de notificações.');
+    }
+  }
   function conversationSearchSnippet(text, query) {
     const plain = RichText.preview(text || '');
     if (plain.length <= 112) return plain;
@@ -1287,6 +1415,10 @@
   async function renderConversationRow(conversation, messageMatch = null, search = '') {
     const row = document.createElement('div'); row.className = 'conversation-row';
     const button = document.createElement('button'); button.className = `conversation-item${conversation.pubkey === state.activePeer ? ' active' : ''}`; button.type = 'button';
+    const [agentAccess, mute] = await Promise.all([
+      conversation.group ? Promise.resolve(null) : get('agentAccess', conversation.pubkey),
+      currentConversationMute(conversation.pubkey)
+    ]);
     const label = conversationLabel(conversation);
     const avatar = document.createElement('span'); avatar.className = `avatar${conversation.group ? ' group-avatar' : ''}`; avatar.textContent = conversation.group ? '◉' : label.slice(0, 1).toUpperCase();
     const info = document.createElement('span'); info.className = 'conversation-preview';
@@ -1296,12 +1428,15 @@
       const pin = document.createElement('span'); pin.className = 'conversation-pin-indicator'; pin.textContent = '📌';
       pin.title = localized('Pinned conversation', 'Conversa fixada'); pin.setAttribute('aria-label', pin.title); titleRow.append(pin);
     }
+    if (mute) {
+      const muted = document.createElement('span'); muted.className = 'conversation-mute-indicator'; muted.textContent = '🔕';
+      muted.title = localized('Notifications muted', 'Notificações silenciadas'); muted.setAttribute('aria-label', muted.title); titleRow.append(muted);
+    }
     const preview = document.createElement('small'); preview.dataset.userContent = '';
     preview.textContent = messageMatch
       ? conversationSearchSnippet(messageMatch.text, search)
       : RichText.preview(conversation.lastMessage || (conversation.group ? `${conversation.members?.length || 0} ${window.PropertyI18n?.language === 'pt-BR' ? 'participantes' : 'members'}` : conversation.pubkey.slice(0, 16)));
     info.append(titleRow);
-    const agentAccess = conversation.group ? null : await get('agentAccess', conversation.pubkey);
     if (conversation.agent || agentAccess?.status === 'approved') { const agentBadge = document.createElement('small'); agentBadge.className = 'agent-chat-badge'; agentBadge.textContent = localized('AGENT PROTOCOL', 'PROTOCOLO DE AGENTE'); info.append(agentBadge); }
     if (messageMatch) {
       const matchLabel = document.createElement('small'); matchLabel.className = 'conversation-search-match-label';
@@ -1319,11 +1454,18 @@
     const details = document.createElement('details'); details.className = 'conversation-folder-actions';
     const summary = document.createElement('summary'); summary.textContent = '···'; summary.setAttribute('aria-label', localized('Conversation options', 'Opções da conversa')); summary.title = summary.getAttribute('aria-label');
     const menu = document.createElement('div'); menu.className = 'folder-actions-menu';
+    const muteButton = document.createElement('button'); muteButton.type = 'button';
+    muteButton.textContent = mute ? localized('Unmute notifications', 'Reativar notificações') : localized('Mute notifications…', 'Silenciar notificações…');
+    muteButton.addEventListener('click', () => {
+      details.open = false;
+      if (mute) void clearConversationMute(conversation.pubkey).catch(() => showToast(localized('Could not update this local setting.', 'Não foi possível atualizar esta configuração local.')));
+      else void openConversationMuteDialog(conversation.pubkey).catch(() => showToast(localized('Could not open notification settings.', 'Não foi possível abrir as configurações de notificação.')));
+    });
     const pin = document.createElement('button'); pin.type = 'button'; pin.textContent = conversation.pinned === true ? localized('Unpin chat', 'Desafixar conversa') : localized('Pin chat', 'Fixar conversa');
     pin.addEventListener('click', () => { details.open = false; void toggleConversationPin(conversation.pubkey); });
     const move = document.createElement('button'); move.type = 'button'; move.textContent = localized('Move to folder…', 'Mover para uma pasta…');
     move.addEventListener('click', () => { details.open = false; openMoveConversationFolder(conversation.pubkey); });
-    menu.append(pin, move); details.append(summary, menu); row.append(button, details); return row;
+    menu.append(muteButton, pin, move); details.append(summary, menu); row.append(button, details); return row;
   }
   async function toggleConversationPin(pubkey) {
     try {
@@ -2551,7 +2693,7 @@
     if (state.account) { const updated = { ...state.account }; delete updated.session; await put('vault', updated); state.account = updated; }
     clearTimeout(state.idleTimer);
     if (state.secret) state.secret.fill(0);
-    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false;
+    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = '';
     state.conversationMessageSearchCache = null; state.conversationMessageSearchRevision++;
     state.replyingTo = null; updateReplyContext();
     state.draftLoadSequence++;
@@ -2620,13 +2762,15 @@
   function registerOfflineShell() {
     if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
     let refreshing = false;
+    let hadController = Boolean(navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) { hadController = true; return; }
       if (refreshing) return;
       if (!state.secret && !Array.from(document.querySelectorAll('input[type="password"]')).some(input => input.value)) {
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v52', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v53', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -2681,7 +2825,18 @@
     $('finish-import-button').addEventListener('click', tryImport);
     $('unlock-button').addEventListener('click', tryUnlock);
     $('password').addEventListener('keydown', event => { if (event.key === 'Enter') tryUnlock(); });
-    $('profile-button').addEventListener('click', () => $('profile-dialog').showModal());
+    $('profile-button').addEventListener('click', () => {
+      $('profile-dialog').showModal();
+      renderNotificationSettings().catch(() => {});
+    });
+    $('profile-notifications-toggle').addEventListener('click', () => toggleBrowserNotifications());
+    $('notification-mute-dialog').addEventListener('close', () => { state.notificationMutePeer = ''; });
+    document.querySelectorAll('[data-notification-mute-choice]').forEach(button => {
+      button.addEventListener('click', () => setConversationMute(button.dataset.notificationMuteChoice));
+    });
+    $('notification-mute-unmute').addEventListener('click', () => clearConversationMute().catch(() => {
+      $('notification-mute-status').textContent = localized('Could not update this local setting.', 'Não foi possível atualizar esta configuração local.');
+    }));
     $('chat-details-button').addEventListener('click', () => openChatDetails().catch(error => showToast(error.message || localized('Could not open conversation details.', 'Não foi possível abrir os detalhes da conversa.'))));
     $('load-chat-public-profile').addEventListener('click', () => loadChatPublicProfile());
     $('verify-profile-nip05').addEventListener('click', () => verifyOwnNip05());
@@ -3002,7 +3157,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !RichText || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();
