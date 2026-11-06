@@ -24,6 +24,7 @@
   const ChatDrafts = window.PropertyChatDrafts;
   const NotificationPrefs = window.PropertyNotificationPreferences;
   const AppBadge = window.PropertyAppBadge;
+  const MessageDays = window.PropertyMessageDays;
   const RichText = window.PropertyRichText;
   const MessageEdits = window.PropertyMessageEdits;
   const SecretGuard = window.PropertySecretGuard;
@@ -49,7 +50,7 @@
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0
+    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0
   };
   const SHARE_LAUNCH_ACTIONS = new Set(['share', 'share-full', 'share-error']);
   let propertyTabChannel = null;
@@ -1807,6 +1808,15 @@
     });
     bubble.addEventListener('pointercancel', event => { if (start?.pointerId === event.pointerId) clear(); });
   }
+  function scheduleMessageDayRollover(peer) {
+    clearTimeout(state.messageDayRolloverTimer);
+    const nextDay = MessageDays.nextDayStart(Date.now());
+    if (!Number.isFinite(nextDay)) return;
+    state.messageDayRolloverTimer = setTimeout(() => {
+      state.messageDayRolloverTimer = 0;
+      if (state.activePeer === peer) void renderMessages(peer).catch(() => {});
+    }, Math.max(1, nextDay - Date.now() + 50));
+  }
   async function renderMessages(peer, jumpToMessageId = '') {
     const entries = (await all('messages')).filter(message => message.peer === peer).sort((a, b) => a.createdAt - b.createdAt);
     const messages = entries.filter(message => message.kind !== 7);
@@ -1833,14 +1843,28 @@
     const samePeer = container.dataset.peer === peer;
     const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 72;
     const bounds = container.getBoundingClientRect();
-    const firstVisible = [...container.children].find(row => row.dataset.messageId && row.getBoundingClientRect().bottom > bounds.top);
+    const firstVisible = [...container.querySelectorAll('.message-row')].find(row => row.getBoundingClientRect().bottom > bounds.top);
     const anchor = samePeer && firstVisible ? { id: firstVisible.dataset.messageId, top: firstVisible.getBoundingClientRect().top } : null;
     const byEventId = messageByEventId;
     container.replaceChildren();
+    scheduleMessageDayRollover(peer);
     if (!messages.length) {
       const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = 'Esta conversa é privada. Envie uma mensagem para começar.'; container.append(empty); container.dataset.peer = peer; refreshMessageSearch(); return;
     }
+    let previousDay = NaN;
+    let daySection = null;
     for (const message of messages) {
+      const messageDay = MessageDays.dayStart(message.createdAt);
+      if (!Number.isFinite(messageDay)) { previousDay = NaN; daySection = null; }
+      else if (messageDay !== previousDay) {
+        daySection = document.createElement('section'); daySection.className = 'message-day-section';
+        daySection.dataset.day = String(messageDay);
+        const divider = document.createElement('div'); divider.className = 'message-day-divider';
+        const time = document.createElement('time'); time.dateTime = MessageDays.dateTime(message.createdAt);
+        time.textContent = MessageDays.dayLabel(message.createdAt, Date.now(), window.PropertyI18n?.language || 'en');
+        divider.append(time); daySection.append(divider); container.append(daySection);
+        previousDay = messageDay;
+      }
       const row = document.createElement('div'); row.className = `message-row${message.direction === 'sent' ? ' mine' : ''}`;
       row.dataset.messageId = message.id;
       const eventId = nostrEventId(message);
@@ -1858,7 +1882,7 @@
           : (window.PropertyI18n?.language === 'pt-BR' ? 'A mensagem respondida não está neste histórico local' : 'Replied message is not in this local history');
         quote.setAttribute('aria-label', quoteLabel);
         quote.addEventListener('click', () => {
-          const target = [...container.children].find(candidate => candidate.dataset.eventIds?.split(',').includes(message.replyToId));
+          const target = [...container.querySelectorAll('.message-row')].find(candidate => candidate.dataset.eventIds?.split(',').includes(message.replyToId));
           if (target) { target.scrollIntoView({ block: 'center', behavior: 'smooth' }); target.classList.add('message-highlight'); setTimeout(() => target.classList.remove('message-highlight'), 900); }
           else showToast(window.PropertyI18n?.language === 'pt-BR' ? 'A mensagem respondida não está neste histórico local.' : 'The replied message is not in this local history.');
         });
@@ -1926,16 +1950,16 @@
         openMessageDetails(peer, message).catch(error => showToast(error.message || localized('Could not open message details.', 'Não foi possível abrir os detalhes da mensagem.')));
       });
       menuItems.append(save, details, forward); menu.append(menuButton, menuItems);
-      actions.append(reply, react, picker, menu); row.append(bubble); if (reactionSummary) row.append(reactionSummary); row.append(meta, actions); container.append(row);
+      actions.append(reply, react, picker, menu); row.append(bubble); if (reactionSummary) row.append(reactionSummary); row.append(meta, actions); (daySection || container).append(row);
     }
     container.dataset.peer = peer;
     if (!samePeer || wasAtBottom || !anchor) container.scrollTop = container.scrollHeight;
     else {
-      const restored = [...container.children].find(row => row.dataset.messageId === anchor.id);
+      const restored = [...container.querySelectorAll('.message-row')].find(row => row.dataset.messageId === anchor.id);
       if (restored) container.scrollTop += restored.getBoundingClientRect().top - anchor.top;
     }
     if (jumpToMessageId) {
-      const target = [...container.children].find(row => row.dataset.messageId === jumpToMessageId);
+      const target = [...container.querySelectorAll('.message-row')].find(row => row.dataset.messageId === jumpToMessageId);
       if (target) {
         target.classList.add('conversation-search-target');
         target.tabIndex = -1;
@@ -2752,6 +2776,7 @@
     if (state.activePeer) await saveChatDraft(state.activePeer, $('message-input').value).catch(() => {});
     if (state.account) { const updated = { ...state.account }; delete updated.session; await put('vault', updated); state.account = updated; }
     clearTimeout(state.idleTimer);
+    clearTimeout(state.messageDayRolloverTimer); state.messageDayRolloverTimer = 0;
     if (state.secret) state.secret.fill(0);
     const clearAppBadgeOnLock = state.appBadgeEnabled || state.appBadgeLastCount !== null;
     state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = ''; state.appBadgeEnabled = false; state.appBadgeLastCount = clearAppBadgeOnLock ? 0 : null;
@@ -2832,7 +2857,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v54', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v55', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -3221,7 +3246,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !RichText || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !RichText || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();

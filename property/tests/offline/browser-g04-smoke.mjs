@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-16', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-15', 'G04-16', 'G04-17', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -253,7 +253,18 @@ async function openApp(context, origin) {
           || !document.querySelector('#workspace')?.classList.contains('hidden');
         const appStorageReady = !document.querySelector('#workspace')?.classList.contains('hidden')
           || (document.querySelector('#auth-choice') && document.querySelector('#create-account-button')?.disabled === false);
-        return ready && appVisible && appStorageReady;
+        const relaySelectionReady = await new Promise(resolve => {
+          const request = indexedDB.open('liberdade-local-v1');
+          request.onerror = () => resolve(false);
+          request.onsuccess = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains('settings')) { db.close(); return resolve(false); }
+            const read = db.transaction('settings').objectStore('settings').get('relays');
+            read.onsuccess = () => { const saved = read.result; db.close(); resolve(Array.isArray(saved?.values) && saved.values.length > 0); };
+            read.onerror = () => { db.close(); resolve(false); };
+          };
+        });
+        return ready && appVisible && appStorageReady && relaySelectionReady;
       }, null, { timeout: 20000 });
       return page;
     } catch (error) {
@@ -1135,6 +1146,72 @@ async function main() {
     };
     mark('G04-16', 'PASS', 'The app icon badge remained inactive before opt-in, then reflected the local aggregate unread count. Opening the unread conversation updated the count, disabling cleared it, the preference stayed in this identity, and none of these actions requested browser notification permission or published a relay event.');
 
+    stage = 'G04-17: local message-day separators';
+    const relayIdsBeforeDateSeparators = (await wsQuery(relay0.url, { limit: 1000 })).map(event => event.id).sort();
+    await pageA.locator('#profile-dialog [aria-label="Close"]').click();
+    await pageA.evaluate(async ({ peer, nowParts, dayParts }) => {
+      const now = new Date(...nowParts).getTime();
+      const timestamps = dayParts.map(parts => new Date(...parts).getTime());
+      Date.now = () => now;
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('liberdade-local-v1');
+        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      });
+      await new Promise((resolve, reject) => {
+        const transaction = db.transaction('messages', 'readwrite');
+        const store = transaction.objectStore('messages');
+        const cursorRequest = store.openCursor();
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (!cursor) return;
+          if (cursor.value.peer === peer) cursor.delete();
+          cursor.continue();
+        };
+        transaction.oncomplete = resolve; transaction.onerror = () => reject(transaction.error);
+      });
+      await new Promise((resolve, reject) => {
+        const transaction = db.transaction('messages', 'readwrite');
+        const store = transaction.objectStore('messages');
+        for (const [index, createdAt] of timestamps.entries()) store.put({
+          id: `property-g04-day-${index}`, peer, text: `fixed-date-message-${index}`,
+          createdAt, direction: 'received', status: 'delivered'
+        });
+        transaction.oncomplete = resolve; transaction.onerror = () => reject(transaction.error);
+      });
+      db.close();
+    }, {
+      peer: b.pubkey,
+      nowParts: [2026, 10, 5, 12, 0, 0],
+      dayParts: [[2026, 10, 3, 9, 0, 0], [2026, 10, 4, 9, 0, 0], [2026, 10, 5, 9, 0, 0]]
+    });
+    await pageA.locator('.conversation-row').filter({ hasText: 'B privado' }).first().locator('.conversation-item').click();
+    await pageA.waitForFunction(() => {
+      const labels = [...document.querySelectorAll('#messages .message-day-divider time')].map(node => node.textContent.trim());
+      return labels.includes('Today') && labels.includes('Yesterday') && labels.some(label => label.includes('November'));
+    });
+    const englishDayLabels = await pageA.locator('#messages .message-day-divider time').allTextContents();
+    assert.equal(englishDayLabels.length, 3, 'a heading appears once for each of the three predefined local dates');
+    assert.equal(englishDayLabels.at(-1), 'Today');
+    assert.equal(englishDayLabels.at(-2), 'Yesterday');
+    await pageA.screenshot({ path: path.join(options.output, 'g04-message-days-english.png') });
+    await pageA.locator('#language-picker').selectOption('pt-BR');
+    await pageA.waitForFunction(() => {
+      const labels = [...document.querySelectorAll('#messages .message-day-divider time')].map(node => node.textContent.trim());
+      return labels.includes('Hoje') && labels.includes('Ontem');
+    });
+    const portugueseDayLabels = await pageA.locator('#messages .message-day-divider time').allTextContents();
+    assert.equal(portugueseDayLabels.length, 3, 'Portuguese date labels keep the same three local day groups');
+    assert.equal(portugueseDayLabels.at(-1), 'Hoje');
+    assert.equal(portugueseDayLabels.at(-2), 'Ontem');
+    await pageA.screenshot({ path: path.join(options.output, 'g04-message-days-pt-BR.png') });
+    const relayIdsAfterDateSeparators = (await wsQuery(relay0.url, { limit: 1000 })).map(event => event.id).sort();
+    assert.deepEqual(relayIdsAfterDateSeparators, relayIdsBeforeDateSeparators,
+      'local date grouping and language selection publish zero relay events');
+    report.message_day_checks = {
+      fixed_local_days: 3, english_labels: englishDayLabels, portuguese_labels: portugueseDayLabels,
+      one_heading_per_day: true, relay_event_delta: 0, local_only: true
+    };
+    mark('G04-17', 'PASS', 'The existing chat shows one sticky date heading for each fixed local day, uses Today/Yesterday or Hoje/Ontem in the selected language, includes a full date for older messages, and does not alter message storage or publish relay events.');
 
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
     const browserRuntimeAttempts = proxy.attempts.filter(attempt => attempt.destination === 'aus5.mozilla.org:443');
