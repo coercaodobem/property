@@ -41,6 +41,7 @@
   const EmojiPicker = window.PropertyEmojiPicker;
   const ChatGestures = window.PropertyChatGestures;
   const TypingSignals = window.PropertyTypingSignals;
+  const Calls = window.PropertyCalls;
   const REACTION_OPTIONS = ['👍', '❤️', '😂', '🎉', '👀'];
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const MAX_FILE_BATCH_FILES = 5;
@@ -60,6 +61,8 @@
     typingIndicatorsEnabled: true, typingSession: null, typingSequence: 0, typingRelayLookups: new Map(), remoteTyping: new Map(), typingTimers: new Map(), typingSequences: new Map(), typingSeenEvents: new Set(),
     readReceiptsEnabled: false, readReceiptSent: new Set(), readReceipts: new Map(), readReceiptCandidates: new Map(), readReceiptObserver: null,
     activeStatusEnabled: false, localPresenceSession: null, remotePresence: new Map(), presenceTimers: new Map(), presenceSequences: new Map(),
+    callController: null, call: null, pendingCallPeer: '', pendingCallVideo: false, callSignalSequences: new Map(),
+    callUiHadSession: false, callUiSequence: 0,
     peerProfiles: new Map(), peerProfileLookupStatuses: new Map(), peerIdentityProofs: new Map(), identityProofChecks: new Map(), chatDetailsPeer: '', identityProofCheckId: 0,
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
@@ -546,6 +549,220 @@
     for (const url of opened) if (url) { relayMessage(url, ['EVENT', event]); published += 1; }
     return published;
   }
+  function createCallId() {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    return [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+  function callTerminal(status) { return ['ended', 'failed', 'no-path', 'busy', 'declined'].includes(status); }
+  function callPeerLabel(peer) {
+    if (state.currentConversation?.pubkey === peer) return conversationLabel(state.currentConversation);
+    const profile = state.peerProfiles.get(peer);
+    return displayName(peer, profile?.displayName || profile?.name || '');
+  }
+  function callStatusText(call) {
+    if (call.status === 'incoming') return call.requestedMedia === 'video'
+      ? localized('Incoming video call', 'Chamada de vídeo recebida')
+      : localized('Incoming audio call', 'Chamada de áudio recebida');
+    if (call.status === 'requesting-media') return localized('Requesting microphone or camera permission…', 'Solicitando permissão para microfone ou câmera…');
+    if (call.status === 'ringing') return localized('Calling… Waiting for an answer.', 'Chamando… Aguardando resposta.');
+    if (call.status === 'connecting') return localized('Setting up the direct media path…', 'Conectando a mídia diretamente…');
+    if (call.status === 'connected') return localized('Connected. Audio and video travel directly between devices.', 'Conectado. Áudio e vídeo seguem diretamente entre os aparelhos.');
+    if (call.status === 'reconnecting') return localized('The direct path paused. Trying to reconnect…', 'A conexão direta foi interrompida. Tentando reconectar…');
+    if (call.status === 'no-path') return localized('No direct media path was found. This network may require a TURN server, which Property does not provide.', 'Não foi encontrada uma conexão direta de mídia. Esta rede pode exigir um servidor TURN, que o Property não fornece.');
+    if (call.status === 'busy') return localized('The other person is already on a call.', 'A outra pessoa já está em uma chamada.');
+    if (call.status === 'declined') return localized('The call was declined.', 'A chamada foi recusada.');
+    if (call.status === 'ended') return localized('Call ended.', 'Chamada encerrada.');
+    return call.error || localized('The call could not be started.', 'Não foi possível iniciar a chamada.');
+  }
+  function renderCallMedia(stream, local = false) {
+    const video = $(local ? 'call-local-video' : 'call-remote-video');
+    if (local) {
+      video.srcObject = stream || null;
+      video.hidden = !stream || !stream.getVideoTracks?.().length;
+      if (stream && !video.hidden) video.play().catch(() => {});
+      return;
+    }
+    const audio = $('call-remote-audio');
+    audio.srcObject = stream || null;
+    if (stream) audio.play().catch(() => {});
+    const hasVideo = Boolean(stream?.getVideoTracks?.().length);
+    video.srcObject = hasVideo ? stream : null;
+    video.hidden = !hasVideo;
+    $('call-audio-avatar').hidden = hasVideo;
+    if (hasVideo) video.play().catch(() => {});
+  }
+  async function setCallPeerLabels(call) {
+    const sequence = ++state.callUiSequence;
+    const fallback = callPeerLabel(call.peer);
+    $('call-session-title').textContent = fallback;
+    $('incoming-call-name').textContent = fallback;
+    const conversation = await get('conversations', call.peer).catch(() => null);
+    if (sequence !== state.callUiSequence || state.call?.callId !== call.callId) return;
+    const label = conversationLabel(conversation || call.peer);
+    $('call-session-title').textContent = label;
+    $('incoming-call-name').textContent = label;
+  }
+  function updateCallState(call) {
+    const previous = state.call;
+    state.call = call;
+    if (!call) {
+      state.callUiHadSession = false;
+      state.callUiSequence++;
+      for (const id of ['incoming-call-dialog', 'call-session-dialog', 'call-consent-dialog']) if ($(id).open) $(id).close();
+      renderCallMedia(null);
+      renderCallMedia(null, true);
+      return;
+    }
+    void setCallPeerLabels(call);
+    $('call-session-status').textContent = callStatusText(call);
+    $('call-session-error').textContent = call.error || '';
+    $('incoming-call-copy').textContent = call.requestedMedia === 'video'
+      ? localized('They are asking to start a video call.', 'A pessoa está iniciando uma chamada de vídeo.')
+      : localized('They are asking to start an audio call.', 'A pessoa está iniciando uma chamada de áudio.');
+    $('incoming-call-video').hidden = call.requestedMedia !== 'video';
+    const terminal = callTerminal(call.status);
+    $('call-session-close').hidden = !terminal;
+    $('call-end-button').hidden = terminal;
+    $('call-microphone-toggle').hidden = terminal || call.status === 'incoming';
+    $('call-microphone-toggle').disabled = !call.microphoneEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status);
+    $('call-microphone-toggle').textContent = call.microphoneEnabled
+      ? localized('Mute microphone', 'Silenciar microfone')
+      : localized('Unmute microphone', 'Ativar microfone');
+    $('call-camera-toggle').hidden = terminal || call.localMedia !== 'video';
+    $('call-camera-toggle').disabled = !call.cameraEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status);
+    $('call-camera-toggle').textContent = call.cameraEnabled
+      ? localized('Turn camera off', 'Desligar câmera')
+      : localized('Turn camera on', 'Ligar câmera');
+    $('call-audio-avatar').textContent = callPeerLabel(call.peer).slice(0, 1).toUpperCase() || 'P';
+
+    if (call.status === 'incoming') {
+      state.callUiHadSession = false;
+      if (!$('incoming-call-dialog').open) $('incoming-call-dialog').showModal();
+      return;
+    }
+    if ($('incoming-call-dialog').open) $('incoming-call-dialog').close();
+    if (!terminal) {
+      state.callUiHadSession = true;
+      if (!$('call-session-dialog').open) $('call-session-dialog').showModal();
+    } else if (state.callUiHadSession || (previous?.callId === call.callId && previous.status !== 'incoming')) {
+      if (!$('call-session-dialog').open) $('call-session-dialog').showModal();
+      state.callUiHadSession = true;
+    } else {
+      if ($('call-session-dialog').open) $('call-session-dialog').close();
+      if (call.status !== 'declined') showToast(callStatusText(call));
+    }
+  }
+  function ensureCallController() {
+    if (!state.callController) {
+      state.callController = Calls.create({
+        onSignal: sendCallSignal,
+        onState: updateCallState,
+        onRemoteStream: stream => renderCallMedia(stream),
+        onLocalStream: stream => renderCallMedia(stream, true)
+      });
+    }
+    return state.callController;
+  }
+  async function sendCallSignal(signal) {
+    const sender = state.pubkey;
+    const secret = state.secret;
+    const peer = String(signal.peer || '').toLowerCase();
+    if (!sender || !secret || !/^[0-9a-f]{64}$/.test(peer) || peer === sender) {
+      throw new Error(localized('A call needs an unlocked identity and a direct contact.', 'A chamada precisa de uma identidade desbloqueada e um contato direto.'));
+    }
+    const conversation = await get('conversations', peer);
+    const access = await get('agentAccess', peer);
+    if (state.pubkey !== sender || state.secret !== secret) {
+      throw new Error(localized('The identity was locked before the call signal was sent.', 'A identidade foi bloqueada antes do envio do sinal da chamada.'));
+    }
+    if (!conversation || conversation.group || conversation.agent || access?.status === 'approved' || access?.status === 'blocked') {
+      throw new Error(localized('Calls are available only with an unblocked person in a direct conversation.', 'Chamadas só estão disponíveis para uma pessoa desbloqueada em uma conversa direta.'));
+    }
+    const members = [sender.toLowerCase(), peer].sort();
+    const details = signal.sdp ? { media: signal.media, sdp: signal.sdp } : {};
+    const deliveries = TypingSignals.createCallSignal(N, secret, members, peer, signal.callId, signal.action, nextTypingSequence(), details);
+    const relays = await resolveTypingRelays(peer);
+    if (!relays.length || state.pubkey !== sender || state.secret !== secret) {
+      throw new Error(localized('No inbox relays for this contact could be reached. The call was not sent.', 'Não foi possível encontrar relays de recebimento para este contato. A chamada não foi enviada.'));
+    }
+    let openRelays = 0;
+    for (const delivery of deliveries) openRelays += await publishEphemeralToRelays(delivery.event, relays).catch(() => 0);
+    if (!openRelays) throw new Error(localized('No inbox relay connected for call setup. The call was not sent.', 'Nenhum relay de recebimento conectou para iniciar a chamada. A chamada não foi enviada.'));
+    return openRelays;
+  }
+  async function openCallConsent(video) {
+    const peer = state.activePeer;
+    if (!peer || !state.secret || state.currentConversation?.group || state.activeConversationAgent || state.activeConversationBlocked) return;
+    if (state.call && !callTerminal(state.call.status)) {
+      showToast(localized('End the current call before starting another.', 'Encerre a chamada atual antes de iniciar outra.'));
+      return;
+    }
+    state.pendingCallPeer = peer;
+    state.pendingCallVideo = video === true;
+    $('call-consent-title').textContent = video ? localized('Start a video call?', 'Iniciar chamada de vídeo?') : localized('Start an audio call?', 'Iniciar chamada de áudio?');
+    $('call-consent-copy').textContent = video
+      ? localized('Property will request camera and microphone access, then try a direct video call with the person in this conversation.', 'O Property solicitará acesso à câmera e ao microfone e tentará uma chamada de vídeo direta com a pessoa desta conversa.')
+      : localized('Property will request microphone access, then try a direct audio call with the person in this conversation.', 'O Property solicitará acesso ao microfone e tentará uma chamada de áudio direta com a pessoa desta conversa.');
+    $('call-consent-error').textContent = '';
+    $('call-consent-dialog').showModal();
+  }
+  async function beginOutgoingCall() {
+    const peer = state.pendingCallPeer;
+    const video = state.pendingCallVideo;
+    const secret = state.secret;
+    state.pendingCallPeer = '';
+    state.pendingCallVideo = false;
+    $('call-consent-dialog').close();
+    try {
+      const conversation = await get('conversations', peer);
+      const access = await get('agentAccess', peer);
+      if (!secret || state.secret !== secret || !conversation || conversation.group || conversation.agent ||
+          access?.status === 'approved' || access?.status === 'blocked') {
+        throw new Error(localized('This conversation cannot start calls.', 'Esta conversa não pode iniciar chamadas.'));
+      }
+      $('call-audio-avatar').textContent = callPeerLabel(peer).slice(0, 1).toUpperCase() || 'P';
+      $('call-session-error').textContent = '';
+      $('call-session-dialog').showModal();
+      await ensureCallController().startOutgoing({ peer, callId: createCallId(), video });
+    } catch (error) {
+      $('call-consent-error').textContent = error.message || localized('Could not start this call.', 'Não foi possível iniciar a chamada.');
+      if (!$('call-session-dialog').open) $('call-consent-dialog').showModal();
+    }
+  }
+  async function declineIncomingCall() {
+    const call = state.call;
+    if (!call || call.status !== 'incoming') return;
+    if ($('incoming-call-dialog').open) $('incoming-call-dialog').close();
+    await ensureCallController().end('call-decline').catch(error => showToast(error.message || localized('Could not send the decline signal.', 'Não foi possível enviar o sinal de recusa.')));
+  }
+  async function answerIncomingCall(video) {
+    const call = state.call;
+    if (!call || call.status !== 'incoming') return;
+    if ($('incoming-call-dialog').open) $('incoming-call-dialog').close();
+    $('call-session-dialog').showModal();
+    await ensureCallController().acceptIncoming(video).catch(() => false);
+  }
+  async function receiveCallSignal(signal, peer) {
+    const controller = ensureCallController();
+    const sequenceKey = peer + ':' + signal.callId + ':' + signal.sender;
+    if (signal.sequence <= (state.callSignalSequences.get(sequenceKey) || 0)) return;
+    state.callSignalSequences.set(sequenceKey, signal.sequence);
+    if (state.callSignalSequences.size > 500) state.callSignalSequences.delete(state.callSignalSequences.keys().next().value);
+    if (signal.action === 'call-offer') {
+      if (state.call && !callTerminal(state.call.status)) {
+        await sendCallSignal({ action: 'call-busy', callId: signal.callId, peer }).catch(() => {});
+        return;
+      }
+      const accepted = controller.receiveOffer({ peer, callId: signal.callId, media: signal.media, sdp: signal.sdp });
+      if (!accepted) await sendCallSignal({ action: 'call-busy', callId: signal.callId, peer }).catch(() => {});
+      return;
+    }
+    if (signal.action === 'call-answer') {
+      await controller.receiveAnswer({ peer, callId: signal.callId, media: signal.media, sdp: signal.sdp });
+      return;
+    }
+    controller.receiveEnd({ peer, callId: signal.callId, action: signal.action });
+  }
   async function sendTypingSignal(session, action) {
     const senderPubkey = state.pubkey;
     const secret = state.secret;
@@ -731,20 +948,30 @@
     if (expected.sent) void sendTypingSignal(expected, 'stop');
   }
   async function receiveTypingSignal(event) {
-    if (!state.secret || !state.pubkey || state.typingSeenEvents.has(event.id)) return;
-    const signal = TypingSignals.unwrap(N, event, state.secret);
-    if (!signal || signal.sender === state.pubkey) return;
+    const identitySecret = state.secret;
+    const identityPubkey = state.pubkey;
+    if (!identitySecret || !identityPubkey || state.typingSeenEvents.has(event.id)) return;
+    const signal = TypingSignals.unwrap(N, event, identitySecret);
+    if (!signal || signal.sender === identityPubkey) return;
     state.typingSeenEvents.add(event.id);
     if (state.typingSeenEvents.size > 500) state.typingSeenEvents.delete(state.typingSeenEvents.values().next().value);
     const group = signal.action === 'read' ? signal.group : signal.participants.length > 2;
-    const peer = group ? groupConversationId(signal.participants) : signal.participants.find(member => member !== state.pubkey);
-    if (!peer || (signal.action !== 'read' && peer !== state.activePeer)) return;
+    const peer = group ? groupConversationId(signal.participants) : signal.participants.find(member => member !== identityPubkey);
+    const callSignal = signal.action.startsWith('call-');
+    if (!peer || (!callSignal && signal.action !== 'read' && peer !== state.activePeer)) return;
     const conversation = await get('conversations', peer).catch(() => null);
+    if (state.secret !== identitySecret || state.pubkey !== identityPubkey) return;
     if (!conversation || (conversation.group === true) !== group) return;
     if (group) {
       const knownMembers = [...new Set((conversation.members || []).map(key => String(key).toLowerCase()))].sort();
       if (knownMembers.length !== signal.participants.length || knownMembers.some((key, index) => key !== signal.participants[index])) return;
     } else if (conversation.pubkey !== signal.sender) return;
+    if (callSignal) {
+      const access = await get('agentAccess', peer).catch(() => null);
+      if (state.secret !== identitySecret || state.pubkey !== identityPubkey || group || conversation.agent === true || access?.status === 'approved' || access?.status === 'blocked') return;
+      await receiveCallSignal(signal, peer);
+      return;
+    }
     if (signal.action === 'read') {
       await recordReadReceipt(signal, peer);
       return;
@@ -2603,6 +2830,11 @@
     const button = $('agent-block-button');
     const blocked = access?.status === 'blocked';
     state.activeConversationBlocked = blocked;
+    const canCall = Boolean(state.secret && conversation && conversation.group !== true &&
+      conversation.agent !== true && access?.status !== 'approved' && !blocked &&
+      /^[0-9a-f]{64}$/i.test(String(conversation.pubkey || '')) && conversation.pubkey !== state.pubkey);
+    $('audio-call-button').hidden = !canCall;
+    $('video-call-button').hidden = !canCall;
     button.classList.toggle('hidden', conversation?.group === true || !agentConversation);
     const blockLabel = blocked ? localized('Unblock agent', 'Desbloquear agente') : localized('Block agent', 'Bloquear agente');
     button.setAttribute('aria-label', blockLabel);
@@ -4053,6 +4285,15 @@
     setConnectionStatus();
   }
   async function lockIdentity({ preservePublicBridge = false } = {}) {
+    state.callController?.dispose();
+    state.callController = null;
+    state.call = null;
+    state.callSignalSequences.clear();
+    state.pendingCallPeer = '';
+    state.pendingCallVideo = false;
+    for (const id of ['call-consent-dialog', 'incoming-call-dialog', 'call-session-dialog']) if ($(id).open) $(id).close();
+    $('audio-call-button').hidden = true;
+    $('video-call-button').hidden = true;
     cancelVoiceRecording();
     releaseVoiceObjectUrls();
     releaseFileObjectUrls();
@@ -4162,7 +4403,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v64', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v65', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -4201,6 +4442,43 @@
       }
     };
     Pwa.bindInstallControls(document.querySelectorAll('[data-install-property]'), $('install-app-dialog'), () => showToast('Property installed.'));
+    $('audio-call-button').addEventListener('click', () => openCallConsent(false));
+    $('video-call-button').addEventListener('click', () => openCallConsent(true));
+    $('call-consent-cancel').addEventListener('click', () => {
+      state.pendingCallPeer = '';
+      state.pendingCallVideo = false;
+      $('call-consent-dialog').close();
+    });
+    $('call-consent-continue').addEventListener('click', () => beginOutgoingCall());
+    $('call-consent-dialog').addEventListener('cancel', () => {
+      state.pendingCallPeer = '';
+      state.pendingCallVideo = false;
+    });
+    $('incoming-call-decline').addEventListener('click', () => declineIncomingCall());
+    $('incoming-call-audio').addEventListener('click', () => answerIncomingCall(false));
+    $('incoming-call-video').addEventListener('click', () => answerIncomingCall(true));
+    $('incoming-call-dialog').addEventListener('cancel', event => {
+      event.preventDefault();
+      void declineIncomingCall();
+    });
+    $('call-end-button').addEventListener('click', () => {
+      state.callController?.end().catch(error => showToast(error.message || localized('Could not end the call cleanly.', 'Não foi possível encerrar a chamada corretamente.')));
+    });
+    $('call-session-close').addEventListener('click', () => state.callController?.dismiss());
+    $('call-session-dialog').addEventListener('cancel', event => {
+      if (state.call && !callTerminal(state.call.status)) {
+        event.preventDefault();
+        state.callController?.end().catch(() => {});
+      } else state.callController?.dismiss();
+    });
+    $('call-microphone-toggle').addEventListener('click', () => {
+      const call = state.call;
+      if (call) state.callController?.setMicrophoneEnabled(!call.microphoneEnabled);
+    });
+    $('call-camera-toggle').addEventListener('click', () => {
+      const call = state.call;
+      if (call) state.callController?.setCameraEnabled(!call.cameraEnabled);
+    });
     emojiPicker = EmojiPicker.init({ owner: () => state.pubkey, onError: error => showToast(error?.message || 'Could not send reaction.') });
     groupMentionPicker = GroupMentions.createPicker({
       input: $('message-input'), panel: $('group-mention-picker'),
@@ -4707,6 +4985,8 @@
     });
     window.addEventListener('pagehide', () => {
       if (state.voiceRecorder) cancelVoiceRecording();
+      if (state.call && !callTerminal(state.call.status)) state.callController?.end().catch(() => {});
+      else state.callController?.dispose();
       stopLocalPresence();
       stopLocalTyping();
       if (state.activePeer) void saveChatDraft(state.activePeer, $('message-input').value).catch(() => {});
@@ -4714,7 +4994,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.createPresence !== 'function' || typeof TypingSignals.unwrap !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.createPresence !== 'function' || typeof TypingSignals.createCallSignal !== 'function' || typeof TypingSignals.unwrap !== 'function' || !Calls || typeof Calls.create !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();

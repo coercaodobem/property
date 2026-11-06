@@ -25,6 +25,11 @@ const result = vm.runInContext(`(() => {
   const groupReceipt = PropertyTypingSignals.createReadReceipt(nostr, a, [aPub, bPub, cPub], bPub, messageId, 105, true);
   const activePresence = PropertyTypingSignals.createPresence(nostr, a, [aPub, bPub], true, 107);
   const inactivePresence = PropertyTypingSignals.createPresence(nostr, a, [aPub, bPub], false, 108);
+  const callId = 'cd'.repeat(16);
+  const videoSdp = ['v=0', 'm=audio 9 UDP/TLS/RTP/SAVPF 111', 'm=video 9 UDP/TLS/RTP/SAVPF 96'].join('\\r\\n') + '\\r\\n';
+  const callOffer = PropertyTypingSignals.createCallSignal(nostr, a, [aPub, bPub], bPub, callId, 'call-offer', 111, { media: 'video', sdp: videoSdp });
+  const callAnswer = PropertyTypingSignals.createCallSignal(nostr, b, [aPub, bPub], aPub, callId, 'call-answer', 112, { media: 'audio', sdp: ['v=0', 'm=audio 9 UDP/TLS/RTP/SAVPF 111'].join('\\r\\n') + '\\r\\n' });
+  const callEnd = PropertyTypingSignals.createCallSignal(nostr, a, [aPub, bPub], bPub, callId, 'call-hangup', 113);
   const startEvent = start[0].event;
   const stopEvent = stop[0].event;
   const openedStart = PropertyTypingSignals.unwrap(nostr, startEvent, b);
@@ -37,6 +42,12 @@ const result = vm.runInContext(`(() => {
   const openedReceipt = PropertyTypingSignals.unwrap(nostr, groupReceipt[0].event, b);
   const openedPresence = PropertyTypingSignals.unwrap(nostr, activePresence[0].event, b);
   const openedInactivePresence = PropertyTypingSignals.unwrap(nostr, inactivePresence[0].event, b);
+  const openedCallOffer = PropertyTypingSignals.unwrap(nostr, callOffer[0].event, b);
+  const openedCallAnswer = PropertyTypingSignals.unwrap(nostr, callAnswer[0].event, a);
+  const openedCallEnd = PropertyTypingSignals.unwrap(nostr, callEnd[0].event, b);
+  const wrongCallRecipient = PropertyTypingSignals.unwrap(nostr, callOffer[0].event, c);
+  const staleCallSignal = PropertyTypingSignals.unwrap(nostr, callOffer[0].event, b,
+    Math.floor(Date.now() / 1000) + PropertyTypingSignals.MAX_CALL_SIGNAL_AGE_SECONDS + 3);
   const wrongPresenceRecipient = PropertyTypingSignals.unwrap(nostr, activePresence[0].event, c);
   const stalePresence = PropertyTypingSignals.unwrap(nostr, activePresence[0].event, b,
     Math.floor(Date.now() / 1000) + PropertyTypingSignals.MAX_PRESENCE_AGE_SECONDS + 3);
@@ -56,6 +67,12 @@ const result = vm.runInContext(`(() => {
   try { PropertyTypingSignals.createPresence(nostr, a, [aPub, bPub, cPub], true, 109); } catch { groupPresenceRejected = true; }
   let invalidPresenceRejected = false;
   try { PropertyTypingSignals.createPresence(nostr, a, [aPub, bPub], 'online', 110); } catch { invalidPresenceRejected = true; }
+  let groupCallRejected = false;
+  try { PropertyTypingSignals.createCallSignal(nostr, a, [aPub, bPub, cPub], bPub, callId, 'call-offer', 114, { media: 'video', sdp: videoSdp }); } catch { groupCallRejected = true; }
+  let invalidCallSdpRejected = false;
+  try { PropertyTypingSignals.createCallSignal(nostr, a, [aPub, bPub], bPub, callId, 'call-offer', 115, { media: 'video', sdp: 'v=0\\r\\n' }); } catch { invalidCallSdpRejected = true; }
+  let invalidCallIdRejected = false;
+  try { PropertyTypingSignals.createCallSignal(nostr, a, [aPub, bPub], bPub, 'not-a-call-id', 'call-hangup', 116); } catch { invalidCallIdRejected = true; }
   return {
     wrapperKind: startEvent.kind,
     signatureValid: nostr.verifyEvent(startEvent) && nostr.verifyEvent(stopEvent),
@@ -84,6 +101,21 @@ const result = vm.runInContext(`(() => {
     stalePresenceRejected: stalePresence === null,
     groupPresenceRejected,
     invalidPresenceRejected,
+    callWrapperKind: callOffer[0].event.kind,
+    callRecipientOnly: callOffer[0].recipient === bPub && JSON.stringify(callOffer[0].event.tags) === JSON.stringify([['p', bPub]]),
+    callPayloadEncrypted: !callOffer[0].event.content.includes('m=video'),
+    callOfferAction: openedCallOffer?.action,
+    callOfferId: openedCallOffer?.callId,
+    callOfferMedia: openedCallOffer?.media,
+    callOfferSdp: openedCallOffer?.sdp,
+    callAnswerAction: openedCallAnswer?.action,
+    callAnswerMedia: openedCallAnswer?.media,
+    callEndAction: openedCallEnd?.action,
+    callWrongRecipientRejected: wrongCallRecipient === null,
+    callStaleSignalRejected: staleCallSignal === null,
+    groupCallRejected,
+    invalidCallSdpRejected,
+    invalidCallIdRejected,
     receiptGroupFlag: openedReceipt?.group,
     receiptParticipants: openedReceipt?.participants.length,
     wrongReceiptRecipientRejected: wrongReceiptRecipient === null,
@@ -128,8 +160,23 @@ assert.equal(result.wrongPresenceRecipientRejected, true);
 assert.equal(result.stalePresenceRejected, true, 'stale active status is rejected without sleeping');
 assert.equal(result.groupPresenceRejected, true, 'active status cannot be sent to a group');
 assert.equal(result.invalidPresenceRejected, true);
+assert.equal(result.callWrapperKind, 21059, 'call setup uses the Property ephemeral gift-wrap transport');
+assert.equal(result.callRecipientOnly, true, 'call signaling is routed only to the other direct participant');
+assert.equal(result.callPayloadEncrypted, true, 'SDP and media details are encrypted from the relay');
+assert.equal(result.callOfferAction, 'call-offer');
+assert.equal(result.callOfferId, 'cd'.repeat(16));
+assert.equal(result.callOfferMedia, 'video');
+assert.match(result.callOfferSdp, /m=video/);
+assert.equal(result.callAnswerAction, 'call-answer');
+assert.equal(result.callAnswerMedia, 'audio', 'a video offer may be answered without enabling the recipient camera');
+assert.equal(result.callEndAction, 'call-hangup');
+assert.equal(result.callWrongRecipientRejected, true);
+assert.equal(result.callStaleSignalRejected, true, 'expired setup signals are rejected by logical timestamp');
+assert.equal(result.groupCallRejected, true, 'calls cannot be opened for group conversations');
+assert.equal(result.invalidCallSdpRejected, true);
+assert.equal(result.invalidCallIdRejected, true);
 assert.equal(result.wrongRecipientRejected, true);
 assert.equal(result.tamperingRejected, true);
 assert.equal(result.staleSignalRejected, true);
 assert.equal(result.invalidActionRejected, true);
-console.log('PASS: private typing, read-receipt and active-status signals use encrypted NIP-59 envelopes with expiry, replay guards and recipient isolation');
+console.log('PASS: encrypted NIP-59 activity and call signals enforce expiry, direct recipients and validated SDP');

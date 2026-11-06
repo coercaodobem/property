@@ -11,14 +11,14 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v33">
-  <link rel="stylesheet" href="./styles.css?v=property-v64">
+  <link rel="stylesheet" href="./styles.css?v=property-v65">
   <link rel="stylesheet" href="./link-preview.css?v=property-v1">
   <link rel="stylesheet" href="./message-scroll.css?v=property-v1">
   <link rel="stylesheet" href="./group-mentions.css?v=property-v2">
   <link rel="stylesheet" href="./location-cards.css?v=property-v1">
   <link rel="stylesheet" href="./message-forwards.css?v=property-v1">
   <link rel="stylesheet" href="./typing-signals.css?v=property-v1">
-  <script defer src="./i18n.js?v=property-v62"></script>
+  <script defer src="./i18n.js?v=property-v63"></script>
   <script defer src="./pwa.js?v=property-v35"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v33"></script>
@@ -39,7 +39,8 @@
   <script defer src="./nostr-entities.js?v=property-v1"></script>
   <script defer src="./location-cards.js?v=property-v1"></script>
   <script defer src="./message-forwards.js?v=property-v1"></script>
-  <script defer src="./typing-signals.js?v=property-v4"></script>
+  <script defer src="./typing-signals.js?v=property-v5"></script>
+  <script defer src="./call-controller.js?v=property-v1"></script>
   <script defer src="./rich-text.js?v=property-v38"></script>
   <script defer src="./message-edits.js?v=property-v1"></script>
   <script defer src="./secret-guard.js?v=property-v1"></script>
@@ -56,7 +57,7 @@
   <script defer src="./group-mentions.js?v=property-v2"></script>
   <script defer src="./voice-messages.js?v=property-v1"></script>
   <script defer src="./file-transfers.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v79"></script>
+  <script defer src="./app.js?v=property-v80"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -155,7 +156,7 @@
       <section id="messages-view" class="content-view messages-view">
         <div id="empty-conversation" class="empty-state"><div class="empty-symbol" aria-hidden="true">✳</div><p class="eyebrow">PRIVATE NOSTR CHAT</p><h2>Your conversations, without a middleman</h2><p>Start with a public Nostr key or Property contact link. Your messages stay encrypted; Property selects relays automatically when none are saved.</p><div class="empty-actions"><button id="empty-new-chat" class="button primary" type="button">New conversation</button><button id="empty-join-chat" class="button secondary" type="button">Join with a contact link or code</button></div><button id="empty-share-contact" class="button text" type="button">Share my contact</button><p class="fine-print">Both people need to publish a public kind 10050 inbox list to exchange NIP-17 messages.</p></div>
         <div id="conversation-pane" class="conversation-pane hidden">
-          <header class="conversation-header"><button id="mobile-open-conversations" class="icon-button small mobile-conversation-toggle" type="button" aria-label="Show conversations" title="Show conversations" aria-expanded="false" aria-controls="conversation-list">☰</button><div class="avatar" id="chat-avatar">?</div><div class="person-details"><h2 id="chat-title">Conversation</h2><span id="chat-subtitle" class="muted"></span><span id="chat-activity" class="chat-activity" role="status" aria-live="polite" hidden></span></div><button id="message-search-button" class="icon-button small" type="button" aria-label="Search in this conversation" title="Search in this conversation" aria-expanded="false">⌕</button><button id="agent-block-button" class="icon-button small hidden" type="button" aria-label="Block agent" title="Block agent">⊘</button><button id="chat-details-button" class="icon-button" aria-label="Conversation details">···</button></header>
+          <header class="conversation-header"><button id="mobile-open-conversations" class="icon-button small mobile-conversation-toggle" type="button" aria-label="Show conversations" title="Show conversations" aria-expanded="false" aria-controls="conversation-list">☰</button><div class="avatar" id="chat-avatar">?</div><div class="person-details"><h2 id="chat-title">Conversation</h2><span id="chat-subtitle" class="muted"></span><span id="chat-activity" class="chat-activity" role="status" aria-live="polite" hidden></span></div><button id="message-search-button" class="icon-button small" type="button" aria-label="Search in this conversation" title="Search in this conversation" aria-expanded="false">⌕</button><button id="audio-call-button" class="icon-button small call-launch-button" type="button" aria-label="Start audio call" title="Start audio call" hidden>☎</button><button id="video-call-button" class="icon-button small call-launch-button" type="button" aria-label="Start video call" title="Start video call" hidden>▣</button><button id="agent-block-button" class="icon-button small hidden" type="button" aria-label="Block agent" title="Block agent">⊘</button><button id="chat-details-button" class="icon-button" aria-label="Conversation details">···</button></header>
           <div id="message-search-bar" class="message-search-bar hidden" role="search"><span aria-hidden="true">⌕</span><input id="message-search-input" type="search" autocomplete="off" placeholder="Search in this conversation" aria-label="Search in this conversation"><span id="message-search-count" class="message-search-count" role="status" aria-live="polite"></span><button id="message-search-older" class="icon-button small" type="button" aria-label="Older match" title="Older match" disabled>↑</button><button id="message-search-newer" class="icon-button small" type="button" aria-label="Newer match" title="Newer match" disabled>↓</button><button id="message-search-close" class="icon-button small" type="button" aria-label="Close search" title="Close search">×</button></div>
           <div class="messages-scroll-shell">
             <div id="messages" class="messages" aria-live="polite"></div>
@@ -312,6 +313,18 @@
   <dialog id="secret-guard-dialog" class="dialog-card secret-guard-dialog" aria-labelledby="secret-guard-title" aria-describedby="secret-guard-copy" role="alertdialog">
     <div class="dialog-head"><div><p class="eyebrow">CHECK BEFORE SENDING</p><h2 id="secret-guard-title">Possible secret</h2></div><button id="secret-guard-close" class="icon-button" type="button" aria-label="Cancel">×</button></div>
     <div class="dialog-body"><p id="secret-guard-copy" class="secret-guard-copy"></p><p id="secret-guard-target" class="secret-guard-target"></p><p class="fine-print">This check runs on this device. The warning does not display or save the message text.</p><div class="dialog-actions secret-guard-actions"><button id="secret-guard-cancel" class="button secondary" type="button">Cancel</button><button id="secret-guard-send-anyway" class="button danger" type="button">Send anyway</button></div></div>
+  </dialog>
+  <dialog id="call-consent-dialog" class="dialog-card" aria-labelledby="call-consent-title" aria-describedby="call-consent-copy">
+    <form method="dialog" class="dialog-head"><div><p class="eyebrow">PROPERTY · DIRECT CALL</p><h2 id="call-consent-title">Start a call?</h2></div><button class="icon-button" aria-label="Cancel">×</button></form>
+    <div class="dialog-body"><p id="call-consent-copy" class="muted"></p><p class="fine-print">The other person may learn your network IP address through WebRTC. Google STUN servers help find a direct path and also see your IP. Relays carry encrypted call setup only; they do not carry audio or video. Some networks require a TURN server, which Property does not provide.</p><p class="fine-print">Calls ring only while Property is open and connected to your inbox relays. The browser may suspend a mobile PWA. Media is not recorded by Property.</p><div class="dialog-actions"><button id="call-consent-cancel" class="button secondary" type="button">Cancel</button><button id="call-consent-continue" class="button primary" type="button">Continue</button></div><p id="call-consent-error" class="error" role="alert"></p></div>
+  </dialog>
+  <dialog id="incoming-call-dialog" class="dialog-card incoming-call-dialog" aria-labelledby="incoming-call-title" aria-describedby="incoming-call-copy" role="alertdialog">
+    <div class="dialog-head"><div><p class="eyebrow">PROPERTY · DIRECT CALL</p><h2 id="incoming-call-title">Incoming call</h2></div></div>
+    <div class="dialog-body"><p id="incoming-call-name" class="incoming-call-name"></p><p id="incoming-call-copy" class="muted"></p><p class="fine-print">Answering opens your microphone and can reveal your network IP address to this contact and to the configured Google STUN servers. Your browser asks permission before using media.</p><div class="dialog-actions"><button id="incoming-call-decline" class="button danger" type="button">Decline</button><button id="incoming-call-audio" class="button secondary" type="button">Answer with audio</button><button id="incoming-call-video" class="button primary" type="button" hidden>Answer with video</button></div></div>
+  </dialog>
+  <dialog id="call-session-dialog" class="dialog-card call-session-dialog" aria-labelledby="call-session-title" aria-describedby="call-session-status">
+    <div class="dialog-head"><div><p class="eyebrow">PROPERTY · DIRECT CALL</p><h2 id="call-session-title">Call</h2></div><button id="call-session-close" class="icon-button" type="button" aria-label="Close call" hidden>×</button></div>
+    <div class="dialog-body"><div id="call-media-stage" class="call-media-stage"><p id="call-audio-avatar" class="call-audio-avatar" aria-hidden="true">P</p><video id="call-remote-video" class="call-remote-video" autoplay playsinline muted hidden aria-label="Video from the other participant"></video><video id="call-local-video" class="call-local-video" autoplay playsinline muted hidden aria-label="Your camera preview"></video></div><audio id="call-remote-audio" autoplay></audio><p id="call-session-status" class="call-session-status" role="status" aria-live="polite"></p><p id="call-session-error" class="error" role="alert"></p><div class="dialog-actions call-session-controls"><button id="call-microphone-toggle" class="button secondary" type="button">Mute microphone</button><button id="call-camera-toggle" class="button secondary" type="button" hidden>Turn camera off</button><button id="call-end-button" class="button danger" type="button">End call</button></div></div>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <footer class="app-footer"><span>Property · local code</span><span><a id="about-link" href="./about.html">How Property works</a></span></footer>
