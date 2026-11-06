@@ -19,3 +19,12 @@
 .call-mini-control:disabled{opacity:.45;cursor:not-allowed}
 .call-mini-control.danger{border-color:#773d37;background:#40231f;color:#ffd5ca}
 @media(max-width:420px){.call-mini-window{width:min(300px,calc(100vw - 20px));right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom))}.call-mini-controls{gap:4px;padding:7px 8px 8px}.call-mini-control{min-height:34px;font-size:9px}}
+.call-device-settings{margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#101719}
+.call-device-settings[hidden],.call-device-field[hidden]{display:none!important}
+.call-device-settings summary{color:var(--text);font-size:13px;font-weight:700;cursor:pointer;list-style-position:inside}
+.call-device-settings summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.call-device-grid{display:grid;gap:9px;padding-top:10px}
+.call-device-field{display:grid;gap:5px;color:var(--muted);font-size:12px;font-weight:650}
+.call-device-field select{width:100%;min-height:38px;padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:#151c20;color:var(--text)}
+.call-device-field select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.call-device-field select:disabled{opacity:.6;cursor:wait}

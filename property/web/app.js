@@ -844,11 +844,57 @@
     $('incoming-call-name').textContent = label;
     $('call-mini-title').textContent = label;
   }
+  function setCallDeviceOptions(select, devices, selectedId, deviceName, translatedDeviceName) {
+    const options = [
+      { deviceId: '', label: localized('System default', 'Padrão do sistema') },
+      ...devices.filter(device => device.deviceId && device.deviceId !== 'default').map((device, index) => ({
+        deviceId: device.deviceId,
+        label: device.label || localized(`${deviceName} ${index + 1}`, `${translatedDeviceName} ${index + 1}`)
+      }))
+    ];
+    const currentId = selectedId === 'default' ? '' : selectedId;
+    if (currentId && !options.some(option => option.deviceId === currentId)) {
+      options.push({ deviceId: currentId, label: localized(`Current ${deviceName.toLowerCase()}`, `${translatedDeviceName.toLowerCase()} atual`) });
+    }
+    select.replaceChildren(...options.map(item => {
+      const option = document.createElement('option');
+      option.value = item.deviceId;
+      option.textContent = item.label;
+      return option;
+    }));
+    select.value = currentId || '';
+  }
+  async function refreshCallDeviceSettings() {
+    const call = state.call;
+    const controller = state.callController;
+    const panel = $('call-device-settings');
+    if (!panel.open || !call || callTerminal(call.status) || call.status === 'incoming' || !call.deviceSelectionAvailable || !controller?.listDevices) return;
+    const devices = await controller.listDevices().catch(() => []);
+    if (state.call?.callId !== call.callId || !panel.open) return;
+    const audioInputs = devices.filter(device => device.kind === 'audioinput');
+    const videoInputs = devices.filter(device => device.kind === 'videoinput');
+    const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+    setCallDeviceOptions($('call-audio-input'), audioInputs, call.audioInputId, 'Microphone', 'Microfone');
+    setCallDeviceOptions($('call-video-input'), videoInputs, call.videoInputId, 'Camera', 'Câmera');
+    setCallDeviceOptions($('call-audio-output'), audioOutputs, call.audioOutputId, 'Speaker', 'Saída de áudio');
+    $('call-audio-input-field').hidden = audioInputs.filter(device => device.deviceId && device.deviceId !== 'default').length < 2;
+    $('call-video-input-field').hidden = call.localMedia !== 'video' || call.screenSharing || videoInputs.filter(device => device.deviceId && device.deviceId !== 'default').length < 2;
+    $('call-audio-output-field').hidden = !call.audioOutputSelectionAvailable || audioOutputs.filter(device => device.deviceId && device.deviceId !== 'default').length < 2;
+    panel.hidden = $('call-audio-input-field').hidden && $('call-video-input-field').hidden && $('call-audio-output-field').hidden;
+  }
+  function updateCallDeviceLabels() {
+    $('call-device-settings-summary').textContent = localized('Audio and video devices', 'Dispositivos de áudio e vídeo');
+    $('call-audio-input-label').textContent = localized('Microphone', 'Microfone');
+    $('call-video-input-label').textContent = localized('Camera', 'Câmera');
+    $('call-audio-output-label').textContent = localized('Speaker', 'Saída de áudio');
+  }
   function updateCallState(call) {
     const previous = state.call;
     state.call = call;
     if (!call) {
       callWindow.hide();
+      $('call-device-settings').open = false;
+      $('call-device-settings').hidden = true;
       state.callUiHadSession = false;
       state.callUiSequence++;
       for (const id of ['incoming-call-dialog', 'call-session-dialog', 'call-consent-dialog']) if ($(id).open) $(id).close();
@@ -860,6 +906,11 @@
     void setCallPeerLabels(call);
     $('call-session-status').textContent = callStatusText(call);
     $('call-session-error').textContent = call.error || '';
+    updateCallDeviceLabels();
+    $('call-device-settings').hidden = callTerminal(call.status) || call.status === 'incoming' || !call.localMediaReady || !call.deviceSelectionAvailable;
+    $('call-audio-input').disabled = call.deviceSettingsBusy || !call.localMediaReady;
+    $('call-video-input').disabled = call.deviceSettingsBusy || !call.localMediaReady || call.screenSharing;
+    $('call-audio-output').disabled = call.deviceSettingsBusy || !call.localMediaReady;
     $('incoming-call-copy').textContent = call.requestedMedia === 'video'
       ? localized('They are asking to start a video call.', 'A pessoa está iniciando uma chamada de vídeo.')
       : localized('They are asking to start an audio call.', 'A pessoa está iniciando uma chamada de áudio.');
@@ -876,17 +927,17 @@
     $('call-session-minimize').hidden = terminal || call.status === 'incoming';
     $('call-end-button').hidden = terminal;
     $('call-microphone-toggle').hidden = terminal || call.status === 'incoming';
-    $('call-microphone-toggle').disabled = !call.microphoneEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status);
+    $('call-microphone-toggle').disabled = call.deviceSettingsBusy || !call.localMediaReady || (!call.microphoneEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status));
     $('call-microphone-toggle').textContent = call.microphoneEnabled
       ? localized('Mute microphone', 'Silenciar microfone')
       : localized('Unmute microphone', 'Ativar microfone');
     $('call-camera-toggle').hidden = terminal || call.localMedia !== 'video' || call.screenSharing;
-    $('call-camera-toggle').disabled = !call.cameraEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status);
+    $('call-camera-toggle').disabled = call.deviceSettingsBusy || !call.localMediaReady || (!call.cameraEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status));
     $('call-camera-toggle').textContent = call.cameraEnabled
       ? localized('Turn camera off', 'Desligar câmera')
       : localized('Turn camera on', 'Ligar câmera');
     $('call-screen-share-toggle').hidden = terminal || !call.screenShareAvailable;
-    $('call-screen-share-toggle').disabled = call.screenShareBusy || (!call.screenSharing && call.status !== 'connected');
+    $('call-screen-share-toggle').disabled = call.deviceSettingsBusy || call.screenShareBusy || (!call.screenSharing && call.status !== 'connected');
     $('call-screen-share-toggle').textContent = call.screenSharing
       ? localized('Stop sharing', 'Parar compartilhamento')
       : localized('Share screen', 'Compartilhar tela');
@@ -899,19 +950,19 @@
     $('call-mini-avatar').textContent = $('call-audio-avatar').textContent;
     const miniMicrophone = $('call-mini-microphone');
     miniMicrophone.hidden = terminal || call.status === 'incoming';
-    miniMicrophone.disabled = !call.microphoneEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status);
+    miniMicrophone.disabled = call.deviceSettingsBusy || !call.localMediaReady || (!call.microphoneEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status));
     miniMicrophone.textContent = call.microphoneEnabled ? localized('Mute', 'Silenciar') : localized('Unmute', 'Ativar');
     miniMicrophone.setAttribute('aria-label', call.microphoneEnabled ? localized('Mute microphone', 'Silenciar microfone') : localized('Unmute microphone', 'Ativar microfone'));
     miniMicrophone.title = miniMicrophone.getAttribute('aria-label');
     const miniCamera = $('call-mini-camera');
     miniCamera.hidden = terminal || call.localMedia !== 'video';
-    miniCamera.disabled = !call.cameraEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status);
+    miniCamera.disabled = call.deviceSettingsBusy || !call.localMediaReady || (!call.cameraEnabled && !['requesting-media', 'connected', 'reconnecting'].includes(call.status));
     miniCamera.textContent = call.cameraEnabled ? localized('Camera off', 'Câmera off') : localized('Camera on', 'Câmera on');
     miniCamera.setAttribute('aria-label', call.cameraEnabled ? localized('Turn camera off', 'Desligar câmera') : localized('Turn camera on', 'Ligar câmera'));
     miniCamera.title = miniCamera.getAttribute('aria-label');
     const miniScreenShare = $('call-mini-screen-share');
     miniScreenShare.hidden = terminal || !call.screenShareAvailable;
-    miniScreenShare.disabled = call.screenShareBusy || (!call.screenSharing && call.status !== 'connected');
+    miniScreenShare.disabled = call.deviceSettingsBusy || call.screenShareBusy || (!call.screenSharing && call.status !== 'connected');
     miniScreenShare.textContent = call.screenSharing ? localized('Stop share', 'Parar') : localized('Share', 'Tela');
     miniScreenShare.setAttribute('aria-label', call.screenSharing ? localized('Stop sharing', 'Parar compartilhamento') : localized('Share screen', 'Compartilhar tela'));
     miniScreenShare.title = miniScreenShare.getAttribute('aria-label');
@@ -954,6 +1005,8 @@
   function ensureCallController() {
     if (!state.callController) {
       state.callController = Calls.create({
+        mediaDevices: navigator.mediaDevices,
+        remoteAudioElement: $('call-remote-audio'),
         onSignal: sendCallSignal,
         onState: updateCallState,
         onRemoteStream: stream => renderCallMedia(stream),
@@ -5707,7 +5760,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v75', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v76', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -5827,6 +5880,43 @@
     $('call-camera-toggle').addEventListener('click', () => {
       const call = state.call;
       if (call) state.callController?.setCameraEnabled(!call.cameraEnabled);
+    });
+    $('call-device-settings').addEventListener('toggle', () => {
+      if ($('call-device-settings').open) void refreshCallDeviceSettings();
+    });
+    $('call-audio-input').addEventListener('change', () => {
+      const selectedId = $('call-audio-input').value;
+      const result = state.callController?.setAudioInputDevice(selectedId);
+      Promise.resolve(result).then(ok => {
+        if (!ok) {
+          $('call-audio-input').value = state.call?.audioInputId === 'default' ? '' : (state.call?.audioInputId || '');
+          showToast(state.call?.error || localized('Could not switch the microphone.', 'Não foi possível trocar o microfone.'));
+        }
+        return refreshCallDeviceSettings();
+      }).catch(error => showToast(error?.message || localized('Could not switch the microphone.', 'Não foi possível trocar o microfone.')));
+    });
+    $('call-video-input').addEventListener('change', () => {
+      const result = state.callController?.setVideoInputDevice($('call-video-input').value);
+      Promise.resolve(result).then(ok => {
+        if (!ok) {
+          $('call-video-input').value = state.call?.videoInputId === 'default' ? '' : (state.call?.videoInputId || '');
+          showToast(state.call?.error || localized('Could not switch the camera.', 'Não foi possível trocar a câmera.'));
+        }
+        return refreshCallDeviceSettings();
+      }).catch(error => showToast(error?.message || localized('Could not switch the camera.', 'Não foi possível trocar a câmera.')));
+    });
+    $('call-audio-output').addEventListener('change', () => {
+      const result = state.callController?.setAudioOutputDevice($('call-audio-output').value);
+      Promise.resolve(result).then(ok => {
+        if (!ok) {
+          $('call-audio-output').value = state.call?.audioOutputId === 'default' ? '' : (state.call?.audioOutputId || '');
+          showToast(state.call?.error || localized('Could not switch the speaker.', 'Não foi possível trocar a saída de áudio.'));
+        }
+        return refreshCallDeviceSettings();
+      }).catch(error => showToast(error?.message || localized('Could not switch the speaker.', 'Não foi possível trocar a saída de áudio.')));
+    });
+    globalThis.navigator?.mediaDevices?.addEventListener?.('devicechange', () => {
+      if ($('call-device-settings').open) void refreshCallDeviceSettings();
     });
     $('call-screen-share-toggle').addEventListener('click', () => {
       const call = state.call;

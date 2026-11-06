@@ -22,6 +22,7 @@
     const onState = typeof options.onState === 'function' ? options.onState : () => {};
     const onRemoteStream = typeof options.onRemoteStream === 'function' ? options.onRemoteStream : () => {};
     const onLocalStream = typeof options.onLocalStream === 'function' ? options.onLocalStream : () => {};
+    const remoteAudioElement = options.remoteAudioElement || null;
     const iceServers = Array.isArray(options.iceServers) ? options.iceServers : DEFAULT_ICE_SERVERS;
     let current = null;
 
@@ -34,6 +35,13 @@
         requestedMedia: session.requestedMedia,
         localMedia: session.localMedia,
         status: session.status,
+        localMediaReady: Boolean(session.localStream),
+        deviceSelectionAvailable: typeof mediaDevices?.enumerateDevices === 'function',
+        audioOutputSelectionAvailable: typeof remoteAudioElement?.setSinkId === 'function',
+        audioInputId: session.audioInputId || '',
+        videoInputId: session.videoInputId || '',
+        audioOutputId: session.audioOutputId || '',
+        deviceSettingsBusy: session.deviceTransition === true,
         microphoneEnabled: session.localStream?.getAudioTracks().some(track => track.enabled) ?? false,
         cameraEnabled: !session.screenTrack && (session.localStream?.getVideoTracks().some(track => track.enabled) ?? false),
         screenSharing: Boolean(session.screenTrack),
@@ -71,6 +79,9 @@
       session.peerConnection = null;
       session.remoteStream = null;
       onRemoteStream(null);
+      if (typeof remoteAudioElement?.setSinkId === 'function' && session.audioOutputId && session.audioOutputId !== 'default') {
+        try { remoteAudioElement.setSinkId('')?.catch?.(() => {}); } catch { /* Output reset is best-effort after the call ends. */ }
+      }
     }
 
     function terminal(session, status, error = '') {
@@ -140,11 +151,17 @@
     function addLocalTracks(session, pc) {
       for (const track of session.localStream.getTracks()) {
         const sender = pc.addTrack(track, session.localStream);
-        if (track.kind === 'video') {
+        if (track.kind === 'audio') {
+          session.audioSender = sender;
+          session.audioTrack = track;
+          session.audioInputId = track.getSettings?.().deviceId || '';
+        } else if (track.kind === 'video') {
           session.videoSender = sender;
           session.cameraTrack = track;
+          session.videoInputId = track.getSettings?.().deviceId || '';
         }
       }
+      session.audioOutputId = remoteAudioElement?.sinkId || '';
     }
 
     async function prepareLocalDescription(session, description, signalAction, media) {
@@ -164,7 +181,7 @@
         if (current && !['ended', 'failed', 'no-path', 'busy', 'declined'].includes(current.status)) throw new Error('A call is already active.');
       if (current) dismiss();
       if (!validCallId(callId) || typeof peer !== 'string' || !/^[0-9a-f]{64}$/i.test(peer)) throw new TypeError('Invalid call recipient or identifier.');
-      const session = current = { callId, peer: peer.toLowerCase(), outgoing: true, requestedMedia: video ? 'video' : 'audio', localMedia: video ? 'video' : 'audio', videoNegotiated: false, videoSender: null, cameraTrack: null, screenTrack: null, screenStream: null, screenTransition: false, cameraEnabledBeforeShare: true, status: 'requesting-media', peerConnection: null, localStream: null, remoteStream: null, error: '' };
+      const session = current = { callId, peer: peer.toLowerCase(), outgoing: true, requestedMedia: video ? 'video' : 'audio', localMedia: video ? 'video' : 'audio', videoNegotiated: false, audioSender: null, audioTrack: null, audioInputId: '', audioOutputId: '', videoSender: null, cameraTrack: null, videoInputId: '', deviceTransition: false, screenTrack: null, screenStream: null, screenTransition: false, cameraEnabledBeforeShare: true, status: 'requesting-media', peerConnection: null, localStream: null, remoteStream: null, error: '' };
       update(session, 'requesting-media');
       try {
         session.localStream = await getLocalStream(video);
@@ -187,7 +204,7 @@
           !['audio', 'video'].includes(media) || !validDescription('offer', sdp, media)) return false;
       if (current && !['ended', 'failed', 'no-path', 'busy', 'declined'].includes(current.status)) return false;
       if (current) dismiss();
-      const session = current = { callId, peer: peer.toLowerCase(), outgoing: false, requestedMedia: media, localMedia: '', videoNegotiated: false, videoSender: null, cameraTrack: null, screenTrack: null, screenStream: null, screenTransition: false, cameraEnabledBeforeShare: true, remoteOffer: sdp, status: 'incoming', peerConnection: null, localStream: null, remoteStream: null, error: '' };
+      const session = current = { callId, peer: peer.toLowerCase(), outgoing: false, requestedMedia: media, localMedia: '', videoNegotiated: false, audioSender: null, audioTrack: null, audioInputId: '', audioOutputId: '', videoSender: null, cameraTrack: null, videoInputId: '', deviceTransition: false, screenTrack: null, screenStream: null, screenTransition: false, cameraEnabledBeforeShare: true, remoteOffer: sdp, status: 'incoming', peerConnection: null, localStream: null, remoteStream: null, error: '' };
       update(session, 'incoming');
       return true;
     }
@@ -273,9 +290,134 @@
       return true;
     }
 
+    async function listDevices() {
+      if (typeof mediaDevices?.enumerateDevices !== 'function') return [];
+      const devices = await mediaDevices.enumerateDevices();
+      return (Array.isArray(devices) ? devices : []).filter(device =>
+        device && typeof device.deviceId === 'string' &&
+        ['audioinput', 'videoinput', 'audiooutput'].includes(device.kind)
+      ).slice(0, 96).map(device => Object.freeze({
+        deviceId: device.deviceId,
+        kind: device.kind,
+        label: typeof device.label === 'string' ? device.label.slice(0, 120) : ''
+      }));
+    }
+
+    async function replaceInputDevice(kind, deviceId) {
+      const session = current;
+      if (!session || typeof deviceId !== 'string' ||
+          typeof mediaDevices?.getUserMedia !== 'function' || session.deviceTransition || session.screenTransition ||
+          ['incoming', 'ended', 'failed', 'no-path', 'busy', 'declined'].includes(session.status) ||
+          typeof session.localStream?.removeTrack !== 'function' || typeof session.localStream?.addTrack !== 'function') return false;
+      if (kind === 'video' && (session.localMedia !== 'video' || session.screenTrack)) return false;
+      const sender = kind === 'audio' ? session.audioSender : session.videoSender;
+      const previousTrack = kind === 'audio' ? session.audioTrack : session.cameraTrack;
+      if (!sender || typeof sender.replaceTrack !== 'function' || !previousTrack) return false;
+
+      session.deviceTransition = true;
+      update(session, session.status, '');
+      let replacementStream = null;
+      let replacementTrack = null;
+      let senderChanged = false;
+      let previousRemoved = false;
+      let replacementAdded = false;
+      const previousDeviceId = kind === 'audio' ? session.audioInputId : session.videoInputId;
+      try {
+        const constraint = deviceId ? { deviceId: { exact: deviceId } } : true;
+        replacementStream = await mediaDevices.getUserMedia(kind === 'audio'
+          ? { audio: constraint, video: false }
+          : { audio: false, video: constraint });
+        const tracks = kind === 'audio' ? replacementStream?.getAudioTracks?.() : replacementStream?.getVideoTracks?.();
+        replacementTrack = tracks?.find(track => track?.readyState !== 'ended' && typeof track?.stop === 'function');
+        if (!replacementTrack) throw new Error(`The browser did not provide a ${kind} track.`);
+        if (current !== session || ['ended', 'failed', 'no-path', 'busy', 'declined'].includes(session.status)) return false;
+
+        replacementTrack.enabled = previousTrack.enabled;
+        await sender.replaceTrack(replacementTrack);
+        senderChanged = true;
+        if (current !== session || ['ended', 'failed', 'no-path', 'busy', 'declined'].includes(session.status)) return false;
+        session.localStream.removeTrack(previousTrack);
+        previousRemoved = true;
+        session.localStream.addTrack(replacementTrack);
+        replacementAdded = true;
+        if (kind === 'audio') {
+          session.audioTrack = replacementTrack;
+          session.audioInputId = replacementTrack.getSettings?.().deviceId || deviceId;
+        } else {
+          session.cameraTrack = replacementTrack;
+          session.videoInputId = replacementTrack.getSettings?.().deviceId || deviceId;
+        }
+        onLocalStream(session.localStream);
+        update(session, session.status, '');
+        previousTrack.stop();
+        replacementStream = null;
+        return true;
+      } catch (error) {
+        if (current === session && session.localStream) {
+          if (replacementAdded) session.localStream.removeTrack(replacementTrack);
+          if (previousRemoved) session.localStream.addTrack(previousTrack);
+          if (kind === 'audio') {
+            session.audioTrack = previousTrack;
+            session.audioInputId = previousDeviceId;
+          } else {
+            session.cameraTrack = previousTrack;
+            session.videoInputId = previousDeviceId;
+          }
+          if (replacementAdded || previousRemoved) {
+            try { onLocalStream(session.localStream); } catch { /* The previous capture remains the rollback source. */ }
+          }
+          if (senderChanged) {
+            try { await sender.replaceTrack(previousTrack); } catch { /* Keep the prior track when the browser rejects a replacement. */ }
+          }
+        }
+        if (current === session && !['ended', 'failed', 'no-path', 'busy', 'declined'].includes(session.status)) {
+          update(session, session.status, error?.message || `Could not switch the ${kind} device.`);
+        }
+        return false;
+      } finally {
+        if (replacementStream) {
+          for (const track of replacementStream.getTracks?.() || []) {
+            try { track.stop(); } catch { /* A replaced or rejected device track needs no further use. */ }
+          }
+        } else if (replacementTrack && current !== session) {
+          try { replacementTrack.stop(); } catch { /* The call ended while switching devices. */ }
+        }
+        if (current === session) {
+          session.deviceTransition = false;
+          onState(snapshot(session));
+        }
+      }
+    }
+
+    async function setAudioOutputDevice(deviceId) {
+      const session = current;
+      if (!session || typeof deviceId !== 'string' || typeof remoteAudioElement?.setSinkId !== 'function' ||
+          session.deviceTransition || ['incoming', 'ended', 'failed', 'no-path', 'busy', 'declined'].includes(session.status)) return false;
+      session.deviceTransition = true;
+      update(session, session.status, '');
+      try {
+        await remoteAudioElement.setSinkId(deviceId);
+        if (current !== session) return false;
+        session.audioOutputId = remoteAudioElement.sinkId || deviceId;
+        update(session, session.status, '');
+        return true;
+      } catch (error) {
+        if (current === session) update(session, session.status, error?.message || 'Could not switch the audio output.');
+        return false;
+      } finally {
+        if (current === session) {
+          session.deviceTransition = false;
+          onState(snapshot(session));
+        }
+      }
+    }
+
+    function setAudioInputDevice(deviceId) { return replaceInputDevice('audio', deviceId); }
+    function setVideoInputDevice(deviceId) { return replaceInputDevice('video', deviceId); }
+
     async function startScreenSharing() {
       const session = current;
-      if (!session || session.status !== 'connected' || session.screenTransition || session.screenTrack ||
+      if (!session || session.status !== 'connected' || session.screenTransition || session.deviceTransition || session.screenTrack ||
           session.localMedia !== 'video' || !session.videoNegotiated ||
           typeof mediaDevices?.getDisplayMedia !== 'function' || typeof session.videoSender?.replaceTrack !== 'function') return false;
 
@@ -383,6 +525,10 @@
       setCameraEnabled,
       startScreenSharing,
       stopScreenSharing,
+      listDevices,
+      setAudioInputDevice,
+      setVideoInputDevice,
+      setAudioOutputDevice,
       dismiss,
       dispose,
       getState: () => snapshot()

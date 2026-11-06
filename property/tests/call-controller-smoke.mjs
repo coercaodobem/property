@@ -8,23 +8,26 @@ vm.runInNewContext(source, context, { timeout: 5000 });
 const Calls = context.window.PropertyCalls;
 
 class FakeTrack {
-  constructor(kind) { this.kind = kind; this.enabled = true; this.stopped = false; this.readyState = 'live'; this.onended = null; }
+  constructor(kind, deviceId = '') { this.kind = kind; this.deviceId = deviceId; this.enabled = true; this.stopped = false; this.readyState = 'live'; this.onended = null; }
+  getSettings() { return { deviceId: this.deviceId }; }
   stop() { this.stopped = true; this.readyState = 'ended'; }
   end() { this.readyState = 'ended'; this.onended?.(); }
 }
 
 class FakeStream {
-  constructor(video, audio = true) { this.audio = audio ? [new FakeTrack('audio')] : []; this.video = video ? [new FakeTrack('video')] : []; }
+  constructor(video, audio = true, deviceIds = {}) { this.audio = audio ? [new FakeTrack('audio', deviceIds.audio)] : []; this.video = video ? [new FakeTrack('video', deviceIds.video)] : []; }
   getAudioTracks() { return this.audio; }
   getVideoTracks() { return this.video; }
   getTracks() { return [...this.audio, ...this.video]; }
+  addTrack(track) { (track.kind === 'audio' ? this.audio : this.video).push(track); }
+  removeTrack(track) { const tracks = track.kind === 'audio' ? this.audio : this.video; const index = tracks.indexOf(track); if (index >= 0) tracks.splice(index, 1); }
 }
 
 class FakePeerConnection {
   constructor(configuration) { this.configuration = configuration; this.iceGatheringState = 'complete'; this.connectionState = 'new'; this.closed = false; }
   addTrack(track) {
     (this.tracks ||= []).push(track);
-    const sender = { track, replacements: [], async replaceTrack(nextTrack) { this.track = nextTrack; this.replacements.push(nextTrack); } };
+    const sender = { track, replacements: [], async replaceTrack(nextTrack) { if (this.failNextReplacement) { this.failNextReplacement = false; throw new Error('replaceTrack failed'); } this.track = nextTrack; this.replacements.push(nextTrack); } };
     (this.senders ||= []).push(sender);
     return sender;
   }
@@ -200,6 +203,78 @@ assert.equal(await screenController.end(), true);
 assert.equal(screenStreams[4].getVideoTracks()[0].stopped, true);
 screenController.dispose();
 
+const deviceStreams = [];
+const deviceMedia = {
+  async enumerateDevices() {
+    return [
+      { deviceId: 'mic-a', kind: 'audioinput', label: 'Built-in microphone' },
+      { deviceId: 'mic-b', kind: 'audioinput', label: 'USB microphone' },
+      { deviceId: 'camera-a', kind: 'videoinput', label: 'Front camera' },
+      { deviceId: 'camera-b', kind: 'videoinput', label: 'USB camera' },
+      { deviceId: 'speaker-a', kind: 'audiooutput', label: 'Built-in speaker' },
+      { deviceId: 'speaker-b', kind: 'audiooutput', label: 'Headphones' }
+    ];
+  },
+  async getUserMedia(constraints) {
+    const deviceId = value => value && typeof value === 'object' ? value.deviceId?.exact || '' : '';
+    if (deviceId(constraints.audio) === 'mic-denied') throw new Error('device unavailable');
+    const stream = new FakeStream(constraints.video !== false, constraints.audio !== false, {
+      audio: deviceId(constraints.audio), video: deviceId(constraints.video)
+    });
+    deviceStreams.push(stream);
+    return stream;
+  }
+};
+const remoteAudio = { sinkId: 'default', async setSinkId(deviceId) { this.sinkId = deviceId || 'default'; } };
+const devicePeers = [];
+const deviceController = Calls.create({
+  mediaDevices: deviceMedia,
+  remoteAudioElement: remoteAudio,
+  createPeerConnection(configuration) { const pc = new FakePeerConnection(configuration); devicePeers.push(pc); return pc; },
+  async onSignal() {}
+});
+const deviceCallId = '45'.repeat(16);
+assert.equal(await deviceController.startOutgoing({ peer, callId: deviceCallId, video: true }), true);
+assert.equal(deviceController.getState().deviceSelectionAvailable, true);
+assert.equal(deviceController.getState().audioOutputSelectionAvailable, true);
+assert.equal((await deviceController.listDevices()).length, 6);
+assert.equal(await deviceController.receiveAnswer({ peer, callId: deviceCallId, media: 'video', sdp: 'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\n' }), true);
+devicePeers[0].connectionState = 'connected';
+devicePeers[0].onconnectionstatechange();
+const deviceAudioSender = devicePeers[0].senders.find(sender => sender.track.kind === 'audio');
+const deviceVideoSender = devicePeers[0].senders.find(sender => sender.track.kind === 'video');
+const originalAudio = deviceAudioSender.track;
+const originalCamera = deviceVideoSender.track;
+assert.equal(deviceController.setMicrophoneEnabled(false), true);
+assert.equal(await deviceController.setAudioInputDevice('mic-b'), true);
+assert.equal(deviceAudioSender.track.deviceId, 'mic-b');
+assert.equal(deviceAudioSender.track.enabled, false, 'changing microphones preserves the mute state');
+assert.equal(originalAudio.stopped, true, 'a replaced microphone is stopped');
+assert.equal(deviceController.getState().audioInputId, 'mic-b');
+assert.equal(deviceController.setCameraEnabled(false), true);
+assert.equal(await deviceController.setVideoInputDevice('camera-b'), true);
+assert.equal(deviceVideoSender.track.deviceId, 'camera-b');
+assert.equal(deviceVideoSender.track.enabled, false, 'changing cameras preserves the camera-off state');
+assert.equal(originalCamera.stopped, true, 'a replaced camera is stopped');
+assert.equal(deviceController.getState().videoInputId, 'camera-b');
+assert.equal(await deviceController.setAudioOutputDevice('speaker-b'), true);
+assert.equal(remoteAudio.sinkId, 'speaker-b');
+assert.equal(deviceController.getState().audioOutputId, 'speaker-b');
+const retainedAudio = deviceAudioSender.track;
+assert.equal(await deviceController.setAudioInputDevice('mic-denied'), false, 'a device switch fails closed when browser access is denied');
+assert.equal(deviceAudioSender.track, retainedAudio, 'a rejected device switch preserves the current sender');
+assert.equal(retainedAudio.stopped, false, 'a rejected device switch keeps the current microphone live');
+assert.equal(deviceController.getState().deviceSettingsBusy, false, 'device controls unlock after a failed switch');
+deviceAudioSender.failNextReplacement = true;
+assert.equal(await deviceController.setAudioInputDevice('mic-a'), false, 'a rejected WebRTC track replacement fails closed');
+assert.equal(deviceAudioSender.track, retainedAudio, 'a rejected WebRTC replacement keeps the previous sender track');
+assert.equal(retainedAudio.stopped, false, 'the previous microphone remains live when WebRTC rejects a replacement');
+assert.equal(await deviceController.end(), true);
+deviceController.dismiss();
+assert.equal(retainedAudio.stopped, true, 'ending the call stops the selected microphone');
+assert.equal(deviceVideoSender.track.stopped, true, 'ending the call stops the selected camera');
+assert.equal(remoteAudio.sinkId, 'default', 'ending the call resets the session-only speaker choice');
+
 const missingMedia = Calls.create({ mediaDevices: {}, createPeerConnection: () => new FakePeerConnection({}), onSignal: async () => {} });
 assert.equal(await missingMedia.startOutgoing({ peer, callId: '78'.repeat(16) }), false);
 assert.equal(missingMedia.getState().status, 'failed');
@@ -216,4 +291,4 @@ assert.equal(await deniedAnswer.acceptIncoming(false), false);
 assert.equal(deniedSignals[0].action, 'call-decline', 'permission failure tells the caller the answer could not proceed');
 assert.equal(deniedAnswer.getState().status, 'failed');
 
-console.log('PASS: WebRTC call controller covers incoming, outgoing, camera controls, screen sharing, browser-stop and call cleanup');
+console.log('PASS: WebRTC call controller covers calls, media-device selection, screen sharing and cleanup');
