@@ -1,0 +1,11 @@
+.chat-activity {
+  display: block;
+  margin-top: 3px;
+  color: var(--accent);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.chat-activity[hidden] {
+  display: none;
+}

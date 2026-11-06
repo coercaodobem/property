@@ -14,6 +14,7 @@ for test_file in \
   ledger-rpc-smoke.mjs \
   protocol-smoke.mjs \
   message-edits-smoke.mjs \
+  typing-signals-smoke.mjs \
   chat-search-smoke.mjs \
   conversation-folders-smoke.mjs \
   chat-drafts-smoke.mjs \

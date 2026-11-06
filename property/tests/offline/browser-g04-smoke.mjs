@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-14', 'G04-22', 'G04-23', 'G04-24', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
+const CASES = ['G04-01', 'G04-02', 'G04-25', 'G04-11', 'G04-12', 'G04-14', 'G04-22', 'G04-23', 'G04-24', 'G04-09', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -35,6 +35,7 @@ function parseArgs(argv) {
     if (!options[name]) throw new Error(`Missing --${name.replaceAll('_', '-')}.`);
   }
   if (!['chromium', 'firefox'].includes(options.engine)) throw new Error('G04 requires pinned Chromium or Firefox.');
+  if (options.case && options.case !== 'G04-25') throw new Error('Only --case G04-25 is available for a targeted run.');
   return options;
 }
 
@@ -129,18 +130,32 @@ async function loadRuntime(options, proxyPort) {
   return { playwright, browser, launch, nostrVerify, createSignedEvent, evidence: { playwright_version: packageInfo.version, playwright_package_sha256: options.playwright_package_sha256, browser_version: browser.version(), browser_executable_sha256: options.browser_executable_sha256 } };
 }
 
-async function startGeode(port, base, label) {
+async function startGeode(port, base, label, runtimeBinary = null) {
   const data = path.join(base, `${label} data`), config = path.join(base, `${label} config`);
   const env = { ...process.env, PROPERTY_RELAY_HOST: '127.0.0.1', PROPERTY_RELAY_PORT: String(port), PROPERTY_RELAY_DATA_DIR: data, PROPERTY_RELAY_CONFIG_DIR: config, PROPERTY_RELAY_CONFIG: path.join(config, 'relay.toml') };
   for (const key of PROXY_KEYS) delete env[key];
-  const child = spawn('bash', [path.join(ROOT, 'property/relay/start.sh')], { cwd: ROOT, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  let command = 'bash', args = [path.join(ROOT, 'property/relay/start.sh')];
+  if (runtimeBinary) {
+    await mkdir(data, { recursive: true, mode: 0o700 });
+    await mkdir(config, { recursive: true, mode: 0o700 });
+    const dbFile = path.join(data, 'events.db').replaceAll('"', '\\"');
+    const configText = `[info]\nname = "Property Geode Relay"\ndescription = "Isolated Property test relay"\n\n[network]\nhost = "127.0.0.1"\nport = ${port}\npath = "/"\n\n[database]\nin_memory = false\nfile = "${dbFile}"\n\n[options]\nverify_signatures = true\nrequire_auth = false\n`;
+    await writeFile(path.join(config, 'relay.toml'), configText, { mode: 0o600 });
+    command = runtimeBinary;
+    args = ['--config', path.join(config, 'relay.toml'), '--host', '127.0.0.1', '--port', String(port)];
+  }
+  const child = spawn(command, args, { cwd: ROOT, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
   registerProcessGroup(child);
   let diagnostic = ''; for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => { diagnostic = (diagnostic + chunk.toString()).slice(-4000); });
   try {
     for (let i = 0; i < 120; i++) {
       if (child.exitCode !== null) throw new Error(`Geode ${label} exited ${child.exitCode}: ${safeText(diagnostic)}`);
       const ready = await new Promise(resolve => { const socket = net.connect(port, '127.0.0.1'); socket.setTimeout(300); socket.once('connect', () => { socket.destroy(); resolve(true); }); socket.once('error', () => { socket.destroy(); resolve(false); }); socket.once('timeout', () => { socket.destroy(); resolve(false); }); });
-      if (ready) return { child, port, url: `ws://127.0.0.1:${port}`, data, config, diagnostic: () => diagnostic };
+      if (ready) {
+        const packagedBinary = path.join(ROOT, 'property/relay/dist/geode/bin/geode');
+        const binaryPath = runtimeBinary || await access(packagedBinary).then(() => packagedBinary).catch(() => path.join(data, 'runtime/geode/bin/geode'));
+        return { child, port, url: `ws://127.0.0.1:${port}`, data, config, binaryPath, diagnostic: () => diagnostic };
+      }
       await new Promise(resolve => setTimeout(resolve, 250));
     }
     throw new Error(`Geode ${label} did not become ready: ${safeText(diagnostic)}`);
@@ -319,10 +334,14 @@ async function saveRelaysBeforeIdentity(page, relayUrls) {
   try {
     await page.reload({ waitUntil: 'domcontentloaded' });
   } catch (error) {
-    if (!/NS_BINDING_ABORTED/.test(error.message || '')) throw error;
+    if (!/NS_BINDING_ABORTED|net::ERR_ABORTED/.test(error.message || '')) throw error;
     await page.waitForLoadState('domcontentloaded', { timeout: 20000 });
   }
   await page.locator('#auth-choice').waitFor({ state: 'visible', timeout: 20000 });
+  await page.waitForFunction(() => {
+    const button = document.querySelector('#import-account-button');
+    return button && !button.disabled;
+  }, null, { timeout: 20000 });
 }
 async function openGroupConversation(page, title, members) {
   await page.locator('#new-chat-button').click(); await page.locator('#new-chat-dialog').waitFor({ state: 'visible' });
@@ -425,16 +444,155 @@ async function forceReconnect(page) {
   await page.locator('#save-relays').click(); await page.locator('#relay-dialog').waitFor({ state: 'hidden' });
   await page.waitForFunction(() => /[1-9]\d*\/\d+ relay/.test(document.querySelector('#connection-label')?.textContent || ''), null, { timeout: 20000 });
 }
+async function waitForNewChatResult(page, expectedInput = '') {
+  await page.waitForFunction(() => {
+    const dialog = document.querySelector('#new-chat-dialog');
+    return !dialog?.open || Boolean(document.querySelector('#new-chat-error')?.textContent?.trim());
+  }, null, { timeout: 8000 });
+  const result = await page.evaluate(expected => {
+    const value = document.querySelector('#peer-input')?.value || '';
+    let decoder = 'unavailable';
+    try { decoder = NostrTools.nip19.decode(value).type; } catch (error) { decoder = error?.message || 'decode failed'; }
+    return {
+      open: Boolean(document.querySelector('#new-chat-dialog')?.open),
+      error: document.querySelector('#new-chat-error')?.textContent?.trim() || '',
+      expected_input_length: expected.length,
+      actual_input_length: value.length,
+      input_matches_expected: value === expected,
+      input_starts_with_expected: value.startsWith(expected),
+      extra_input_length: Math.max(0, value.length - expected.length),
+      input_contains_whitespace: /\s/u.test(value),
+      input_has_mixed_case: value !== value.toLowerCase() && value !== value.toUpperCase(),
+      decoder
+    };
+  }, expectedInput);
+  if (result.open) throw new Error(`New conversation did not open: ${result.error || 'dialog remained open without an error message'}; diagnostics=${JSON.stringify(result)}`);
+}
 async function openConversation(page, peerNpub, title) {
   await page.locator('#new-chat-button').click(); await page.locator('#new-chat-dialog').waitFor({ state: 'visible' });
-  await page.locator('#peer-input').fill(peerNpub); await page.locator('#peer-name-input').fill(title); await page.locator('#start-chat-button').click();
-  await page.locator('#new-chat-dialog').waitFor({ state: 'hidden' }); await page.locator('#conversation-pane').waitFor({ state: 'visible' });
+  await page.waitForFunction(() => document.activeElement?.id === 'peer-input', null, { timeout: 3000 });
+  const nameInput = page.locator('#peer-name-input');
+  await nameInput.fill(title); assert.equal(await nameInput.inputValue(), title, 'the local display-name fixture remains intact');
+  const peerInput = page.locator('#peer-input');
+  await peerInput.fill(peerNpub); assert.equal(await peerInput.inputValue(), peerNpub, 'the public-key fixture remains intact after filling the dialog');
+  await page.locator('#start-chat-button').click();
+  await waitForNewChatResult(page, peerNpub); await page.locator('#conversation-pane').waitFor({ state: 'visible' });
 }
 async function sendMessage(page, text) {
   await page.locator('#message-input').fill(text); await page.locator('#send-form button[type="submit"]').click();
   await page.waitForFunction(value => {
     const rows = [...document.querySelectorAll('#messages .message-row')]; return rows.some(row => row.textContent.includes(value));
   }, text, { timeout: 10000 });
+}
+async function runTypingIndicatorCase({ pageA, pageB, a, b, relay0, relay1, runtime, options, report, mark }) {
+  const messageRowsBeforeTyping = await pageA.locator('#messages .message-row').count();
+  const draftBeforeTyping = await pageB.locator('#message-input').inputValue();
+  const languageBeforeTyping = await pageA.locator('#language-picker').inputValue();
+  await pageB.evaluate(() => {
+    const nativeSend = WebSocket.prototype.send;
+    window.__propertyTypingEvents = [];
+    WebSocket.prototype.send = function (data) {
+      try {
+        const frame = JSON.parse(data);
+        if (frame[0] === 'EVENT' && frame[1]?.kind === 21059) window.__propertyTypingEvents.push(frame[1]);
+      } catch {}
+      return nativeSend.call(this, data);
+    };
+  });
+  const secretForDecode = await pageA.evaluate(async password => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('liberdade-local-v1');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const vault = await new Promise((resolve, reject) => {
+      const request = db.transaction('vault').objectStore('vault').get('account');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    const secret = await PropertyVault.unlockVault(vault, password, NostrTools.getPublicKey);
+    const hex = Array.from(secret, byte => byte.toString(16).padStart(2, '0')).join('');
+    secret.fill(0);
+    return hex;
+  }, PASSWORD);
+  const localeRuns = [];
+  const originalViewport = pageA.viewportSize();
+  await pageA.setViewportSize({ width: 390, height: 844 });
+  for (const [language, marker, expectedText, screenshot] of [
+    ['en', 'property-g04-private-typing-draft-en-001', /is typing/u, 'g04-typing-indicator-mobile-en.png'],
+    ['pt-BR', 'property-g04-private-typing-draft-pt-BR-001', /está digitando/u, 'g04-typing-indicator-mobile-pt-BR.png']
+  ]) {
+    await pageA.locator('#language-picker').selectOption(language);
+    const eventOffset = await pageB.evaluate(() => window.__propertyTypingEvents.length);
+    await pageB.locator('#message-input').fill(marker);
+    await pageA.locator('#chat-activity').waitFor({ state: 'visible', timeout: 10000 });
+    assert.match(await pageA.locator('#chat-activity').textContent(), expectedText, `typing status is localized in ${language}`);
+    await pageA.locator('#toast').evaluate(element => {
+      element.classList.remove('show');
+      element.style.transition = 'none';
+      element.style.opacity = '0';
+    });
+    await pageA.screenshot({ path: path.join(options.output, screenshot) });
+    await pageB.waitForFunction(offset => window.__propertyTypingEvents.length > offset, eventOffset, { timeout: 10000 });
+    await pageB.locator('#message-input').blur();
+    await pageA.locator('#chat-activity').waitFor({ state: 'hidden', timeout: 10000 });
+    await pageB.waitForFunction(offset => window.__propertyTypingEvents.length >= offset + 2, eventOffset, { timeout: 10000 });
+    const events = await pageB.evaluate(offset => window.__propertyTypingEvents.slice(offset), eventOffset);
+    assert.ok(events.every(event => event.kind === 21059 && runtime.nostrVerify(event)), 'all captured outer signals are signed ephemeral gift wraps');
+    assert.ok(events.every(event => JSON.stringify(event.tags) === JSON.stringify([['p', a.pubkey]])), 'the relay route contains only the intended recipient');
+    assert.ok(events.every(event => !JSON.stringify(event).includes(marker)), 'the unsent draft is never included in the relay payload');
+    const opened = await pageA.evaluate(({ events, secretHex }) => {
+      const secret = Uint8Array.from(secretHex.match(/.{2}/g), byte => parseInt(byte, 16));
+      try { return events.map(event => PropertyTypingSignals.unwrap(NostrTools, event, secret)); }
+      finally { secret.fill(0); }
+    }, { events, secretHex: secretForDecode });
+    assert.ok(opened.every(signal => signal?.sender === b.pubkey && signal.participants.length === 2), 'the recipient decrypts every signal from the expected sender');
+    assert.equal(opened[0].action, 'typing');
+    assert.equal(opened.at(-1).action, 'stop', 'blur sends an explicit stop signal');
+    assert.ok(opened.every((signal, index) => index === 0 || signal.sequence > opened[index - 1].sequence), 'each repeated status has a strictly increasing sequence');
+    localeRuns.push({ language, signals: events.length, localized: true, explicit_stop: true, screenshot });
+  }
+  if (originalViewport) await pageA.setViewportSize(originalViewport);
+  await pageA.locator('#language-picker').selectOption(languageBeforeTyping);
+  await pageB.locator('#message-input').fill(draftBeforeTyping);
+  assert.equal(await pageA.locator('#messages .message-row').count(), messageRowsBeforeTyping, 'typing creates no message row');
+  const eventsBeforeOptOut = await pageB.evaluate(() => window.__propertyTypingEvents.length);
+  await pageB.locator('#profile-button').click();
+  await pageB.locator('#profile-dialog').waitFor({ state: 'visible' });
+  const typingPreference = pageB.locator('#typing-indicators-enabled');
+  assert.equal(await typingPreference.isChecked(), true, 'the per-identity setting is enabled by default');
+  await typingPreference.uncheck();
+  await pageB.waitForFunction(async pubkey => {
+    const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    const value = await new Promise((resolve, reject) => { const request = db.transaction('settings').objectStore('settings').get(`typing-indicators-${pubkey}`); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    db.close(); return value?.enabled === false;
+  }, b.pubkey);
+  await pageB.locator('#profile-dialog button[aria-label="Close"]').click();
+  await pageB.locator('#profile-dialog').waitFor({ state: 'hidden' });
+  await pageB.locator('#message-input').fill('property-g04-private-typing-opt-out-001');
+  assert.equal(await pageB.evaluate(() => window.__propertyTypingEvents.length), eventsBeforeOptOut, 'disabled typing does not publish a signal');
+  assert.equal(await pageA.locator('#chat-activity').isVisible(), false, 'disabled typing creates no remote status');
+  await pageB.locator('#message-input').fill(draftBeforeTyping);
+  await pageB.locator('#profile-button').click();
+  await pageB.locator('#profile-dialog').waitFor({ state: 'visible' });
+  await typingPreference.check();
+  await pageB.waitForFunction(async pubkey => {
+    const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    const value = await new Promise((resolve, reject) => { const request = db.transaction('settings').objectStore('settings').get(`typing-indicators-${pubkey}`); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    db.close(); return value?.enabled === true;
+  }, b.pubkey);
+  await pageB.locator('#profile-dialog button[aria-label="Close"]').click();
+  await pageB.locator('#profile-dialog').waitFor({ state: 'hidden' });
+  const storedEphemeral = [];
+  for (const relay of [relay0, relay1]) storedEphemeral.push(...await wsQuery(relay.url, { kinds: [21059], '#p': [a.pubkey], limit: 100 }));
+  assert.deepEqual(storedEphemeral, [], 'the isolated relays do not retain ephemeral typing events');
+  const storedMessages = [];
+  for (const relay of [relay0, relay1]) storedMessages.push(...await wsQuery(relay.url, { kinds: [1059], '#p': [a.pubkey], limit: 1000 }));
+  assert.ok(storedMessages.every(event => !JSON.stringify(event).includes('property-g04-private-typing-')), 'stored message wrappers contain no typing draft');
+  report.typing_indicators = { locale_runs: localeRuns, opt_out_persisted_per_identity: true, opt_out_blocks_signals: true, draft_sent: false, visible_message_delta: 0,
+    outer_route_only: true, recipients_decrypted_start_and_stop: true, ephemeral_event_retained: false };
+  mark('G04-25', 'PASS', 'B’s typing status appeared in A’s active conversation in both languages and cleared on blur. A decrypted the signed kind-21059 start/stop signals. The per-identity opt-out persisted and prevented publication; wrappers exposed only A’s route, contained no unsent draft, created no message, and were not retained by either isolated relay.');
 }
 async function localRecord(page, storeName, id) {
   return page.evaluate(async ({ storeName, id }) => {
@@ -512,16 +670,19 @@ async function main() {
     relays: [], external_requests: [], websockets: [], denied_proxy_attempts: [], page_errors: [], inbox_checks: {}, message_checks: {}, failure_checks: {}, reconciliation: {} };
   const mark = (id, status, reason) => Object.assign(report.cases.find(row => row.case === id), { status, reason });
   try {
-    options = parseArgs(process.argv.slice(2)); app = startAppServer(); proxy = startProxy(); await Promise.all([app.ready, proxy.ready]);
+    options = parseArgs(process.argv.slice(2));
+    const onlyTypingCase = options.case === 'G04-25';
+    if (onlyTypingCase) report.cases = ['G04-25'].map(id => ({ case: id, status: 'NOT_RUN', reason: 'Case has not started.' }));
+    app = startAppServer(); proxy = startProxy(); await Promise.all([app.ready, proxy.ready]);
     const origin = `http://127.0.0.1:${app.server.address().port}`; runtime = await loadRuntime(options, proxy.server.address().port);
     report.browser = runtime.evidence; report.local_origin = origin;
-    relay0 = await startGeode(28470, temp, 'relay zero'); relay1 = await startGeode(28471, temp, 'relay one');
+    relay0 = await startGeode(28470, temp, 'relay zero'); relay1 = await startGeode(28471, temp, 'relay one', relay0.binaryPath);
     report.relays = [relay0, relay1].map(relay => ({ url: relay.url, process_id: relay.child.pid, data_dir_mode: 'temporary private directory' }));
     const profileA = path.join(temp, 'profile A with spaces'), profileB = path.join(temp, 'profile B with spaces'), profileC = path.join(temp, 'profile C with spaces');
     contextA = await runtime.playwright[options.engine].launchPersistentContext(profileA, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
     contextB = await runtime.playwright[options.engine].launchPersistentContext(profileB, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
-    contextC = await runtime.playwright[options.engine].launchPersistentContext(profileC, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
-    for (const context of [contextA, contextB, contextC]) instrument(context, origin, report);
+    if (!onlyTypingCase) contextC = await runtime.playwright[options.engine].launchPersistentContext(profileC, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
+    for (const context of [contextA, contextB, contextC].filter(Boolean)) instrument(context, origin, report);
     await contextA.addInitScript(() => {
       window.__propertyNotificationProbe = { permissionRequests: 0, displayed: [] };
       class FakeNotification {
@@ -547,17 +708,42 @@ async function main() {
     });
     stage = 'G04-01: open A'; let pageA = await openApp(contextA, origin);
     stage = 'G04-01: open B'; let pageB = await openApp(contextB, origin);
-    stage = 'G04-01: open C'; let pageC = await openApp(contextC, origin);
+    let pageC = null;
+    if (!onlyTypingCase) { stage = 'G04-01: open C'; pageC = await openApp(contextC, origin); }
     await saveRelaysBeforeIdentity(pageA, [relay0.url]);
     await saveRelaysBeforeIdentity(pageB, [relay0.url]);
-    await saveRelaysBeforeIdentity(pageC, [relay0.url]);
+    if (pageC) await saveRelaysBeforeIdentity(pageC, [relay0.url]);
     stage = 'G04-01: create identity A'; const a = await createIdentity(pageA);
     stage = 'G04-01: create identity B'; const b = await createIdentity(pageB);
-    stage = 'G04-01: create identity C'; const c = await createIdentity(pageC);
+    let c = null;
+    if (pageC) { stage = 'G04-01: create identity C'; c = await createIdentity(pageC); }
     stage = 'G04-01: configure relays A';
     await configureRelays(pageA, [relay0.url], [relay0.url]);
     stage = 'G04-01: configure relays B';
     await configureRelays(pageB, [relay0.url], [relay0.url, relay1.url]);
+    if (onlyTypingCase) {
+      stage = 'G04-25: prepare direct conversation';
+      await openConversation(pageA, b.npub, 'B private');
+      const bootstrap = `property-g04-typing-bootstrap-${crypto.randomUUID()}`;
+      await sendMessage(pageA, bootstrap);
+      await openConversation(pageB, a.npub, 'A private');
+      await pageB.locator('#messages .message-bubble').filter({ hasText: bootstrap }).waitFor({ state: 'visible', timeout: 15000 });
+      const reply = `property-g04-typing-bootstrap-reply-${crypto.randomUUID()}`;
+      await sendMessage(pageB, reply);
+      await pageA.locator('#messages .message-bubble').filter({ hasText: reply }).waitFor({ state: 'visible', timeout: 15000 });
+      stage = 'G04-25: encrypted typing indicator';
+      await runTypingIndicatorCase({ pageA, pageB, a, b, relay0, relay1, runtime, options, report, mark });
+      assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
+      assert.ok(report.websockets.every(url => /^ws:\/\/127\.0\.0\.1:/.test(url)), 'browser WebSockets are loopback only');
+      assert.deepEqual(report.page_errors, [], 'no page runtime errors');
+      const browserRuntimeAttempts = proxy.attempts.filter(attempt => attempt.destination === 'aus5.mozilla.org:443');
+      assert.deepEqual(proxy.attempts.filter(attempt => attempt.destination !== 'aus5.mozilla.org:443'), [], 'the proxy rejected every other destination');
+      report.browser_runtime_attempts_blocked = browserRuntimeAttempts;
+      report.result = 'PASS'; report.denied_proxy_attempts = [...proxy.attempts];
+      await writeReport(path.resolve(options.output), report);
+      process.stdout.write(JSON.stringify({ result: report.result, cases: report.cases, output: path.resolve(options.output) }) + '\n');
+      return 0;
+    }
     stage = 'G04-01: configure relays C';
     await configureRelays(pageC, [relay0.url], [relay0.url]);
     const aInbox = await wsQuery(relay0.url, { kinds: [10050], authors: [a.pubkey], limit: 10 });
@@ -578,7 +764,7 @@ async function main() {
     const first = `property-g04-a-b-${crypto.randomUUID()}`; await sendMessage(pageA, first);
     await pageB.locator('#new-chat-button').click(); await pageB.locator('#new-chat-dialog').waitFor({ state: 'visible' });
     await pageB.locator('#peer-input').fill(a.npub); await pageB.locator('#peer-name-input').fill('A privado'); await pageB.locator('#start-chat-button').click();
-    await pageB.locator('#new-chat-dialog').waitFor({ state: 'hidden' });
+    await waitForNewChatResult(pageB);
     await pageB.locator('#messages .message-bubble').filter({ hasText: first }).waitFor({ state: 'visible', timeout: 15000 });
     const response = `property-g04-b-a-${crypto.randomUUID()}`; await sendMessage(pageB, response);
     await pageA.locator('#messages .message-bubble').filter({ hasText: response }).waitFor({ state: 'visible', timeout: 15000 });
@@ -590,6 +776,10 @@ async function main() {
     report.message_checks = { first_a_to_b_visible: true, response_b_to_a_visible: true, relay_events_signature_valid: true,
       recipient_c_received_none: true, plaintext_absent_from_relay_envelopes: true, relay_addresses: [relay0.url, relay1.url] };
     mark('G04-02', 'PASS', 'A and B exchanged real NIP-17 messages through Geode; both UI contexts decrypted the intended text, C received none, and relay storage contained only valid encrypted gift wraps.');
+
+    // G04-25: live typing is private, ephemeral, and does not publish the draft.
+    stage = 'G04-25: encrypted typing indicator';
+    await runTypingIndicatorCase({ pageA, pageB, a, b, relay0, relay1, runtime, options, report, mark });
 
     // G04-11: message gestures only select existing local actions; they do not publish.
     stage = 'G04-11: reply swipe and edit-last shortcut';
@@ -1044,7 +1234,7 @@ async function main() {
     const allDown = `property-g04-all-inboxes-down-${crypto.randomUUID()}`; await sendMessage(pageA, allDown);
     const localPending = await messageAudit(pageA, b.pubkey);
     assert.ok(localPending.some(row => row.text === allDown && row.status === 'pending'), 'all inboxes down is shown as pending');
-    stage = 'G04-04: relay restart'; relay0 = await startGeode(28470, temp, 'relay zero');
+    stage = 'G04-04: relay restart'; relay0 = await startGeode(28470, temp, 'relay zero', relay0.binaryPath);
     await forceReconnect(pageA); await forceReconnect(pageB);
     stage = 'G04-04: client reconnection'; const afterReconnect = `property-g04-reconnect-${crypto.randomUUID()}`; await sendMessage(pageA, afterReconnect);
     await pageB.locator('#messages .message-bubble').filter({ hasText: afterReconnect }).waitFor({ state: 'visible', timeout: 15000 });
@@ -1126,6 +1316,7 @@ async function main() {
     report.failure_checks.tampered_signature = { relay_ack: invalidAck, independent_query_count: invalidStored.length, recipient_plaintext_received: false };
     report.failure_checks.d_identity_pubkey = d.pubkey;
     mark('G04-05', 'PASS', 'The UI refused to send without the sender’s kind-10050 inbox list, emitted no fallback, and a real relay rejected a post-signature envelope mutation without storing it.');
+    await closeContext(contextD); contextD = null;
 
     // G04-06: reconcile UI copies and retained ciphertext IDs from the live relays.
     stage = 'G04-06: message corpus reconciliation';
@@ -1154,8 +1345,7 @@ async function main() {
     // G04-09: local-only pin order, persistence across reload, and no sync or relay publication.
     stage = 'G04-09: local pin ordering and isolation';
     contextE = await runtime.browser.newContext({ serviceWorkers: 'allow' });
-    contextF = await runtime.browser.newContext({ serviceWorkers: 'allow' });
-    instrument(contextE, origin, report); instrument(contextF, origin, report);
+    instrument(contextE, origin, report);
     const pageE = await openApp(contextE, origin);
     const secretHex = await freshSecretHex(pageE);
     await saveRelaysBeforeIdentity(pageE, [relay0.url]);
@@ -1193,6 +1383,8 @@ async function main() {
     assert.equal(afterReloadRecords.find(row => row.pubkey === b.pubkey)?.pinned, true, 'direct chat remains pinned after reload');
     assert.equal(afterReloadRecords.find(row => row.pubkey === groupRecord.pubkey)?.pinned, false, 'un-pinned group remains unpinned after reload');
 
+    await closeContext(contextE); contextE = null;
+    contextF = await runtime.browser.newContext({ serviceWorkers: 'allow' }); instrument(contextF, origin, report);
     const pageF = await openApp(contextF, origin);
     await saveRelaysBeforeIdentity(pageF, [relay0.url]);
     const imported = await importIdentity(pageF, secretHex);
@@ -1756,7 +1948,7 @@ async function main() {
     const current = report.cases.find(row => row.status === 'NOT_RUN');
     if (current) Object.assign(current, { status: /module|executable|version mismatch|ENOENT|permission|launch/i.test(error.message) ? 'BLOCKED' : 'FAIL', reason: safeText(error.message || error) });
     for (const row of report.cases) if (row.status === 'NOT_RUN') Object.assign(row, { status: 'BLOCKED', reason: 'A prior G04 case failed; dependent end-to-end flow was not started.' });
-    report.result = report.cases.some(row => row.status === 'FAIL') ? 'FAIL' : 'BLOCKED'; report.error = safeText(error.message || error); report.current_stage = stage;
+    report.result = report.cases.some(row => row.status === 'FAIL') ? 'FAIL' : 'BLOCKED'; report.error = safeText(error.message || error); report.error_stack = safeDiagnostic(error.stack || ''); report.current_stage = stage;
     report.denied_proxy_attempts = [...(proxy?.attempts || [])];
     await new Promise(resolve => setTimeout(resolve, 250));
     report.relay_process_output = [relay0, relay1].filter(Boolean).map(relay => ({ pid: relay.child?.pid || null, tail: safeDiagnostic(relay.diagnostic?.() || '') }));
