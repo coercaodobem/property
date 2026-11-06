@@ -1,10 +1,10 @@
 {
-  "checked_at": "2026-11-06T09:48:23Z",
+  "checked_at": "2026-11-06T12:22:48Z",
   "base_url": "https://coercaodobem.github.io/property/",
-  "source_commit": "cda49f41d09d9313532cc2ea76bdf17380854358",
+  "source_commit": "0724f42138e2af3c5a2571a2fe813ccf480ea01c",
   "workflow": {
-    "run_id": 42197116511,
-    "url": "https://github.com/coercaodobem/property/actions/runs/42197116511",
+    "run_id": 42216955426,
+    "url": "https://github.com/coercaodobem/property/actions/runs/42216955426",
     "branch": "modelo-mvp",
     "status": "completed",
     "conclusion": "success"
@@ -13,20 +13,62 @@
     {
       "path": "index.html",
       "http_status": 200,
-      "source_sha256": "30b6c9d29150cadd5d57092ed5da46e2a488c5f56b0afaf6410d573c75fe2d45",
-      "served_sha256": "30b6c9d29150cadd5d57092ed5da46e2a488c5f56b0afaf6410d573c75fe2d45",
+      "source_sha256": "2636fdcb001a5ad000312de955546f5aac30ae37b6902db0d0c99c23e676c099",
+      "served_sha256": "2636fdcb001a5ad000312de955546f5aac30ae37b6902db0d0c99c23e676c099",
       "matches_source": true
     },
     {
       "path": "sw.js",
       "http_status": 200,
-      "source_sha256": "57f37aa835831dbc4fefe1d9edbf5402bd39470f565af2ba8940bd38e7da6f0c",
-      "served_sha256": "57f37aa835831dbc4fefe1d9edbf5402bd39470f565af2ba8940bd38e7da6f0c",
+      "source_sha256": "f0bb53986af587488a6358333e8fa2dbbf1244cdd11f8dbb8ae15856b5740beb",
+      "served_sha256": "f0bb53986af587488a6358333e8fa2dbbf1244cdd11f8dbb8ae15856b5740beb",
+      "matches_source": true
+    },
+    {
+      "path": "app.js",
+      "http_status": 200,
+      "source_sha256": "ff75aeb97bb724856744c8c34359d5643d6720273e2f595e301ad915ebdad176",
+      "served_sha256": "ff75aeb97bb724856744c8c34359d5643d6720273e2f595e301ad915ebdad176",
+      "matches_source": true
+    },
+    {
+      "path": "file-transfers.js",
+      "http_status": 200,
+      "source_sha256": "a4485d53fa3f13d14ff0e542a1599b770e3b4a3a03d3beffd2fc8e11552c7ef6",
+      "served_sha256": "a4485d53fa3f13d14ff0e542a1599b770e3b4a3a03d3beffd2fc8e11552c7ef6",
+      "matches_source": true
+    },
+    {
+      "path": "styles.css",
+      "http_status": 200,
+      "source_sha256": "4396f53a5c4fcd6bebe5f36519a9546399135cfb005bb5cc2f76bb4369ac5d02",
+      "served_sha256": "4396f53a5c4fcd6bebe5f36519a9546399135cfb005bb5cc2f76bb4369ac5d02",
+      "matches_source": true
+    },
+    {
+      "path": "i18n.js",
+      "http_status": 200,
+      "source_sha256": "8e841cc4fdaf5ec2bdcef5c4f65f6d53a3815688028a85a70283721f391f1596",
+      "served_sha256": "8e841cc4fdaf5ec2bdcef5c4f65f6d53a3815688028a85a70283721f391f1596",
+      "matches_source": true
+    },
+    {
+      "path": "about.html",
+      "http_status": 200,
+      "source_sha256": "1de2713382510b8008b56c588de86a1746946b7966b9da19574a7e9c657a49f6",
+      "served_sha256": "1de2713382510b8008b56c588de86a1746946b7966b9da19574a7e9c657a49f6",
+      "matches_source": true
+    },
+    {
+      "path": "about.pt-BR.html",
+      "http_status": 200,
+      "source_sha256": "0ad23d79fa05ce230a6770f28aba7085a5e163c0bd3d463e0acf13b55ecd2051",
+      "served_sha256": "0ad23d79fa05ce230a6770f28aba7085a5e163c0bd3d463e0acf13b55ecd2051",
       "matches_source": true
     }
   ],
   "limits": [
-    "Verifies the latest workflow deployment and these two fetched public files only.",
-    "Does not complete the remaining offline test-plan gates or device compatibility checks."
+    "Verifies the successful workflow for the source commit and these eight public assets only.",
+    "Does not complete the remaining test-plan gates or device compatibility checks."
   ]
 }

@@ -28,7 +28,7 @@ A opção **Ponte entre relays** encaminha eventos públicos assinados entre os 
 
 O app está publicado em [coercaodobem.github.io/property](https://coercaodobem.github.io/property/), a partir do repositório público `coercaodobem/property`. O workflow `.github/workflows/property-pages.yml` publica somente `property/web` quando esses arquivos ou o próprio workflow mudam na branch `modelo-mvp`; também aceita execução manual. Pages usa a origem **GitHub Actions**, e o ambiente `github-pages` permite a branch `modelo-mvp`. O workflow usa actions fixadas por commit SHA e não altera a configuração do repositório.
 
-A publicação atual de `modelo-mvp` foi concluída com sucesso pelo workflow [42197116511](https://github.com/coercaodobem/property/actions/runs/42197116511), a partir do commit `cda49f41d09d9313532cc2ea76bdf17380854358`. A página inicial pública e o service worker responderam HTTP 200 e corresponderam byte a byte aos arquivos de origem, conforme SHA-256. Consulte o [registro atual do Pages](docs/evidence/pages-2026-11-06.json). Isso valida a publicação da PWA, não os demais gates do plano de testes.
+A publicação atual de `modelo-mvp` foi concluída com sucesso pelo workflow [42216955426](https://github.com/coercaodobem/property/actions/runs/42216955426), a partir do commit `0724f42138e2af3c5a2571a2fe813ccf480ea01c`. A página inicial, o service worker, o app, o módulo de anexos, os estilos, as traduções e as páginas de apresentação em inglês e português responderam HTTP 200 e corresponderam byte a byte aos arquivos de origem por SHA-256. Consulte o [registro atual do Pages](docs/evidence/pages-2026-11-06.json). Isso confirma a publicação desses arquivos, não os demais gates do plano de testes.
 
 ## Iniciar um relay no Ubuntu
 
