@@ -76,7 +76,7 @@
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
     bridgeEnabled: false, bridgeSubscriptions: new Map(), bridgeRefreshTimer: 0, editingProduct: null, deletingProduct: null,
-    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, unseenMessageCount: 0, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', shareFileDraftId: '', shareFileDraftPeer: '', pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0,
+    storageReady: false, activeWorkspaceReady: false, notificationsEnabled: false, notificationMutes: new Map(), notificationMutePeer: '', appBadgeEnabled: false, appBadgeLastCount: null, appBadgeQueue: Promise.resolve(), messageDayRolloverTimer: 0, unseenMessageCount: 0, pendingLaunchAction: '', pendingContactIntent: '', contactShare: null, messageDetailsPayload: '', shareItems: [], shareDraftId: '', shareDraftPeer: '', shareFileDraftId: '', shareFileDraftPeer: '', shareFileDraftFiles: [], pendingShareForNewChat: '', draftLoadSequence: 0, pendingSecretResolve: null, loadingLastMessageEdit: false, conversationListRenderSequence: 0,
     linkPreview: null, linkPreviewUrl: '', linkPreviewSequence: 0, linkPreviewBusy: false, linkPreviewStatus: '',
     voiceRecorder: null, voiceRecorderPeer: '', voiceRecorderStartedAt: 0, voiceTimer: 0, voiceStopping: false, voiceSequence: 0,
     voiceDrafts: new Map(), voiceObjectUrls: new Map(), fileObjectUrls: new Map(), fileDraftObjectUrls: new Map(), fileDraftTransferIds: new Map(), fileDraftFiles: [], fileSendBusy: false, fileTransferSeen: new Set(), activeConversationAgent: false, activeConversationBlocked: false
@@ -468,6 +468,7 @@
     state.fileDraftObjectUrls.clear();
     state.fileDraftTransferIds.clear();
     state.fileDraftFiles = [];
+    state.shareFileDraftId = ''; state.shareFileDraftPeer = ''; state.shareFileDraftFiles = [];
     $('file-attachment-caption').value = '';
     setFileAttachmentStatus('');
     renderFileDrafts();
@@ -646,14 +647,14 @@
       await renderConversations();
       const complete = !failures.length && savedParts === totalChunks && confirmed >= required;
       if (complete) {
+        const sharedFilesIncluded = state.shareFileDraftFiles.length > 0 && state.shareFileDraftFiles.every(file => files.includes(file));
+        const sentShareId = state.shareFileDraftPeer === peer && sharedFilesIncluded ? state.shareFileDraftId : '';
         clearFileDrafts();
         $('file-attachment-dialog').close();
         if (state.replyingTo) { state.replyingTo = null; updateReplyContext(); }
-        const sentShareId = state.shareFileDraftPeer === peer ? state.shareFileDraftId : '';
         if (sentShareId) {
           try {
             await ShareInbox.remove(sentShareId);
-            state.shareFileDraftId = ''; state.shareFileDraftPeer = '';
             await renderShareInbox();
           } catch {
             showToast(localized('Files were sent, but the shared item remains in the local inbox.', 'Os arquivos foram enviados, mas o item compartilhado continua na caixa local.'));
@@ -1330,14 +1331,14 @@
         if (!(await controller.finish())) failure = new Error(localized('The recipient did not confirm the completed direct transfer.', 'Quem recebe não confirmou a conclusão da transferência direta.'));
       }
       if (!failure && sentParts === totalParts && state.directFileSendJob === job) {
+        const sharedFilesIncluded = state.shareFileDraftFiles.length > 0 && state.shareFileDraftFiles.every(file => state.fileDraftFiles.includes(file));
+        const sentShareId = state.shareFileDraftPeer === job.peer && sharedFilesIncluded ? state.shareFileDraftId : '';
         if (state.activePeer === job.peer) await renderMessages(job.peer);
         await renderConversations();
         clearFileDrafts();
-        const sentShareId = state.shareFileDraftPeer === job.peer ? state.shareFileDraftId : '';
         if (sentShareId) {
           try {
             await ShareInbox.remove(sentShareId);
-            state.shareFileDraftId = ''; state.shareFileDraftPeer = '';
             await renderShareInbox();
           } catch {
             showToast(localized('Files were sent, but the shared item remains in the local inbox.', 'Os arquivos foram enviados, mas o item compartilhado continua na caixa local.'));
@@ -2350,6 +2351,7 @@
       if (!addFileDrafts(files)) return;
       state.shareFileDraftId = item.id;
       state.shareFileDraftPeer = peer;
+      state.shareFileDraftFiles = [...files];
       $('file-attachment-caption').value = Array.from(text).slice(0, FileTransfers.MAX_CAPTION_CHARS).join('');
       renderFileDrafts();
       $('share-dialog').close();
@@ -3466,7 +3468,7 @@
       if (previousPeer) await saveChatDraft(previousPeer, $('message-input').value).catch(() => {});
     }
     if (state.shareDraftId && state.shareDraftPeer !== pubkey) { state.shareDraftId = ''; state.shareDraftPeer = ''; }
-    if (state.shareFileDraftId && state.shareFileDraftPeer !== pubkey) { state.shareFileDraftId = ''; state.shareFileDraftPeer = ''; }
+    if (state.shareFileDraftId && state.shareFileDraftPeer !== pubkey) { state.shareFileDraftId = ''; state.shareFileDraftPeer = ''; state.shareFileDraftFiles = []; }
     state.activePeer = pubkey;
     audioPlayback.setContext(state.activeView, state.activePeer);
     if (changed) {
