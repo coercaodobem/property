@@ -59,6 +59,7 @@
     activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingDraftMentions: [], editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
     typingIndicatorsEnabled: true, typingSession: null, typingSequence: 0, typingRelayLookups: new Map(), remoteTyping: new Map(), typingTimers: new Map(), typingSequences: new Map(), typingSeenEvents: new Set(),
     readReceiptsEnabled: false, readReceiptSent: new Set(), readReceipts: new Map(), readReceiptCandidates: new Map(), readReceiptObserver: null,
+    activeStatusEnabled: false, localPresenceSession: null, remotePresence: new Map(), presenceTimers: new Map(), presenceSequences: new Map(),
     peerProfiles: new Map(), peerProfileLookupStatuses: new Map(), peerIdentityProofs: new Map(), identityProofChecks: new Map(), chatDetailsPeer: '', identityProofCheckId: 0,
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
@@ -459,13 +460,22 @@
 
   function typingPreferenceId(pubkey = state.pubkey) { return `typing-indicators-${pubkey}`; }
   function readReceiptsPreferenceId(pubkey = state.pubkey) { return `property-read-receipts:${pubkey}`; }
+  function activeStatusPreferenceId(pubkey = state.pubkey) { return `property-active-status:${pubkey}`; }
   function readReceiptRecordPrefix(pubkey = state.pubkey) { return `property-read-receipt:${pubkey}:`; }
   function readReceiptRecordId(pubkey, messageId) { return `${readReceiptRecordPrefix(pubkey)}${messageId}`; }
   function renderRemoteTyping() {
     const output = $('chat-activity');
     if (!output) return;
     const senders = [...state.remoteTyping.values()].filter(item => item.peer === state.activePeer);
-    if (!senders.length) { output.textContent = ''; output.hidden = true; return; }
+    if (!senders.length) {
+      const presence = [...state.remotePresence.values()].find(item => item.peer === state.activePeer);
+      if (!presence) { output.textContent = ''; output.hidden = true; return; }
+      const profile = state.peerProfiles.get(presence.sender);
+      const name = displayName(presence.sender, state.currentConversation?.title || profile?.displayName || profile?.name || '');
+      output.textContent = `${name} ${localized('is active now', 'está ativo agora')}`;
+      output.hidden = false;
+      return;
+    }
     output.hidden = false;
     if (senders.length > 1) {
       const allThinking = senders.every(item => item.action === 'thinking');
@@ -495,6 +505,12 @@
     for (const timer of state.typingTimers.values()) clearTimeout(timer);
     state.typingTimers.clear();
     state.remoteTyping.clear();
+    renderRemoteTyping();
+  }
+  function clearAllRemotePresence() {
+    for (const timer of state.presenceTimers.values()) clearTimeout(timer);
+    state.presenceTimers.clear();
+    state.remotePresence.clear();
     renderRemoteTyping();
   }
   function typingParticipants(peer) {
@@ -543,6 +559,54 @@
       if (!relays.length || state.pubkey !== senderPubkey || state.secret !== secret) return;
       await publishEphemeralToRelays(event, relays).catch(() => {});
     }));
+  }
+  function canShareActiveStatus(peer) {
+    return Boolean(state.activeStatusEnabled && state.secret && state.pubkey && peer && peer === state.activePeer &&
+      hasVisibleConversation(peer) && state.currentConversation?.group !== true && !state.activeConversationAgent && !state.activeConversationBlocked);
+  }
+  async function sendPresenceSignal(session, active) {
+    const senderPubkey = state.pubkey;
+    const secret = state.secret;
+    if (!senderPubkey || !secret || session.senderPubkey !== senderPubkey ||
+        (active && (!canShareActiveStatus(session.peer) || state.localPresenceSession !== session))) return;
+    let deliveries;
+    try { deliveries = TypingSignals.createPresence(N, secret, session.participants, active, nextTypingSequence()); }
+    catch { return; }
+    await Promise.all(deliveries.map(async ({ recipient, event }) => {
+      const relays = await resolveTypingRelays(recipient);
+      if (!relays.length || state.pubkey !== senderPubkey || state.secret !== secret ||
+          (active && (!canShareActiveStatus(session.peer) || state.localPresenceSession !== session))) return;
+      await publishEphemeralToRelays(event, relays).catch(() => {});
+    }));
+  }
+  function schedulePresenceHeartbeat(session, delay = 30_000) {
+    clearTimeout(session.heartbeatTimer);
+    session.heartbeatTimer = setTimeout(() => {
+      session.heartbeatTimer = 0;
+      if (state.localPresenceSession !== session) return;
+      if (!canShareActiveStatus(session.peer)) { stopLocalPresence(session); return; }
+      void sendPresenceSignal(session, true);
+      schedulePresenceHeartbeat(session);
+    }, delay);
+  }
+  function startLocalPresence() {
+    const peer = state.activePeer;
+    if (!canShareActiveStatus(peer)) { stopLocalPresence(); return; }
+    if (state.localPresenceSession?.peer === peer) return;
+    stopLocalPresence();
+    const participants = typingParticipants(peer);
+    if (participants.length !== 2) return;
+    const session = { peer, participants, senderPubkey: state.pubkey, heartbeatTimer: 0, sent: true };
+    state.localPresenceSession = session;
+    void sendPresenceSignal(session, true);
+    schedulePresenceHeartbeat(session);
+  }
+  function stopLocalPresence(expected = state.localPresenceSession) {
+    if (!expected || state.localPresenceSession !== expected) return;
+    clearTimeout(expected.heartbeatTimer);
+    expected.heartbeatTimer = 0;
+    state.localPresenceSession = null;
+    if (expected.sent) void sendPresenceSignal(expected, false);
   }
   async function sendReadReceiptForMessage(peer, message, messageId) {
     if (!state.readReceiptsEnabled || !state.secret || !state.pubkey || !hasVisibleConversation(peer) ||
@@ -683,6 +747,28 @@
     } else if (conversation.pubkey !== signal.sender) return;
     if (signal.action === 'read') {
       await recordReadReceipt(signal, peer);
+      return;
+    }
+    if (signal.action === 'presence') {
+      if (group) return;
+      const key = `${peer}:${signal.sender}`;
+      if (signal.sequence <= (state.presenceSequences.get(key) || 0)) return;
+      state.presenceSequences.set(key, signal.sequence);
+      if (state.presenceSequences.size > 500) state.presenceSequences.delete(state.presenceSequences.keys().next().value);
+      clearTimeout(state.presenceTimers.get(key));
+      state.presenceTimers.delete(key);
+      state.remotePresence.delete(key);
+      if (signal.active) {
+        state.remotePresence.set(key, { peer, sender: signal.sender, sequence: signal.sequence });
+        state.presenceTimers.set(key, setTimeout(() => {
+          if (state.remotePresence.get(key)?.sequence === signal.sequence) {
+            state.remotePresence.delete(key);
+            state.presenceTimers.delete(key);
+            renderRemoteTyping();
+          }
+        }, signal.maxAgeSeconds * 1000));
+      }
+      renderRemoteTyping();
       return;
     }
     const key = `${peer}:${signal.sender}`;
@@ -1537,6 +1623,9 @@
     const readReceiptsSetting = await get('settings', readReceiptsPreferenceId(state.pubkey));
     state.readReceiptsEnabled = readReceiptsSetting?.enabled === true;
     $('read-receipts-enabled').checked = state.readReceiptsEnabled;
+    const activeStatusSetting = await get('settings', activeStatusPreferenceId(state.pubkey));
+    state.activeStatusEnabled = activeStatusSetting?.enabled === true;
+    $('active-status-enabled').checked = state.activeStatusEnabled;
     state.readReceiptSent.clear();
     state.readReceiptCandidates.clear();
     const readReceiptPrefix = readReceiptRecordPrefix(state.pubkey);
@@ -2465,6 +2554,8 @@
     const changed = previousPeer !== pubkey;
     if (changed) {
       if (state.voiceRecorder && state.voiceRecorderPeer === previousPeer) cancelVoiceRecording({ notify: true });
+      stopLocalPresence();
+      clearAllRemotePresence();
       stopLocalTyping();
       clearAllRemoteTyping();
       cancelMessageEdit();
@@ -2503,6 +2594,7 @@
     if (state.activeView === 'messages') sendReadReceiptsForVisibleRows();
     if (state.activeView === 'messages') await markConversationRead(pubkey);
     await renderConversations();
+    startLocalPresence();
   }
   async function updateAgentBlockControl(pubkey) {
     const conversation = await get('conversations', pubkey);
@@ -3422,6 +3514,7 @@
   }
   function setActiveView(view) {
     if (view !== 'messages' && state.voiceRecorder) cancelVoiceRecording({ notify: true });
+    if (view !== 'messages') stopLocalPresence();
     state.activeView = view;
     if (view !== 'messages') setMobileConversationListOpen(false);
     for (const name of ['messages', 'hangout', 'marketplace', 'node', 'saved']) {
@@ -3434,6 +3527,7 @@
     if (view === 'hangout') refreshHangout().catch(() => {});
     if (view === 'marketplace') refreshMarketplace().catch(() => {});
     if (view === 'saved') renderSavedMessages().catch(() => {});
+    if (view === 'messages') startLocalPresence();
   }
   function setMobileConversationListOpen(open, { focus = false, restoreFocus = false } = {}) {
     const shouldOpen = Boolean(open && window.innerWidth <= 800);
@@ -3968,11 +4062,14 @@
     if ($('file-attachment-dialog').open) $('file-attachment-dialog').close();
     state.activeConversationAgent = false;
     state.activeConversationBlocked = false;
+    stopLocalPresence();
+    clearAllRemotePresence();
     stopLocalTyping();
     clearAllRemoteTyping();
     state.typingSequences.clear();
     state.typingSeenEvents.clear();
     state.typingRelayLookups.clear();
+    state.presenceSequences.clear();
     state.readReceiptObserver?.disconnect();
     state.readReceiptObserver = null;
     state.readReceiptSent.clear();
@@ -3985,7 +4082,7 @@
     clearTimeout(state.messageDayRolloverTimer); state.messageDayRolloverTimer = 0;
     if (state.secret) state.secret.fill(0);
     const clearAppBadgeOnLock = state.appBadgeEnabled || state.appBadgeLastCount !== null;
-    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.typingIndicatorsEnabled = false; state.readReceiptsEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = ''; state.appBadgeEnabled = false; state.appBadgeLastCount = clearAppBadgeOnLock ? 0 : null;
+    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.typingIndicatorsEnabled = false; state.readReceiptsEnabled = false; state.activeStatusEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = ''; state.appBadgeEnabled = false; state.appBadgeLastCount = clearAppBadgeOnLock ? 0 : null;
     if (clearAppBadgeOnLock) void queueAppBadge(0);
     state.conversationMessageSearchCache = null; state.conversationMessageSearchRevision++;
     state.replyingTo = null; updateReplyContext();
@@ -4065,7 +4162,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v63', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v64', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -4196,6 +4293,21 @@
         state.readReceiptsEnabled = !enabled;
         event.target.checked = !enabled;
         observeReadReceiptRows();
+        showToast(localized('Could not update this local setting.', 'Não foi possível atualizar esta configuração local.'));
+      }
+    });
+    $('active-status-enabled').addEventListener('change', async event => {
+      const enabled = event.target.checked;
+      if (!enabled) stopLocalPresence();
+      state.activeStatusEnabled = enabled;
+      try {
+        await put('settings', { id: activeStatusPreferenceId(), enabled });
+        if (enabled) startLocalPresence();
+      } catch {
+        state.activeStatusEnabled = !enabled;
+        event.target.checked = !enabled;
+        if (state.activeStatusEnabled) startLocalPresence();
+        else stopLocalPresence();
         showToast(localized('Could not update this local setting.', 'Não foi possível atualizar esta configuração local.'));
       }
     });
@@ -4588,19 +4700,21 @@
     });
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && state.voiceRecorder) cancelVoiceRecording({ notify: true });
+      if (document.hidden) stopLocalPresence();
       if (document.hidden) stopLocalTyping();
       if (document.hidden && state.activePeer) void saveChatDraft(state.activePeer, $('message-input').value).catch(() => {});
-      if (!document.hidden && state.pubkey) { resetIdleLock(); for (const url of effectiveRelayUrls()) connectRelay(url); }
+      if (!document.hidden && state.pubkey) { resetIdleLock(); for (const url of effectiveRelayUrls()) connectRelay(url); startLocalPresence(); }
     });
     window.addEventListener('pagehide', () => {
       if (state.voiceRecorder) cancelVoiceRecording();
+      stopLocalPresence();
       stopLocalTyping();
       if (state.activePeer) void saveChatDraft(state.activePeer, $('message-input').value).catch(() => {});
     });
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.unwrap !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.createPresence !== 'function' || typeof TypingSignals.unwrap !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();

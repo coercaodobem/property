@@ -23,6 +23,8 @@ const result = vm.runInContext(`(() => {
   const thinking = PropertyTypingSignals.create(nostr, a, [aPub, bPub], 'thinking', 103);
   const messageId = 'ab'.repeat(32);
   const groupReceipt = PropertyTypingSignals.createReadReceipt(nostr, a, [aPub, bPub, cPub], bPub, messageId, 105, true);
+  const activePresence = PropertyTypingSignals.createPresence(nostr, a, [aPub, bPub], true, 107);
+  const inactivePresence = PropertyTypingSignals.createPresence(nostr, a, [aPub, bPub], false, 108);
   const startEvent = start[0].event;
   const stopEvent = stop[0].event;
   const openedStart = PropertyTypingSignals.unwrap(nostr, startEvent, b);
@@ -33,6 +35,11 @@ const result = vm.runInContext(`(() => {
   const openedGroup = group.map(item => PropertyTypingSignals.unwrap(nostr, item.event,
     item.recipient === bPub ? b : c));
   const openedReceipt = PropertyTypingSignals.unwrap(nostr, groupReceipt[0].event, b);
+  const openedPresence = PropertyTypingSignals.unwrap(nostr, activePresence[0].event, b);
+  const openedInactivePresence = PropertyTypingSignals.unwrap(nostr, inactivePresence[0].event, b);
+  const wrongPresenceRecipient = PropertyTypingSignals.unwrap(nostr, activePresence[0].event, c);
+  const stalePresence = PropertyTypingSignals.unwrap(nostr, activePresence[0].event, b,
+    Math.floor(Date.now() / 1000) + PropertyTypingSignals.MAX_PRESENCE_AGE_SECONDS + 3);
   const wrongReceiptRecipient = PropertyTypingSignals.unwrap(nostr, groupReceipt[0].event, c);
   const staleReceipt = PropertyTypingSignals.unwrap(nostr, groupReceipt[0].event, b,
     Math.floor(Date.now() / 1000) + PropertyTypingSignals.MAX_READ_AGE_SECONDS + 3);
@@ -45,6 +52,10 @@ const result = vm.runInContext(`(() => {
   try { PropertyTypingSignals.create(nostr, a, [aPub, bPub], 'read', 105); } catch { invalidActionRejected = true; }
   let invalidReceiptMessageRejected = false;
   try { PropertyTypingSignals.createReadReceipt(nostr, a, [aPub, bPub], bPub, 'not-an-event-id', 106); } catch { invalidReceiptMessageRejected = true; }
+  let groupPresenceRejected = false;
+  try { PropertyTypingSignals.createPresence(nostr, a, [aPub, bPub, cPub], true, 109); } catch { groupPresenceRejected = true; }
+  let invalidPresenceRejected = false;
+  try { PropertyTypingSignals.createPresence(nostr, a, [aPub, bPub], 'online', 110); } catch { invalidPresenceRejected = true; }
   return {
     wrapperKind: startEvent.kind,
     signatureValid: nostr.verifyEvent(startEvent) && nostr.verifyEvent(stopEvent),
@@ -63,6 +74,16 @@ const result = vm.runInContext(`(() => {
     receiptRecipientOnly: groupReceipt[0].recipient === bPub && JSON.stringify(groupReceipt[0].event.tags) === JSON.stringify([['p', bPub]]),
     receiptPayloadEncrypted: !groupReceipt[0].event.content.includes(messageId),
     receiptMessageId: openedReceipt?.messageId,
+    presenceWrapperKind: activePresence[0].event.kind,
+    presenceRecipientOnly: activePresence[0].recipient === bPub && JSON.stringify(activePresence[0].event.tags) === JSON.stringify([['p', bPub]]),
+    presenceEncrypted: !activePresence[0].event.content.includes('"active":true'),
+    presenceActive: openedPresence?.active,
+    presenceInactive: openedInactivePresence?.active,
+    presenceMaxAge: openedPresence?.maxAgeSeconds,
+    wrongPresenceRecipientRejected: wrongPresenceRecipient === null,
+    stalePresenceRejected: stalePresence === null,
+    groupPresenceRejected,
+    invalidPresenceRejected,
     receiptGroupFlag: openedReceipt?.group,
     receiptParticipants: openedReceipt?.participants.length,
     wrongReceiptRecipientRejected: wrongReceiptRecipient === null,
@@ -97,8 +118,18 @@ assert.equal(result.receiptParticipants, 3, 'the encrypted receipt retains the c
 assert.equal(result.wrongReceiptRecipientRejected, true);
 assert.equal(result.staleReceiptRejected, true);
 assert.equal(result.invalidReceiptMessageRejected, true);
+assert.equal(result.presenceWrapperKind, 21059, 'active status uses an ephemeral NIP-59 gift wrap');
+assert.equal(result.presenceRecipientOnly, true, 'active status is routed only to the other direct-chat participant');
+assert.equal(result.presenceEncrypted, true, 'the outer event does not reveal the active state');
+assert.equal(result.presenceActive, true);
+assert.equal(result.presenceInactive, false, 'the sender can clear active status explicitly');
+assert.equal(result.presenceMaxAge, 75, 'active status is bounded to 75 logical seconds');
+assert.equal(result.wrongPresenceRecipientRejected, true);
+assert.equal(result.stalePresenceRejected, true, 'stale active status is rejected without sleeping');
+assert.equal(result.groupPresenceRejected, true, 'active status cannot be sent to a group');
+assert.equal(result.invalidPresenceRejected, true);
 assert.equal(result.wrongRecipientRejected, true);
 assert.equal(result.tamperingRejected, true);
 assert.equal(result.staleSignalRejected, true);
 assert.equal(result.invalidActionRejected, true);
-console.log('PASS: private ephemeral typing signals, NIP-59 envelopes, replay guards, and group recipient wrapping');
+console.log('PASS: private typing, read-receipt and active-status signals use encrypted NIP-59 envelopes with expiry, replay guards and recipient isolation');

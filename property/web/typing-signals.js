@@ -7,6 +7,7 @@
   const MAX_SIGNAL_AGE_SECONDS = 8;
   const MAX_THINKING_AGE_SECONDS = 60;
   const MAX_READ_AGE_SECONDS = 120;
+  const MAX_PRESENCE_AGE_SECONDS = 75;
   const KEY_RE = /^[0-9a-f]{64}$/i;
   const EVENT_ID_RE = /^[0-9a-f]{64}$/i;
 
@@ -81,6 +82,17 @@
     return createEnvelopes(nostr, secret, sender, participants, { v: 1, action: 'read', messageId: messageId.toLowerCase(), sequence, group }, [recipient]);
   }
 
+  function createPresence(nostr, secret, participantKeys, active, sequence) {
+    validateCrypto(nostr);
+    if (typeof active !== 'boolean' || !Number.isSafeInteger(sequence) || sequence < 1) {
+      throw new TypeError('Invalid active status or sequence.');
+    }
+    const { sender, participants } = normalizeParticipants(nostr, secret, participantKeys);
+    if (participants.length !== 2) throw new TypeError('Active status is available only in direct conversations.');
+    const recipient = participants.find(key => key !== sender);
+    return createEnvelopes(nostr, secret, sender, participants, { v: 1, action: 'presence', active, sequence }, [recipient]);
+  }
+
   function unwrap(nostr, event, secret, nowSeconds = Math.floor(Date.now() / 1000)) {
     if (!event || event.kind !== EPHEMERAL_GIFT_WRAP_KIND || !nostr.verifyEvent(event) ||
         !Array.isArray(event.tags) || typeof event.content !== 'string' || event.content.length > 4096) return null;
@@ -99,18 +111,21 @@
       const participants = participantsFromRumor(rumor);
       if (!participants.includes(recipient) || participants.length < 2) return null;
       const payload = JSON.parse(rumor.content);
-      if (payload?.v !== 1 || !['typing', 'thinking', 'stop', 'read'].includes(payload.action) ||
+      if (payload?.v !== 1 || !['typing', 'thinking', 'stop', 'read', 'presence'].includes(payload.action) ||
           !Number.isSafeInteger(payload.sequence) || payload.sequence < 1) return null;
       if (payload.action === 'read' && (!EVENT_ID_RE.test(payload.messageId || '') || typeof payload.group !== 'boolean')) return null;
+      if (payload.action === 'presence' && (typeof payload.active !== 'boolean' || participants.length !== 2)) return null;
       const maxAgeSeconds = payload.action === 'read' ? MAX_READ_AGE_SECONDS
+        : payload.action === 'presence' ? MAX_PRESENCE_AGE_SECONDS
         : payload.action === 'thinking' ? MAX_THINKING_AGE_SECONDS : MAX_SIGNAL_AGE_SECONDS;
       if (nowSeconds - rumor.created_at > maxAgeSeconds) return null;
       return { sender: rumor.pubkey.toLowerCase(), participants, action: payload.action, sequence: payload.sequence, maxAgeSeconds,
-        ...(payload.action === 'read' ? { messageId: payload.messageId.toLowerCase(), group: payload.group } : {}) };
+        ...(payload.action === 'read' ? { messageId: payload.messageId.toLowerCase(), group: payload.group } : {}),
+        ...(payload.action === 'presence' ? { active: payload.active } : {}) };
     } catch {
       return null;
     }
   }
 
-  window.PropertyTypingSignals = Object.freeze({ RUMOR_KIND, EPHEMERAL_GIFT_WRAP_KIND, MAX_SIGNAL_AGE_SECONDS, MAX_THINKING_AGE_SECONDS, MAX_READ_AGE_SECONDS, create, createReadReceipt, unwrap });
+  window.PropertyTypingSignals = Object.freeze({ RUMOR_KIND, EPHEMERAL_GIFT_WRAP_KIND, MAX_SIGNAL_AGE_SECONDS, MAX_THINKING_AGE_SECONDS, MAX_READ_AGE_SECONDS, MAX_PRESENCE_AGE_SECONDS, create, createReadReceipt, createPresence, unwrap });
 })();
