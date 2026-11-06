@@ -30,6 +30,12 @@ const result = vm.runInContext(`(() => {
   const callOffer = PropertyTypingSignals.createCallSignal(nostr, a, [aPub, bPub], bPub, callId, 'call-offer', 111, { media: 'video', sdp: videoSdp });
   const callAnswer = PropertyTypingSignals.createCallSignal(nostr, b, [aPub, bPub], aPub, callId, 'call-answer', 112, { media: 'audio', sdp: ['v=0', 'm=audio 9 UDP/TLS/RTP/SAVPF 111'].join('\\r\\n') + '\\r\\n' });
   const callEnd = PropertyTypingSignals.createCallSignal(nostr, a, [aPub, bPub], bPub, callId, 'call-hangup', 113);
+  const transferId = 'ef'.repeat(16);
+  const fileManifest = [{ transferId: '12'.repeat(16), name: 'sample.txt', mime: 'text/plain', sizeBytes: 3, totalChunks: 1, sha256: '34'.repeat(32) }];
+  const dataSdp = ['v=0', 'm=application 9 UDP/DTLS/SCTP webrtc-datachannel', 'a=sctp-port:5000'].join('\\r\\n') + '\\r\\n';
+  const fileOffer = PropertyTypingSignals.createFileSignal(nostr, a, [aPub, bPub], bPub, transferId, 'file-offer', 117, { files: fileManifest, sdp: dataSdp });
+  const fileAnswer = PropertyTypingSignals.createFileSignal(nostr, b, [aPub, bPub], aPub, transferId, 'file-answer', 118, { sdp: dataSdp });
+  const fileReject = PropertyTypingSignals.createFileSignal(nostr, b, [aPub, bPub], aPub, transferId, 'file-reject', 119);
   const startEvent = start[0].event;
   const stopEvent = stop[0].event;
   const openedStart = PropertyTypingSignals.unwrap(nostr, startEvent, b);
@@ -45,6 +51,11 @@ const result = vm.runInContext(`(() => {
   const openedCallOffer = PropertyTypingSignals.unwrap(nostr, callOffer[0].event, b);
   const openedCallAnswer = PropertyTypingSignals.unwrap(nostr, callAnswer[0].event, a);
   const openedCallEnd = PropertyTypingSignals.unwrap(nostr, callEnd[0].event, b);
+  const openedFileOffer = PropertyTypingSignals.unwrap(nostr, fileOffer[0].event, b);
+  const openedFileAnswer = PropertyTypingSignals.unwrap(nostr, fileAnswer[0].event, a);
+  const openedFileReject = PropertyTypingSignals.unwrap(nostr, fileReject[0].event, a);
+  const wrongFileRecipient = PropertyTypingSignals.unwrap(nostr, fileOffer[0].event, c);
+  const staleFileOffer = PropertyTypingSignals.unwrap(nostr, fileOffer[0].event, b, Math.floor(Date.now() / 1000) + PropertyTypingSignals.MAX_FILE_SIGNAL_AGE_SECONDS + 3);
   const wrongCallRecipient = PropertyTypingSignals.unwrap(nostr, callOffer[0].event, c);
   const staleCallSignal = PropertyTypingSignals.unwrap(nostr, callOffer[0].event, b,
     Math.floor(Date.now() / 1000) + PropertyTypingSignals.MAX_CALL_SIGNAL_AGE_SECONDS + 3);
@@ -73,6 +84,10 @@ const result = vm.runInContext(`(() => {
   try { PropertyTypingSignals.createCallSignal(nostr, a, [aPub, bPub], bPub, callId, 'call-offer', 115, { media: 'video', sdp: 'v=0\\r\\n' }); } catch { invalidCallSdpRejected = true; }
   let invalidCallIdRejected = false;
   try { PropertyTypingSignals.createCallSignal(nostr, a, [aPub, bPub], bPub, 'not-a-call-id', 'call-hangup', 116); } catch { invalidCallIdRejected = true; }
+  let oversizedFileManifestRejected = false;
+  try { PropertyTypingSignals.createFileSignal(nostr, a, [aPub, bPub], bPub, transferId, 'file-offer', 120, { files: [{ ...fileManifest[0], sizeBytes: 9 * 1024 * 1024 }], sdp: dataSdp }); } catch { oversizedFileManifestRejected = true; }
+  let groupFileTransferRejected = false;
+  try { PropertyTypingSignals.createFileSignal(nostr, a, [aPub, bPub, cPub], bPub, transferId, 'file-offer', 121, { files: fileManifest, sdp: dataSdp }); } catch { groupFileTransferRejected = true; }
   return {
     wrapperKind: startEvent.kind,
     signatureValid: nostr.verifyEvent(startEvent) && nostr.verifyEvent(stopEvent),
@@ -116,6 +131,17 @@ const result = vm.runInContext(`(() => {
     groupCallRejected,
     invalidCallSdpRejected,
     invalidCallIdRejected,
+    fileOfferAction: openedFileOffer?.action,
+    fileOfferManifest: openedFileOffer?.files?.[0],
+    fileOfferSdp: openedFileOffer?.sdp,
+    fileAnswerAction: openedFileAnswer?.action,
+    fileRejectAction: openedFileReject?.action,
+    fileRecipientOnly: fileOffer[0].recipient === bPub && JSON.stringify(fileOffer[0].event.tags) === JSON.stringify([['p', bPub]]),
+    filePayloadEncrypted: !fileOffer[0].event.content.includes('sample.txt') && !fileOffer[0].event.content.includes('m=application'),
+    wrongFileRecipientRejected: wrongFileRecipient === null,
+    staleFileOfferRejected: staleFileOffer === null,
+    oversizedFileManifestRejected,
+    groupFileTransferRejected,
     receiptGroupFlag: openedReceipt?.group,
     receiptParticipants: openedReceipt?.participants.length,
     wrongReceiptRecipientRejected: wrongReceiptRecipient === null,
@@ -175,6 +201,17 @@ assert.equal(result.callStaleSignalRejected, true, 'expired setup signals are re
 assert.equal(result.groupCallRejected, true, 'calls cannot be opened for group conversations');
 assert.equal(result.invalidCallSdpRejected, true);
 assert.equal(result.invalidCallIdRejected, true);
+assert.equal(result.fileOfferAction, 'file-offer');
+assert.equal(result.fileOfferManifest.name, 'sample.txt');
+assert.match(result.fileOfferSdp, /m=application/);
+assert.equal(result.fileAnswerAction, 'file-answer');
+assert.equal(result.fileRejectAction, 'file-reject');
+assert.equal(result.fileRecipientOnly, true, 'the relay sees only the intended recipient tag');
+assert.equal(result.filePayloadEncrypted, true, 'file names and data-channel SDP remain encrypted in the relay signal');
+assert.equal(result.wrongFileRecipientRejected, true);
+assert.equal(result.staleFileOfferRejected, true);
+assert.equal(result.oversizedFileManifestRejected, true);
+assert.equal(result.groupFileTransferRejected, true, 'direct file transfer is rejected for groups');
 assert.equal(result.wrongRecipientRejected, true);
 assert.equal(result.tamperingRejected, true);
 assert.equal(result.staleSignalRejected, true);

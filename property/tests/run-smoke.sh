@@ -16,6 +16,8 @@ for test_file in \
   message-edits-smoke.mjs \
   typing-signals-smoke.mjs \
   call-controller-smoke.mjs \
+  direct-file-envelope-smoke.mjs \
+  direct-transfer-controller-smoke.mjs \
   chat-search-smoke.mjs \
   conversation-folders-smoke.mjs \
   chat-drafts-smoke.mjs \

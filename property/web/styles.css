@@ -117,3 +117,4 @@
 .call-session-controls{justify-content:center}
 .call-session-controls .button{min-width:118px;white-space:normal}
 @media(max-width:420px){.conversation-header{gap:5px;padding-inline:7px}.conversation-header #message-search-button,.conversation-header #audio-call-button,.conversation-header #video-call-button,.conversation-header #chat-details-button{width:33px;min-width:33px;height:36px;padding:0}.call-media-stage{min-height:185px}.call-session-controls{gap:6px}.call-session-controls .button{min-width:96px;padding:8px}}
+.file-direct-dialog,.incoming-direct-file-dialog{width:min(560px,calc(100% - 28px))}.file-direct-dialog[open],.incoming-direct-file-dialog[open]{max-height:min(90dvh,780px);overflow:auto}.incoming-direct-file-dialog .file-attachment-list{max-height:min(28dvh,220px)}#file-direct-cancel-transfer[hidden],#file-attachment-send-direct[hidden]{display:none!important}
