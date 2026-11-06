@@ -16,6 +16,7 @@ const chatSearch = await readFile(join(root, 'web/chat-search.js'), 'utf8');
 const conversationFolders = await readFile(join(root, 'web/conversation-folders.js'), 'utf8');
 const chatDrafts = await readFile(join(root, 'web/chat-drafts.js'), 'utf8');
 const richText = await readFile(join(root, 'web/rich-text.js'), 'utf8');
+const nostrEntities = await readFile(join(root, 'web/nostr-entities.js'), 'utf8');
 const secretGuard = await readFile(join(root, 'web/secret-guard.js'), 'utf8');
 const nip05 = await readFile(join(root, 'web/nip05.js'), 'utf8');
 const messageEdits = await readFile(join(root, 'web/message-edits.js'), 'utf8');
@@ -62,16 +63,17 @@ assert.match(sw, /about\.html/);
 assert.match(html, /\.\/chat-search\.js/);
 assert.match(html, /\.\/pwa\.js\?v=property-v35/);
 assert.match(html, /\.\/i18n\.js\?v=property-v48/);
-assert.match(html, /\.\/styles\.css\?v=property-v51/);
+assert.match(html, /\.\/styles\.css\?v=property-v52/);
 assert.match(html, /\.\/conversation-folders\.js\?v=property-v36/);
 assert.match(html, /\.\/chat-drafts\.js\?v=property-v38/);
-assert.match(html, /\.\/rich-text\.js\?v=property-v37/);
+assert.match(html, /\.\/nostr-entities\.js\?v=property-v1/);
+assert.match(html, /\.\/rich-text\.js\?v=property-v38/);
 assert.match(html, /\.\/vendor\/qr-code-generator\.js\?v=property-v39/);
 assert.match(html, /\.\/public-profile\.js\?v=property-v2/);
 assert.match(html, /\.\/nip05\.js\?v=property-v1/);
 assert.match(html, /\.\/emoji-picker\.js\?v=property-v2/);
 assert.match(html, /\.\/chat-gestures\.js\?v=property-v1/);
-assert.match(html, /\.\/app\.js\?v=property-v55/);
+assert.match(html, /\.\/app\.js\?v=property-v57/);
 assert.match(html, /id="emoji-picker-button"/);
 assert.match(html, /id="emoji-picker-search"/);
 assert.match(html, /id="reaction-emoji-dialog"/);
@@ -92,7 +94,8 @@ assert.match(sw, /emoji-picker\.js\?v=property-v2/);
 assert.match(sw, /emoji-data-15\.json/);
 assert.match(sw, /emoji-mart-data-MIT\.txt/);
 assert.match(sw, /chat-gestures\.js\?v=property-v1/);
-assert.match(sw, /app\.js\?v=property-v55/);
+assert.match(sw, /app\.js\?v=property-v57/);
+assert.match(app, /document\.createTreeWalker\(node, NodeFilter\.SHOW_TEXT\)/, 'message search preserves and highlights the rich message DOM instead of flattening cards and formatting');
 assert.match(sw, /conversation-folders\.js\?v=property-v36/);
 assert.match(sw, /pwa\.js\?v=property-v35/);
 assert.match(sw, /vendor\/qr-code-generator\.js\?v=property-v39/);
@@ -110,7 +113,7 @@ assert.match(app, /ChatGestures\.shouldReplySwipe\(/, 'touch reply gestures use 
 assert.match(app, /ChatGestures\.isEditLastShortcut\(/, 'edit-last keyboard gestures use the guarded local shortcut');
 assert.match(css, /\.message-bubble\{touch-action:pan-y/);
 await access(join(root, 'web/chat-gestures.js'));
-assert.match(sw, /styles\.css\?v=property-v51/);
+assert.match(sw, /styles\.css\?v=property-v52/);
 assert.match(sw, /i18n\.js\?v=property-v48/);
 assert.equal((app.match(/Nip05\.check\(/g) || []).length, 1, 'the NIP-05 network check is centralized and not run while loading profiles');
 assert.match(nip05, /credentials: 'omit'/);
@@ -166,7 +169,9 @@ assert.match(app, /if \(!state\.pubkey \|\| !peer \|\| \(state\.editingMessage &
 assert.match(app, /await saveChatDraft\(peer, input\.value\)\.catch\(\(\) => \{\}\);/, 'successful sends clear sent drafts or preserve text typed during an in-flight send');
 assert.doesNotMatch(chatDrafts, /\bfetch\s*\(|\bWebSocket\b/, 'chat drafts never use the network');
 assert.match(html, /Drafts stay on this device and are not sent until you press Send\./);
-assert.match(sw, /rich-text\.js\?v=property-v37/, 'offline shell caches the local safe message renderer');
+assert.match(sw, /nostr-entities\.js\?v=property-v1/, 'offline shell caches the local Nostr entity recognizer');
+assert.match(sw, /rich-text\.js\?v=property-v38/, 'offline shell caches the local safe message renderer');
+assert.doesNotMatch(nostrEntities, /\bfetch\s*\(|\bWebSocket\b|\bXMLHttpRequest\b/, 'profile references are decoded locally without relay or server access');
 assert.match(html, /data-format-marker="\*\*"/, 'the composer exposes bold formatting');
 assert.match(html, /data-format-marker="\|\|"/, 'the composer exposes spoilers');
 assert.match(app, /RichText\.wrapSelection\(input, button\.dataset\.formatMarker\)/, 'format buttons edit the local draft without changing the send protocol');
@@ -395,7 +400,7 @@ assert.doesNotMatch(`${app}\n${sw}`, /\bimport\s*\(\s*["']https?:/i,
   'the app and service worker cannot import remote executable code');
 assert.match(sw, /importScripts\('\.\/share-inbox\.js\?v=property-v33'\);/,
   'the service worker imports only Property local source for the share inbox');
-for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './vendor/QR-CODE-GENERATOR-LICENSE.txt', './vendor/licenses/emoji-mart-data-MIT.txt', './vendor/emoji-data-15.json', './vendor/licenses/secret-guard/README.md', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './chat-drafts.js', './rich-text.js', './emoji-picker.js', './secret-guard.js', './nip05.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './vendor/qr-code-generator.js', './app.js']) {
+for (const localPath of ['./about.html', './GHOSTLY-MIT-LICENSE.txt', './vendor/QR-CODE-GENERATOR-LICENSE.txt', './vendor/licenses/emoji-mart-data-MIT.txt', './vendor/emoji-data-15.json', './vendor/licenses/secret-guard/README.md', './styles.css', './relay-defaults.js', './share-inbox.js', './conversation-folders.js', './chat-drafts.js', './nostr-entities.js', './rich-text.js', './emoji-picker.js', './secret-guard.js', './nip05.js', './vault.js', './routing.js', './forwarding.js', './nano.js', './money.js', './marketplace.js', './campaigns.js', './contact.js', './agent-messaging.js', './manifest.webmanifest', './assets/icon.svg', './vendor/nostr-tools-2.25.2.bundle.js', './vendor/qr-code-generator.js', './app.js']) {
   await access(join(root, 'web', localPath));
 }
 await access(join(root, 'relay/dist-parts/manifest.txt'));

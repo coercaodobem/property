@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09', 'G04-11'];
+const CASES = ['G04-01', 'G04-02', 'G04-11', 'G04-12', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -244,12 +244,22 @@ function publishEvent(url, event) {
 
 async function openApp(context, origin) {
   const page = await context.newPage(); await page.goto(`${origin}/property/`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForFunction(async () => {
-    const registration = await navigator.serviceWorker?.getRegistration();
-    return registration?.active?.state === 'activated';
-  }, null, { timeout: 20000 });
-  await page.waitForFunction(() => !document.querySelector('#auth-choice')?.classList.contains('hidden') || !document.querySelector('#workspace')?.classList.contains('hidden'), null, { timeout: 20000 });
-  return page;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await page.waitForFunction(async () => {
+        const registration = await navigator.serviceWorker?.getRegistration();
+        const ready = registration?.active?.state === 'activated' && navigator.serviceWorker?.controller?.state === 'activated';
+        const appVisible = !document.querySelector('#auth-choice')?.classList.contains('hidden')
+          || !document.querySelector('#workspace')?.classList.contains('hidden');
+        return ready && appVisible;
+      }, null, { timeout: 20000 });
+      return page;
+    } catch (error) {
+      if (!/Execution context was destroyed|navigation/i.test(error.message || '')) throw error;
+      await page.waitForLoadState('domcontentloaded', { timeout: 20000 }).catch(() => {});
+    }
+  }
+  throw new Error('Property app did not settle after its service-worker activation reload.');
 }
 async function createIdentity(page) {
   await page.locator('#create-account-button').waitFor({ state: 'visible' }); await page.locator('#create-account-button').click();
@@ -271,7 +281,7 @@ async function freshSecretHex(page) {
   return page.evaluate(() => Array.from(NostrTools.generateSecretKey(), byte => byte.toString(16).padStart(2, '0')).join(''));
 }
 async function saveRelaysBeforeIdentity(page, relayUrls) {
-  await page.evaluate(async urls => {
+  const saved = await page.evaluate(async urls => {
     const db = await new Promise((resolve, reject) => {
       const request = indexedDB.open('liberdade-local-v1');
       request.onsuccess = () => resolve(request.result);
@@ -284,8 +294,15 @@ async function saveRelaysBeforeIdentity(page, relayUrls) {
       transaction.onabort = () => reject(transaction.error || new Error('relay fixture transaction aborted'));
       transaction.onerror = () => reject(transaction.error || new Error('relay fixture transaction failed'));
     });
-    db.close();
+    const value = await new Promise((resolve, reject) => {
+      const request = db.transaction('settings').objectStore('settings').get('relays');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    db.close(); return value;
   }, relayUrls);
+  assert.deepEqual(saved?.values, relayUrls, 'offline fixtures replace first-use random relay suggestions before identity activation');
+  assert.equal(saved?.autoSelected, false, 'local relay fixtures no longer carry the automatic-suggestion flag');
   try {
     await page.reload({ waitUntil: 'domcontentloaded' });
   } catch (error) {
@@ -434,7 +451,7 @@ async function writeReport(output, report) { await mkdir(output, { recursive: tr
 
 async function main() {
   installProcessGroupSignalCleanup();
-  let options, runtime, app, proxy, relay0, relay1, falseAck, contextA, contextB, contextC, contextD, contextE, contextF, stage = 'startup';
+  let options, runtime, app, proxy, relay0, relay1, falseAck, contextA, contextB, contextC, contextD, contextE, contextF, contextG, stage = 'startup';
   const temp = await mkdtemp(path.join(os.tmpdir(), 'property-g04-'));
   const report = { schema_version: 1, cases: CASES.map(id => ({ case: id, status: 'NOT_RUN', reason: 'Case has not started.' })),
     relays: [], external_requests: [], websockets: [], denied_proxy_attempts: [], page_errors: [], inbox_checks: {}, message_checks: {}, failure_checks: {}, reconciliation: {} };
@@ -548,6 +565,139 @@ async function main() {
       arrow_up_edit_text_matches_latest_own_message: true, nonempty_draft_preserved: true, cancel_restored_empty_draft: true,
       relay_event_delta: eventsAfterGestures.length - eventsBeforeGestures.length };
     mark('G04-11', 'PASS', 'A fixed rightward touch swipe selected its exact reply target; ArrowUp edited the latest eligible own message only with an empty composer; cancel preserved the draft and neither shortcut published a relay event.');
+
+    // G04-12: NIP-19 profile cards are a local contact-intent affordance, not a relay action.
+    stage = 'G04-12: Nostr profile cards and explicit contact intent';
+    const extraPubkey = await pageA.evaluate(() => NostrTools.getPublicKey(NostrTools.generateSecretKey()));
+    const extraNpub = await pageA.evaluate(key => NostrTools.nip19.npubEncode(key), extraPubkey);
+    const contactNprofile = await pageA.evaluate(({ pubkey, relay }) => NostrTools.nip19.nprofileEncode({ pubkey, relays: [relay] }),
+      { pubkey: c.pubkey, relay: relay0.url });
+    const cardText = `${contactNprofile}\n${b.npub}\n${extraNpub}\nDuplicate ${contactNprofile}\nAfter cap ${a.npub}\nInvalid npub1truncated\nPrivate-looking nsec1truncated\nCode \`${a.npub}\`\nURL https://example.invalid/${a.npub}`;
+    await pageA.locator('#message-input').fill(cardText);
+    await pageA.locator('#send-form button[type="submit"]').click();
+    if (await pageA.locator('#secret-guard-dialog').isVisible()) await pageA.locator('#secret-guard-send-anyway').click();
+    try {
+      await pageA.waitForFunction(value => [...document.querySelectorAll('#messages .message-row')].some(row => row.textContent.includes(value)),
+        contactNprofile, { timeout: 10000 });
+    } catch (error) {
+      const diagnostics = await pageA.evaluate(() => ({
+        composer: document.querySelector('#message-input')?.value || '',
+        sendDisabled: document.querySelector('#send-form button[type="submit"]')?.disabled ?? null,
+        toast: document.querySelector('#toast')?.textContent?.trim() || '',
+        relayError: document.querySelector('#relay-error')?.textContent?.trim() || '',
+        warningVisible: document.querySelector('#secret-guard-dialog')?.open ?? false,
+        messageRows: [...document.querySelectorAll('#messages .message-row')].map(row => row.textContent.slice(0, 240))
+      }));
+      throw new Error(`G04-12 message did not render: ${JSON.stringify(diagnostics)}; ${error.message}`);
+    }
+    const entityRow = pageA.locator('#messages .message-row').filter({ hasText: contactNprofile }).last();
+    await entityRow.waitFor({ state: 'visible', timeout: 10000 });
+    const profileCards = entityRow.locator('button[data-nostr-profile-code]');
+    assert.equal(await profileCards.count(), 3, 'three unique valid profile references render at most three cards');
+    await pageA.locator('#message-search-button').click();
+    await pageA.locator('#message-search-input').fill(contactNprofile.slice(0, 16));
+    await pageA.locator('#message-search-count').waitFor({ state: 'visible', timeout: 5000 });
+    await pageA.waitForFunction(() => document.querySelector('#message-search-count')?.textContent === '1 of 1', null, { timeout: 5000 });
+    assert.equal(await profileCards.count(), 3, 'local message search preserves the profile cards and their interaction targets');
+    assert.ok(await profileCards.first().locator('mark.message-search-hit').count(), 'the matched profile code is highlighted inside its existing card');
+    await pageA.locator('#message-search-close').click();
+    assert.equal(await profileCards.count(), 3, 'closing search restores the same cards without recreating the message');
+    assert.deepEqual(await profileCards.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-nostr-profile-code'))),
+      [contactNprofile.toLowerCase(), b.npub, extraNpub], 'cards retain their valid NIP-19 inputs in message order');
+    assert.ok((await entityRow.textContent()).includes(a.npub), 'references beyond the card cap and inside code/URLs remain searchable text');
+    assert.ok((await entityRow.textContent()).includes('npub1truncated') && (await entityRow.textContent()).includes('nsec1truncated'),
+      'invalid profile codes and private-key-looking text stay literal');
+    const conversationCountBeforeCard = await pageA.locator('#conversation-list .conversation-row').count();
+    const relayEventsBeforeCard = (await wsQuery(relay0.url, { kinds: [1059], limit: 1000 })).map(event => event.id).sort();
+    await profileCards.first().click();
+    await pageA.locator('#new-chat-dialog').waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal(await pageA.locator('#peer-input').inputValue(), c.npub, 'the profile card prefills the intended public identity');
+    assert.equal((await pageA.locator('#peer-relays-input').inputValue()).trim(), relay0.url, 'nprofile relay hints are shown for review');
+    assert.equal(await pageA.locator('#conversation-list .conversation-row').count(), conversationCountBeforeCard,
+      'opening a card does not create a conversation');
+    const relayEventsAfterCard = (await wsQuery(relay0.url, { kinds: [1059], limit: 1000 })).map(event => event.id).sort();
+    assert.deepEqual(relayEventsAfterCard, relayEventsBeforeCard, 'opening a profile card publishes no relay event');
+    await pageA.locator('#new-chat-dialog button[aria-label="Close"]').click();
+    await pageA.locator('#new-chat-dialog').waitFor({ state: 'hidden', timeout: 5000 });
+    report.nostr_profile_cards = { valid_unique_cards: 3, duplicate_canonical_profile_deduplicated: true,
+      invalid_code_literal: true, prefilled_public_identity: true, relay_hints_shown_for_review: true,
+      search_kept_cards_interactive: true, search_highlighted_profile_code: true, closing_search_preserved_cards: true,
+      conversation_created_before_confirmation: false, relay_event_delta: relayEventsAfterCard.length - relayEventsBeforeCard.length };
+    mark('G04-12', 'PASS', 'Valid npub/nprofile references rendered as bounded Property cards; duplicate, invalid, nsec-looking, code-span and URL references stayed literal. Local search highlighted a profile code without flattening its card; tapping a card prefilled the existing contact dialog and relay hints without creating a conversation or publishing an event.');
+
+    // G04-13: no relay configuration barrier on a fresh browser profile.
+    stage = 'G04-13: automatic first-use relay selection';
+    contextG = await runtime.playwright[options.engine].launchPersistentContext(path.join(temp, 'profile first-use relay suggestions'),
+      { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
+    instrument(contextG, origin, report);
+    const publicSocketStart = report.websockets.length;
+    const defaultPage = await openApp(contextG, origin);
+    await defaultPage.locator('#first-use-relays').waitFor({ state: 'visible', timeout: 5000 });
+    const suggestedRelays = await defaultPage.locator('#first-use-relay-list code').allTextContents();
+    const bundledCandidates = await defaultPage.evaluate(() => window.PropertyRelayDefaults.candidates);
+    assert.equal(suggestedRelays.length, 2, 'fresh installs display two suggestions before identity creation');
+    assert.equal(new Set(suggestedRelays).size, 2, 'suggested relays are distinct');
+    assert.ok(suggestedRelays.every(url => bundledCandidates.includes(url)), 'every suggestion comes from the list bundled in Property');
+    assert.equal(await defaultPage.locator('#create-account-button').isVisible(), true, 'identity creation is available without opening relay settings');
+    const importButtonVisible = await defaultPage.locator('#import-account-button').isVisible();
+    if (!importButtonVisible) {
+      const importButtonState = await defaultPage.evaluate(() => {
+        const button = document.querySelector('#import-account-button');
+        const rect = button?.getBoundingClientRect();
+        return {
+          connected: Boolean(button?.isConnected),
+          disabled: Boolean(button?.disabled),
+          className: button?.className || '',
+          display: button ? getComputedStyle(button).display : 'missing',
+          visibility: button ? getComputedStyle(button).visibility : 'missing',
+          size: rect ? { width: rect.width, height: rect.height } : null,
+          authChoiceClass: document.querySelector('#auth-choice')?.className || 'missing',
+          authScreenClass: document.querySelector('#auth-screen')?.className || 'missing',
+          firstUsePanelClass: document.querySelector('#first-use-relays')?.className || 'missing'
+        };
+      });
+      assert.fail(`identity import is unavailable without opening relay settings: ${JSON.stringify(importButtonState)}`);
+    }
+    const firstUseSettings = await defaultPage.evaluate(async () => {
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('liberdade-local-v1');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const value = await new Promise((resolve, reject) => {
+        const request = db.transaction('settings').objectStore('settings').get('relays');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      db.close(); return value;
+    });
+    assert.deepEqual(firstUseSettings?.values, suggestedRelays, 'the displayed random pair is persisted on this device');
+    assert.equal(firstUseSettings?.autoSelected, true, 'the saved pair remains identified as an automatic suggestion');
+    await defaultPage.evaluate(() => {
+      window.__propertyFirstUseClick = false;
+      document.addEventListener('click', event => {
+        if (event.target?.closest?.('#first-use-open-relays')) window.__propertyFirstUseClick = true;
+      }, true);
+    });
+    await defaultPage.locator('#first-use-open-relays').click();
+    const relayDialogOpen = await defaultPage.locator('#relay-dialog').evaluate(dialog => dialog.open);
+    assert.equal(relayDialogOpen, true, `opening optional relay settings failed: ${JSON.stringify(await defaultPage.evaluate(() => ({
+      clickObserved: window.__propertyFirstUseClick,
+      dialogOpen: document.querySelector('#relay-dialog')?.open,
+      buttonDisabled: document.querySelector('#first-use-open-relays')?.disabled,
+      buttonClass: document.querySelector('#first-use-open-relays')?.className,
+      authChoiceClass: document.querySelector('#auth-choice')?.className,
+      relayCount: document.querySelectorAll('#first-use-relay-list code').length
+    })))}`);
+    await defaultPage.locator('#relay-dialog').waitFor({ state: 'visible', timeout: 5000 });
+    assert.equal((await defaultPage.locator('#relay-input').inputValue()).trim().split('\n').length, 2,
+      'the person can review and replace the pair but is never forced through the dialog');
+    await defaultPage.locator('#relay-dialog button[aria-label="Close"]').click();
+    assert.equal(await defaultPage.locator('#create-account-button').isVisible(), true, 'closing settings leaves the no-barrier start available');
+    assert.deepEqual(report.websockets.slice(publicSocketStart), [], 'automatic relay suggestions do not connect before identity activation');
+    report.first_use_relay_suggestions = { selected_count: suggestedRelays.length, distinct: true, from_bundled_candidates: true,
+      persisted_locally: true, identity_creation_available_without_settings: true, no_relay_connections_before_identity: true };
+    mark('G04-13', 'PASS', 'A fresh profile received two distinct bundled relay suggestions, saved them locally, and could create or import an identity without configuring relays. Settings remained optional and no relay connection started before identity activation.');
 
     stage = 'G04-03: close B and deliver queued message'; await closeContext(contextB);
     const delayed = `property-g04-offline-${crypto.randomUUID()}`; await sendMessage(pageA, delayed);
@@ -771,7 +921,7 @@ async function main() {
     catch (writeError) { process.stderr.write(`REPORT_WRITE_FAILED: ${safeText(writeError.message || writeError)}\n`); }
     process.stderr.write(`${report.result}: ${report.error}\n`); return report.result === 'BLOCKED' ? 2 : 1;
   } finally {
-    await closeContext(contextF); await closeContext(contextE); await closeContext(contextD); await closeContext(contextC); await closeContext(contextB); await closeContext(contextA);
+    await closeContext(contextG); await closeContext(contextF); await closeContext(contextE); await closeContext(contextD); await closeContext(contextC); await closeContext(contextB); await closeContext(contextA);
     await runtime?.browser?.close().catch(() => {});
     await stopGeode(relay1); await stopGeode(relay0);
     for (const server of [falseAck?.server, app?.server, proxy?.server]) if (server?.listening) await new Promise(resolve => { server.close(() => resolve()); server.closeAllConnections?.(); });

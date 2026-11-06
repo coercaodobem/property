@@ -10,7 +10,7 @@
   <link rel="icon" href="./assets/property-icon-192.png?v=property-v26" type="image/png" sizes="192x192">
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
-  <link rel="stylesheet" href="./styles.css?v=property-v51">
+  <link rel="stylesheet" href="./styles.css?v=property-v52">
   <link rel="stylesheet" href="./project-story.css?v=property-v1">
 </head>
 <body class="project-story-page">
@@ -75,7 +75,7 @@
         <p>Agents can use Property’s structured messaging protocol through the same app and relay network. The agent conversation stays distinct from a person’s other chats.</p>
       </div>
       <div class="story-feature-grid">
-        <article class="story-feature"><span class="story-feature-icon">↔</span><h3>Private conversations</h3><p>Replies, reactions, edits, search, drafts, and folders live in Property’s existing chat experience.</p></article>
+        <article class="story-feature"><span class="story-feature-icon">↔</span><h3>Private conversations</h3><p>Replies, reactions, edits, search, drafts, folders, and Nostr profile cards live in Property’s existing chat experience.</p></article>
         <article class="story-feature"><span class="story-feature-icon">⌘</span><h3>Agent-friendly messages</h3><p>Structured requests and responses can travel through the same Nostr-based conversation instead of a separate Property app.</p></article>
         <article class="story-feature"><span class="story-feature-icon">◎</span><h3>Bring people together</h3><p>Create private NIP-17 groups, or meet in Hangout’s public spaces. Group membership and public posts have different privacy rules.</p></article>
       </div>
@@ -117,7 +117,7 @@
         <section class="node-card"><h2>Marketplace and payments</h2><p>The current version can publish, edit, withdraw, and discover public NIP-15 offers. Withdrawal signs a NIP-09 request; relays may retain old copies. In Hangout, you can opt in to showing campaigns signed by nodes; the preference stays on this device, and the app sends no click or view events to the node. Relays can still see queries and connection metadata. A node signature does not confirm payment on the Bitcoin, Monero, or Nano networks: campaign acceptance, collection, and refunds in BTC, XMR, and XNO are not implemented. The app does not process marketplace purchases or hold payments.</p></section>
         <section class="node-card"><h2>Relay for Ubuntu</h2><p>The package includes the Geode relay for Linux x86_64. By default, it listens only on <code>127.0.0.1:7447</code> and stores data in the user's directory. Exposing a relay to the internet requires deliberate TLS, firewall, and storage configuration.</p></section>
         <section class="node-card"><h2>Code and distribution</h2><p>The files needed by the client are included in the published package. Property does not load executable scripts from a CDN, Maven, JitPack, or the upstream repository at runtime. Amethyst is the reused codebase. Adapted Ghostly patterns and the local secret guard are MIT licensed; read the <a href="./GHOSTLY-MIT-LICENSE.txt">Ghostly license</a> and the <a href="./vendor/licenses/secret-guard/README.md">secret-guard notices</a>. The bundled Emoji Mart Unicode 15 data is also MIT licensed; read its <a href="./vendor/licenses/emoji-mart-data-MIT.txt">license</a>. The local QR encoder includes the MIT-licensed Project Nayuki generator; read its <a href="./vendor/QR-CODE-GENERATOR-LICENSE.txt">license</a>.</p></section>
-        <section class="node-card"><h2>One Property app</h2><p>Ghostly is a user-experience reference. Compatible chat interactions, including Nostr replies, safe rich text, an offline emoji picker, local drafts and folders, anchored scrolling, and contact sharing through a Property link, Nostr profile code, or QR are part of this same PWA. Emoji choices stay in the local draft until you send. The recipient can open the contact in Property without a separate app; the link only prepares the conversation and never sends a message.</p></section>
+        <section class="node-card"><h2>One Property app</h2><p>Ghostly is a user-experience reference. Compatible chat interactions, including Nostr replies, safe rich text, offline emoji picking, local drafts and folders, anchored scrolling, profile cards for valid npub/nprofile codes, and contact sharing through a Property link, Nostr profile code, or QR are part of this same PWA. A profile card only pre-fills the existing conversation dialog; it does not fetch a profile or send a message. Emoji choices stay in the local draft until you send. The recipient can open the contact in Property without a separate app; the link only prepares the conversation and never sends a message.</p></section>
       </div>
       <p class="story-pending">Calls, voice messages, peer-to-peer file transfer, typing indicators, read receipts, link previews, external identity proofs, wallet cards, and signed mini-apps are not integrated. The mobile PWA can be suspended by its operating system; it is not an always-on relay.</p>
     </details>

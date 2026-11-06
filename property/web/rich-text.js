@@ -127,11 +127,14 @@
     if (from < text.length) items.push({ type: 'text', text: text.slice(from) });
   }
 
-  function tokenizeInline(text) {
+  function tokenizeInline(text, entityBudget = null) {
     const pieces = [];
     for (const codePiece of splitCodeSpans(text)) {
       if (typeof codePiece !== 'string') { pieces.push(codePiece); continue; }
-      pieces.push(...splitLinks(codePiece));
+      for (const linkPiece of splitLinks(codePiece)) {
+        if (typeof linkPiece !== 'string') { pieces.push(linkPiece); continue; }
+        pieces.push(...(window.PropertyNostrEntities?.splitText(linkPiece, entityBudget) || [linkPiece]));
+      }
     }
     const items = [];
     const edge = (piece, first) => piece === undefined ? undefined : typeof piece === 'string' ? piece[first ? 0 : piece.length - 1] : 'a';
@@ -294,7 +297,7 @@
   function plainInline(segments) {
     let output = '';
     for (const segment of segments) {
-      if (segment.type === 'text' || segment.type === 'code' || segment.type === 'link') output += segment.text;
+      if (segment.type === 'text' || segment.type === 'code' || segment.type === 'link' || segment.type === 'nostr-profile') output += segment.text;
       else if (segment.type === 'span') output += segment.style === 'spoiler' ? SPOILER_PREVIEW : plainInline(segment.children);
     }
     return output;
@@ -321,6 +324,19 @@
       } else if (segment.type === 'link') {
         const link = doc.createElement('a'); link.className = 'message-link'; link.href = segment.href; link.textContent = segment.text;
         link.target = '_blank'; link.rel = 'noopener noreferrer'; link.referrerPolicy = 'no-referrer'; parent.append(link);
+      } else if (segment.type === 'nostr-profile') {
+        const button = doc.createElement('button');
+        button.type = 'button';
+        button.className = 'message-entity-card message-nostr-profile';
+        button.setAttribute('data-nostr-profile-code', segment.code);
+        const portuguese = language === 'pt-BR';
+        const label = portuguese ? 'Contato Nostr' : 'Nostr contact';
+        const shortKey = `${segment.pubkey.slice(0, 12)}…${segment.pubkey.slice(-6)}`;
+        button.setAttribute('data-entity-label', label);
+        button.setAttribute('aria-label', portuguese ? `Abrir conversa com perfil Nostr ${shortKey}` : `Open a conversation with Nostr profile ${shortKey}`);
+        button.title = segment.code;
+        button.textContent = segment.text;
+        parent.append(button);
       } else if (segment.type === 'span') {
         if (segment.style === 'spoiler') {
           const spoiler = doc.createElement('button'); spoiler.type = 'button'; spoiler.className = 'message-spoiler'; spoiler.setAttribute('aria-expanded', 'false');
@@ -341,41 +357,42 @@
     }
   }
 
-  function appendLines(parent, lines, doc, language) {
+  function appendLines(parent, lines, doc, language, entityBudget) {
     lines.forEach((line, index) => {
       if (index) parent.append(doc.createElement('br'));
-      appendInline(parent, tokenizeInline(line), doc, language);
+      appendInline(parent, tokenizeInline(line, entityBudget), doc, language);
     });
   }
 
-  function renderList(parent, list, doc, language, depth = 0) {
+  function renderList(parent, list, doc, language, entityBudget, depth = 0) {
     const element = doc.createElement(list.ordered ? 'ol' : 'ul'); element.className = 'message-rich-list'; parent.append(element);
     for (const item of list.items) {
       const li = doc.createElement('li');
       const marker = doc.createElement('span'); marker.className = 'message-list-marker'; marker.textContent = item.marker;
-      const body = doc.createElement('span'); body.className = 'message-list-body'; appendLines(body, item.lines, doc, language);
+      const body = doc.createElement('span'); body.className = 'message-list-body'; appendLines(body, item.lines, doc, language, entityBudget);
       li.append(marker, body); element.append(li);
-      if (depth < 1) for (const child of item.children) renderList(li, child, doc, language, depth + 1);
+      if (depth < 1) for (const child of item.children) renderList(li, child, doc, language, entityBudget, depth + 1);
     }
   }
 
   function renderInto(target, source, language = 'en') {
     if (!target?.ownerDocument) return;
     const doc = target.ownerDocument;
+    const entityBudget = { remaining: window.PropertyNostrEntities?.MAX_CARDS_PER_MESSAGE || 0, seen: new Set() };
     target.replaceChildren();
     for (const block of parseMessage(source)) {
       if (block.type === 'plain') { target.append(doc.createTextNode(block.text)); continue; }
       if (block.type === 'paragraph') {
-        const p = doc.createElement('p'); p.className = 'message-rich-block'; appendLines(p, block.lines, doc, language); target.append(p);
+        const p = doc.createElement('p'); p.className = 'message-rich-block'; appendLines(p, block.lines, doc, language, entityBudget); target.append(p);
       } else if (block.type === 'heading') {
-        const p = doc.createElement('p'); p.className = `message-rich-heading level-${block.level}`; appendLines(p, block.lines, doc, language); target.append(p);
+        const p = doc.createElement('p'); p.className = `message-rich-heading level-${block.level}`; appendLines(p, block.lines, doc, language, entityBudget); target.append(p);
       } else if (block.type === 'quote') {
-        const quote = doc.createElement('blockquote'); quote.className = 'message-rich-quote'; appendLines(quote, block.lines, doc, language); target.append(quote);
+        const quote = doc.createElement('blockquote'); quote.className = 'message-rich-quote'; appendLines(quote, block.lines, doc, language, entityBudget); target.append(quote);
       } else if (block.type === 'codeblock') {
         const pre = doc.createElement('pre'); pre.className = 'message-code-block'; const code = doc.createElement('code');
         if (block.language) { code.dataset.language = block.language; code.setAttribute('aria-label', `${block.language} code`); }
         code.textContent = block.text; pre.append(code); target.append(pre);
-      } else if (block.type === 'list') renderList(target, block, doc, language);
+      } else if (block.type === 'list') renderList(target, block, doc, language, entityBudget);
     }
   }
 

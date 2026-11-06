@@ -1429,18 +1429,40 @@
     await renderConversations();
   }
   function setMessageSearchText(node, value, ranges) {
-    const fragment = document.createDocumentFragment();
-    let cursor = 0;
-    for (const [start, end] of ranges) {
-      if (start > cursor) fragment.append(document.createTextNode(value.slice(cursor, start)));
-      const mark = document.createElement('mark');
-      mark.className = 'message-search-hit';
-      mark.textContent = value.slice(start, end);
-      fragment.append(mark);
-      cursor = end;
+    node.querySelectorAll('mark.message-search-hit').forEach(mark => mark.replaceWith(document.createTextNode(mark.textContent || '')));
+    if (!ranges.length || !value) return;
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let offset = 0;
+    for (let textNode = walker.nextNode(); textNode; textNode = walker.nextNode()) {
+      const start = offset;
+      offset += textNode.data.length;
+      textNodes.push({ textNode, start, end: offset });
     }
-    if (cursor < value.length) fragment.append(document.createTextNode(value.slice(cursor)));
-    node.replaceChildren(fragment);
+    let rangeIndex = 0;
+    for (const { textNode, start, end } of textNodes) {
+      while (rangeIndex < ranges.length && ranges[rangeIndex][1] <= start) rangeIndex++;
+      const overlaps = [];
+      for (let index = rangeIndex; index < ranges.length && ranges[index][0] < end; index++) overlaps.push(ranges[index]);
+      if (!overlaps.length || !textNode.parentNode) continue;
+      const fragment = document.createDocumentFragment();
+      let cursor = 0;
+      const text = textNode.data;
+      for (const [rangeStart, rangeEnd] of overlaps) {
+        const localStart = Math.max(0, rangeStart - start);
+        const localEnd = Math.min(text.length, rangeEnd - start);
+        if (localStart > cursor) fragment.append(document.createTextNode(text.slice(cursor, localStart)));
+        if (localEnd > cursor) {
+          const mark = document.createElement('mark');
+          mark.className = 'message-search-hit';
+          mark.textContent = text.slice(Math.max(cursor, localStart), localEnd);
+          fragment.append(mark);
+          cursor = localEnd;
+        }
+      }
+      if (cursor < text.length) fragment.append(document.createTextNode(text.slice(cursor)));
+      textNode.replaceWith(fragment);
+    }
   }
   function refreshMessageSearch({ resetIndex = false, scroll = false } = {}) {
     const input = $('message-search-input');
@@ -2550,7 +2572,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v50', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v52', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -2565,6 +2587,11 @@
       state.pendingContactIntent = '';
       state.pendingLaunchAction = '';
       openContactIntent(contact);
+    });
+    document.addEventListener('click', event => {
+      const card = event.target?.closest?.('button[data-nostr-profile-code]');
+      if (!card) return;
+      openContactIntent(card.getAttribute('data-nostr-profile-code') || '');
     });
     $('share-inbox-button').addEventListener('click', () => openShareInbox());
     $('share-close').addEventListener('click', () => $('share-dialog').close());
@@ -2921,7 +2948,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || !FolderStore || !ChatDrafts || !RichText || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();
