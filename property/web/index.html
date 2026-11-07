@@ -25,7 +25,7 @@
   <link rel="stylesheet" href="./typing-signals.css?v=property-v2">
   <link rel="stylesheet" href="./property-apps.css?v=property-v1">
   <link rel="stylesheet" href="./identity-marks.css?v=property-v1">
-  <script defer src="./i18n.js?v=property-v78"></script>
+  <script defer src="./i18n.js?v=property-v80"></script>
   <script defer src="./pwa.js?v=property-v36"></script>
   <script defer src="./relay-defaults.js?v=property-v32"></script>
   <script defer src="./share-inbox.js?v=property-v34"></script>
@@ -48,10 +48,12 @@
   <script defer src="./nostr-entities.js?v=property-v1"></script>
   <script defer src="./location-cards.js?v=property-v1"></script>
   <script defer src="./message-forwards.js?v=property-v1"></script>
-  <script defer src="./typing-signals.js?v=property-v7"></script>
+  <script defer src="./direct-file-chunks.js?v=property-v1"></script>
+  <script defer src="./direct-file-storage.js?v=property-v1"></script>
+  <script defer src="./typing-signals.js?v=property-v8"></script>
   <script defer src="./ice-servers.js?v=property-v1"></script>
   <script defer src="./call-controller.js?v=property-v5"></script>
-  <script defer src="./direct-transfer-controller.js?v=property-v2"></script>
+  <script defer src="./direct-transfer-controller.js?v=property-v3"></script>
   <script defer src="./rich-text.js?v=property-v38"></script>
   <script defer src="./message-edits.js?v=property-v1"></script>
   <script defer src="./message-deletions.js?v=property-v1"></script>
@@ -78,7 +80,7 @@
   <script defer src="./image-viewer.js?v=property-v1"></script>
   <script defer src="./app-directory.js?v=property-v1"></script>
   <script defer src="./identity-marks.js?v=property-v2"></script>
-  <script defer src="./app.js?v=property-v108"></script>
+  <script defer src="./app.js?v=property-v109"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -225,7 +227,7 @@
             </section>
             <dialog id="file-attachment-dialog" class="dialog-card file-attachment-dialog" aria-labelledby="file-attachment-title">
               <div class="dialog-head"><div><p class="eyebrow">PRIVATE NOSTR CHAT</p><h2 id="file-attachment-title">Send files</h2></div><button id="file-attachment-close" class="icon-button small" type="button" aria-label="Close file attachments">×</button></div>
-              <p class="fine-print">Files are split into NIP-17 encrypted messages. Each file can be up to 2 MiB; one send can contain up to 5 files and 4 MiB total. Property does not upload files to a separate service. Every part must arrive before the receiver can download the file; relays may retain the encrypted events.</p>
+              <p class="fine-print">Relay delivery sends NIP-17 encrypted messages (up to 2 MiB per file and 4 MiB per send; up to 5 files). Direct delivery in a one-to-one chat supports up to 100 MiB total in 48 KiB blocks over encrypted WebRTC after the recipient accepts. The recipient must be online. Property does not upload files to a separate service. Relays may retain encrypted NIP-17 events. Direct files are stored in each browser's local database and checked before download.</p>
               <ul id="file-attachment-list" class="file-attachment-list"></ul>
               <label class="file-attachment-caption-label" for="file-attachment-caption">Caption (optional)</label>
               <textarea id="file-attachment-caption" rows="3" maxlength="1000" placeholder="Add a caption…"></textarea>
@@ -234,11 +236,11 @@
             </dialog>
             <dialog id="file-direct-consent-dialog" class="dialog-card file-direct-dialog" aria-labelledby="file-direct-consent-title">
               <div class="dialog-head"><div><p class="eyebrow">PROPERTY · FILE TRANSFER</p><h2 id="file-direct-consent-title">Send files directly?</h2></div></div>
-              <div class="dialog-body"><p id="file-direct-consent-copy" class="muted">File contents travel directly over an encrypted WebRTC channel. The other person and configured ICE servers may learn your network IP address. Only encrypted setup signals use Nostr relays. Both people must keep Property open and the recipient must accept. Some networks cannot connect directly; if that happens, the file draft stays available for the usual relay delivery.</p><p id="file-direct-network-copy" class="fine-print" role="status" aria-live="polite"></p><p class="fine-print">No microphone or camera access is requested. Property does not upload or record these files.</p><div class="dialog-actions"><button id="file-direct-consent-cancel" class="button secondary" type="button">Cancel</button><button id="file-direct-consent-continue" class="button primary" type="button">Continue</button></div></div>
+              <div class="dialog-body"><p id="file-direct-consent-copy" class="muted">File contents travel over encrypted WebRTC. The other person and configured ICE servers may learn your network IP address. Nostr relays carry only encrypted setup signals. Both people must keep Property open, and the recipient must accept. The completed file stays in each browser's local database; Property does not encrypt files at rest. Some networks cannot connect directly; then the draft stays available for relay delivery.</p><p id="file-direct-network-copy" class="fine-print" role="status" aria-live="polite"></p><p class="fine-print">No microphone or camera access is requested. Property does not upload or record these files.</p><div class="dialog-actions"><button id="file-direct-consent-cancel" class="button secondary" type="button">Cancel</button><button id="file-direct-consent-continue" class="button primary" type="button">Continue</button></div></div>
             </dialog>
-            <dialog id="incoming-direct-file-dialog" class="dialog-card incoming-direct-file-dialog" aria-labelledby="incoming-direct-file-title" aria-describedby="incoming-direct-file-copy" role="alertdialog">
+            <dialog id="incoming-direct-file-dialog" class="dialog-card incoming-direct-file-dialog" aria-labelledby="incoming-direct-file-title" aria-describedby="incoming-direct-file-copy incoming-direct-file-storage-copy" role="alertdialog">
               <div class="dialog-head"><div><p class="eyebrow">PROPERTY · FILE TRANSFER</p><h2 id="incoming-direct-file-title">Direct file transfer</h2></div></div>
-              <div class="dialog-body"><p id="incoming-direct-file-name" class="incoming-call-name"></p><p id="incoming-direct-file-copy" class="muted">A contact wants to send these files directly.</p><ul id="incoming-direct-file-list" class="file-attachment-list"></ul><p id="incoming-direct-file-network-copy" class="fine-print" role="status" aria-live="polite"></p><p id="incoming-direct-file-status" class="fine-print" role="status" aria-live="polite" hidden></p><div class="dialog-actions"><button id="incoming-direct-file-decline" class="button danger" type="button">Decline</button><button id="incoming-direct-file-accept" class="button primary" type="button">Accept and receive</button><button id="incoming-direct-file-cancel" class="button danger" type="button" hidden>Cancel direct transfer</button></div></div>
+              <div class="dialog-body"><p id="incoming-direct-file-name" class="incoming-call-name"></p><p id="incoming-direct-file-copy" class="muted">A contact wants to send these files directly.</p><ul id="incoming-direct-file-list" class="file-attachment-list"></ul><p id="incoming-direct-file-storage-copy" class="fine-print">If accepted, files are saved in this browser's local database without at-rest encryption.</p><p id="incoming-direct-file-network-copy" class="fine-print" role="status" aria-live="polite"></p><p id="incoming-direct-file-status" class="fine-print" role="status" aria-live="polite" hidden></p><div class="dialog-actions"><button id="incoming-direct-file-decline" class="button danger" type="button">Decline</button><button id="incoming-direct-file-accept" class="button primary" type="button">Accept and receive</button><button id="incoming-direct-file-cancel" class="button danger" type="button" hidden>Cancel direct transfer</button></div></div>
             </dialog>
             <dialog id="image-viewer-dialog" class="image-viewer-dialog" aria-labelledby="image-viewer-title" aria-describedby="image-viewer-hint" tabindex="-1">
               <div class="image-viewer-shell">

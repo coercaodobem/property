@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const context = { crypto: webcrypto, TextEncoder, TextDecoder, Uint8Array, ArrayBuffer, console, setTimeout, clearTimeout };
 context.window = context;
 vm.createContext(context);
-for (const file of ['../web/vendor/nostr-tools-2.25.2.bundle.js', '../web/typing-signals.js']) {
+for (const file of ['../web/vendor/nostr-tools-2.25.2.bundle.js', '../web/direct-file-chunks.js', '../web/typing-signals.js']) {
   vm.runInContext(await readFile(new URL(file, import.meta.url), 'utf8'), context, { timeout: 5000 });
 }
 
@@ -35,9 +35,11 @@ const result = vm.runInContext(`(() => {
   const restartAnswer = PropertyTypingSignals.createCallSignal(nostr, b, [aPub, bPub], aPub, callId, 'call-restart-answer', 115, { media: 'video', sdp: videoSdp, restartId: 1 });
   const capableCallOffer = PropertyTypingSignals.createCallSignal(nostr, a, [aPub, bPub], bPub, callId, 'call-offer', 116, { media: 'video', sdp: videoSdp, restartIce: true });
   const transferId = 'ef'.repeat(16);
-  const fileManifest = [{ transferId: '12'.repeat(16), name: 'sample.txt', mime: 'text/plain', sizeBytes: 3, totalChunks: 1, sha256: '34'.repeat(32) }];
+  const fileManifest = [{ transferId: '12'.repeat(16), name: 'sample.txt', mime: 'text/plain', sizeBytes: 3,
+    chunkBytes: PropertyDirectFileChunks.CHUNK_BYTES, totalChunks: 1, sha256: '34'.repeat(32) }];
   const dataSdp = ['v=0', 'm=application 9 UDP/DTLS/SCTP webrtc-datachannel', 'a=sctp-port:5000'].join('\\r\\n') + '\\r\\n';
-  const fileOffer = PropertyTypingSignals.createFileSignal(nostr, a, [aPub, bPub], bPub, transferId, 'file-offer', 117, { files: fileManifest, sdp: dataSdp });
+  const fileOffer = PropertyTypingSignals.createFileSignal(nostr, a, [aPub, bPub], bPub, transferId, 'file-offer', 117,
+    { files: fileManifest, caption: 'transfer context', sdp: dataSdp });
   const fileAnswer = PropertyTypingSignals.createFileSignal(nostr, b, [aPub, bPub], aPub, transferId, 'file-answer', 118, { sdp: dataSdp });
   const fileReject = PropertyTypingSignals.createFileSignal(nostr, b, [aPub, bPub], aPub, transferId, 'file-reject', 119);
   const startEvent = start[0].event;
@@ -98,7 +100,9 @@ const result = vm.runInContext(`(() => {
   let invalidCallIdRejected = false;
   try { PropertyTypingSignals.createCallSignal(nostr, a, [aPub, bPub], bPub, 'not-a-call-id', 'call-hangup', 116); } catch { invalidCallIdRejected = true; }
   let oversizedFileManifestRejected = false;
-  try { PropertyTypingSignals.createFileSignal(nostr, a, [aPub, bPub], bPub, transferId, 'file-offer', 120, { files: [{ ...fileManifest[0], sizeBytes: 9 * 1024 * 1024 }], sdp: dataSdp }); } catch { oversizedFileManifestRejected = true; }
+  const tooLargeDirectFile = { ...fileManifest[0], sizeBytes: PropertyDirectFileChunks.MAX_FILE_BYTES + 1,
+    totalChunks: PropertyDirectFileChunks.expectedChunkCount(PropertyDirectFileChunks.MAX_FILE_BYTES + 1) };
+  try { PropertyTypingSignals.createFileSignal(nostr, a, [aPub, bPub], bPub, transferId, 'file-offer', 120, { files: [tooLargeDirectFile], sdp: dataSdp }); } catch { oversizedFileManifestRejected = true; }
   let groupFileTransferRejected = false;
   try { PropertyTypingSignals.createFileSignal(nostr, a, [aPub, bPub, cPub], bPub, transferId, 'file-offer', 121, { files: fileManifest, sdp: dataSdp }); } catch { groupFileTransferRejected = true; }
   return {
@@ -164,6 +168,7 @@ const result = vm.runInContext(`(() => {
     invalidCallIdRejected,
     fileOfferAction: openedFileOffer?.action,
     fileOfferManifest: openedFileOffer?.files?.[0],
+    fileOfferCaption: openedFileOffer?.caption,
     fileOfferSdp: openedFileOffer?.sdp,
     fileAnswerAction: openedFileAnswer?.action,
     fileRejectAction: openedFileReject?.action,
@@ -251,6 +256,7 @@ assert.equal(result.invalidCallSdpRejected, true);
 assert.equal(result.invalidCallIdRejected, true);
 assert.equal(result.fileOfferAction, 'file-offer');
 assert.equal(result.fileOfferManifest.name, 'sample.txt');
+assert.equal(result.fileOfferCaption, 'transfer context');
 assert.match(result.fileOfferSdp, /m=application/);
 assert.equal(result.fileAnswerAction, 'file-answer');
 assert.equal(result.fileRejectAction, 'file-reject');

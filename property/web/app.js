@@ -10,7 +10,7 @@
   const ShareInbox = window.PropertyShareInbox;
   // Stable legacy database ID: preserve existing identities and sessions on this origin.
   const DB_NAME = 'liberdade-local-v1';
-  const DB_VERSION = 3;
+  const DB_VERSION = 4;
   const Vault = window.PropertyVault;
   const Routing = window.PropertyNostrRouting;
   const Bridge = window.PropertyRelayBridge;
@@ -39,6 +39,8 @@
   const VoiceMessages = window.PropertyVoiceMessages;
   const AppDirectory = window.PropertyAppDirectory;
   const FileTransfers = window.PropertyFileTransfers;
+  const DirectFileChunks = window.PropertyDirectFileChunks;
+  const DirectFileStorage = window.PropertyDirectFileStorage;
   const DirectFileEnvelope = window.PropertyDirectFileEnvelope;
   const ImageViewer = window.PropertyImageViewer;
   const MessageEdits = window.PropertyMessageEdits;
@@ -62,6 +64,7 @@
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const MAX_FILE_BATCH_FILES = 5;
   const MAX_FILE_BATCH_BYTES = 4 * 1024 * 1024;
+  const MAX_DIRECT_FILE_BATCH_BYTES = DirectFileChunks.MAX_BATCH_BYTES;
   const eventSourceHints = new WeakMap();
   let emojiPicker = null;
   let groupMentionPicker = null;
@@ -81,7 +84,7 @@
     activeStatusEnabled: false, localPresenceSession: null, remotePresence: new Map(), presenceTimers: new Map(), presenceSequences: new Map(),
     callController: null, call: null, pendingCallPeer: '', pendingCallVideo: false, callSignalSequences: new Map(),
     iceSettings: { urls: '', username: '', credential: '', relayOnly: false }, iceSettingsInvalid: false,
-    directFileController: null, directFileTransfer: null, directFileSignalSequences: new Map(), pendingDirectFileOffer: null, imageViewer: null,
+    directFileController: null, directFileStorage: null, directFileTransfer: null, directFileSignalSequences: new Map(), pendingDirectFileOffer: null, imageViewer: null,
     pendingDirectFileRequest: null, directFileSendJob: null, directFileJobRunning: false, directFileOfferExpiryTimer: 0,
     callUiHadSession: false, callUiSequence: 0,
     peerProfiles: new Map(), peerProfileLookupStatuses: new Map(), peerIdentityProofs: new Map(), identityProofChecks: new Map(), peerNip05Checks: new Map(), chatDetailsPeer: '', identityProofCheckId: 0,
@@ -716,7 +719,15 @@
       });
       item.append(icon, details, remove); list.append(item);
     });
-    send.disabled = state.fileSendBusy || state.fileDraftFiles.length === 0;
+    const relayEligible = state.fileDraftFiles.every(file => file.size <= FileTransfers.MAX_FILE_BYTES) &&
+      state.fileDraftFiles.reduce((sum, file) => sum + file.size, 0) <= MAX_FILE_BATCH_BYTES;
+    send.disabled = state.fileSendBusy || state.fileDraftFiles.length === 0 || !relayEligible;
+    if (!state.fileSendBusy && state.fileDraftFiles.length && !relayEligible) {
+      setFileAttachmentStatus(state.currentConversation?.group === true
+        ? localized('Group relay delivery is limited to 2 MiB per file and 4 MiB per send.', 'O envio por relays em grupos se limita a 2 MiB por arquivo e 4 MiB por envio.')
+        : localized('These files exceed the relay delivery limit. Use the direct encrypted transfer with the recipient online.',
+          'Estes arquivos excedem o limite de envio pelos relays. Use a transferência direta criptografada com a outra pessoa online.'));
+    }
     const directSend = $('file-attachment-send-direct');
     if (directSend) {
       const directUnavailable = !state.secret || !state.activePeer || state.currentConversation?.group === true ||
@@ -738,11 +749,20 @@
     if (!incoming.length) return false;
     const combined = [...state.fileDraftFiles, ...incoming];
     if (combined.length > MAX_FILE_BATCH_FILES) { showToast(localized(`Choose no more than ${MAX_FILE_BATCH_FILES} files at a time.`, `Escolha no máximo ${MAX_FILE_BATCH_FILES} arquivos por envio.`)); return false; }
-    if (combined.some(file => !Number.isSafeInteger(file.size) || file.size > FileTransfers.MAX_FILE_BYTES)) {
-      showToast(localized('Each file must be 2 MiB or smaller.', 'Cada arquivo precisa ter no máximo 2 MiB.')); return false;
+    const directAvailable = state.currentConversation?.group !== true;
+    const maxFileBytes = directAvailable ? DirectFileChunks.MAX_FILE_BYTES : FileTransfers.MAX_FILE_BYTES;
+    const maxBatchBytes = directAvailable ? MAX_DIRECT_FILE_BATCH_BYTES : MAX_FILE_BATCH_BYTES;
+    if (combined.some(file => !Number.isSafeInteger(file.size) || file.size > maxFileBytes)) {
+      showToast(directAvailable
+        ? localized('Each file must be 100 MiB or smaller.', 'Cada arquivo precisa ter no máximo 100 MiB.')
+        : localized('Group files must be 2 MiB or smaller.', 'Arquivos em grupos precisam ter no máximo 2 MiB.'));
+      return false;
     }
-    if (combined.reduce((total, file) => total + file.size, 0) > MAX_FILE_BATCH_BYTES) {
-      showToast(localized('The combined file size must be 4 MiB or smaller.', 'O tamanho total dos arquivos precisa ser de no máximo 4 MiB.')); return false;
+    if (combined.reduce((total, file) => total + file.size, 0) > maxBatchBytes) {
+      showToast(directAvailable
+        ? localized('The combined file size must be 100 MiB or smaller.', 'O tamanho total dos arquivos precisa ser de no máximo 100 MiB.')
+        : localized('Group files must total 4 MiB or less.', 'Os arquivos do grupo podem somar no máximo 4 MiB.'));
+      return false;
     }
     state.fileDraftFiles = combined;
     renderFileDrafts();
@@ -889,6 +909,12 @@
     const files = [...state.fileDraftFiles];
     const caption = $('file-attachment-caption').value.trim();
     if (!peer || !files.length || state.fileSendBusy) return;
+    if (files.some(file => file.size > FileTransfers.MAX_FILE_BYTES) ||
+        files.reduce((sum, file) => sum + file.size, 0) > MAX_FILE_BATCH_BYTES) {
+      showToast(localized('This batch is above the NIP-17 relay limit. Use direct transfer while the recipient is online.',
+        'Este lote excede o limite de envio NIP-17 pelos relays. Use a transferência direta enquanto a outra pessoa estiver online.'));
+      return;
+    }
     if (state.activeConversationAgent || state.activeConversationBlocked) {
       showToast(localized('Files are unavailable in this conversation.', 'Arquivos não estão disponíveis nesta conversa.'));
       return;
@@ -1565,9 +1591,9 @@
       offered: localized('Waiting for the recipient to accept…', 'Aguardando a aceitação de quem vai receber…'),
       incoming: localized('Review the files before accepting.', 'Confira os arquivos antes de aceitar.'),
       connecting: localized('Connecting directly…', 'Conectando diretamente…'),
-      connected: localized('Connected directly. Sending encrypted file parts…', 'Conexão direta estabelecida. Enviando partes criptografadas…'),
-      sending: localized(`Sending directly · ${progress} parts`, `Enviando diretamente · ${progress} partes`),
-      receiving: localized(`Receiving directly · ${progress} parts`, `Recebendo diretamente · ${progress} partes`),
+      connected: localized('Connected directly. Sending encrypted file blocks…', 'Conexão direta estabelecida. Enviando blocos criptografados…'),
+      sending: localized(`Sending directly · ${progress} blocks`, `Enviando diretamente · ${progress} blocos`),
+      receiving: localized(`Receiving directly · ${progress} blocks`, `Recebendo diretamente · ${progress} blocos`),
       reconnecting: localized('Direct connection interrupted; trying to reconnect…', 'Conexão direta interrompida; tentando reconectar…'),
       completed: localized('Direct file transfer completed.', 'Transferência direta concluída.'),
       declined: localized('The recipient declined the direct transfer. Your draft is still here.', 'Quem receber recusou a transferência direta. Seu rascunho continua aqui.'),
@@ -1579,10 +1605,12 @@
   function presentIncomingDirectFileOffer(offer) {
     if (!offer || !$('incoming-direct-file-dialog')) return;
     $('incoming-direct-file-name').textContent = callPeerLabel(offer.peer);
-    $('incoming-direct-file-copy').textContent = localized(
+    const requestCopy = localized(
       `${callPeerLabel(offer.peer)} wants to send these files directly.`,
       `${callPeerLabel(offer.peer)} quer enviar estes arquivos diretamente.`
     );
+    $('incoming-direct-file-copy').textContent = offer.caption
+      ? `${requestCopy}\n\n${localized('Caption:', 'Legenda:')} ${offer.caption}` : requestCopy;
     $('incoming-direct-file-network-copy').textContent = webRtcDisclosureText();
     const list = $('incoming-direct-file-list');
     list.replaceChildren();
@@ -1604,6 +1632,9 @@
   function updateDirectFileTransferState(transfer) {
     state.directFileTransfer = transfer;
     if (!transfer) { renderFileDrafts(); return; }
+    if (['declined', 'cancelled', 'failed'].includes(transfer.status)) {
+      void directFileStore().discardSession(transfer.transferId).catch(() => {});
+    }
     const text = directFileStatusText(transfer);
     if (transfer.direction === 'outgoing' && $('file-attachment-dialog').open) setFileAttachmentStatus(text);
     if (transfer.direction === 'incoming' && $('incoming-direct-file-dialog').open && ['preparing', 'connecting', 'receiving'].includes(transfer.status)) {
@@ -1652,7 +1683,8 @@
         normalizeFileManifests: TypingSignals.normalizeFileManifests,
         onSignal: sendDirectFileSignal,
         onState: updateDirectFileTransferState,
-        onEnvelope: receiveDirectFileEnvelope
+        onPart: receiveDirectFilePart,
+        onComplete: completeDirectFileReception
       });
     }
     return state.directFileController;
@@ -1672,7 +1704,7 @@
       throw new Error(localized('Direct file transfer is available only with an unblocked person in a one-to-one chat.', 'A transferência direta só está disponível com uma pessoa desbloqueada em uma conversa individual.'));
     }
     const members = [sender.toLowerCase(), peer].sort();
-    const details = signal.action === 'file-offer' ? { files: signal.files, sdp: signal.sdp }
+    const details = signal.action === 'file-offer' ? { files: signal.files, caption: signal.caption || '', sdp: signal.sdp }
       : signal.action === 'file-answer' ? { sdp: signal.sdp } : {};
     const deliveries = TypingSignals.createFileSignal(N, secret, members, peer, transferId, signal.action, nextTypingSequence(), details);
     const relays = await resolveTypingRelays(peer);
@@ -1697,9 +1729,9 @@
         await sendDirectFileSignal({ action: 'file-reject', peer, transferId: signal.transferId }).catch(() => {});
         return;
       }
-      state.pendingDirectFileOffer = { peer, transferId: signal.transferId, files: signal.files, sdp: signal.sdp,
+      state.pendingDirectFileOffer = { peer, transferId: signal.transferId, files: signal.files, caption: signal.caption || '', sdp: signal.sdp,
         sender: signal.sender, sequence: signal.sequence, expiresAt: Date.now() + signal.maxAgeSeconds * 1000 };
-      if (!controller.receiveOffer({ peer, transferId: signal.transferId, files: signal.files, sdp: signal.sdp })) {
+      if (!controller.receiveOffer({ peer, transferId: signal.transferId, files: signal.files, caption: signal.caption || '', sdp: signal.sdp })) {
         state.pendingDirectFileOffer = null;
         await sendDirectFileSignal({ action: 'file-reject', peer, transferId: signal.transferId }).catch(() => {});
         return;
@@ -1723,7 +1755,7 @@
       if ($('incoming-direct-file-dialog').open) $('incoming-direct-file-dialog').close();
     }
   }
-  async function receiveDirectFileEnvelope({ peer, sequence, event, files }) {
+  async function receiveDirectFilePart({ peer, transferId, file, index, bytes, sha256 }) {
     const secret = state.secret;
     const pubkey = state.pubkey;
     if (!secret || !pubkey) return false;
@@ -1731,16 +1763,39 @@
     const access = await get('agentAccess', peer).catch(() => null);
     if (state.secret !== secret || state.pubkey !== pubkey || !conversation || conversation.group || conversation.agent ||
         access?.status === 'approved' || access?.status === 'blocked') return false;
-    const validated = await DirectFileEnvelope.validate({ nostr: N, fileTransfers: FileTransfers, secret,
-      recipientPubkey: pubkey, senderPubkey: peer, files, sequence, event });
-    if (state.secret !== secret || state.pubkey !== pubkey || !validated) return false;
-    const { rumor, chunk } = validated;
-    const prior = await get('messages', rumor.id).catch(() => null);
-    if (!prior) await receiveGiftWrap(event);
     if (state.secret !== secret || state.pubkey !== pubkey) return false;
-    const saved = await get('messages', rumor.id).catch(() => null);
-    return Boolean(saved && saved.peer === peer && saved.senderPubkey === peer && saved.fileChunk?.transferId === chunk.transferId &&
-      saved.fileChunk?.index === chunk.index && saved.fileChunk?.chunkSha256 === chunk.chunkSha256);
+    return directFileStore().savePart({ file, index, bytes, sha256, sessionId: transferId, peer, direction: 'received' });
+  }
+  async function saveDirectFileMessages(peer, files, direction, caption, replyEventId = '') {
+    const conversation = await get('conversations', peer) || { pubkey: peer, title: '' };
+    const now = Date.now();
+    for (const file of files) {
+      const transfer = { version: 2, direct: true, storage: 'direct', transferId: file.transferId,
+        name: file.name, mime: file.mime, sizeBytes: file.sizeBytes, sha256: file.sha256,
+        totalChunks: file.totalChunks, receivedChunks: file.totalChunks, complete: true, conflict: false };
+      const message = { id: `direct-file:${state.pubkey}:${file.transferId}`, peer, text: caption || '', fileTransfer: transfer,
+        senderPubkey: direction === 'sent' ? state.pubkey : peer, createdAt: now, direction,
+        status: direction === 'sent' ? 'sent' : 'delivered', directTransport: 'webrtc', localOnly: true,
+        ...(direction === 'sent' && replyEventId ? { replyToId: replyEventId } : {}) };
+      await put('messages', message);
+      conversation.lastMessage = `📎 ${file.name}`;
+      conversation.lastAt = now;
+    }
+    await put('conversations', conversation);
+    if (state.activePeer === peer) await renderMessages(peer);
+    await renderConversations();
+  }
+  async function completeDirectFileReception({ peer, files, caption }) {
+    const secret = state.secret;
+    const pubkey = state.pubkey;
+    if (!secret || !pubkey) return false;
+    const conversation = await get('conversations', peer).catch(() => null);
+    const access = await get('agentAccess', peer).catch(() => null);
+    if (state.secret !== secret || state.pubkey !== pubkey || !conversation || conversation.group || conversation.agent ||
+        access?.status === 'approved' || access?.status === 'blocked') return false;
+    if (!(await directFileStore().verifyFiles(files)) || state.secret !== secret || state.pubkey !== pubkey) return false;
+    await saveDirectFileMessages(peer, files, 'received', caption);
+    return state.secret === secret && state.pubkey === pubkey;
   }
   function requestDirectFileSend() {
     const peer = state.activePeer;
@@ -1778,16 +1833,17 @@
           retry = { caption: request.caption, transferId: FileTransfers.randomTransferId() };
           state.fileDraftTransferIds.set(file, retry);
         }
-        transfers.push(await FileTransfers.createTransfer(file, { transferId: retry.transferId, caption: request.caption }));
+        const manifest = await DirectFileChunks.createManifest(file, { transferId: retry.transferId });
+        if (!TypingSignals.normalizeFileManifests([manifest])) throw new Error(localized('This file cannot be prepared for direct transfer.', 'Este arquivo não pode ser preparado para transferência direta.'));
+        transfers.push({ file, manifest });
       }
-      const files = transfers.map(transfer => ({ transferId: transfer.transferId, name: transfer.name, mime: transfer.mime,
-        sizeBytes: transfer.sizeBytes, totalChunks: transfer.chunks.length, sha256: transfer.sha256 }));
+      const files = transfers.map(transfer => transfer.manifest);
       const transferId = FileTransfers.randomTransferId();
       const replyEventId = state.replyingTo ? nostrEventId(state.replyingTo) : '';
-      const job = { peer: request.peer, pubkey: request.pubkey, secret: request.secret, transfers, transferId, replyEventId };
+      const job = { peer: request.peer, pubkey: request.pubkey, secret: request.secret, transfers, transferId, replyEventId, caption: request.caption };
       state.directFileSendJob = job;
       setFileAttachmentStatus(localized('Sending an encrypted request to the recipient…', 'Enviando um pedido criptografado para quem vai receber…'));
-      const started = await ensureDirectFileController().startOutgoing({ peer: request.peer, transferId, files });
+      const started = await ensureDirectFileController().startOutgoing({ peer: request.peer, transferId, files, caption: request.caption });
       if (!started) throw new Error(state.directFileTransfer?.error || localized('Could not start a direct file connection.', 'Não foi possível iniciar a conexão direta para os arquivos.'));
       setFileAttachmentStatus(directFileStatusText(state.directFileTransfer));
     } catch (error) {
@@ -1800,44 +1856,31 @@
       if (current && ['failed', 'declined', 'cancelled'].includes(current.status)) state.directFileController.dismiss();
     }
   }
-  async function createDirectFileEnvelope(peer, chunk, secret, replyEventId = '') {
-    return DirectFileEnvelope.create({ nostr: N, fileTransfers: FileTransfers, secret, senderPubkey: state.pubkey,
-      recipientPubkey: peer, chunk, replyEventId });
-  }
-  async function saveDirectSentFileChunk(job, rumor, chunk) {
-    const previous = await get('conversations', job.peer) || { pubkey: job.peer, title: '' };
-    const message = { id: `${job.pubkey}:${crypto.randomUUID()}`, peer: job.peer, text: chunk.caption || '', fileChunk: chunk,
-      senderPubkey: job.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: rumor.id,
-      directTransport: 'webrtc', ...(job.replyEventId ? { replyToId: job.replyEventId } : {}) };
-    await put('messages', message);
-    await put('conversations', { ...previous, lastMessage: `📎 ${chunk.name}`, lastAt: message.createdAt });
-    if (state.activePeer === job.peer) await renderMessages(job.peer);
-    await renderConversations();
-    return message;
-  }
   async function transferDirectFileJob(job) {
     if (state.directFileJobRunning || state.directFileSendJob !== job) return;
     state.directFileJobRunning = true;
     const controller = ensureDirectFileController();
     let sentParts = 0;
-    let totalParts = job.transfers.reduce((sum, transfer) => sum + transfer.chunks.length, 0);
+    const totalParts = job.transfers.reduce((sum, transfer) => sum + transfer.manifest.totalChunks, 0);
     let failure = null;
     sendingDirectFiles: for (let fileIndex = 0; fileIndex < job.transfers.length; fileIndex += 1) {
       const transfer = job.transfers[fileIndex];
-      for (const chunk of transfer.chunks) {
+      for (let index = 0; index < transfer.manifest.totalChunks; index += 1) {
         if (state.directFileSendJob !== job || state.secret !== job.secret || state.pubkey !== job.pubkey) break sendingDirectFiles;
         try {
-          const { rumor, event, chunk: verified } = await createDirectFileEnvelope(job.peer, chunk, job.secret, job.replyEventId);
-          const message = await saveDirectSentFileChunk(job, rumor, verified);
-          if (!(await controller.sendEnvelope(event))) {
-            failure = new Error(localized('A direct file part was not confirmed by the recipient.', 'Quem recebe não confirmou uma parte enviada diretamente.'));
+          const part = await DirectFileChunks.readChunk(transfer.file, transfer.manifest, index);
+          if (!part || !(await directFileStore().savePart({ file: transfer.manifest, index, bytes: part.bytes,
+            sha256: part.sha256, sessionId: job.transferId, peer: job.peer, direction: 'sent' }))) {
+            throw new Error(localized('A file block could not be saved and verified on this device.', 'Um bloco do arquivo não pôde ser salvo e verificado neste aparelho.'));
+          }
+          if (!(await controller.sendPart({ fileIndex, index, bytes: part.bytes, sha256: part.sha256 }))) {
+            failure = new Error(localized('The recipient did not confirm a direct file block.', 'Quem recebe não confirmou um bloco do arquivo enviado diretamente.'));
             break sendingDirectFiles;
           }
-          message.status = 'sent';
-          await put('messages', message);
           sentParts += 1;
-          if (state.activePeer === job.peer) await renderMessages(job.peer);
-          setFileAttachmentStatus(localized(`Sending directly · file ${fileIndex + 1} of ${job.transfers.length} · ${sentParts} of ${totalParts} parts`, `Enviando diretamente · arquivo ${fileIndex + 1} de ${job.transfers.length} · ${sentParts} de ${totalParts} partes`));
+          if (sentParts % DirectFileChunks.ACK_WINDOW === 0 || sentParts === totalParts) {
+            setFileAttachmentStatus(localized(`Sending directly · file ${fileIndex + 1} of ${job.transfers.length} · ${sentParts} of ${totalParts} blocks`, `Enviando diretamente · arquivo ${fileIndex + 1} de ${job.transfers.length} · ${sentParts} de ${totalParts} blocos`));
+          }
         } catch (error) { failure = error; break sendingDirectFiles; }
       }
     }
@@ -1848,6 +1891,7 @@
       if (!failure && sentParts === totalParts && state.directFileSendJob === job) {
         const sharedFilesIncluded = state.shareFileDraftFiles.length > 0 && state.shareFileDraftFiles.every(file => state.fileDraftFiles.includes(file));
         const sentShareId = state.shareFileDraftPeer === job.peer && sharedFilesIncluded ? state.shareFileDraftId : '';
+        await saveDirectFileMessages(job.peer, job.transfers.map(transfer => transfer.manifest), 'sent', job.caption, job.replyEventId);
         if (state.activePeer === job.peer) await renderMessages(job.peer);
         await renderConversations();
         clearFileDrafts();
@@ -1862,6 +1906,7 @@
         if ($('file-attachment-dialog').open) $('file-attachment-dialog').close();
         showToast(localized('Direct file transfer completed and confirmed by the recipient.', 'Transferência direta concluída e confirmada por quem recebeu.'));
       } else if (failure) {
+        await controller.end('file-cancel').catch(() => {});
         setFileAttachmentStatus(failure.message || localized('Direct transfer stopped. The draft stays available for relay delivery.', 'A transferência direta parou. O rascunho continua disponível para envio pelos relays.'));
         showToast(localized('Direct transfer stopped. Keep the draft and retry or use relay delivery.', 'A transferência direta parou. Mantenha o rascunho e tente novamente ou use o envio por relays.'));
       }
@@ -3031,6 +3076,11 @@
         for (const [name, keyPath] of [['vault', 'id'], ['settings', 'id'], ['conversations', 'pubkey'], ['messages', 'id'], ['drafts', 'id'], ['agentInvites', 'id'], ['agentAccess', 'pubkey']]) {
           if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath });
         }
+        if (!db.objectStoreNames.contains('directFileParts')) {
+          const parts = db.createObjectStore('directFileParts', { keyPath: ['transferId', 'index'] });
+          parts.createIndex('byTransferId', 'transferId', { unique: false });
+          parts.createIndex('bySessionId', 'sessionId', { unique: false });
+        }
       };
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
@@ -3057,6 +3107,41 @@
   const all = store => dbRequest(store, 'getAll');
   const put = (store, value) => dbRequest(store, 'put', value);
   const del = (store, key) => dbRequest(store, 'delete', key);
+  function directFilePartsBy(indexName, key) {
+    return new Promise((resolve, reject) => {
+      const tx = state.db.transaction('directFileParts', 'readonly');
+      const request = tx.objectStore('directFileParts').index(indexName).getAll(key);
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+      tx.onabort = () => reject(tx.error || new Error('Could not read local direct file blocks.'));
+    });
+  }
+  async function deleteDirectFileParts(indexName, key) {
+    await new Promise((resolve, reject) => {
+      const tx = state.db.transaction('directFileParts', 'readwrite');
+      const store = tx.objectStore('directFileParts');
+      const request = store.index(indexName).openKeyCursor(IDBKeyRange.only(key));
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) return;
+        store.delete(cursor.primaryKey);
+        cursor.continue();
+      };
+      request.onerror = () => reject(request.error);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error || new Error('Could not remove incomplete direct file blocks.'));
+      tx.onabort = () => reject(tx.error || new Error('Could not remove incomplete direct file blocks.'));
+    });
+  }
+  function directFileStore() {
+    if (!state.directFileStorage) state.directFileStorage = DirectFileStorage.create({
+      putPart: record => put('directFileParts', record),
+      listParts: transferId => directFilePartsBy('byTransferId', transferId),
+      deleteParts: transferId => deleteDirectFileParts('byTransferId', transferId),
+      deleteSessionParts: sessionId => deleteDirectFileParts('bySessionId', sessionId)
+    });
+    return state.directFileStorage;
+  }
   async function saveChatDraft(peer, text, mentionTokens = null) {
     if (!state.pubkey || !peer || (state.editingMessage && state.editingMessage.peer === peer) || (state.shareDraftId && state.shareDraftPeer === peer)) return;
     const id = ChatDrafts.idFor(state.pubkey, peer);
@@ -4646,6 +4731,26 @@
     control.append(play, seek, time, speed, download);
     return control;
   }
+  async function prepareDirectFileDownload(peer, transfer, button, status) {
+    button.disabled = true;
+    status.hidden = false;
+    status.textContent = localized('Verifying local file blocks…', 'Verificando os blocos locais do arquivo…');
+    try {
+      const file = { transferId: transfer.transferId, name: transfer.name, mime: transfer.mime,
+        sizeBytes: transfer.sizeBytes, chunkBytes: DirectFileChunks.CHUNK_BYTES,
+        totalChunks: transfer.totalChunks, sha256: transfer.sha256 };
+      const blob = await directFileStore().createBlob(file);
+      if (!blob) throw new Error(localized('Local file integrity verification failed. Download is disabled.', 'A verificação local de integridade falhou. O download foi desativado.'));
+      const key = `${peer}:${transfer.transferId}`;
+      const previous = state.fileObjectUrls.get(key);
+      if (previous) URL.revokeObjectURL(previous);
+      state.fileObjectUrls.set(key, URL.createObjectURL(blob));
+      await renderMessages(peer);
+    } catch (error) {
+      status.textContent = error.message || localized('Could not prepare a verified download.', 'Não foi possível preparar um download verificado.');
+      button.disabled = false;
+    }
+  }
   async function renderMessages(peer, jumpToMessageId = '') {
     state.readReceiptObserver?.disconnect();
     state.readReceiptObserver = null;
@@ -4792,6 +4897,14 @@
           status.textContent = localized(`Waiting for encrypted parts · ${transfer.receivedChunks} of ${transfer.totalChunks} received`, `Aguardando partes criptografadas · ${transfer.receivedChunks} de ${transfer.totalChunks} recebidas`);
           card.append(status);
         } else {
+          if (!fileUrl && transfer.direct) {
+            const status = document.createElement('span'); status.className = 'file-transfer-status';
+            status.textContent = localized('Stored on this device; integrity is checked before download.', 'Armazenado neste aparelho; a integridade é conferida antes do download.');
+            const prepare = document.createElement('button'); prepare.type = 'button'; prepare.className = 'file-transfer-download';
+            prepare.textContent = localized('Prepare verified download', 'Preparar download verificado');
+            prepare.addEventListener('click', () => { void prepareDirectFileDownload(peer, transfer, prepare, status); });
+            card.append(status, prepare);
+          } else {
           if (!fileUrl) {
             const assembled = await FileTransfers.assemble(transfer.chunks);
             if (assembled) {
@@ -4822,7 +4935,7 @@
             download.href = fileUrl; download.download = FileTransfers.safeName(transfer.name);
             download.rel = 'noopener noreferrer'; download.textContent = localized('Download verified file', 'Baixar arquivo verificado');
             if (previewKind !== 'audio') card.append(download);
-            if (message.direction === 'sent') {
+            if (message.direction === 'sent' && !transfer.direct) {
               const confirmedChunks = new Set(entries.filter(entry => entry.fileChunk?.transferId === transfer.transferId && entry.status === 'sent').map(entry => entry.fileChunk.index)).size;
               if (confirmedChunks < transfer.totalChunks) {
                 const status = document.createElement('span'); status.className = 'file-transfer-status';
@@ -4834,6 +4947,7 @@
             const status = document.createElement('span'); status.className = 'file-transfer-status';
             status.textContent = localized('File integrity verification failed. Download is disabled.', 'A verificação de integridade do arquivo falhou. O download está desativado.');
             card.append(status);
+          }
           }
         }
         bubble.append(card);
@@ -6405,6 +6519,10 @@
     state.pendingCallPeer = '';
     state.pendingCallVideo = false;
     for (const id of ['call-consent-dialog', 'incoming-call-dialog', 'call-session-dialog']) if ($(id).open) $(id).close();
+    const interruptedDirectFileTransfer = state.directFileController?.getState();
+    if (interruptedDirectFileTransfer && !['completed', 'cancelled', 'declined', 'failed'].includes(interruptedDirectFileTransfer.status)) {
+      void directFileStore().discardSession(interruptedDirectFileTransfer.transferId).catch(() => {});
+    }
     state.directFileController?.dispose();
     state.directFileController = null;
     state.directFileTransfer = null;

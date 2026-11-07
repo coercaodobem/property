@@ -19,6 +19,10 @@
   const MAX_FILE_BATCH_BYTES = 4 * 1024 * 1024;
   const FILE_CHUNK_BYTES = 12000;
   const MAX_FILE_BATCH_COUNT = 5;
+  const MAX_FILE_SIGNAL_CAPTION_CHARS = 1000;
+  const DirectFileChunks = window.PropertyDirectFileChunks;
+  const MAX_DIRECT_FILE_BYTES = DirectFileChunks?.MAX_FILE_BYTES || 0;
+  const MAX_DIRECT_FILE_BATCH_BYTES = DirectFileChunks?.MAX_BATCH_BYTES || 0;
   const KEY_RE = /^[0-9a-f]{64}$/i;
   const EVENT_ID_RE = /^[0-9a-f]{64}$/i;
 
@@ -132,14 +136,15 @@
           file.name !== file.name.trim() || /[\\/\u0000-\u001f\u007f]/u.test(file.name) ||
           typeof file.mime !== 'string' || file.mime.length > 128 ||
           !/^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/u.test(file.mime) ||
-          !Number.isSafeInteger(file.sizeBytes) || file.sizeBytes < 0 || file.sizeBytes > MAX_FILE_BYTES ||
-          !Number.isSafeInteger(file.totalChunks) || file.totalChunks !== Math.max(1, Math.ceil(file.sizeBytes / FILE_CHUNK_BYTES)) ||
+          !Number.isSafeInteger(file.sizeBytes) || file.sizeBytes < 0 || file.sizeBytes > MAX_DIRECT_FILE_BYTES ||
+          file.chunkBytes !== DirectFileChunks?.CHUNK_BYTES || !Number.isSafeInteger(file.totalChunks) ||
+          file.totalChunks !== Math.max(1, Math.ceil(file.sizeBytes / DirectFileChunks.CHUNK_BYTES)) ||
           !/^[0-9a-f]{64}$/i.test(file.sha256 || '')) return null;
       seen.add(file.transferId.toLowerCase());
       totalBytes += file.sizeBytes;
-      if (totalBytes > MAX_FILE_BATCH_BYTES) return null;
+      if (totalBytes > MAX_DIRECT_FILE_BATCH_BYTES) return null;
       normalized.push(Object.freeze({ transferId: file.transferId.toLowerCase(), name: file.name, mime: file.mime,
-        sizeBytes: file.sizeBytes, totalChunks: file.totalChunks, sha256: file.sha256.toLowerCase() }));
+        sizeBytes: file.sizeBytes, chunkBytes: DirectFileChunks.CHUNK_BYTES, totalChunks: file.totalChunks, sha256: file.sha256.toLowerCase() }));
     }
     return Object.freeze(normalized);
   }
@@ -156,10 +161,13 @@
     if (recipient === sender || !participants.includes(recipient)) throw new TypeError('Invalid direct file signal recipient.');
     const payload = { v: 1, action, transferId: transferId.toLowerCase(), sequence };
     if (action === 'file-offer') {
+      if (!details || typeof details !== 'object' || Object.keys(details).some(key => !['files', 'sdp', 'caption'].includes(key)) ||
+          (details.caption !== undefined && (typeof details.caption !== 'string' || Array.from(details.caption).length > MAX_FILE_SIGNAL_CAPTION_CHARS))) throw new TypeError('Invalid direct file offer caption.');
       const files = normalizeFileManifests(details.files);
       if (!files || !validDataChannelDescription('offer', details.sdp)) throw new TypeError('Invalid direct file offer.');
       payload.files = files;
       payload.sdp = details.sdp;
+      payload.caption = String(details.caption || '').trim();
     } else if (action === 'file-answer') {
       if (!validDataChannelDescription('answer', details.sdp)) throw new TypeError('Invalid direct file answer.');
       payload.sdp = details.sdp;
@@ -248,10 +256,11 @@
         if (Object.keys(payload).some(key => !allowed.includes(key))) return null;
       }
       if (fileAction && (participants.length !== 2 || !FILE_TRANSFER_ID_RE.test(payload.transferId || ''))) return null;
-      if (payload.action === 'file-offer' && (!normalizeFileManifests(payload.files) || !validDataChannelDescription('offer', payload.sdp))) return null;
+      if (payload.action === 'file-offer' && (!normalizeFileManifests(payload.files) || !validDataChannelDescription('offer', payload.sdp) ||
+          typeof payload.caption !== 'string' || Array.from(payload.caption).length > MAX_FILE_SIGNAL_CAPTION_CHARS)) return null;
       if (payload.action === 'file-answer' && !validDataChannelDescription('answer', payload.sdp)) return null;
       if (fileAction) {
-        const allowed = payload.action === 'file-offer' ? ['v', 'action', 'transferId', 'sequence', 'files', 'sdp']
+        const allowed = payload.action === 'file-offer' ? ['v', 'action', 'transferId', 'sequence', 'files', 'sdp', 'caption']
           : payload.action === 'file-answer' ? ['v', 'action', 'transferId', 'sequence', 'sdp']
           : ['v', 'action', 'transferId', 'sequence'];
         if (Object.keys(payload).some(key => !allowed.includes(key))) return null;
@@ -269,12 +278,12 @@
         ...(restartAction ? { restartId: payload.restartId } : {}),
         ...(['call-offer', 'call-answer'].includes(payload.action) ? { restartIce: payload.restartIce === true } : {}),
         ...(fileAction ? { transferId: payload.transferId.toLowerCase() } : {}),
-        ...(payload.action === 'file-offer' ? { files: normalizeFileManifests(payload.files), sdp: payload.sdp } : {}),
+        ...(payload.action === 'file-offer' ? { files: normalizeFileManifests(payload.files), sdp: payload.sdp, caption: payload.caption } : {}),
         ...(payload.action === 'file-answer' ? { sdp: payload.sdp } : {}) };
     } catch {
       return null;
     }
   }
 
-  window.PropertyTypingSignals = Object.freeze({ RUMOR_KIND, EPHEMERAL_GIFT_WRAP_KIND, MAX_SIGNAL_AGE_SECONDS, MAX_THINKING_AGE_SECONDS, MAX_READ_AGE_SECONDS, MAX_PRESENCE_AGE_SECONDS, MAX_CALL_SIGNAL_AGE_SECONDS, MAX_FILE_SIGNAL_AGE_SECONDS, MAX_CALL_SDP_CHARS, MAX_ICE_RESTARTS, MAX_FILE_BYTES, MAX_FILE_BATCH_BYTES, MAX_FILE_BATCH_COUNT, FILE_CHUNK_BYTES, normalizeFileManifests, validDataChannelDescription, create, summarizeActivity, createReadReceipt, createPresence, createCallSignal, createFileSignal, unwrap });
+  window.PropertyTypingSignals = Object.freeze({ RUMOR_KIND, EPHEMERAL_GIFT_WRAP_KIND, MAX_SIGNAL_AGE_SECONDS, MAX_THINKING_AGE_SECONDS, MAX_READ_AGE_SECONDS, MAX_PRESENCE_AGE_SECONDS, MAX_CALL_SIGNAL_AGE_SECONDS, MAX_FILE_SIGNAL_AGE_SECONDS, MAX_CALL_SDP_CHARS, MAX_ICE_RESTARTS, MAX_FILE_BYTES, MAX_FILE_BATCH_BYTES, MAX_FILE_BATCH_COUNT, FILE_CHUNK_BYTES, MAX_DIRECT_FILE_BYTES, MAX_DIRECT_FILE_BATCH_BYTES, normalizeFileManifests, validDataChannelDescription, create, summarizeActivity, createReadReceipt, createPresence, createCallSignal, createFileSignal, unwrap });
 })();

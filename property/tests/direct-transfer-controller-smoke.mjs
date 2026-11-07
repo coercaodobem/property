@@ -1,14 +1,19 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { webcrypto } from 'node:crypto';
 import vm from 'node:vm';
 
 const source = await readFile(new URL('../web/direct-transfer-controller.js', import.meta.url), 'utf8');
-const context = { TextEncoder, setTimeout, clearTimeout };
+const chunksSource = await readFile(new URL('../web/direct-file-chunks.js', import.meta.url), 'utf8');
+const context = { TextEncoder, setTimeout, clearTimeout, crypto: webcrypto, Uint8Array, ArrayBuffer };
+vm.runInNewContext(chunksSource, context, { timeout: 5000 });
 vm.runInNewContext(source, context, { timeout: 5000 });
 const Direct = context.PropertyDirectTransfer;
+const Chunks = context.PropertyDirectFileChunks;
 const peer = 'ab'.repeat(32);
 const transferId = 'cd'.repeat(16);
-const files = [{ transferId: 'ef'.repeat(16), name: 'sample.txt', mime: 'text/plain', sizeBytes: 3, totalChunks: 1, sha256: '12'.repeat(32) }];
+const files = [{ transferId: 'ef'.repeat(16), name: 'sample.txt', mime: 'text/plain', sizeBytes: 3,
+  chunkBytes: Chunks.CHUNK_BYTES, totalChunks: 1, sha256: '12'.repeat(32) }];
 const sdp = 'v=0\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\na=sctp-port:5000\r\n';
 
 assert.equal(Direct.validDescription('offer', sdp), true);
@@ -48,10 +53,7 @@ const signalSets = [[], []];
 const states = [[], []];
 const received = [];
 const peerConnections = [];
-const normalizeFileManifests = list => Array.isArray(list) && list.length > 0 && list.length <= 5 &&
-  list.every(item => Number.isSafeInteger(item.sizeBytes) && item.sizeBytes >= 0 && item.sizeBytes <= 2 * 1024 * 1024) &&
-  list.reduce((sum, item) => sum + item.sizeBytes, 0) <= 4 * 1024 * 1024
-  ? list.map(item => Object.freeze({ ...item })) : null;
+const normalizeFileManifests = list => Chunks.normalizeFileManifests(list);
 const first = Direct.create({
   getIceConfiguration: () => ({ iceServers: [{ urls: ['turn:turn.example:3478'], username: 'u', credential: 'c' }], iceTransportPolicy: 'relay' }),
   createPeerConnection: configuration => { const peerConnection = new FakePeerConnection(configuration); peerConnections.push(peerConnection); return peerConnection; }, normalizeFileManifests,
@@ -86,6 +88,38 @@ assert.equal(second.getState().status, 'completed');
 assert.equal(first.dismiss(), true);
 assert.equal(second.dismiss(), true);
 
+const largeFile = { transferId: '12'.repeat(16), name: 'archive.bin', mime: 'application/octet-stream',
+  sizeBytes: Chunks.CHUNK_BYTES * 16 + 3, chunkBytes: Chunks.CHUNK_BYTES,
+  totalChunks: 17, sha256: '34'.repeat(32) };
+const largeSignals = [[], []];
+const storedParts = [];
+let completionChecks = 0;
+const largeSender = Direct.create({ normalizeFileManifests, createPeerConnection: () => new FakePeerConnection({}),
+  async onSignal(signal) { largeSignals[0].push(signal); } });
+const largeReceiver = Direct.create({ normalizeFileManifests, createPeerConnection: () => new FakePeerConnection({}),
+  async onSignal(signal) { largeSignals[1].push(signal); },
+  async onPart(part) { storedParts.push(part); return true; },
+  async onComplete({ files: completedFiles, caption }) { completionChecks += 1; return completedFiles[0].sha256 === largeFile.sha256 && caption === 'archive context'; } });
+assert.equal(await largeSender.startOutgoing({ peer, transferId: '56'.repeat(16), files: [largeFile], caption: 'archive context' }), true);
+assert.equal(largeSignals[0][0].caption, 'archive context');
+assert.equal(largeReceiver.receiveOffer(largeSignals[0][0]), true);
+assert.equal(await largeReceiver.acceptIncoming(), true);
+assert.equal(await largeSender.receiveAnswer({ peer, ...largeSignals[1][0] }), true);
+for (let index = 0; index < largeFile.totalChunks; index += 1) {
+  const length = Chunks.expectedChunkSize(largeFile.sizeBytes, largeFile.totalChunks, index);
+  const bytes = new Uint8Array(length).fill(index % 251);
+  const sha256 = await Chunks.digestHex(bytes, webcrypto);
+  assert.equal(await largeSender.sendPart({ fileIndex: 0, index, bytes, sha256 }), true,
+    `part ${index} should be sent; sender=${JSON.stringify(largeSender.getState())} receiver=${JSON.stringify(largeReceiver.getState())}`);
+}
+assert.equal(storedParts.length, 17);
+assert.equal(largeSender.getState().sentChunks, 17);
+assert.equal(largeReceiver.getState().receivedChunks, 17);
+assert.equal(await largeSender.finish(), true);
+assert.equal(completionChecks, 1, 'receiver validates the completed file set before acknowledging completion');
+assert.equal(largeReceiver.getState().status, 'completed');
+largeSender.dismiss(); largeReceiver.dismiss();
+
 const malformedSignals = [];
 let malformedReceives = 0;
 const malformedSender = Direct.create({ normalizeFileManifests, createPeerConnection: configuration => new FakePeerConnection(configuration),
@@ -98,6 +132,7 @@ assert.equal(malformedReceiver.receiveOffer(malformedSignals[0]), true);
 assert.equal(await malformedReceiver.acceptIncoming(), true);
 channels.at(-1).send(JSON.stringify({ v: 1, action: 'chunk', transferId: malformedTransferId, sequence: 2,
   event: { kind: 1059, id: 'out-of-order', tags: [], content: 'ciphertext' } }));
+await Promise.resolve();
 assert.equal(malformedReceives, 0, 'out-of-order chunks never reach the message storage callback');
 assert.equal(malformedReceiver.getState().status, 'failed');
 malformedSender.dispose();
@@ -111,7 +146,8 @@ assert.equal(await rejecting.end('file-reject'), true);
 assert.equal(refused, true);
 assert.equal(rejecting.getState().status, 'declined');
 
-await assert.rejects(() => first.startOutgoing({ peer, transferId, files: [{ ...files[0], sizeBytes: 5 * 1024 * 1024 }] }), /manifest/);
+await assert.rejects(() => first.startOutgoing({ peer, transferId, files: [{ ...files[0], sizeBytes: Chunks.MAX_FILE_BYTES + 1,
+  totalChunks: Chunks.expectedChunkCount(Chunks.MAX_FILE_BYTES + 1) }] }), /manifest/);
 assert.equal(Direct.validDescription('answer', 'v=0\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n' + 'x'.repeat(17000)), false);
 
-console.log('PASS: direct file controller enforces consent gating, ordered acknowledgements, completion, peer binding and bounded manifests');
+console.log('PASS: direct file controller enforces consent gating, bounded binary blocks, batched acknowledgements, final verification and manifest limits');

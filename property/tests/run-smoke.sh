@@ -26,6 +26,8 @@ for test_file in \
   app-directory-smoke.mjs \
   identity-marks-smoke.mjs \
   direct-file-envelope-smoke.mjs \
+  direct-file-chunks-smoke.mjs \
+  direct-file-storage-smoke.mjs \
   direct-transfer-controller-smoke.mjs \
   image-viewer-smoke.mjs \
   chat-search-smoke.mjs \

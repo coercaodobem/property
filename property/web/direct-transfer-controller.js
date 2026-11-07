@@ -3,9 +3,10 @@
   const MAX_SDP_CHARS = 16384;
   const MAX_FRAME_BYTES = 65536;
   const MAX_GIFT_WRAP_BYTES = 60000;
+  const DirectFileChunks = globalThis.PropertyDirectFileChunks;
   const ICE_GATHERING_WATCHDOG_MS = 12000;
   const FRAME_ACK_WATCHDOG_MS = 30000;
-  const CHANNEL_LABEL = 'property-private-files-v1';
+  const CHANNEL_LABEL = 'property-private-files-v2';
   const DEFAULT_ICE_SERVERS = Object.freeze([
     Object.freeze({ urls: 'stun:stun.l.google.com:19302' }),
     Object.freeze({ urls: 'stun:stun1.l.google.com:19302' })
@@ -26,6 +27,8 @@
     const sendSignal = typeof options.onSignal === 'function' ? options.onSignal : async () => {};
     const onState = typeof options.onState === 'function' ? options.onState : () => {};
     const receiveEnvelope = typeof options.onEnvelope === 'function' ? options.onEnvelope : async () => false;
+    const receivePart = typeof options.onPart === 'function' ? options.onPart : async () => false;
+    const completeTransfer = typeof options.onComplete === 'function' ? options.onComplete : async () => true;
     const iceServers = Array.isArray(options.iceServers) ? options.iceServers : DEFAULT_ICE_SERVERS;
     let current = null;
 
@@ -64,6 +67,10 @@
       if (session.pendingAck) {
         session.pendingAck.resolve(false);
         session.pendingAck = null;
+      }
+      if (session.pendingPartAck) {
+        session.pendingPartAck.resolve(false);
+        session.pendingPartAck = null;
       }
       if (session.pendingComplete) {
         session.pendingComplete.resolve(false);
@@ -104,7 +111,8 @@
     function createSession(details, direction, status) {
       return current = { ...details, direction, status, error: '', peerConnection: null, channel: null,
         sentChunks: 0, receivedChunks: 0, expectedChunks: manifestSummary(details.files).totalChunks,
-        pendingAck: null, pendingComplete: null, ackTimer: 0, answerReceived: false };
+        pendingAck: null, pendingPartAck: null, pendingComplete: null, ackTimer: 0, answerReceived: false,
+        receiveQueue: Promise.resolve() };
     }
 
     function waitForIceGathering(session) {
@@ -156,6 +164,7 @@
 
     function failPending(session, error) {
       if (session.pendingAck) { session.pendingAck.resolve(false); session.pendingAck = null; }
+      if (session.pendingPartAck) { session.pendingPartAck.resolve(false); session.pendingPartAck = null; }
       if (session.pendingComplete) { session.pendingComplete.resolve(false); session.pendingComplete = null; }
       terminal(session, 'failed', error);
     }
@@ -169,6 +178,19 @@
         return;
       }
       if (session.direction === 'outgoing') {
+        if (frame.action === 'error') {
+          failPending(session, 'The recipient could not save or verify a direct file part.');
+          return;
+        }
+        if (frame.action === 'ack' && Number.isSafeInteger(frame.sequence) &&
+            session.pendingPartAck?.sequence === frame.sequence) {
+          const pending = session.pendingPartAck;
+          session.pendingPartAck = null;
+          clearTimeout(session.ackTimer);
+          session.ackTimer = 0;
+          pending.resolve(true);
+          return;
+        }
         if (frame.action === 'ack' && Number.isSafeInteger(frame.sequence) && typeof frame.accepted === 'boolean' &&
             session.pendingAck?.sequence === frame.sequence) {
           const pending = session.pendingAck;
@@ -210,6 +232,16 @@
       }
       if (frame.action === 'finish' && Number.isSafeInteger(frame.totalChunks) &&
           frame.totalChunks === session.expectedChunks && session.receivedChunks === session.expectedChunks) {
+        let complete = false;
+        try { complete = (await completeTransfer({ peer: session.peer, transferId: session.transferId,
+          files: session.files, caption: session.caption })) === true; }
+        catch { complete = false; }
+        if (current !== session) return;
+        if (!complete) {
+          sendFrame(session, { v: 1, action: 'error', transferId: session.transferId });
+          failPending(session, 'The received files failed their final integrity check.');
+          return;
+        }
         if (!sendFrame(session, { v: 1, action: 'complete', transferId: session.transferId, receivedChunks: session.receivedChunks })) {
           failPending(session, 'Could not confirm the completed direct transfer.');
           return;
@@ -218,6 +250,47 @@
         return;
       }
       failPending(session, 'The other device sent an unexpected transfer frame.');
+    }
+
+    async function handleBinaryPart(session, raw) {
+      if (current !== session || session.direction !== 'incoming') return;
+      const part = DirectFileChunks?.decodePart(raw);
+      if (!part || part.transferId !== session.transferId || part.sequence !== session.receivedChunks + 1 ||
+          part.sequence > session.expectedChunks) {
+        failPending(session, 'The other device sent an invalid or out-of-order file part.');
+        return;
+      }
+      const expected = DirectFileChunks.expectedPart(session.files, part.sequence);
+      if (!expected || part.fileIndex !== expected.fileIndex || part.index !== expected.index ||
+          !(await DirectFileChunks.verifyPart(part, expected.file, cryptoImpl, session.transferId))) {
+        failPending(session, 'A direct file part failed its integrity check.');
+        return;
+      }
+      let accepted = false;
+      try { accepted = (await receivePart({ peer: session.peer, transferId: session.transferId,
+        sequence: part.sequence, fileIndex: part.fileIndex, index: part.index, sha256: part.sha256,
+        bytes: part.bytes, file: expected.file })) === true; }
+      catch { accepted = false; }
+      if (current !== session) return;
+      if (!accepted) {
+        sendFrame(session, { v: 1, action: 'error', transferId: session.transferId });
+        failPending(session, 'A direct file part could not be saved.');
+        return;
+      }
+      session.receivedChunks += 1;
+      const checkpoint = session.receivedChunks % DirectFileChunks.ACK_WINDOW === 0 || session.receivedChunks === session.expectedChunks;
+      if (checkpoint) {
+        if (!sendFrame(session, { v: 1, action: 'ack', transferId: session.transferId, sequence: session.receivedChunks })) {
+          failPending(session, 'Could not acknowledge the received file parts.');
+          return;
+        }
+        update(session, 'receiving');
+      }
+    }
+
+    function handleData(session, raw) {
+      if (typeof raw === 'string') return handleFrame(session, raw);
+      return handleBinaryPart(session, raw);
     }
 
     function attachChannel(session, channel) {
@@ -232,7 +305,11 @@
       session.channel = channel;
       channel.binaryType = 'arraybuffer';
       channel.onopen = () => { if (current === session) update(session, session.direction === 'incoming' ? 'receiving' : 'connected'); };
-      channel.onmessage = event => { void handleFrame(session, event.data); };
+      channel.onmessage = event => {
+        session.receiveQueue = session.receiveQueue.then(() => handleData(session, event.data)).catch(() => {
+          failPending(session, 'The direct file channel could not process a received frame.');
+        });
+      };
       channel.onerror = () => { if (current === session) failPending(session, 'The direct file channel failed.'); };
       channel.onclose = () => {
         if (current === session && !['completed', 'cancelled', 'declined', 'failed'].includes(session.status)) {
@@ -249,15 +326,18 @@
       if (current !== session) return false;
       const sdp = session.peerConnection.localDescription?.sdp;
       if (!validDescription(action === 'file-offer' ? 'offer' : 'answer', sdp)) throw new Error('The browser produced an invalid direct-transfer description.');
-      await sendSignal({ action, peer: session.peer, transferId: session.transferId, files: action === 'file-offer' ? session.files : undefined, sdp });
+      await sendSignal({ action, peer: session.peer, transferId: session.transferId,
+        files: action === 'file-offer' ? session.files : undefined,
+        caption: action === 'file-offer' ? session.caption : undefined, sdp });
       return current === session;
     }
 
-    async function startOutgoing({ peer, transferId, files }) {
+    async function startOutgoing({ peer, transferId, files, caption = '' }) {
       if (current && !['completed', 'cancelled', 'declined', 'failed'].includes(current.status)) throw new Error('A direct transfer is already active.');
       if (current) dismiss();
       const details = validateStart({ peer, transferId, files });
-      if (!details) throw new TypeError('Invalid direct file transfer recipient, identifier, or manifest.');
+      if (!details || typeof caption !== 'string' || Array.from(caption).length > 1000) throw new TypeError('Invalid direct file transfer recipient, identifier, or manifest.');
+      details.caption = caption.trim();
       const session = createSession(details, 'outgoing', 'preparing');
       try {
         const pc = makePeerConnection(session);
@@ -275,11 +355,12 @@
       }
     }
 
-    function receiveOffer({ peer, transferId, files, sdp }) {
+    function receiveOffer({ peer, transferId, files, sdp, caption = '' }) {
       if (current && !['completed', 'cancelled', 'declined', 'failed'].includes(current.status)) return false;
       if (current) dismiss();
       const details = validateStart({ peer, transferId, files });
-      if (!details || !validDescription('offer', sdp)) return false;
+      if (!details || !validDescription('offer', sdp) || typeof caption !== 'string' || Array.from(caption).length > 1000) return false;
+      details.caption = caption.trim();
       createSession({ ...details, remoteOffer: sdp }, 'incoming', 'incoming');
       update(current, 'incoming');
       return true;
@@ -357,10 +438,50 @@
       });
     }
 
+    function sendPart({ fileIndex, index, bytes, sha256 }) {
+      const session = current;
+      if (!session || session.direction !== 'outgoing' || session.status === 'completed' ||
+          !session.channel || session.channel.readyState !== 'open' || session.pendingPartAck || !DirectFileChunks) return Promise.resolve(false);
+      const sequence = session.sentChunks + 1;
+      const expected = DirectFileChunks.expectedPart(session.files, sequence);
+      if (!expected || expected.fileIndex !== fileIndex || expected.index !== index || sequence > session.expectedChunks) return Promise.resolve(false);
+      const frame = DirectFileChunks.encodePart({ transferId: session.transferId, sequence, fileIndex, index, bytes, sha256 });
+      if (!frame) return Promise.resolve(false);
+      session.sentChunks += 1;
+      const checkpoint = session.sentChunks % DirectFileChunks.ACK_WINDOW === 0 || session.sentChunks === session.expectedChunks;
+      if (!checkpoint) {
+        try { session.channel.send(frame); }
+        catch { failPending(session, 'The direct channel could not send this file part.'); return Promise.resolve(false); }
+        return Promise.resolve(true);
+      }
+      return new Promise(resolve => {
+        const target = sequence;
+        session.pendingPartAck = { sequence: target, resolve };
+        session.ackTimer = setTimeout(() => {
+          session.ackTimer = 0;
+          if (session.pendingPartAck?.sequence !== target) return;
+          session.pendingPartAck = null;
+          resolve(false);
+          terminal(session, 'failed', 'No acknowledgement arrived for a direct file block.');
+        }, FRAME_ACK_WATCHDOG_MS);
+        try { session.channel.send(frame); }
+        catch {
+          clearTimeout(session.ackTimer);
+          session.ackTimer = 0;
+          session.pendingPartAck = null;
+          resolve(false);
+          terminal(session, 'failed', 'The direct channel could not send this file part.');
+        }
+      }).then(accepted => {
+        if (accepted && current === session) update(session, 'sending');
+        return accepted;
+      });
+    }
+
     function finish() {
       const session = current;
       if (!session || session.direction !== 'outgoing' || session.status === 'completed' ||
-          session.sentChunks !== session.expectedChunks || session.pendingComplete ||
+          session.sentChunks !== session.expectedChunks || session.pendingComplete || session.pendingPartAck ||
           !session.channel || session.channel.readyState !== 'open') return Promise.resolve(false);
       return new Promise(resolve => {
         session.pendingComplete = { resolve };
@@ -409,7 +530,7 @@
     }
 
     return Object.freeze({ startOutgoing, receiveOffer, acceptIncoming, receiveAnswer, receiveEnd,
-      sendEnvelope, finish, end, dismiss, dispose, getState: () => snapshot() });
+      sendEnvelope, sendPart, finish, end, dismiss, dispose, getState: () => snapshot() });
   }
 
   globalThis.PropertyDirectTransfer = Object.freeze({ MAX_SDP_CHARS, MAX_FRAME_BYTES, MAX_GIFT_WRAP_BYTES,
