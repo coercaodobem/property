@@ -30,12 +30,13 @@
 .message-payment-card-qr{border-top:1px solid #39351f;padding-top:8px}
 .message-payment-card-qr summary{cursor:pointer;color:var(--accent);font-size:11px;font-weight:700}
 .message-payment-card-qr-content{display:grid;justify-items:start;gap:7px;padding-top:8px}
-.message-payment-card-qr-content svg{width:min(100%,168px);height:auto;border-radius:8px;background:#fff;padding:7px}
+.message-payment-card-qr-content svg{width:min(100%,196px);height:auto;border-radius:8px;background:#fff;padding:7px}
 .message-payment-card-qr-content span{color:var(--muted);font-size:10px}
 .message-payment-card-footer{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
 .message-payment-card-copy{min-height:34px;padding:6px 10px;font-size:11px}
 .message-payment-card-status{color:var(--muted);font-size:11px}
 .message-payment-card-caution{margin:0;color:#b9ad70;font-size:10px;line-height:1.4}
+.message-payment-card-open-wallet{text-decoration:none}
 @media(max-width:520px){.message-payment-card{padding:11px}.message-payment-card-head{align-items:flex-start;flex-direction:column;gap:5px}}
 @media(max-width:420px){.payment-currency-track{grid-template-columns:repeat(3,minmax(112px,1fr));overflow-x:auto;overscroll-behavior-inline:contain;scroll-snap-type:x mandatory;padding:3px 2px 8px}.payment-currency-option{scroll-snap-align:center}.payment-currency-face{min-height:74px;padding:8px;gap:8px}}
 @media(prefers-reduced-motion:reduce){.payment-currency-face{transition:none}.payment-currency-option.is-selected .payment-currency-face{transform:none}}

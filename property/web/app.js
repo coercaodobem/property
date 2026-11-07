@@ -17,6 +17,7 @@
   const Nano = window.PropertyNanoUnits;
   const Money = window.PropertyMoney;
   const PaymentCard = window.PropertyPaymentCard;
+  const PaymentUris = window.PropertyPaymentUris;
   const Marketplace = window.PropertyMarketplace;
   const Campaigns = window.PropertyCampaigns;
   const Contact = window.PropertyContact;
@@ -551,6 +552,10 @@
   function renderPaymentCard(target, content) {
     const data = PaymentCard?.parse(content);
     if (!data) return false;
+    let walletRequest = null;
+    let walletRequestError = null;
+    try { walletRequest = PaymentUris?.build(data) || null; }
+    catch (error) { walletRequestError = error; }
     const card = document.createElement('section');
     card.className = 'message-payment-card';
     card.setAttribute('aria-label', localized('Payment details', 'Dados de pagamento'));
@@ -569,11 +574,20 @@
     card.append(addressLabel, address);
     if (typeof QrCode?.createSvg === 'function') {
       const disclosure = document.createElement('details'); disclosure.className = 'message-payment-card-qr';
-      const summary = document.createElement('summary'); summary.textContent = localized('Show address QR', 'Mostrar QR do endereço');
+      const summary = document.createElement('summary'); summary.textContent = walletRequest
+        ? localized('Show payment request QR', 'Mostrar QR do pedido de pagamento')
+        : localized('Show address QR', 'Mostrar QR do endereço');
       const qrContent = document.createElement('div'); qrContent.className = 'message-payment-card-qr-content';
-      const qrTitle = localized('QR code with the receiving address only', 'Código QR somente com o endereço de recebimento');
-      qrContent.append(QrCode.createSvg(data.address, qrTitle));
-      const qrNote = document.createElement('span'); qrNote.textContent = localized('Address only. The amount is not encoded.', 'Somente o endereço. O valor não está codificado.');
+      const qrTitle = walletRequest
+        ? localized('Wallet payment request QR', 'QR do pedido de pagamento para carteira')
+        : localized('QR code with the receiving address only', 'Código QR somente com o endereço de recebimento');
+      qrContent.append(QrCode.createSvg(walletRequest?.uri || data.address, qrTitle));
+      const qrNote = document.createElement('span');
+      qrNote.textContent = walletRequest
+        ? (data.amount
+          ? localized('This request includes the exact amount. Confirm recipient, network, and fees in your wallet.', 'Este pedido inclui o valor exato. Confira destinatário, rede e taxas na carteira.')
+          : localized('This request opens the address. Enter and confirm the amount in your wallet.', 'Este pedido abre o endereço. Informe e confirme o valor na carteira.'))
+        : localized('Address only: this network cannot be selected safely in a wallet link. Confirm the network and amount manually.', 'Somente o endereço: esta rede não pode ser selecionada com segurança por um link de carteira. Confira a rede e o valor manualmente.');
       qrContent.append(qrNote);
       disclosure.append(summary, qrContent); card.append(disclosure);
     }
@@ -589,7 +603,31 @@
         status.textContent = localized('Address copied.', 'Endereço copiado.');
       } catch { status.textContent = localized('Could not copy the address here.', 'Não foi possível copiar o endereço aqui.'); }
     });
-    footer.append(copy, status); card.append(footer);
+    footer.append(copy);
+    if (walletRequest) {
+      const openWallet = document.createElement('a'); openWallet.className = 'button primary message-payment-card-open-wallet';
+      openWallet.href = walletRequest.uri;
+      openWallet.textContent = localized('Open in wallet', 'Abrir na carteira');
+      openWallet.setAttribute('aria-label', localized(`Open ${data.currency} ${PaymentCard.networkLabel(data.network)} request in a wallet`, `Abrir pedido de ${data.currency} ${PaymentCard.networkLabel(data.network)} em uma carteira`));
+      const copyRequest = document.createElement('button'); copyRequest.type = 'button'; copyRequest.className = 'button secondary message-payment-card-copy-request';
+      copyRequest.textContent = localized('Copy payment request', 'Copiar pedido de pagamento');
+      copyRequest.addEventListener('click', async () => {
+        try {
+          if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+          await navigator.clipboard.writeText(walletRequest.uri);
+          status.textContent = localized('Payment request copied.', 'Pedido de pagamento copiado.');
+        } catch { status.textContent = localized('Could not copy the payment request here.', 'Não foi possível copiar o pedido de pagamento aqui.'); }
+      });
+      footer.append(openWallet, copyRequest);
+    }
+    if (walletRequestError) {
+      const reason = document.createElement('span'); reason.className = 'message-payment-card-status';
+      reason.textContent = walletRequestError.code === 'network-ambiguous'
+        ? localized('A wallet link cannot safely select this network. Use the address QR and verify the network in your wallet.', 'O link não consegue selecionar esta rede com segurança. Use o QR do endereço e confira a rede na carteira.')
+        : localized('The address does not match the selected network. Use the address QR only after checking it in your wallet.', 'O endereço não corresponde à rede selecionada. Use apenas o QR do endereço depois de conferir na carteira.');
+      footer.append(reason);
+    }
+    footer.append(status); card.append(footer);
     const caution = document.createElement('p'); caution.className = 'message-payment-card-caution';
     caution.textContent = localized('Property does not send or verify payments. Check the address and network before paying.', 'O Property não envia nem confirma pagamentos. Confira o endereço e a rede antes de pagar.');
     card.append(caution);

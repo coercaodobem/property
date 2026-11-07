@@ -8,6 +8,12 @@ Updated 2026-11-03. This document incorporates the requirement from commit `55e3
 
 The PWA publishes offer prices in BTC, XMR, or XNO and reads signed campaigns. It verifies format and signature but contains no wallet or checkout. Separately, the local relay library has a campaign engine and adapters for Bitcoin Core, Monero Wallet RPC, and Nano RPC. Gates G07–G08 exercise the engine and those adapters with real nodes/wallets on private local networks, without real funds. This is not a production-ready campaign operation: a node-operator experience, final policies, and independent review are still needed. The PWA must never treat a declared payment in an event as its own confirmation.
 
+## External wallet handoff in payment cards
+
+The person-to-person payment card can construct a payment URI locally without connecting to a wallet or payment service. Bitcoin uses the `bitcoin:` URI defined by [BIP 321](https://github.com/bitcoin/bips/blob/master/bip-0321.mediawiki), with the BTC amount in decimal form; testnet SegWit uses the `tb` parameter. Signet and testnet legacy Base58 addresses do not get a wallet URI because the format cannot safely retain that network choice. Monero uses `monero:` with `tx_amount` and `tx_description`, and Nano uses `nano:` with `amount` in integer raw units and `message`; the [Nano URI guide](https://docs.nano.org/integration-guides/the-basics/) defines the amount as raw. Nano Beta is not handed off because the URI does not identify that network.
+
+The `Open in wallet` control asks the device to open a compatible external wallet; `Copy payment request` and the local QR expose the same URI. If the card has no amount, the request carries only the address. Unsupported or ambiguous network combinations fall back to an address-only QR. These local checks inspect shape and network markers, not checksum or address ownership. The wallet must validate the address and show the final recipient, network, amount, and fees for the person to confirm. Property does not sign, send, verify, or track a payment.
+
 | Currency | Smallest unit | Units per coin | Integer field limit |
 |---|---|---:|---|
 | BTC (Bitcoin) | satoshi | 10⁸ | 21 million BTC in satoshis |

@@ -9,6 +9,12 @@ Atualizado em 2026-11-03. A mudança incorpora o requisito do commit `55e379c9db
 
 O cliente PWA publica preços de ofertas em BTC, XMR ou XNO e lê campanhas assinadas; verifica formato e assinatura, mas não contém carteira nem checkout. Separadamente, a biblioteca local do relay inclui uma engine de campanhas e adaptadores para Bitcoin Core, Monero Wallet RPC e Nano RPC. Os gates G07–G08 exercitam a engine e esses adaptadores com nós/carteiras reais em redes privadas locais, sem fundos reais. Isso não equivale a uma operação de campanhas pronta para produção: ainda faltam uma experiência de operação para os mantenedores de nodes, políticas finais e revisão independente. A PWA nunca deve tratar uma declaração de pagamento do evento como confirmação própria.
 
+## Encaminhamento para carteira externa nos cartões
+
+O cartão de pagamento entre pessoas monta localmente uma URI sem se conectar a carteira ou serviço de pagamento. Bitcoin usa a URI `bitcoin:` definida pela [BIP 321](https://github.com/bitcoin/bips/blob/master/bip-0321.mediawiki), com o valor BTC em formato decimal; SegWit testnet usa o parâmetro `tb`. Signet e endereços Base58 legados da testnet não recebem URI de carteira porque o formato não preserva essa escolha de rede com segurança. Monero usa `monero:` com `tx_amount` e `tx_description`; Nano usa `nano:` com `amount` em raw inteiro e `message`, conforme o [guia de URI do Nano](https://docs.nano.org/integration-guides/the-basics/). Nano Beta não é encaminhado porque a URI não identifica essa rede.
+
+O botão `Open in wallet` pede ao aparelho para abrir uma carteira externa compatível; `Copy payment request` e o QR local expõem a mesma URI. Se o cartão não tiver valor, o pedido contém apenas o endereço. Combinações de rede não suportadas ou ambíguas usam um QR somente com endereço. As verificações locais examinam formato e indicadores da rede, não checksum nem propriedade do endereço. A carteira deve validar o endereço e mostrar destinatário, rede, valor e taxas finais para a pessoa confirmar. O Property não assina, envia, verifica nem acompanha pagamentos.
+
 | Moeda | Unidade mínima | Unidades por moeda | Limite do campo inteiro |
 |---|---|---|---|
 | BTC (Bitcoin) | satoshi | 10⁸ | 21 milhões de BTC em satoshis |
