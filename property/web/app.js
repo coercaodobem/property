@@ -41,6 +41,7 @@
   const DirectFileEnvelope = window.PropertyDirectFileEnvelope;
   const ImageViewer = window.PropertyImageViewer;
   const MessageEdits = window.PropertyMessageEdits;
+  const MessageDeletions = window.PropertyMessageDeletions;
   const MessagePins = window.PropertyMessagePins;
   const SecretGuard = window.PropertySecretGuard;
   const QrCode = window.PropertyQrCode;
@@ -83,6 +84,7 @@
     pendingDirectFileRequest: null, directFileSendJob: null, directFileJobRunning: false, directFileOfferExpiryTimer: 0,
     callUiHadSession: false, callUiSequence: 0,
     peerProfiles: new Map(), peerProfileLookupStatuses: new Map(), peerIdentityProofs: new Map(), identityProofChecks: new Map(), peerNip05Checks: new Map(), chatDetailsPeer: '', identityProofCheckId: 0,
+    pendingMessageDeletion: null,
     conversationFolders: null, folderEditingId: '', folderMovingConversation: '',
     messageSearchOpen: false, messageSearchIds: [], messageSearchIndex: -1,
     conversationMessageSearchCache: null, conversationMessageSearchRevision: 0,
@@ -3408,6 +3410,132 @@
       };
     } catch { /* Browser notification support can disappear between the permission check and display. */ }
   }
+  function messageDeletionSettingId(peer, targetId) {
+    return MessageDeletions?.settingId(state.pubkey, peer, targetId) || '';
+  }
+  async function pendingMessageDeletionRecords(message, peer) {
+    const ids = MessageDeletions.messageEventIds(message);
+    const records = await Promise.all(ids.map(id => get('settings', messageDeletionSettingId(peer, id))));
+    return records.filter(record => record?.type === MessageDeletions.TAG);
+  }
+  async function applyPendingMessageDeletion(message, peer) {
+    const records = await pendingMessageDeletionRecords(message, peer);
+    const updated = MessageDeletions.applyPending(message, peer, records, state.pubkey);
+    if (updated.deleted) {
+      const targetIds = new Set(MessageDeletions.messageEventIds(updated));
+      for (const reaction of await all('messages')) {
+        if (reaction.peer === peer && reaction.kind === 7 && targetIds.has(String(reaction.targetEventId || '').toLowerCase())) await del('messages', reaction.id);
+      }
+      for (const targetId of targetIds) {
+        await del('settings', messageDeletionSettingId(peer, targetId)).catch(() => {});
+      }
+    }
+    return updated;
+  }
+  async function updateConversationAfterMessageDeletion(peer, updates) {
+    if (!updates.length) return;
+    const conversation = await get('conversations', peer);
+    if (!conversation) return;
+    const deletedLatestAt = Math.max(...updates.map(item => item.after.createdAt || 0));
+    if (deletedLatestAt < (conversation.lastAt || 0)) return;
+    const remaining = (await all('messages')).filter(message => message.peer === peer && !message.deleted && !message.hiddenFromChat && message.kind !== 7)
+      .sort((left, right) => (right.createdAt || 0) - (left.createdAt || 0) || String(right.id).localeCompare(String(left.id)))[0];
+    const lastMessage = remaining
+      ? remaining.fileChunk ? `📎 ${FileTransfers.safeName(remaining.fileChunk.name)}`
+        : remaining.voiceMessage ? VoiceMessages.FALLBACK_TEXT
+          : remaining.text || (conversation.group ? `${conversation.members?.length || 0} ${localized('members', 'participantes')}` : '')
+      : localized('Message deleted', 'Mensagem apagada');
+    await put('conversations', {
+      ...conversation,
+      lastMessage,
+      lastAt: remaining?.createdAt || Math.max(conversation.lastAt || 0, deletedLatestAt)
+    });
+  }
+  async function applyIncomingMessageDeletion(peer, deletion, { allowPending = true } = {}) {
+    const messages = await all('messages');
+    const updates = MessageDeletions.applyToMessages(messages, peer, deletion, state.pubkey);
+    if (!allowPending && !updates.length) return 0;
+    for (const update of updates) {
+      await put('messages', update.after);
+      for (const targetId of MessageDeletions.messageEventIds(update.after)) {
+        state.readReceiptCandidates.delete(targetId);
+        state.readReceipts.delete(targetId);
+      }
+    }
+    const targets = new Set(deletion.targetIds.map(target => String(target).toLowerCase()));
+    for (const reaction of messages) {
+      if (reaction.peer === peer && reaction.kind === 7 && targets.has(String(reaction.targetEventId || '').toLowerCase())) {
+        await del('messages', reaction.id);
+      }
+    }
+    const records = MessageDeletions.recordsFor(state.pubkey, peer, deletion);
+    for (const record of records) await put('settings', record);
+    await updateConversationAfterMessageDeletion(peer, updates);
+    await renderConversations();
+    if (state.activePeer === peer) {
+      await updateConversationHeader(await get('conversations', peer));
+      await renderMessages(peer);
+    }
+    return updates.length;
+  }
+  async function deletePrivateMessageForEveryone(peer, message) {
+    const conversation = await get('conversations', peer);
+    const identity = state.pubkey;
+    if (!identity || !state.secret || !conversation || conversation.agent || (await get('agentAccess', peer))?.status === 'approved' ||
+        message?.direction !== 'sent' || message.senderPubkey?.toLowerCase() !== identity || message.fromAgent || message.agentMessageId ||
+        message.kind === 7 || message.deleted || !['sent', 'partial'].includes(message.status)) {
+      throw new Error(localized('Only your delivered private messages can be deleted for everyone.', 'Só é possível apagar para todos mensagens privadas suas que já foram enviadas.'));
+    }
+    const members = conversation.group === true
+      ? [...new Set(conversation.members || [])].map(value => String(value).toLowerCase()).sort()
+      : [...new Set([identity, peer].map(value => String(value).toLowerCase()))].sort();
+    if ((conversation.group === true && groupConversationId(members) !== peer) || members.length < 2 || members.length > MAX_NIP17_GROUP_MEMBERS ||
+        !members.includes(identity) || members.some(member => !/^[0-9a-f]{64}$/i.test(member))) {
+      throw new Error(localized('Could not verify this private conversation’s participants.', 'Não foi possível verificar as pessoas desta conversa privada.'));
+    }
+    const targetIds = MessageDeletions.messageEventIds(message);
+    if (!targetIds.length) throw new Error(localized('This message has no Nostr event reference.', 'Esta mensagem não tem referência de evento Nostr.'));
+    const relayLists = Object.create(null);
+    for (const member of members) relayLists[member] = await resolveInboxRelaysFor(member);
+    if (state.pubkey !== identity || !state.secret) throw new Error(localized('The identity changed before the deletion was prepared.', 'A identidade mudou antes de preparar a exclusão.'));
+    const secret = new Uint8Array(state.secret);
+    let prepared;
+    try {
+      prepared = MessageDeletions.createNip17Deletion({
+        nostr: N, secret, selfPubkey: identity, participants: members, targetIds,
+        createdAt: Math.floor(Date.now() / 1000)
+      });
+    } finally { secret.fill(0); }
+    const peerPubkey = members.find(member => member !== identity);
+    const routePlan = members.length === 2
+      ? Routing.planGiftWraps(prepared.wraps, identity, peerPubkey, relayLists[identity], relayLists[peerPubkey], N.verifyEvent)
+      : Routing.planGroupGiftWraps(prepared.wraps, members, relayLists, N.verifyEvent);
+    if (!routePlan.ready) throw new Error(localized('Could not prepare the encrypted deletion for this conversation.', 'Não foi possível preparar a exclusão criptografada para esta conversa.'));
+    await connectAllRelays();
+    let confirmedRecipients = 0;
+    let requiredRecipients = 0;
+    for (const delivery of routePlan.deliveries) {
+      if (delivery.recipient === identity) continue;
+      requiredRecipients += 1;
+    }
+    for (const delivery of routePlan.deliveries) {
+      try {
+        const confirmed = await publishToRelays(delivery.event, delivery.relays);
+        if (delivery.recipient !== identity && confirmed) confirmedRecipients += 1;
+      } catch { /* Try every recipient envelope; relay acceptance does not prove device processing. */ }
+    }
+    if (state.pubkey !== identity) throw new Error(localized('The identity changed while sending the deletion. Reload the conversation to check its state.', 'A identidade mudou durante o envio da exclusão. Recarregue a conversa para conferir o estado.'));
+    if (!confirmedRecipients) throw new Error(localized('No recipient inbox relay confirmed the deletion. The message is still in your local history.', 'Nenhum relay de recebimento do destinatário confirmou a exclusão. A mensagem continua no seu histórico local.'));
+    const deletion = MessageDeletions.parseRumor(prepared.rumor, members);
+    if (!deletion) throw new Error(localized('The encrypted deletion could not be verified.', 'Não foi possível verificar a exclusão criptografada.'));
+    await applyIncomingMessageDeletion(peer, deletion);
+    if (confirmedRecipients < requiredRecipients) {
+      showToast(localized(`Deletion confirmed by ${confirmedRecipients} of ${requiredRecipients} recipient inbox relays. Other devices may still show the message.`, `Exclusão confirmada por ${confirmedRecipients} de ${requiredRecipients} relays de recebimento. Outros aparelhos ainda podem mostrar a mensagem.`));
+    } else {
+      showToast(localized('Recipient relays confirmed the deletion request. Other copies may remain.', 'Os relays dos destinatários confirmaram o pedido de exclusão. Outras cópias podem permanecer.'));
+    }
+    return { confirmedRecipients, requiredRecipients };
+  }
   async function receiveGiftWrap(event) {
     if (!N.verifyEvent(event)) return;
     const rumor = N.nip17.unwrapEvent(event, state.secret);
@@ -3419,10 +3547,17 @@
     const peer = group ? groupConversationId(members) : members.find(member => member !== state.pubkey);
     if (!peer) return;
     const edit = rumor.kind === 14 ? MessageEdits.editDescriptor(rumor) : null;
-    if (rumor.kind === 5) return; // NIP-17 edit tombstones are control events; the replacement carries the visible text.
     const agentAccess = group ? null : await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') return;
     const existingConversation = await get('conversations', peer);
+    if (rumor.kind === 5) {
+      const deletion = MessageDeletions.parseRumor(rumor, members);
+      if (!deletion || existingConversation?.agent || agentAccess?.status === 'approved') return;
+      if (group && existingConversation?.members?.length && groupConversationId(existingConversation.members) !== peer) return;
+      if (!group && existingConversation?.group) return;
+      await applyIncomingMessageDeletion(peer, deletion);
+      return;
+    }
     if (MessagePins?.hasTag(rumor)) {
       const pin = MessagePins.recordFromRumor(rumor);
       if (!pin || rumor.pubkey === state.pubkey || existingConversation?.agent || agentAccess?.status === 'approved') return;
@@ -3473,6 +3608,9 @@
     if (rumor.kind === 7) {
       const targetTag = Array.isArray(rumor.tags) ? rumor.tags.find(tag => Array.isArray(tag) && tag[0] === 'e' && /^[0-9a-f]{64}$/i.test(tag[1] || '')) : null;
       if (!targetTag || !rumor.content || rumor.content.length > 64) return;
+      const targetId = targetTag[1].toLowerCase();
+      const targetMessage = (await all('messages')).find(message => message.peer === peer && message.deleted && MessageDeletions.messageEventIds(message).includes(targetId));
+      if (targetMessage) return;
       const reactionId = rumor.id || event.id;
       if (!reactionId) return;
       const id = `reaction:${peer}:${reactionId}`;
@@ -3536,6 +3674,8 @@
     const senderDirection = rumor.pubkey === state.pubkey ? 'sent' : 'received';
     let message;
     if (edit) {
+      const priorMessages = await all('messages');
+      if (priorMessages.some(item => item.peer === peer && item.deleted && item.senderPubkey === rumor.pubkey && MessageDeletions.messageEventIds(item).includes(edit.rootId))) return;
       const incoming = {
         id: `edit:${peer}:${edit.rootId}`, peer, text, ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey,
         createdAt: rumor.created_at * 1000, direction: senderDirection, status: 'delivered',
@@ -3543,32 +3683,32 @@
         ...(forwardedHops ? { forwarded: forwardedHops } : {}),
         ...(replyTag ? { replyToId: replyTag[1] } : {})
       };
-      const result = MessageEdits.applyIncomingEdit(await all('messages'), incoming, state.pubkey);
+      const result = MessageEdits.applyIncomingEdit(priorMessages, incoming, state.pubkey);
       if (!result.applied) return;
-      message = result.message;
+      message = await applyPendingMessageDeletion(result.message, peer);
       await put('messages', message);
     } else {
       const id = parsedAgentMessage ? `agent:${peer}:${parsedAgentMessage.messageId}` : eventId;
       if (await get('messages', id)) return;
       const original = { id, peer, text, ...(voiceMessage ? { voiceMessage } : {}), ...(fileChunk ? { fileChunk } : {}), ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, linkPreview, ...(forwardedHops ? { forwarded: forwardedHops } : {}), ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
       const merged = MessageEdits.mergeOriginalBehindEdit(await all('messages'), original, state.pubkey);
-      message = merged?.message || original;
+      message = await applyPendingMessageDeletion(merged?.message || original, peer);
       await put('messages', message);
     }
     const previous = existingConversation || { pubkey: peer, title: '' };
     const isLatest = !previous.lastAt || message.createdAt >= previous.lastAt;
     const previousUnreadCount = conversationUnreadCount(previous);
     const visibleConversation = hasVisibleConversation(peer);
-    const unreadCount = edit || fileTransferAlreadyStored
+    const unreadCount = edit || fileTransferAlreadyStored || message.deleted
       ? previousUnreadCount
       : senderDirection === 'received' && !visibleConversation
         ? Math.min(9999, previousUnreadCount + 1)
         : visibleConversation ? 0 : previousUnreadCount;
-    const updatedConversation = { ...previous, unreadCount, ...(group ? { group: true, members } : {}), ...(subject ? { title: subject } : {}), ...(fromAgent ? { agent: true } : {}), ...(isLatest ? { lastMessage: fileChunk ? `📎 ${fileChunk.name}` : message.text, lastAt: message.createdAt } : {}) };
+    const updatedConversation = { ...previous, unreadCount, ...(group ? { group: true, members } : {}), ...(subject ? { title: subject } : {}), ...(fromAgent ? { agent: true } : {}), ...(isLatest ? { lastMessage: message.deleted ? localized('Message deleted', 'Mensagem apagada') : fileChunk ? `📎 ${fileChunk.name}` : message.text, lastAt: message.createdAt } : {}) };
     await put('conversations', updatedConversation);
     await renderConversations();
     if (state.activePeer === peer) { await updateConversationHeader(updatedConversation); await updateAgentBlockControl(peer); await renderMessages(peer); }
-    if (!edit && senderDirection === 'received' && !visibleConversation && !fileTransferAlreadyStored) await notifyIncomingMessage(peer);
+    if (!edit && !message.deleted && senderDirection === 'received' && !visibleConversation && !fileTransferAlreadyStored) await notifyIncomingMessage(peer);
   }
   function finishFetchSub(id, fromSocketClose) {
     const subscription = state.fetchSubs.get(id);
@@ -4457,7 +4597,7 @@
     state.readReceiptObserver = null;
     state.readReceiptCandidates.clear();
     const entries = (await all('messages')).filter(message => message.peer === peer && !message.hiddenFromChat).sort((a, b) => a.createdAt - b.createdAt);
-    const messages = FileTransfers.coalesceMessages(entries.filter(message => message.kind !== 7));
+    const messages = MessageDeletions.coalesceDeletedMessages(FileTransfers.coalesceMessages(entries.filter(message => message.kind !== 7)));
     const activePlayback = audioPlayback.getState();
     if (activePlayback?.peer === peer) {
       const stillExists = messages.some(message =>
@@ -4482,7 +4622,7 @@
       state.fileObjectUrls.delete(id);
     }
     const messageByEventId = new Map();
-    for (const message of messages) for (const eventId of [...MessageEdits.eventIds(message), ...(message.fileTransfer?.eventIds || [])]) messageByEventId.set(eventId, message);
+    for (const message of messages) for (const eventId of [...MessageEdits.eventIds(message), ...MessageDeletions.messageEventIds(message)]) messageByEventId.set(eventId, message);
     const latestReactions = new Map();
     for (const reaction of entries.filter(message => message.kind === 7)) {
       if (!/^[0-9a-f]{64}$/i.test(reaction.targetEventId || '')) continue;
@@ -4537,18 +4677,18 @@
       row.dataset.messageId = message.id;
       const eventId = nostrEventId(message);
       if (eventId) row.dataset.nostrEventId = eventId;
-      if (message.direction === 'received' && eventId && !message.fromAgent && !message.agentMessageId) {
+      if (message.direction === 'received' && eventId && !message.deleted && !message.fromAgent && !message.agentMessageId) {
         row.dataset.readReceiptId = eventId;
         state.readReceiptCandidates.set(eventId, { peer, message });
       }
-      row.dataset.eventIds = MessageEdits.eventIds(message).join(',');
+      row.dataset.eventIds = [...new Set([...MessageEdits.eventIds(message), ...MessageDeletions.messageEventIds(message)])].join(',');
       if (message.fromAgent) { const author = document.createElement('span'); author.className = 'agent-message-author'; author.textContent = message.agentMessageError ? 'Protocolo de agente · mensagem não reconhecida' : 'Protocolo de agente · identidade Nostr'; row.append(author); }
       if (conversation?.group && message.direction !== 'sent') { const author = document.createElement('span'); author.className = 'group-message-author'; author.textContent = displayName(message.senderPubkey || '', ''); row.append(author); }
       if (message.replyToId) {
         const parent = byEventId.get(message.replyToId);
         const quote = document.createElement('button'); quote.className = 'reply-reference'; quote.type = 'button';
         const author = parent?.direction === 'sent' ? (window.PropertyI18n?.language === 'pt-BR' ? 'Você' : 'You') : displayName(parent?.senderPubkey || peer, conversation?.group ? '' : conversation?.title || '');
-        const parentText = parent?.fileTransfer ? `📎 ${parent.fileTransfer.name}${parent.text ? ` · ${parent.text}` : ''}` : RichText.preview(parent?.text || '');
+        const parentText = parent?.deleted ? localized('Message deleted', 'Mensagem apagada') : parent?.fileTransfer ? `📎 ${parent.fileTransfer.name}${parent.text ? ` · ${parent.text}` : ''}` : RichText.preview(parent?.text || '');
         quote.textContent = parent ? `${author}: ${parentText.slice(0, 120)}` : localized('Reply to a message', 'Responder a uma mensagem');
         const quoteLabel = parent
           ? `${window.PropertyI18n?.language === 'pt-BR' ? 'Ir para a mensagem respondida' : 'Go to replied message'}: ${quote.textContent}`
@@ -4574,7 +4714,10 @@
           }
         }
       }
-      if (message.fileTransfer) {
+      if (message.deleted) {
+        bubble.classList.add('message-deleted');
+        bubble.textContent = localized('This message was deleted for everyone.', 'Esta mensagem foi apagada para todos.');
+      } else if (message.fileTransfer) {
         const transfer = message.fileTransfer;
         const card = document.createElement('div'); card.className = 'file-transfer-card';
         const heading = document.createElement('div'); heading.className = 'file-transfer-heading';
@@ -4681,12 +4824,12 @@
         meta.append(seen);
       }
       const actions = document.createElement('div'); actions.className = 'message-actions';
-      const reply = document.createElement('button'); reply.type = 'button'; reply.className = 'message-reply'; reply.textContent = 'Reply'; reply.disabled = !eventId; reply.title = eventId ? 'Reply to this message' : 'This older message has no Nostr event reference';
+      const reply = document.createElement('button'); reply.type = 'button'; reply.className = 'message-reply'; reply.textContent = localized('Reply', 'Responder'); reply.disabled = !eventId || message.deleted; reply.title = message.deleted ? localized('Deleted messages cannot be replied to.', 'Não é possível responder a mensagens apagadas.') : eventId ? localized('Reply to this message', 'Responder a esta mensagem') : localized('This older message has no Nostr event reference', 'Esta mensagem antiga não tem referência de evento Nostr');
       reply.addEventListener('click', () => {
         if (!eventId) { showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Esta mensagem antiga não tem uma referência de evento Nostr.' : 'This older message has no Nostr event reference.'); return; }
         beginReplyToMessage(peer, message);
       });
-      const react = document.createElement('button'); react.type = 'button'; react.className = 'message-react'; react.textContent = 'React'; react.disabled = !eventId; react.setAttribute('aria-label', 'React to this message'); react.title = 'Choose a reaction';
+      const react = document.createElement('button'); react.type = 'button'; react.className = 'message-react'; react.textContent = localized('React', 'Reagir'); react.disabled = !eventId || message.deleted; react.setAttribute('aria-label', localized('React to this message', 'Reagir a esta mensagem')); react.title = localized('Choose a reaction', 'Escolher uma reação');
       const picker = document.createElement('div'); picker.id = `property-reaction-picker-${++reactionPickerSequence}`; picker.className = 'message-reaction-picker'; picker.hidden = true; picker.setAttribute('role', 'group'); picker.setAttribute('aria-label', 'Choose a reaction');
       react.setAttribute('aria-controls', `${picker.id} reaction-emoji-dialog`); react.setAttribute('aria-expanded', 'false');
       for (const emoji of REACTION_OPTIONS) {
@@ -4713,10 +4856,10 @@
       const menu = document.createElement('details'); menu.className = 'message-menu';
       const menuButton = document.createElement('summary'); menuButton.textContent = '⋮'; menuButton.setAttribute('aria-label', 'More message actions');
       const menuItems = document.createElement('div'); menuItems.className = 'message-menu-items';
-      const save = document.createElement('button'); save.type = 'button'; save.textContent = message.saved ? 'Remove saved message' : 'Save message';
+      const save = document.createElement('button'); save.type = 'button'; save.textContent = message.saved ? localized('Remove saved message', 'Remover dos salvos') : localized('Save message', 'Salvar mensagem'); save.disabled = Boolean(message.deleted);
       save.addEventListener('click', () => { menu.open = false; setMessageSaved(peer, message, !message.saved).catch(error => showToast(error.message || 'Could not update saved messages.')); });
-      if (eventId && message.kind !== 7 && !message.fromAgent && !message.agentMessageId && !conversation?.agent) {
-        const isPinned = currentPin?.active === true && MessageEdits.eventIds(message).includes(currentPin.targetEventId);
+      if (eventId && !message.deleted && message.kind !== 7 && !message.fromAgent && !message.agentMessageId && !conversation?.agent) {
+        const isPinned = currentPin?.active === true && MessageDeletions.messageEventIds(message).includes(currentPin.targetEventId);
         const pin = document.createElement('button'); pin.type = 'button'; pin.textContent = localized(isPinned ? 'Unpin message' : 'Pin message', isPinned ? 'Desafixar mensagem' : 'Fixar mensagem');
         pin.addEventListener('click', () => {
           menu.open = false;
@@ -4728,6 +4871,15 @@
         const editAction = document.createElement('button'); editAction.type = 'button'; editAction.textContent = localized('Edit message', 'Editar mensagem');
         editAction.addEventListener('click', () => { menu.open = false; startMessageEdit(peer, message); });
         menuItems.append(editAction);
+      }
+      if (message.direction === 'sent' && message.senderPubkey?.toLowerCase() === state.pubkey && !message.fromAgent && !message.agentMessageId && message.kind !== 7 && !message.deleted && ['sent', 'partial'].includes(message.status) && eventId && !conversation?.agent) {
+        const deleteForEveryone = document.createElement('button'); deleteForEveryone.type = 'button'; deleteForEveryone.className = 'danger-text';
+        deleteForEveryone.textContent = localized('Delete for everyone', 'Apagar para todos');
+        deleteForEveryone.addEventListener('click', () => {
+          menu.open = false;
+          openMessageDeletionConfirmation(peer, message);
+        });
+        menuItems.append(deleteForEveryone);
       }
       const canForward = typeof message.text === 'string' && Boolean(message.text.trim()) && !message.voiceMessage && !message.fileTransfer && message.kind !== 7 && !message.deleted && !message.fromAgent && !message.agentMessageId;
       const forward = document.createElement('button'); forward.type = 'button'; forward.textContent = localized('Forward', 'Encaminhar'); forward.disabled = !canForward;
@@ -4763,6 +4915,28 @@
     refreshMessageSearch();
     updateAudioPlaybackUI();
   }
+  function openMessageDeletionConfirmation(peer, message) {
+    const dialog = $('message-delete-dialog');
+    if (!dialog || !state.pubkey || !['sent', 'partial'].includes(message?.status)) return;
+    state.pendingMessageDeletion = {
+      peer,
+      identity: state.pubkey,
+      message: {
+        peer, id: message.id, nostrEventId: message.nostrEventId, editRootId: message.editRootId,
+        previousEventIds: Array.isArray(message.previousEventIds) ? [...message.previousEventIds] : [],
+        deletedEventIds: Array.isArray(message.deletedEventIds) ? [...message.deletedEventIds] : [],
+        fileTransfer: message.fileTransfer ? { eventIds: Array.isArray(message.fileTransfer.eventIds) ? [...message.fileTransfer.eventIds] : [] } : undefined,
+        senderPubkey: message.senderPubkey, direction: message.direction, status: message.status,
+        kind: message.kind, deleted: message.deleted, fromAgent: message.fromAgent, agentMessageId: message.agentMessageId
+      }
+    };
+    $('message-delete-copy').textContent = localized(
+      'Property will send an end-to-end encrypted deletion request. Relay acceptance does not prove that every device processed it. Offline devices, screenshots, exports, and other copies may remain; payments cannot be reversed.',
+      'O Property enviará um pedido de exclusão criptografado de ponta a ponta. A confirmação do relay não prova que todos os aparelhos o processaram. Aparelhos offline, capturas de tela, exportações e outras cópias podem permanecer; pagamentos não são revertidos.'
+    );
+    $('message-delete-confirm').disabled = false;
+    if (!dialog.open) dialog.showModal();
+  }
   function renderConversationPinBar(peer, messages, pinRecord) {
     const bar = $('conversation-pin-bar');
     const jump = $('conversation-pin-jump');
@@ -4770,9 +4944,10 @@
     const unpin = $('conversation-pin-unpin');
     if (!bar || !jump || !label || !unpin) return;
     const active = pinRecord?.active === true && /^[0-9a-f]{64}$/i.test(pinRecord.targetEventId || '');
-    bar.hidden = !active;
-    if (!active) return;
-    const pinned = messages.find(message => MessageEdits.eventIds(message).includes(pinRecord.targetEventId));
+    if (!active) { bar.hidden = true; return; }
+    const pinned = messages.find(message => MessageDeletions.messageEventIds(message).includes(pinRecord.targetEventId));
+    bar.hidden = Boolean(pinned?.deleted);
+    if (bar.hidden) return;
     const preview = pinned
       ? pinned.fileTransfer?.name ? `📎 ${FileTransfers.safeName(pinned.fileTransfer.name)}`
         : pinned.voiceMessage ? localized('Voice message', 'Mensagem de voz')
@@ -6187,6 +6362,8 @@
     clearTimeout(state.directFileOfferExpiryTimer);
     state.directFileOfferExpiryTimer = 0;
     for (const id of ['file-direct-consent-dialog', 'incoming-direct-file-dialog']) if ($(id).open) $(id).close();
+    state.pendingMessageDeletion = null;
+    if ($('message-delete-dialog')?.open) $('message-delete-dialog').close();
     $('audio-call-button').hidden = true;
     $('video-call-button').hidden = true;
     cancelVoiceRecording();
@@ -6958,6 +7135,19 @@
       input.focus();
     }));
     $('conversation-search').addEventListener('input', renderConversations);
+    $('message-delete-close').addEventListener('click', () => $('message-delete-dialog').close());
+    $('message-delete-cancel').addEventListener('click', () => $('message-delete-dialog').close());
+    $('message-delete-dialog').addEventListener('close', () => { state.pendingMessageDeletion = null; $('message-delete-confirm').disabled = false; });
+    $('message-delete-confirm').addEventListener('click', async () => {
+      const pending = state.pendingMessageDeletion;
+      if (!pending || pending.identity !== state.pubkey) { $('message-delete-dialog').close(); return; }
+      state.pendingMessageDeletion = null;
+      $('message-delete-confirm').disabled = true;
+      $('message-delete-dialog').close();
+      try { await deletePrivateMessageForEveryone(pending.peer, pending.message); }
+      catch (error) { showToast(error.message || localized('Could not send the deletion request.', 'Não foi possível enviar o pedido de exclusão.')); }
+      finally { $('message-delete-confirm').disabled = false; }
+    });
     $('message-search-button').addEventListener('click', openMessageSearch);
     $('message-search-close').addEventListener('click', () => closeMessageSearch());
     $('message-search-input').addEventListener('input', () => refreshMessageSearch({ resetIndex: true, scroll: true }));
