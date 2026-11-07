@@ -10,9 +10,11 @@ const Chunks = context.PropertyDirectFileChunks;
 const Storage = context.PropertyDirectFileStorage;
 const hashImplementation = await import('../web/chess/vendor/noble-hashes/sha2.js');
 const records = new Map();
+let identity = { secret: new Uint8Array(32).fill(7), pubkey: '12'.repeat(32) };
 const storage = Storage.create({
   crypto: webcrypto,
   hashImplementation,
+  getIdentity: () => identity,
   putPart: async record => records.set(`${record.transferId}:${record.index}`, record),
   listParts: async transferId => [...records.values()].filter(part => part.transferId === transferId),
   deleteParts: async transferId => { for (const [key, part] of records) if (part.transferId === transferId) records.delete(key); }
@@ -26,16 +28,54 @@ for (let index = manifest.totalChunks - 1; index >= 0; index -= 1) {
   assert.equal(await storage.savePart({ file: manifest, index, bytes: chunk.bytes, sha256: chunk.sha256,
     sessionId: 'cd'.repeat(16), peer: 'ef'.repeat(32), direction: 'received' }), true);
 }
+for (const record of records.values()) {
+  assert.equal(record.storageVersion, 1, 'persisted direct blocks use the encrypted storage format');
+  assert.equal(record.ownerPubkey, identity.pubkey, 'encrypted blocks are scoped to the unlocked Property identity');
+  assert.equal(record.bytes.byteLength, Chunks.expectedChunkSize(manifest.sizeBytes, manifest.totalChunks, record.index) + 16,
+    'stored block bytes contain AES-GCM ciphertext and its authentication tag');
+  assert.notDeepEqual(new Uint8Array(record.bytes), new Uint8Array(await Chunks.readChunk(file, manifest, record.index, webcrypto).then(part => part.bytes)),
+    'IndexedDB never receives a direct file plaintext block');
+}
+const storageFormatKey = `${manifest.transferId}:0`;
+const storedFormatRecord = records.get(storageFormatKey);
+records.set(storageFormatKey, { ...storedFormatRecord, storageVersion: 2 });
+assert.equal(await storage.verifyFiles([manifest]), false, 'unknown encrypted storage formats fail closed instead of being treated as legacy plaintext');
+records.set(storageFormatKey, storedFormatRecord);
 assert.equal(await storage.verifyFiles([manifest]), true, 'blocks saved in any order are reassembled and whole-file checked');
 const restored = await storage.createBlob(manifest);
 assert.deepEqual(new Uint8Array(await restored.arrayBuffer()), bytes);
 assert.equal(restored.type, manifest.mime);
+
+const reloadedStorage = Storage.create({
+  crypto: webcrypto, hashImplementation, getIdentity: () => identity,
+  putPart: async record => records.set(`${record.transferId}:${record.index}`, record),
+  listParts: async transferId => [...records.values()].filter(part => part.transferId === transferId)
+});
+assert.equal(await reloadedStorage.verifyFiles([manifest]), true, 'the same Property identity decrypts files after a storage facade reload');
+identity = { secret: new Uint8Array(32).fill(8), pubkey: '34'.repeat(32) };
+assert.equal(await reloadedStorage.verifyFiles([manifest]), false, 'another identity cannot decrypt the stored files');
+identity = null;
+assert.equal(await reloadedStorage.verifyFiles([manifest]), false, 'locked identities cannot read direct file blocks');
+const lockedPart = await Chunks.readChunk(file, manifest, 0, webcrypto);
+await assert.rejects(async () => reloadedStorage.savePart({ file: manifest, index: 0, bytes: lockedPart.bytes,
+  sha256: lockedPart.sha256 }), /Unlock the Property identity/);
+identity = { secret: new Uint8Array(32).fill(7), pubkey: '12'.repeat(32) };
 
 const firstKey = `${manifest.transferId}:0`;
 const damaged = records.get(firstKey);
 records.set(firstKey, { ...damaged, bytes: new Uint8Array(damaged.bytes).fill(0) });
 assert.equal(await storage.verifyFiles([manifest]), false, 'corrupt local blocks prevent completion');
 assert.equal(await storage.createBlob(manifest), null, 'corrupt blocks never become a downloadable Blob');
+await storage.deleteParts(manifest.transferId);
+assert.equal(records.size, 0);
+
+for (let index = 0; index < manifest.totalChunks; index += 1) {
+  const chunk = await Chunks.readChunk(file, manifest, index, webcrypto);
+  records.set(`${manifest.transferId}:${index}`, { transferId: manifest.transferId, index, bytes: chunk.bytes, sha256: chunk.sha256 });
+}
+assert.equal(await storage.verifyFiles([manifest]), true, 'legacy plaintext blocks migrate without losing a valid completed transfer');
+assert.ok([...records.values()].every(record => record.storageVersion === 1), 'legacy blocks are rewritten as authenticated ciphertext on first unlock');
+assert.equal(await storage.createBlob(manifest) !== null, true, 'a migrated legacy transfer remains downloadable after whole-file verification');
 await storage.deleteParts(manifest.transferId);
 assert.equal(records.size, 0);
 
@@ -48,6 +88,7 @@ const pendingRecords = new Map();
 const delayedStorage = Storage.create({
   crypto: webcrypto,
   hashImplementation,
+  getIdentity: () => identity,
   putPart: async record => {
     announceWriteStarted();
     await writeGate;
@@ -73,4 +114,4 @@ await pendingDiscard;
 assert.equal(sessionDeleteStarted, true);
 assert.equal(pendingRecords.size, 0, 'cleanup removes the block after its IndexedDB-style write settles');
 
-console.log('PASS direct file storage: bounded local blocks, out-of-order assembly, whole-file hash and corrupt-block rejection');
+console.log('PASS direct file storage: identity-derived AES-GCM at rest, reload, identity isolation, legacy migration, bounded blocks, full-file hash and corrupt-block rejection');

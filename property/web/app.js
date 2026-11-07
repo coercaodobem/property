@@ -3138,7 +3138,8 @@
       putPart: record => put('directFileParts', record),
       listParts: transferId => directFilePartsBy('byTransferId', transferId),
       deleteParts: transferId => deleteDirectFileParts('byTransferId', transferId),
-      deleteSessionParts: sessionId => deleteDirectFileParts('bySessionId', sessionId)
+      deleteSessionParts: sessionId => deleteDirectFileParts('bySessionId', sessionId),
+      getIdentity: () => state.secret && state.pubkey ? { secret: state.secret, pubkey: state.pubkey } : null
     });
     return state.directFileStorage;
   }
@@ -3218,6 +3219,7 @@
   }
   async function activateIdentity(secret) {
     state.activeWorkspaceReady = false;
+    state.directFileStorage?.clearKey();
     state.secret = secret;
     resetIdleLock();
     state.pubkey = N.getPublicKey(secret);
@@ -6520,8 +6522,9 @@
     state.pendingCallVideo = false;
     for (const id of ['call-consent-dialog', 'incoming-call-dialog', 'call-session-dialog']) if ($(id).open) $(id).close();
     const interruptedDirectFileTransfer = state.directFileController?.getState();
+    let interruptedFileCleanup = Promise.resolve();
     if (interruptedDirectFileTransfer && !['completed', 'cancelled', 'declined', 'failed'].includes(interruptedDirectFileTransfer.status)) {
-      void directFileStore().discardSession(interruptedDirectFileTransfer.transferId).catch(() => {});
+      interruptedFileCleanup = directFileStore().discardSession(interruptedDirectFileTransfer.transferId).catch(() => {});
     }
     state.directFileController?.dispose();
     state.directFileController = null;
@@ -6568,6 +6571,8 @@
     state.identityProofCheckId++;
     state.identityProofChecks.clear();
     state.peerNip05Checks.clear();
+    await interruptedFileCleanup;
+    state.directFileStorage?.clearKey();
     if (state.secret) state.secret.fill(0);
     const clearAppBadgeOnLock = state.appBadgeEnabled || state.appBadgeLastCount !== null;
     state.iceSettings = IceServers.normalize({}); state.iceSettingsInvalid = false; $('ice-server-credential').value = '';
