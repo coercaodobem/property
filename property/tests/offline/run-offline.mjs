@@ -1512,9 +1512,10 @@ async function runCoreProfile(profile, manifest, outputDir, cases, inventory, is
     return;
   }
 
-  const g04Ids = ['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09', 'G04-11', 'G04-12', 'G04-13', 'G04-14', 'G04-22', 'G04-23', 'G04-24', 'G04-25', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21'];
+  const g04Ids = ['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09', 'G04-11', 'G04-12', 'G04-13', 'G04-14', 'G04-22', 'G04-23', 'G04-24', 'G04-25', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-27'];
+  const g04BrowserIds = g04Ids.filter(id => id !== 'G04-27');
   if (!browserConfig) {
-    for (const id of g04Ids) setCase(cases, id, {
+    for (const id of g04BrowserIds) setCase(cases, id, {
       status: 'BLOCKED', gate_eligible: false, command: null, started_utc: null, ended_utc: null,
       exit_code: null, reason: 'The lab manifest has no pinned Playwright module and browser executable.', observed: 'BROWSER_AUTOMATION_NOT_CONFIGURED'
     });
@@ -1535,7 +1536,7 @@ async function runCoreProfile(profile, manifest, outputDir, cases, inventory, is
       path.join(outputDir, 'logs/G04-01-11-browser.log'));
     let g04Report = null;
     try { g04Report = JSON.parse(await readFile(path.join(g04Output, 'browser-g04-report.json'), 'utf8')); } catch {}
-    for (const id of g04Ids) {
+    for (const id of g04BrowserIds) {
       const reported = g04Report?.cases?.find(row => row.case === id);
       const outcome = ['PASS', 'FAIL', 'BLOCKED', 'NOT_RUN'].includes(reported?.status)
         ? reported.status : g04Run.interrupted || commandOutcome(g04Run) === 'BLOCKED' ? 'BLOCKED' :
@@ -1551,6 +1552,18 @@ async function runCoreProfile(profile, manifest, outputDir, cases, inventory, is
       });
     }
   }
+  const g04ResumeRun = await runCommand(process.execPath, ['property/tests/direct-file-resume-smoke.mjs'],
+    manifest.case_timeout_ms, path.join(outputDir, 'logs/G04-27-direct-file-resume.log'));
+  const g04ResumeOutcome = commandOutcome(g04ResumeRun);
+  setCase(cases, 'G04-27', {
+    status: g04ResumeOutcome, gate_eligible: g04ResumeOutcome !== 'NOT_RUN',
+    command: 'node property/tests/direct-file-resume-smoke.mjs',
+    started_utc: g04ResumeRun.started_utc, ended_utc: g04ResumeRun.ended_utc, exit_code: g04ResumeRun.exit_code,
+    reason: g04ResumeOutcome === 'PASS' ? 'The interrupted offline transfer resumed exactly its verified two-block prefix and passed whole-file integrity.' :
+      'The encrypted-storage and paired-channel resume harness did not pass.',
+    observed: JSON.stringify({ stdout: g04ResumeRun.stdout, stderr: g04ResumeRun.stderr }),
+    evidence: [g04ResumeRun.log]
+  });
   const g04Status = deriveGateStatus([...cases.values()].filter(row => row.case.startsWith('G04-')));
   if (g04Status !== 'PASS') {
     markLaterGates(5, 'G04 did not pass; dependent gate was not started.');

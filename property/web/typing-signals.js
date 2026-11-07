@@ -23,8 +23,15 @@
   const DirectFileChunks = window.PropertyDirectFileChunks;
   const MAX_DIRECT_FILE_BYTES = DirectFileChunks?.MAX_FILE_BYTES || 0;
   const MAX_DIRECT_FILE_BATCH_BYTES = DirectFileChunks?.MAX_BATCH_BYTES || 0;
+  const MAX_DIRECT_RESUME_PARTS = DirectFileChunks ? Math.ceil(MAX_DIRECT_FILE_BATCH_BYTES / DirectFileChunks.CHUNK_BYTES) : 0;
   const KEY_RE = /^[0-9a-f]{64}$/i;
   const EVENT_ID_RE = /^[0-9a-f]{64}$/i;
+
+  function validResumeOffsets(value) {
+    return Array.isArray(value) && value.length > 0 && value.length <= MAX_FILE_BATCH_COUNT &&
+      value.every(count => Number.isSafeInteger(count) && count >= 0 && count <= MAX_DIRECT_RESUME_PARTS) &&
+      value.reduce((sum, count) => sum + count, 0) <= MAX_DIRECT_RESUME_PARTS;
+  }
 
   function participantsFromRumor(rumor) {
     if (!rumor || !KEY_RE.test(rumor.pubkey || '') || !Array.isArray(rumor.tags)) return [];
@@ -152,7 +159,7 @@
   function createFileSignal(nostr, secret, participantKeys, recipientKey, transferId, action, sequence, details = {}) {
     validateCrypto(nostr);
     if (!FILE_TRANSFER_ID_RE.test(transferId || '') || !Number.isSafeInteger(sequence) || sequence < 1 ||
-        !['file-offer', 'file-answer', 'file-reject', 'file-cancel'].includes(action)) {
+        !['file-offer', 'file-answer', 'file-resume', 'file-reject', 'file-cancel'].includes(action)) {
       throw new TypeError('Invalid direct file signal action or identifier.');
     }
     const { sender, participants } = normalizeParticipants(nostr, secret, participantKeys);
@@ -169,8 +176,13 @@
       payload.sdp = details.sdp;
       payload.caption = String(details.caption || '').trim();
     } else if (action === 'file-answer') {
-      if (!validDataChannelDescription('answer', details.sdp)) throw new TypeError('Invalid direct file answer.');
+      if (!details || Object.keys(details).some(key => key !== 'sdp') || !validDataChannelDescription('answer', details.sdp)) throw new TypeError('Invalid direct file answer.');
       payload.sdp = details.sdp;
+    } else if (action === 'file-resume') {
+      if (!details || Object.keys(details).some(key => key !== 'resumeOffsets') || !validResumeOffsets(details.resumeOffsets)) {
+        throw new TypeError('Invalid direct file resume request.');
+      }
+      payload.resumeOffsets = details.resumeOffsets.slice();
     } else if (details && Object.keys(details).length) {
       throw new TypeError('Direct file ending signals cannot contain extra data.');
     }
@@ -236,7 +248,7 @@
       const participants = participantsFromRumor(rumor);
       if (!participants.includes(recipient) || participants.length < 2) return null;
       const payload = JSON.parse(rumor.content);
-      if (payload?.v !== 1 || !['typing', 'recording', 'thinking', 'stop', 'read', 'presence', 'call-offer', 'call-answer', 'call-restart-offer', 'call-restart-answer', 'call-decline', 'call-busy', 'call-hangup', 'file-offer', 'file-answer', 'file-reject', 'file-cancel'].includes(payload.action) ||
+      if (payload?.v !== 1 || !['typing', 'recording', 'thinking', 'stop', 'read', 'presence', 'call-offer', 'call-answer', 'call-restart-offer', 'call-restart-answer', 'call-decline', 'call-busy', 'call-hangup', 'file-offer', 'file-answer', 'file-resume', 'file-reject', 'file-cancel'].includes(payload.action) ||
           !Number.isSafeInteger(payload.sequence) || payload.sequence < 1) return null;
       if (payload.action === 'read' && (!EVENT_ID_RE.test(payload.messageId || '') || typeof payload.group !== 'boolean')) return null;
       if (payload.action === 'presence' && (typeof payload.active !== 'boolean' || participants.length !== 2)) return null;
@@ -259,10 +271,12 @@
       if (payload.action === 'file-offer' && (!normalizeFileManifests(payload.files) || !validDataChannelDescription('offer', payload.sdp) ||
           typeof payload.caption !== 'string' || Array.from(payload.caption).length > MAX_FILE_SIGNAL_CAPTION_CHARS)) return null;
       if (payload.action === 'file-answer' && !validDataChannelDescription('answer', payload.sdp)) return null;
+      if (payload.action === 'file-resume' && !validResumeOffsets(payload.resumeOffsets)) return null;
       if (fileAction) {
         const allowed = payload.action === 'file-offer' ? ['v', 'action', 'transferId', 'sequence', 'files', 'sdp', 'caption']
           : payload.action === 'file-answer' ? ['v', 'action', 'transferId', 'sequence', 'sdp']
-          : ['v', 'action', 'transferId', 'sequence'];
+            : payload.action === 'file-resume' ? ['v', 'action', 'transferId', 'sequence', 'resumeOffsets']
+              : ['v', 'action', 'transferId', 'sequence'];
         if (Object.keys(payload).some(key => !allowed.includes(key))) return null;
       }
       const maxAgeSeconds = fileAction ? MAX_FILE_SIGNAL_AGE_SECONDS : callAction ? MAX_CALL_SIGNAL_AGE_SECONDS
@@ -279,7 +293,8 @@
         ...(['call-offer', 'call-answer'].includes(payload.action) ? { restartIce: payload.restartIce === true } : {}),
         ...(fileAction ? { transferId: payload.transferId.toLowerCase() } : {}),
         ...(payload.action === 'file-offer' ? { files: normalizeFileManifests(payload.files), sdp: payload.sdp, caption: payload.caption } : {}),
-        ...(payload.action === 'file-answer' ? { sdp: payload.sdp } : {}) };
+        ...(payload.action === 'file-answer' ? { sdp: payload.sdp } : {}),
+        ...(payload.action === 'file-resume' ? { resumeOffsets: payload.resumeOffsets.slice() } : {}) };
     } catch {
       return null;
     }

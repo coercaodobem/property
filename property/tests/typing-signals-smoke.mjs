@@ -41,7 +41,8 @@ const result = vm.runInContext(`(() => {
   const fileOffer = PropertyTypingSignals.createFileSignal(nostr, a, [aPub, bPub], bPub, transferId, 'file-offer', 117,
     { files: fileManifest, caption: 'transfer context', sdp: dataSdp });
   const fileAnswer = PropertyTypingSignals.createFileSignal(nostr, b, [aPub, bPub], aPub, transferId, 'file-answer', 118, { sdp: dataSdp });
-  const fileReject = PropertyTypingSignals.createFileSignal(nostr, b, [aPub, bPub], aPub, transferId, 'file-reject', 119);
+  const fileResume = PropertyTypingSignals.createFileSignal(nostr, b, [aPub, bPub], aPub, transferId, 'file-resume', 119, { resumeOffsets: [0] });
+  const fileReject = PropertyTypingSignals.createFileSignal(nostr, b, [aPub, bPub], aPub, transferId, 'file-reject', 120);
   const startEvent = start[0].event;
   const recordingEvent = recording[0].event;
   const stopEvent = stop[0].event;
@@ -68,6 +69,7 @@ const result = vm.runInContext(`(() => {
   const openedCapableCallOffer = PropertyTypingSignals.unwrap(nostr, capableCallOffer[0].event, b);
   const openedFileOffer = PropertyTypingSignals.unwrap(nostr, fileOffer[0].event, b);
   const openedFileAnswer = PropertyTypingSignals.unwrap(nostr, fileAnswer[0].event, a);
+  const openedFileResume = PropertyTypingSignals.unwrap(nostr, fileResume[0].event, a);
   const openedFileReject = PropertyTypingSignals.unwrap(nostr, fileReject[0].event, a);
   const wrongFileRecipient = PropertyTypingSignals.unwrap(nostr, fileOffer[0].event, c);
   const staleFileOffer = PropertyTypingSignals.unwrap(nostr, fileOffer[0].event, b, Math.floor(Date.now() / 1000) + PropertyTypingSignals.MAX_FILE_SIGNAL_AGE_SECONDS + 3);
@@ -105,6 +107,8 @@ const result = vm.runInContext(`(() => {
   try { PropertyTypingSignals.createFileSignal(nostr, a, [aPub, bPub], bPub, transferId, 'file-offer', 120, { files: [tooLargeDirectFile], sdp: dataSdp }); } catch { oversizedFileManifestRejected = true; }
   let groupFileTransferRejected = false;
   try { PropertyTypingSignals.createFileSignal(nostr, a, [aPub, bPub, cPub], bPub, transferId, 'file-offer', 121, { files: fileManifest, sdp: dataSdp }); } catch { groupFileTransferRejected = true; }
+  let invalidResumeOffsetsRejected = false;
+  try { PropertyTypingSignals.createFileSignal(nostr, b, [aPub, bPub], aPub, transferId, 'file-resume', 122, { resumeOffsets: [0, -1] }); } catch { invalidResumeOffsetsRejected = true; }
   return {
     wrapperKind: startEvent.kind,
     signatureValid: nostr.verifyEvent(startEvent) && nostr.verifyEvent(stopEvent),
@@ -171,6 +175,9 @@ const result = vm.runInContext(`(() => {
     fileOfferCaption: openedFileOffer?.caption,
     fileOfferSdp: openedFileOffer?.sdp,
     fileAnswerAction: openedFileAnswer?.action,
+    fileResumeAction: openedFileResume?.action,
+    fileResumeOffsets: openedFileResume?.resumeOffsets,
+    fileResumeEncrypted: !fileResume[0].event.content.includes('resumeOffsets'),
     fileRejectAction: openedFileReject?.action,
     fileRecipientOnly: fileOffer[0].recipient === bPub && JSON.stringify(fileOffer[0].event.tags) === JSON.stringify([['p', bPub]]),
     filePayloadEncrypted: !fileOffer[0].event.content.includes('sample.txt') && !fileOffer[0].event.content.includes('m=application'),
@@ -178,6 +185,7 @@ const result = vm.runInContext(`(() => {
     staleFileOfferRejected: staleFileOffer === null,
     oversizedFileManifestRejected,
     groupFileTransferRejected,
+    invalidResumeOffsetsRejected,
     receiptGroupFlag: openedReceipt?.group,
     receiptParticipants: openedReceipt?.participants.length,
     wrongReceiptRecipientRejected: wrongReceiptRecipient === null,
@@ -259,6 +267,9 @@ assert.equal(result.fileOfferManifest.name, 'sample.txt');
 assert.equal(result.fileOfferCaption, 'transfer context');
 assert.match(result.fileOfferSdp, /m=application/);
 assert.equal(result.fileAnswerAction, 'file-answer');
+assert.equal(result.fileResumeAction, 'file-resume');
+assert.deepEqual(Array.from(result.fileResumeOffsets), [0]);
+assert.equal(result.fileResumeEncrypted, true, 'the relay sees no resume counters from the encrypted signal');
 assert.equal(result.fileRejectAction, 'file-reject');
 assert.equal(result.fileRecipientOnly, true, 'the relay sees only the intended recipient tag');
 assert.equal(result.filePayloadEncrypted, true, 'file names and data-channel SDP remain encrypted in the relay signal');
@@ -266,6 +277,7 @@ assert.equal(result.wrongFileRecipientRejected, true);
 assert.equal(result.staleFileOfferRejected, true);
 assert.equal(result.oversizedFileManifestRejected, true);
 assert.equal(result.groupFileTransferRejected, true, 'direct file transfer is rejected for groups');
+assert.equal(result.invalidResumeOffsetsRejected, true, 'resume signals reject invalid chunk offsets');
 assert.equal(result.wrongRecipientRejected, true);
 assert.equal(result.tamperingRejected, true);
 assert.equal(result.staleSignalRejected, true);

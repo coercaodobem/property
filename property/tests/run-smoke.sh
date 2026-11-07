@@ -29,6 +29,7 @@ for test_file in \
   direct-file-chunks-smoke.mjs \
   direct-file-storage-smoke.mjs \
   direct-transfer-controller-smoke.mjs \
+  direct-file-resume-smoke.mjs \
   image-viewer-smoke.mjs \
   chat-search-smoke.mjs \
   conversation-folders-smoke.mjs \

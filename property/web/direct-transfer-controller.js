@@ -6,6 +6,7 @@
   const DirectFileChunks = globalThis.PropertyDirectFileChunks;
   const ICE_GATHERING_WATCHDOG_MS = 12000;
   const FRAME_ACK_WATCHDOG_MS = 30000;
+  const RESUME_SIGNAL_WATCHDOG_MS = 3000;
   const CHANNEL_LABEL = 'property-private-files-v2';
   const DEFAULT_ICE_SERVERS = Object.freeze([
     Object.freeze({ urls: 'stun:stun.l.google.com:19302' }),
@@ -29,6 +30,8 @@
     const receiveEnvelope = typeof options.onEnvelope === 'function' ? options.onEnvelope : async () => false;
     const receivePart = typeof options.onPart === 'function' ? options.onPart : async () => false;
     const completeTransfer = typeof options.onComplete === 'function' ? options.onComplete : async () => true;
+    const setResumeWatchdog = options.setResumeWatchdog || (callback => setTimeout(callback, RESUME_SIGNAL_WATCHDOG_MS));
+    const clearResumeWatchdog = options.clearResumeWatchdog || clearTimeout;
     const iceServers = Array.isArray(options.iceServers) ? options.iceServers : DEFAULT_ICE_SERVERS;
     let current = null;
 
@@ -47,11 +50,29 @@
         totalBytes: files.reduce((sum, file) => sum + file.sizeBytes, 0) };
     }
 
+    function normalizeResumeOffsets(files, candidate) {
+      const empty = files.map(() => 0);
+      if (!Array.isArray(candidate) || candidate.length !== files.length) return empty;
+      const offsets = [];
+      let incompleteFileSeen = false;
+      for (let index = 0; index < files.length; index += 1) {
+        const count = candidate[index];
+        if (!Number.isSafeInteger(count) || count < 0 || count > files[index].totalChunks ||
+            (incompleteFileSeen && count !== 0)) return empty;
+        offsets.push(count);
+        if (count < files[index].totalChunks) incompleteFileSeen = true;
+      }
+      return offsets;
+    }
+
+    function sumResumeOffsets(offsets) { return offsets.reduce((sum, count) => sum + count, 0); }
+
     function snapshot(session = current) {
       if (!session) return null;
       return Object.freeze({ transferId: session.transferId, peer: session.peer, direction: session.direction,
         status: session.status, error: session.error || '', ...manifestSummary(session.files),
-        sentChunks: session.sentChunks, receivedChunks: session.receivedChunks });
+        sentChunks: session.sentChunks, receivedChunks: session.receivedChunks,
+        resumeOffsets: Object.freeze(session.resumeOffsets.slice()) });
     }
 
     function update(session, status, error = '') {
@@ -61,7 +82,34 @@
       onState(snapshot(session));
     }
 
+    function maybeConnectOutgoing(session) {
+      if (current !== session || session.direction !== 'outgoing' || !session.answerReceived ||
+          !session.channelOpen || !session.resumeSignalReceived) return;
+      if (sumResumeOffsets(session.resumeOffsets) === 0) {
+        update(session, 'connected');
+        return;
+      }
+      if (session.resumeConfirmSent) return;
+      session.resumeConfirmSent = true;
+      session.pendingResumeReady = true;
+      session.ackTimer = setTimeout(() => {
+        session.ackTimer = 0;
+        if (!session.pendingResumeReady) return;
+        session.pendingResumeReady = false;
+        terminal(session, 'failed', 'The recipient did not confirm the saved direct file blocks.');
+      }, FRAME_ACK_WATCHDOG_MS);
+      if (!sendFrame(session, { v: 1, action: 'resume-confirm', transferId: session.transferId,
+        resumeOffsets: session.resumeOffsets })) {
+        clearTimeout(session.ackTimer);
+        session.ackTimer = 0;
+        session.pendingResumeReady = false;
+        terminal(session, 'failed', 'Could not confirm the saved direct file blocks.');
+      }
+    }
+
     function release(session) {
+      if (session.resumeTimer) clearResumeWatchdog(session.resumeTimer);
+      session.resumeTimer = 0;
       if (session.ackTimer) clearTimeout(session.ackTimer);
       session.ackTimer = 0;
       if (session.pendingAck) {
@@ -111,7 +159,10 @@
     function createSession(details, direction, status) {
       return current = { ...details, direction, status, error: '', peerConnection: null, channel: null,
         sentChunks: 0, receivedChunks: 0, expectedChunks: manifestSummary(details.files).totalChunks,
+        resumeOffsets: details.files.map(() => 0),
         pendingAck: null, pendingPartAck: null, pendingComplete: null, ackTimer: 0, answerReceived: false,
+        channelOpen: false, resumeSignalReceived: false, resumeConfirmSent: false,
+        resumeConfirmed: false, pendingResumeReady: false, resumeTimer: 0,
         receiveQueue: Promise.resolve() };
     }
 
@@ -175,6 +226,32 @@
       try { frame = JSON.parse(raw); } catch { failPending(session, 'The other device sent an invalid transfer frame.'); return; }
       if (!frame || frame.v !== 1 || frame.transferId !== session.transferId || typeof frame.action !== 'string') {
         failPending(session, 'The other device sent a transfer frame for a different session.');
+        return;
+      }
+      if (frame.action === 'resume-confirm' && session.direction === 'incoming' && !session.resumeConfirmed) {
+        const offsets = normalizeResumeOffsets(session.files, frame.resumeOffsets);
+        if (sumResumeOffsets(offsets) === 0 || offsets.some((count, index) => count !== session.resumeOffsets[index])) {
+          failPending(session, 'The sender and recipient could not agree on the saved file blocks.');
+          return;
+        }
+        session.resumeConfirmed = true;
+        session.receivedChunks = sumResumeOffsets(offsets);
+        if (!sendFrame(session, { v: 1, action: 'resume-ready', transferId: session.transferId,
+          resumeOffsets: offsets })) {
+          failPending(session, 'Could not confirm the saved direct file blocks.');
+          return;
+        }
+        update(session, 'receiving');
+        return;
+      }
+      if (frame.action === 'resume-ready' && session.direction === 'outgoing' && session.pendingResumeReady &&
+          Array.isArray(frame.resumeOffsets) && frame.resumeOffsets.length === session.resumeOffsets.length &&
+          frame.resumeOffsets.every((count, index) => count === session.resumeOffsets[index])) {
+        session.pendingResumeReady = false;
+        clearTimeout(session.ackTimer);
+        session.ackTimer = 0;
+        session.resumeConfirmed = true;
+        update(session, 'connected');
         return;
       }
       if (session.direction === 'outgoing') {
@@ -254,6 +331,11 @@
 
     async function handleBinaryPart(session, raw) {
       if (current !== session || session.direction !== 'incoming') return;
+      if (!session.resumeConfirmed) {
+        session.resumeOffsets = session.files.map(() => 0);
+        session.receivedChunks = 0;
+        session.resumeConfirmed = true;
+      }
       const part = DirectFileChunks?.decodePart(raw);
       if (!part || part.transferId !== session.transferId || part.sequence !== session.receivedChunks + 1 ||
           part.sequence > session.expectedChunks) {
@@ -304,7 +386,12 @@
       }
       session.channel = channel;
       channel.binaryType = 'arraybuffer';
-      channel.onopen = () => { if (current === session) update(session, session.direction === 'incoming' ? 'receiving' : 'connected'); };
+      channel.onopen = () => {
+        if (current !== session) return;
+        session.channelOpen = true;
+        if (session.direction === 'incoming') update(session, 'receiving');
+        else maybeConnectOutgoing(session);
+      };
       channel.onmessage = event => {
         session.receiveQueue = session.receiveQueue.then(() => handleData(session, event.data)).catch(() => {
           failPending(session, 'The direct file channel could not process a received frame.');
@@ -328,7 +415,8 @@
       if (!validDescription(action === 'file-offer' ? 'offer' : 'answer', sdp)) throw new Error('The browser produced an invalid direct-transfer description.');
       await sendSignal({ action, peer: session.peer, transferId: session.transferId,
         files: action === 'file-offer' ? session.files : undefined,
-        caption: action === 'file-offer' ? session.caption : undefined, sdp });
+        caption: action === 'file-offer' ? session.caption : undefined,
+        sdp });
       return current === session;
     }
 
@@ -371,11 +459,27 @@
       if (!session || session.direction !== 'incoming' || session.status !== 'incoming') return false;
       try {
         update(session, 'preparing');
+        let candidate = [];
+        try {
+          if (typeof options.getResumeOffsets === 'function') candidate = await options.getResumeOffsets(session.files, session.peer);
+        } catch { /* A local resume-index failure falls back to a full transfer. */ }
+        if (current !== session) return false;
+        session.resumeOffsets = normalizeResumeOffsets(session.files, candidate);
+        session.receivedChunks = 0;
+        session.resumeConfirmed = sumResumeOffsets(session.resumeOffsets) === 0;
         const pc = makePeerConnection(session);
         await pc.setRemoteDescription({ type: 'offer', sdp: session.remoteOffer });
         const answer = await pc.createAnswer();
         if (current !== session) return false;
         await prepareLocalDescription(session, answer, 'file-answer');
+        if (current !== session) return false;
+        try {
+          await sendSignal({ action: 'file-resume', peer: session.peer, transferId: session.transferId,
+            resumeOffsets: session.resumeOffsets });
+        } catch {
+          session.resumeOffsets = session.files.map(() => 0);
+          session.resumeConfirmed = true;
+        }
         if (current === session) update(session, 'connecting');
         return current === session;
       } catch (error) {
@@ -391,12 +495,40 @@
           !validDescription('answer', sdp)) return false;
       try {
         await session.peerConnection.setRemoteDescription({ type: 'answer', sdp });
-        if (current === session) { session.answerReceived = true; if (session.status !== 'connected') update(session, 'connecting'); }
+        if (current === session) {
+          session.answerReceived = true;
+          if (session.status !== 'connected') update(session, 'connecting');
+          if (session.resumeSignalReceived) maybeConnectOutgoing(session);
+          else {
+            session.resumeTimer = setResumeWatchdog(() => {
+              session.resumeTimer = 0;
+              if (current !== session || session.resumeSignalReceived) return;
+              session.resumeOffsets = session.files.map(() => 0);
+              session.sentChunks = 0;
+              session.resumeSignalReceived = true;
+              maybeConnectOutgoing(session);
+            });
+          }
+        }
         return current === session;
       } catch (error) {
         terminal(session, 'failed', error?.message || 'The other device’s answer could not be opened.');
         return false;
       }
+    }
+
+    function receiveResume({ peer, transferId, resumeOffsets }) {
+      const session = current;
+      if (!session || session.direction !== 'outgoing' || session.transferId !== String(transferId || '').toLowerCase() ||
+          session.peer !== String(peer || '').toLowerCase() || session.resumeSignalReceived ||
+          !['offered', 'connecting', 'connected'].includes(session.status)) return false;
+      session.resumeOffsets = normalizeResumeOffsets(session.files, resumeOffsets);
+      session.sentChunks = sumResumeOffsets(session.resumeOffsets);
+      session.resumeSignalReceived = true;
+      if (session.resumeTimer) clearResumeWatchdog(session.resumeTimer);
+      session.resumeTimer = 0;
+      maybeConnectOutgoing(session);
+      return true;
     }
 
     function receiveEnd({ peer, transferId, action }) {
@@ -529,7 +661,7 @@
       return true;
     }
 
-    return Object.freeze({ startOutgoing, receiveOffer, acceptIncoming, receiveAnswer, receiveEnd,
+    return Object.freeze({ startOutgoing, receiveOffer, acceptIncoming, receiveAnswer, receiveResume, receiveEnd,
       sendEnvelope, sendPart, finish, end, dismiss, dispose, getState: () => snapshot() });
   }
 

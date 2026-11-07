@@ -29,19 +29,31 @@ for (let index = manifest.totalChunks - 1; index >= 0; index -= 1) {
     sessionId: 'cd'.repeat(16), peer: 'ef'.repeat(32), direction: 'received' }), true);
 }
 for (const record of records.values()) {
-  assert.equal(record.storageVersion, 1, 'persisted direct blocks use the encrypted storage format');
+  assert.equal(record.storageVersion, 2, 'persisted direct blocks use the manifest-bound encrypted storage format');
   assert.equal(record.ownerPubkey, identity.pubkey, 'encrypted blocks are scoped to the unlocked Property identity');
   assert.equal(record.bytes.byteLength, Chunks.expectedChunkSize(manifest.sizeBytes, manifest.totalChunks, record.index) + 16,
     'stored block bytes contain AES-GCM ciphertext and its authentication tag');
+  assert.match(record.manifestHash, /^[0-9a-f]{64}$/);
   assert.notDeepEqual(new Uint8Array(record.bytes), new Uint8Array(await Chunks.readChunk(file, manifest, record.index, webcrypto).then(part => part.bytes)),
     'IndexedDB never receives a direct file plaintext block');
 }
 const storageFormatKey = `${manifest.transferId}:0`;
 const storedFormatRecord = records.get(storageFormatKey);
-records.set(storageFormatKey, { ...storedFormatRecord, storageVersion: 2 });
+records.set(storageFormatKey, { ...storedFormatRecord, storageVersion: 3 });
 assert.equal(await storage.verifyFiles([manifest]), false, 'unknown encrypted storage formats fail closed instead of being treated as legacy plaintext');
 records.set(storageFormatKey, storedFormatRecord);
+records.set(storageFormatKey, { ...storedFormatRecord, manifestHash: '00'.repeat(32) });
+assert.equal(await storage.verifyFiles([manifest]), false, 'changing the manifest binding invalidates the AES-GCM authentication tag');
+records.set(storageFormatKey, storedFormatRecord);
 assert.equal(await storage.verifyFiles([manifest]), true, 'blocks saved in any order are reassembled and whole-file checked');
+assert.deepEqual(Array.from(await storage.verifiedResumeOffsets([manifest], 'ef'.repeat(32))), [2], 'a contiguous, authenticated receiver prefix can resume');
+assert.deepEqual(Array.from(await storage.verifiedResumeOffsets([manifest], '34'.repeat(32))), [0], 'another peer cannot resume a contact\'s saved blocks');
+assert.deepEqual(Array.from(await storage.verifiedResumeOffsets([{ ...manifest, name: 'changed-name.bin' }], 'ef'.repeat(32))), [0],
+  'a changed manifest cannot reuse blocks from an earlier file selection');
+const receivedSecondRecord = records.get(`${manifest.transferId}:1`);
+records.set(`${manifest.transferId}:1`, { ...receivedSecondRecord, direction: 'sent' });
+assert.deepEqual(Array.from(await storage.verifiedResumeOffsets([manifest], 'ef'.repeat(32))), [1], 'only recipient-owned contiguous blocks count as a resumable prefix');
+records.set(`${manifest.transferId}:1`, receivedSecondRecord);
 const restored = await storage.createBlob(manifest);
 assert.deepEqual(new Uint8Array(await restored.arrayBuffer()), bytes);
 assert.equal(restored.type, manifest.mime);
@@ -65,7 +77,17 @@ const firstKey = `${manifest.transferId}:0`;
 const damaged = records.get(firstKey);
 records.set(firstKey, { ...damaged, bytes: new Uint8Array(damaged.bytes).fill(0) });
 assert.equal(await storage.verifyFiles([manifest]), false, 'corrupt local blocks prevent completion');
+assert.deepEqual(Array.from(await storage.verifiedResumeOffsets([manifest], 'ef'.repeat(32))), [0], 'an unauthenticated first block is never resumed');
 assert.equal(await storage.createBlob(manifest), null, 'corrupt blocks never become a downloadable Blob');
+records.set(firstKey, storedFormatRecord);
+const secondKey = `${manifest.transferId}:1`;
+const damagedSecond = records.get(secondKey);
+records.set(secondKey, { ...damagedSecond, bytes: new Uint8Array(damagedSecond.bytes).fill(0) });
+assert.deepEqual(Array.from(await storage.verifiedResumeOffsets([manifest], 'ef'.repeat(32))), [1], 'resume stops at the first corrupt block');
+records.set(secondKey, damagedSecond);
+records.delete(firstKey);
+assert.deepEqual(Array.from(await storage.verifiedResumeOffsets([manifest], 'ef'.repeat(32))), [0], 'a later block cannot bridge a missing prefix block');
+records.set(firstKey, storedFormatRecord);
 await storage.deleteParts(manifest.transferId);
 assert.equal(records.size, 0);
 
@@ -74,7 +96,8 @@ for (let index = 0; index < manifest.totalChunks; index += 1) {
   records.set(`${manifest.transferId}:${index}`, { transferId: manifest.transferId, index, bytes: chunk.bytes, sha256: chunk.sha256 });
 }
 assert.equal(await storage.verifyFiles([manifest]), true, 'legacy plaintext blocks migrate without losing a valid completed transfer');
-assert.ok([...records.values()].every(record => record.storageVersion === 1), 'legacy blocks are rewritten as authenticated ciphertext on first unlock');
+assert.ok([...records.values()].every(record => record.storageVersion === 2 && /^[0-9a-f]{64}$/.test(record.manifestHash)),
+  'legacy blocks are rewritten as manifest-bound authenticated ciphertext on first unlock');
 assert.equal(await storage.createBlob(manifest) !== null, true, 'a migrated legacy transfer remains downloadable after whole-file verification');
 await storage.deleteParts(manifest.transferId);
 assert.equal(records.size, 0);

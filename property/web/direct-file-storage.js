@@ -1,7 +1,7 @@
 'use strict';
 (() => {
   const Chunks = globalThis.PropertyDirectFileChunks;
-  const STORAGE_VERSION = 1;
+  const STORAGE_VERSION = 2;
   const KEY_INFO = new TextEncoder().encode('Property direct-file blocks at rest v1');
 
   function asBytes(value) {
@@ -55,20 +55,23 @@
     }
 
     function recordAad(identity, record) {
-      return new TextEncoder().encode(`${identity.pubkey}:${record.transferId}:${record.index}:${record.sha256}`);
+      const legacy = `${identity.pubkey}:${record.transferId}:${record.index}:${record.sha256}`;
+      return new TextEncoder().encode(record.storageVersion >= 2 ? `${legacy}:${record.manifestHash}` : legacy);
     }
 
     async function encryptRecord(record, bytes, identity, key) {
+      const storedRecord = { ...record, ownerPubkey: identity.pubkey, storageVersion: STORAGE_VERSION };
       const iv = cryptoImpl.getRandomValues(new Uint8Array(12));
-      const cipher = await cryptoImpl.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: recordAad(identity, record), tagLength: 128 }, key, bytes);
+      const cipher = await cryptoImpl.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: recordAad(identity, storedRecord), tagLength: 128 }, key, bytes);
       assertIdentity(identity);
-      return { ...record, ownerPubkey: identity.pubkey, storageVersion: STORAGE_VERSION, iv, bytes: new Uint8Array(cipher) };
+      return { ...storedRecord, iv, bytes: new Uint8Array(cipher) };
     }
 
     async function decryptRecord(record, identity, key, expectedBytes) {
       if (record?.ownerPubkey !== undefined && record.ownerPubkey !== identity.pubkey) return null;
-      if (record?.storageVersion !== undefined && record.storageVersion !== STORAGE_VERSION) return null;
-      if (record?.storageVersion === STORAGE_VERSION) {
+      if (record?.storageVersion !== undefined && ![1, STORAGE_VERSION].includes(record.storageVersion)) return null;
+      if ([1, STORAGE_VERSION].includes(record?.storageVersion)) {
+        if (record.storageVersion === STORAGE_VERSION && !/^[0-9a-f]{64}$/i.test(record.manifestHash || '')) return null;
         const iv = asBytes(record.iv);
         const cipher = asBytes(record.bytes);
         if (!iv || iv.byteLength !== 12 || !cipher || cipher.byteLength !== expectedBytes + 16) return null;
@@ -84,15 +87,25 @@
       return legacy.slice();
     }
 
+    async function manifestHashFor(file) {
+      const normalized = Chunks.normalizeFileManifests([file]);
+      if (!normalized) return null;
+      const item = normalized[0];
+      const canonical = JSON.stringify([item.transferId, item.name, item.mime, item.sizeBytes,
+        item.chunkBytes, item.totalChunks, item.sha256]);
+      return Chunks.digestHex(new TextEncoder().encode(canonical), cryptoImpl);
+    }
+
     async function writePart({ file, index, bytes: rawBytes, sha256, sessionId = '', peer = '', direction = '' }) {
       const bytes = asBytes(rawBytes);
-      if (!bytes || !file || !Chunks.normalizeFileManifests([file]) ||
+      const manifestHash = await manifestHashFor(file);
+      if (!bytes || !manifestHash ||
           bytes.byteLength !== Chunks.expectedChunkSize(file.sizeBytes, file.totalChunks, index) ||
           !/^[0-9a-f]{64}$/i.test(sha256 || '') || (await Chunks.digestHex(bytes, cryptoImpl)) !== sha256.toLowerCase()) return false;
       const identity = currentIdentity();
       const key = await keyFor(identity);
-      const record = { transferId: file.transferId, index, sha256: sha256.toLowerCase(),
-        ...(sessionId ? { sessionId } : {}), ...(peer ? { peer } : {}), ...(direction ? { direction } : {}) };
+      const record = { transferId: file.transferId, index, sha256: sha256.toLowerCase(), manifestHash,
+        ...(sessionId ? { sessionId } : {}), ...(peer ? { peer: String(peer).toLowerCase() } : {}), ...(direction ? { direction } : {}) };
       await putPart(await encryptRecord(record, bytes, identity, key));
       return true;
     }
@@ -116,7 +129,8 @@
     }
 
     async function verifiedParts(file) {
-      if (!file || !Chunks.normalizeFileManifests([file])) return null;
+      const manifestHash = await manifestHashFor(file);
+      if (!manifestHash) return null;
       let identity;
       try { identity = currentIdentity(); } catch { return null; }
       const key = await keyFor(identity);
@@ -129,11 +143,12 @@
         const record = parts[index];
         const bytesExpected = Chunks.expectedChunkSize(file.sizeBytes, file.totalChunks, index);
         if (!record || record.index !== index || !/^[0-9a-f]{64}$/i.test(record.sha256 || '')) return null;
+        if (record.storageVersion === STORAGE_VERSION && record.manifestHash !== manifestHash) return null;
         const bytes = await decryptRecord(record, identity, key, bytesExpected);
         if (!bytes || (await Chunks.digestHex(bytes, cryptoImpl)) !== record.sha256.toLowerCase()) return null;
         assertIdentity(identity);
-        if (record.storageVersion !== STORAGE_VERSION || record.ownerPubkey !== identity.pubkey) {
-          await putPart(await encryptRecord(record, bytes, identity, key));
+        if (record.storageVersion !== STORAGE_VERSION || record.ownerPubkey !== identity.pubkey || record.manifestHash !== manifestHash) {
+          await putPart(await encryptRecord({ ...record, manifestHash }, bytes, identity, key));
         }
         totalBytes += bytes.byteLength;
         hash.update(bytes);
@@ -142,6 +157,50 @@
       if (totalBytes !== file.sizeBytes || [...hash.digest()].map(byte => byte.toString(16).padStart(2, '0')).join('') !== file.sha256) return null;
       assertIdentity(identity);
       return parts;
+    }
+
+    async function verifiedResumeOffsets(files, peer) {
+      const normalized = Chunks.normalizeFileManifests(files);
+      const recipient = String(peer || '').toLowerCase();
+      if (!normalized || !/^[0-9a-f]{64}$/.test(recipient)) return null;
+      let identity;
+      try { identity = currentIdentity(); } catch { return normalized.map(() => 0); }
+      const key = await keyFor(identity);
+      const offsets = normalized.map(() => 0);
+      for (let fileIndex = 0; fileIndex < normalized.length; fileIndex += 1) {
+        const file = normalized[fileIndex];
+        const manifestHash = await manifestHashFor(file);
+        const records = await listParts(file.transferId);
+        if (!manifestHash || !Array.isArray(records)) break;
+        const byIndex = new Map();
+        let duplicate = false;
+        for (const record of records) {
+          if (!Number.isSafeInteger(record?.index) || record.index < 0 || record.index >= file.totalChunks || byIndex.has(record.index)) {
+            duplicate = true;
+            break;
+          }
+          byIndex.set(record.index, record);
+        }
+        if (duplicate) break;
+        let prefix = 0;
+        for (let index = 0; index < file.totalChunks; index += 1) {
+          const record = byIndex.get(index);
+          if (!record || record.peer !== recipient || record.direction !== 'received' ||
+              record.manifestHash !== manifestHash || !/^[0-9a-f]{64}$/i.test(record.sha256 || '')) break;
+          const bytes = await decryptRecord(record, identity, key, Chunks.expectedChunkSize(file.sizeBytes, file.totalChunks, index));
+          if (!bytes || (await Chunks.digestHex(bytes, cryptoImpl)) !== record.sha256.toLowerCase()) break;
+          assertIdentity(identity);
+          prefix += 1;
+        }
+        offsets[fileIndex] = prefix;
+        if (prefix < file.totalChunks) break;
+        if (!(await verifiedParts(file))) {
+          offsets[fileIndex] = 0;
+          break;
+        }
+      }
+      assertIdentity(identity);
+      return offsets;
     }
 
     async function verifyFiles(files) {
@@ -161,7 +220,7 @@
       cachedKey = null;
     }
 
-    return Object.freeze({ savePart, verifyFiles, createBlob, clearKey,
+    return Object.freeze({ savePart, verifyFiles, createBlob, verifiedResumeOffsets, clearKey,
       deleteParts: transferId => deleteParts(transferId), discardSession });
   }
 

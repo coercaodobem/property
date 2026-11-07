@@ -1633,7 +1633,7 @@
     state.directFileTransfer = transfer;
     if (!transfer) { renderFileDrafts(); return; }
     if (['declined', 'cancelled', 'failed'].includes(transfer.status)) {
-      void directFileStore().discardSession(transfer.transferId).catch(() => {});
+      if (transfer.direction === 'outgoing') void directFileStore().discardSession(transfer.transferId).catch(() => {});
     }
     const text = directFileStatusText(transfer);
     if (transfer.direction === 'outgoing' && $('file-attachment-dialog').open) setFileAttachmentStatus(text);
@@ -1683,6 +1683,7 @@
         normalizeFileManifests: TypingSignals.normalizeFileManifests,
         onSignal: sendDirectFileSignal,
         onState: updateDirectFileTransferState,
+        getResumeOffsets: (files, peer) => directFileStore().verifiedResumeOffsets(files, peer),
         onPart: receiveDirectFilePart,
         onComplete: completeDirectFileReception
       });
@@ -1705,7 +1706,8 @@
     }
     const members = [sender.toLowerCase(), peer].sort();
     const details = signal.action === 'file-offer' ? { files: signal.files, caption: signal.caption || '', sdp: signal.sdp }
-      : signal.action === 'file-answer' ? { sdp: signal.sdp } : {};
+      : signal.action === 'file-answer' ? { sdp: signal.sdp }
+        : signal.action === 'file-resume' ? { resumeOffsets: signal.resumeOffsets } : {};
     const deliveries = TypingSignals.createFileSignal(N, secret, members, peer, transferId, signal.action, nextTypingSequence(), details);
     const relays = await resolveTypingRelays(peer);
     if (!relays.length || state.pubkey !== sender || state.secret !== secret) {
@@ -1719,8 +1721,16 @@
   async function receiveDirectFileSignal(signal, peer) {
     const controller = ensureDirectFileController();
     const key = `${peer}:${signal.sender}:${signal.transferId}`;
-    if (signal.sequence <= (state.directFileSignalSequences.get(key) || 0)) return;
-    state.directFileSignalSequences.set(key, signal.sequence);
+    const actionKey = `${key}:${signal.action}`;
+    const latestAction = state.directFileSignalSequences.get(`${key}:latest-action`) || '';
+    const lastSequence = state.directFileSignalSequences.get(key) || 0;
+    if (signal.sequence <= (state.directFileSignalSequences.get(actionKey) || 0) ||
+        (signal.sequence <= lastSequence && !(signal.action === 'file-answer' && latestAction === 'file-resume'))) return;
+    state.directFileSignalSequences.set(actionKey, signal.sequence);
+    if (signal.sequence > lastSequence) {
+      state.directFileSignalSequences.set(key, signal.sequence);
+      state.directFileSignalSequences.set(`${key}:latest-action`, signal.action);
+    }
     if (state.directFileSignalSequences.size > 500) state.directFileSignalSequences.delete(state.directFileSignalSequences.keys().next().value);
     if (signal.action === 'file-offer') {
       const activeCall = state.call && !callTerminal(state.call.status);
@@ -1746,6 +1756,10 @@
     }
     if (signal.action === 'file-answer') {
       await controller.receiveAnswer({ peer, transferId: signal.transferId, sdp: signal.sdp });
+      return;
+    }
+    if (signal.action === 'file-resume') {
+      controller.receiveResume({ peer, transferId: signal.transferId, resumeOffsets: signal.resumeOffsets });
       return;
     }
     const ended = controller.receiveEnd({ peer, transferId: signal.transferId, action: signal.action });
@@ -1862,10 +1876,13 @@
     const controller = ensureDirectFileController();
     let sentParts = 0;
     const totalParts = job.transfers.reduce((sum, transfer) => sum + transfer.manifest.totalChunks, 0);
+    const resumeOffsets = controller.getState()?.resumeOffsets || job.transfers.map(() => 0);
+    sentParts = resumeOffsets.reduce((sum, count) => sum + count, 0);
     let failure = null;
     sendingDirectFiles: for (let fileIndex = 0; fileIndex < job.transfers.length; fileIndex += 1) {
       const transfer = job.transfers[fileIndex];
-      for (let index = 0; index < transfer.manifest.totalChunks; index += 1) {
+      const startIndex = Math.min(resumeOffsets[fileIndex] || 0, transfer.manifest.totalChunks);
+      for (let index = startIndex; index < transfer.manifest.totalChunks; index += 1) {
         if (state.directFileSendJob !== job || state.secret !== job.secret || state.pubkey !== job.pubkey) break sendingDirectFiles;
         try {
           const part = await DirectFileChunks.readChunk(transfer.file, transfer.manifest, index);

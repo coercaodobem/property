@@ -74,7 +74,11 @@ assert.equal(second.receiveOffer({ peer: '98'.repeat(32), ...signalSets[0][0] })
 assert.equal(second.getState().status, 'incoming');
 assert.equal(await second.acceptIncoming(), true, 'explicit acceptance prepares the data channel');
 const answer = signalSets[1][0];
+const resumeSignal = signalSets[1][1];
 assert.equal(answer.action, 'file-answer');
+assert.equal(resumeSignal.action, 'file-resume');
+assert.deepEqual(Array.from(resumeSignal.resumeOffsets), [0]);
+assert.equal(first.receiveResume({ peer, ...resumeSignal }), true, 'resume metadata may arrive before the WebRTC answer');
 assert.equal(await first.receiveAnswer({ peer, ...answer }), true);
 assert.equal(first.getState().status, 'connected');
 assert.equal(channels[0].readyState, 'open');
@@ -87,6 +91,23 @@ assert.equal(first.getState().status, 'completed');
 assert.equal(second.getState().status, 'completed');
 assert.equal(first.dismiss(), true);
 assert.equal(second.dismiss(), true);
+
+let resumeFallbackCallback = null;
+const legacySignals = [];
+const legacySender = Direct.create({ normalizeFileManifests, createPeerConnection: () => new FakePeerConnection({}),
+  setResumeWatchdog(callback) { resumeFallbackCallback = callback; return 1; }, clearResumeWatchdog() {},
+  async onSignal(signal) { legacySignals.push(signal); } });
+const legacyTransferId = '23'.repeat(16);
+assert.equal(await legacySender.startOutgoing({ peer, transferId: legacyTransferId, files }), true);
+const legacyChannel = channels.at(-1);
+legacyChannel.readyState = 'open';
+legacyChannel.onopen();
+assert.equal(await legacySender.receiveAnswer({ peer, transferId: legacyTransferId, sdp }), true);
+assert.equal(legacySender.getState().status, 'connecting', 'new senders wait briefly for optional resume metadata from older clients');
+assert.equal(typeof resumeFallbackCallback, 'function');
+resumeFallbackCallback();
+assert.equal(legacySender.getState().status, 'connected', 'missing resume metadata falls back to the existing full transfer');
+legacySender.dismiss();
 
 const largeFile = { transferId: '12'.repeat(16), name: 'archive.bin', mime: 'application/octet-stream',
   sizeBytes: Chunks.CHUNK_BYTES * 16 + 3, chunkBytes: Chunks.CHUNK_BYTES,
@@ -104,7 +125,11 @@ assert.equal(await largeSender.startOutgoing({ peer, transferId: '56'.repeat(16)
 assert.equal(largeSignals[0][0].caption, 'archive context');
 assert.equal(largeReceiver.receiveOffer(largeSignals[0][0]), true);
 assert.equal(await largeReceiver.acceptIncoming(), true);
+assert.equal(largeSignals[1][1].action, 'file-resume');
 assert.equal(await largeSender.receiveAnswer({ peer, ...largeSignals[1][0] }), true);
+assert.equal(largeSender.getState().status, 'connecting', 'the sender waits for resume metadata before starting chunks');
+assert.equal(largeSender.receiveResume({ peer, ...largeSignals[1][1] }), true);
+assert.equal(largeSender.getState().status, 'connected');
 for (let index = 0; index < largeFile.totalChunks; index += 1) {
   const length = Chunks.expectedChunkSize(largeFile.sizeBytes, largeFile.totalChunks, index);
   const bytes = new Uint8Array(length).fill(index % 251);
@@ -119,6 +144,36 @@ assert.equal(await largeSender.finish(), true);
 assert.equal(completionChecks, 1, 'receiver validates the completed file set before acknowledging completion');
 assert.equal(largeReceiver.getState().status, 'completed');
 largeSender.dismiss(); largeReceiver.dismiss();
+
+const resumeFile = { transferId: '78'.repeat(16), name: 'resume.bin', mime: 'application/octet-stream',
+  sizeBytes: Chunks.CHUNK_BYTES * 2 + 1, chunkBytes: Chunks.CHUNK_BYTES, totalChunks: 3, sha256: '90'.repeat(32) };
+const resumeSignals = [[], []];
+let resumedParts = 0;
+const resumeSender = Direct.create({ normalizeFileManifests, createPeerConnection: () => new FakePeerConnection({}),
+  async onSignal(signal) { resumeSignals[0].push(signal); } });
+const resumeReceiver = Direct.create({ normalizeFileManifests, createPeerConnection: () => new FakePeerConnection({}),
+  async getResumeOffsets() { return [2]; },
+  async onSignal(signal) { resumeSignals[1].push(signal); },
+  async onPart(part) { assert.equal(part.sequence, 3); resumedParts += 1; return true; },
+  async onComplete({ files: completedFiles }) { return completedFiles[0].sha256 === resumeFile.sha256; } });
+assert.equal(await resumeSender.startOutgoing({ peer, transferId: '91'.repeat(16), files: [resumeFile] }), true);
+assert.equal(resumeReceiver.receiveOffer(resumeSignals[0][0]), true);
+assert.equal(await resumeReceiver.acceptIncoming(), true);
+assert.equal(resumeSignals[1][1].action, 'file-resume');
+assert.deepEqual(Array.from(resumeSignals[1][1].resumeOffsets), [2]);
+assert.equal(await resumeSender.receiveAnswer({ peer, ...resumeSignals[1][0] }), true);
+assert.equal(resumeSender.getState().status, 'connecting');
+assert.equal(resumeSender.receiveResume({ peer, ...resumeSignals[1][1] }), true);
+for (let count = 0; count < 8 && resumeSender.getState().status !== 'connected'; count += 1) await Promise.resolve();
+assert.equal(resumeSender.getState().status, 'connected', 'sender starts only after receiver confirms the verified resume prefix');
+assert.equal(resumeReceiver.getState().receivedChunks, 2, 'receiver advances its sequence only after matching resume confirmation');
+const finalBytes = new Uint8Array(1).fill(7);
+assert.equal(await resumeSender.sendPart({ fileIndex: 0, index: 2, bytes: finalBytes,
+  sha256: await Chunks.digestHex(finalBytes, webcrypto) }), true);
+assert.equal(resumedParts, 1, 'only the missing third chunk traverses the direct channel');
+assert.equal(resumeReceiver.getState().receivedChunks, 3);
+assert.equal(await resumeSender.finish(), true);
+resumeSender.dismiss(); resumeReceiver.dismiss();
 
 const malformedSignals = [];
 let malformedReceives = 0;
