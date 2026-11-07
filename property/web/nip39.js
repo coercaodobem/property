@@ -5,7 +5,7 @@
   const MAX_TAGS = 64;
   const MAX_IDENTITY_LENGTH = 512;
   const MAX_PROOF_LENGTH = 2_048;
-  const MAX_GIST_RESPONSE_BYTES = 131_072;
+  const MAX_PROOF_RESPONSE_BYTES = 131_072;
   const encoder = new TextEncoder();
 
   function fail(code, message) {
@@ -33,7 +33,7 @@
     if (typeof claim.proof !== 'string' || !claim.proof.trim() || claim.proof.length > MAX_PROOF_LENGTH || /[\u0000-\u001f\u007f]/.test(claim.proof)) {
       fail('nip39-invalid-proof', 'Invalid NIP-39 identity proof.');
     }
-    const normalizedIdentity = identity.platform === 'github' ? identity.identity.toLowerCase() : identity.identity;
+    const normalizedIdentity = ['github', 'bluesky'].includes(identity.platform) ? identity.identity.toLowerCase() : identity.identity;
     return { platform: identity.platform, identity: normalizedIdentity, proof: claim.proof.trim() };
   }
 
@@ -86,7 +86,11 @@
       const key = `${claim.platform}:${claim.identity}`;
       if (seen.has(key)) fail('nip39-duplicate-claim', 'Each platform identity can appear only once.');
       seen.add(key);
-      tags.push(['i', key, claim.proof]);
+      const extra = Array.isArray(input.extra) ? input.extra.slice(0, 8) : [];
+      if (extra.some(value => typeof value !== 'string' || value.length > 512 || /[\u0000-\u001f\u007f]/.test(value))) {
+        fail('nip39-invalid-extra', 'Invalid future NIP-39 tag fields.');
+      }
+      tags.push(['i', key, claim.proof, ...extra]);
     }
     return tags;
   }
@@ -108,6 +112,35 @@
     return `https://gist.github.com/${normalized.identity}/${normalized.proof}`;
   }
 
+  function blueskyHandle(value) {
+    const handle = String(value || '').trim().replace(/^@/, '').toLowerCase();
+    if (handle.length > 253 || handle.split('.').length < 2 || !handle.split('.').every(label =>
+      label.length > 0 && label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))) {
+      fail('nip39-invalid-bluesky-handle', 'Enter a valid Bluesky handle without a URL or path.');
+    }
+    return handle;
+  }
+
+  function blueskyRecordKey(value) {
+    const key = String(value || '').trim();
+    if (!key || key.length > 512 || key === '.' || key === '..' || !/^[A-Za-z0-9._~:-]+$/.test(key)) {
+      fail('nip39-invalid-bluesky-record-key', 'Enter the Bluesky post record key.');
+    }
+    return key;
+  }
+
+  function blueskyClaim(handle, postRecordKey) {
+    return { platform: 'bluesky', identity: blueskyHandle(handle), proof: blueskyRecordKey(postRecordKey) };
+  }
+
+  function blueskyPostUrl(claim) {
+    try {
+      const normalized = normalizeClaim(claim);
+      if (normalized.platform !== 'bluesky' || blueskyHandle(normalized.identity) !== normalized.identity) return '';
+      return `https://bsky.app/profile/${encodeURIComponent(normalized.identity)}/post/${encodeURIComponent(blueskyRecordKey(normalized.proof))}`;
+    } catch { return ''; }
+  }
+
   function verificationText(npub) {
     if (typeof npub !== 'string' || !/^npub1[0-9a-z]{20,80}$/i.test(npub)) fail('nip39-invalid-npub', 'Invalid Nostr public key.');
     return `Verifying that I control the following Nostr public key: ${npub}`;
@@ -115,16 +148,50 @@
 
   async function readBounded(response) {
     const announced = Number(response.headers?.get?.('content-length'));
-    if (Number.isFinite(announced) && announced > MAX_GIST_RESPONSE_BYTES) return null;
-    if (typeof response.arrayBuffer === 'function') {
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      if (bytes.byteLength > MAX_GIST_RESPONSE_BYTES) return null;
-      try { return JSON.parse(new TextDecoder().decode(bytes)); } catch { return null; }
-    }
-    if (typeof response.json === 'function') {
-      try { return await response.json(); } catch { return null; }
-    }
-    return null;
+    if (Number.isFinite(announced) && announced > MAX_PROOF_RESPONSE_BYTES) return null;
+    let bytes;
+    if (response.body?.getReader) {
+      const reader = response.body.getReader();
+      const chunks = [];
+      let total = 0;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          total += value.byteLength;
+          if (total > MAX_PROOF_RESPONSE_BYTES) {
+            await reader.cancel();
+            return null;
+          }
+          chunks.push(value);
+        }
+      } catch { return null; }
+      finally { reader.releaseLock(); }
+      bytes = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    } else if (typeof response.arrayBuffer === 'function') {
+      try { bytes = new Uint8Array(await response.arrayBuffer()); } catch { return null; }
+      if (bytes.byteLength > MAX_PROOF_RESPONSE_BYTES) return null;
+    } else return null;
+    try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); } catch { return null; }
+  }
+
+  function proofRequestOptions(accept) {
+    const options = { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer', headers: { Accept: accept } };
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') options.signal = AbortSignal.timeout(8_000);
+    return options;
+  }
+
+  async function fetchProofJson(url, fetcher, accept = 'application/json') {
+    let response;
+    try { response = await fetcher(url, proofRequestOptions(accept)); }
+    catch { return { status: 'unavailable', reason: 'network' }; }
+    if (!response || !response.ok || response.redirected || response.type === 'opaqueredirect') return { status: 'unavailable', reason: 'http' };
+    const value = await readBounded(response);
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? { status: 'ok', value }
+      : { status: 'unavailable', reason: 'response' };
   }
 
   async function verifyGitHubClaim(input, npub, fetcher = globalThis.fetch) {
@@ -136,13 +203,10 @@
       text = verificationText(npub);
     } catch { return { status: 'invalid', reason: 'claim' }; }
     if (typeof fetcher !== 'function') return { status: 'unavailable', reason: 'fetch' };
-    const options = { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer', headers: { Accept: 'application/vnd.github+json' } };
-    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') options.signal = AbortSignal.timeout(8_000);
-    let response;
-    try { response = await fetcher(`https://api.github.com/gists/${encodeURIComponent(claim.proof)}`, options); }
-    catch { return { status: 'unavailable', reason: 'network' }; }
-    if (!response || !response.ok || response.redirected || response.type === 'opaqueredirect') return { status: 'unavailable', reason: 'http' };
-    const gist = await readBounded(response);
+    const fetched = await fetchProofJson(`https://api.github.com/gists/${encodeURIComponent(claim.proof)}`, fetcher, 'application/vnd.github+json');
+    if (fetched.status !== 'ok' && fetched.reason === 'response') return { status: 'unverified', reason: 'gist-shape' };
+    if (fetched.status !== 'ok') return fetched;
+    const gist = fetched.value;
     if (!gist || gist.public !== true || typeof gist.owner?.login !== 'string' || !gist.files || typeof gist.files !== 'object' || Array.isArray(gist.files)) {
       return { status: 'unverified', reason: 'gist-shape' };
     }
@@ -159,5 +223,38 @@
       : { status: 'unverified', reason: 'npub-missing', claim };
   }
 
-  globalThis.PropertyNip39 = Object.freeze({ KIND, MAX_EVENT_BYTES, MAX_TAGS, normalizeClaim, claimFromTag, parseEvent, latestRecord, eventTags, githubClaim, githubGistUrl, verificationText, verifyGitHubClaim });
+  async function verifyBlueskyClaim(input, npub, fetcher = globalThis.fetch) {
+    let claim;
+    let text;
+    try {
+      claim = normalizeClaim(input);
+      if (claim.platform !== 'bluesky' || !blueskyPostUrl(claim)) return { status: 'invalid', reason: 'claim' };
+      text = verificationText(npub);
+    } catch { return { status: 'invalid', reason: 'claim' }; }
+    if (typeof fetcher !== 'function') return { status: 'unavailable', reason: 'fetch' };
+
+    const api = 'https://public.api.bsky.app/xrpc';
+    const profileResult = await fetchProofJson(`${api}/app.bsky.actor.getProfile?actor=${encodeURIComponent(claim.identity)}`, fetcher);
+    if (profileResult.status !== 'ok') return profileResult;
+    const profile = profileResult.value;
+    if (typeof profile.handle !== 'string' || profile.handle.toLowerCase() !== claim.identity ||
+        typeof profile.did !== 'string' || !/^did:[a-z0-9]+:[a-zA-Z0-9._:%-]{1,500}$/.test(profile.did)) {
+      return { status: 'unverified', reason: 'profile' };
+    }
+
+    const expectedUri = `at://${profile.did}/app.bsky.feed.post/${claim.proof}`;
+    const threadResult = await fetchProofJson(`${api}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(expectedUri)}&depth=0`, fetcher);
+    if (threadResult.status !== 'ok') return threadResult;
+    const post = threadResult.value.thread?.post;
+    if (!post || post.uri !== expectedUri || post.author?.did !== profile.did || post.author?.handle?.toLowerCase() !== claim.identity ||
+        !post.record || typeof post.record !== 'object' || post.record.$type !== 'app.bsky.feed.post' ||
+        typeof post.record.text !== 'string' || encoder.encode(post.record.text).byteLength > 16_384) {
+      return { status: 'unverified', reason: 'post' };
+    }
+    return post.record.text.includes(text) || post.record.text.includes(npub)
+      ? { status: 'verified', reason: 'npub-found', claim }
+      : { status: 'unverified', reason: 'npub-missing', claim };
+  }
+
+  globalThis.PropertyNip39 = Object.freeze({ KIND, MAX_EVENT_BYTES, MAX_TAGS, normalizeClaim, claimFromTag, parseEvent, latestRecord, eventTags, githubClaim, githubGistUrl, blueskyClaim, blueskyPostUrl, verificationText, verifyGitHubClaim, verifyBlueskyClaim });
 })();

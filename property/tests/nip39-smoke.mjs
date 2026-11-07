@@ -26,13 +26,20 @@ assert.deepEqual(JSON.parse(JSON.stringify(nip39.githubClaim('Coercaodobem', '01
 });
 assert.equal(nip39.githubGistUrl({ platform: 'github', identity: 'Coercaodobem', proof: '0123456789abcdef0123456789abcdef' }),
   'https://gist.github.com/coercaodobem/0123456789abcdef0123456789abcdef');
+const blueskyClaim = nip39.blueskyClaim('@Alice.bsky.social', '3abcdeFG');
+assert.deepEqual(JSON.parse(JSON.stringify(blueskyClaim)), { platform: 'bluesky', identity: 'alice.bsky.social', proof: '3abcdeFG' });
+assert.equal(nip39.blueskyPostUrl(blueskyClaim), 'https://bsky.app/profile/alice.bsky.social/post/3abcdeFG');
 assert.equal(nip39.verificationText(npub), `Verifying that I control the following Nostr public key: ${npub}`);
 assert.throws(() => nip39.githubClaim('../evil', '0123456789abcdef0123456789abcdef'), { code: 'nip39-invalid-github-username' });
 assert.throws(() => nip39.githubClaim('alice', 'https://evil.example'), { code: 'nip39-invalid-github-gist' });
+assert.throws(() => nip39.blueskyClaim('alice.bsky.social/post/1', '3abcde'), { code: 'nip39-invalid-bluesky-handle' });
+assert.throws(() => nip39.blueskyClaim('alice.bsky.social', '../evil'), { code: 'nip39-invalid-bluesky-record-key' });
 assert.throws(() => nip39.eventTags([
   { platform: 'github', identity: 'alice', proof: '0123456789abcdef0123456789abcdef' },
   { platform: 'github', identity: 'ALICE', proof: '1123456789abcdef0123456789abcdef' }
 ]), { code: 'nip39-duplicate-claim' });
+assert.deepEqual(JSON.parse(JSON.stringify(nip39.eventTags([{ platform: 'bluesky', identity: 'alice.bsky.social', proof: '3abcdeFG', extra: ['future-field'] }]))),
+  [['i', 'bluesky:alice.bsky.social', '3abcdeFG', 'future-field']], 'republishing preserves future NIP-39 tag parameters');
 
 const claim = { platform: 'github', identity: 'alice', proof: '0123456789abcdef0123456789abcdef' };
 const event = sign({ kind: 10011, content: '', tags: [['i', 'github:alice', claim.proof], ['i', 'telegram:12345', 'nostrdirectory/770', 'future-field']], created_at: 1_800_000_000 });
@@ -93,4 +100,53 @@ const oversized = await nip39.verifyGitHubClaim(claim, npub, async () => new Res
 assert.equal(oversized.reason, 'gist-shape');
 assert.equal((await nip39.verifyGitHubClaim(claim, 'not-an-npub', async () => { throw new Error('must not fetch'); })).status, 'invalid');
 
-console.log('PASS: NIP-39 kind 10011 parsing, signed-event validation, GitHub Gist proof, bounded/explicit fetch rules');
+const blueskyDid = 'did:plc:abcdefghijklmnopqrstuvwx';
+const expectedPostUri = `at://${blueskyDid}/app.bsky.feed.post/${blueskyClaim.proof}`;
+const blueskyRequests = [];
+const blueskyVerified = await nip39.verifyBlueskyClaim(blueskyClaim, npub, async (url, options) => {
+  blueskyRequests.push({ url, options });
+  if (url.includes('app.bsky.actor.getProfile')) return new Response(JSON.stringify({ did: blueskyDid, handle: 'alice.bsky.social' }), { status: 200 });
+  return new Response(JSON.stringify({ thread: { post: {
+    uri: expectedPostUri,
+    author: { did: blueskyDid, handle: 'alice.bsky.social' },
+    record: { $type: 'app.bsky.feed.post', text: `Proof: ${npub}` }
+  } } }), { status: 200 });
+});
+assert.equal(blueskyVerified.status, 'verified');
+assert.equal(blueskyRequests.length, 2, 'verification performs only a bounded profile resolution and one post lookup');
+assert.match(blueskyRequests[0].url, /^https:\/\/public\.api\.bsky\.app\/xrpc\/app\.bsky\.actor\.getProfile\?actor=/);
+assert.match(blueskyRequests[1].url, /^https:\/\/public\.api\.bsky\.app\/xrpc\/app\.bsky\.feed\.getPostThread\?uri=/);
+for (const request of blueskyRequests) {
+  assert.equal(request.options.credentials, 'omit');
+  assert.equal(request.options.redirect, 'error');
+  assert.equal(request.options.referrerPolicy, 'no-referrer');
+  assert.equal(request.options.cache, 'no-store');
+}
+const blueskyWrongHandle = await nip39.verifyBlueskyClaim(blueskyClaim, npub, async () => new Response(JSON.stringify({ did: blueskyDid, handle: 'someone-else.bsky.social' }), { status: 200 }));
+assert.deepEqual(JSON.parse(JSON.stringify(blueskyWrongHandle)), { status: 'unverified', reason: 'profile' });
+const blueskyWrongRecord = await nip39.verifyBlueskyClaim(blueskyClaim, npub, async url => url.includes('getProfile')
+  ? new Response(JSON.stringify({ did: blueskyDid, handle: 'alice.bsky.social' }), { status: 200 })
+  : new Response(JSON.stringify({ thread: { post: {
+    uri: `at://${blueskyDid}/app.bsky.feed.post/other`,
+    author: { did: blueskyDid, handle: 'alice.bsky.social' },
+    record: { $type: 'app.bsky.feed.post', text: npub }
+  } } }), { status: 200 }));
+assert.equal(blueskyWrongRecord.reason, 'post', 'the returned URI, author DID, handle, collection and record type must match the claim');
+const blueskyMissingKey = await nip39.verifyBlueskyClaim(blueskyClaim, npub, async url => url.includes('getProfile')
+  ? new Response(JSON.stringify({ did: blueskyDid, handle: 'alice.bsky.social' }), { status: 200 })
+  : new Response(JSON.stringify({ thread: { post: {
+    uri: expectedPostUri,
+    author: { did: blueskyDid, handle: 'alice.bsky.social' },
+    record: { $type: 'app.bsky.feed.post', text: 'not a proof' }
+  } } }), { status: 200 }));
+assert.equal(blueskyMissingKey.reason, 'npub-missing');
+let blueskyCalls = 0;
+const blueskyOversized = await nip39.verifyBlueskyClaim(blueskyClaim, npub, async () => {
+  blueskyCalls += 1;
+  return new Response('{}', { status: 200, headers: { 'content-length': '999999' } });
+});
+assert.equal(blueskyOversized.status, 'unavailable');
+assert.equal(blueskyCalls, 1, 'an oversized profile response stops before the post request');
+assert.equal((await nip39.verifyBlueskyClaim(blueskyClaim, 'not-an-npub', async () => { throw new Error('must not fetch'); })).status, 'invalid');
+
+console.log('PASS: NIP-39 kind 10011 parsing, future-tag preservation, GitHub and Bluesky claims, bounded explicit proof checks');

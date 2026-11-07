@@ -2398,20 +2398,29 @@
   }
   function identityProofSettingId(pubkey) { return `public-identity-proofs-${pubkey}`; }
   function identityProofCheckKey(peer, record, claim) { return `${peer}:${record.eventId}:${claim.platform}:${claim.identity}:${claim.proof}`; }
-  function identityProofResultText(result) {
-    return result.status === 'verified'
+  function identityProofResultText(result, claim) {
+    const github = claim?.platform === 'github';
+    if (result.status === 'verified') return github
       ? localized('Verified: the public Gist belongs to this GitHub account and contains this Nostr key.', 'Verificado: a Gist pública pertence a esta conta do GitHub e contém esta chave Nostr.')
-      : result.status === 'unverified' && result.reason === 'owner'
-        ? localized('Not verified: the Gist author does not match the claimed GitHub account.', 'Não verificado: a autoria da Gist não corresponde à conta GitHub declarada.')
-        : result.status === 'unverified' && result.reason === 'npub-missing'
-          ? localized('Not verified: the Gist does not contain this Nostr key.', 'Não verificado: a Gist não contém esta chave Nostr.')
-          : result.status === 'unverified'
-            ? localized('Not verified: the Gist is private, incomplete, too large, or has an unsupported format.', 'Não verificado: a Gist é privada, incompleta, grande demais ou tem um formato não compatível.')
-            : result.status === 'invalid'
-              ? localized('The linked GitHub proof is malformed.', 'A prova GitHub vinculada está malformada.')
-              : result.status === 'checking'
-                ? localized('Checking the public GitHub Gist…', 'Consultando a Gist pública do GitHub…')
-                : localized('Could not check GitHub. The request may be blocked or unavailable.', 'Não foi possível consultar o GitHub. A solicitação pode estar bloqueada ou indisponível.');
+      : localized('Verified: the public Bluesky profile resolves to this handle and the post contains this Nostr key. This does not verify a real-world identity.', 'Verificado: o perfil público do Bluesky corresponde a este identificador e a publicação contém esta chave Nostr. Isso não verifica uma identidade no mundo real.');
+    if (result.status === 'unverified' && github && result.reason === 'owner') return localized('Not verified: the Gist author does not match the claimed GitHub account.', 'Não verificado: a autoria da Gist não corresponde à conta GitHub declarada.');
+    if (result.status === 'unverified' && result.reason === 'npub-missing') return github
+      ? localized('Not verified: the Gist does not contain this Nostr key.', 'Não verificado: a Gist não contém esta chave Nostr.')
+      : localized('Not verified: the Bluesky post does not contain this Nostr key.', 'Não verificado: a publicação do Bluesky não contém esta chave Nostr.');
+    if (result.status === 'unverified' && !github && result.reason === 'profile') return localized('Not verified: Bluesky did not return the claimed handle and a valid account identifier.', 'Não verificado: o Bluesky não retornou o identificador declarado e um identificador de conta válido.');
+    if (result.status === 'unverified' && !github && result.reason === 'post') return localized('Not verified: the Bluesky record does not match this public post claim.', 'Não verificado: o registro do Bluesky não corresponde a esta declaração de publicação.');
+    if (result.status === 'unverified') return github
+      ? localized('Not verified: the Gist is private, incomplete, too large, or has an unsupported format.', 'Não verificado: a Gist é privada, incompleta, grande demais ou tem um formato não compatível.')
+      : localized('Not verified: the Bluesky proof is missing or has an unsupported format.', 'Não verificado: a prova do Bluesky está ausente ou tem um formato não compatível.');
+    if (result.status === 'invalid') return github
+      ? localized('The linked GitHub proof is malformed.', 'A prova GitHub vinculada está malformada.')
+      : localized('The linked Bluesky proof is malformed.', 'A prova Bluesky vinculada está malformada.');
+    if (result.status === 'checking') return github
+      ? localized('Checking the public GitHub Gist…', 'Consultando a Gist pública do GitHub…')
+      : localized('Checking the public Bluesky profile and post…', 'Consultando o perfil e a publicação pública do Bluesky…');
+    return github
+      ? localized('Could not check GitHub. The request may be blocked or unavailable.', 'Não foi possível consultar o GitHub. A solicitação pode estar bloqueada ou indisponível.')
+      : localized('Could not check Bluesky. The request may be blocked or unavailable.', 'Não foi possível consultar o Bluesky. A solicitação pode estar bloqueada ou indisponível.');
   }
   function renderPeerIdentityProofs(record) {
     const section = $('chat-nip39-section');
@@ -2435,10 +2444,11 @@
       const checkKey = identityProofCheckKey(state.chatDetailsPeer, record, claim);
       const previousCheck = state.identityProofChecks.get(checkKey);
       result.textContent = previousCheck
-        ? identityProofResultText(previousCheck)
+        ? identityProofResultText(previousCheck, claim)
         : localized('Signed claim · not verified', 'Declaração assinada · não verificada');
       card.append(title, proof);
-      const url = claim.platform === 'github' ? IdentityProofs.githubGistUrl(claim) : '';
+      const url = claim.platform === 'github' ? IdentityProofs.githubGistUrl(claim)
+        : claim.platform === 'bluesky' ? IdentityProofs.blueskyPostUrl(claim) : '';
       if (url) {
         const actions = document.createElement('div');
         actions.className = 'identity-proof-actions';
@@ -2451,8 +2461,8 @@
         const verify = document.createElement('button');
         verify.type = 'button';
         verify.className = 'button secondary';
-        verify.textContent = localized('Verify on GitHub', 'Verificar no GitHub');
-        verify.addEventListener('click', () => verifyPeerGitHubIdentity(record, claim, result, verify));
+        verify.textContent = claim.platform === 'github' ? localized('Verify on GitHub', 'Verificar no GitHub') : localized('Verify on Bluesky', 'Verificar no Bluesky');
+        verify.addEventListener('click', () => verifyPeerIdentity(record, claim, result, verify));
         actions.append(link, verify);
         card.append(actions);
       } else {
@@ -2469,17 +2479,23 @@
     renderPeerProfileLookupStatus(peer);
     renderPeerIdentityProofs(state.peerIdentityProofs.get(peer) || null);
   }
-  async function verifyPeerGitHubIdentity(record, claim, status, button) {
+  async function verifyPeerIdentity(record, claim, status, button) {
     const peer = state.chatDetailsPeer;
     if (!peer || !$('chat-details-dialog').open || state.peerIdentityProofs.get(peer)?.eventId !== record.eventId) return;
     const checkId = ++state.identityProofCheckId;
     const checkKey = identityProofCheckKey(peer, record, claim);
     state.identityProofChecks.set(checkKey, { status: 'checking' });
     button.disabled = true;
-    status.textContent = localized('Checking the public GitHub Gist…', 'Consultando a Gist pública do GitHub…');
+    status.textContent = claim.platform === 'github'
+      ? localized('Checking the public GitHub Gist…', 'Consultando a Gist pública do GitHub…')
+      : localized('Checking the public Bluesky profile and post…', 'Consultando o perfil e a publicação pública do Bluesky…');
     try {
       let result;
-      try { result = await IdentityProofs.verifyGitHubClaim(claim, N.nip19.npubEncode(peer)); }
+      try {
+        result = claim.platform === 'github'
+          ? await IdentityProofs.verifyGitHubClaim(claim, N.nip19.npubEncode(peer))
+          : await IdentityProofs.verifyBlueskyClaim(claim, N.nip19.npubEncode(peer));
+      }
       catch { result = { status: 'unavailable', reason: 'network' }; }
       if (checkId !== state.identityProofCheckId || state.chatDetailsPeer !== peer || !$('chat-details-dialog').open || state.peerIdentityProofs.get(peer)?.eventId !== record.eventId) {
         state.identityProofChecks.delete(checkKey);
@@ -3313,6 +3329,15 @@
       else void renderShareInbox().catch(() => {});
     }
   }
+  function applyIdentityClaimsForm(record) {
+    const github = record?.claims.find(claim => claim.platform === 'github');
+    const bluesky = record?.claims.find(claim => claim.platform === 'bluesky');
+    $('profile-github-username').value = github?.identity || '';
+    $('profile-github-gist').value = github?.proof || '';
+    $('profile-bluesky-handle').value = bluesky?.identity || '';
+    $('profile-bluesky-record-key').value = bluesky?.proof || '';
+    return { github, bluesky };
+  }
   async function refreshLocalProfile() {
     const profile = await get('settings', `profile-${state.pubkey}`) || { id: `profile-${state.pubkey}`, name: '' };
     $('profile-name').value = profile.name || '';
@@ -3324,11 +3349,9 @@
     resetOwnNip05Check();
     const cachedIdentity = await get('settings', identityProofSettingId(state.pubkey));
     const identityRecord = cachedIdentity?.event ? IdentityProofs.parseEvent(cachedIdentity.event, state.pubkey, event => N.verifyEvent(event)) : null;
-    const github = identityRecord?.claims.find(claim => claim.platform === 'github');
-    $('profile-github-username').value = github?.identity || '';
-    $('profile-github-gist').value = github?.proof || '';
-    $('profile-nip39-status').textContent = github
-      ? localized('A signed GitHub link is saved on this device. Load from relays to refresh it.', 'Um vínculo GitHub assinado está salvo neste aparelho. Carregue dos relays para atualizá-lo.')
+    const claims = applyIdentityClaimsForm(identityRecord);
+    $('profile-nip39-status').textContent = claims.github || claims.bluesky
+      ? localized('Signed identity links are saved on this device. Load from relays to refresh them.', 'Vínculos de identidade assinados estão salvos neste aparelho. Carregue dos relays para atualizá-los.')
       : '';
   }
   function openContactIntent(value) {
@@ -4290,13 +4313,16 @@
     }
     if (!conversation.group && !conversation.agent && !agentAccess) {
       const identityRecord = state.peerIdentityProofs.get(conversation.pubkey);
-      const verifiedClaims = window.PropertyIdentityMarks?.verifiedGitHubClaims(conversation.pubkey, identityRecord, state.identityProofChecks) || [];
+      const verifiedClaims = window.PropertyIdentityMarks?.verifiedIdentityClaims(conversation.pubkey, identityRecord, state.identityProofChecks) || [];
       const profile = state.peerProfiles.get(conversation.pubkey);
       const verifiedNip05 = window.PropertyIdentityMarks?.verifiedNip05Profile(conversation.pubkey, profile, state.peerNip05Checks) || false;
       if (verifiedClaims.length || verifiedNip05) {
         const marks = document.createElement('span'); marks.className = 'identity-marks'; marks.setAttribute('role', 'img');
         const markLabels = [];
-        if (verifiedClaims.length) markLabels.push(localized('GitHub proof checked in this session: the public Gist account and Nostr key match the signed claim. This does not verify a real-world identity.', 'Prova GitHub conferida nesta sessão: a conta da Gist pública e a chave Nostr correspondem à declaração assinada. Isso não verifica uma identidade no mundo real.'));
+        for (const claim of verifiedClaims) {
+          if (claim.platform === 'github') markLabels.push(localized('GitHub proof checked in this session: the public Gist account and Nostr key match the signed claim. This does not verify a real-world identity.', 'Prova GitHub conferida nesta sessão: a conta da Gist pública e a chave Nostr correspondem à declaração assinada. Isso não verifica uma identidade no mundo real.'));
+          if (claim.platform === 'bluesky') markLabels.push(localized('Bluesky proof checked in this session through its public profile API. This does not verify a real-world identity.', 'Prova Bluesky conferida nesta sessão pela API pública do perfil. Isso não verifica uma identidade no mundo real.'));
+        }
         if (verifiedNip05) markLabels.push(localized('NIP-05 checked in this session: the identifier in this signed profile mapped to this Nostr key. This does not verify a real-world identity.', 'NIP-05 consultado nesta sessão: o identificador deste perfil assinado apontou para esta chave Nostr. Isso não verifica uma identidade no mundo real.'));
         marks.title = markLabels.join(' ');
         marks.setAttribute('aria-label', marks.title);
@@ -6382,13 +6408,11 @@
       } else {
         await del('settings', identityProofSettingId(state.pubkey));
       }
-      const github = result.identityRecord?.claims.find(claim => claim.platform === 'github');
-      $('profile-github-username').value = github?.identity || '';
-      $('profile-github-gist').value = github?.proof || '';
-      $('profile-nip39-status').textContent = github
-        ? localized('Signed GitHub link loaded from a saved relay.', 'Vínculo GitHub assinado carregado de um relay salvo.')
+      const claims = applyIdentityClaimsForm(result.identityRecord);
+      $('profile-nip39-status').textContent = claims.github || claims.bluesky
+        ? localized('Signed identity links loaded from a saved relay.', 'Vínculos de identidade assinados carregados de um relay salvo.')
         : result.identityRecord?.claims.length
-          ? localized('Other identity claims were loaded and will be preserved when you publish this link.', 'Outras declarações de identidade foram carregadas e serão preservadas ao publicar este vínculo.')
+          ? localized('Other identity claims were loaded and will be preserved when you publish a supported link.', 'Outras declarações de identidade foram carregadas e serão preservadas ao publicar um vínculo compatível.')
           : '';
       if (!result.record) {
         $('profile-name').value = '';
@@ -6420,7 +6444,7 @@
     try {
       await navigator.clipboard.writeText(text);
       $('profile-github-proof-text').hidden = true;
-      $('profile-nip39-status').textContent = localized('Verification text copied. Paste it into one public Gist file.', 'Texto de verificação copiado. Cole-o em um arquivo de uma Gist pública.');
+      $('profile-nip39-status').textContent = localized('Verification text copied. Add it to a public GitHub Gist or Bluesky post.', 'Texto de verificação copiado. Inclua-o numa Gist pública do GitHub ou numa publicação do Bluesky.');
     } catch {
       const field = $('profile-github-proof-text');
       field.value = text;
@@ -6430,23 +6454,10 @@
       $('profile-nip39-status').textContent = localized('Copy was blocked. Select the verification text above and copy it manually.', 'A cópia foi bloqueada. Selecione o texto de verificação acima e copie manualmente.');
     }
   }
-  async function publishGitHubIdentity() {
-    const button = $('publish-github-identity');
+  async function writeIdentityProviderClaim(platform, claim, button) {
     const status = $('profile-nip39-status');
     const pubkey = state.pubkey;
     if (!pubkey || !state.secret) { status.textContent = localized('Unlock this identity before publishing.', 'Desbloqueie esta identidade antes de publicar.'); return; }
-    const username = $('profile-github-username').value.trim();
-    const gistId = $('profile-github-gist').value.trim();
-    let github = null;
-    if (username || gistId) {
-      try { github = IdentityProofs.githubClaim(username, gistId); }
-      catch (error) {
-        status.textContent = error.code === 'nip39-invalid-github-username'
-          ? localized('Enter a valid GitHub username.', 'Informe um nome de usuário GitHub válido.')
-          : localized('Enter the public Gist ID.', 'Informe o ID da Gist pública.');
-        return;
-      }
-    }
     button.disabled = true;
     status.textContent = localized('Checking saved relays before publishing…', 'Consultando os relays salvos antes de publicar…');
     try {
@@ -6457,13 +6468,15 @@
         return;
       }
       const claims = current.identityRecord?.claims || [];
-      const existingGitHub = claims.some(claim => claim.platform === 'github');
-      if (!github && !existingGitHub) {
-        status.textContent = localized('No published GitHub link was found to remove.', 'Nenhum vínculo GitHub publicado foi encontrado para remover.');
+      const hadClaim = claims.some(item => item.platform === platform);
+      if (!claim && !hadClaim) {
+        status.textContent = platform === 'github'
+          ? localized('No published GitHub link was found to remove.', 'Nenhum vínculo GitHub publicado foi encontrado para remover.')
+          : localized('No published Bluesky link was found to remove.', 'Nenhum vínculo Bluesky publicado foi encontrado para remover.');
         return;
       }
-      const nextClaims = claims.filter(claim => claim.platform !== 'github');
-      if (github) nextClaims.push(github);
+      const nextClaims = claims.filter(item => item.platform !== platform);
+      if (claim) nextClaims.push(claim);
       const event = finalize(IdentityProofs.KIND, '', IdentityProofs.eventTags(nextClaims));
       status.textContent = localized('Publishing the signed identity link to your saved relays…', 'Publicando o vínculo de identidade assinado nos relays salvos…');
       const sent = await publishToRelays(event);
@@ -6475,12 +6488,15 @@
       const record = IdentityProofs.parseEvent(event, pubkey, signed => N.verifyEvent(signed));
       if (!record) throw new Error('The signed NIP-39 event could not be verified locally.');
       await put('settings', { id: identityProofSettingId(pubkey), event, checkedAt: Date.now() });
-      $('profile-github-username').value = github?.identity || '';
-      $('profile-github-gist').value = github?.proof || '';
+      applyIdentityClaimsForm(record);
       $('profile-github-proof-text').hidden = true;
-      status.textContent = github
-        ? localized('Signed GitHub identity link published. It is a public claim until a contact verifies the Gist.', 'Vínculo GitHub assinado publicado. É uma declaração pública até que um contato verifique a Gist.')
-        : localized('The public GitHub identity link was removed.', 'O vínculo público com o GitHub foi removido.');
+      status.textContent = platform === 'github'
+        ? (claim
+          ? localized('Signed GitHub identity link published. It is a public claim until someone verifies the Gist.', 'Vínculo GitHub assinado publicado. É uma declaração pública até que alguém verifique a Gist.')
+          : localized('The public GitHub identity link was removed.', 'O vínculo público com o GitHub foi removido.'))
+        : (claim
+          ? localized('Signed Bluesky identity link published. It is a public claim until someone verifies the post.', 'Vínculo Bluesky assinado publicado. É uma declaração pública até que alguém verifique a publicação.')
+          : localized('The public Bluesky identity link was removed.', 'O vínculo público com o Bluesky foi removido.'));
     } catch (error) {
       status.textContent = error?.code?.startsWith?.('nip39-')
         ? localized('The identity link could not be published because it is invalid.', 'O vínculo de identidade não pôde ser publicado porque é inválido.')
@@ -6488,6 +6504,32 @@
     } finally {
       if (state.pubkey === pubkey) button.disabled = false;
     }
+  }
+  async function publishGitHubIdentity() {
+    let github;
+    try { github = IdentityProofs.githubClaim($('profile-github-username').value, $('profile-github-gist').value); }
+    catch (error) {
+      $('profile-nip39-status').textContent = error.code === 'nip39-invalid-github-username'
+        ? localized('Enter a valid GitHub username.', 'Informe um nome de usuário GitHub válido.')
+        : localized('Enter a valid public Gist ID.', 'Informe um ID de Gist pública válido.');
+      return;
+    }
+    await writeIdentityProviderClaim('github', github, $('publish-github-identity'));
+  }
+  async function publishBlueskyIdentity() {
+    let bluesky;
+    try { bluesky = IdentityProofs.blueskyClaim($('profile-bluesky-handle').value, $('profile-bluesky-record-key').value); }
+    catch (error) {
+      $('profile-nip39-status').textContent = error.code === 'nip39-invalid-bluesky-handle'
+        ? localized('Enter a valid Bluesky handle.', 'Informe um identificador Bluesky válido.')
+        : localized('Enter a valid Bluesky post record key.', 'Informe uma chave de registro de publicação Bluesky válida.');
+      return;
+    }
+    await writeIdentityProviderClaim('bluesky', bluesky, $('publish-bluesky-identity'));
+  }
+  async function removeIdentityProviderClaim(platform) {
+    const button = $(platform === 'github' ? 'remove-github-identity' : 'remove-bluesky-identity');
+    await writeIdentityProviderClaim(platform, null, button);
   }
   async function closeIdentityRelaySubscriptions() {
     for (const [subId] of state.fetchSubs) finishFetchSub(subId, true);
@@ -6657,7 +6699,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v76', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v77', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -7010,6 +7052,9 @@
       $('profile-nip39-status').textContent = localized('Could not prepare the verification text.', 'Não foi possível preparar o texto de verificação.');
     }));
     $('publish-github-identity').addEventListener('click', () => publishGitHubIdentity());
+    $('remove-github-identity').addEventListener('click', () => removeIdentityProviderClaim('github'));
+    $('publish-bluesky-identity').addEventListener('click', () => publishBlueskyIdentity());
+    $('remove-bluesky-identity').addEventListener('click', () => removeIdentityProviderClaim('bluesky'));
     $('profile-nip05').addEventListener('input', resetOwnNip05Check);
     $('verify-chat-nip05').addEventListener('click', () => verifyPeerNip05());
     $('save-chat-local-name').addEventListener('click', () => saveConversationLocalName().catch(error => showToast(error.message || localized('Could not save the local name.', 'Não foi possível salvar o nome local.'))));
