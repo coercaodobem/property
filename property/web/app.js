@@ -424,6 +424,11 @@
     ensureChessLaunchButton(conversation, agentAccess);
     $('chat-title').dataset.userContent = '';
     $('chat-title').textContent = conversationLabel(conversation);
+    const localNameLabel = conversation.group
+      ? localized('Edit the local name for this group', 'Editar o nome local deste grupo')
+      : localized('Edit the local name for this contact', 'Editar o nome local deste contato');
+    $('chat-title').setAttribute('aria-label', localNameLabel);
+    $('chat-title').title = localNameLabel;
     $('chat-subtitle').textContent = conversationSubtitle(conversation, agentAccess);
     renderRemoteTyping();
     $('chat-avatar').classList.toggle('group-avatar', conversation.group === true);
@@ -6833,6 +6838,16 @@
       $('notification-mute-status').textContent = localized('Could not update this local setting.', 'Não foi possível atualizar esta configuração local.');
     }));
     $('chat-details-button').addEventListener('click', () => openChatDetails().catch(error => showToast(error.message || localized('Could not open conversation details.', 'Não foi possível abrir os detalhes da conversa.'))));
+    $('chat-title').addEventListener('click', async () => {
+      try {
+        await openChatDetails();
+        if (!state.activePeer || !$('chat-details-dialog').open) return;
+        $('chat-local-name').focus({ preventScroll: true });
+        $('chat-local-name').select();
+      } catch (error) {
+        showToast(error.message || localized('Could not edit this local name.', 'Não foi possível editar este nome local.'));
+      }
+    });
     $('group-invite-generate').addEventListener('click', () => createGroupInviteLink().catch(() => {
       $('group-invite-status').textContent = localized('Check the public key and try again. The room was not changed.', 'Confira a chave pública e tente novamente. A sala não foi alterada.');
     }));
