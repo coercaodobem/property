@@ -1,7 +1,7 @@
 'use strict';
 (() => {
   const Chunks = globalThis.PropertyDirectFileChunks;
-  const STORAGE_VERSION = 2;
+  const STORAGE_VERSION = 3;
   const KEY_INFO = new TextEncoder().encode('Property direct-file blocks at rest v1');
 
   function asBytes(value) {
@@ -11,7 +11,7 @@
     return null;
   }
 
-  function create({ putPart, listParts, deleteParts = async () => {}, deleteSessionParts = async () => {},
+  function create({ putPart, listParts, listResumeTransferIds, deleteParts = async () => {}, deleteSessionParts = async () => {},
     getIdentity, crypto: cryptoImpl = globalThis.crypto, hashImplementation } = {}) {
     if (!Chunks || typeof putPart !== 'function' || typeof listParts !== 'function' || typeof getIdentity !== 'function') {
       throw new TypeError('Direct file storage needs the local block protocol, identity provider and storage callbacks.');
@@ -56,7 +56,9 @@
 
     function recordAad(identity, record) {
       const legacy = `${identity.pubkey}:${record.transferId}:${record.index}:${record.sha256}`;
-      return new TextEncoder().encode(record.storageVersion >= 2 ? `${legacy}:${record.manifestHash}` : legacy);
+      if (record.storageVersion === 1) return new TextEncoder().encode(legacy);
+      if (record.storageVersion === 2) return new TextEncoder().encode(`${legacy}:${record.manifestHash}`);
+      return new TextEncoder().encode(`${legacy}:${record.manifestHash}:${record.resumeFingerprint}:${record.peer || ''}:${record.direction || ''}`);
     }
 
     async function encryptRecord(record, bytes, identity, key) {
@@ -69,9 +71,10 @@
 
     async function decryptRecord(record, identity, key, expectedBytes) {
       if (record?.ownerPubkey !== undefined && record.ownerPubkey !== identity.pubkey) return null;
-      if (record?.storageVersion !== undefined && ![1, STORAGE_VERSION].includes(record.storageVersion)) return null;
-      if ([1, STORAGE_VERSION].includes(record?.storageVersion)) {
-        if (record.storageVersion === STORAGE_VERSION && !/^[0-9a-f]{64}$/i.test(record.manifestHash || '')) return null;
+      if (record?.storageVersion !== undefined && ![1, 2, STORAGE_VERSION].includes(record.storageVersion)) return null;
+      if ([1, 2, STORAGE_VERSION].includes(record?.storageVersion)) {
+        if (record.storageVersion >= 2 && !/^[0-9a-f]{64}$/i.test(record.manifestHash || '')) return null;
+        if (record.storageVersion === STORAGE_VERSION && !/^[0-9a-f]{64}$/i.test(record.resumeFingerprint || '')) return null;
         const iv = asBytes(record.iv);
         const cipher = asBytes(record.bytes);
         if (!iv || iv.byteLength !== 12 || !cipher || cipher.byteLength !== expectedBytes + 16) return null;
@@ -96,15 +99,25 @@
       return Chunks.digestHex(new TextEncoder().encode(canonical), cryptoImpl);
     }
 
+    async function resumeFingerprintFor(file) {
+      const normalized = Chunks.normalizeFileManifests([file]);
+      if (!normalized) return null;
+      const item = normalized[0];
+      const canonical = JSON.stringify(['property-direct-file-resume-v1', item.name, item.mime, item.sizeBytes,
+        item.chunkBytes, item.totalChunks, item.sha256]);
+      return Chunks.digestHex(new TextEncoder().encode(canonical), cryptoImpl);
+    }
+
     async function writePart({ file, index, bytes: rawBytes, sha256, sessionId = '', peer = '', direction = '' }) {
       const bytes = asBytes(rawBytes);
       const manifestHash = await manifestHashFor(file);
-      if (!bytes || !manifestHash ||
+      const resumeFingerprint = await resumeFingerprintFor(file);
+      if (!bytes || !manifestHash || !resumeFingerprint ||
           bytes.byteLength !== Chunks.expectedChunkSize(file.sizeBytes, file.totalChunks, index) ||
           !/^[0-9a-f]{64}$/i.test(sha256 || '') || (await Chunks.digestHex(bytes, cryptoImpl)) !== sha256.toLowerCase()) return false;
       const identity = currentIdentity();
       const key = await keyFor(identity);
-      const record = { transferId: file.transferId, index, sha256: sha256.toLowerCase(), manifestHash,
+      const record = { transferId: file.transferId, index, sha256: sha256.toLowerCase(), manifestHash, resumeFingerprint,
         ...(sessionId ? { sessionId } : {}), ...(peer ? { peer: String(peer).toLowerCase() } : {}), ...(direction ? { direction } : {}) };
       await putPart(await encryptRecord(record, bytes, identity, key));
       return true;
@@ -130,7 +143,8 @@
 
     async function verifiedParts(file) {
       const manifestHash = await manifestHashFor(file);
-      if (!manifestHash) return null;
+      const resumeFingerprint = await resumeFingerprintFor(file);
+      if (!manifestHash || !resumeFingerprint) return null;
       let identity;
       try { identity = currentIdentity(); } catch { return null; }
       const key = await keyFor(identity);
@@ -143,12 +157,14 @@
         const record = parts[index];
         const bytesExpected = Chunks.expectedChunkSize(file.sizeBytes, file.totalChunks, index);
         if (!record || record.index !== index || !/^[0-9a-f]{64}$/i.test(record.sha256 || '')) return null;
-        if (record.storageVersion === STORAGE_VERSION && record.manifestHash !== manifestHash) return null;
+        if (record.storageVersion >= 2 && record.manifestHash !== manifestHash) return null;
+        if (record.storageVersion === STORAGE_VERSION && record.resumeFingerprint !== resumeFingerprint) return null;
         const bytes = await decryptRecord(record, identity, key, bytesExpected);
         if (!bytes || (await Chunks.digestHex(bytes, cryptoImpl)) !== record.sha256.toLowerCase()) return null;
         assertIdentity(identity);
-        if (record.storageVersion !== STORAGE_VERSION || record.ownerPubkey !== identity.pubkey || record.manifestHash !== manifestHash) {
-          await putPart(await encryptRecord({ ...record, manifestHash }, bytes, identity, key));
+        if (record.storageVersion !== STORAGE_VERSION || record.ownerPubkey !== identity.pubkey ||
+            record.manifestHash !== manifestHash || record.resumeFingerprint !== resumeFingerprint) {
+          await putPart(await encryptRecord({ ...record, manifestHash, resumeFingerprint }, bytes, identity, key));
         }
         totalBytes += bytes.byteLength;
         hash.update(bytes);
@@ -170,34 +186,86 @@
       for (let fileIndex = 0; fileIndex < normalized.length; fileIndex += 1) {
         const file = normalized[fileIndex];
         const manifestHash = await manifestHashFor(file);
-        const records = await listParts(file.transferId);
-        if (!manifestHash || !Array.isArray(records)) break;
-        const byIndex = new Map();
-        let duplicate = false;
-        for (const record of records) {
-          if (!Number.isSafeInteger(record?.index) || record.index < 0 || record.index >= file.totalChunks || byIndex.has(record.index)) {
-            duplicate = true;
-            break;
+        const resumeFingerprint = await resumeFingerprintFor(file);
+        let records = await listParts(file.transferId);
+        if (!manifestHash || !resumeFingerprint || !Array.isArray(records)) break;
+
+        async function verifiedPrefix(candidateRecords, candidateFile, candidateManifestHash, exactTransfer) {
+          const byIndex = new Map();
+          for (const record of candidateRecords) {
+            if (!Number.isSafeInteger(record?.index) || record.index < 0 || record.index >= file.totalChunks ||
+                byIndex.has(record.index)) return 0;
+            byIndex.set(record.index, record);
           }
-          byIndex.set(record.index, record);
+          const hash = (await getHash()).sha256.create();
+          let count = 0;
+          let totalBytes = 0;
+          for (let index = 0; index < file.totalChunks; index += 1) {
+            const record = byIndex.get(index);
+            const peerMatches = String(record?.peer || '').toLowerCase() === recipient;
+            if (!record || record.transferId !== candidateFile.transferId || !peerMatches || record.direction !== 'received' ||
+                (record.storageVersion >= 2 && record.manifestHash !== candidateManifestHash) ||
+                (record.storageVersion === STORAGE_VERSION && record.resumeFingerprint !== resumeFingerprint) ||
+                (record.storageVersion !== STORAGE_VERSION && !exactTransfer) ||
+                !/^[0-9a-f]{64}$/i.test(record.sha256 || '')) break;
+            const expectedBytes = Chunks.expectedChunkSize(file.sizeBytes, file.totalChunks, index);
+            const bytes = await decryptRecord(record, identity, key, expectedBytes);
+            if (!bytes || (await Chunks.digestHex(bytes, cryptoImpl)) !== record.sha256.toLowerCase()) break;
+            assertIdentity(identity);
+            if (record.storageVersion !== STORAGE_VERSION || record.ownerPubkey !== identity.pubkey ||
+                record.manifestHash !== candidateManifestHash || record.resumeFingerprint !== resumeFingerprint ||
+                String(record.peer || '').toLowerCase() !== recipient) {
+              if (!(await writePart({ file: candidateFile, index, bytes, sha256: record.sha256, sessionId: record.sessionId || '',
+                peer: recipient, direction: 'received' }))) break;
+            }
+            hash.update(bytes);
+            totalBytes += bytes.byteLength;
+            count += 1;
+          }
+          if (count === file.totalChunks && (totalBytes !== file.sizeBytes ||
+              [...hash.digest()].map(byte => byte.toString(16).padStart(2, '0')).join('') !== file.sha256)) return 0;
+          return count;
         }
-        if (duplicate) break;
-        let prefix = 0;
-        for (let index = 0; index < file.totalChunks; index += 1) {
-          const record = byIndex.get(index);
-          if (!record || record.peer !== recipient || record.direction !== 'received' ||
-              record.manifestHash !== manifestHash || !/^[0-9a-f]{64}$/i.test(record.sha256 || '')) break;
-          const bytes = await decryptRecord(record, identity, key, Chunks.expectedChunkSize(file.sizeBytes, file.totalChunks, index));
-          if (!bytes || (await Chunks.digestHex(bytes, cryptoImpl)) !== record.sha256.toLowerCase()) break;
-          assertIdentity(identity);
-          prefix += 1;
+
+        let best = { transferId: file.transferId, file, count: await verifiedPrefix(records, file, manifestHash, true) };
+        records = [];
+
+        if (best.count === 0 && typeof listResumeTransferIds === 'function') {
+          let candidateIds = [];
+          try { candidateIds = await listResumeTransferIds(recipient, resumeFingerprint); } catch { candidateIds = []; }
+          const uniqueIds = [...new Set(Array.isArray(candidateIds) ? candidateIds : [])]
+            .filter(id => typeof id === 'string' && /^[0-9a-f]{32}$/i.test(id) && id !== file.transferId)
+            .sort((left, right) => left.localeCompare(right));
+          for (const transferId of uniqueIds) {
+            const candidateFile = { ...file, transferId };
+            const candidateManifestHash = await manifestHashFor(candidateFile);
+            let candidateRecords = [];
+            try { candidateRecords = await listParts(transferId); } catch { continue; }
+            const count = await verifiedPrefix(candidateRecords, candidateFile, candidateManifestHash, false);
+            candidateRecords = [];
+            if (count > best.count) best = { transferId, file: candidateFile, count };
+            if (best.count === file.totalChunks) break;
+          }
         }
-        offsets[fileIndex] = prefix;
-        if (prefix < file.totalChunks) break;
-        if (!(await verifiedParts(file))) {
-          offsets[fileIndex] = 0;
-          break;
+
+        if (best.count > 0 && best.transferId !== file.transferId) {
+          let sourceRecords;
+          try { sourceRecords = await listParts(best.transferId); } catch { best.count = 0; sourceRecords = []; }
+          const sourceManifestHash = await manifestHashFor(best.file);
+          const sourceCount = await verifiedPrefix(sourceRecords, best.file, sourceManifestHash, false);
+          if (sourceCount < best.count) best.count = 0;
+          const sourceByIndex = new Map(sourceRecords.map(record => [record.index, record]));
+          for (let index = 0; index < best.count; index += 1) {
+            const record = sourceByIndex.get(index);
+            const bytes = await decryptRecord(record, identity, key, Chunks.expectedChunkSize(file.sizeBytes, file.totalChunks, index));
+            if (!bytes || !(await writePart({ file, index, bytes, sha256: record.sha256, peer: recipient, direction: 'received' }))) {
+              best.count = 0;
+              break;
+            }
+          }
         }
+        offsets[fileIndex] = best.count;
+        if (best.count < file.totalChunks) break;
       }
       assertIdentity(identity);
       return offsets;

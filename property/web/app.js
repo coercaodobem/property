@@ -10,7 +10,7 @@
   const ShareInbox = window.PropertyShareInbox;
   // Stable legacy database ID: preserve existing identities and sessions on this origin.
   const DB_NAME = 'liberdade-local-v1';
-  const DB_VERSION = 4;
+  const DB_VERSION = 5;
   const Vault = window.PropertyVault;
   const Routing = window.PropertyNostrRouting;
   const Bridge = window.PropertyRelayBridge;
@@ -3109,11 +3109,12 @@
         for (const [name, keyPath] of [['vault', 'id'], ['settings', 'id'], ['conversations', 'pubkey'], ['messages', 'id'], ['drafts', 'id'], ['agentInvites', 'id'], ['agentAccess', 'pubkey']]) {
           if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath });
         }
-        if (!db.objectStoreNames.contains('directFileParts')) {
-          const parts = db.createObjectStore('directFileParts', { keyPath: ['transferId', 'index'] });
-          parts.createIndex('byTransferId', 'transferId', { unique: false });
-          parts.createIndex('bySessionId', 'sessionId', { unique: false });
-        }
+        const parts = db.objectStoreNames.contains('directFileParts')
+          ? request.transaction.objectStore('directFileParts')
+          : db.createObjectStore('directFileParts', { keyPath: ['transferId', 'index'] });
+        if (!parts.indexNames.contains('byTransferId')) parts.createIndex('byTransferId', 'transferId', { unique: false });
+        if (!parts.indexNames.contains('bySessionId')) parts.createIndex('bySessionId', 'sessionId', { unique: false });
+        if (!parts.indexNames.contains('byResumeSource')) parts.createIndex('byResumeSource', ['peer', 'direction', 'resumeFingerprint'], { unique: false });
       };
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
@@ -3149,6 +3150,16 @@
       tx.onabort = () => reject(tx.error || new Error('Could not read local direct file blocks.'));
     });
   }
+  function directFileResumeIds(peer, fingerprint) {
+    return new Promise((resolve, reject) => {
+      const tx = state.db.transaction('directFileParts', 'readonly');
+      const request = tx.objectStore('directFileParts').index('byResumeSource')
+        .getAllKeys([peer, 'received', fingerprint], 4096);
+      request.onsuccess = () => resolve([...new Set((request.result || []).map(key => Array.isArray(key) ? key[0] : ''))]);
+      request.onerror = () => reject(request.error);
+      tx.onabort = () => reject(tx.error || new Error('Could not read local direct file resume candidates.'));
+    });
+  }
   async function deleteDirectFileParts(indexName, key) {
     await new Promise((resolve, reject) => {
       const tx = state.db.transaction('directFileParts', 'readwrite');
@@ -3170,6 +3181,7 @@
     if (!state.directFileStorage) state.directFileStorage = DirectFileStorage.create({
       putPart: record => put('directFileParts', record),
       listParts: transferId => directFilePartsBy('byTransferId', transferId),
+      listResumeTransferIds: directFileResumeIds,
       deleteParts: transferId => deleteDirectFileParts('byTransferId', transferId),
       deleteSessionParts: sessionId => deleteDirectFileParts('bySessionId', sessionId),
       getIdentity: () => state.secret && state.pubkey ? { secret: state.secret, pubkey: state.pubkey } : null

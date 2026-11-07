@@ -15,10 +15,16 @@ const hashImplementation = await import('../web/chess/vendor/noble-hashes/sha2.j
 const peer = 'ab'.repeat(32);
 const identity = { secret: new Uint8Array(32).fill(7), pubkey: '12'.repeat(32) };
 const stored = new Map();
-const storage = Storage.create({ crypto: webcrypto, hashImplementation, getIdentity: () => identity,
-  putPart: async record => stored.set(`${record.transferId}:${record.index}`, record),
-  listParts: async transferId => [...stored.values()].filter(record => record.transferId === transferId),
-  deleteParts: async transferId => { for (const [key, record] of stored) if (record.transferId === transferId) stored.delete(key); } });
+function createStorage() {
+  return Storage.create({ crypto: webcrypto, hashImplementation, getIdentity: () => identity,
+    putPart: async record => stored.set(`${record.transferId}:${record.index}`, record),
+    listParts: async transferId => [...stored.values()].filter(record => record.transferId === transferId),
+    listResumeTransferIds: async (resumePeer, fingerprint) => [...new Set([...stored.values()].filter(record =>
+      record.peer === resumePeer && record.direction === 'received' && record.resumeFingerprint === fingerprint)
+      .map(record => record.transferId))],
+    deleteParts: async transferId => { for (const [key, record] of stored) if (record.transferId === transferId) stored.delete(key); } });
+}
+let storage = createStorage();
 
 const sourceBytes = Uint8Array.from({ length: Chunks.CHUNK_BYTES * 2 + 1 }, (_, index) => (index * 17) % 251);
 const sourceFile = new Blob([sourceBytes], { type: 'application/octet-stream' });
@@ -105,8 +111,27 @@ signals[1].length = 0;
 acceptedParts = 0;
 resolveTwoAccepted = () => {};
 [sender, receiver] = createControllers();
-const retryTransfer = '45'.repeat(16);
-assert.equal(await sender.startOutgoing({ peer, transferId: retryTransfer, files: [manifest] }), true);
+const samePageRetryTransfer = '45'.repeat(16);
+assert.equal(await sender.startOutgoing({ peer, transferId: samePageRetryTransfer, files: [manifest] }), true);
+assert.equal(receiver.receiveOffer(signals[0][0]), true);
+assert.equal(await receiver.acceptIncoming(), true);
+assert.deepEqual(Array.from(signals[1][1].resumeOffsets), [2], 'the same-page retry keeps the authenticated prefix');
+assert.equal(await sender.receiveAnswer({ peer, ...signals[1][0] }), true);
+assert.equal(sender.receiveResume({ peer, ...signals[1][1] }), true);
+for (let count = 0; count < 8 && sender.getState().status !== 'connected'; count += 1) await Promise.resolve();
+assert.equal(sender.getState().status, 'connected');
+assert.equal(await sender.end('file-cancel'), true);
+receiver.receiveEnd({ peer, transferId: samePageRetryTransfer, action: 'file-cancel' });
+sender.dismiss(); receiver.dismiss();
+
+signals[0].length = 0;
+signals[1].length = 0;
+acceptedParts = 0;
+storage = createStorage(); // Simulates a full page reload: only encrypted IndexedDB-style records survive.
+[sender, receiver] = createControllers();
+const retryTransfer = '67'.repeat(16);
+const reselectedManifest = await Chunks.createManifest(sourceFile, { transferId: '98'.repeat(16), hashImplementation, cryptoImpl: webcrypto });
+assert.equal(await sender.startOutgoing({ peer, transferId: retryTransfer, files: [reselectedManifest] }), true);
 assert.equal(receiver.receiveOffer(signals[0][0]), true);
 assert.equal(await receiver.acceptIncoming(), true);
 assert.deepEqual(Array.from(signals[1][1].resumeOffsets), [2]);
@@ -115,13 +140,14 @@ assert.equal(sender.receiveResume({ peer, ...signals[1][1] }), true);
 for (let count = 0; count < 8 && sender.getState().status !== 'connected'; count += 1) await Promise.resolve();
 assert.equal(sender.getState().status, 'connected');
 assert.equal(receiver.getState().receivedChunks, 2, 'receiver confirms the persisted prefix before accepting later sequence numbers');
-const finalPart = await Chunks.readChunk(sourceFile, manifest, 2, webcrypto);
+const finalPart = await Chunks.readChunk(sourceFile, reselectedManifest, 2, webcrypto);
 assert.equal(await sender.sendPart({ fileIndex: 0, index: 2, bytes: finalPart.bytes, sha256: finalPart.sha256 }), true);
 assert.equal(acceptedParts, 1, 'the retry transferred exactly the missing third block');
 assert.equal(receiver.getState().receivedChunks, 3);
 assert.equal(await sender.finish(), true);
-const restored = await storage.createBlob(manifest);
+const restored = await storage.createBlob(reselectedManifest);
 assert.deepEqual(new Uint8Array(await restored.arrayBuffer()), sourceBytes, 'the resumed file passes the whole-file hash and byte comparison');
+assert.equal(stored.has(`${manifest.transferId}:0`), true, 'rebinding a prefix preserves the original encrypted source blocks');
 sender.dismiss(); receiver.dismiss();
 
-console.log('PASS G04-27: encrypted local prefix, interrupted transfer, fixed invalid-prefix cases, peer confirmation, one missing chunk and whole-file integrity');
+console.log('PASS G04-27: same-page and post-reload resume, encrypted prefix, fixed invalid-prefix cases, peer confirmation and whole-file integrity');
