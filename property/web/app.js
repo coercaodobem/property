@@ -550,7 +550,7 @@
   }
 
   function renderPaymentCard(target, content) {
-    const data = PaymentCard?.parse(content);
+    const data = PaymentCard?.parse(content) || PaymentUris?.parse(content);
     if (!data) return false;
     let walletRequest = null;
     let walletRequestError = null;
@@ -558,15 +558,26 @@
     catch (error) { walletRequestError = error; }
     const card = document.createElement('section');
     card.className = 'message-payment-card';
-    card.setAttribute('aria-label', localized('Payment details', 'Dados de pagamento'));
+    const isWalletUri = data.source === 'wallet-uri';
+    const paymentTitle = isWalletUri ? localized('Wallet payment request', 'Pedido de pagamento da carteira') : localized('Payment details', 'Dados de pagamento');
+    card.setAttribute('aria-label', paymentTitle);
     const head = document.createElement('div'); head.className = 'message-payment-card-head';
-    const title = document.createElement('strong'); title.textContent = localized('Payment details', 'Dados de pagamento');
+    const title = document.createElement('strong'); title.textContent = paymentTitle;
     const rail = document.createElement('span'); rail.className = `payment-card-currency payment-card-${data.currency.toLowerCase()}`;
     rail.textContent = `${data.currency} · ${PaymentCard.networkLabel(data.network)}`;
     head.append(title, rail); card.append(head);
     if (data.amount) {
       const amount = document.createElement('p'); amount.className = 'message-payment-card-amount';
       amount.textContent = `${localized('Amount', 'Valor')}: ${data.amount} ${data.currency}`; card.append(amount);
+    }
+    const recipientName = data.label || data.recipientName;
+    if (recipientName) {
+      const recipient = document.createElement('p'); recipient.className = 'message-payment-card-recipient';
+      recipient.textContent = `${localized('Recipient', 'Destinatário')}: ${recipientName}`; card.append(recipient);
+    }
+    if (data.paymentId) {
+      const paymentId = document.createElement('p'); paymentId.className = 'message-payment-card-payment-id';
+      paymentId.textContent = `${localized('Payment ID', 'ID do pagamento')}: ${data.paymentId}`; card.append(paymentId);
     }
     const addressLabel = document.createElement('span'); addressLabel.className = 'message-payment-card-label';
     addressLabel.textContent = localized('Receiving address', 'Endereço de recebimento');
