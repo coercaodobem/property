@@ -4,6 +4,7 @@ O idioma padrão do projeto e desta documentação é inglês. No app, escolha *
 
 ## Produto e implementação
 
+- [Inventário de máquinas de estado e decisão de arquitetura](state-machines.pt-BR.md) · [English](state-machines.md)
 - [Identidade e princípios do projeto](identidade-do-projeto.pt-BR.md) · [English](identidade-do-projeto.md)
 - [Plano central de execução](plano-central.pt-BR.md) · [English](plano-central.md)
 - [Migração de Amethyst para Property](migracao-property.pt-BR.md) · [English](migracao-property.md)
