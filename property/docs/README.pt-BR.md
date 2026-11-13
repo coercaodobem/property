@@ -19,6 +19,7 @@ O idioma padrão do projeto e desta documentação é inglês. No app, escolha *
 - [Plano central de testes e status atual](plano-de-testes-central.pt-BR.md) · [English](plano-de-testes-central.md)
 - [Plano e registros históricos de teste](historico-testes-2026-10-31.md), preservados no idioma em que foram produzidos.
 - [Evidências de comunicação entre agentes](evidence/agent-messaging/), com relatórios no idioma original.
+- [Evidência offline XNO de agentes, G8–G9 (2026-11-13)](evidence/agent-messaging/G8-G9-xno-offline-20261113.md).
 - [Evidências offline](evidence/offline/), incluindo manifestos e relatórios das execuções.
 
 Registros históricos não são alterados para preservar o que foi efetivamente documentado. Eles não equivalem a um PASS atual, a menos que o relatório aplicável mais recente assim indique.

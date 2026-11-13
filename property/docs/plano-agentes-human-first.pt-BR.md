@@ -130,4 +130,5 @@ Cada execução concluída deve adicionar um relatório datado com commit de ori
 - Implementação MCP e instalação: [`../agent/README.md`](../agent/README.md).
 - Testes determinísticos e harnesses: [`../tests/`](../tests/).
 - Relatórios correntes G3/G4/G5/G6/G8/G9: [`evidence/agent-messaging/`](evidence/agent-messaging/).
+- Relatório offline XNO atual: [G8–G9, 2026-11-13](evidence/agent-messaging/G8-G9-xno-offline-20261113.md).
 - Testes com Windows/macOS/Android/iOS, pessoas reais, leitor de tela, hosts MCP comerciais, integração de carteira para produção e revisão independente: manter `PENDING` até executar.

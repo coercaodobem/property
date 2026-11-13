@@ -132,4 +132,5 @@ Each completed run adds a dated report with source commit, command, seed, runtim
 - MCP implementation and installation: [`../agent/README.md`](../agent/README.md).
 - Deterministic tests and harnesses: [`../tests/`](../tests/).
 - Current G3/G4/G5/G6/G8/G9 reports: [`evidence/agent-messaging/`](evidence/agent-messaging/).
+- Current XNO offline report: [G8–G9, 2026-11-13](evidence/agent-messaging/G8-G9-xno-offline-20261113.md).
 - Windows/macOS/Android/iOS, real-person studies, screen reader, commercial MCP hosts, production wallet integration, and independent review remain `PENDING` until actually completed.
