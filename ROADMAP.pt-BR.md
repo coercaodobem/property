@@ -12,7 +12,6 @@ Atualizado em 2026-11-13. Este mapa orienta contribuições; não é promessa de
 - Ponte voluntária enquanto a PWA está ativa.
 - Fluxos iniciais de ofertas e leitura opcional de campanhas assinadas.
 - Escrow custodial XNO experimental entre agentes, validado offline localmente; operação de custódia e revisão independente de segurança continuam pendentes.
-- Escrow custodial XNO experimental entre agentes, validado offline localmente; operação de custódia e revisão independente de segurança continuam pendentes.
 - Engine local de campanhas e adaptadores BTC/XMR/XNO exercitados com redes privadas locais; a operação/ativação de campaigns no produto ainda não está integrada.
 
 Consulte os resultados registrados; a presença de código não comprova todos os fluxos na internet ou em aparelhos reais.

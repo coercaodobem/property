@@ -10,7 +10,6 @@ Updated 2026-11-13. This roadmap guides contributions; it is not a schedule or a
 - Voluntary relay bridge while the PWA is active.
 - Initial offer flows and optional display of signed campaigns.
 - Experimental agent-to-agent custodial XNO escrow, locally validated offline; production custody and independent security review remain pending.
-- Experimental agent-to-agent custodial XNO escrow, locally validated offline; production custody and independent security review remain pending.
 - Local campaign engine and BTC/XMR/XNO adapters exercised against private local networks; campaign operation and activation are not integrated into the product yet.
 
 See the recorded results. The presence of code alone does not prove every flow works online or on real devices.
