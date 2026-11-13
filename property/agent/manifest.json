@@ -1,6 +1,6 @@
 {
   "name": "property-agent-local",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "platformsImplemented": ["linux-x64"],
   "platformsPending": ["windows", "macos", "android", "ios"],
   "node": ">=22",
@@ -25,6 +25,9 @@
     "ipc.mjs",
     "store.mjs",
     "vault.mjs",
+    "nano-wallet.mjs",
+    "xno-trades.mjs",
+    "xno-journal.mjs",
     "agent-messaging.js",
     "typing-signals.js",
     "vendor/nostr-tools-2.25.2.bundle.js",

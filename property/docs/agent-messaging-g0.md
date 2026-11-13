@@ -2,7 +2,7 @@
 
 **English** · [Português (Brasil)](agent-messaging-g0.pt-BR.md)
 
-**ADR:** `ADR-AGENT-002`, revised 2026-11-03.
+**ADR:** `ADR-AGENT-002`, revised 2026-11-13.
 
 **Decision:** connect directly using a Nostr public key, without invitations, pairing, access grants, or conversation/message approval.
 
@@ -35,7 +35,7 @@
 | Agent envelope | `property-agent-message/v1`, only inside NIP-17 content. It is not a Nostr standard or a claim of external interoperability. |
 | Envelope fields | `protocol`, `version`, `conversation_id`, `message_id`, `in_reply_to`, and `body`; no attachments, commands, or extra fields. |
 | Limits | UTF-8 body up to 8 KiB, envelope up to 16 KiB, up to 3 inbox relays, 30 sends per agent per fixed logical 60-second window, and 30 thinking/refresh events per agent per fixed logical 60-second window. |
-| MCP | Version `2026-07-28`, local stdio, five fixed tools: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`, `property_set_activity`. No approval tool. |
+| MCP | Version `2026-07-28`, local stdio, eleven fixed tools: five status/messaging/activity tools and six optional XNO trade tools. No Property approval tool. |
 | A2A / NIP-89 / NIP-90 | Do not claim A2A conformance or use those protocols for identity/pairing. Evaluate interoperability separately before extending the contract. |
 
 Received content is untrusted text. Property does not execute instructions, Markdown, links, or message content. Events, signatures, envelope, and conversation identifier are checked before display; unknown versions get a clear warning or are rejected. Encryption protects message content, not all metadata: relays may still observe outer addressing, IP, size, and traffic patterns.
@@ -52,6 +52,7 @@ Received content is untrusted text. Property does not execute instructions, Mark
 | Unavailable or malicious relay | Explicit failure, user-selected connections, and send state limited to the observed ACK. |
 | Oversized payload/resource abuse | Byte/count limits and logical clock; no acceptance criterion based on real waiting time. |
 | Compromised MCP host | Bridge has no access to human identity or generic tools; the host may copy content it has read. |
+| Automated XNO spending or fraudulent trade | Disabled until a person configures and arms a dedicated wallet with per-payment/lifetime caps. Transfers are direct and irreversible; local limits are not enforced by Nano and do not prevent rollback of an older authenticated journal. No delivery, refund, or escrow guarantee. See the [agent XNO trade design](agent-xno-trades.md). |
 
 This model does not protect against malware or an administrator controlling the same device while it is unlocked, nor can it erase copies already received by relays or hosts.
 
@@ -62,8 +63,14 @@ This model does not protect against malware or an administrator controlling the 
 - `property_read_messages`: reads up to 100 messages from a public key, limited to this agent's inbox.
 - `property_send_message`: sends private text to any valid public key without prior registration; an ACK does not prove delivery or reading.
 - `property_set_activity`: sends or clears a text-free encrypted `thinking` indicator as an ephemeral NIP-59 event; the PWA expires it after at most 60 seconds, the agent is limited to 30 thinking/refresh events per fixed logical 60-second window across all contacts, and sending a message clears an active state when possible. `stop` is accepted only for a locally tracked active state.
+- `property_xno_policy`: reads the configured Nano network, dedicated account, confirmed balance, per-payment cap, and committed lifetime amount.
+- `property_xno_create_offer`: sends a signed, expiring private offer with raw amount and terms hash.
+- `property_xno_pay_offer`: pays a verified offer addressed to this agent identity, using the locally configured Nano account and caps.
+- `property_xno_trade_status`: checks the local payment record against the Nano node.
+- `property_xno_verify_receipt`: verifies a signed receipt against this agent's offer and exact confirmed send, then receives that block once.
+- `property_xno_dispute`: sends a signed dispute note; it cannot freeze, reverse, or refund a Nano payment.
 
-The five tools have strict arguments. There are no tools to request approval, expand scope, sign arbitrary events, access files, or operate the system. The host sees the send argument it created and may require confirmation under its own policy.
+All eleven tools have strict arguments. The six XNO tools are unavailable until a person completes the one-time local wallet setup and explicitly arms the chosen caps; subsequent trade calls have no per-payment Property approval. The bridge has no tools to request approval, expand scope, sign arbitrary Nostr events, access files, or operate the system. Its Nano wallet adapter exposes only fixed wallet actions through a local authenticated loopback gateway. The host sees the send argument it created and may still require confirmation under its own policy.
 
 ## 6. Status and history
 

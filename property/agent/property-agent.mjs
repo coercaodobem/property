@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-import { open } from 'node:fs/promises';
+import { open, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AGENT_VERSION, loadNostr, normalizeRelay, profileName } from './core.mjs';
 import { runDaemon } from './daemon.mjs';
 import { callUnixJson } from './ipc.mjs';
 import { ensurePrivateDirectory, readJson, resolvePaths, writePrivateJson } from './store.mjs';
-import { createVault } from './vault.mjs';
+import { createEncryptedPayload, createVault, openEncryptedPayload, unlockVault } from './vault.mjs';
+import { createNanoAgentWallet, validateXnoWalletConfig } from './nano-wallet.mjs';
 
 const AGENT_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PROPERTY_ROOT = path.resolve(AGENT_ROOT, '..');
@@ -24,6 +25,7 @@ function usage() {
     '  property-agent block <npub|hex> [--profile default]',
     '  property-agent unblock <npub|hex> [--profile default]',
     '  property-agent backup <arquivo-destino-absoluto> [--profile default]',
+    '  property-agent xno configure|status|disable [--profile default]',
     '', 'Senha é lida somente de um TTY local e nunca aceita por argumento ou variável de ambiente.', '',
   ].join('\n');
 }
@@ -69,6 +71,15 @@ async function confirmHuman(message, expected = 'CONFIRMAR') {
   const { createInterface } = await import('node:readline/promises');
   const rl = createInterface({ input: process.stdin, output: process.stderr });
   try { const answer = await rl.question(''); if (answer !== expected) throw new Error('Operação cancelada.'); }
+  finally { rl.close(); }
+}
+
+async function promptLine(label) {
+  if (!process.stdin.isTTY) throw new Error('A configuração XNO só pode ser feita em um terminal interativo (TTY).');
+  process.stderr.write(label);
+  const { createInterface } = await import('node:readline/promises');
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  try { return (await rl.question('')).trim(); }
   finally { rl.close(); }
 }
 
@@ -120,6 +131,58 @@ async function changeBlockedAgent(args, profile, block) {
   process.stdout.write(block ? 'Mensagens deste agente serão ignoradas localmente.\n' : 'O bloqueio local deste agente foi removido.\n');
 }
 
+async function configureXno(paths) {
+  const vault = await readJson(paths.vaultPath);
+  let masterPassword = await promptHidden('Senha do cofre Property Agent (entrada oculta): ');
+  let walletPassword = '';
+  let rpcPassword = '';
+  let config;
+  try {
+    const { context, nostr } = await loadNostr(PROPERTY_ROOT);
+    const unlocked = unlockVault(vault, masterPassword, nostr, context);
+    unlocked.secretHex = '';
+    context.propertyAgentSecretHex = '';
+    const rpcUrl = await promptLine('URL do gateway HTTP autenticado local (ex.: http://127.0.0.1:7449/): ');
+    const rpcUsername = await promptLine('Usuário do gateway (não será exibido depois): ');
+    rpcPassword = await promptHidden('Senha do gateway (entrada oculta): ');
+    const walletId = await promptLine('ID de uma carteira Nano dedicada (hex): ');
+    const account = await promptLine('Conta Nano única dentro dessa carteira: ');
+    walletPassword = await promptHidden('Senha da carteira Nano dedicada (entrada oculta): ');
+    const network = await promptLine('Rede esperada (live ou dev): ');
+    const maxRawPerPayment = await promptLine('Limite máximo por pagamento, em raw: ');
+    const lifetimeBudgetRaw = await promptLine('Orçamento total desta carteira, em raw: ');
+    config = validateXnoWalletConfig({ rpc_url: rpcUrl, rpc_username: rpcUsername, rpc_password: rpcPassword,
+      wallet_password: walletPassword, wallet_id: walletId, account, network,
+      max_raw_per_payment: maxRawPerPayment, lifetime_budget_raw: lifetimeBudgetRaw });
+    const wallet = createNanoAgentWallet(config);
+    try { await wallet.assertReady(); }
+    finally { await wallet.lock(); }
+    await confirmHuman(`Ativar pagamentos automáticos sem confirmação por transação, limitados a até ${config.max_raw_per_payment} raw por pagamento e ${config.lifetime_budget_raw} raw no total? Use somente carteira dedicada, com saldo pequeno; Nano não oferece escrow nem estorno forçado.`, 'ARMAR');
+    const envelope = createEncryptedPayload(config, vault.pubkey, masterPassword, 'xno-wallet');
+    await writePrivateJson(paths.xnoVaultPath, envelope);
+    process.stdout.write(`Política XNO cifrada salva para ${config.account} na rede ${config.network}. Bloqueie e desbloqueie o agente para carregá-la. Nenhuma transação foi enviada.\n`);
+    context.propertyAgentSecretHex = '';
+  } finally {
+    masterPassword = ''; walletPassword = ''; rpcPassword = '';
+    if (config) config = null;
+  }
+}
+
+async function xnoCommand(args, paths) {
+  if (args.length !== 1 || !['configure', 'status', 'disable'].includes(args[0])) throw new Error('Uso: property-agent xno configure|status|disable.');
+  if (args[0] === 'configure') { await configureXno(paths); return; }
+  if (args[0] === 'status') {
+    const state = await callAgentDaemon(paths, 'xno.policy', {});
+    process.stdout.write(`Pagamentos XNO configurados: ${state.configured ? 'sim' : 'não'}\n`);
+    if (state.configured) process.stdout.write(`Rede: ${state.network}\nConta dedicada: ${state.account}\nLimite por pagamento (raw): ${state.max_raw_per_payment}\nOrçamento vitalício (raw): ${state.lifetime_budget_raw}\nComprometido (raw): ${state.budget_committed_raw}\nSaldo confirmado (raw): ${state.confirmed_balance_raw}\nEscrow: não\n`);
+    return;
+  }
+  await confirmHuman('Desativar a integração XNO deste perfil? O histórico local dos pagamentos será preservado.', 'DESATIVAR');
+  try { await callUnixJson(paths.socketPath, 'daemon.lock', {}); } catch (error) { if (error.message !== 'agent-daemon-unavailable') throw error; }
+  await rm(paths.xnoVaultPath, { force: true });
+  process.stdout.write('Política XNO removida; o histórico local foi preservado.\n');
+}
+
 async function run() {
   const [command = 'help', ...rawArgs] = process.argv.slice(2);
   if (command === 'help' || command === '--help' || command === '-h') { process.stdout.write(usage()); return; }
@@ -148,6 +211,7 @@ async function run() {
     process.stdout.write('Relay de inbox configurado (' + result.relay_count + '/3); lista pública NIP-17 anunciada em ' + result.announcement_acks + '/' + result.announcement_attempts + ' relay(s).\n'); return;
   }
   if (command === 'block' || command === 'unblock') { await changeBlockedAgent(args, profile, command === 'block'); return; }
+  if (command === 'xno') { await xnoCommand(args, paths); return; }
   if (command === 'backup') {
     if (args.length !== 1 || !path.isAbsolute(args[0])) throw new Error('Informe um caminho absoluto para o backup cifrado.');
     const backup = await readJson(paths.vaultPath);

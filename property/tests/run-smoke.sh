@@ -70,6 +70,8 @@ for test_file in \
   agent-messaging-g0-smoke.mjs \
   agent-service-smoke.mjs \
   agent-messaging-smoke.mjs \
+  agent-xno-trades-smoke.mjs \
+  agent-nano-wallet-smoke.mjs \
   agent-package-smoke.mjs \
   offline/agent-security-g5.mjs \
   offline/runner-contract-smoke.mjs

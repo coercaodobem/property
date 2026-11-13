@@ -6,12 +6,13 @@ const ACTIVITY_WINDOW_SECONDS = 60;
 const ACTIVITY_TTL_SECONDS = 60;
 
 export class AgentService {
-  constructor({ pubkey, loadConfig, saveConfig, transport, now = () => Math.floor(Date.now() / 1000) }) {
+  constructor({ pubkey, loadConfig, saveConfig, transport, xnoTrades = null, now = () => Math.floor(Date.now() / 1000) }) {
     if (!PUBKEY.test(pubkey) || typeof loadConfig !== 'function' || typeof saveConfig !== 'function' || !transport) throw new Error('Dependências da bridge local incompletas.');
     this.pubkey = pubkey;
     this.loadConfig = loadConfig;
     this.saveConfig = saveConfig;
     this.transport = transport;
+    this.xnoTrades = xnoTrades;
     this.now = now;
     this.mutationQueue = Promise.resolve();
     this.activeThinking = new Map();
@@ -31,6 +32,12 @@ export class AgentService {
       case 'read': return this.read(params);
       case 'send': return this.send(params);
       case 'activity': return this.activity(params);
+      case 'xno.policy': return this.xnoPolicy(params);
+      case 'xno.offer': return this.xnoCall('createOffer', params);
+      case 'xno.pay': return this.xnoCall('payOffer', params);
+      case 'xno.trade.status': return this.xnoCall('tradeStatus', params);
+      case 'xno.receipt.verify': return this.xnoCall('verifyReceipt', params);
+      case 'xno.dispute': return this.xnoCall('dispute', params);
       case 'relay.add': return this.addInboxRelay(params);
       case 'agent.block': return this.changeBlockedAgent(params, true);
       case 'agent.unblock': return this.changeBlockedAgent(params, false);
@@ -41,7 +48,19 @@ export class AgentService {
   async status(params) {
     if (!exactObject(params, [])) throw new Error('invalid-arguments');
     const config = validateConfig(await this.loadConfig());
-    return { unlocked: true, pubkey: this.pubkey, blocked_agents: config.blocked_pubkeys.length, relay_count: config.inbox_relays.length };
+    return { unlocked: true, pubkey: this.pubkey, blocked_agents: config.blocked_pubkeys.length, relay_count: config.inbox_relays.length,
+      xno_payments_configured: Boolean(this.xnoTrades) };
+  }
+
+  async xnoPolicy(params) {
+    if (!exactObject(params, [])) throw new Error('invalid-arguments');
+    if (!this.xnoTrades) return { configured: false, escrow: false, reason: 'xno-wallet-not-configured' };
+    return this.xnoTrades.policy();
+  }
+
+  async xnoCall(method, params) {
+    if (!this.xnoTrades) throw new Error('xno-wallet-not-configured');
+    return this.xnoTrades[method](params);
   }
 
   async list(params) {

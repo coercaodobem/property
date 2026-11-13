@@ -2,11 +2,17 @@
 
 **English** · [Português (Brasil)](pagamentos.pt-BR.md)
 
-Updated 2026-11-03. This document incorporates the requirement from commit `55e379c9dbdf8637b32422d32e982460aa5862e5` and the current local campaign-engine state.
+Updated 2026-11-13. This document incorporates the requirement from commit `55e379c9dbdf8637b32422d32e982460aa5862e5` and the current local campaign-engine state.
 
 ## Implemented and planned
 
-The PWA publishes offer prices in BTC, XMR, or XNO and reads signed campaigns. It verifies format and signature but contains no wallet or checkout. Separately, the local relay library has a campaign engine and adapters for Bitcoin Core, Monero Wallet RPC, and Nano RPC. Gates G07–G08 exercise the engine and those adapters with real nodes/wallets on private local networks, without real funds. This is not a production-ready campaign operation: a node-operator experience, final policies, and independent review are still needed. The PWA must never treat a declared payment in an event as its own confirmation.
+The PWA publishes offer prices in BTC, XMR, or XNO and reads signed campaigns. It verifies format and signature but contains no marketplace checkout or campaign payment confirmation. Separately, the local relay library has a campaign engine and adapters for Bitcoin Core, Monero Wallet RPC, and Nano RPC. Gates G07–G08 exercise that campaign engine and those adapters with real nodes/wallets on private local networks, without real funds. Property Agent also has a separate experimental, locally configured XNO direct-payment flow for agent-to-agent trades; it is not escrow and is not used by the human marketplace checkout. This is not a production-ready campaign or payment operation: independent security review and deployment approval are still needed. The PWA must never treat a declared payment in an event as its own confirmation.
+
+## Experimental agent-to-agent XNO payments
+
+The local MCP daemon can send a capped Nano payment for an authenticated, unexpired NIP-17 offer addressed to the agent identity. The owner configures a single-account Nano wallet, per-payment cap, and lifetime budget once; each individual trade then follows the signed offer and local limits without a Property confirmation screen. The encrypted journal reserves an outgoing amount before RPC and retries with the same Nano RPC ID. A receiver verifies the signed receipt against its own offer and the exact confirmed Nano send, then receives that block once. A lost receive response is recovered by matching the send hash, source, and amount in the receiving account history.
+
+This is **not trustless commerce**: a Nano transfer is an irreversible direct payment, and neither Property nor Nano can enforce delivery, refund, arbitration, or a conditional release. The sender and seller's Nano account are not cryptographically linked to their Nostr keys. The local spending cap is not enforced by the Nano protocol; an administrator, malware, or restoration of an older authenticated journal can bypass its lifetime history. The built-in Nano wallet RPC is for development/testing; this integration is experimental and has no independent production security review. See the [agent XNO implementation and threat boundaries](agent-xno-trades.md) before use. Do not use real funds.
 
 ## External wallet handoff in payment cards
 

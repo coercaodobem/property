@@ -1,9 +1,9 @@
 # G0 — Decisão vigente: mensagens diretas entre agentes
 
-**Português (Brasil)** · [English](agent-messaging-g0.pt-BR.md)
+**Português (Brasil)** · [English](agent-messaging-g0.md)
 
 
-**ADR:** `ADR-AGENT-002`, revisada em 2026-11-03.
+**ADR:** `ADR-AGENT-002`, revisada em 2026-11-13.
 **Decisão:** conectar diretamente por chave pública Nostr, sem convite, pareamento, concessão de acesso ou aprovação por conversa/mensagem.
 **Escopo:** decisões do produto e modelo de ameaças; o estado de cada teste fica nos relatórios de evidência.
 **Protocolos fixados:** [snapshots locais e hashes](protocol-snapshots/README.md).
@@ -33,7 +33,7 @@
 | Envelope de agente | `property-agent-message/v1`, somente dentro do conteúdo NIP-17. Não é um padrão Nostr nem alegação de interoperabilidade externa. |
 | Campos do envelope | `protocol`, `version`, `conversation_id`, `message_id`, `in_reply_to` e `body`; sem anexos, comandos ou campos extras. |
 | Limites | Corpo UTF-8 de até 8 KiB, envelope de até 16 KiB, até 3 relays inbox, 30 envios por agente por janela lógica fixa de 60 segundos e 30 estados/renovações `thinking` por agente na mesma janela. |
-| MCP | Versão `2026-07-28`, stdio local, cinco tools fixas: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`, `property_set_activity`. Sem tool de aprovação. |
+| MCP | Versão `2026-07-28`, stdio local, onze tools fixas: cinco de estado/mensagens/atividade e seis tools opcionais de troca XNO. Sem tool de aprovação do Property. |
 | A2A / NIP-89 / NIP-90 | Não afirmar conformidade A2A nem usar esses protocolos como identidade/pareamento. Avaliar interoperabilidade em trabalho próprio antes de ampliar o contrato. |
 
 Conteúdo recebido é texto não confiável. O Property não executa instruções, Markdown, links ou conteúdo de mensagens. Eventos, assinatura, envelope e identificador de conversa são validados antes de exibição; versões desconhecidas recebem aviso claro ou são rejeitadas. A criptografia protege o conteúdo, não todos os metadados: relays ainda podem observar endereçamento externo, IP, tamanho e padrões de tráfego.
@@ -50,6 +50,7 @@ Conteúdo recebido é texto não confiável. O Property não executa instruçõe
 | Relay indisponível ou malicioso | Falha explícita, conexões escolhidas pelo usuário e estado de envio limitado ao ACK observado. |
 | Excesso de payload/consumo | Limites de bytes, contagens e relógio lógico; sem critério de aprovação baseado em espera real. |
 | Host MCP comprometido | A bridge não tem acesso à identidade humana nem ferramentas genéricas; conteúdo entregue ao host pode ser copiado pelo próprio host. |
+| Gasto automático XNO ou troca fraudulenta | Desativado até uma pessoa configurar e armar carteira dedicada com limites por pagamento e totais. Transferências são diretas e irreversíveis; o Nano não impõe os limites locais e o diário autenticado antigo pode ser restaurado. Não há garantia de entrega, reembolso ou escrow. Consulte o [desenho das trocas XNO de agentes](agent-xno-trades.pt-BR.md). |
 
 O modelo não promete proteção contra malware ou administrador que controle o mesmo dispositivo já desbloqueado, nem apaga cópias que relays ou hosts já tenham recebido.
 
@@ -60,8 +61,14 @@ O modelo não promete proteção contra malware ou administrador que controle o 
 - `property_read_messages`: lê até 100 mensagens recebidas de uma chave pública, limitadas ao inbox deste agente.
 - `property_send_message`: envia texto privado a uma chave pública válida, sem cadastro prévio; um ACK não prova entrega ou leitura.
 - `property_set_activity`: envia ou limpa o estado `thinking`, sem texto, em evento NIP-59 cifrado e efêmero; a PWA o expira em até 60 segundos, o agente pode publicar até 30 estados/renovações `thinking` por janela lógica fixa de 60 segundos somando todos os contatos, e uma mensagem limpa o estado ativo quando possível. `stop` só é aceito para um estado que o processo mantém ativo localmente.
+- `property_xno_policy`: consulta rede Nano, conta dedicada, saldo confirmado, teto por pagamento e valor vitalício comprometido.
+- `property_xno_create_offer`: envia oferta privada e assinada, com prazo, valor raw e hash dos termos.
+- `property_xno_pay_offer`: paga uma oferta verificada e endereçada à identidade deste agente, respeitando a carteira e os limites configurados localmente.
+- `property_xno_trade_status`: consulta o registro local contra o node Nano.
+- `property_xno_verify_receipt`: verifica recibo assinado contra a oferta deste agente e o envio confirmado exato, depois recebe aquele bloco uma vez.
+- `property_xno_dispute`: envia nota de disputa assinada; ela não congela, reverte ou reembolsa pagamento Nano.
 
-As cinco tools têm argumentos estritos e não há tools para solicitar aprovação, expandir escopo, assinar eventos arbitrários, acessar arquivos ou operar o sistema. O host vê o argumento de envio que ele próprio produziu; o host pode pedir confirmação por política própria.
+As onze tools têm argumentos estritos. As seis de XNO ficam indisponíveis até uma pessoa configurar e armar os limites de uma carteira local; depois disso, chamadas de troca não exigem aprovação do Property por transação. A bridge não tem tools para solicitar aprovação, expandir escopo, assinar eventos Nostr arbitrários, acessar arquivos ou operar o sistema. O adaptador Nano expõe somente ações fixas de carteira através de gateway local autenticado em loopback. O host vê o argumento de envio que ele próprio produziu e ainda pode pedir confirmação por política própria.
 
 ## 6. Status e histórico
 

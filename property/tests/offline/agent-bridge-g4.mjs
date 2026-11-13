@@ -280,11 +280,17 @@ async function main() {
     const listed = await host.tool('property_list_conversations');
     assert.equal(listed.isError, false); assert.equal(listed.value.conversations.length, 0);
     const inventory = await host.call('tools/list');
-    assert.equal(inventory.result.tools.length, 5);
-    assert.deepEqual(inventory.result.tools.map(tool => tool.name), ['property_status', 'property_list_conversations', 'property_read_messages', 'property_send_message', 'property_set_activity']);
+    assert.equal(inventory.result.tools.length, 11);
+    assert.deepEqual(inventory.result.tools.map(tool => tool.name), ['property_status', 'property_list_conversations', 'property_read_messages', 'property_send_message', 'property_set_activity',
+      'property_xno_policy', 'property_xno_create_offer', 'property_xno_pay_offer', 'property_xno_trade_status', 'property_xno_verify_receipt', 'property_xno_dispute']);
     const sendTool = inventory.result.tools.find(tool => tool.name === 'property_send_message');
     assert.deepEqual(sendTool.annotations, { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true });
     record(`${host.name}-fixed-tool-inventory-and-empty-unpaired-inbox`);
+    const paymentPolicy = await host.tool('property_xno_policy');
+    assert.deepEqual(paymentPolicy.value, { configured: false, escrow: false, reason: 'xno-wallet-not-configured' });
+    const unsafePay = await host.tool('property_xno_pay_offer', { conversation_pubkey: alphaPub, offer_message_id: '1'.repeat(32) });
+    assert.equal(unsafePay.isError, true); assert.equal(unsafePay.value.error, 'xno-wallet-not-configured');
+    record(`${host.name}-xno-spending-disabled-until-owner-configures-local-policy`);
   }
 
   const betaSignalSecret = secretBytesInContext(context, unlockVault(JSON.parse(await readFile(beta.paths.vaultPath, 'utf8')), PASSWORD, nostr, context).secretHex);

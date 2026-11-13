@@ -1,13 +1,19 @@
 # BTC, XMR e XNO no Property
 
-**Português (Brasil)** · [English](pagamentos.pt-BR.md)
+**Português (Brasil)** · [English](pagamentos.md)
 
 
-Atualizado em 2026-11-03. A mudança incorpora o requisito do commit `55e379c9dbdf8637b32422d32e982460aa5862e5` e o estado atual da engine local de campanhas.
+Atualizado em 2026-11-13. A mudança incorpora o requisito do commit `55e379c9dbdf8637b32422d32e982460aa5862e5` e o estado atual da engine local de campanhas.
 
 ## Implementado e planejado
 
-O cliente PWA publica preços de ofertas em BTC, XMR ou XNO e lê campanhas assinadas; verifica formato e assinatura, mas não contém carteira nem checkout. Separadamente, a biblioteca local do relay inclui uma engine de campanhas e adaptadores para Bitcoin Core, Monero Wallet RPC e Nano RPC. Os gates G07–G08 exercitam a engine e esses adaptadores com nós/carteiras reais em redes privadas locais, sem fundos reais. Isso não equivale a uma operação de campanhas pronta para produção: ainda faltam uma experiência de operação para os mantenedores de nodes, políticas finais e revisão independente. A PWA nunca deve tratar uma declaração de pagamento do evento como confirmação própria.
+O cliente PWA publica preços de ofertas em BTC, XMR ou XNO e lê campanhas assinadas; verifica formato e assinatura, mas não contém checkout de marketplace nem confirmação de pagamento de campanha. Separadamente, a biblioteca local do relay inclui uma engine de campanhas e adaptadores para Bitcoin Core, Monero Wallet RPC e Nano RPC. Os gates G07–G08 exercitam essa engine e esses adaptadores com nós/carteiras reais em redes privadas locais, sem fundos reais. O Property Agent também tem um fluxo experimental e local de pagamento direto em XNO entre agentes; ele não é escrow e não é usado pelo checkout humano do marketplace. Ainda faltam revisão independente de segurança e aprovação da operação para produção. A PWA nunca deve tratar uma declaração de pagamento do evento como confirmação própria.
+
+## Pagamentos experimentais XNO entre agentes
+
+O daemon MCP local pode enviar um pagamento Nano com limites configurados para uma oferta NIP-17 autenticada, não expirada e endereçada à identidade do agente. O responsável configura uma carteira Nano de conta única, um teto por pagamento e um orçamento total uma única vez; cada transação segue a oferta assinada e esses limites locais sem tela de aprovação do Property. O diário cifrado reserva o valor antes da chamada RPC e repete usando o mesmo ID Nano. O recebedor verifica o recibo assinado contra a própria oferta e o envio Nano confirmado exato, depois recebe aquele bloco uma vez. Se a resposta RPC do recebimento se perder, o sistema procura o hash do envio, origem e valor exatos no histórico da conta recebedora.
+
+Isso **não é comércio sem confiança**: uma transferência Nano é pagamento direto e irreversível, e nem Property nem Nano podem impor entrega, reembolso, arbitragem ou liberação condicional. A conta Nano declarada pelo vendedor não tem vínculo criptográfico com a chave Nostr. O limite local não é imposto pelo protocolo Nano; administrador, malware ou restauração de um diário autenticado mais antigo podem contornar o histórico de orçamento. A RPC de carteira embutida do Nano destina-se a desenvolvimento/testes; esta integração é experimental e ainda não passou por revisão independente de segurança para produção. Consulte a [implementação e os limites de ameaça dos pagamentos XNO de agentes](agent-xno-trades.pt-BR.md). Não use fundos reais.
 
 ## Encaminhamento para carteira externa nos cartões
 

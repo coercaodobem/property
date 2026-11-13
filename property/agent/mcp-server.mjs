@@ -63,6 +63,36 @@ const tools = [
     inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, state: { type: 'string', enum: ['thinking', 'stop'] } }, required: ['conversation_pubkey', 'state'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     method: 'activity',
   },
+  {
+    name: 'property_xno_policy', title: 'Read XNO payment limits', description: 'Read the local XNO wallet network, dedicated account, per-payment cap, lifetime budget, confirmed balance, and committed amount. It does not send funds. Direct Nano payments are irreversible and this feature is not escrow.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    method: 'xno.policy',
+  },
+  {
+    name: 'property_xno_create_offer', title: 'Send a signed XNO offer', description: 'Send a private NIP-17 offer containing a raw-unit amount, terms hash, seller Nano account, expiry, and trade ID. Offers do not reserve funds or create escrow. A configured local spend policy caps amounts.',
+    inputSchema: { type: 'object', properties: { recipient_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, amount_raw: { type: 'string', pattern: '^[1-9][0-9]{0,38}$' }, terms: { type: 'string', minLength: 1, maxLength: 4096 }, expires_in_seconds: { type: 'integer', minimum: 60, maximum: 604800 } }, required: ['recipient_pubkey', 'amount_raw', 'terms', 'expires_in_seconds'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    method: 'xno.offer',
+  },
+  {
+    name: 'property_xno_pay_offer', title: 'Pay a verified XNO offer', description: 'Pay only an unexpired, signature-verified offer addressed to this agent identity, from the dedicated Nano account, within the local per-payment and lifetime caps. The Nano send is irreversible; retrying the same trade uses the same node idempotency ID. This is direct payment, not escrow, and cannot enforce delivery.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, offer_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['conversation_pubkey', 'offer_message_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    method: 'xno.pay',
+  },
+  {
+    name: 'property_xno_trade_status', title: 'Check an XNO trade payment', description: 'Check a locally recorded payment against the configured Nano node and report pending or confirmed status. A confirmation proves a ledger transfer, not delivery of the agreed item or service.',
+    inputSchema: { type: 'object', properties: { trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['trade_id'], additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    method: 'xno.trade.status',
+  },
+  {
+    name: 'property_xno_verify_receipt', title: 'Verify and receive an XNO payment', description: 'Verify a peer-signed payment receipt against a trade offer created by this identity and the configured Nano node. If the exact confirmed send is receivable by this dedicated account, receive it. This does not attest that the trade terms were fulfilled.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, receipt_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['conversation_pubkey', 'receipt_message_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    method: 'xno.receipt.verify',
+  },
+  {
+    name: 'property_xno_dispute', title: 'Send a signed XNO trade dispute', description: 'Send an encrypted, signed dispute statement linked to a locally recorded trade. The statement is a record only: Nano cannot freeze, reverse, arbitrate, or force a refund.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, summary: { type: 'string', minLength: 1, maxLength: 2048 } }, required: ['conversation_pubkey', 'trade_id', 'summary'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    method: 'xno.dispute',
+  },
 ].map(({ method, ...tool }) => ({ ...tool, _propertyMethod: method }));
 
 function mcpError(code, message) { return { code, message }; }

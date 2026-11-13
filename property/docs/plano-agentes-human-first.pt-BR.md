@@ -1,9 +1,9 @@
 # Plano vigente — mensagens entre agentes com UX humana
 
-**Português (Brasil)** · [English](plano-agentes-human-first.pt-BR.md)
+**Português (Brasil)** · [English](plano-agentes-human-first.md)
 
 
-**Atualizado:** 2026-11-03.
+**Atualizado:** 2026-11-13.
 **Branch-alvo:** `modelo-mvp`.
 **Escopo:** comunicação direta entre agentes via Nostr/MCP, com a PWA humana simples, legível e segura.
 
@@ -24,7 +24,7 @@ A escolha do protocolo não entrega ao agente a chave humana, as outras conversa
 
 ### Fluxo agente
 
-O host MCP usa uma identidade Nostr independente, configura seus inbox relays e chama cinco tools locais. `property_send_message` endereça qualquer chave pública válida sem cadastro prévio. `property_read_messages` consulta somente o inbox da identidade do agente. `property_set_activity` envia um estado `thinking`/`stop`, sem texto, à conversa direta no Property por um evento efêmero NIP-59 criptografado. O daemon usa socket Unix local; MCP usa stdio.
+O host MCP usa uma identidade Nostr independente, configura seus inbox relays e chama onze tools locais. Cinco cobrem estado, conversas, mensagens e atividade. Seis tools opcionais oferecem pagamentos XNO diretos e limitados depois que uma pessoa configura e arma uma carteira dedicada uma vez; as tools não pedem aprovação do Property por pagamento. O daemon local usa socket Unix; MCP usa stdio. Pagamentos diretos são irreversíveis e não são escrow.
 
 ## 2. Arquitetura e limites
 
@@ -33,7 +33,7 @@ O host MCP usa uma identidade Nostr independente, configura seus inbox relays e 
 - **Envelope:** `property-agent-message/v1` com campos estritos para versão, conversa, mensagem, correlação e corpo de texto. Corpo até 8 KiB; envelope até 16 KiB.
 - **Cota:** até 30 envios por agente por janela lógica fixa de 60 segundos. Ensaios avançam relógio lógico e contagem; não esperam a passagem de tempo real.
 - **Bloqueio:** local ao aparelho/daemon. Não é aprovação nem cadastro obrigatório; bloqueia leitura/envio futuros e pode ser revertido. Não remove cópias anteriores de relays ou hosts.
-- **MCP:** cinco tools fixas: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`, `property_set_activity`. Atividade aceita somente `thinking` ou `stop`, sem estado textual livre. Nenhuma tool de aprovação, expansão de permissão, shell, filesystem, browser ou assinatura arbitrária.
+- **MCP:** onze tools fixas: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`, `property_set_activity`, `property_xno_policy`, `property_xno_create_offer`, `property_xno_pay_offer`, `property_xno_trade_status`, `property_xno_verify_receipt` e `property_xno_dispute`. Atividade aceita somente `thinking` ou `stop`, sem estado textual livre. Nenhuma tool de aprovação, expansão de permissão, shell, filesystem, browser ou assinatura Nostr arbitrária. O adaptador fixo Nano pode fazer transferências diretas somente após configuração e ativação local únicas.
 - **Privacidade:** chave humana nunca vai à bridge. Relays podem observar metadados do protocolo. O texto que um host de IA leu pode ser mantido pelo próprio host.
 - **Plataformas:** neste plano, resultados Linux/Ubuntu não provam Windows, macOS, Android ou iOS. Sistemas não executados ficam `PENDING`.
 
@@ -57,9 +57,9 @@ Gates devem ser executados em ordem, com evidência completa, contagens fixas e 
 
 ### G1 — UX humana antes de piloto
 
-**Participantes:** cinco pessoas, ao menos três sem experiência de desenvolvimento; não usar agentes sintéticos como substitutos. Cada pessoa realiza as mesmas tarefas: abrir conversa humana, reconhecer conversa de agente e seu `npub`, responder a uma primeira mensagem de agente, bloquear e desbloquear, localizar o limite de privacidade e continuar usando conversas humanas.
+**Participantes:** cinco pessoas, ao menos três sem experiência de desenvolvimento; não usar agentes sintéticos como substitutos. Cada pessoa realiza as mesmas tarefas: abrir conversa humana, reconhecer conversa de agente e seu `npub`, responder a uma primeira mensagem de agente, bloquear e desbloquear, localizar o limite de privacidade e continuar usando conversas humanas. Para o recurso opcional XNO, revisar também a configuração única `ARMAR` e explicar o teto, a transferência irreversível, a ausência de escrow e a diferença entre pagamento no ledger e entrega do produto. Não usar fundos reais.
 
-**Aceite:** pelo menos quatro de cinco concluem o fluxo direto e o bloqueio sem ajuda; ninguém interpreta a seleção do protocolo como acesso à conta; alertas críticos de identidade/privacidade são compreendidos. Registrar falhas e corrigir/repetir as tarefas afetadas. Leitor de tela real e revisão independente são registrados separadamente.
+**Aceite:** pelo menos quatro de cinco concluem o fluxo direto e o bloqueio sem ajuda; ninguém interpreta a seleção do protocolo como acesso à conta; alertas críticos de identidade/privacidade são compreendidos. Quem vir a configuração XNO deve entender que `ARMAR` permite pagamentos automáticos dentro dos limites locais e que não há entrega ou reembolso garantidos. Registrar falhas e corrigir/repetir as tarefas afetadas. Leitor de tela real e revisão independente são registrados separadamente.
 
 **Estado:** sessões com pessoas reais permanecem `PENDING` até acontecerem. Não simular respostas nem declarar UX aprovada com base em automação.
 
@@ -81,7 +81,7 @@ Gates devem ser executados em ordem, com evidência completa, contagens fixas e 
 
 ### G4 — MCP local
 
-**Ensaio offline:** dois processos agentes, dois clientes MCP fixture, um Geode loopback. Inventário fechado com cinco tools.
+**Ensaio offline:** dois processos agentes, dois clientes MCP fixture, um Geode loopback. Inventário fechado com onze tools; as cinco de estado/mensagens/atividade e as seis opcionais XNO devem ser inventariadas separadamente.
 
 **Contagens:** por agente, 25 leituras e 25 envios; 12 eventos thinking/stop (cinco pares de início/fim mais um estado thinking encerrado pelo lock do daemon); 10 leituras diretas sem cadastro; ao menos um envio a uma identidade válida ainda não cadastrada; duas chamadas simultâneas; 10 chamadas de tools inexistentes; 10 ciclos de reinício stdio; 10 erros de relay indisponível; bloquear/desbloquear e verificar leitura/envio.
 
@@ -107,11 +107,27 @@ Validar integrações com ao menos duas implementações independentes de agente
 
 **Estado:** resultados ausentes permanecem `PENDING`; não impedem que os gates Ubuntu aplicáveis avancem, mas impedem qualquer afirmação de suporte multiplataforma ou interoperabilidade não medida.
 
+### G8 — Máquina de estados de ofertas e trocas XNO entre agentes
+
+**Ensaio offline:** identidades Nostr sintéticas fixas, transporte NIP-17 em memória, wallet Nano sintética, seed e relógio lógico fixos. Sem fundos reais, rede Nano ao vivo ou relay público.
+
+**Contagens:** executar os 28 casos de `node property/tests/agent-xno-trades-smoke.mjs`, incluindo ofertas/recibos malformados, forjados e expirados, limites de valor, orçamento esgotado/diário adulterado, resposta de envio perdida e repetição idempotente, gate de confirmação, resposta de recebimento perdida e repetição, recibo duplicado, disputa sem congelar fundos, diário cifrado em repouso e verificação fechada contra adulteração.
+
+**Aceite:** todos os casos declarados passam; no máximo um envio e um recebimento sintéticos são registrados; pagamento não confirmado nunca é recebido; o relatório não contém segredo; escrow permanece falso. Isso valida apenas o fluxo modelado, não a rede Nano ou entrega justa.
+
+### G9 — Adaptador RPC da carteira Nano
+
+**Ensaio offline:** servidor RPC sintético autenticado vinculado somente a `127.0.0.1`; fixtures fixos de rede dev/conta. Sem rede externa, carteira real, seed ou fundos.
+
+**Contagens:** executar os 14 casos de `node property/tests/agent-nano-wallet-smoke.mjs`: rede/conta/carteira, teto do valor raw, idempotência por mesmo ID, destino/valor errado, confirmação pendente, validação exata de recebimento, resposta perdida recuperada pelo histórico da conta sem segunda chamada `receive`, rede errada, recusa de carteira multi-conta, recusa de RPC remoto/localhost e gateway sem autenticação.
+
+**Aceite:** os 14 casos passam; fixture registra no máximo um envio e uma ação sintética `receive`; a recuperação encontra o bloco exato de recebimento confirmado; nenhum tráfego externo ou fundo real. Este gate não aprova RPC da carteira Nano embutida para produção.
+
 ## 5. Entregáveis e registros
 
 Cada execução concluída deve adicionar um relatório datado com commit de origem, comando, seed, versões/hashes do runtime, variáveis e contagens, PASS/FAIL por caso, tráfego externo observado, limites e pendências. Imagens de tela devem usar apenas identidades descartáveis. Relatórios antigos do fluxo com convite ficam preservados como história, claramente separados da evidência direta atual.
 
 - Implementação MCP e instalação: [`../agent/README.md`](../agent/README.md).
 - Testes determinísticos e harnesses: [`../tests/`](../tests/).
-- Relatórios correntes G3/G4/G5/G6: [`evidence/agent-messaging/`](evidence/agent-messaging/).
-- Testes com Windows/macOS/Android/iOS, pessoas reais, leitor de tela, hosts MCP comerciais e revisão independente: manter `PENDING` até executar.
+- Relatórios correntes G3/G4/G5/G6/G8/G9: [`evidence/agent-messaging/`](evidence/agent-messaging/).
+- Testes com Windows/macOS/Android/iOS, pessoas reais, leitor de tela, hosts MCP comerciais, integração de carteira para produção e revisão independente: manter `PENDING` até executar.

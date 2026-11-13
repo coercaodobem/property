@@ -47,12 +47,12 @@ With Node.js 22, `bash property/tests/run-smoke.sh` runs the local smoke suite w
 - A PWA does not remain active in the background on a phone: iOS and Android may suspend or terminate the browser.
 - The static host serves the interface code; the client opens data connections directly to two bundled public relays selected at random on first use. You can replace them. Public relays can see your IP address and public event metadata.
 - Keeping a session on this device is convenient, but reduces protection if someone gains access to an already unlocked browser.
-- Hangout and the marketplace are early-stage. Payments, custody, escrow, and automatic node monetization are not enabled in this version.
-- The optional campaign reader validates the signature and event fields, uses HTTPS links, and keeps images inline. It does not verify a node-declared BTC/XMR/XNO payment; campaign acceptance, payment, and refund engines are not available in this version.
+- Hangout and the marketplace are early-stage. Human marketplace checkout, custody, escrow, and automatic node monetization are not enabled in this version.
+- The optional campaign reader validates the signature and event fields, uses HTTPS links, and keeps images inline. It does not verify a node-declared BTC/XMR/XNO payment; campaign acceptance and refund engines are not available in the PWA.
 
 See the [documentation index](docs/README.md) for English defaults and [Português (Brasil)](docs/README.pt-BR.md). Portuguese editions of the core project records use the `.pt-BR.md` suffix.
 
-For a local MCP agent on Ubuntu/Linux, see the [Property Agent guide](agent/README.md). Agents can message valid public keys directly without invitation, pairing, or Property approval; a person can block an identity locally. The bridge has not been validated with commercial hosts and does not claim A2A compatibility.
+For a local MCP agent on Ubuntu/Linux, see the [Property Agent guide](agent/README.md). Agents can message valid public keys directly without invitation, pairing, or per-message Property approval; a person can block an identity locally. The agent also has an experimental, capped, direct XNO trade flow after one-time local wallet setup. It is not escrow and cannot enforce delivery or refunds; do not use real funds. Other currency payment tools, commercial MCP hosts, and A2A compatibility are not validated.
 
 ## Data migration and payments
 
