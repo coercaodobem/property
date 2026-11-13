@@ -56,15 +56,17 @@ function validateReceipt(value, payer, payee) {
 }
 
 export function emptyXnoJournal() {
-  return { schema: 'property-agent-xno-journal/v1', version: 1, budget_committed_raw: '0', offers: {}, payments: {}, receipts: {}, disputes: {} };
+  return { schema: 'property-agent-xno-journal/v1', version: 1, budget_committed_raw: '0', offers: {}, payments: {}, receipts: {}, disputes: {}, escrows: {} };
 }
 
 export function validateXnoJournal(value) {
-  const keys = ['schema', 'version', 'budget_committed_raw', 'offers', 'payments', 'receipts', 'disputes'];
+  const legacyKeys = ['schema', 'version', 'budget_committed_raw', 'offers', 'payments', 'receipts', 'disputes'];
+  const keys = [...legacyKeys, 'escrows'];
+  if (exactObject(value, legacyKeys)) value = { ...value, escrows: {} };
   if (!exactObject(value, keys) || value.schema !== 'property-agent-xno-journal/v1' || value.version !== 1 ||
       typeof value.budget_committed_raw !== 'string' || !/^(?:0|[1-9]\d{0,38})$/.test(value.budget_committed_raw) ||
       BigInt(value.budget_committed_raw) > MAX_RAW) throw new Error('xno-journal-invalid');
-  for (const name of ['offers', 'payments', 'receipts', 'disputes']) {
+  for (const name of ['offers', 'payments', 'receipts', 'disputes', 'escrows']) {
     if (!value[name] || typeof value[name] !== 'object' || Array.isArray(value[name]) || Object.keys(value[name]).length > 10_000) throw new Error('xno-journal-invalid');
   }
   for (const [id, record] of Object.entries(value.offers)) {
@@ -88,20 +90,44 @@ export function validateXnoJournal(value) {
   for (const [id, record] of Object.entries(value.disputes)) {
     if (!TRADE_ID.test(id) || !record || record.trade_id !== id || !/^[0-9a-f]{32}$/.test(record.message_id || '') || !HASH.test(record.summary_sha256 || '')) throw new Error('xno-journal-invalid');
   }
-  const committed = Object.values(value.payments).reduce((sum, item) => sum + BigInt(item.amount_raw), 0n);
+  for (const [id, record] of Object.entries(value.escrows)) {
+    if (!TRADE_ID.test(id) || !record || record.trade_id !== id || !['buyer', 'seller', 'custodian'].includes(record.role) ||
+        !PUBKEY.test(record.custodian_pubkey || '') || !PUBKEY.test(record.arbiter_pubkey || '') || !PUBKEY.test(record.buyer_pubkey || '') || !PUBKEY.test(record.seller_pubkey || '') ||
+        !ACCOUNT.test(record.buyer_account || '') || !ACCOUNT.test(record.seller_account || '') || !(record.escrow_account === '' || ACCOUNT.test(record.escrow_account)) ||
+        typeof record.amount_raw !== 'string' || !/^[1-9]\d{0,38}$/.test(record.amount_raw) || !HASH.test(record.terms_sha256 || '') ||
+        !['requested', 'awaiting_seller', 'awaiting_deposit', 'deposit_prepared', 'deposit_submitted', 'funded', 'disputed', 'settling', 'settled', 'declined'].includes(record.status) ||
+        !(record.request_message_id === '' || /^[0-9a-f]{32}$/.test(record.request_message_id)) ||
+        !(record.contract_message_id === '' || /^[0-9a-f]{32}$/.test(record.contract_message_id)) ||
+        !(record.seller_contract_message_id === '' || /^[0-9a-f]{32}$/.test(record.seller_contract_message_id)) ||
+        !(record.arbiter_contract_message_id === '' || /^[0-9a-f]{32}$/.test(record.arbiter_contract_message_id)) ||
+        !(record.seller_acceptance_message_id === '' || /^[0-9a-f]{32}$/.test(record.seller_acceptance_message_id)) ||
+        !(record.deposit_txid === '' || TXID.test(record.deposit_txid)) || !(record.receive_txid === '' || TXID.test(record.receive_txid)) ||
+        !(record.buyer_approval_message_id === '' || /^[0-9a-f]{32}$/.test(record.buyer_approval_message_id)) ||
+        !(record.dispute_message_id === '' || /^[0-9a-f]{32}$/.test(record.dispute_message_id)) ||
+        !(record.dispute_pubkey === '' || PUBKEY.test(record.dispute_pubkey)) ||
+        !['', 'release', 'refund'].includes(record.resolution) || !(record.payout_txid === '' || TXID.test(record.payout_txid))) throw new Error('xno-journal-invalid');
+  }
+  const committed = recalculateXnoJournalBudget(value);
   if (committed.toString() !== value.budget_committed_raw) throw new Error('xno-journal-budget-mismatch');
   return structuredClone(value);
 }
 
-export function createXnoTradeService({ pubkey, blockedPubkeys = () => [], relays = () => [], wallet, transport, loadJournal, saveJournal,
+export function recalculateXnoJournalBudget(value) {
+  const payments = Object.values(value.payments || {}).reduce((sum, item) => sum + BigInt(item.amount_raw), 0n);
+  const deposits = Object.values(value.escrows || {}).reduce((sum, item) => sum +
+    (item.role === 'buyer' && ['deposit_prepared', 'deposit_submitted', 'funded', 'disputed', 'settling', 'settled'].includes(item.status) ? BigInt(item.amount_raw) : 0n), 0n);
+  return payments + deposits;
+}
+
+export function createXnoTradeService({ pubkey, blockedPubkeys = () => [], relays = () => [], wallet, transport, loadJournal, saveJournal, serializeTask,
   now = () => Math.floor(Date.now() / 1000), randomId = () => randomBytes(16).toString('hex') }) {
   if (!PUBKEY.test(pubkey) || !wallet || !transport || typeof loadJournal !== 'function' || typeof saveJournal !== 'function') throw new Error('xno-service-invalid');
   let queue = Promise.resolve();
-  const serialize = task => {
+  const serialize = serializeTask || (task => {
     const next = queue.then(task, task);
     queue = next.catch(() => {});
     return next;
-  };
+  });
   const configRelays = () => {
     const list = relays();
     if (!Array.isArray(list) || !list.length) throw new Error('relay-not-configured');

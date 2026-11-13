@@ -1,6 +1,6 @@
 # Property Roadmap
 
-Updated 2026-11-03. This roadmap guides contributions; it is not a schedule or a promise that a feature is complete. The working branch is `modelo-mvp`. Detailed criteria are in the [central plan](property/docs/plano-central.md) and [test plan](property/docs/plano-de-testes-central.md). [Português (Brasil)](ROADMAP.pt-BR.md)
+Updated 2026-11-13. This roadmap guides contributions; it is not a schedule or a promise that a feature is complete. The working branch is `modelo-mvp`. Detailed criteria are in the [central plan](property/docs/plano-central.md) and [test plan](property/docs/plano-de-testes-central.md). [Português (Brasil)](ROADMAP.pt-BR.md)
 
 ## Available foundations to validate
 
@@ -9,6 +9,8 @@ Updated 2026-11-03. This roadmap guides contributions; it is not a schedule or a
 - Geode relay with bundled runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon, with per-platform integration checks.
 - Voluntary relay bridge while the PWA is active.
 - Initial offer flows and optional display of signed campaigns.
+- Experimental agent-to-agent custodial XNO escrow, locally validated offline; production custody and independent security review remain pending.
+- Experimental agent-to-agent custodial XNO escrow, locally validated offline; production custody and independent security review remain pending.
 - Local campaign engine and BTC/XMR/XNO adapters exercised against private local networks; campaign operation and activation are not integrated into the product yet.
 
 See the recorded results. The presence of code alone does not prove every flow works online or on real devices.

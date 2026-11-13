@@ -64,7 +64,7 @@ const tools = [
     method: 'activity',
   },
   {
-    name: 'property_xno_policy', title: 'Read XNO payment limits', description: 'Read the local XNO wallet network, dedicated account, per-payment cap, lifetime budget, confirmed balance, and committed amount. It does not send funds. Direct Nano payments are irreversible and this feature is not escrow.',
+    name: 'property_xno_policy', title: 'Read XNO wallet policy', description: 'Read configured local direct-payment limits and whether a separate custodial escrow wallet is armed. It does not send funds. Direct payments remain irreversible; custodial escrow is a separate workflow that trusts its operator and arbiter.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     method: 'xno.policy',
   },
@@ -89,9 +89,54 @@ const tools = [
     method: 'xno.receipt.verify',
   },
   {
-    name: 'property_xno_dispute', title: 'Send a signed XNO trade dispute', description: 'Send an encrypted, signed dispute statement linked to a locally recorded trade. The statement is a record only: Nano cannot freeze, reverse, arbitrate, or force a refund.',
+    name: 'property_xno_dispute', title: 'Record a direct-payment XNO dispute', description: 'Send an encrypted, signed dispute statement linked to a locally recorded direct-payment trade. It is a record only: it does not freeze or return funds. Use the separate escrow dispute tool for custodial escrow trades.',
     inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, summary: { type: 'string', minLength: 1, maxLength: 2048 } }, required: ['conversation_pubkey', 'trade_id', 'summary'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     method: 'xno.dispute',
+  },
+  {
+    name: 'property_xno_escrow_offer', title: 'Request a custodial XNO escrow', description: 'As buyer, send the chosen escrow operator a NIP-17 contract request binding the buyer and seller identities, Nano accounts, amount, terms hash, expiry, and a separate arbiter. Requires a configured direct XNO wallet. The operator will hold deposited funds and remains a trusted custodian.',
+    inputSchema: { type: 'object', properties: { escrow_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, arbiter_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, seller_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, seller_account: { type: 'string', pattern: '^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$' }, amount_raw: { type: 'string', pattern: '^[1-9][0-9]{0,38}$' }, terms: { type: 'string', minLength: 1, maxLength: 4096 }, expires_in_seconds: { type: 'integer', minimum: 60, maximum: 604800 } }, required: ['escrow_pubkey', 'arbiter_pubkey', 'seller_pubkey', 'seller_account', 'amount_raw', 'terms', 'expires_in_seconds'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    method: 'xno.escrow.offer',
+  },
+  {
+    name: 'property_xno_escrow_open', title: 'Open a requested escrow', description: 'As the locally configured escrow operator, validate a buyer request addressed to this Nostr identity, reserve its capped liability, and send the same signed contract to buyer and seller. The escrow wallet must be dedicated and funded only for custody.',
+    inputSchema: { type: 'object', properties: { buyer_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, request_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['buyer_pubkey', 'request_message_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    method: 'xno.escrow.open',
+  },
+  {
+    name: 'property_xno_escrow_accept', title: 'Accept or decline an escrow contract', description: 'As seller, verify the escrow operator contract and your configured Nano account, then sign acceptance or decline. Acceptance does not release funds; the buyer must deposit to the operator account.',
+    inputSchema: { type: 'object', properties: { escrow_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, contract_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, decision: { type: 'string', enum: ['accept', 'decline'] } }, required: ['escrow_pubkey', 'contract_message_id', 'decision'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    method: 'xno.escrow.accept',
+  },
+  {
+    name: 'property_xno_escrow_fund', title: 'Fund an accepted escrow', description: 'As buyer, pay the exact signed contract amount to the escrow operator with a repeat-safe Nano RPC ID and send the transaction hash to the operator. This is an on-chain transfer into the operator’s custody account.',
+    inputSchema: { type: 'object', properties: { escrow_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, contract_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['escrow_pubkey', 'contract_message_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    method: 'xno.escrow.fund',
+  },
+  {
+    name: 'property_xno_escrow_approve', title: 'Approve escrow release to seller', description: 'As buyer, approve seller payment only after the operator’s signed status says the exact deposit is confirmed and held. The operator settles on its next sync.',
+    inputSchema: { type: 'object', properties: { escrow_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['escrow_pubkey', 'trade_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+    method: 'xno.escrow.approve',
+  },
+  {
+    name: 'property_xno_escrow_dispute', title: 'File an escrow dispute', description: 'As buyer or seller, send the chosen operator an authenticated dispute statement for a funded trade. Funds remain in custody until the operator records a ruling.',
+    inputSchema: { type: 'object', properties: { escrow_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, summary: { type: 'string', minLength: 1, maxLength: 2048 } }, required: ['escrow_pubkey', 'trade_id', 'summary'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    method: 'xno.escrow.dispute',
+  },
+  {
+    name: 'property_xno_escrow_sync', title: 'Reconcile and settle an escrow', description: 'As the operator, reconcile seller acceptance, the buyer’s exact confirmed deposit, disputes and buyer release approval against signed Nostr messages and the Nano ledger. A clean buyer approval releases to the agreed seller account; a dispute pauses application-level settlement until the separate arbiter signs a ruling.',
+    inputSchema: { type: 'object', properties: { trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['trade_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    method: 'xno.escrow.sync',
+  },
+  {
+    name: 'property_xno_escrow_resolve', title: 'Submit an escrow arbitration ruling', description: 'As the separate arbiter named in the signed contract, submit one ruling to the custodian after verifying its signed disputed status. The custodian sends the actual XNO to the pre-agreed seller or buyer account. The custodian still controls the wallet and can bypass the software.',
+    inputSchema: { type: 'object', properties: { custodian_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, outcome: { type: 'string', enum: ['release', 'refund'] }, summary: { type: 'string', minLength: 1, maxLength: 2048 } }, required: ['custodian_pubkey', 'trade_id', 'outcome', 'summary'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    method: 'xno.escrow.resolve',
+  },
+  {
+    name: 'property_xno_escrow_status', title: 'Check an escrow status', description: 'Read the local escrow record. Buyers and sellers can refresh it from the chosen operator’s latest signed contract update; the operator sees its custody ledger entry. The separate arbiter receives signed status updates through its inbox.',
+    inputSchema: { type: 'object', properties: { trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['trade_id'], additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+    method: 'xno.escrow.status',
   },
 ].map(({ method, ...tool }) => ({ ...tool, _propertyMethod: method }));
 

@@ -192,7 +192,10 @@ export function createNanoAgentWallet(configValue, { timeoutMs = 10_000, maxResp
       if (amount < 1n || amount > config.maxAmount) throw new Error('xno-payment-limit-exceeded');
       await assertNetwork();
       await assertWalletAccount();
-      if (await confirmedBalance() < amount) throw new Error('xno-insufficient-confirmed-balance');
+      // Let Nano's idempotent send RPC answer before any balance preflight.
+      // A previous send may have succeeded while its response was lost; a
+      // local balance check would then reject the retry before Nano can return
+      // the original block for the same id.
       const result = await rpc('send', { wallet: config.wallet_id, source: config.account, destination,
         amount: amount.toString(), id: idempotencyKey });
       if (!TXID.test(result.block || '')) throw new Error('xno-rpc-invalid-send-result');

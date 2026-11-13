@@ -16,7 +16,8 @@ export function resolvePaths(profile = 'default', env = process.env, home = os.h
   const socketPath = path.join(runtimeDir, `${selectedProfile}.sock`);
   if (Buffer.byteLength(socketPath) > 100) throw new Error('O caminho do socket local é longo demais; configure XDG_RUNTIME_DIR curto.');
   return { profile: selectedProfile, dataDir, vaultPath: path.join(dataDir, 'agent.vault.json'), configPath: path.join(dataDir, 'agent.json'),
-    xnoVaultPath: path.join(dataDir, 'xno-wallet.vault.json'), xnoJournalPath: path.join(dataDir, 'xno-trades.json'), runtimeDir, socketPath };
+    xnoVaultPath: path.join(dataDir, 'xno-wallet.vault.json'), xnoEscrowVaultPath: path.join(dataDir, 'xno-escrow-wallet.vault.json'),
+    xnoJournalPath: path.join(dataDir, 'xno-trades.json'), runtimeDir, socketPath };
 }
 
 export async function ensurePrivateDirectory(directory) {

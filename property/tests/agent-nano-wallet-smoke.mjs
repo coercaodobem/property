@@ -7,6 +7,7 @@ const destination = `nano_3${'3'.repeat(59)}`;
 const walletId = 'a'.repeat(64);
 const txid = 'b'.repeat(64).toUpperCase();
 const receiveTxid = 'c'.repeat(64).toUpperCase();
+const secondTxid = 'd'.repeat(64).toUpperCase();
 const rpcUsername = 'offline-user';
 const rpcPassword = 'synthetic-gateway-password';
 const walletPassword = 'synthetic-wallet-password';
@@ -42,8 +43,17 @@ const server = createServer(async (request, response) => {
       if (old && (old.destination !== parsed.destination || old.amount !== parsed.amount || old.source !== parsed.source)) {
         result = { error: 'idempotency parameters mismatch' };
       } else {
-        if (!old) sends.set(parsed.id, { destination: parsed.destination, amount: parsed.amount, source: parsed.source, block: txid });
-        result = { block: sends.get(parsed.id).block };
+        if (!old) {
+          const requested = BigInt(parsed.amount);
+          if (BigInt(balance) < requested) result = { error: 'insufficient balance' };
+          else {
+            balance = (BigInt(balance) - requested).toString();
+            const block = sends.size === 0 ? txid : secondTxid;
+            sends.set(parsed.id, { destination: parsed.destination, amount: parsed.amount, source: parsed.source, block });
+            result = { block };
+          }
+        }
+        if (!result) result = { block: sends.get(parsed.id).block };
       }
       break;
     }
@@ -92,6 +102,13 @@ const repeated = await wallet.send({ destination, amountRaw: '40', idempotencyKe
 assert.equal(sent.txid, txid);
 assert.equal(repeated.txid, txid);
 assert.equal(sends.size, 1, 'Nano RPC idempotency key maps repeated sends to one block');
+assert.equal(balance, '60');
+const secondIdempotencyKey = `property-xno:${'2'.repeat(64)}`;
+const secondSend = await wallet.send({ destination, amountRaw: '40', idempotencyKey: secondIdempotencyKey });
+assert.equal(secondSend.txid, secondTxid);
+assert.equal(balance, '20');
+await assert.rejects(wallet.send({ destination, amountRaw: '21', idempotencyKey: `property-xno:${'3'.repeat(64)}` }), /xno-rpc-request-failed/);
+assert.equal(balance, '20', 'the Nano node refuses a genuinely new send above the confirmed balance');
 await assert.rejects(wallet.send({ destination, amountRaw: '51', idempotencyKey: `property-xno:${'2'.repeat(64)}` }), /xno-payment-limit-exceeded/);
 await assert.rejects(wallet.send({ destination: account, amountRaw: '1', idempotencyKey }), /xno-send-arguments-invalid/);
 await assert.rejects(wallet.send({ destination, amountRaw: '01', idempotencyKey }), /amount_raw-invalid/);
@@ -132,7 +149,7 @@ assert.equal(wrongAuth.status, 401);
 
 await wallet.lock();
 await new Promise(resolve => server.close(resolve));
-const caseIds = ['dedicated-account-unlock-and-live-network-check', 'raw-send-with-local-per-payment-cap', 'same-id-is-idempotent', 'invalid-amount-and-self-send-refused',
+const caseIds = ['dedicated-account-unlock-and-live-network-check', 'raw-send-with-local-per-payment-cap', 'same-id-is-idempotent-after-balance-falls', 'nano-node-rejects-new-send-above-balance', 'invalid-amount-and-self-send-refused',
   'pending-and-confirmed-ledger-checks', 'wrong-amount-or-recipient-refused', 'unconfirmed-and-mismatched-incoming-refused', 'lost-receive-response-recovered-from-account-history', 'confirmed-incoming-transfer-received-once', 'duplicate-receive-recovery-deduplicated', 'wrong-network-refused',
   'multi-account-wallet-refused', 'remote-and-localhost-rpc-hosts-refused', 'unauthenticated-gateway-request-refused'];
 process.stdout.write(JSON.stringify({ gate: 'G9-XNO-wallet-adapter', profile: 'offline', seed: 'property-xno-wallet-fixed-v1', cases: caseIds.map(id => ({ id, result: 'PASS' })),

@@ -19,7 +19,7 @@
     "geodeSha256": "9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7"
   },
   "counts": {
-    "mcpTools": 5,
+    "mcpTools": 20,
     "readsPerAgent": 25,
     "sendsPerAgent": 25,
     "activityTransitionsPerAgent": 12,
@@ -32,7 +32,7 @@
     "relayDisconnectedErrors": 10,
     "permissionRequestTools": 0,
     "concurrentSends": 2,
-    "cases": 32
+    "cases": 34
   },
   "evidence": {
     "encryptedVaultWith600000Iterations": true,
@@ -99,7 +99,15 @@
       "result": "PASS"
     },
     {
+      "id": "host-a-xno-spending-disabled-until-owner-configures-local-policy",
+      "result": "PASS"
+    },
+    {
       "id": "host-b-fixed-tool-inventory-and-empty-unpaired-inbox",
+      "result": "PASS"
+    },
+    {
+      "id": "host-b-xno-spending-disabled-until-owner-configures-local-policy",
       "result": "PASS"
     },
     {

@@ -24,7 +24,7 @@ A escolha do protocolo não entrega ao agente a chave humana, as outras conversa
 
 ### Fluxo agente
 
-O host MCP usa uma identidade Nostr independente, configura seus inbox relays e chama onze tools locais. Cinco cobrem estado, conversas, mensagens e atividade. Seis tools opcionais oferecem pagamentos XNO diretos e limitados depois que uma pessoa configura e arma uma carteira dedicada uma vez; as tools não pedem aprovação do Property por pagamento. O daemon local usa socket Unix; MCP usa stdio. Pagamentos diretos são irreversíveis e não são escrow.
+O host MCP usa uma identidade Nostr independente, configura seus inbox relays e chama vinte tools locais: cinco de mensagens/atividade, seis de XNO direto e nove de escrow custodial. Pagamentos diretos XNO continuam irreversíveis. O fluxo opcional de escrow usa uma carteira dedicada do custodiante e um árbitro Nostr escolhido separadamente; é custodial e não torna transferências Nano reversíveis ou sem confiança. O daemon local usa socket Unix; MCP usa stdio.
 
 ## 2. Arquitetura e limites
 
@@ -33,7 +33,7 @@ O host MCP usa uma identidade Nostr independente, configura seus inbox relays e 
 - **Envelope:** `property-agent-message/v1` com campos estritos para versão, conversa, mensagem, correlação e corpo de texto. Corpo até 8 KiB; envelope até 16 KiB.
 - **Cota:** até 30 envios por agente por janela lógica fixa de 60 segundos. Ensaios avançam relógio lógico e contagem; não esperam a passagem de tempo real.
 - **Bloqueio:** local ao aparelho/daemon. Não é aprovação nem cadastro obrigatório; bloqueia leitura/envio futuros e pode ser revertido. Não remove cópias anteriores de relays ou hosts.
-- **MCP:** onze tools fixas: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`, `property_set_activity`, `property_xno_policy`, `property_xno_create_offer`, `property_xno_pay_offer`, `property_xno_trade_status`, `property_xno_verify_receipt` e `property_xno_dispute`. Atividade aceita somente `thinking` ou `stop`, sem estado textual livre. Nenhuma tool de aprovação, expansão de permissão, shell, filesystem, browser ou assinatura Nostr arbitrária. O adaptador fixo Nano pode fazer transferências diretas somente após configuração e ativação local únicas.
+- **MCP:** vinte tools fixas: `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`, `property_set_activity`, seis tools XNO diretas (`property_xno_policy`, `property_xno_create_offer`, `property_xno_pay_offer`, `property_xno_trade_status`, `property_xno_verify_receipt`, `property_xno_dispute`) e nove de escrow (`property_xno_escrow_offer`, `property_xno_escrow_open`, `property_xno_escrow_accept`, `property_xno_escrow_fund`, `property_xno_escrow_approve`, `property_xno_escrow_dispute`, `property_xno_escrow_sync`, `property_xno_escrow_resolve`, `property_xno_escrow_status`). Atividade aceita somente `thinking` ou `stop`, sem estado textual livre. Nenhuma tool de aprovação, expansão de permissão, shell, filesystem, browser ou assinatura Nostr arbitrária. Tools de carteira exigem configuração e ativação local únicas.
 - **Privacidade:** chave humana nunca vai à bridge. Relays podem observar metadados do protocolo. O texto que um host de IA leu pode ser mantido pelo próprio host.
 - **Plataformas:** neste plano, resultados Linux/Ubuntu não provam Windows, macOS, Android ou iOS. Sistemas não executados ficam `PENDING`.
 
@@ -57,9 +57,9 @@ Gates devem ser executados em ordem, com evidência completa, contagens fixas e 
 
 ### G1 — UX humana antes de piloto
 
-**Participantes:** cinco pessoas, ao menos três sem experiência de desenvolvimento; não usar agentes sintéticos como substitutos. Cada pessoa realiza as mesmas tarefas: abrir conversa humana, reconhecer conversa de agente e seu `npub`, responder a uma primeira mensagem de agente, bloquear e desbloquear, localizar o limite de privacidade e continuar usando conversas humanas. Para o recurso opcional XNO, revisar também a configuração única `ARMAR` e explicar o teto, a transferência irreversível, a ausência de escrow e a diferença entre pagamento no ledger e entrega do produto. Não usar fundos reais.
+**Participantes:** cinco pessoas, ao menos três sem experiência de desenvolvimento; não usar agentes sintéticos como substitutos. Cada pessoa realiza as mesmas tarefas: abrir conversa humana, reconhecer conversa de agente e seu `npub`, responder a uma primeira mensagem de agente, bloquear e desbloquear, localizar o limite de privacidade e continuar usando conversas humanas. Quem vir o XNO deve explicar a irreversibilidade do pagamento direto e, no escrow custodial, a carteira agrupada do operador, o árbitro separado e que o custodiante pode contornar o Property e mover fundos. Não usar fundos reais.
 
-**Aceite:** pelo menos quatro de cinco concluem o fluxo direto e o bloqueio sem ajuda; ninguém interpreta a seleção do protocolo como acesso à conta; alertas críticos de identidade/privacidade são compreendidos. Quem vir a configuração XNO deve entender que `ARMAR` permite pagamentos automáticos dentro dos limites locais e que não há entrega ou reembolso garantidos. Registrar falhas e corrigir/repetir as tarefas afetadas. Leitor de tela real e revisão independente são registrados separadamente.
+**Aceite:** pelo menos quatro de cinco concluem o fluxo direto e o bloqueio sem ajuda; ninguém interpreta a seleção do protocolo como acesso à conta; alertas críticos de identidade/privacidade são compreendidos. Quem vir a configuração XNO deve entender que `ARMAR` permite automação limitada e que escrow é custodial, sem garantia do protocolo contra operador desonesto. Registrar falhas e corrigir/repetir as tarefas afetadas. Leitor de tela real e revisão independente são registrados separadamente.
 
 **Estado:** sessões com pessoas reais permanecem `PENDING` até acontecerem. Não simular respostas nem declarar UX aprovada com base em automação.
 
@@ -81,7 +81,7 @@ Gates devem ser executados em ordem, com evidência completa, contagens fixas e 
 
 ### G4 — MCP local
 
-**Ensaio offline:** dois processos agentes, dois clientes MCP fixture, um Geode loopback. Inventário fechado com onze tools; as cinco de estado/mensagens/atividade e as seis opcionais XNO devem ser inventariadas separadamente.
+**Ensaio offline:** dois processos agentes, dois clientes MCP fixture, um Geode loopback. Inventário fechado com vinte tools; inventariar separadamente cinco de estado/mensagens/atividade, seis XNO diretas e nove de escrow.
 
 **Contagens:** por agente, 25 leituras e 25 envios; 12 eventos thinking/stop (cinco pares de início/fim mais um estado thinking encerrado pelo lock do daemon); 10 leituras diretas sem cadastro; ao menos um envio a uma identidade válida ainda não cadastrada; duas chamadas simultâneas; 10 chamadas de tools inexistentes; 10 ciclos de reinício stdio; 10 erros de relay indisponível; bloquear/desbloquear e verificar leitura/envio.
 
@@ -113,7 +113,7 @@ Validar integrações com ao menos duas implementações independentes de agente
 
 **Contagens:** executar os 28 casos de `node property/tests/agent-xno-trades-smoke.mjs`, incluindo ofertas/recibos malformados, forjados e expirados, limites de valor, orçamento esgotado/diário adulterado, resposta de envio perdida e repetição idempotente, gate de confirmação, resposta de recebimento perdida e repetição, recibo duplicado, disputa sem congelar fundos, diário cifrado em repouso e verificação fechada contra adulteração.
 
-**Aceite:** todos os casos declarados passam; no máximo um envio e um recebimento sintéticos são registrados; pagamento não confirmado nunca é recebido; o relatório não contém segredo; escrow permanece falso. Isso valida apenas o fluxo modelado, não a rede Nano ou entrega justa.
+**Aceite:** todos os casos declarados passam; no máximo um envio e um recebimento sintéticos são registrados; pagamento não confirmado nunca é recebido; o relatório não contém segredo; este gate de pagamento direto não declara escrow. Isso valida apenas o fluxo modelado, não a rede Nano ou entrega justa.
 
 ### G9 — Adaptador RPC da carteira Nano
 
@@ -123,6 +123,14 @@ Validar integrações com ao menos duas implementações independentes de agente
 
 **Aceite:** os 14 casos passam; fixture registra no máximo um envio e uma ação sintética `receive`; a recuperação encontra o bloco exato de recebimento confirmado; nenhum tráfego externo ou fundo real. Este gate não aprova RPC da carteira Nano embutida para produção.
 
+### G10 — Escrow custodial XNO e árbitro separado
+
+**Ensaio offline:** um comprador, vendedor, custodiante e árbitro sintéticos e distintos; fixture determinístico de transporte em memória; carteiras Nano sintéticas; IDs de troca e relógio lógico fixos. O fixture simula os metadados autenticados do remetente, mas não valida a criptografia NIP-17, exercitada separadamente em G4. Sem relay externo, RPC Nano ao vivo ou fundos.
+
+**Execuções fixas:** executar `node property/tests/agent-xno-escrow-smoke.mjs`: dois contratos; dois aceites do vendedor; dois depósitos exatos; uma liberação ao vendedor aprovada pelo comprador; uma disputa do vendedor e reembolso decidido por árbitro independente; uma resposta perdida no recebimento, uma no pagamento e uma falha de aviso de estado com recuperação segura; duplicata de abertura/aceite; casos inválidos de participante, contrato e liquidação; rejeição por teto agregado concorrente; migração do diário antigo.
+
+**Aceite:** os dois pagamentos finais correspondem às contas assinadas do comprador/vendedor; o comprador confirma o depósito exato no próprio nó como confirmado antes de autorizar a liberação; fundos em disputa não são liquidados antes da decisão arbitral; depósitos e pagamentos não duplicam após respostas perdidas injetadas; avisos de estado ausentes são repetidos sem reenviar os avisos já aceitos pelo relay; depósitos do comprador consomem o mesmo orçamento vitalício local dos pagamentos diretos; passivo agregado do custodiante respeita o teto; todos os casos negativos falham fechados. Isso verifica somente o fluxo do aplicativo: o custodiante mantém controle dos fundos agrupados e pode contornar o software, então o teste não prova escrow sem confiança nem segurança com fundos reais.
+
 ## 5. Entregáveis e registros
 
 Cada execução concluída deve adicionar um relatório datado com commit de origem, comando, seed, versões/hashes do runtime, variáveis e contagens, PASS/FAIL por caso, tráfego externo observado, limites e pendências. Imagens de tela devem usar apenas identidades descartáveis. Relatórios antigos do fluxo com convite ficam preservados como história, claramente separados da evidência direta atual.
@@ -130,5 +138,6 @@ Cada execução concluída deve adicionar um relatório datado com commit de ori
 - Implementação MCP e instalação: [`../agent/README.md`](../agent/README.md).
 - Testes determinísticos e harnesses: [`../tests/`](../tests/).
 - Relatórios correntes G3/G4/G5/G6/G8/G9: [`evidence/agent-messaging/`](evidence/agent-messaging/).
-- Relatório offline XNO atual: [G8–G9, 2026-11-13](evidence/agent-messaging/G8-G9-xno-offline-20261113.md).
+- Base de pagamentos diretos: [G8–G9, 2026-11-13](evidence/agent-messaging/G8-G9-xno-offline-20261113.md), registrada antes da implementação do escrow G10.
+- Fluxo de escrow custodial: [G10, 2026-11-13](evidence/agent-messaging/G10-xno-escrow-offline-20261113.md).
 - Testes com Windows/macOS/Android/iOS, pessoas reais, leitor de tela, hosts MCP comerciais, integração de carteira para produção e revisão independente: manter `PENDING` até executar.

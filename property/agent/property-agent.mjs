@@ -26,6 +26,7 @@ function usage() {
     '  property-agent unblock <npub|hex> [--profile default]',
     '  property-agent backup <arquivo-destino-absoluto> [--profile default]',
     '  property-agent xno configure|status|disable [--profile default]',
+    '  property-agent xno escrow configure|status|disable [--profile default]',
     '', 'Senha é lida somente de um TTY local e nunca aceita por argumento ou variável de ambiente.', '',
   ].join('\n');
 }
@@ -157,7 +158,7 @@ async function configureXno(paths) {
     const wallet = createNanoAgentWallet(config);
     try { await wallet.assertReady(); }
     finally { await wallet.lock(); }
-    await confirmHuman(`Ativar pagamentos automáticos sem confirmação por transação, limitados a até ${config.max_raw_per_payment} raw por pagamento e ${config.lifetime_budget_raw} raw no total? Use somente carteira dedicada, com saldo pequeno; Nano não oferece escrow nem estorno forçado.`, 'ARMAR');
+    await confirmHuman(`Ativar pagamentos XNO diretos, sem confirmação por transação, limitados a ${config.max_raw_per_payment} raw por pagamento e ${config.lifetime_budget_raw} raw no total? Transferências diretas são irreversíveis e não usam o escrow Property.`, 'ARMAR');
     const envelope = createEncryptedPayload(config, vault.pubkey, masterPassword, 'xno-wallet');
     await writePrivateJson(paths.xnoVaultPath, envelope);
     process.stdout.write(`Política XNO cifrada salva para ${config.account} na rede ${config.network}. Bloqueie e desbloqueie o agente para carregá-la. Nenhuma transação foi enviada.\n`);
@@ -168,18 +169,72 @@ async function configureXno(paths) {
   }
 }
 
+async function configureXnoEscrow(paths) {
+  const vault = await readJson(paths.vaultPath);
+  let masterPassword = await promptHidden('Senha do cofre Property Agent (entrada oculta): ');
+  let walletPassword = '';
+  let rpcPassword = '';
+  let config;
+  try {
+    const { context, nostr } = await loadNostr(PROPERTY_ROOT);
+    const unlocked = unlockVault(vault, masterPassword, nostr, context);
+    unlocked.secretHex = '';
+    context.propertyAgentSecretHex = '';
+    const rpcUrl = await promptLine('URL do gateway HTTP autenticado local (ex.: http://127.0.0.1:7449/): ');
+    const rpcUsername = await promptLine('Usuário do gateway (não será exibido depois): ');
+    rpcPassword = await promptHidden('Senha do gateway (entrada oculta): ');
+    const walletId = await promptLine('ID de uma carteira Nano exclusiva para escrow (hex): ');
+    const account = await promptLine('Conta única de custódia nessa carteira: ');
+    walletPassword = await promptHidden('Senha da carteira Nano dedicada (entrada oculta): ');
+    const network = await promptLine('Rede esperada (live ou dev): ');
+    const maxRawPerPayment = await promptLine('Limite máximo por escrow, em raw: ');
+    const liabilityCapRaw = await promptLine('Limite máximo total sob custódia, em raw: ');
+    config = validateXnoWalletConfig({ rpc_url: rpcUrl, rpc_username: rpcUsername, rpc_password: rpcPassword,
+      wallet_password: walletPassword, wallet_id: walletId, account, network,
+      max_raw_per_payment: maxRawPerPayment, lifetime_budget_raw: liabilityCapRaw });
+    const wallet = createNanoAgentWallet(config);
+    try { await wallet.assertReady(); }
+    finally { await wallet.lock(); }
+    await confirmHuman(`Armar escrow custodial Property para ${config.account} na rede ${config.network}. O operador controla os fundos até liquidar e pode liberar ao vendedor ou devolver ao comprador conforme a decisão registrada. O operador ainda pode roubar os fundos; isto não é trustless. Não use saldo real antes da revisão de segurança. Digite ARMAR para ativar.`, 'ARMAR');
+    const envelope = createEncryptedPayload(config, vault.pubkey, masterPassword, 'xno-escrow-wallet');
+    await writePrivateJson(paths.xnoEscrowVaultPath, envelope);
+    process.stdout.write(`Carteira de custódia XNO cifrada salva para ${config.account} na rede ${config.network}. Bloqueie e desbloqueie o agente para carregá-la. Nenhuma transação foi enviada.\n`);
+    context.propertyAgentSecretHex = '';
+  } finally {
+    masterPassword = ''; walletPassword = ''; rpcPassword = '';
+    if (config) config = null;
+  }
+}
+
 async function xnoCommand(args, paths) {
+  if (args[0] === 'escrow') {
+    if (args.length !== 2 || !['configure', 'status', 'disable'].includes(args[1])) throw new Error('Uso: property-agent xno escrow configure|status|disable.');
+    if (args[1] === 'configure') { await configureXnoEscrow(paths); return; }
+    if (args[1] === 'status') {
+      const state = await callAgentDaemon(paths, 'xno.policy', {});
+      process.stdout.write(`Operador de escrow XNO configurado: ${state.custodian_configured ? 'sim' : 'não'}\nModelo: ${state.custody_model}\nProtocolo: ${state.escrow_protocol}\n`);
+      if (state.custodian_configured) process.stdout.write(`Conta de custódia dedicada: ${state.custody_account}\nRede: ${state.custody_network}\nLimite por escrow (raw): ${state.custody_max_raw_per_payment}\nLimite de passivos abertos (raw): ${state.custody_lifetime_budget_raw}\nSaldo confirmado (raw): ${state.custody_confirmed_balance_raw}\n`);
+      return;
+    }
+    await confirmHuman('Desativar a carteira de custódia do escrow XNO? O histórico local será preservado; devolva ou liquide todos os fundos antes.', 'DESATIVAR');
+    try { await callUnixJson(paths.socketPath, 'daemon.lock', {}); } catch (error) { if (error.message !== 'agent-daemon-unavailable') throw error; }
+    await rm(paths.xnoEscrowVaultPath, { force: true });
+    process.stdout.write('Configuração da carteira custodial removida; o histórico foi preservado.\n');
+    return;
+  }
   if (args.length !== 1 || !['configure', 'status', 'disable'].includes(args[0])) throw new Error('Uso: property-agent xno configure|status|disable.');
   if (args[0] === 'configure') { await configureXno(paths); return; }
   if (args[0] === 'status') {
     const state = await callAgentDaemon(paths, 'xno.policy', {});
     process.stdout.write(`Pagamentos XNO configurados: ${state.configured ? 'sim' : 'não'}\n`);
-    if (state.configured) process.stdout.write(`Rede: ${state.network}\nConta dedicada: ${state.account}\nLimite por pagamento (raw): ${state.max_raw_per_payment}\nOrçamento vitalício (raw): ${state.lifetime_budget_raw}\nComprometido (raw): ${state.budget_committed_raw}\nSaldo confirmado (raw): ${state.confirmed_balance_raw}\nEscrow: não\n`);
+    if (state.configured) process.stdout.write(`Rede: ${state.network}\nConta dedicada: ${state.account}\nLimite por pagamento (raw): ${state.max_raw_per_payment}\nOrçamento vitalício (raw): ${state.lifetime_budget_raw}\nComprometido (raw): ${state.budget_committed_raw}\nSaldo confirmado (raw): ${state.confirmed_balance_raw}\n`);
+    process.stdout.write(`Operador de escrow: ${state.custodian_configured ? 'sim' : 'não'}\nModelo de custódia: ${state.custody_model}\n`);
     return;
   }
   await confirmHuman('Desativar a integração XNO deste perfil? O histórico local dos pagamentos será preservado.', 'DESATIVAR');
   try { await callUnixJson(paths.socketPath, 'daemon.lock', {}); } catch (error) { if (error.message !== 'agent-daemon-unavailable') throw error; }
   await rm(paths.xnoVaultPath, { force: true });
+  await rm(paths.xnoEscrowVaultPath, { force: true });
   process.stdout.write('Política XNO removida; o histórico local foi preservado.\n');
 }
 

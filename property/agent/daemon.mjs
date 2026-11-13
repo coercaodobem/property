@@ -9,6 +9,7 @@ import { readJson, resolvePaths, ensurePrivateDirectory, writePrivateJson } from
 import { openEncryptedPayload, unlockVault } from './vault.mjs';
 import { createNanoAgentWallet, validateXnoWalletConfig } from './nano-wallet.mjs';
 import { createXnoTradeService } from './xno-trades.mjs';
+import { createXnoEscrowService } from './xno-escrow.mjs';
 import { createEncryptedXnoJournalStore } from './xno-journal.mjs';
 
 const AGENT_ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -50,29 +51,46 @@ export async function runDaemon({ password, profile = 'default', env = process.e
   unlocked.secretHex = '';
   context.propertyAgentSecretHex = '';
   let xnoWallet = null;
+  let xnoEscrowWallet = null;
   let xnoTrades = null;
+  let xnoEscrow = null;
   try {
-    const envelope = await readJson(paths.xnoVaultPath);
-    const paymentConfig = { ...validateXnoWalletConfig(openEncryptedPayload(envelope, pubkey, password, 'xno-wallet')) };
-    xnoWallet = createNanoAgentWallet(paymentConfig);
-    paymentConfig.rpc_password = ''; paymentConfig.wallet_password = '';
+    try {
+      const envelope = await readJson(paths.xnoVaultPath);
+      const paymentConfig = { ...validateXnoWalletConfig(openEncryptedPayload(envelope, pubkey, password, 'xno-wallet')) };
+      xnoWallet = createNanoAgentWallet(paymentConfig);
+      paymentConfig.rpc_password = ''; paymentConfig.wallet_password = '';
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    try {
+      const envelope = await readJson(paths.xnoEscrowVaultPath);
+      const escrowConfig = { ...validateXnoWalletConfig(openEncryptedPayload(envelope, pubkey, password, 'xno-escrow-wallet')) };
+      xnoEscrowWallet = createNanoAgentWallet(escrowConfig);
+      escrowConfig.rpc_password = ''; escrowConfig.wallet_password = '';
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
     const journal = createEncryptedXnoJournalStore({ file: paths.xnoJournalPath, pubkey, password });
-    xnoTrades = createXnoTradeService({ pubkey, wallet: xnoWallet, transport,
-      blockedPubkeys: () => configSnapshot.blocked_pubkeys, relays: () => configSnapshot.inbox_relays,
-      loadJournal: () => journal.load(), saveJournal: value => journal.save(value), now });
+    let queue = Promise.resolve();
+    const serializeTask = task => {
+      const next = queue.then(task, task);
+      queue = next.catch(() => {});
+      return next;
+    };
+    const journalOptions = { loadJournal: () => journal.load(), saveJournal: value => journal.save(value), serializeTask, now };
+    if (xnoWallet) xnoTrades = createXnoTradeService({ pubkey, wallet: xnoWallet, transport,
+      blockedPubkeys: () => configSnapshot.blocked_pubkeys, relays: () => configSnapshot.inbox_relays, ...journalOptions });
+    xnoEscrow = createXnoEscrowService({ pubkey, wallet: xnoWallet, escrowWallet: xnoEscrowWallet, transport,
+      blockedPubkeys: () => configSnapshot.blocked_pubkeys, relays: () => configSnapshot.inbox_relays, ...journalOptions });
   } catch (error) {
-    if (error.code !== 'ENOENT') {
-      try { await xnoWallet?.lock(); } catch {}
-      transport.secret.fill(0);
-      context.propertyAgentSecretHex = '';
-      unlocked.secretHex = '';
-      throw error;
-    }
+    try { await xnoWallet?.lock(); } catch {}
+    try { await xnoEscrowWallet?.lock(); } catch {}
+    transport.secret.fill(0);
+    context.propertyAgentSecretHex = '';
+    unlocked.secretHex = '';
+    throw error;
   }
   const service = new AgentService({
     pubkey, loadConfig,
     saveConfig: async config => { configSnapshot = validateConfig(config); await writePrivateJson(paths.configPath, configSnapshot); },
-    transport, xnoTrades, now,
+    transport, xnoTrades, xnoEscrow, now,
   });
   let shutdown;
   const stop = await startUnixJsonServer(paths.socketPath, async (method, params) => {
@@ -91,6 +109,7 @@ export async function runDaemon({ password, profile = 'default', env = process.e
     await service.close();
     await stop();
     try { await xnoWallet?.lock(); } catch { /* no secret is written to logs; the dedicated wallet may be unavailable during shutdown */ }
+    try { await xnoEscrowWallet?.lock(); } catch { /* escrow custody wallet is locked independently */ }
     transport.secret.fill(0);
     context.propertyAgentSecretHex = '';
     unlocked.secretHex = '';

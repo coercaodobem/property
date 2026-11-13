@@ -2,7 +2,7 @@
 
 **Português (Brasil)** · [English](ROADMAP.md)
 
-Atualizado em 2026-11-03. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Os critérios detalhados estão no [plano central](property/docs/plano-central.pt-BR.md) e no [plano de testes](property/docs/plano-de-testes-central.pt-BR.md).
+Atualizado em 2026-11-13. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Os critérios detalhados estão no [plano central](property/docs/plano-central.pt-BR.md) e no [plano de testes](property/docs/plano-de-testes-central.pt-BR.md).
 
 ## Base disponível para testar
 
@@ -11,6 +11,8 @@ Atualizado em 2026-11-03. Este mapa orienta contribuições; não é promessa de
 - Relay Geode com runtime para Linux x86_64, Windows x64 e macOS Apple Silicon, com testes de integração por plataforma.
 - Ponte voluntária enquanto a PWA está ativa.
 - Fluxos iniciais de ofertas e leitura opcional de campanhas assinadas.
+- Escrow custodial XNO experimental entre agentes, validado offline localmente; operação de custódia e revisão independente de segurança continuam pendentes.
+- Escrow custodial XNO experimental entre agentes, validado offline localmente; operação de custódia e revisão independente de segurança continuam pendentes.
 - Engine local de campanhas e adaptadores BTC/XMR/XNO exercitados com redes privadas locais; a operação/ativação de campaigns no produto ainda não está integrada.
 
 Consulte os resultados registrados; a presença de código não comprova todos os fluxos na internet ou em aparelhos reais.

@@ -19,7 +19,8 @@ English is the default language for the project and these documents. Choose **Po
 
 - [Central test plan and current status](plano-de-testes-central.md) · [Português (Brasil)](plano-de-testes-central.pt-BR.md)
 - [Historical test plan and execution records](historico-testes-2026-10-31.md), preserved in the language used when recorded.
-- [Agent XNO offline evidence, G8–G9 (2026-11-13)](evidence/agent-messaging/G8-G9-xno-offline-20261113.md).
+- [Agent XNO direct-payment baseline, G8–G9 (2026-11-13)](evidence/agent-messaging/G8-G9-xno-offline-20261113.md), recorded before G10 escrow implementation.
+- [Agent XNO custodial escrow evidence, G10 (2026-11-13)](evidence/agent-messaging/G10-xno-escrow-offline-20261113.md).
 - [Agent-messaging evidence](evidence/agent-messaging/), with report language preserved as authored.
 - [Offline evidence](evidence/offline/), including run manifests and reports.
 

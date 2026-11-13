@@ -6,13 +6,14 @@ const ACTIVITY_WINDOW_SECONDS = 60;
 const ACTIVITY_TTL_SECONDS = 60;
 
 export class AgentService {
-  constructor({ pubkey, loadConfig, saveConfig, transport, xnoTrades = null, now = () => Math.floor(Date.now() / 1000) }) {
+  constructor({ pubkey, loadConfig, saveConfig, transport, xnoTrades = null, xnoEscrow = null, now = () => Math.floor(Date.now() / 1000) }) {
     if (!PUBKEY.test(pubkey) || typeof loadConfig !== 'function' || typeof saveConfig !== 'function' || !transport) throw new Error('Dependências da bridge local incompletas.');
     this.pubkey = pubkey;
     this.loadConfig = loadConfig;
     this.saveConfig = saveConfig;
     this.transport = transport;
     this.xnoTrades = xnoTrades;
+    this.xnoEscrow = xnoEscrow;
     this.now = now;
     this.mutationQueue = Promise.resolve();
     this.activeThinking = new Map();
@@ -38,6 +39,15 @@ export class AgentService {
       case 'xno.trade.status': return this.xnoCall('tradeStatus', params);
       case 'xno.receipt.verify': return this.xnoCall('verifyReceipt', params);
       case 'xno.dispute': return this.xnoCall('dispute', params);
+      case 'xno.escrow.offer': return this.xnoEscrowCall('offer', params);
+      case 'xno.escrow.open': return this.xnoEscrowCall('open', params);
+      case 'xno.escrow.accept': return this.xnoEscrowCall('accept', params);
+      case 'xno.escrow.fund': return this.xnoEscrowCall('fund', params);
+      case 'xno.escrow.approve': return this.xnoEscrowCall('approve', params);
+      case 'xno.escrow.dispute': return this.xnoEscrowCall('dispute', params);
+      case 'xno.escrow.sync': return this.xnoEscrowCall('sync', params);
+      case 'xno.escrow.resolve': return this.xnoEscrowCall('resolve', params);
+      case 'xno.escrow.status': return this.xnoEscrowCall('status', params);
       case 'relay.add': return this.addInboxRelay(params);
       case 'agent.block': return this.changeBlockedAgent(params, true);
       case 'agent.unblock': return this.changeBlockedAgent(params, false);
@@ -54,13 +64,22 @@ export class AgentService {
 
   async xnoPolicy(params) {
     if (!exactObject(params, [])) throw new Error('invalid-arguments');
-    if (!this.xnoTrades) return { configured: false, escrow: false, reason: 'xno-wallet-not-configured' };
-    return this.xnoTrades.policy();
+    const direct = this.xnoTrades ? await this.xnoTrades.policy() : { configured: false, escrow: false, reason: 'xno-wallet-not-configured' };
+    const escrow = this.xnoEscrow ? await this.xnoEscrow.policy() : { custodian_configured: false };
+    if (!escrow.custodian_configured) return direct;
+    return { ...direct, custodian_configured: true, escrow_protocol: escrow.escrow_protocol, custody_model: escrow.custody_model,
+      custody_account: escrow.account, custody_network: escrow.network, custody_max_raw_per_payment: escrow.max_raw_per_payment,
+      custody_lifetime_budget_raw: escrow.lifetime_budget_raw, custody_confirmed_balance_raw: escrow.confirmed_balance_raw };
   }
 
   async xnoCall(method, params) {
     if (!this.xnoTrades) throw new Error('xno-wallet-not-configured');
     return this.xnoTrades[method](params);
+  }
+
+  async xnoEscrowCall(method, params) {
+    if (!this.xnoEscrow) throw new Error('xno-escrow-not-configured');
+    return this.xnoEscrow[method](params);
   }
 
   async list(params) {

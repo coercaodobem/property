@@ -1,47 +1,48 @@
-# Pagamentos diretos XNO entre agentes
+# Pagamentos e escrow XNO entre agentes
 
 **Português (Brasil)** · [English](agent-xno-trades.md)
 
-**Estado:** recurso local experimental; testes offline de contagem fixa passaram. Não foram usados fundos reais nem relays públicos. Isso não é aprovação de segurança para produção.
+**Estado:** recurso local experimental. Os testes de contagem fixa usam apenas carteiras sintéticas e fixtures NIP-17. Não foram usados relays públicos nem fundos reais. Isto não é aprovação de segurança para produção.
 
-## O que está implementado
+## Tools implementadas
 
-O Property Agent expõe seis tools MCP fixas para pagamentos Nano diretos com limites entre identidades Nostr independentes de agentes. As tools de mensagens e pagamentos não exigem aprovação do Property a cada chamada. Antes, o responsável pelo perfil precisa configurar em um terminal interativo uma carteira Nano dedicada com uma conta, limite por pagamento em raw, orçamento total em raw e rede esperada; depois precisa digitar `ARMAR`. O daemon verifica o gateway autenticado local, a carteira, a conta e a rede antes de salvar a configuração cifrada. A configuração não envia pagamentos.
+O Property Agent expõe 20 tools MCP fixas: cinco para mensagens e atividade, seis para pagamentos XNO diretos e nove para escrow custodial. Nem mensagens nem essas chamadas de pagamento exigem aprovação individual do Property. O responsável arma cada política local de carteira uma vez, em um terminal interativo. Consulte o [guia de configuração MCP](../agent/README.md).
 
-As tools são `property_xno_policy`, `property_xno_create_offer`, `property_xno_pay_offer`, `property_xno_trade_status`, `property_xno_verify_receipt` e `property_xno_dispute`. Consulte o [guia de instalação e configuração MCP](../agent/README.md) para conectar o servidor local.
+Pagamentos diretos usam `property_xno_policy`, `property_xno_create_offer`, `property_xno_pay_offer`, `property_xno_trade_status`, `property_xno_verify_receipt` e `property_xno_dispute`.
 
-## Fluxo da troca
+Escrow usa `property_xno_escrow_offer`, `property_xno_escrow_open`, `property_xno_escrow_accept`, `property_xno_escrow_fund`, `property_xno_escrow_approve`, `property_xno_escrow_dispute`, `property_xno_escrow_sync`, `property_xno_escrow_resolve` e `property_xno_escrow_status`.
 
-1. O vendedor envia uma oferta NIP-17 privada e assinada à identidade do agente comprador. Ela contém chaves Nostr do comprador e vendedor, conta Nano de destino declarada pelo vendedor, valor inteiro em raw, termos e SHA-256, e validade.
-2. O comprador só pode pagar uma oferta cuja assinatura foi verificada, que não expirou, foi endereçada à identidade do comprador e respeita os limites locais por pagamento e totais. O valor é reservado no diário cifrado antes da chamada RPC da carteira.
-3. O ID do envio Nano é derivado de forma determinística da identidade do comprador e do ID da troca. Repetir a mesma troca reutiliza esse ID, evitando que uma resposta RPC perdida crie intencionalmente outro envio.
-4. O comprador envia um recibo NIP-17 assinado com o hash do envio, contas declaradas e valor. ACK do relay significa somente que o relay aceitou o evento.
-5. O vendedor confere o recibo contra a própria oferta salva e consulta o node Nano configurado para verificar origem, destino, valor raw e confirmação exatos. Só então recebe aquele envio confirmado em sua única conta configurada.
-6. Se a RPC de recebimento aceitou o bloco, mas a resposta se perdeu, a repetição confere a lista de valores a receber e o histórico paginado da conta no Nano. O sistema compara o hash do envio, origem, valor e bloco de recebimento confirmado antes de informar sucesso. O teste offline simula a resposta perdida e verifica que só uma ação `receive` foi emitida.
-7. Qualquer agente pode enviar uma nota de disputa assinada. Ela é somente um registro: não congela fundos nem faz devolução automática.
+## Fluxo de escrow custodial
 
-## Segurança e limites
+1. O comprador escolhe quatro identidades Nostr distintas: comprador, vendedor, um custodiante e um árbitro independente. O pedido assinado vincula as contas Nano, o valor exato em raw, o hash dos termos, as partes e a expiração.
+2. O custodiante abre o pedido e envia o contrato assinado ao comprador, vendedor e árbitro. O vendedor só aceita se o contrato apontar para a conta Nano configurada em sua carteira.
+3. Depois que o custodiante anuncia o aceite do vendedor, o comprador deposita o valor exato do contrato. O custodiante verifica o hash do envio Nano, origem, destino, valor e confirmação antes de recebê-lo em sua carteira dedicada.
+4. Antes de autorizar a liberação, o comprador confere no próprio nó Nano o hash exato do depósito, origem, destino, valor e confirmação. No próximo `sync`, o custodiante paga a conta acordada do vendedor. Se alguma parte abrir uma disputa, o custodiante pausa a liquidação e notifica o árbitro independente. O árbitro confere o estado de disputa assinado pelo custodiante e envia uma decisão assinada: liberar ao vendedor ou devolver ao comprador. O custodiante executa a decisão no próximo `sync`; avisos de estado que falharem são repetidos sem duplicar os avisos já aceitos por um relay.
+5. Envios e pagamentos Nano continuam irreversíveis. ACK de relay não comprova entrega. O operador precisa estar ativo e reconciliar cada troca.
 
-- Um envio Nano confirmado é irreversível. O Nano não tem pagamento condicionado à entrega, escrow nativo ou arbitragem; o Property não pode obrigar o comprador a receber o produto nem o vendedor a reembolsar. A disputa não altera o ledger. [Ciclo dos blocos Nano](https://docs.nano.org/protocol-design/blocks/)
-- A conta Nano na oferta assinada é declarada pelo vendedor. O Property não prova que o signatário Nostr controla a conta Nano nem que os termos foram cumpridos.
-- Os limites locais são verificações de política, não limites do protocolo Nano. Quem controla o host desbloqueado, malware ou quem restaura um diário autenticado antigo pode contornar o orçamento total local. A cifragem detecta adulteração e identidade/senha erradas, mas não impede rollback.
-- A documentação do Nano descreve a RPC de carteira embutida como destinada a desenvolvimento e testes. Não exponha a porta RPC; o adaptador exige gateway autenticado local, em loopback. Uma arquitetura de carteira adequada a fundos reais e revisão independente de segurança continuam pendentes. [Protocolo RPC Nano](https://docs.nano.org/commands/rpc-protocol/), [guias de integração Nano](https://docs.nano.org/integration-guides/)
-- O diário de trocas fica cifrado em repouso com AES-256-GCM e PBKDF2-HMAC-SHA-256 (600.000 iterações), vinculado à identidade local do agente e a um contexto dedicado. Credenciais da carteira não são copiadas para o diário. Perder a senha do cofre ou o diário impede a recuperação normal; diários em texto puro/adulterados falham fechados.
-- Ofertas e recibos trafegam em mensagens NIP-17 cifradas, mas relays ainda podem observar roteamento e metadados de tráfego. ACK do relay não comprova que o outro agente recebeu ou leu a mensagem.
-- Após a configuração não há tela de aprovação humana por pagamento. O responsável arma explicitamente a política local uma vez, e o limite local separado restringe os gastos automáticos do agente. O host de IA pode impor confirmação própria fora do Property.
-- O Marketplace PWA continua sendo uma vitrine de ofertas; não usa este fluxo de pagamento de agentes como checkout. As tools ainda não implementam pagamentos de agentes em BTC ou XMR.
+Configure o custodiante com `property-agent xno escrow configure`. Ele usa uma carteira Nano separada e dedicada, com uma conta. `max_raw_per_payment` limita cada escrow; `lifetime_budget_raw` limita o passivo total reservado por escrows abertos. Todos os escrows compartilham essa conta configurada; o diário local cifrado associa cada hash de depósito confirmado ao contrato. Comprador e vendedor configuram carteiras diretas com `property-agent xno configure`.
 
-## Evidência offline
+## Confiança e limites de segurança
 
-Execute da raiz do repositório:
+- Isto é **escrow custodial**, não escrow sem confiança. O Nano não impõe o contrato, a decisão do árbitro, um reembolso ou uma liberação condicionada. O custodiante detém as chaves e pode ignorar o aplicativo ou mover os fundos por fora do Property. Portanto comprador e vendedor confiam no custodiante e no árbitro escolhidos. [Ciclo dos blocos Nano](https://docs.nano.org/protocol-design/blocks/)
+- O árbitro independente separa a decisão sobre disputas da custódia, mas não consegue obrigar um custodiante desonesto a executar. Depois de aberto o contrato assinado, nenhum agente comprador ou vendedor pode redirecionar o pagamento para outra conta.
+- O fluxo não vincula criptograficamente chaves Nostr a contas Nano. O aceite do vendedor confere a conta local configurada; a conta do comprador fica vinculada no pedido assinado. Isso ainda não prova controle da conta no protocolo Nano.
+- A conta dedicada do operador agrupa fundos de escrows abertos. O teto de passivos e o diário cifrado são verificações locais; o ledger Nano não os impõe. Operador malicioso, host comprometido ou rollback de um diário autenticado pode contornar a política de software. Não use fundos reais.
+- A RPC de carteira embutida do Nano é documentada para desenvolvimento/testes. Mantenha-a atrás de gateway autenticado em loopback e não exponha a porta. Revisão independente de segurança para produção, política de recuperação e revisão operacional continuam pendentes. [RPC Nano](https://docs.nano.org/commands/rpc-protocol/), [gerenciamento de chaves](https://docs.nano.org/integration-guides/key-management/)
+- As trocas XNO diretas continuam pagamentos irreversíveis à contraparte; usar as tools de escrow separadas não altera esse fluxo. A PWA humana do Marketplace continua sem checkout de pagamento. Transferências de agentes em BTC e XMR não estão implementadas.
+
+## Verificações offline
+
+Execute na raiz do repositório:
 
 ```bash
 node property/tests/agent-xno-trades-smoke.mjs
+node property/tests/agent-xno-escrow-smoke.mjs
 node property/tests/agent-nano-wallet-smoke.mjs
 ```
 
-G8 tem 28 casos determinísticos. G9 tem 14 casos contra um servidor RPC sintético vinculado somente a loopback. Os relatórios registram zero fundos e nenhum uso de rede externa/relay. Os fixtures validam transições implementadas; não substituem integração com carteira nativa, revisão de segurança independente, avaliação de UX com pessoas ou aprovação da operação de produção.
+O fixture de escrow usa um comprador, vendedor, custodiante e árbitro; duas trocas sintéticas; uma liberação ao vendedor e um reembolso decidido pelo árbitro; e casos fixos de repetição após resposta perdida e entrega parcial de avisos. Ele valida somente o fluxo modelado, não operação Nano ao vivo, honestidade do custodiante, imparcialidade da arbitragem ou prontidão para produção.
 
 ## Trabalho pendente
 
-Uso em produção depende de uma arquitetura RPC de carteira adequada a fundos reais, política contra rollback ou decisão explícita de aceitar esse limite, política de recuperação/migração, revisão independente de segurança e revisão da UX de operação real. Suporte nativo Windows, macOS, Android e iOS continua `PENDING` à parte.
+Uso em produção continua condicionado a revisão independente de segurança e de operador humano, política anti-rollback, desenho de recuperação de carteira e revisão da operação de custódia. Suporte nativo Windows, macOS, Android e iOS continua `PENDING` separadamente.

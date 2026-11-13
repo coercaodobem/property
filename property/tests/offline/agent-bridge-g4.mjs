@@ -280,9 +280,11 @@ async function main() {
     const listed = await host.tool('property_list_conversations');
     assert.equal(listed.isError, false); assert.equal(listed.value.conversations.length, 0);
     const inventory = await host.call('tools/list');
-    assert.equal(inventory.result.tools.length, 11);
+    assert.equal(inventory.result.tools.length, 20);
     assert.deepEqual(inventory.result.tools.map(tool => tool.name), ['property_status', 'property_list_conversations', 'property_read_messages', 'property_send_message', 'property_set_activity',
-      'property_xno_policy', 'property_xno_create_offer', 'property_xno_pay_offer', 'property_xno_trade_status', 'property_xno_verify_receipt', 'property_xno_dispute']);
+      'property_xno_policy', 'property_xno_create_offer', 'property_xno_pay_offer', 'property_xno_trade_status', 'property_xno_verify_receipt', 'property_xno_dispute',
+      'property_xno_escrow_offer', 'property_xno_escrow_open', 'property_xno_escrow_accept', 'property_xno_escrow_fund', 'property_xno_escrow_approve',
+      'property_xno_escrow_dispute', 'property_xno_escrow_sync', 'property_xno_escrow_resolve', 'property_xno_escrow_status']);
     const sendTool = inventory.result.tools.find(tool => tool.name === 'property_send_message');
     assert.deepEqual(sendTool.annotations, { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true });
     record(`${host.name}-fixed-tool-inventory-and-empty-unpaired-inbox`);
@@ -449,7 +451,7 @@ async function main() {
   const report = {
     gate: 'G4', status: 'PASS_TECHNICAL_OFFLINE', seed: SEED, logicalNow: FIXED_NOW,
     environment: { os: 'linux/x64', node: process.version, mcpProtocol: '2026-07-28', externalConnections: 0, externalModels: 0, realParticipants: 0, agents: 2, mcpHostFixtures: ['host-a', 'host-b'], isolatedGeodeRelays: 1, geodeSha256: GEODE_SHA256 },
-    counts: { mcpTools: 5, readsPerAgent: 25, sendsPerAgent: 25, activityTransitionsPerAgent: 12, daemonLockActivityStopsPerAgent: 1, unpairedDirectReads: 10, unpairedDirectSends: 1, localBlockDenials: 2, nonexistentTools: 10, stdioShutdownRestarts: 10, relayDisconnectedErrors: 10, permissionRequestTools: 0, concurrentSends: 2, cases: cases.length },
+    counts: { mcpTools: 20, readsPerAgent: 25, sendsPerAgent: 25, activityTransitionsPerAgent: 12, daemonLockActivityStopsPerAgent: 1, unpairedDirectReads: 10, unpairedDirectSends: 1, localBlockDenials: 2, nonexistentTools: 10, stdioShutdownRestarts: 10, relayDisconnectedErrors: 10, permissionRequestTools: 0, concurrentSends: 2, cases: cases.length },
     evidence: { encryptedVaultWith600000Iterations: true, vaultMode0600: true, dataDirectoriesMode0700: true, unixSocketsMode0600: true, noTcpListener: true, directReadSendWithoutPairing: true, arbitraryUnpairedConversationAllowed: true, localBlocklistEnforced: true, permissionRequestToolAndQueueRemoved: true, propertyDoesNotRequestPerCallApproval: true, sendToolAnnotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }, privateThinkingSignalEncrypted: true, thinkingSignalContainsNoStatusText: true, thinkingSignalExpiresLocally: true, thinkingSignalStopsOnDaemonLock: true, ephemeralThinkingSignalNotRetained: true, noSecretReturnedByTools: true, relayAcknowledgementMeansOnlyLocalRelayAcceptance: true, allMcpStdoutIsJsonRpc: true, externalTraffic: false },
     cases,
   };

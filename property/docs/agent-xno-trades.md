@@ -1,47 +1,48 @@
-# Agent-to-agent XNO direct trades
+# Agent-to-agent XNO payments and escrow
 
 **English** · [Português (Brasil)](agent-xno-trades.pt-BR.md)
 
-**Status:** experimental local feature; fixed-count offline tests pass. No real funds or public relays were used. This is not a production security approval.
+**Status:** experimental local feature. Fixed-count tests use synthetic wallets and NIP-17 fixtures only. No public relay or real funds were used. This is not production security approval.
 
-## What is implemented
+## Implemented tools
 
-Property Agent exposes six fixed MCP tools for capped, direct Nano payments between independent Nostr agent identities. Messaging and payment tools do not require a Property approval for each call. The profile owner must first configure a dedicated one-account Nano wallet, per-payment raw cap, lifetime raw budget, and expected network in an interactive terminal, then explicitly type `ARMAR`. The daemon checks its local authenticated gateway, wallet, account, and network before saving the encrypted configuration. No payment is sent during setup.
+Property Agent exposes 20 fixed MCP tools: five for messaging and activity, six for direct XNO payments, and nine for custodial escrow. Neither messaging nor these payment calls require a per-call Property approval. A profile owner arms each local wallet policy once from an interactive terminal. See the [MCP setup guide](../agent/README.md).
 
-The tools are `property_xno_policy`, `property_xno_create_offer`, `property_xno_pay_offer`, `property_xno_trade_status`, `property_xno_verify_receipt`, and `property_xno_dispute`. See the [MCP setup guide](../agent/README.md) for installing and connecting the local server.
+Direct payments use `property_xno_policy`, `property_xno_create_offer`, `property_xno_pay_offer`, `property_xno_trade_status`, `property_xno_verify_receipt`, and `property_xno_dispute`.
 
-## Trade flow
+Escrow uses `property_xno_escrow_offer`, `property_xno_escrow_open`, `property_xno_escrow_accept`, `property_xno_escrow_fund`, `property_xno_escrow_approve`, `property_xno_escrow_dispute`, `property_xno_escrow_sync`, `property_xno_escrow_resolve`, and `property_xno_escrow_status`.
 
-1. The seller sends a signed, private NIP-17 offer to the buyer's agent identity. It contains the buyer and seller Nostr keys, self-declared Nano destination account, integer raw amount, terms and SHA-256, and expiry.
-2. The buyer can pay only a signature-verified, unexpired offer addressed to its identity and within the locally configured per-payment and lifetime limits. The amount is committed in the encrypted local journal before the wallet RPC call.
-3. The Nano node's send ID is derived deterministically from the buyer identity and trade ID. Retrying the same trade reuses that ID, so a lost RPC response cannot intentionally create a second send.
-4. The buyer sends a signed NIP-17 payment receipt containing the send hash and the declared accounts/amount. A relay ACK is only relay acceptance.
-5. The seller verifies the receipt against its own saved offer and queries the configured Nano node for the exact source, destination, raw amount, and confirmation. It receives only that exact confirmed send into its single configured account.
-6. If the receive RPC accepted the block but its response was lost, a retry checks Nano's receivable list and paginated account history. It matches the exact send hash, source, amount, and confirmed receive block before reporting success. The offline adapter test simulates the lost response and verifies that only one `receive` action is issued.
-7. Either agent may send a signed dispute note. It is a record only; no funds are frozen or returned automatically.
+## Custodial escrow flow
 
-## Safety and limits
+1. The buyer chooses four distinct Nostr identities: buyer, seller, a custodian, and an independent arbiter. The signed request binds the Nano accounts, exact raw amount, terms hash, parties, and expiry.
+2. The custodian opens the request and sends its signed contract to buyer, seller, and arbiter. The seller accepts only if the contract names the seller's configured Nano account.
+3. After the custodian announces seller acceptance, the buyer funds the exact contract amount. The custodian verifies the Nano send hash, source, destination, amount, and confirmation before receiving it into its dedicated wallet.
+4. The buyer independently checks the exact deposit hash, source, destination, amount, and confirmation through its configured Nano node before signing a release approval. On its next `sync`, the custodian pays the agreed seller account. If either party disputes, the custodian pauses settlement and notifies the independent arbiter. The arbiter verifies the custodian's signed disputed status and sends one signed ruling: release to the seller or refund to the buyer. The custodian executes that ruling on its next `sync`; missing status notices are retried without duplicating notices already accepted by a relay.
+5. Nano sends and payouts remain irreversible. Relay acknowledgements are not proof of delivery. The operator must be running and the custodian must reconcile each trade.
 
-- A confirmed Nano send is irreversible. Nano has no delivery-conditioned payment, native escrow, or dispute arbitration; Property cannot make the buyer receive goods or force the seller to refund. A dispute message does not change ledger state. [Nano block lifecycle](https://docs.nano.org/protocol-design/blocks/)
-- The Nano account in the signed offer is self-asserted. Property does not prove that the Nostr signer controls that Nano account or that the trade terms were fulfilled.
-- Local limits are policy checks, not Nano protocol limits. A person with control of the unlocked host, malware, or a restored older authentic journal can bypass the local lifetime budget. Journal encryption detects edits and wrong identity/password but is not anti-rollback protection.
-- Nano documents its built-in wallet RPC as intended for development and testing. Do not expose the RPC port; the adapter requires a local authenticated gateway on loopback. A production wallet-management design and independent security review remain pending. [Nano RPC protocol](https://docs.nano.org/commands/rpc-protocol/), [Nano integration guides](https://docs.nano.org/integration-guides/)
-- The trade journal is encrypted at rest with AES-256-GCM and PBKDF2-HMAC-SHA-256 (600,000 iterations), bound to the local agent identity and a dedicated context. Wallet credentials are not copied into the journal. Losing the vault password or the journal prevents normal recovery; plaintext/tampered journals fail closed.
-- Offers and receipts travel in encrypted NIP-17 messages, while relays can observe routing and traffic metadata. A relay ACK does not prove that the other agent received or read the message.
-- There is no human approval prompt for each payment after setup. The owner explicitly arms the wallet policy once, and the separate local cap limits the agent's automatic spending. An AI host may impose its own confirmation policy outside Property.
-- The PWA Marketplace remains a listings interface; it does not use this agent payment flow as checkout. BTC and XMR agent payments are not implemented by these tools.
+Configure the custodian with `property-agent xno escrow configure`. It uses a separate, dedicated, one-account Nano wallet. `max_raw_per_payment` caps each escrow, and `lifetime_budget_raw` caps the total liability reserved by open escrows. All escrows share that configured account; the encrypted local journal maps each confirmed deposit hash to its contract. Configure buyer/seller direct wallets with `property-agent xno configure`.
 
-## Offline evidence
+## Trust and safety boundaries
+
+- This is **custodial escrow**, not trustless escrow. Nano does not enforce the contract, the arbiter's ruling, a refund, or a conditional release. The custodian holds the signing keys and can ignore the application or move the funds outside Property. Buyers and sellers therefore trust both the selected custodian and the selected arbiter. [Nano block lifecycle](https://docs.nano.org/protocol-design/blocks/)
+- The independent arbiter separates dispute decisions from custody, but cannot force a dishonest custodian to execute. No buyer or seller agent can redirect settlement to a new account after the signed contract is opened.
+- Nostr keys and Nano accounts are not cryptographically linked by this workflow. Seller acceptance checks the seller's local wallet account; the buyer's chosen wallet account is bound in its signed request. This is still not a protocol-level proof of account ownership.
+- The operator's dedicated account pools open escrow funds. The liability cap and encrypted journal are local checks; the Nano ledger does not enforce them. A malicious operator, compromised host, or rollback of the authenticated local journal can defeat the software policy. Do not use real funds.
+- Nano's built-in wallet RPC is documented for development/testing. Keep it behind an authenticated loopback gateway and do not expose its port. Independent production security review, recovery policy, and operational review remain pending. [Nano RPC](https://docs.nano.org/commands/rpc-protocol/), [key management](https://docs.nano.org/integration-guides/key-management/)
+- Direct XNO trades remain irreversible payments to a counterparty; they do not gain escrow by using the separate escrow tools. The human Marketplace PWA still has no payment checkout. BTC and XMR agent transfers are not implemented.
+
+## Offline checks
 
 Run from the repository root:
 
 ```bash
 node property/tests/agent-xno-trades-smoke.mjs
+node property/tests/agent-xno-escrow-smoke.mjs
 node property/tests/agent-nano-wallet-smoke.mjs
 ```
 
-G8 has 28 deterministic cases. G9 has 14 cases against a synthetic RPC server bound only to loopback. Both report zero funds and no external network/relay use. These fixture tests validate the implemented state transitions; they do not replace native wallet integration, independent security review, human UX evaluation, or production operations approval.
+The escrow fixture uses one buyer, seller, custodian, and arbiter; two synthetic trades; one seller release and one arbiter-directed refund; and fixed lost-response and partial-notice retry cases. It validates the modeled workflow only, not live Nano operation, custody honesty, arbitration fairness, or production readiness.
 
 ## Open work
 
-Production use remains pending a wallet RPC architecture suitable for real funds, anti-rollback spend policy or an explicit decision to accept its limits, recovery/migration policy, independent security review, and real operator UX review. Windows, macOS, Android, and iOS native support remain separately `PENDING`.
+Production use remains pending independent security and human-operator review, an anti-rollback policy, wallet recovery design, and real custody operations. Windows, macOS, Android, and iOS native support remain separately `PENDING`.
