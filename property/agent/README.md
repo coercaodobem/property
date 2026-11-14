@@ -64,7 +64,7 @@ Setup takes no transaction. To configure, the selected Nano node and its authent
 
 ### Experimental 2-of-3 Nano threshold escrow
 
-The `property_xno_threshold_*` tools create a NIP-17 DKG session, store each participant's share in a separate encrypted local file, bind a buyer/seller/arbiter contract, propose a release or expiry refund, collect exact block approvals, aggregate two FROST shares, and submit the block only to a local Nano dev node. Mainnet signing/publication is disabled. See the [threshold escrow protocol and pending gates](../docs/agent-xno-threshold.md).
+The `property_xno_threshold_*` tools create a protocol-v2 NIP-17 DKG session, store each participant’s share in a separate encrypted local file, bind a buyer/seller/arbiter contract, propose a release or expiry refund, require all three participants to observe the same intent fingerprint before approval, aggregate two FROST shares, and submit the block only to a local Nano dev node. Conflicting intents freeze signing and are exposed in status; participants may block the arbiter locally. Mainnet signing/publication is disabled. See the [threshold escrow protocol and pending gates](../docs/agent-xno-threshold.md).
 
 This is a threshold signature, not conditional escrow enforced by Nano. Any two share-holders can collude or use other software to sign a different valid block. Account ownership is declared but not proven against the Nostr identity. The offline protocol fixture does not invoke actual NIP-17 encryption or a Nano node. Do not use real funds; the current `xno.escrow.*` flow remains a separate custodial option.
 

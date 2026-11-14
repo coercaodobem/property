@@ -6,7 +6,9 @@ import {
   encodeThresholdBytes, nanoAccountFromPublicKey, nanoPublicKeyFromAccount, nanoThresholdFrost as frost, nanoThresholdIdentifier,
 } from './xno-threshold.mjs';
 
-export const XNO_THRESHOLD_PROTOCOL = 'property-xno-threshold/v1';
+// v2 adds a three-party intent observation round. Old v1 clients must fail
+// closed instead of signing without shared-intent consensus.
+export const XNO_THRESHOLD_PROTOCOL = 'property-xno-threshold/v2';
 const SESSION_ID = /^[0-9a-f]{32}$/;
 const HASH = /^[0-9a-f]{64}$/;
 const MAX_MESSAGE_BYTES = 24 * 1024;
@@ -21,7 +23,15 @@ function expectedSigners(contract, outcome) {
   throw new Error('xno-threshold-outcome-invalid');
 }
 function hashBytes(hash) { if (!TXID.test(hash || '')) throw new Error('xno-threshold-hash-invalid'); return Uint8Array.from(Buffer.from(hash, 'hex')); }
-function validateUnsignedIntent(value, session, sender) {
+function assertSettlementWindow(outcome, contract, current) {
+  if (!Number.isSafeInteger(current) || current < 0) throw new Error('xno-threshold-clock-invalid');
+  // The boundary is exclusive for release and inclusive for refund so the
+  // contract can never authorize both outcomes at the same instant.
+  if (outcome === 'release' && current >= contract.expires_at) throw new Error('xno-threshold-contract-expired');
+  if (outcome === 'refund' && current < contract.expires_at) throw new Error('xno-threshold-refund-not-yet-available');
+}
+
+function validateUnsignedIntent(value, session, sender, current) {
   const fields = ['intent_id', 'session_id', 'manifest_sha256', 'coordinator', 'network', 'outcome', 'account', 'destination', 'amount_raw',
     'balance_raw', 'previous', 'representative', 'signers', 'block', 'block_hash', 'created_at'];
   if (!exactObject(value, fields) || !SESSION_ID.test(value.intent_id || '') || value.session_id !== session.session_id ||
@@ -32,6 +42,7 @@ function validateUnsignedIntent(value, session, sender) {
       !ACCOUNT.test(value.representative || '') || !Array.isArray(value.signers) || value.signers.length !== 2 ||
       expectedSigners(session.contract, value.outcome).some((key, index) => key !== value.signers[index]) ||
       !Number.isSafeInteger(value.created_at) || value.created_at < 0 || !value.block || typeof value.block !== 'object' || Array.isArray(value.block)) throw new Error('xno-threshold-intent-invalid');
+  assertSettlementWindow(value.outcome, session.contract, current);
   const block = value.block;
   if (!exactObject(block, ['type', 'account', 'previous', 'representative', 'balance', 'link', 'signature', 'work']) || block.type !== 'state' ||
       block.account !== value.account || block.previous !== value.previous || block.representative !== value.representative || block.balance !== '0' ||
@@ -120,12 +131,13 @@ export function createXnoThresholdProtocol({ pubkey, transport, wallet = null, r
     return session;
   };
 const sessionFromManifest = (manifest, role, round1) => ({
-    session_id: manifest.session_id, creator: manifest.creator, participants: manifest.participants, trade_id: manifest.trade_id,
+    protocol: manifest.protocol, session_id: manifest.session_id, creator: manifest.creator, participants: manifest.participants, trade_id: manifest.trade_id,
     contract: manifest.contract, terms_sha256: manifest.contract.terms_sha256, network: manifest.network, manifest_sha256: manifest.manifest_sha256,
     created_at: manifest.created_at, status: 'dkg', role, own_round1_secret: encodeThresholdBytes(round1.secret),
     own_round1_public: encodeRound1(round1.public), public_round1: { [pubkey]: encodeRound1(round1.public) },
     outbound_round2: {}, inbound_round2: {}, key_package: null, group_public_key: '', group_account: '', messages_seen: {},
-    intent: null, approvals: {}, signing: null, signed_block: null, publication: null,
+    intent: null, intent_observations: {}, intent_observation_delivered: {}, intent_conflicts: [], intent_equivocation: false, security_alerts: [],
+    approvals: {}, signing: null, signed_block: null, publication: null,
     invite_delivered: {}, join_delivered: {},
   });
   const send = async (peer, message, replyTo = null) => {
@@ -151,6 +163,47 @@ const sessionFromManifest = (manifest, role, round1) => ({
         value.protocol !== XNO_THRESHOLD_PROTOCOL || value.type !== expectedType || value.session_id !== session.session_id ||
         value.manifest_sha256 !== session.manifest_sha256 || value.sender !== peer || value.recipient !== pubkey) throw new Error('xno-threshold-message-unauthenticated');
     return value.payload;
+  }
+  function recordIntentFingerprint(session, fingerprint) {
+    session.intent_conflicts ||= [];
+    if (!session.intent_conflicts.includes(fingerprint) && session.intent_conflicts.length < 4) session.intent_conflicts.push(fingerprint);
+    if (session.intent_conflicts.length > 1) session.intent_equivocation = true;
+  }
+  function intentFingerprint(intent) { return sha256(stable(intent)); }
+  function assertIntentConsensus(session) {
+    if (session.intent_equivocation) throw new Error('xno-threshold-intent-conflict-detected');
+    if (!session.intent) throw new Error('xno-threshold-intent-not-available');
+    const fingerprint = intentFingerprint(session.intent);
+    session.intent_observations ||= {};
+    if (session.participants.some(peer => session.intent_observations[peer] !== fingerprint)) {
+      throw new Error('xno-threshold-intent-not-shared-with-all-participants');
+    }
+  }
+  async function announceIntentObservation(session, intent) {
+    session.intent_observations ||= {};
+    session.intent_observation_delivered ||= {};
+    const fingerprint = intentFingerprint(intent);
+    const own = session.intent_observations[pubkey];
+    if (own && own !== fingerprint) {
+      recordIntentFingerprint(session, own);
+      recordIntentFingerprint(session, fingerprint);
+      return;
+    }
+    session.intent_observations[pubkey] = fingerprint;
+    recordIntentFingerprint(session, fingerprint);
+    for (const observedFingerprint of Object.values(session.intent_observations)) {
+      if (observedFingerprint !== fingerprint) {
+        recordIntentFingerprint(session, observedFingerprint);
+        recordIntentFingerprint(session, fingerprint);
+      }
+    }
+    const delivered = session.intent_observation_delivered[fingerprint] ||= {};
+    const targets = session.participants.filter(peer => peer !== pubkey && !delivered[peer]);
+    const results = await Promise.allSettled(targets.map(async peer => {
+      await send(peer, frame('settlement_observation', session, peer, { fingerprint, observer: pubkey }));
+      delivered[peer] = true;
+    }));
+    return { attempted: targets.length, sent: results.filter(item => item.status === 'fulfilled').length };
   }
   function insertByPeer(map, peer, value, label) {
     if (map[peer] !== undefined && !same(map[peer], value)) throw new Error(`xno-threshold-${label}-conflict`);
@@ -258,10 +311,39 @@ const sessionFromManifest = (manifest, role, round1) => ({
           insertByPeer(session.inbound_round2, peer, encodeThresholdBytes(share), 'round2');
         } else if (value.type === 'settlement_proposal') {
           const payload = validateFrame(value, 'settlement_proposal', session, peer);
-          const intent = validateUnsignedIntent(payload, session, peer);
-          if (session.intent && !same(session.intent, intent)) throw new Error('xno-threshold-intent-conflict');
+          let intent;
+          try { intent = validateUnsignedIntent(payload, session, peer, now()); }
+          catch (error) {
+            if (['xno-threshold-refund-not-yet-available', 'xno-threshold-contract-expired'].includes(error?.message)) {
+              session.security_alerts ||= [];
+              if (session.security_alerts.length < 10) session.security_alerts.push({ sender: peer, outcome: payload?.outcome, reason: error.message });
+            }
+            continue;
+          }
+          const fingerprint = intentFingerprint(intent);
+          if (session.intent && !same(session.intent, intent)) {
+            recordIntentFingerprint(session, intentFingerprint(session.intent));
+            recordIntentFingerprint(session, fingerprint);
+            continue;
+          }
           session.intent = intent;
           session.approvals ||= {};
+          await announceIntentObservation(session, intent);
+        } else if (value.type === 'settlement_observation') {
+          const payload = validateFrame(value, 'settlement_observation', session, peer);
+          if (!exactObject(payload, ['fingerprint', 'observer']) || !HASH.test(payload.fingerprint || '') || payload.observer !== peer) continue;
+          session.intent_observations ||= {};
+          const previous = session.intent_observations[peer];
+          if (previous && previous !== payload.fingerprint) {
+            recordIntentFingerprint(session, previous);
+            recordIntentFingerprint(session, payload.fingerprint);
+          }
+          session.intent_observations[peer] = payload.fingerprint;
+          recordIntentFingerprint(session, payload.fingerprint);
+          if (session.intent && payload.fingerprint !== intentFingerprint(session.intent)) {
+            recordIntentFingerprint(session, intentFingerprint(session.intent));
+            recordIntentFingerprint(session, payload.fingerprint);
+          }
         } else if (value.type === 'settlement_approval') {
           const payload = validateFrame(value, 'settlement_approval', session, peer);
           if (!exactObject(payload, ['intent_id', 'block_hash', 'signer']) || !session.intent || payload.intent_id !== session.intent.intent_id ||
@@ -350,6 +432,7 @@ const sessionFromManifest = (manifest, role, round1) => ({
   }
 
   function requireSessionReady(session) {
+    if (session.protocol !== XNO_THRESHOLD_PROTOCOL) throw new Error('xno-threshold-protocol-version-unsupported');
     if (session.status !== 'ready' || !session.key_package || !session.group_account || !session.group_public_key) throw new Error('xno-threshold-dkg-incomplete');
   }
   function requireThresholdWallet() {
@@ -388,10 +471,8 @@ const sessionFromManifest = (manifest, role, round1) => ({
         relay_attempts: retryResults.length, duplicate: true };
     }
     const current = now();
-    if (!Number.isSafeInteger(current) || current < 0) throw new Error('xno-threshold-clock-invalid');
     const contract = session.contract;
-    if (params.outcome === 'release' && current > contract.expires_at) throw new Error('xno-threshold-contract-expired');
-    if (params.outcome === 'refund' && current < contract.expires_at) throw new Error('xno-threshold-refund-not-yet-available');
+    assertSettlementWindow(params.outcome, contract, current);
     const destination = params.outcome === 'release' ? contract.seller_account : contract.buyer_account;
     const amount = contract.amount_raw;
     const groupPublicKey = Uint8Array.from(Buffer.from(session.group_public_key, 'hex'));
@@ -409,12 +490,13 @@ const sessionFromManifest = (manifest, role, round1) => ({
       coordinator: pubkey, network: 'dev', outcome: params.outcome, account: session.group_account, destination,
       amount_raw: amount, balance_raw: accountState.balance_raw, previous: accountState.previous, representative: accountState.representative,
       signers, block: proposal.block, block_hash: proposal.block_hash, created_at: current };
-    validateUnsignedIntent(intent, session, pubkey);
+    validateUnsignedIntent(intent, session, pubkey, current);
     session.intent = intent;
     session.approvals = {};
     session.signing = null;
     session.signed_block = null;
     session.publication = null;
+    await announceIntentObservation(session, intent);
     await save(store);
     const results = await Promise.allSettled(session.participants.filter(peer => peer !== pubkey).map(peer => send(peer, frame('settlement_proposal', session, peer, intent))));
     return { intent_id: intent.intent_id, outcome: intent.outcome, account: intent.account, destination: intent.destination,
@@ -437,7 +519,8 @@ const sessionFromManifest = (manifest, role, round1) => ({
         params.confirm_text !== approvalText(intent)) throw new Error('xno-threshold-approval-details-mismatch');
     if (!intent.signers.includes(pubkey)) throw new Error('xno-threshold-not-an-authorized-signer');
     const current = now();
-    if (!Number.isSafeInteger(current) || current < 0 || (intent.outcome === 'release' && current > session.contract.expires_at)) throw new Error('xno-threshold-contract-expired');
+    assertSettlementWindow(intent.outcome, session.contract, current);
+    assertIntentConsensus(session);
     await assertIntentFrontier(session);
     session.approvals[pubkey] = { intent_id: intent.intent_id, block_hash: intent.block_hash };
     await save(store);
@@ -453,6 +536,8 @@ const sessionFromManifest = (manifest, role, round1) => ({
     const session = findSession(store, params.session_id);
     requireSessionReady(session);
     if (pubkey !== session.creator || !session.intent || session.intent.intent_id !== params.intent_id || session.intent.block_hash !== params.block_hash) throw new Error('xno-threshold-signing-start-invalid');
+    assertSettlementWindow(session.intent.outcome, session.contract, now());
+    assertIntentConsensus(session);
     if (session.intent.signers.some(signer => session.approvals[signer]?.intent_id !== session.intent.intent_id || session.approvals[signer]?.block_hash !== session.intent.block_hash)) {
       throw new Error('xno-threshold-signature-quorum-not-approved');
     }
@@ -480,7 +565,8 @@ const sessionFromManifest = (manifest, role, round1) => ({
         !session.intent.signers.includes(pubkey) || session.approvals[pubkey]?.intent_id !== params.intent_id || session.approvals[pubkey]?.block_hash !== params.block_hash) {
       throw new Error('xno-threshold-local-approval-required');
     }
-    if (session.intent.outcome === 'release' && now() > session.contract.expires_at) throw new Error('xno-threshold-contract-expired');
+    assertSettlementWindow(session.intent.outcome, session.contract, now());
+    assertIntentConsensus(session);
     await assertIntentFrontier(session);
     if (!session.signing || !session.signing.round_id) throw new Error('xno-threshold-signing-round-not-started');
     const otherSigner = session.signing.signers.find(peer => peer !== pubkey);
@@ -512,7 +598,8 @@ const sessionFromManifest = (manifest, role, round1) => ({
     if (!session.signing || !session.intent || session.intent.intent_id !== params.intent_id || session.intent.block_hash !== params.block_hash ||
         !session.intent.signers.includes(pubkey) || session.approvals[pubkey]?.intent_id !== params.intent_id || session.approvals[pubkey]?.block_hash !== params.block_hash) throw new Error('xno-threshold-local-approval-required');
     if (session.signing.signers.some(signer => !session.signing.commitments[signer])) throw new Error('xno-threshold-nonce-commitments-incomplete');
-    if (session.intent.outcome === 'release' && now() > session.contract.expires_at) throw new Error('xno-threshold-contract-expired');
+    assertSettlementWindow(session.intent.outcome, session.contract, now());
+    assertIntentConsensus(session);
     await assertIntentFrontier(session);
     const cachedShare = session.signing.signature_shares[pubkey];
     if (cachedShare) {
@@ -571,6 +658,10 @@ const sessionFromManifest = (manifest, role, round1) => ({
     const session = findSession(store, params.session_id);
     requireSessionReady(session);
     if (session.network !== 'dev') throw new Error('xno-threshold-mainnet-disabled');
+    if (session.intent) {
+      assertSettlementWindow(session.intent.outcome, session.contract, now());
+      assertIntentConsensus(session);
+    }
     if (pubkey !== session.creator || !session.intent || session.intent.intent_id !== params.intent_id || session.intent.block_hash !== params.block_hash || !session.signed_block) {
       throw new Error('xno-threshold-signed-block-not-available');
     }
@@ -586,6 +677,7 @@ const sessionFromManifest = (manifest, role, round1) => ({
     const store = await state();
     const session = findSession(store, params.session_id);
     if (session.status === 'aborted') return publicStatus(session);
+    if (session.protocol !== XNO_THRESHOLD_PROTOCOL) throw new Error('xno-threshold-protocol-version-unsupported');
     if (session.role === 'participant') await publishJoin(session, store);
     await gather(session, store);
     if (session.status !== 'ready') await advanceDkg(session, store);
@@ -595,15 +687,21 @@ const sessionFromManifest = (manifest, role, round1) => ({
 
   function publicStatus(session) {
     const completed = session.status === 'ready';
-    return { session_id: session.session_id, status: session.status, role: session.role, trade_id: session.trade_id,
+    return { protocol: session.protocol || 'legacy', session_id: session.session_id, status: session.status, role: session.role, trade_id: session.trade_id,
       terms_sha256: session.contract.terms_sha256, network: session.network, participant_count: session.participants.length,
       round1_received: Object.keys(session.public_round1 || {}).length, round2_received: completed ? 2 : Object.keys(session.inbound_round2 || {}).length,
+      ...(session.security_alerts?.length ? { security_alerts: session.security_alerts.slice(-10) } : {}),
       ...(completed ? { threshold: '2-of-3', group_public_key: session.group_public_key, group_account: session.group_account } : {}),
       ...(session.intent ? { settlement: { intent_id: session.intent.intent_id, outcome: session.intent.outcome, block_hash: session.intent.block_hash,
+        arbiter_pubkey: session.contract.arbiter_pubkey,
         account: session.intent.account, destination: session.intent.destination, amount_raw: session.intent.amount_raw,
         balance_raw: session.intent.balance_raw, previous: session.intent.previous, signers: session.intent.signers,
         approval_text: approvalText(session.intent),
-        approvals: Object.keys(session.approvals || {}), signing_status: session.signing?.status || 'not_started',
+        approvals: Object.keys(session.approvals || {}), intent_observation_count: Object.keys(session.intent_observations || {}).length,
+        intent_consensus: !session.intent_equivocation && session.participants.every(peer => session.intent_observations?.[peer] === intentFingerprint(session.intent)),
+        integrity: session.intent_equivocation ? 'conflicting_intents' : 'consistent_so_far',
+        conflicting_fingerprint_count: session.intent_conflicts?.length || 0,
+        signing_status: session.signing?.status || 'not_started',
         signed: Boolean(session.signed_block), published: Boolean(session.publication), publication: session.publication } } : {}) };
   }
 
