@@ -180,6 +180,7 @@ const creatorFingerprint = creatorSession.intent_observations[identities[2]];
 injectSettlement(2, 0, creatorSession, 'settlement_observation', { fingerprint: creatorFingerprint, observer: identities[2] });
 injectSettlement(2, 1, creatorSession, 'settlement_observation', { fingerprint: creatorFingerprint, observer: identities[2] });
 injectSettlement(2, 0, creatorSession, 'settlement_proposal', baseIntent);
+injectSettlement(2, 1, creatorSession, 'settlement_proposal', baseIntent);
 injectSettlement(2, 1, creatorSession, 'settlement_proposal', splitIntent);
 await actors[0].service.sync({ session_id: adversarialCreated.session_id });
 await actors[1].service.sync({ session_id: adversarialCreated.session_id });
@@ -187,8 +188,8 @@ await actors[0].service.sync({ session_id: adversarialCreated.session_id });
 await actors[1].service.sync({ session_id: adversarialCreated.session_id });
 await actors[2].service.sync({ session_id: adversarialCreated.session_id });
 for (const index of [0, 1, 2]) {
-  assert.equal((await actors[index].service.status({ session_id: adversarialCreated.session_id })).settlement.integrity, 'conflicting_intents',
-    `participant ${index} receives a conflict report for the session`);
+  assert.equal((await actors[index].service.status({ session_id: adversarialCreated.session_id })).settlement.integrity, 'conflict_reported',
+    `participant ${index} receives a report from a participant that saw two coordinator proposals`);
 }
 await assert.rejects(actors[2].service.beginSettlementSigning({ session_id: adversarialCreated.session_id,
   intent_id: maliciousProposal.intent_id, block_hash: maliciousProposal.block_hash }), /xno-threshold-intent-conflict-detected/);
@@ -217,7 +218,7 @@ process.stdout.write(JSON.stringify({ gate: 'XNO-T3a-threshold-dkg-transport', p
     'mainnet-dkg-session-refused', 'exact-contract-bound-send-proposal', 'no-signing-before-required-approvals', 'buyer-plus-arbiter-cannot-approve-release',
     'buyer-and-seller-approve-exact-frontier-and-block', 'all-three-participants-observe-identical-intent-before-approval',
     'one-use-nonce-round', 'two-approved-shares-aggregate-for-exact-block', 'mock-dev-publication-remains-unconfirmed',
-    'release-rejected-at-exact-expiry', 'early-refund-rejected-and-reported-by-buyer-and-seller', 'same-session-coordinator-equivocation-detected-by-all-three',
+    'release-rejected-at-exact-expiry', 'early-refund-rejected-and-reported-by-buyer-and-seller', 'single-recipient-equivocation-report-freezes-all-three',
     'equivocated-intent-cannot-start-signing', 'both-parties-can-locally-block-the-reported-arbiter',
     'alternate-arbiter-can-be-chosen-after-local-block', 'legacy-v1-session-fails-closed']
     .map(id => ({ id, result: 'PASS' })), caseCount: 23, participantFixtures: 4, adversarialSessions: 1, arbiterCandidates: 2,

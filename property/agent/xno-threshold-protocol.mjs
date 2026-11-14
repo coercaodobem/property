@@ -136,7 +136,8 @@ const sessionFromManifest = (manifest, role, round1) => ({
     created_at: manifest.created_at, status: 'dkg', role, own_round1_secret: encodeThresholdBytes(round1.secret),
     own_round1_public: encodeRound1(round1.public), public_round1: { [pubkey]: encodeRound1(round1.public) },
     outbound_round2: {}, inbound_round2: {}, key_package: null, group_public_key: '', group_account: '', messages_seen: {},
-    intent: null, intent_observations: {}, intent_observation_delivered: {}, intent_conflicts: [], intent_equivocation: false, security_alerts: [],
+    intent: null, intent_observations: {}, intent_observation_delivered: {}, intent_conflicts: [], intent_equivocation: false,
+    intent_conflict_report_delivered: {}, security_alerts: [],
     approvals: {}, signing: null, signed_block: null, publication: null,
     invite_delivered: {}, join_delivered: {},
   });
@@ -193,8 +194,7 @@ const sessionFromManifest = (manifest, role, round1) => ({
     recordIntentFingerprint(session, fingerprint);
     for (const observedFingerprint of Object.values(session.intent_observations)) {
       if (observedFingerprint !== fingerprint) {
-        recordIntentFingerprint(session, observedFingerprint);
-        recordIntentFingerprint(session, fingerprint);
+        await reportIntentConflict(session, [observedFingerprint, fingerprint]);
       }
     }
     const delivered = session.intent_observation_delivered[fingerprint] ||= {};
@@ -204,6 +204,20 @@ const sessionFromManifest = (manifest, role, round1) => ({
       delivered[peer] = true;
     }));
     return { attempted: targets.length, sent: results.filter(item => item.status === 'fulfilled').length };
+  }
+  async function reportIntentConflict(session, fingerprints) {
+    const unique = [...new Set(fingerprints.filter(value => HASH.test(value || '')))].sort();
+    if (unique.length < 2) return;
+    session.intent_equivocation = true;
+    for (const fingerprint of unique) recordIntentFingerprint(session, fingerprint);
+    session.intent_conflict_report_delivered ||= {};
+    const reportId = sha256(stable(unique));
+    const delivered = session.intent_conflict_report_delivered[reportId] ||= {};
+    const targets = session.participants.filter(peer => peer !== pubkey && !delivered[peer]);
+    await Promise.allSettled(targets.map(async peer => {
+      await send(peer, frame('settlement_conflict', session, peer, { coordinator: session.creator, reporter: pubkey, fingerprints: unique }));
+      delivered[peer] = true;
+    }));
   }
   function insertByPeer(map, peer, value, label) {
     if (map[peer] !== undefined && !same(map[peer], value)) throw new Error(`xno-threshold-${label}-conflict`);
@@ -322,8 +336,7 @@ const sessionFromManifest = (manifest, role, round1) => ({
           }
           const fingerprint = intentFingerprint(intent);
           if (session.intent && !same(session.intent, intent)) {
-            recordIntentFingerprint(session, intentFingerprint(session.intent));
-            recordIntentFingerprint(session, fingerprint);
+            await reportIntentConflict(session, [intentFingerprint(session.intent), fingerprint]);
             continue;
           }
           session.intent = intent;
@@ -335,15 +348,19 @@ const sessionFromManifest = (manifest, role, round1) => ({
           session.intent_observations ||= {};
           const previous = session.intent_observations[peer];
           if (previous && previous !== payload.fingerprint) {
-            recordIntentFingerprint(session, previous);
-            recordIntentFingerprint(session, payload.fingerprint);
+            await reportIntentConflict(session, [previous, payload.fingerprint]);
           }
           session.intent_observations[peer] = payload.fingerprint;
           recordIntentFingerprint(session, payload.fingerprint);
           if (session.intent && payload.fingerprint !== intentFingerprint(session.intent)) {
-            recordIntentFingerprint(session, intentFingerprint(session.intent));
-            recordIntentFingerprint(session, payload.fingerprint);
+            await reportIntentConflict(session, [intentFingerprint(session.intent), payload.fingerprint]);
           }
+        } else if (value.type === 'settlement_conflict') {
+          const payload = validateFrame(value, 'settlement_conflict', session, peer);
+          if (!exactObject(payload, ['coordinator', 'reporter', 'fingerprints']) || payload.coordinator !== session.creator || payload.reporter !== peer ||
+              !Array.isArray(payload.fingerprints) || payload.fingerprints.length !== 2 || payload.fingerprints.some(hash => !HASH.test(hash || '')) ||
+              payload.fingerprints[0] === payload.fingerprints[1]) continue;
+          await reportIntentConflict(session, payload.fingerprints);
         } else if (value.type === 'settlement_approval') {
           const payload = validateFrame(value, 'settlement_approval', session, peer);
           if (!exactObject(payload, ['intent_id', 'block_hash', 'signer']) || !session.intent || payload.intent_id !== session.intent.intent_id ||
@@ -699,7 +716,7 @@ const sessionFromManifest = (manifest, role, round1) => ({
         approval_text: approvalText(session.intent),
         approvals: Object.keys(session.approvals || {}), intent_observation_count: Object.keys(session.intent_observations || {}).length,
         intent_consensus: !session.intent_equivocation && session.participants.every(peer => session.intent_observations?.[peer] === intentFingerprint(session.intent)),
-        integrity: session.intent_equivocation ? 'conflicting_intents' : 'consistent_so_far',
+        integrity: session.intent_equivocation ? 'conflict_reported' : 'consistent_so_far',
         conflicting_fingerprint_count: session.intent_conflicts?.length || 0,
         signing_status: session.signing?.status || 'not_started',
         signed: Boolean(session.signed_block), published: Boolean(session.publication), publication: session.publication } } : {}) };

@@ -12,7 +12,7 @@ The updated offline fixture passed **23 assertions** using four fixed synthetic 
 - early refund proposals are rejected by both buyer and seller under their local contract clocks and surfaced as local security alerts;
 - release is rejected at the exact expiry boundary, while refund becomes eligible at that boundary;
 - all three participants must observe the same intent fingerprint before approval/signing;
-- split intents are reported in all three local session statuses and cannot start the Property signing flow;
+- one recipient that receives two coordinator proposals sends a conflict report; all three local session statuses show the report and cannot start the Property signing flow;
 - after the parties locally add the reported arbiter to their injected blocklists, a new session using that identity is refused and a different candidate can be invited.
 - a stored v1 session refuses to sync under the v2 client.
 
@@ -20,6 +20,6 @@ The v2 wire identifier is intentionally incompatible with v1, so old clients can
 
 ## Limits
 
-These are synthetic protocol messages; this run did not exercise real NIP-17 event signatures, separate installed daemons, a Nano node, public relays, or any funds. The blocklist checks use a local callback fixture; the report does not prove that both humans or agents will permanently block the identity, and no shared or Sybil-resistant reputation exists. One session still has one arbiter; trying multiple candidates means separate sessions. Local clocks and Property-client rules can be bypassed by modified software. Any two threshold-share holders can sign a different valid Nano block outside Property, and Nano consensus does not enforce the escrow policy.
+These are synthetic protocol messages; this run did not exercise real NIP-17 event signatures, separate installed daemons, a Nano node, public relays, or any funds. A participant-authenticated conflict report is not cryptographic proof for the other parties that the accused coordinator sent both proposals; a malicious participant could file a false report and freeze a session. The blocklist checks use a local callback fixture; the report does not prove that both humans or agents will permanently block the identity, and no shared or Sybil-resistant reputation exists. One session still has one arbiter; trying multiple candidates means separate sessions. Local clocks and Property-client rules can be bypassed by modified software. Any two threshold-share holders can sign a different valid Nano block outside Property, and Nano consensus does not enforce the escrow policy.
 
 Mainnet creation/signing/publication remains hard-disabled. No faucet balance or real transaction was used. The XNO-T2 private-node acceptance, XNO-T3b real private-relay integration, and XNO-T4 independent cryptographic/security and human UX reviews remain pending.

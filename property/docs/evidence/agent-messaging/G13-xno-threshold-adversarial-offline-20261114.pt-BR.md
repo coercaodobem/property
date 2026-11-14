@@ -12,7 +12,7 @@ O fixture offline atualizado passou **23 asserções** com quatro identidades si
 - propostas de reembolso antecipado são rejeitadas pelo comprador e vendedor usando seus relógios contratuais locais e aparecem como alertas de segurança locais;
 - liberação é rejeitada no instante exato do vencimento, enquanto reembolso fica elegível nesse instante;
 - os três participantes precisam observar a mesma impressão digital da proposta antes da aprovação/assinatura;
-- propostas divergentes aparecem nos três status locais da sessão e não podem iniciar a assinatura pelo fluxo Property;
+- um participante que recebe duas propostas do coordenador envia um relato de conflito; os três status locais mostram o relato e não podem iniciar a assinatura pelo fluxo Property;
 - após os participantes adicionarem localmente o árbitro reportado às listas de bloqueio injetadas, uma nova sessão com essa identidade é recusada e outro candidato pode ser convidado.
 - uma sessão v1 armazenada recusa sincronização pelo cliente v2.
 
@@ -20,6 +20,6 @@ O identificador de protocolo v2 é incompatível intencionalmente com v1, para c
 
 ## Limites
 
-As mensagens são sintéticas; esta execução não exercita assinaturas reais de eventos NIP-17, daemons instalados separadamente, nó Nano, relays públicos ou fundos. Os testes de bloqueio usam um fixture de callback local; o relatório não prova que ambos os humanos ou agentes bloquearão permanentemente a identidade, e não existe reputação compartilhada ou resistente a Sybil. Uma sessão ainda tem um árbitro; testar vários candidatos exige sessões separadas. Relógios locais e regras do cliente Property podem ser contornados por software modificado. Quaisquer dois titulares de share podem assinar outro bloco Nano válido fora do Property, e o consenso Nano não impõe a política do escrow.
+As mensagens são sintéticas; esta execução não exercita assinaturas reais de eventos NIP-17, daemons instalados separadamente, nó Nano, relays públicos ou fundos. Um relato de conflito autenticado pelo participante não é prova criptográfica para as outras partes de que o coordenador acusado enviou ambas as propostas; um participante malicioso pode enviar um relato falso e congelar a sessão. Os testes de bloqueio usam um fixture de callback local; o relatório não prova que ambos os humanos ou agentes bloquearão permanentemente a identidade, e não existe reputação compartilhada ou resistente a Sybil. Uma sessão ainda tem um árbitro; testar vários candidatos exige sessões separadas. Relógios locais e regras do cliente Property podem ser contornados por software modificado. Quaisquer dois titulares de share podem assinar outro bloco Nano válido fora do Property, e o consenso Nano não impõe a política do escrow.
 
 A criação/assinatura/publicação em mainnet permanece desativada. Nenhum saldo de faucet ou transação real foi usado. Permanecem pendentes aceitação por nó privado XNO-T2, integração real com relay privado XNO-T3b e revisões independentes criptográfica/de segurança e de UX humano XNO-T4.
