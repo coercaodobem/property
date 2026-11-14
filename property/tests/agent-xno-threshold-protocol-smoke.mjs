@@ -3,7 +3,7 @@ import { createXnoThresholdProtocol, XNO_THRESHOLD_PROTOCOL } from '../agent/xno
 import { emptyXnoThresholdState, validateXnoThresholdState } from '../agent/xno-threshold-store.mjs';
 import { calculateNanoThresholdBlockHash, decodeThresholdBytes, encodeThresholdBytes, nanoAccountFromPublicKey } from '../agent/xno-threshold.mjs';
 
-const identities = ['a', 'b', 'c', 'd'].map(value => value.repeat(64));
+const identities = ['a', 'b', 'c', 'd', 'e', 'f', '1'].map(value => value.repeat(64));
 const mailboxes = new Map(identities.map(pubkey => [pubkey, []]));
 let sequence = 0;
 let nextFixtureId = 0;
@@ -201,16 +201,29 @@ actors[1].setNow(1234);
 const blockedCandidate = { ...sessionParams, trade_id: '9'.repeat(32) };
 await assert.rejects(actors[0].service.create(blockedCandidate), /xno-threshold-peer-invalid/);
 await assert.rejects(actors[1].service.create(blockedCandidate), /xno-threshold-peer-invalid/);
-const alternateArbiterParams = { ...sessionParams, participants: [identities[0], identities[1], identities[3]], trade_id: '8'.repeat(32),
-  contract: { ...sessionParams.contract, arbiter_pubkey: identities[3] } };
-const alternateSession = await actors[0].service.create(alternateArbiterParams);
-assert.equal(alternateSession.invitations_sent, 2, 'buyer can start a new session with another unblocked arbiter');
-await actors[1].service.accept({ session_id: alternateSession.session_id });
-await actors[3].service.accept({ session_id: alternateSession.session_id });
-assert.equal((await actors[3].service.status({ session_id: alternateSession.session_id })).status, 'dkg',
-  'seller and buyer can choose an alternate candidate after locally blocking the reported arbiter');
-actors[0].setSessionProtocol(alternateSession.session_id, 'property-xno-threshold/v1');
-await assert.rejects(actors[0].service.sync({ session_id: alternateSession.session_id }), /xno-threshold-protocol-version-unsupported/);
+const alternateArbiterIndexes = [3, 4, 5, 6];
+const alternateTradeIds = ['8', '9', 'a', 'b'];
+const alternateSessions = [];
+for (let index = 0; index < alternateArbiterIndexes.length; index++) {
+  const arbiterIndex = alternateArbiterIndexes[index];
+  const alternateArbiterParams = { ...sessionParams, participants: [identities[0], identities[1], identities[arbiterIndex]],
+    trade_id: alternateTradeIds[index].repeat(32),
+    contract: { ...sessionParams.contract, arbiter_pubkey: identities[arbiterIndex] } };
+  const alternateSession = await actors[0].service.create(alternateArbiterParams);
+  alternateSessions.push(alternateSession);
+  assert.equal(alternateSession.invitations_sent, 2, `buyer can invite unblocked alternate arbiter ${index + 1}`);
+  await actors[1].service.accept({ session_id: alternateSession.session_id });
+  await actors[arbiterIndex].service.accept({ session_id: alternateSession.session_id });
+  for (let pass = 0; pass < 4; pass++) {
+    await actors[0].service.sync({ session_id: alternateSession.session_id });
+    await actors[1].service.sync({ session_id: alternateSession.session_id });
+    await actors[arbiterIndex].service.sync({ session_id: alternateSession.session_id });
+  }
+  assert.equal((await actors[arbiterIndex].service.status({ session_id: alternateSession.session_id })).status, 'ready',
+    `buyer, seller, and alternate arbiter ${index + 1} complete an independent session after local block`);
+}
+actors[0].setSessionProtocol(alternateSessions[0].session_id, 'property-xno-threshold/v1');
+await assert.rejects(actors[0].service.sync({ session_id: alternateSessions[0].session_id }), /xno-threshold-protocol-version-unsupported/);
 process.stdout.write(JSON.stringify({ gate: 'XNO-T3a-threshold-dkg-transport', profile: 'offline-synthetic', protocol: XNO_THRESHOLD_PROTOCOL,
   seed: 'property-xno-threshold-identities-fixed-v1',
   cases: ['signed-private-invites-only-for-three-participants', 'all-three-accept-and-exchange-round1', 'pairwise-share-recipient-binding',
@@ -220,7 +233,8 @@ process.stdout.write(JSON.stringify({ gate: 'XNO-T3a-threshold-dkg-transport', p
     'one-use-nonce-round', 'two-approved-shares-aggregate-for-exact-block', 'mock-dev-publication-remains-unconfirmed',
     'release-rejected-at-exact-expiry', 'early-refund-rejected-and-reported-by-buyer-and-seller', 'single-recipient-equivocation-report-freezes-all-three',
     'equivocated-intent-cannot-start-signing', 'both-parties-can-locally-block-the-reported-arbiter',
-    'alternate-arbiter-can-be-chosen-after-local-block', 'legacy-v1-session-fails-closed']
-    .map(id => ({ id, result: 'PASS' })), caseCount: 23, participantFixtures: 4, adversarialSessions: 1, arbiterCandidates: 2,
+    'four-alternate-arbiters-can-be-chosen-after-local-block', 'legacy-v1-session-fails-closed']
+    .map(id => ({ id, result: 'PASS' })), caseCount: 23, participantFixtures: 7, adversarialSessions: 1,
+  arbiterCandidates: 5, alternateSessionsAfterLocalBlock: 4,
   transport: 'in-memory-message-contract-fixture; real NIP-17 crypto not invoked', fundsUsed: false, relaysContacted: false,
   realParticipantsSimulated: false, secretValuesInReport: false }, null, 2) + '\n');
