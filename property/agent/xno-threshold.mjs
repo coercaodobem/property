@@ -50,6 +50,68 @@ function fromHex(value) {
   return output;
 }
 
+function strictHex(value, name, length) {
+  if (typeof value !== 'string' || !new RegExp(`^[0-9a-f]{${length * 2}}$`, 'i').test(value)) throw new Error(`${name}-invalid`);
+  return fromHex(value);
+}
+
+function parseRaw(value, name) {
+  if (typeof value !== 'string' || !/^(?:0|[1-9]\d{0,38})$/.test(value)) throw new Error(`${name}-invalid`);
+  const result = BigInt(value);
+  if (result > (1n << 128n) - 1n) throw new Error(`${name}-invalid`);
+  return result;
+}
+
+function nanoBlockHashBytes(block) {
+  if (!block || block.type !== 'state') throw new Error('xno-threshold-state-block-invalid');
+  const account = nanoPublicKeyFromAccount(block.account);
+  const representative = nanoPublicKeyFromAccount(block.representative);
+  const previous = strictHex(block.previous, 'xno-threshold-previous', 32);
+  const link = strictHex(block.link, 'xno-threshold-link', 32);
+  const balance = integerToBytesBE(parseRaw(block.balance, 'xno-threshold-balance'), 16);
+  const preamble = new Uint8Array(32);
+  preamble[31] = 6;
+  return blake2b(concatBytes(preamble, account, previous, representative, balance, link), { dkLen: 32 });
+}
+
+/** Return the canonical Nano state-block hash, excluding its signature and work fields. */
+export function calculateNanoThresholdBlockHash(block) {
+  return toHex(nanoBlockHashBytes(block)).toUpperCase();
+}
+
+/** Build one exact state-send block for a threshold account; no key material is accepted. */
+export function buildNanoThresholdSendBlock({ account, groupPublicKey, previous, representative, balanceRaw, destination, amountRaw, work = '0000000000000000' }) {
+  const publicKey = bytes(groupPublicKey, 'xno-public-key', 32);
+  if (nanoAccountFromPublicKey(publicKey) !== account || nanoPublicKeyFromAccount(account).some((byte, index) => byte !== publicKey[index])) throw new Error('xno-threshold-account-key-mismatch');
+  strictHex(previous, 'xno-threshold-previous', 32);
+  if (/^0{64}$/i.test(previous)) throw new Error('xno-threshold-account-not-open');
+  const balance = parseRaw(balanceRaw, 'xno-threshold-balance');
+  const amount = parseRaw(amountRaw, 'xno-threshold-amount');
+  if (amount < 1n || amount > balance) throw new Error('xno-threshold-send-amount-invalid');
+  if (typeof work !== 'string' || !/^[0-9a-f]{16}$/i.test(work)) throw new Error('xno-threshold-work-invalid');
+  const destinationKey = nanoPublicKeyFromAccount(destination);
+  if (destination === account || destinationKey.length !== 32) throw new Error('xno-threshold-destination-invalid');
+  nanoPublicKeyFromAccount(representative);
+  const block = {
+    type: 'state', account, previous: previous.toUpperCase(), representative,
+    balance: (balance - amount).toString(), link: toHex(destinationKey).toUpperCase(),
+    signature: '0'.repeat(128), work: work.toLowerCase(),
+  };
+  return Object.freeze({ block: Object.freeze(block), block_hash: calculateNanoThresholdBlockHash(block), amount_raw: amount.toString(), destination });
+}
+
+/** Attach only a valid FROST aggregate for the exact Nano block hash. */
+export function attachNanoThresholdSignature(blockValue, signatureValue, groupPublicKeyValue) {
+  const publicKey = bytes(groupPublicKeyValue, 'xno-public-key', 32);
+  const signature = typeof signatureValue === 'string' ? strictHex(signatureValue, 'xno-threshold-signature', 64) : bytes(signatureValue, 'xno-threshold-signature', 64);
+  const block = { ...blockValue };
+  if (nanoAccountFromPublicKey(publicKey) !== block.account) throw new Error('xno-threshold-account-key-mismatch');
+  const hash = nanoBlockHashBytes(block);
+  if (!verifyNanoThresholdSignature(signature, hash, publicKey)) throw new Error('xno-threshold-signature-invalid');
+  block.signature = toHex(signature).toUpperCase();
+  return Object.freeze({ block: Object.freeze(block), block_hash: toHex(hash).toUpperCase() });
+}
+
 function assertNanoPublicKey(publicKey) {
   const point = Point.fromBytes(publicKey);
   point.assertValidity();
@@ -134,6 +196,14 @@ export const nanoThresholdFrost = Object.freeze({
     const ticket = Object.freeze({ commitments: copyCommitments(generated.commitments) });
     activeNoncePackages.set(ticket, generated.nonces);
     return ticket;
+  },
+  discardNonce(ticket) {
+    const nonces = activeNoncePackages.get(ticket);
+    if (!nonces) return false;
+    activeNoncePackages.delete(ticket);
+    nonces.hiding.fill(0);
+    nonces.binding.fill(0);
+    return true;
   },
   signShare(secret, publicPackage, ticket, commitmentList, message) {
     const nonces = activeNoncePackages.get(ticket);

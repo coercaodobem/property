@@ -1,12 +1,13 @@
 import { createHash } from 'node:crypto';
 import http from 'node:http';
 import net from 'node:net';
+import { attachNanoThresholdSignature, calculateNanoThresholdBlockHash, nanoAccountFromPublicKey, nanoPublicKeyFromAccount } from './xno-threshold.mjs';
 
 const TXID = /^[0-9a-f]{64}$/i;
 const WALLET_ID = /^[0-9a-f]{64}$/i;
 const ACCOUNT = /^(?:nano)_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/;
 const MAX_RAW = (1n << 128n) - 1n;
-const ALLOWED_ACTIONS = new Set(['version', 'password_enter', 'wallet_locked', 'wallet_lock', 'account_list', 'wallet_contains', 'account_balance', 'send', 'block_info', 'receivable', 'account_history', 'receive']);
+const ALLOWED_ACTIONS = new Set(['version', 'password_enter', 'wallet_locked', 'wallet_lock', 'account_list', 'wallet_contains', 'account_balance', 'send', 'block_info', 'receivable', 'account_history', 'receive', 'account_info', 'work_generate', 'process']);
 
 function raw(value, label = 'amount_raw') {
   if (typeof value !== 'string' || !/^(?:0|[1-9]\d{0,38})$/.test(value)) throw new Error(`${label}-invalid`);
@@ -120,6 +121,50 @@ export function createNanoAgentWallet(configValue, { timeoutMs = 10_000, maxResp
     return BigInt(result.balance);
   }
 
+  function requireThresholdDevNetwork() {
+    if (config.network !== 'dev') throw new Error('xno-threshold-mainnet-disabled');
+  }
+
+  async function inspectThresholdAccount({ account, groupPublicKey }) {
+    requireThresholdDevNetwork();
+    if (!/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/.test(account || '') || !(groupPublicKey instanceof Uint8Array) ||
+        nanoAccountFromPublicKey(groupPublicKey) !== account || nanoPublicKeyFromAccount(account).some((byte, index) => byte !== groupPublicKey[index])) throw new Error('xno-threshold-account-key-mismatch');
+    await assertNetwork();
+    const result = await rpc('account_info', { account, representative: 'true', include_confirmed: 'true' });
+    const frontier = String(result.confirmed_frontier || '').toUpperCase();
+    const balance = String(result.confirmed_balance ?? '');
+    if (!TXID.test(frontier) || /^0{64}$/.test(frontier) || !/^\d+$/.test(balance) || !/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/.test(result.confirmed_representative || '')) {
+      throw new Error('xno-threshold-confirmed-state-unavailable');
+    }
+    if (String(result.frontier || '').toUpperCase() !== frontier || String(result.balance ?? '') !== balance) throw new Error('xno-threshold-account-has-unconfirmed-head');
+    return Object.freeze({ account, previous: frontier, representative: result.confirmed_representative, balance_raw: balance });
+  }
+
+  async function generateThresholdWork(block) {
+    requireThresholdDevNetwork();
+    if (!block || block.type !== 'state' || !TXID.test(block.previous || '') || !/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/.test(block.account || '')) throw new Error('xno-threshold-work-request-invalid');
+    await assertNetwork();
+    const result = await rpc('work_generate', { json_block: 'true', block });
+    const work = String(result.work || '').toLowerCase();
+    if (!/^[0-9a-f]{16}$/.test(work) || (result.hash && String(result.hash).toUpperCase() !== String(block.previous).toUpperCase())) throw new Error('xno-threshold-work-result-invalid');
+    return work;
+  }
+
+  async function publishThresholdBlock(blockValue, groupPublicKey) {
+    requireThresholdDevNetwork();
+    if (!blockValue || blockValue.type !== 'state' || !/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/.test(blockValue.account || '') || !/^[0-9a-f]{16}$/i.test(blockValue.work || '') ||
+        !/^[0-9a-f]{128}$/i.test(blockValue.signature || '')) throw new Error('xno-threshold-block-invalid');
+    const publicKey = groupPublicKey instanceof Uint8Array ? groupPublicKey : Buffer.from(String(groupPublicKey || ''), 'hex');
+    if (publicKey.length !== 32 || nanoAccountFromPublicKey(publicKey) !== blockValue.account) throw new Error('xno-threshold-account-key-mismatch');
+    const verified = attachNanoThresholdSignature(blockValue, blockValue.signature, publicKey);
+    if (verified.block_hash !== calculateNanoThresholdBlockHash(blockValue)) throw new Error('xno-threshold-block-hash-mismatch');
+    await assertNetwork();
+    const result = await rpc('process', { json_block: 'true', subtype: 'send', block: blockValue });
+    const hash = String(result.hash || '').toUpperCase();
+    if (!TXID.test(hash) || hash !== verified.block_hash) throw new Error('xno-threshold-publish-result-mismatch');
+    return Object.freeze({ hash, status: 'submitted_unconfirmed', network: 'dev' });
+  }
+
   async function inspectSend({ txid, destination, amountRaw, source = config.account }) {
     if (!TXID.test(txid || '') || !ACCOUNT.test(destination || '') || !ACCOUNT.test(source || '')) throw new Error('xno-transaction-query-invalid');
     raw(amountRaw);
@@ -202,6 +247,9 @@ export function createNanoAgentWallet(configValue, { timeoutMs = 10_000, maxResp
       return { txid: result.block.toUpperCase() };
     },
     async inspectSend(input) { return inspectSend(input); },
+    async inspectThresholdAccount(input) { return inspectThresholdAccount(input); },
+    async generateThresholdWork(block) { return generateThresholdWork(block); },
+    async publishThresholdBlock(block, groupPublicKey) { return publishThresholdBlock(block, groupPublicKey); },
     async receiveConfirmed({ txid, sourceAccount, amountRaw }) {
       if (!TXID.test(txid || '') || !ACCOUNT.test(sourceAccount || '')) throw new Error('xno-transaction-query-invalid');
       raw(amountRaw);

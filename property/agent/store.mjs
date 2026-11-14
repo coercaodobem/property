@@ -6,6 +6,7 @@ import { profileName, createEmptyConfig, validateConfig } from './core.mjs';
 
 const MAX_STORE_BYTES = 256 * 1024;
 const MAX_ENCRYPTED_JOURNAL_BYTES = 512 * 1024;
+const MAX_ENCRYPTED_THRESHOLD_BYTES = 4 * 1024 * 1024;
 
 export function resolvePaths(profile = 'default', env = process.env, home = os.homedir()) {
   const selectedProfile = profileName(profile);
@@ -17,7 +18,7 @@ export function resolvePaths(profile = 'default', env = process.env, home = os.h
   if (Buffer.byteLength(socketPath) > 100) throw new Error('O caminho do socket local é longo demais; configure XDG_RUNTIME_DIR curto.');
   return { profile: selectedProfile, dataDir, vaultPath: path.join(dataDir, 'agent.vault.json'), configPath: path.join(dataDir, 'agent.json'),
     xnoVaultPath: path.join(dataDir, 'xno-wallet.vault.json'), xnoEscrowVaultPath: path.join(dataDir, 'xno-escrow-wallet.vault.json'),
-    xnoJournalPath: path.join(dataDir, 'xno-trades.json'), runtimeDir, socketPath };
+    xnoJournalPath: path.join(dataDir, 'xno-trades.json'), xnoThresholdPath: path.join(dataDir, 'xno-threshold.json'), runtimeDir, socketPath };
 }
 
 export async function ensurePrivateDirectory(directory) {
@@ -40,7 +41,7 @@ export async function writePrivateJson(file, value) {
 }
 
 export async function readJson(file, { maxBytes = MAX_STORE_BYTES } = {}) {
-  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_ENCRYPTED_JOURNAL_BYTES) throw new Error('Limite de leitura local inválido.');
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_ENCRYPTED_THRESHOLD_BYTES) throw new Error('Limite de leitura local inválido.');
   const info = await lstat(file);
   if (!info.isFile() || info.isSymbolicLink() || (typeof process.getuid === 'function' && info.uid !== process.getuid())) throw new Error('Arquivo local não é regular ou não pertence ao usuário atual.');
   if ((info.mode & 0o777) !== 0o600) throw new Error('Arquivo local precisa ter permissão 0600.');

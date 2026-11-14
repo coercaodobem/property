@@ -1,9 +1,17 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { createNanoAgentWallet, validateXnoWalletConfig } from '../agent/nano-wallet.mjs';
+import { nanoPublicKeyFromAccount } from '../agent/xno-threshold.mjs';
 
 const account = `nano_1${'1'.repeat(59)}`;
 const destination = `nano_3${'3'.repeat(59)}`;
+const thresholdAccount = 'nano_3qgmh14nwztqw4wmcdzy4xpqeejey68chx6nciczwn9abji7ihhum9qtpmdr';
+const thresholdPublicKey = nanoPublicKeyFromAccount(thresholdAccount);
+const thresholdPrevious = 'F47B23107E5F34B2CE06F562B5C435DF72A533251CB414C51B2B62A8F63A00E4';
+const thresholdRepresentative = 'nano_1hza3f7wiiqa7ig3jczyxj5yo86yegcmqk3criaz838j91sxcckpfhbhhra1';
+const thresholdBlock = { type: 'state', account: thresholdAccount, previous: thresholdPrevious, representative: thresholdRepresentative,
+  balance: '1000000000000000000000', link: '19D3D919475DEED4696B5D13018151D1AF88B2BD3BCFF048B45031C1F36D1858',
+  signature: '3BFBA64A775550E6D49DF1EB8EEC2136DCD74F090E2ED658FBD9E80F17CB1C9F9F7BDE2B93D95558EC2F277FFF15FD11E6E2162A1714731B743D1E941FA4560A', work: 'cab7404f0b5449d0' };
 const walletId = 'a'.repeat(64);
 const txid = 'b'.repeat(64).toUpperCase();
 const receiveTxid = 'c'.repeat(64).toUpperCase();
@@ -38,6 +46,10 @@ const server = createServer(async (request, response) => {
     case 'account_list': result = { accounts }; break;
     case 'wallet_contains': result = { exists: parsed.account === account ? '1' : '0' }; break;
     case 'account_balance': result = { balance, receivable: '0' }; break;
+    case 'account_info': result = { frontier: thresholdPrevious, confirmed_frontier: thresholdPrevious, balance: '1000000000000000000000',
+      confirmed_balance: '1000000000000000000000', representative: thresholdRepresentative, confirmed_representative: thresholdRepresentative }; break;
+    case 'work_generate': assert.equal(parsed.json_block, 'true'); assert.equal(parsed.block.previous, thresholdPrevious); result = { work: '0123456789abcdef', hash: thresholdPrevious }; break;
+    case 'process': assert.equal(parsed.subtype, 'send'); assert.equal(parsed.json_block, 'true'); assert.deepEqual(parsed.block, thresholdBlock); result = { hash: 'FF0144381CFF0B2C079A115E7ADA7E96F43FD219446E7524C48D1CC9900C4F17' }; break;
     case 'send': {
       const old = sends.get(parsed.id);
       if (old && (old.destination !== parsed.destination || old.amount !== parsed.amount || old.source !== parsed.source)) {
@@ -89,6 +101,14 @@ const config = { rpc_url: `http://127.0.0.1:${address.port}/`, rpc_username: rpc
   wallet_password: walletPassword, wallet_id: walletId, account, network: 'dev', max_raw_per_payment: '50', lifetime_budget_raw: '200' };
 const wallet = createNanoAgentWallet(config);
 
+assert.deepEqual(await wallet.inspectThresholdAccount({ account: thresholdAccount, groupPublicKey: thresholdPublicKey }), {
+  account: thresholdAccount, previous: thresholdPrevious, representative: thresholdRepresentative, balance_raw: '1000000000000000000000',
+});
+assert.equal(await wallet.generateThresholdWork(thresholdBlock), '0123456789abcdef');
+assert.deepEqual(await wallet.publishThresholdBlock(thresholdBlock, thresholdPublicKey), {
+  hash: 'FF0144381CFF0B2C079A115E7ADA7E96F43FD219446E7524C48D1CC9900C4F17', status: 'submitted_unconfirmed', network: 'dev',
+});
+
 await wallet.assertReady();
 assert.ok(actions.includes('password_enter'));
 assert.ok(actions.includes('account_list'));
@@ -137,6 +157,12 @@ assert.equal(actions.filter(action => action === 'receive').length, 1, 'recovery
 
 network = 'live';
 await assert.rejects(wallet.assertReady(), /xno-wrong-network/);
+await assert.rejects(wallet.inspectThresholdAccount({ account: thresholdAccount, groupPublicKey: thresholdPublicKey }), /xno-wrong-network/);
+await assert.rejects(wallet.publishThresholdBlock(thresholdBlock, thresholdPublicKey), /xno-wrong-network/);
+const liveConfiguredWallet = createNanoAgentWallet({ ...config, network: 'live' });
+await assert.rejects(liveConfiguredWallet.inspectThresholdAccount({ account: thresholdAccount, groupPublicKey: thresholdPublicKey }), /xno-threshold-mainnet-disabled/);
+await assert.rejects(liveConfiguredWallet.publishThresholdBlock(thresholdBlock, thresholdPublicKey), /xno-threshold-mainnet-disabled/);
+await liveConfiguredWallet.lock();
 network = 'dev';
 accounts = [account, destination];
 await assert.rejects(wallet.assertReady(), /xno-wallet-must-have-one-dedicated-account/);
@@ -151,7 +177,8 @@ await wallet.lock();
 await new Promise(resolve => server.close(resolve));
 const caseIds = ['dedicated-account-unlock-and-live-network-check', 'raw-send-with-local-per-payment-cap', 'same-id-is-idempotent-after-balance-falls', 'nano-node-rejects-new-send-above-balance', 'invalid-amount-and-self-send-refused',
   'pending-and-confirmed-ledger-checks', 'wrong-amount-or-recipient-refused', 'unconfirmed-and-mismatched-incoming-refused', 'lost-receive-response-recovered-from-account-history', 'confirmed-incoming-transfer-received-once', 'duplicate-receive-recovery-deduplicated', 'wrong-network-refused',
-  'multi-account-wallet-refused', 'remote-and-localhost-rpc-hosts-refused', 'unauthenticated-gateway-request-refused'];
+  'multi-account-wallet-refused', 'remote-and-localhost-rpc-hosts-refused', 'unauthenticated-gateway-request-refused',
+  'threshold-account-bound-to-dkg-public-key-and-confirmed-frontier', 'threshold-work-generated-for-exact-state-block', 'threshold-signed-state-block-published-to-dev-only', 'threshold-publish-refused-on-mainnet'];
 process.stdout.write(JSON.stringify({ gate: 'G9-XNO-wallet-adapter', profile: 'offline', seed: 'property-xno-wallet-fixed-v1', cases: caseIds.map(id => ({ id, result: 'PASS' })),
   caseCount: caseIds.length, nanoRpcRequests: actions.length, syntheticTransfers: sends.size, fundsUsed: false, outsideNetwork: false,
   secretValuesInReport: false }, null, 2) + '\n');

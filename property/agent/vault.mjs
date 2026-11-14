@@ -8,13 +8,14 @@ function aad(format, pubkey, version) { return Buffer.from(`${format}\0${pubkey}
 function derive(password, salt) { return pbkdf2Sync(password, salt, VAULT_ITERATIONS, 32, 'sha256'); }
 
 function payloadAad(pubkey, context) {
-  if (!/^[0-9a-f]{64}$/.test(pubkey) || !['xno-wallet', 'xno-journal'].includes(context)) throw new Error('Payload cifrado do agente inválido.');
+  if (!/^[0-9a-f]{64}$/.test(pubkey) || !['xno-wallet', 'xno-journal', 'xno-threshold'].includes(context)) throw new Error('Payload cifrado do agente inválido.');
   return Buffer.from(`${ENCRYPTED_PAYLOAD_FORMAT}\0${pubkey}\0${1}\0${context}`, 'utf8');
 }
 
 function maxPayloadBytes(context) {
   if (context === 'xno-wallet') return 16 * 1024;
   if (context === 'xno-journal') return 256 * 1024;
+  if (context === 'xno-threshold') return 3 * 1024 * 1024;
   throw new Error('Payload cifrado do agente inválido.');
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "property-agent-local",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "platformsImplemented": ["linux-x64"],
   "platformsPending": ["windows", "macos", "android", "ios"],
   "node": ">=22",
@@ -17,6 +17,9 @@
   "nanoThresholdCrypto": {
     "status": "experimental",
     "protocol": "FROST threshold signatures with the Nano Ed25519+BLAKE2b challenge",
+    "integration": "NIP-17 DKG, encrypted local share store, exact dev-only settlement signing; Nano-node acceptance pending",
+    "mainnetEnabled": false,
+    "independentAudit": "pending",
     "nobleCurvesVersion": "2.4.0",
     "nobleHashesVersion": "2.4.0",
     "source": "vendor/node_modules/@noble"
@@ -36,6 +39,8 @@
     "xno-trades.mjs",
     "xno-journal.mjs",
     "xno-threshold.mjs",
+    "xno-threshold-store.mjs",
+    "xno-threshold-protocol.mjs",
     "agent-messaging.js",
     "typing-signals.js",
     "vendor/nostr-tools-2.25.2.bundle.js",

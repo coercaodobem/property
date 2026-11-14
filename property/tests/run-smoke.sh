@@ -73,6 +73,8 @@ for test_file in \
   agent-xno-trades-smoke.mjs \
   agent-xno-escrow-smoke.mjs \
   agent-xno-threshold-smoke.mjs \
+  agent-xno-threshold-store-smoke.mjs \
+  agent-xno-threshold-protocol-smoke.mjs \
   agent-nano-wallet-smoke.mjs \
   agent-package-smoke.mjs \
   offline/agent-security-g5.mjs \

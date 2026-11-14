@@ -94,6 +94,56 @@ const tools = [
     method: 'xno.dispute',
   },
   {
+    name: 'property_xno_threshold_create', title: 'Start an experimental 2-of-3 Nano threshold key session', description: 'Create a dev-network-only distributed-key-generation session for exactly three Nostr identities mapped to buyer, seller, and arbiter roles. The invite binds Nano accounts, amount, terms hash, and expiry. It creates no escrow, sends no XNO, and does not enforce spending rules on Nano itself.',
+    inputSchema: { type: 'object', properties: { participants: { type: 'array', items: { type: 'string', pattern: '^[0-9a-f]{64}$' }, minItems: 3, maxItems: 3 }, trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, contract: { type: 'object', properties: { buyer_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, buyer_account: { type: 'string', pattern: '^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$' }, seller_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, seller_account: { type: 'string', pattern: '^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$' }, arbiter_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, amount_raw: { type: 'string', pattern: '^[1-9][0-9]{0,38}$' }, terms_sha256: { type: 'string', pattern: '^[0-9a-f]{64}$' }, expires_at: { type: 'integer', minimum: 0 } }, required: ['buyer_pubkey', 'buyer_account', 'seller_pubkey', 'seller_account', 'arbiter_pubkey', 'amount_raw', 'terms_sha256', 'expires_at'], additionalProperties: false }, network: { type: 'string', enum: ['dev'] } }, required: ['participants', 'trade_id', 'contract', 'network'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    method: 'xno.threshold.create',
+  },
+  {
+    name: 'property_xno_threshold_accept', title: 'Accept a 2-of-3 Nano key session', description: 'Accept a signed NIP-17 invitation, generate this participant’s DKG material, store it in the local encrypted threshold store, and exchange private shares over pairwise encrypted NIP-17 messages. No payment occurs.',
+    inputSchema: { type: 'object', properties: { session_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['session_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    method: 'xno.threshold.accept',
+  },
+  {
+    name: 'property_xno_threshold_sync', title: 'Advance 2-of-3 Nano key generation', description: 'Read authenticated session messages, exchange the remaining encrypted DKG shares, and derive the local threshold share after all three participants complete DKG. This does not create on-chain escrow or enable a payout.',
+    inputSchema: { type: 'object', properties: { session_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['session_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    method: 'xno.threshold.sync',
+  },
+  {
+    name: 'property_xno_threshold_status', title: 'Read 2-of-3 Nano escrow status', description: 'Read DKG progress, the public Nano account, exact proposed settlement fields, signer approvals, signing round, and dev-node publication status. Secret shares are never returned.',
+    inputSchema: { type: 'object', properties: { session_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['session_id'], additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    method: 'xno.threshold.status',
+  },
+  {
+    name: 'property_xno_threshold_propose', title: 'Propose exact Nano escrow settlement', description: 'On the dev network only, build a send block for the contract amount and fixed recipient: seller for release or buyer for refund. The account balance must equal the contract exactly. This only prepares a block and sends no funds.',
+    inputSchema: { type: 'object', properties: { session_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, outcome: { type: 'string', enum: ['release', 'refund'] } }, required: ['session_id', 'outcome'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    method: 'xno.threshold.propose',
+  },
+  {
+    name: 'property_xno_threshold_approve', title: 'Approve the exact Nano settlement', description: 'Record this participant’s explicit approval for the full block hash, outcome, account, destination, amount, and current frontier shown in Property status. Buyer plus seller are required for release; buyer plus arbiter are required for refund. The participant must copy the exact approval_text from status. Approval does not send funds.',
+    inputSchema: { type: 'object', properties: { session_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, intent_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, block_hash: { type: 'string', pattern: '^[0-9a-f]{64}$' }, outcome: { type: 'string', enum: ['release', 'refund'] }, account: { type: 'string', pattern: '^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$' }, destination: { type: 'string', pattern: '^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$' }, amount_raw: { type: 'string', pattern: '^[1-9][0-9]{0,38}$' }, previous: { type: 'string', pattern: '^[0-9a-fA-F]{64}$' }, confirm_text: { type: 'string', minLength: 1, maxLength: 300 } }, required: ['session_id', 'intent_id', 'block_hash', 'outcome', 'account', 'destination', 'amount_raw', 'previous', 'confirm_text'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    method: 'xno.threshold.approve',
+  },
+  {
+    name: 'property_xno_threshold_begin_signing', title: 'Start a fresh threshold signing round', description: 'After both required signers have approved the same exact block, start a new nonce round. This broadcasts no secret nonce; nonces remain only in process memory and are discarded when a round is replaced.',
+    inputSchema: { type: 'object', properties: { session_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, intent_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, block_hash: { type: 'string', pattern: '^[0-9a-f]{64}$' } }, required: ['session_id', 'intent_id', 'block_hash'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    method: 'xno.threshold.begin_signing',
+  },
+  {
+    name: 'property_xno_threshold_prepare_signature', title: 'Commit a one-use signing nonce', description: 'Create a process-memory one-use FROST nonce for the approved settlement and send only its public commitment. Requires syncing the coordinator’s current signing round and both signer approvals.',
+    inputSchema: { type: 'object', properties: { session_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, intent_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, block_hash: { type: 'string', pattern: '^[0-9a-f]{64}$' } }, required: ['session_id', 'intent_id', 'block_hash'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    method: 'xno.threshold.prepare_signature',
+  },
+  {
+    name: 'property_xno_threshold_sign', title: 'Create this participant’s threshold signature share', description: 'Consume this process’s one-use nonce to sign only the approved block hash, then send the signature share to the coordinator. A fresh signing round is required after a process restart.',
+    inputSchema: { type: 'object', properties: { session_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, intent_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, block_hash: { type: 'string', pattern: '^[0-9a-f]{64}$' } }, required: ['session_id', 'intent_id', 'block_hash'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    method: 'xno.threshold.sign',
+  },
+  {
+    name: 'property_xno_threshold_publish', title: 'Publish the threshold-signed Nano block', description: 'Submit the verified threshold-signed block to the configured local dev Nano node only. Mainnet publication is disabled. A node acceptance response is not confirmation; this tool currently reports submitted/unconfirmed.',
+    inputSchema: { type: 'object', properties: { session_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, intent_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, block_hash: { type: 'string', pattern: '^[0-9a-f]{64}$' } }, required: ['session_id', 'intent_id', 'block_hash'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    method: 'xno.threshold.publish',
+  },
+  {
     name: 'property_xno_escrow_offer', title: 'Request a custodial XNO escrow', description: 'As buyer, send the chosen escrow operator a NIP-17 contract request binding the buyer and seller identities, Nano accounts, amount, terms hash, expiry, and a separate arbiter. Requires a configured direct XNO wallet. The operator will hold deposited funds and remains a trusted custodian.',
     inputSchema: { type: 'object', properties: { escrow_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, arbiter_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, seller_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, seller_account: { type: 'string', pattern: '^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$' }, amount_raw: { type: 'string', pattern: '^[1-9][0-9]{0,38}$' }, terms: { type: 'string', minLength: 1, maxLength: 4096 }, expires_in_seconds: { type: 'integer', minimum: 60, maximum: 604800 } }, required: ['escrow_pubkey', 'arbiter_pubkey', 'seller_pubkey', 'seller_account', 'amount_raw', 'terms', 'expires_in_seconds'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     method: 'xno.escrow.offer',

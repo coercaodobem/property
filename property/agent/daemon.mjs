@@ -11,6 +11,8 @@ import { createNanoAgentWallet, validateXnoWalletConfig } from './nano-wallet.mj
 import { createXnoTradeService } from './xno-trades.mjs';
 import { createXnoEscrowService } from './xno-escrow.mjs';
 import { createEncryptedXnoJournalStore } from './xno-journal.mjs';
+import { createEncryptedXnoThresholdStore } from './xno-threshold-store.mjs';
+import { createXnoThresholdProtocol } from './xno-threshold-protocol.mjs';
 
 const AGENT_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PROPERTY_ROOT = path.resolve(AGENT_ROOT, '..');
@@ -54,6 +56,7 @@ export async function runDaemon({ password, profile = 'default', env = process.e
   let xnoEscrowWallet = null;
   let xnoTrades = null;
   let xnoEscrow = null;
+  let xnoThreshold = null;
   try {
     try {
       const envelope = await readJson(paths.xnoVaultPath);
@@ -68,6 +71,7 @@ export async function runDaemon({ password, profile = 'default', env = process.e
       escrowConfig.rpc_password = ''; escrowConfig.wallet_password = '';
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
     const journal = createEncryptedXnoJournalStore({ file: paths.xnoJournalPath, pubkey, password });
+    const thresholdStore = createEncryptedXnoThresholdStore({ file: paths.xnoThresholdPath, pubkey, password });
     let queue = Promise.resolve();
     const serializeTask = task => {
       const next = queue.then(task, task);
@@ -75,6 +79,9 @@ export async function runDaemon({ password, profile = 'default', env = process.e
       return next;
     };
     const journalOptions = { loadJournal: () => journal.load(), saveJournal: value => journal.save(value), serializeTask, now };
+    xnoThreshold = createXnoThresholdProtocol({ pubkey, transport, wallet: xnoWallet,
+      blockedPubkeys: () => configSnapshot.blocked_pubkeys, relays: () => configSnapshot.inbox_relays,
+      loadStore: () => thresholdStore.load(), saveStore: value => thresholdStore.save(value), serializeTask, now });
     if (xnoWallet) xnoTrades = createXnoTradeService({ pubkey, wallet: xnoWallet, transport,
       blockedPubkeys: () => configSnapshot.blocked_pubkeys, relays: () => configSnapshot.inbox_relays, ...journalOptions });
     xnoEscrow = createXnoEscrowService({ pubkey, wallet: xnoWallet, escrowWallet: xnoEscrowWallet, transport,
@@ -90,7 +97,7 @@ export async function runDaemon({ password, profile = 'default', env = process.e
   const service = new AgentService({
     pubkey, loadConfig,
     saveConfig: async config => { configSnapshot = validateConfig(config); await writePrivateJson(paths.configPath, configSnapshot); },
-    transport, xnoTrades, xnoEscrow, now,
+    transport, xnoTrades, xnoEscrow, xnoThreshold, now,
   });
   let shutdown;
   const stop = await startUnixJsonServer(paths.socketPath, async (method, params) => {

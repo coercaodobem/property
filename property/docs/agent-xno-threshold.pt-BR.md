@@ -1,31 +1,37 @@
-# Núcleo experimental de assinatura de limiar para Nano
+# Escrow experimental Nano 2-de-3 por assinatura de limiar
 
 [English](agent-xno-threshold.md) · **Português (Brasil)**
 
-O Property agora inclui um núcleo FROST experimental e local, capaz de gerar uma chave distribuída 2-de-3 e produzir uma assinatura Ed25519+BLAKE2b de 64 bytes no formato usado pelo Nano. As APIs de DKG e assinatura ficam em `property/agent/xno-threshold.mjs`; o código criptográfico vendorizado tem versão fixada e está incluído no repositório, sem baixar código durante instalação.
+O Property Agent agora tem um fluxo experimental de limiar 2-de-3 separado das ferramentas custodiais `xno.escrow.*` existentes. Três identidades Nostr recebem os papéis de comprador, vendedor e árbitro. Os dispositivos executam geração distribuída de chave (DKG) e guardam partes de assinatura separadas; não há custodiante confiável nem chave privada completa no protocolo. A chave pública se torna uma conta Nano comum.
 
-## O que o primitivo faz
+## Fluxo implementado
 
-- Três participantes podem executar uma geração distribuída de chave. Nenhum custodiante confiável cria ou vê a chave privada completa do grupo.
-- Cada participante mantém uma parte de assinatura. Duas partes válidas podem ser combinadas na assinatura de 64 bytes usada por blocos de estado Nano.
-- A chave pública do grupo pode ser codificada como uma conta `nano_` comum. Os nós Nano continuam vendo uma conta e assinatura normais; não é preciso alterar protocolo ou consenso.
-- O desafio EdDSA final calcula BLAKE2b-512 de `R || A || mensagem`. As hashes de transcript separadas do FROST usam SHA-512 com separação de domínio.
-- Os IDs dos participantes podem derivar das chaves públicas Nostr. As mensagens da rodada 2 do DKG contêm partes privadas e devem ser entregues por mensagens autenticadas e cifradas ponta a ponta.
-- O wrapper do Property expõe somente operações DKG e assinatura limiar fixas 2-de-3. Ele omite geração por custodiante confiável e utilitários para reconstruir a chave privada. Nonces e partes de chave usam o gerador criptográfico aleatório do runtime.
-- Cada compromisso de assinatura é representado por um ticket em memória de uso único. O nonce secreto fica oculto, é consumido na primeira tentativa de assinatura e seus buffers de bytes são zerados depois. Uma queda ou reinicialização abandona aquela tentativa; persistência e recuperação cifradas ainda não existem.
+- `xno.threshold.create`, `accept` e `sync` coordenam o DKG 2-de-3 fixo pelo transporte NIP-17 par a par existente. Shares da rodada dois são enviados somente ao participante indicado. O coordenador não consegue ler a mensagem NIP-17 privada de outro participante.
+- O material DKG e a parte final de cada participante ficam em `xno-threshold.json`, cifrados com a senha local do cofre Property Agent usando AES-256-GCM/PBKDF2. Nonces temporários de assinatura ficam somente na memória do processo; após reiniciar, uma nova rodada usa nonces novos.
+- O contrato assinado vincula três identidades Nostr, as contas Nano do comprador e vendedor, um valor raw, hash dos termos, rede, ID da troca e vencimento. A sessão deriva a conta Nano do grupo somente após o DKG.
+- A liquidação disponível somente na rede dev cria um bloco de envio de estado exato. A liberação é fixa para a conta do vendedor e exige aprovação do comprador e vendedor. O reembolso é fixo para a conta do comprador, fica disponível após o vencimento do contrato e exige aprovação do comprador e árbitro. Cada signatário vê a mesma conta, destino, valor, frontier anterior, resultado e hash do bloco. O frontier e saldo confirmados da conta são consultados novamente no nó Nano local antes da aprovação e assinatura.
+- Dois signatários aprovados criam shares FROST para o hash exato do bloco. O coordenador verifica e agrega os shares, verifica a assinatura Nano final e pode enviar o bloco ao nó Nano local de desenvolvimento configurado.
+- `xno.threshold.status` mostra o estado do DKG, liquidação, aprovações e envio ao nó sem revelar shares.
 
-Isso é uma **assinatura de limiar**, não uma conta multisig por script. Se dois dos três participantes se aliarem, podem gastar; o limiar 2-de-3 não impede seu próprio quórum. Perder ou deixar indisponíveis participantes suficientes pode tornar os fundos impossíveis de movimentar. O árbitro é um dos titulares de chave, então as partes devem escolher esse arranjo de confiança conscientemente.
+## Limites que permanecem
 
-## Escopo e limites de segurança
+Isso é uma **assinatura de limiar**, não uma multisig por script nem um recurso de gasto condicional integrado ao Nano. As ferramentas `xno.escrow.*` atuais continuam custodiais e não são substituídas por esse fluxo. O Nano vê uma conta e uma assinatura normais. As regras de liquidação dependem de signatários honestos usando o Property: quaisquer dois titulares de share podem se aliar ou usar outro software para assinar qualquer bloco válido. O app não consegue impor reembolso, entrega, arbitragem ou destinatário específico no nível do protocolo.
 
-O núcleo criptográfico ainda não está ligado à liquidação do escrow atual do Property Agent. Esse fluxo continua custodial: a carteira Nano configurada assina e envia os pagamentos. Ainda faltam a orquestração autenticada de mensagens DKG/assinatura via Nostr, armazenamento cifrado e recuperação das partes, construção da transação, exibição/aprovação dos campos exatos da liquidação, assinatura limiar do bloco e publicação do bloco assinado em um nó Nano.
+O contrato vincula identidades Nostr a contas Nano declaradas, mas ainda não prova que o titular da chave Nostr controla a chave privada Nano correspondente. Os usuários precisam verificar essas contas por conta própria. A perda de duas shares torna a conta impossível de gastar; perder uma share não tem recuperação implementada.
 
-O smoke test offline verifica um cenário fixo de DKG/assinatura 2-de-3 com participantes sintéticos, rejeição de mensagem adulterada e codificação de conta Nano. Ele não prova que um nó Nano aceite a assinatura nem que um escrow comercial seja sem custódia. A nova suíte Nano do ciphersuite ainda não passou por auditoria criptográfica independente. Não use fundos reais nem descreva o escrow atual como multisig até passar pelas etapas de integração e revisão.
+A criação da proposta, geração de work, assinatura e publicação de transação estão **desativadas fora da rede Nano dev**. O teste offline usa transporte sintético e adaptador de nó simulado; não exercita a criptografia NIP-17 real entre daemons nem a aceitação de um nó Nano. Ainda estão pendentes aceitação por nó privado real, entrega por relay real, recuperação após reinício entre daemons instalados, revisão independente criptográfica/de segurança e revisão humana do UX de assinatura. Uma resposta `process` confirma apenas o envio; esse fluxo ainda não acompanha confirmação. Não use fundos reais.
 
-Execute a verificação local focada na raiz do repositório:
+## Verificações offline
+
+Execute a partir da raiz do repositório:
 
 ```bash
 node property/tests/agent-xno-threshold-smoke.mjs
+node property/tests/agent-xno-threshold-store-smoke.mjs
+node property/tests/agent-xno-threshold-protocol-smoke.mjs
+bash property/tests/run-smoke.sh
 ```
 
-Referências: [formato de assinatura Ed25519+BLAKE2b do Nano](https://docs.nano.org/integration-guides/the-basics/), [assinatura e hash no Nano](https://docs.nano.org/protocol-design/signing-hashing-and-key-derivation/) e [FROST RFC 9591](https://www.rfc-editor.org/rfc/rfc9591.html).
+O teste de hash do bloco de estado coincide com um vetor de referência publicado no RPC Nano. Isso verifica serialização e comportamento criptográfico locais, não aceitação por nó independente ou segurança de produção. Consulte a [evidência offline G13-02](evidence/agent-messaging/G13-xno-threshold-integration-offline-20261113.md) e os [gates XNO restantes](plano-de-testes-central.pt-BR.md#extensão-separada-de-assinatura-de-limiar-xno-fora-da-aceitação-do-mvp).
+
+Referências: [blocos de estado Nano](https://docs.nano.org/protocol-design/blocks/), [protocolo RPC Nano](https://docs.nano.org/commands/rpc-protocol/), [geração de work Nano](https://docs.nano.org/integration-guides/work-generation/) e [FROST RFC 9591](https://www.rfc-editor.org/rfc/rfc9591.html).

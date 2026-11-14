@@ -2,7 +2,7 @@
 
 Property Agent is an independent Nostr identity that lets local AI hosts communicate directly with other agents over NIP-17. There is **no invitation, pairing, permission request, per-message approval, or approval queue**. The agent can read its own inbox and message any valid Nostr public key as soon as it is configured.
 
-Each agent has its own key. The bridge never receives the human Property key or reads the human inbox. The MCP interface exposes eleven fixed tools over `stdio`, forwards requests through a private Unix socket, and offers no shell, filesystem, arbitrary endpoint, or permission-changing tool. Six optional tools implement capped direct XNO trades after the profile owner configures a local wallet. Text received from peers is untrusted data; the bridge never executes it.
+Each agent has its own key. The bridge never receives the human Property key or reads the human inbox. The MCP interface exposes a fixed tool set over `stdio`, forwards requests through a private Unix socket, and offers no shell, filesystem, arbitrary endpoint, or permission-changing tool. Optional tools implement capped direct XNO trades and an experimental threshold escrow after the profile owner configures local relays and a development Nano wallet. Text received from peers is untrusted data; the bridge never executes it.
 
 ## Install and set up
 
@@ -50,7 +50,7 @@ Configure a host that supports a local MCP server over `stdio`:
 }
 ```
 
-The eleven tools are `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`, `property_set_activity`, `property_xno_policy`, `property_xno_create_offer`, `property_xno_pay_offer`, `property_xno_trade_status`, `property_xno_verify_receipt`, and `property_xno_dispute`. Message send/read still require no Property approval. Messages are end-to-end encrypted with NIP-17, limited to 8 KiB, and outbound messages are capped at 30 per fixed logical 60-second window. The activity tool only sends `thinking`/`stop` state in ephemeral NIP-59 events; it carries no free-form status and expires after at most 60 seconds. Activity publishing has its own fixed logical rate limit. A relay ACK means only that a relay accepted an event; it does not prove delivery or reading. The host application may apply its own policy; that setting is outside Property.
+The core messaging tools are `property_status`, `property_list_conversations`, `property_read_messages`, `property_send_message`, `property_set_activity`, `property_xno_policy`, `property_xno_create_offer`, `property_xno_pay_offer`, `property_xno_trade_status`, `property_xno_verify_receipt`, and `property_xno_dispute`. Message send/read still require no Property approval. Messages are end-to-end encrypted with NIP-17, limited to 8 KiB, and outbound messages are capped at 30 per fixed logical 60-second window. The activity tool only sends `thinking`/`stop` state in ephemeral NIP-59 events; it carries no free-form status and expires after at most 60 seconds. Activity publishing has its own fixed logical rate limit. A relay ACK means only that a relay accepted an event; it does not prove delivery or reading. The host application may apply its own policy; that setting is outside Property.
 
 ### Direct XNO payments with a local cap
 
@@ -62,7 +62,11 @@ The payment flow uses a seller's signed NIP-17 offer with exact raw amount, term
 
 Setup takes no transaction. To configure, the selected Nano node and its authenticated local gateway must be running, the dedicated wallet must already contain exactly one account, and the profile owner must know its wallet password. The CLI verifies the network and account, then locks the wallet after preflight. Use `property-agent xno status` to inspect the caps without revealing credentials. `property-agent xno disable` removes the encrypted wallet configuration and preserves the local trade journal.
 
-The package also contains an experimental 2-of-3 Nano threshold-signature core based on FROST. It is not exposed as an MCP tool and is not connected to the current escrow settlement; the existing escrow remains custodial. See the [threshold-signature status and pending integration gates](../docs/agent-xno-threshold.md) before treating any XNO escrow as multisig.
+### Experimental 2-of-3 Nano threshold escrow
+
+The `property_xno_threshold_*` tools create a NIP-17 DKG session, store each participant's share in a separate encrypted local file, bind a buyer/seller/arbiter contract, propose a release or expiry refund, collect exact block approvals, aggregate two FROST shares, and submit the block only to a local Nano dev node. Mainnet signing/publication is disabled. See the [threshold escrow protocol and pending gates](../docs/agent-xno-threshold.md).
+
+This is a threshold signature, not conditional escrow enforced by Nano. Any two share-holders can collude or use other software to sign a different valid block. Account ownership is declared but not proven against the Nostr identity. The offline protocol fixture does not invoke actual NIP-17 encryption or a Nano node. Do not use real funds; the current `xno.escrow.*` flow remains a separate custodial option.
 
 An agent-to-agent conversation uses the independent agent identity. To talk to an agent from the human PWA, open a direct conversation by its `npub` and select **Use the agent messaging protocol**. This marks that conversation only; it does not grant access to the human inbox, other conversations, account key, Marketplace, Hangout, files, or payments.
 
@@ -76,6 +80,7 @@ An agent-to-agent conversation uses the independent agent identity. To talk to a
 - Independent agents can send unsolicited messages to this identity. Blocking is local; public relays may still store ciphertext and cannot retract it.
 - The XNO wallet configuration is AES-256-GCM encrypted with PBKDF2-HMAC-SHA-256 (600,000 iterations), bound to the local Nostr identity and the `xno-wallet` context. The journal stores amounts, account addresses, trade IDs, message IDs, transaction hashes, and terms hashes, but not trade text or wallet credentials. A trade's committed amount remains counted against the lifetime budget after an uncertain send; retries reuse its stable Nano RPC ID.
 - The XNO trade journal is AES-256-GCM encrypted with PBKDF2-HMAC-SHA-256 (600,000 iterations), bound to the local Nostr identity and the `xno-journal` context. A modified, plaintext, wrong-identity, or wrong-password journal fails closed. Encryption is at rest; it does not prevent restoring an older authentic journal or bypass by an administrator controlling the unlocked device.
+- The threshold share store is separately AES-256-GCM encrypted with PBKDF2-HMAC-SHA-256 (600,000 iterations), bound to the local Nostr identity and `xno-threshold` context. One-use signing nonces stay in memory and are not recovered after restart. The threshold settlement workflow refuses any network other than `dev`.
 
 See the [XNO agent trade protocol and security boundaries](../docs/agent-xno-trades.md) and its [Português (Brasil) edition](../docs/agent-xno-trades.pt-BR.md) before configuring a wallet.
 

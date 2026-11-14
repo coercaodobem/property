@@ -1,31 +1,37 @@
-# Experimental Nano threshold-signature core
+# Experimental Nano 2-of-3 threshold escrow
 
 **English** · [Português (Brasil)](agent-xno-threshold.pt-BR.md)
 
-Property now vendors a local experimental FROST core that can create a 2-of-3 distributed key and produce a 64-byte Nano-style Ed25519+BLAKE2b signature. The DKG and signing APIs are in `property/agent/xno-threshold.mjs`; their vendored cryptographic source is version-pinned and included in the repository, so installation does not fetch runtime code.
+Property Agent now has an experimental 2-of-3 threshold flow separate from the existing custodial `xno.escrow.*` tools. Three Nostr identities are assigned buyer, seller, and arbiter roles. Their devices run distributed key generation (DKG) and retain separate signing shares; there is no trusted dealer and no complete private key in the protocol. The public key becomes an ordinary Nano account.
 
-## What the primitive does
+## Implemented flow
 
-- Three participants can run a distributed key-generation ceremony. No trusted dealer creates or sees the complete group private key.
-- Each participant retains a signing share. Two valid shares can be combined into the one 64-byte signature format Nano state blocks carry.
-- The group public key can be encoded as an ordinary `nano_` account. Nano nodes still see a normal account and a normal signature; no Nano protocol or consensus change is required.
-- The final EdDSA challenge hashes `R || A || message` with BLAKE2b-512. FROST's separate, domain-separated transcript hashes use SHA-512.
-- Participant IDs can be derived from Nostr public keys. The DKG round-two packages are private shares and must be delivered through authenticated, end-to-end encrypted messages.
-- The Property wrapper only exposes the fixed 2-of-3 DKG and threshold-signing operations. It omits trusted-dealer setup and private-key reconstruction helpers. Participant nonces and key shares use the runtime cryptographic random generator.
-- Each signing commitment is represented by a one-shot in-memory ticket. The secret nonce is hidden from the caller, consumed on the first signing attempt, and wiped from its byte buffers afterward. A crash or restart abandons that signing attempt; encrypted persistence and recovery are not implemented.
+- `xno.threshold.create`, `accept`, and `sync` coordinate the fixed 2-of-3 DKG through the existing pairwise NIP-17 transport. Round-two shares are sent only to their named participant. The coordinator cannot read another participant's NIP-17 message.
+- DKG material and each participant's final share are stored in `xno-threshold.json`, encrypted with the local Property Agent vault password using AES-256-GCM/PBKDF2. Temporary signing nonces stay in process memory; a restarted signing round gets fresh nonces.
+- The signed contract binds three Nostr identities, buyer and seller Nano accounts, one raw amount, a terms hash, network, trade ID, and expiry. The session derives the group Nano account only after DKG.
+- The dev-only settlement path creates one exact state-send block. Release is fixed to the seller account and requires buyer plus seller approval. Refund is fixed to the buyer account, available after contract expiry, and requires buyer plus arbiter approval. Each signer sees the same account, destination, amount, previous frontier, outcome, and block hash. The local Nano node's confirmed frontier and balance are rechecked before approval and signing.
+- Two approved signers create FROST shares for that exact block hash. The coordinator verifies and aggregates them, verifies the final Nano-format signature, and can submit that block to the configured local development Nano node.
+- `xno.threshold.status` shows DKG, settlement, approvals, and node-submission state without exposing shares.
 
-This is a **threshold signature**, not a script-level multisig account. If two of the three share-holders collude, they can spend; a 2-of-3 threshold cannot stop its own quorum. Losing or stranding enough shares can make funds unspendable. The arbiter is one key-holder, so a trade's parties must choose this trust arrangement consciously.
+## Boundaries that remain
 
-## Scope and safety boundary
+This is a **threshold signature**, not a script-level multisig or a conditional-spend feature built into Nano. The current `xno.escrow.*` tools remain custodial and are not replaced by this path. Nano sees a normal account and a normal signature. The settlement rules are enforced by honest Property Agent signers only: any two share-holders can collude or use different software to sign an arbitrary valid block. The application cannot force refund, delivery, arbitration, or a particular recipient at the protocol level.
 
-The cryptographic core is not connected to the current Property Agent escrow settlement path. That flow remains custodial: its configured Nano wallet signs and sends payouts. Authenticated Nostr DKG/signing message orchestration, encrypted share persistence and recovery, transaction construction, display/approval of exact settlement fields, threshold block signing, and publishing the signed block to a Nano node remain unimplemented.
+The contract binds Nostr identities to declared Nano accounts but does not yet prove that the Nostr key-holder controls the corresponding Nano private key. Users must independently verify those accounts. Loss of two shares makes the account unspendable; loss of one share leaves no recovery path in the current implementation.
 
-The offline smoke test checks one fixed 2-of-3 DKG/signing scenario with synthetic participants, message tampering rejection, and Nano account encoding. It does not prove that a Nano node accepts the signature or that a trade escrow is non-custodial. The custom Nano ciphersuite has not received an independent cryptographic audit. Do not use real funds or describe the current escrow as multisig until those integration and review gates pass.
+Transaction proposal, work generation, signing, and publication are **hard-disabled outside the Nano dev network**. The offline test uses a synthetic transport and a mocked node adapter; it does not exercise actual NIP-17 encryption between daemons or acceptance by a Nano node. Real private-node acceptance, real relay delivery, restart recovery across installed daemons, independent cryptographic/security review, and human review of the signer UX remain pending. A `process` response is only submission; confirmation is not yet monitored by this flow. Do not use real funds.
 
-Run the focused local check from the repository root:
+## Offline checks
+
+Run from the repository root:
 
 ```bash
 node property/tests/agent-xno-threshold-smoke.mjs
+node property/tests/agent-xno-threshold-store-smoke.mjs
+node property/tests/agent-xno-threshold-protocol-smoke.mjs
+bash property/tests/run-smoke.sh
 ```
 
-References: [Nano's Ed25519+BLAKE2b signature format](https://docs.nano.org/integration-guides/the-basics/), [Nano signing and hashing](https://docs.nano.org/protocol-design/signing-hashing-and-key-derivation/), and [RFC 9591 FROST](https://www.rfc-editor.org/rfc/rfc9591.html).
+The state-block hashing test matches the published Nano RPC reference vector. This checks local serialization and crypto behavior, not independent node acceptance or production safety. See [G13-02 offline evidence](evidence/agent-messaging/G13-xno-threshold-integration-offline-20261113.md) and the [remaining XNO gates](plano-de-testes-central.md#separate-xno-threshold-signature-extension-not-part-of-mvp-acceptance).
+
+References: [Nano state blocks](https://docs.nano.org/protocol-design/blocks/), [Nano RPC protocol](https://docs.nano.org/commands/rpc-protocol/), [Nano work generation](https://docs.nano.org/integration-guides/work-generation/), and [RFC 9591 FROST](https://www.rfc-editor.org/rfc/rfc9591.html).

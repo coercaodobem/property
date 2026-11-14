@@ -6,7 +6,7 @@ const ACTIVITY_WINDOW_SECONDS = 60;
 const ACTIVITY_TTL_SECONDS = 60;
 
 export class AgentService {
-  constructor({ pubkey, loadConfig, saveConfig, transport, xnoTrades = null, xnoEscrow = null, now = () => Math.floor(Date.now() / 1000) }) {
+  constructor({ pubkey, loadConfig, saveConfig, transport, xnoTrades = null, xnoEscrow = null, xnoThreshold = null, now = () => Math.floor(Date.now() / 1000) }) {
     if (!PUBKEY.test(pubkey) || typeof loadConfig !== 'function' || typeof saveConfig !== 'function' || !transport) throw new Error('Dependências da bridge local incompletas.');
     this.pubkey = pubkey;
     this.loadConfig = loadConfig;
@@ -14,6 +14,7 @@ export class AgentService {
     this.transport = transport;
     this.xnoTrades = xnoTrades;
     this.xnoEscrow = xnoEscrow;
+    this.xnoThreshold = xnoThreshold;
     this.now = now;
     this.mutationQueue = Promise.resolve();
     this.activeThinking = new Map();
@@ -48,6 +49,16 @@ export class AgentService {
       case 'xno.escrow.sync': return this.xnoEscrowCall('sync', params);
       case 'xno.escrow.resolve': return this.xnoEscrowCall('resolve', params);
       case 'xno.escrow.status': return this.xnoEscrowCall('status', params);
+      case 'xno.threshold.create': return this.xnoThresholdCall('create', params);
+      case 'xno.threshold.accept': return this.xnoThresholdCall('accept', params);
+      case 'xno.threshold.sync': return this.xnoThresholdCall('sync', params);
+      case 'xno.threshold.status': return this.xnoThresholdCall('status', params);
+      case 'xno.threshold.propose': return this.xnoThresholdCall('proposeSettlement', params);
+      case 'xno.threshold.approve': return this.xnoThresholdCall('approveSettlement', params);
+      case 'xno.threshold.begin_signing': return this.xnoThresholdCall('beginSettlementSigning', params);
+      case 'xno.threshold.prepare_signature': return this.xnoThresholdCall('prepareSettlementSignature', params);
+      case 'xno.threshold.sign': return this.xnoThresholdCall('signSettlement', params);
+      case 'xno.threshold.publish': return this.xnoThresholdCall('publishSettlement', params);
       case 'relay.add': return this.addInboxRelay(params);
       case 'agent.block': return this.changeBlockedAgent(params, true);
       case 'agent.unblock': return this.changeBlockedAgent(params, false);
@@ -80,6 +91,11 @@ export class AgentService {
   async xnoEscrowCall(method, params) {
     if (!this.xnoEscrow) throw new Error('xno-escrow-not-configured');
     return this.xnoEscrow[method](params);
+  }
+
+  async xnoThresholdCall(method, params) {
+    if (!this.xnoThreshold) throw new Error('xno-threshold-not-configured');
+    return this.xnoThreshold[method](params);
   }
 
   async list(params) {

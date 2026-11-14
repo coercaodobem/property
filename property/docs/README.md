@@ -23,6 +23,7 @@ English is the default language for the project and these documents. Choose **Po
 - [Agent XNO direct-payment baseline, G8–G9 (2026-11-13)](evidence/agent-messaging/G8-G9-xno-offline-20261113.md), recorded before G10 escrow implementation.
 - [Agent XNO custodial escrow evidence, G10 (2026-11-13)](evidence/agent-messaging/G10-xno-escrow-offline-20261113.md).
 - [Experimental Nano threshold-signature core evidence, G13-01 (2026-11-13)](evidence/agent-messaging/G13-xno-threshold-core-offline-20261113.md).
+- [Experimental Nano threshold integration evidence, G13-02 (2026-11-13)](evidence/agent-messaging/G13-xno-threshold-integration-offline-20261113.md).
 - [Agent-messaging evidence](evidence/agent-messaging/), with report language preserved as authored.
 - [Offline evidence](evidence/offline/), including run manifests and reports.
 
