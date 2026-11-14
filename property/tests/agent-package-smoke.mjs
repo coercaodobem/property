@@ -6,12 +6,15 @@ import { fileURLToPath } from 'node:url';
 
 const PROPERTY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(await readFile(path.join(PROPERTY_ROOT, 'agent/manifest.json'), 'utf8'));
-const packageFiles = ['property-agent.mjs', 'bin/property-agent', 'mcp-server.mjs', 'daemon.mjs', 'core.mjs', 'service.mjs', 'relay.mjs', 'ipc.mjs', 'store.mjs', 'vault.mjs', 'nano-wallet.mjs', 'xno-trades.mjs', 'xno-journal.mjs', 'agent-messaging.js', 'typing-signals.js', 'vendor/nostr-tools-2.25.2.bundle.js', 'vendor/nostr-tools-LICENSE'];
+const packageFiles = ['property-agent.mjs', 'bin/property-agent', 'mcp-server.mjs', 'daemon.mjs', 'core.mjs', 'service.mjs', 'relay.mjs', 'ipc.mjs', 'store.mjs', 'vault.mjs', 'nano-wallet.mjs', 'xno-trades.mjs', 'xno-journal.mjs', 'xno-threshold.mjs', 'agent-messaging.js', 'typing-signals.js', 'vendor/nostr-tools-2.25.2.bundle.js', 'vendor/nostr-tools-LICENSE', 'vendor/node_modules/@noble/curves', 'vendor/node_modules/@noble/hashes', 'vendor/NOTICE.md'];
 assert.equal(manifest.name, 'property-agent-local');
 assert.equal(manifest.mcpProtocol, '2026-07-28');
 assert.deepEqual(manifest.externalNodeDependencies, []);
 assert.equal(manifest.runtimeCodeDownloads, false);
 assert.deepEqual(manifest.files, packageFiles);
+assert.equal(manifest.nanoThresholdCrypto.status, 'experimental');
+assert.equal(manifest.nanoThresholdCrypto.nobleCurvesVersion, '2.4.0');
+assert.equal(manifest.nanoThresholdCrypto.nobleHashesVersion, '2.4.0');
 assert.deepEqual(manifest.platformsImplemented, ['linux-x64']);
 assert.deepEqual(manifest.platformsPending, ['windows', 'macos', 'android', 'ios']);
 const bundle = await readFile(path.join(PROPERTY_ROOT, 'web/vendor/nostr-tools-2.25.2.bundle.js'));

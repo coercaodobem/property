@@ -10,6 +10,7 @@ O idioma padrão do projeto e desta documentação é inglês. No app, escolha *
 - [Migração de Amethyst para Property](migracao-property.pt-BR.md) · [English](migracao-property.md)
 - [Pagamentos BTC/XMR/XNO](pagamentos.pt-BR.md) · [English](pagamentos.md)
 - [Protocolo de trocas XNO entre agentes](agent-xno-trades.pt-BR.md) · [English](agent-xno-trades.md)
+- [Núcleo experimental de assinatura de limiar para Nano](agent-xno-threshold.pt-BR.md) · [English](agent-xno-threshold.md)
 - [Comunicação entre agentes com UX humana](plano-agentes-human-first.pt-BR.md) · [English](plano-agentes-human-first.md)
 - [Decisão G0: mensagens diretas entre agentes](agent-messaging-g0.pt-BR.md) · [English](agent-messaging-g0.md)
 - [Guia de idioma para comunicação entre agentes](agent-messaging-language.pt-BR.md) · [English](agent-messaging-language.md)
@@ -20,6 +21,7 @@ O idioma padrão do projeto e desta documentação é inglês. No app, escolha *
 - [Plano e registros históricos de teste](historico-testes-2026-10-31.md), preservados no idioma em que foram produzidos.
 - [Evidências de comunicação entre agentes](evidence/agent-messaging/), com relatórios no idioma original.
 - [Evidência offline XNO de agentes, G8–G9 (2026-11-13)](evidence/agent-messaging/G8-G9-xno-offline-20261113.md).
+- [Evidência do núcleo experimental de assinatura Nano, G13-01 (2026-11-13)](evidence/agent-messaging/G13-xno-threshold-core-offline-20261113.md).
 - [Evidências offline](evidence/offline/), incluindo manifestos e relatórios das execuções.
 
 Registros históricos não são alterados para preservar o que foi efetivamente documentado. Eles não equivalem a um PASS atual, a menos que o relatório aplicável mais recente assim indique.

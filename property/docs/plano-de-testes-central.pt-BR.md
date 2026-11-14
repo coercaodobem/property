@@ -3,7 +3,7 @@
 **Português (Brasil)** · [English](plano-de-testes-central.pt-BR.md)
 
 
-**Atualizado:** 2026-11-04. **Executor:** o modelo ativo é escolhido pelo mantenedor; registrar a identidade real no relatório. Diferenças entre rótulos de modelo em prompts antigos e o executor ativo são apenas proveniência e nunca bloqueiam um gate. Todos os critérios de aprovação usam contagens e entradas predeterminadas; nenhum teste exige duração mínima, janela de soak, heartbeat por tempo ou prazo de permanência. Watchdogs dos casos e do build têm limite máximo de 30 minutos; o workflow nativo tem limite operacional de 45 minutos para interromper provisionamento travado. Nenhum watchdog conta como critério de PASS. Os ensaios antigos por duração permanecem apenas como histórico e não substituem os critérios atuais. A execução Ubuntu pode manter G12-02–G12-05 PENDING como perfil intermediário; esses casos não contam como PASS nem como aprovação nativa. `PROPERTY_SCOPE_OFFLINE_PASS` exige a matriz G12 completa aprovada no mesmo candidato.
+**Atualizado:** 2026-11-13. **Executor:** o modelo ativo é escolhido pelo mantenedor; registrar a identidade real no relatório. Diferenças entre rótulos de modelo em prompts antigos e o executor ativo são apenas proveniência e nunca bloqueiam um gate. Todos os critérios de aprovação usam contagens e entradas predeterminadas; nenhum teste exige duração mínima, janela de soak, heartbeat por tempo ou prazo de permanência. Watchdogs dos casos e do build têm limite máximo de 30 minutos; o workflow nativo tem limite operacional de 45 minutos para interromper provisionamento travado. Nenhum watchdog conta como critério de PASS. Os ensaios antigos por duração permanecem apenas como histórico e não substituem os critérios atuais. A execução Ubuntu pode manter G12-02–G12-05 PENDING como perfil intermediário; esses casos não contam como PASS nem como aprovação nativa. `PROPERTY_SCOPE_OFFLINE_PASS` exige a matriz G12 completa aprovada no mesmo candidato.
 
 ## 1. Objetivo e autoridade
 
@@ -31,6 +31,19 @@ Layers designa as camadas exercitadas no laboratório: navegador/identidade, des
 | Plataformas | PWA em desktop/Android/iOS e pacotes de relay Linux x86_64, Windows x64 e macOS Apple Silicon | G12 |
 
 A engine financeira de campanhas permanece no escopo planejado, mesmo estando ausente no MVP atual. Sua ausência reprova a implementação correspondente; não autoriza apagar o gate, trocar o teste por um mock ou declarar a campanha paga porque existe um txid no evento. Grupos privados NIP-17 com até 10 participantes fazem parte do escopo; não têm administração, aprovação de entrada ou controles confiáveis para sair/remover membros. Grupos acima de 10 pessoas, checkout/custódia/escrow do marketplace, Lightning e relay móvel continuamente ativo não fazem parte do MVP consolidado. Verificar explicitamente que o app não simula recursos fora do escopo. Mac Intel e outras arquiteturas de relay continuam extensões futuras, sem alegação de aprovação. Acrescentar casos e gates antes de aceitar ampliação de escopo.
+
+### Extensão separada de assinatura de limiar XNO (fora da aprovação do MVP)
+
+O mantenedor solicitou em 2026-11-13 um protótipo de assinatura de limiar 2-de-3 compatível com Nano. Esta é uma extensão separada e não altera G00–G12 nem qualquer resultado `PROPERTY_*_PASS`. O escrow custodial atual continua custodial até que sua liquidação seja substituída e todos os casos da extensão passem.
+
+| Caso | Critérios fixos de aceitação | Estado atual |
+|---|---|---|
+| XNO-T1 | Um DKG offline com exatamente três participantes sintéticos fixos; uma assinatura montada com os participantes 1 e 3; uma parte isolada não pode agregar; a reutilização de ticket de nonce de uso único é rejeitada; uma mensagem alterada e uma assinatura alterada são rejeitadas; uma conta Nano conhecida faz round-trip e um checksum inválido é rejeitado; dados de rede fazem round-trip. DKG e nonces de assinatura usam o CSPRNG do runtime. | [Evidência PASS](evidence/agent-messaging/G13-xno-threshold-core-offline-20261113.md) |
+| XNO-T2 | Enviar um bloco de estado assinado pelo limiar a um nó Nano privado descartável; verificar aceitação pelo nó, chave/endereço da conta, variação de saldo e rejeição de bloco adulterado. Sem relay público nem fundos reais. | PENDING: ainda não há evidência de aceitação por nó Nano. |
+| XNO-T3 | Integrar vínculo autenticado da identidade Nostr, entrega/armazenamento/recuperação cifrada das partes DKG, validação da política de liquidação exata e publicação do bloco assinado ao escrow existente; executar os casos predeterminados 2-de-3, 1-de-3, conflito, replay, reinício e perda de chave. | PENDING: o núcleo criptográfico não está ligado ao escrow. |
+| XNO-T4 | Revisão criptográfica/de segurança independente e revisão humana da UX de assinatura e dos riscos divulgados de conluio e disponibilidade 2-de-3. | PENDING. |
+
+XNO-T1 usa o caminho local de verificação FROST e prova somente as asserções offline implementadas. Não prova que um nó Nano independente aceite essas assinaturas. Não use fundos reais nem descreva o escrow como multisig enquanto XNO-T2–T4 estiverem pendentes.
 
 ## 3. Instruções de execução para o modelo ativo escolhido pelo mantenedor
 

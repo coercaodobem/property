@@ -2,7 +2,7 @@
 
 **English** · [Português (Brasil)](plano-de-testes-central.pt-BR.md)
 
-**Updated:** 2026-11-04. **Executor:** the maintainer chooses the active model; record the actual executor in each report. Model labels in old prompts are provenance only and never block a gate. Every acceptance criterion uses predefined inputs and counts. No test requires elapsed time, a soak window, a time-based heartbeat, or a minimum period of uptime. Case/build watchdogs have a 30-minute upper bound; native workflow provisioning has a 45-minute operational watchdog. A watchdog never counts as PASS. Old duration-based trials are historical evidence only. An intermediate Ubuntu profile may leave G12-02–G12-05 as `PENDING`; these are neither PASS nor native approval. `PROPERTY_SCOPE_OFFLINE_PASS` requires the complete G12 matrix to pass on the same candidate.
+**Updated:** 2026-11-13. **Executor:** the maintainer chooses the active model; record the actual executor in each report. Model labels in old prompts are provenance only and never block a gate. Every acceptance criterion uses predefined inputs and counts. No test requires elapsed time, a soak window, a time-based heartbeat, or a minimum period of uptime. Case/build watchdogs have a 30-minute upper bound; native workflow provisioning has a 45-minute operational watchdog. A watchdog never counts as PASS. Old duration-based trials are historical evidence only. An intermediate Ubuntu profile may leave G12-02–G12-05 as `PENDING`; these are neither PASS nor native approval. `PROPERTY_SCOPE_OFFLINE_PASS` requires the complete G12 matrix to pass on the same candidate.
 
 ## 1. Purpose and authority
 
@@ -30,6 +30,19 @@ Here, **offline** means internet access is blocked while the isolated lab's loca
 | Platforms | PWA on desktop/Android/iOS and relay packages for Linux x86_64, Windows x64, and macOS Apple Silicon | G12 |
 
 The planned campaign financial engine remains in scope even though it is absent from the current MVP. Missing functionality fails the corresponding gate; it does not justify deleting a gate, substituting a mock, or treating a declared transaction ID as payment. Private NIP-17 groups with up to 10 participants are in scope; they have no administrator, membership approval, or reliable leave/removal controls. Groups above 10, marketplace checkout/custody/escrow, Lightning, and a continuously active mobile relay are not part of the consolidated MVP. Explicitly verify that the app does not simulate unsupported capabilities. Mac Intel and other relay architectures remain future extensions; do not claim they passed. Add cases and gates before accepting any scope expansion.
+
+### Separate XNO threshold-signature extension (not part of MVP acceptance)
+
+The maintainer requested a Nano-compatible 2-of-3 threshold-signature prototype on 2026-11-13. This is a separate extension and does not change G00–G12 or any `PROPERTY_*_PASS` result. The current custodial escrow remains custodial until its settlement path is replaced and all extension cases pass.
+
+| Case | Fixed acceptance criteria | Current state |
+|---|---|---|
+| XNO-T1 | One offline DKG with exactly three fixed synthetic participants; one signature assembled from participants 1 and 3; one isolated share cannot aggregate; one-shot nonce reuse is rejected; one modified message and one modified signature are rejected; one known Nano account round-trips and one bad checksum is rejected; wire data round-trips. The DKG and signing nonces use the runtime CSPRNG. | [PASS evidence](evidence/agent-messaging/G13-xno-threshold-core-offline-20261113.md) |
+| XNO-T2 | Submit a threshold-signed state block to a disposable private Nano node; verify node acceptance, account key/address, balance delta, and rejection of a tampered block. No public relay or real funds. | PENDING: no Nano-node acceptance evidence yet. |
+| XNO-T3 | Integrate authenticated Nostr identity binding, encrypted DKG share delivery/storage/recovery, exact settlement-policy validation, and signed-block publication into the existing escrow; run predefined two-of-three, one-of-three, conflict, replay, restart, and key-loss cases. | PENDING: cryptographic core is not connected to escrow. |
+| XNO-T4 | Independent cryptographic/security review plus human review of the signer UX and the disclosed 2-of-3 collusion and availability risks. | PENDING. |
+
+XNO-T1 uses Noble's local FROST verification path and proves only the implemented offline assertions. It is not evidence that an independent Nano node accepts these signatures. Do not use real funds or describe the escrow as multisig while XNO-T2–T4 are pending.
 
 ## 3. Execution rules
 

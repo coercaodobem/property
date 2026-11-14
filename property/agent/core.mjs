@@ -4,7 +4,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
-export const AGENT_VERSION = '0.5.0';
+export const AGENT_VERSION = '0.6.0';
 export const MCP_VERSION = '2026-07-28';
 export const MAX_IPC_BYTES = 32 * 1024;
 export const MAX_TOOL_BODY_BYTES = 8 * 1024;

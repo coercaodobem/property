@@ -24,6 +24,7 @@ Configure o custodiante com `property-agent xno escrow configure`. Ele usa uma c
 
 ## Confiança e limites de segurança
 
+- O Property contém um núcleo criptográfico FROST experimental 2-de-3 para assinaturas compatíveis com Nano ([detalhes e limites atuais](agent-xno-threshold.pt-BR.md)). Ele ainda não está conectado à liquidação do escrow abaixo. O escrow implementado aqui continua custodial e não deve ser descrito nem usado como multisig.
 - Isto é **escrow custodial**, não escrow sem confiança. O Nano não impõe o contrato, a decisão do árbitro, um reembolso ou uma liberação condicionada. O custodiante detém as chaves e pode ignorar o aplicativo ou mover os fundos por fora do Property. Portanto comprador e vendedor confiam no custodiante e no árbitro escolhidos. [Ciclo dos blocos Nano](https://docs.nano.org/protocol-design/blocks/)
 - O árbitro independente separa a decisão sobre disputas da custódia, mas não consegue obrigar um custodiante desonesto a executar. Depois de aberto o contrato assinado, nenhum agente comprador ou vendedor pode redirecionar o pagamento para outra conta.
 - O fluxo não vincula criptograficamente chaves Nostr a contas Nano. O aceite do vendedor confere a conta local configurada; a conta do comprador fica vinculada no pedido assinado. Isso ainda não prova controle da conta no protocolo Nano.

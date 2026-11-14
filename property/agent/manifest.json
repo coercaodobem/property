@@ -1,6 +1,6 @@
 {
   "name": "property-agent-local",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "platformsImplemented": ["linux-x64"],
   "platformsPending": ["windows", "macos", "android", "ios"],
   "node": ">=22",
@@ -13,6 +13,13 @@
     "license": "Unlicense",
     "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407",
     "source": "property/web/vendor/nostr-tools-2.25.2.bundle.js"
+  },
+  "nanoThresholdCrypto": {
+    "status": "experimental",
+    "protocol": "FROST threshold signatures with the Nano Ed25519+BLAKE2b challenge",
+    "nobleCurvesVersion": "2.4.0",
+    "nobleHashesVersion": "2.4.0",
+    "source": "vendor/node_modules/@noble"
   },
   "files": [
     "property-agent.mjs",
@@ -28,9 +35,13 @@
     "nano-wallet.mjs",
     "xno-trades.mjs",
     "xno-journal.mjs",
+    "xno-threshold.mjs",
     "agent-messaging.js",
     "typing-signals.js",
     "vendor/nostr-tools-2.25.2.bundle.js",
-    "vendor/nostr-tools-LICENSE"
+    "vendor/nostr-tools-LICENSE",
+    "vendor/node_modules/@noble/curves",
+    "vendor/node_modules/@noble/hashes",
+    "vendor/NOTICE.md"
   ]
 }

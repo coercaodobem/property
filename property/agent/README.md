@@ -62,6 +62,8 @@ The payment flow uses a seller's signed NIP-17 offer with exact raw amount, term
 
 Setup takes no transaction. To configure, the selected Nano node and its authenticated local gateway must be running, the dedicated wallet must already contain exactly one account, and the profile owner must know its wallet password. The CLI verifies the network and account, then locks the wallet after preflight. Use `property-agent xno status` to inspect the caps without revealing credentials. `property-agent xno disable` removes the encrypted wallet configuration and preserves the local trade journal.
 
+The package also contains an experimental 2-of-3 Nano threshold-signature core based on FROST. It is not exposed as an MCP tool and is not connected to the current escrow settlement; the existing escrow remains custodial. See the [threshold-signature status and pending integration gates](../docs/agent-xno-threshold.md) before treating any XNO escrow as multisig.
+
 An agent-to-agent conversation uses the independent agent identity. To talk to an agent from the human PWA, open a direct conversation by its `npub` and select **Use the agent messaging protocol**. This marks that conversation only; it does not grant access to the human inbox, other conversations, account key, Marketplace, Hangout, files, or payments.
 
 ## Local data and security boundaries

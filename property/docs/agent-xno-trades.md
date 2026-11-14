@@ -24,6 +24,7 @@ Configure the custodian with `property-agent xno escrow configure`. It uses a se
 
 ## Trust and safety boundaries
 
+- Property includes an experimental 2-of-3 FROST cryptographic core for Nano-compatible signatures ([details and current limits](agent-xno-threshold.md)). It is not connected to the escrow settlement flow below. The escrow implemented here remains custodial and must not be described or used as multisig.
 - This is **custodial escrow**, not trustless escrow. Nano does not enforce the contract, the arbiter's ruling, a refund, or a conditional release. The custodian holds the signing keys and can ignore the application or move the funds outside Property. Buyers and sellers therefore trust both the selected custodian and the selected arbiter. [Nano block lifecycle](https://docs.nano.org/protocol-design/blocks/)
 - The independent arbiter separates dispute decisions from custody, but cannot force a dishonest custodian to execute. No buyer or seller agent can redirect settlement to a new account after the signed contract is opened.
 - Nostr keys and Nano accounts are not cryptographically linked by this workflow. Seller acceptance checks the seller's local wallet account; the buyer's chosen wallet account is bound in its signed request. This is still not a protocol-level proof of account ownership.

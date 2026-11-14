@@ -45,8 +45,9 @@ cp -- "$nostr_license" "$stage/vendor/nostr-tools-LICENSE"
 cp -- "$agent_messages" "$stage/agent-messaging.js"
 cp -- "$activity_signals" "$stage/typing-signals.js"
 printf '%s  %s\n' 'a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407' "$stage/vendor/nostr-tools-2.25.2.bundle.js" | sha256sum --check --status
+find "$stage" -type d -exec chmod 0755 {} +
+find "$stage" -type f -exec chmod 0644 {} +
 chmod 0755 "$stage/bin/property-agent"
-chmod 0644 "$stage"/*.mjs "$stage"/*.js "$stage"/*.json "$stage"/*.md "$stage/vendor"/*
 mv -- "$stage" "$next"
 
 if [[ -e "$launcher" || -L "$launcher" ]]; then
