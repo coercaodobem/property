@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "gate": "G3",
+  "result": "PASS",
+  "source_commit": "bbaf64735c4e233bdcf3759dcebb229e6e4d224f",
+  "operating_system": "Ubuntu Linux x86_64",
+  "runtime": {
+    "node": "v22.22.1",
+    "browser": {
+      "engine": "chromium",
+      "playwright_version": "1.62.1",
+      "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+      "browser_version": "153.0.8010.12",
+      "browser_executable_sha256": "8c599d43aec53f2460a31ae2f4af6bd863f8258b34ff519564bc5d4726bfaa1e"
+    }
+  },
+  "criteria": {
+    "fixed_identity_password_and_tamper_cycles": "PASS",
+    "encrypted_backup_and_restore_cycles": "PASS",
+    "signed_display_name_collision_fixtures": "PASS",
+    "25_fixed_browser_journeys": "PASS",
+    "identity_and_recovery_accessibility_en_pt": "PASS",
+    "keyboard_navigation": "PASS",
+    "fail_closed_with_no_relays_or_denied_storage": "PASS",
+    "offline_egress_and_secret_checks": "PASS"
+  },
+  "counts": {
+    "identity_cycles": 30,
+    "backup_restore_cycles": 20,
+    "signed_handle_collisions": 20,
+    "browser_journeys": 25
+  },
+  "evidence_files": [
+    {
+      "file": "identity-vault-report.json",
+      "bytes": 26493,
+      "sha256": "cd218788ce27da3485cbf470bda7a03ac42b1520e2f0e312e98b804b365764b2"
+    },
+    {
+      "file": "browser-g03-report.json",
+      "bytes": 26596,
+      "sha256": "94c3549f771b3dd8a3841b6baf69ad588eea1c777e1ffcdb8109129f9365f8b2"
+    }
+  ],
+  "unit_summary": {
+    "gate": "G3",
+    "result": "PASS",
+    "identity_cycles": 30,
+    "backup_restore_cycles": 20,
+    "signed_handle_collisions": 20
+  },
+  "browser_cases": [
+    "G03-01",
+    "G03-02",
+    "G03-03",
+    "G03-04",
+    "G03-05",
+    "G03-06",
+    "G03-07",
+    "G03-08",
+    "G03-09"
+  ]
+}
