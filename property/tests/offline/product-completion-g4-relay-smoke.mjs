@@ -136,6 +136,9 @@ class RelayClient {
 
 function groupForRelay(relayIndex) { return GROUPS.findIndex(group => group.includes(relayIndex)); }
 function digestIds(events) { return createHash('sha256').update(events.map(event => event.id).sort().join('\n')).digest('hex'); }
+function signedEventFields(event) {
+  return Object.fromEntries(['id', 'pubkey', 'created_at', 'kind', 'tags', 'content', 'sig'].map(field => [field, event?.[field]]));
+}
 function countById(events) { const counts = new Map(); for (const event of events) counts.set(event.id, (counts.get(event.id) || 0) + 1); return counts; }
 function assertStoredOnce(events, expected, verifyEvent) {
   const counts = countById(events);
@@ -146,7 +149,7 @@ function assertStoredOnce(events, expected, verifyEvent) {
     const original = expectedById.get(actual.id);
     assert.ok(original, `relay returned unexpected event ${actual.id}`);
     assert.equal(verifyEvent(actual), true, 'stored signature and ID remain valid');
-    assert.deepEqual(actual, original, 'storage/forwarding preserves the exact signed event fields');
+    assert.deepEqual(signedEventFields(actual), signedEventFields(original), 'storage/forwarding preserves every signed event field');
   }
 }
 

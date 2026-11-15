@@ -704,6 +704,25 @@ async function messageDeliveryAudit(page, peer, text) {
       eventIds: (message.retryPlan || []).map(item => item.event?.id || '').sort(), deliveryProgress: message.deliveryProgress || [] };
   }, { peerKey: peer, messageText: text });
 }
+async function waitForMessageDelivery(page, peer, text, { retryAttempts, status, deliveryStates = [] }) {
+  await page.waitForFunction(async ({ peerKey, messageText, attempts, expectedStatus, expectedStates }) => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('liberdade-local-v1');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const rows = await new Promise((resolve, reject) => {
+      const request = db.transaction('messages').objectStore('messages').getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return rows.some(row => row.peer === peerKey && row.text === messageText && row.direction === 'sent'
+      && (row.retryAttempts || 0) === attempts && row.status === expectedStatus
+      && (!expectedStates.length || expectedStates.includes(row.deliveryState)));
+  }, { peerKey: peer, messageText: text, attempts: retryAttempts, expectedStatus: status, expectedStates: deliveryStates }, { timeout: 15000 });
+  return messageDeliveryAudit(page, peer, text);
+}
 async function waitForMessageStatus(page, peer, text, status) {
   await page.waitForFunction(async ({ peerKey, messageText, expectedStatus }) => {
     const db = await new Promise((resolve, reject) => {
@@ -1295,8 +1314,9 @@ async function main() {
     const allDown = `property-g04-all-inboxes-down-${crypto.randomUUID()}`; await sendMessage(pageA, allDown);
     const localPending = await messageAudit(pageA, b.pubkey);
     assert.ok(localPending.some(row => row.text === allDown && row.status === 'pending'), 'all inboxes down is shown as pending');
-    const pendingDelivery = await messageDeliveryAudit(pageA, b.pubkey, allDown);
+    const pendingDelivery = await waitForMessageDelivery(pageA, b.pubkey, allDown, { retryAttempts: 1, status: 'pending', deliveryStates: ['queued'] });
     assert.equal(pendingDelivery.deliveryState, 'queued', 'no response from the selected inbox relays remains queued locally');
+    assert.equal(pendingDelivery.retryAttempts, 1, 'the first completed publish attempt is persisted before the user retries');
     assert.equal(pendingDelivery.eventIds.length, 2, 'sender and recipient gift wraps are retained for an exact same-ID retry');
     stage = 'G04-04: relay restart'; relay0 = await startGeode(28470, temp, 'relay zero', relay0.binaryPath);
     await forceReconnect(pageA); await forceReconnect(pageB);
@@ -1305,13 +1325,26 @@ async function main() {
     const retryButton = pendingRow.locator('.message-delivery-retry');
     await retryButton.waitFor({ state: 'visible', timeout: 10000 });
     await retryButton.click();
-    await waitForMessageStatus(pageA, b.pubkey, allDown, 'sent');
-    const retriedDelivery = await messageDeliveryAudit(pageA, b.pubkey, allDown);
+    let retriedDelivery;
+    try {
+      retriedDelivery = await waitForMessageDelivery(pageA, b.pubkey, allDown,
+        { retryAttempts: 2, status: 'sent', deliveryStates: ['relay-accepted', 'observed'] });
+    } catch (error) {
+      const observed = await messageDeliveryAudit(pageA, b.pubkey, allDown);
+      report.message_checks.offline_retry = { initial_attempt_count: pendingDelivery.retryAttempts,
+        observed_retry_count: observed?.retryAttempts ?? null, observed_status: observed?.status ?? null,
+        observed_state: observed?.deliveryState ?? null, retry_button_clicked: true,
+        observed_relay_progress: (observed?.deliveryProgress || []).map(item => ({ accepted: item.acceptedRelayUrls.length,
+          rejected: item.rejectedRelayUrls.length, unanswered: item.unansweredRelayUrls.length })) };
+      throw new Error(`${error.message}; retry observation=${JSON.stringify(report.message_checks.offline_retry)}`);
+    }
     report.message_checks.offline_retry = { initial_attempt_count: pendingDelivery.retryAttempts,
       observed_retry_count: retriedDelivery.retryAttempts, initial_state: pendingDelivery.deliveryState,
       final_state: retriedDelivery.deliveryState, retry_button_clicked: true,
       stable_event_ids: JSON.stringify(retriedDelivery.eventIds) === JSON.stringify(pendingDelivery.eventIds),
-      one_logical_message: await pendingRow.count() === 1 };
+      one_logical_message: await pendingRow.count() === 1,
+      initial_relay_progress: pendingDelivery.deliveryProgress.map(item => ({ accepted: item.acceptedRelayUrls.length, unanswered: item.unansweredRelayUrls.length })),
+      final_relay_progress: retriedDelivery.deliveryProgress.map(item => ({ accepted: item.acceptedRelayUrls.length, unanswered: item.unansweredRelayUrls.length })) };
     assert.equal(retriedDelivery.retryAttempts, 2, 'one user retry follows the initial queued attempt');
     assert.deepEqual(retriedDelivery.eventIds, pendingDelivery.eventIds, 'retry republishes the exact same signed event IDs');
     assert.equal(await pendingRow.count(), 1, 'retry keeps one logical message in the conversation');
