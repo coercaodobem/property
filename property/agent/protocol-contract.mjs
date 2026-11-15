@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { parseStrictJson } from './ipc.mjs';
 
 export const EVENT_FAMILIES = Object.freeze({
+  profile: Object.freeze({ kinds: [0], maxContentBytes: 8_192, maxTags: 64 }),
   identity_claim: Object.freeze({ kinds: [10011], maxContentBytes: 16_384, maxTags: 64 }),
   private_message: Object.freeze({ kinds: [1059], maxContentBytes: 32_768, maxTags: 8 }),
   public_note: Object.freeze({ kinds: [1], maxContentBytes: 16_384, maxTags: 128 }),
@@ -12,6 +13,7 @@ export const EVENT_FAMILIES = Object.freeze({
 });
 
 export const PROTOCOL_VERSIONS = Object.freeze({
+  profile: Object.freeze(['nostr-nip01-kind-0/v1']),
   identity_claim: Object.freeze(['nostr-nip39-kind-10011/v1']),
   private_message: Object.freeze(['nostr-nip17-nip59/v1']),
   public_note: Object.freeze(['nostr-nip01-kind-1/v1']),

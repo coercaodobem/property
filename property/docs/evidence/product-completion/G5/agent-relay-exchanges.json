@@ -1,0 +1,46 @@
+{
+  "gate": "G5",
+  "status": "PASS_AUTOMATED_OFFLINE",
+  "seed": "property-g5-three-geode-relay-agent-exchange-v1",
+  "operating_system": "linux/x64",
+  "node": "v22.22.1",
+  "external_connections": 0,
+  "external_models": 0,
+  "real_participants": 0,
+  "real_funds": false,
+  "public_relays": false,
+  "geode_sha256": "9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7",
+  "relay_count": 3,
+  "agent_pubkey_sha256": [
+    "3bbf994391228ab5ae370507fac1c6777b5bf2ec8db1a792c44e5b1a7ec3dbee",
+    "1c13a8db7c91a515a4e2ab6f0d6245519d12f83fb3667a0b576422b7f8f59212",
+    "ed79e8ffb4f04e4eee3d22377575d5895520afadbfe4071e90df09421c32890c"
+  ],
+  "fixed_exchanges": 50,
+  "exchanges_per_direction": {
+    "agent-a-to-b": 17,
+    "agent-b-to-c": 17,
+    "agent-c-to-a": 16
+  },
+  "per_relay_events": [
+    {
+      "url": "ws://127.0.0.1:28480",
+      "signed_ciphertext_wrappers": 100,
+      "event_ids_sha256": "e2f3bd42d290cc5244f882dc19749e8b275c029e98c2c1dcbadbddfd0db36bee"
+    },
+    {
+      "url": "ws://127.0.0.1:28481",
+      "signed_ciphertext_wrappers": 100,
+      "event_ids_sha256": "e2f3bd42d290cc5244f882dc19749e8b275c029e98c2c1dcbadbddfd0db36bee"
+    },
+    {
+      "url": "ws://127.0.0.1:28482",
+      "signed_ciphertext_wrappers": 100,
+      "event_ids_sha256": "e2f3bd42d290cc5244f882dc19749e8b275c029e98c2c1dcbadbddfd0db36bee"
+    }
+  ],
+  "ciphertext_contains_plaintext": false,
+  "third_identity_decryption_attempts": 50,
+  "all_recipients_decrypted_exactly_once": true,
+  "manifest_sha256": "f85199c1fc594a8d35ddbcdc33aa78ea8b76eb95d43f5cfed18610662652c768"
+}

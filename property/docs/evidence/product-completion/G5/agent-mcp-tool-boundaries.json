@@ -1,0 +1,285 @@
+{
+  "result": "PASS",
+  "operating_system": "linux/x64",
+  "tool_count": 39,
+  "unique_service_dispatches": 39,
+  "read_only_annotations_checked": 39,
+  "fail_closed_cases": 35,
+  "write_side_effects": 0,
+  "read_queries": 1,
+  "cases": [
+    {
+      "name": "property_status",
+      "method": "status",
+      "read_only": true,
+      "outcome": "read-only result",
+      "failure_case": null
+    },
+    {
+      "name": "property_list_conversations",
+      "method": "list",
+      "read_only": true,
+      "outcome": "read-only result",
+      "failure_case": null
+    },
+    {
+      "name": "property_read_messages",
+      "method": "read",
+      "read_only": true,
+      "outcome": "invalid-arguments",
+      "failure_case": "invalid-arguments"
+    },
+    {
+      "name": "property_send_message",
+      "method": "send",
+      "read_only": false,
+      "outcome": "invalid-arguments",
+      "failure_case": "invalid-arguments"
+    },
+    {
+      "name": "property_set_activity",
+      "method": "activity",
+      "read_only": false,
+      "outcome": "invalid-arguments",
+      "failure_case": "invalid-arguments"
+    },
+    {
+      "name": "property_xno_policy",
+      "method": "xno.policy",
+      "read_only": true,
+      "outcome": "read-only result",
+      "failure_case": null
+    },
+    {
+      "name": "property_xno_create_offer",
+      "method": "xno.offer",
+      "read_only": false,
+      "outcome": "xno-wallet-not-configured",
+      "failure_case": "xno-wallet-not-configured"
+    },
+    {
+      "name": "property_xno_pay_offer",
+      "method": "xno.pay",
+      "read_only": false,
+      "outcome": "xno-wallet-not-configured",
+      "failure_case": "xno-wallet-not-configured"
+    },
+    {
+      "name": "property_xno_trade_status",
+      "method": "xno.trade.status",
+      "read_only": true,
+      "outcome": "xno-wallet-not-configured",
+      "failure_case": "xno-wallet-not-configured"
+    },
+    {
+      "name": "property_xno_verify_receipt",
+      "method": "xno.receipt.verify",
+      "read_only": false,
+      "outcome": "xno-wallet-not-configured",
+      "failure_case": "xno-wallet-not-configured"
+    },
+    {
+      "name": "property_xno_dispute",
+      "method": "xno.dispute",
+      "read_only": false,
+      "outcome": "xno-wallet-not-configured",
+      "failure_case": "xno-wallet-not-configured"
+    },
+    {
+      "name": "property_xno_threshold_create",
+      "method": "xno.threshold.create",
+      "read_only": false,
+      "outcome": "xno-threshold-not-configured",
+      "failure_case": "xno-threshold-not-configured"
+    },
+    {
+      "name": "property_xno_threshold_accept",
+      "method": "xno.threshold.accept",
+      "read_only": false,
+      "outcome": "xno-threshold-not-configured",
+      "failure_case": "xno-threshold-not-configured"
+    },
+    {
+      "name": "property_xno_threshold_sync",
+      "method": "xno.threshold.sync",
+      "read_only": false,
+      "outcome": "xno-threshold-not-configured",
+      "failure_case": "xno-threshold-not-configured"
+    },
+    {
+      "name": "property_xno_threshold_status",
+      "method": "xno.threshold.status",
+      "read_only": true,
+      "outcome": "xno-threshold-not-configured",
+      "failure_case": "xno-threshold-not-configured"
+    },
+    {
+      "name": "property_xno_threshold_propose",
+      "method": "xno.threshold.propose",
+      "read_only": false,
+      "outcome": "xno-threshold-not-configured",
+      "failure_case": "xno-threshold-not-configured"
+    },
+    {
+      "name": "property_xno_threshold_approve",
+      "method": "xno.threshold.approve",
+      "read_only": false,
+      "outcome": "xno-threshold-not-configured",
+      "failure_case": "xno-threshold-not-configured"
+    },
+    {
+      "name": "property_xno_threshold_begin_signing",
+      "method": "xno.threshold.begin_signing",
+      "read_only": false,
+      "outcome": "xno-threshold-not-configured",
+      "failure_case": "xno-threshold-not-configured"
+    },
+    {
+      "name": "property_xno_threshold_prepare_signature",
+      "method": "xno.threshold.prepare_signature",
+      "read_only": false,
+      "outcome": "xno-threshold-not-configured",
+      "failure_case": "xno-threshold-not-configured"
+    },
+    {
+      "name": "property_xno_threshold_sign",
+      "method": "xno.threshold.sign",
+      "read_only": false,
+      "outcome": "xno-threshold-not-configured",
+      "failure_case": "xno-threshold-not-configured"
+    },
+    {
+      "name": "property_xno_threshold_publish",
+      "method": "xno.threshold.publish",
+      "read_only": false,
+      "outcome": "xno-threshold-not-configured",
+      "failure_case": "xno-threshold-not-configured"
+    },
+    {
+      "name": "property_xno_escrow_offer",
+      "method": "xno.escrow.offer",
+      "read_only": false,
+      "outcome": "xno-escrow-not-configured",
+      "failure_case": "xno-escrow-not-configured"
+    },
+    {
+      "name": "property_xno_escrow_open",
+      "method": "xno.escrow.open",
+      "read_only": false,
+      "outcome": "xno-escrow-not-configured",
+      "failure_case": "xno-escrow-not-configured"
+    },
+    {
+      "name": "property_xno_escrow_accept",
+      "method": "xno.escrow.accept",
+      "read_only": false,
+      "outcome": "xno-escrow-not-configured",
+      "failure_case": "xno-escrow-not-configured"
+    },
+    {
+      "name": "property_xno_escrow_fund",
+      "method": "xno.escrow.fund",
+      "read_only": false,
+      "outcome": "xno-escrow-not-configured",
+      "failure_case": "xno-escrow-not-configured"
+    },
+    {
+      "name": "property_xno_escrow_approve",
+      "method": "xno.escrow.approve",
+      "read_only": false,
+      "outcome": "xno-escrow-not-configured",
+      "failure_case": "xno-escrow-not-configured"
+    },
+    {
+      "name": "property_xno_escrow_dispute",
+      "method": "xno.escrow.dispute",
+      "read_only": false,
+      "outcome": "xno-escrow-not-configured",
+      "failure_case": "xno-escrow-not-configured"
+    },
+    {
+      "name": "property_xno_escrow_sync",
+      "method": "xno.escrow.sync",
+      "read_only": false,
+      "outcome": "xno-escrow-not-configured",
+      "failure_case": "xno-escrow-not-configured"
+    },
+    {
+      "name": "property_xno_escrow_resolve",
+      "method": "xno.escrow.resolve",
+      "read_only": false,
+      "outcome": "xno-escrow-not-configured",
+      "failure_case": "xno-escrow-not-configured"
+    },
+    {
+      "name": "property_xno_escrow_status",
+      "method": "xno.escrow.status",
+      "read_only": true,
+      "outcome": "xno-escrow-not-configured",
+      "failure_case": "xno-escrow-not-configured"
+    },
+    {
+      "name": "property_profile_lookup",
+      "method": "profile.lookup",
+      "read_only": true,
+      "outcome": "invalid-arguments",
+      "failure_case": "invalid-arguments"
+    },
+    {
+      "name": "property_list_relays",
+      "method": "relay.list",
+      "read_only": true,
+      "outcome": "read-only result",
+      "failure_case": null
+    },
+    {
+      "name": "property_add_relay",
+      "method": "relay.add",
+      "read_only": false,
+      "outcome": "invalid-arguments",
+      "failure_case": "invalid-arguments"
+    },
+    {
+      "name": "property_remove_relay",
+      "method": "relay.remove",
+      "read_only": false,
+      "outcome": "invalid-arguments",
+      "failure_case": "invalid-arguments"
+    },
+    {
+      "name": "property_hangout_read",
+      "method": "hangout.read",
+      "read_only": true,
+      "outcome": "invalid-arguments",
+      "failure_case": "invalid-arguments"
+    },
+    {
+      "name": "property_hangout_publish",
+      "method": "hangout.publish",
+      "read_only": false,
+      "outcome": "invalid-arguments",
+      "failure_case": "invalid-arguments"
+    },
+    {
+      "name": "property_marketplace_search",
+      "method": "marketplace.search",
+      "read_only": true,
+      "outcome": "invalid-arguments",
+      "failure_case": "invalid-arguments"
+    },
+    {
+      "name": "property_marketplace_publish",
+      "method": "marketplace.publish",
+      "read_only": false,
+      "outcome": "invalid-arguments",
+      "failure_case": "invalid-arguments"
+    },
+    {
+      "name": "property_marketplace_withdraw",
+      "method": "marketplace.withdraw",
+      "read_only": false,
+      "outcome": "invalid-arguments",
+      "failure_case": "invalid-arguments"
+    }
+  ]
+}

@@ -15,6 +15,15 @@
   },
   "event_families": [
     {
+      "id": "profile",
+      "kinds": [0],
+      "protocols": ["nostr-nip01-kind-0/v1"],
+      "content_max_bytes": 8192,
+      "tags_max": 64,
+      "implementation": ["property/agent/relay.mjs", "property/web/app.js"],
+      "compatibility": "NIP-01 kind-0 profile metadata remains interoperable; fields are signed public claims and must not be treated as verified external identity."
+    },
+    {
       "id": "identity_claim",
       "kinds": [10011],
       "protocols": ["nostr-nip39-kind-10011/v1"],

@@ -114,13 +114,13 @@ The historical [central test plan](plano-de-testes-central.md) remains the autho
 
 **Automated acceptance:**
 
-- Run MCP stdio contract tests against 3 local synthetic MCP clients; validate initialize, capabilities, tool schemas, structured errors, and protocol-version negotiation.
+- Run MCP stdio contract tests against 3 local synthetic MCP clients; validate `server/discover`, capabilities, every tool schema, structured errors, and per-request negotiation of version `2026-07-28`. This version is stateless and does not use the legacy `initialize` handshake.
 - Run 50 end-to-end agent-to-agent exchanges across 3 isolated relays and 25 human-PWA-to-agent exchanges using synthetic identities; assert NIP-17 ciphertext and identity boundaries.
 - Run 100 prompt-injection/content corpus cases. No input triggers process execution, key access, wallet action, relay reconfiguration, or out-of-scope tool invocation.
 - Run 30 installer/uninstaller/upgrade/restart cycles in isolated Ubuntu homes. Preserve vault permissions, identity, rollback behavior, and socket restrictions; no TCP listener is opened.
 - Verify each documented tool has a schema test, permission boundary, and failure case. Unknown tool requests fail closed.
 
-**Deliverables:** Versioned MCP manifest, Ubuntu package/installer, tool reference, example client configuration, threat model, and synthetic integration evidence. Other MCP hosts remain unsupported until their automated protocol compatibility is represented in CI; no human host setup is a gate.
+**Deliverables:** Versioned MCP manifest, Ubuntu package/installer, tool reference, example client configuration, threat model, and synthetic integration evidence. Other MCP hosts remain unsupported until their automated protocol compatibility is represented in CI; no human host setup is a gate. The executed offline result is recorded in the [G5 gate evidence](evidence/product-completion/G5/gate-result.md).
 
 ### G6 — Hangout and decentralized marketplace discovery
 

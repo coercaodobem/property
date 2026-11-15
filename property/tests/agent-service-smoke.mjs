@@ -10,6 +10,11 @@ const sends = [];
 const announcements = [];
 const activities = [];
 const transport = {
+  inboxRelays: [],
+  context: { PropertyMarketplace: {
+    parsePrice(value, _nanoUnits, currency) { const amount = value.trim().replace(',', '.'); const atomic = String(Math.round(Number(amount) * (currency === 'BTC' ? 1e8 : currency === 'XMR' ? 1e12 : 1e30))); return { currency, price: Number(amount), atomic, ...(currency === 'XNO' ? { raw: atomic } : {}) }; },
+    safeExternalImageUrl(value) { return /^https:\/\//.test(value) ? value : ''; },
+  } },
   async listConversations(limit, blocked) {
     assert.equal(limit, 100);
     return [{ pubkey: peer, last_activity: 1_900_000_000, last_message_id: '1'.repeat(32) },
@@ -18,13 +23,28 @@ const transport = {
   async readMessages(pubkey) { return [{ conversation_pubkey: pubkey, message_id: '3'.repeat(32), in_reply_to: null, direction: 'received', body: 'chegou sem pareamento', created_at: 1_900_000_000 }]; },
   async sendMessage(...args) { sends.push(args); return { status: 'relay_accepted', message_id: '4'.repeat(32), relay_acks: 1, relay_attempts: 1 }; },
   async sendActivity(...args) { activities.push(args); return { status: 'relay_accepted', state: args[1], relay_acks: 1, relay_attempts: 1 }; },
-  async announceInboxRelays(relays) { announcements.push([...relays]); return { acks: relays.length, attempts: relays.length }; },
+  async lookupProfile(pubkey, now) { return { pubkey, created_at: now, profile: { name: 'Synthetic Agent' }, trust: 'signed-unverified-claims' }; },
+  async readHangout(limit) { return Array.from({ length: Math.min(limit, 1) }, (_, index) => ({ text: 'untrusted note', event_id: `${index}` })); },
+  async publishHangout(text) { return { event_id: '5'.repeat(64), status: 'relay_accepted', text }; },
+  async searchMarketplace(params) { return [{ query: params.query, currency: params.currency, price_atomic: '100', trust: 'public-untrusted-offer' }].slice(0, params.limit); },
+  async publishMarketplaceProduct(product) { return { event_id: '6'.repeat(64), status: 'relay_accepted', product }; },
+  async withdrawMarketplaceProduct(productId) { return { event_id: '7'.repeat(64), status: 'relay_accepted', product_id: productId }; },
+  async announceInboxRelays(relays, targets = relays) { announcements.push({ relays: [...relays], targets: [...targets] }); this.inboxRelays = [...relays]; return { acks: targets.length, attempts: targets.length }; },
 };
 const service = new AgentService({ pubkey: self, loadConfig: async () => config, saveConfig: async value => { config = structuredClone(value); }, transport, now: () => 1_900_000_000 });
 
 const added = await service.dispatch('relay.add', { relay: 'ws://127.0.0.1:7447' });
-assert.deepEqual(added, { relay_count: 1, announcement_acks: 1, announcement_attempts: 1 });
-assert.deepEqual(announcements, [['ws://127.0.0.1:7447']]);
+assert.deepEqual(added, { relay_count: 1, changed: true, announcement_acks: 1, announcement_attempts: 1 });
+assert.deepEqual(announcements, [{ relays: ['ws://127.0.0.1:7447'], targets: ['ws://127.0.0.1:7447'] }]);
+assert.deepEqual(await service.dispatch('relay.list', {}), { relays: ['ws://127.0.0.1:7447'], maximum: 3 });
+assert.deepEqual((await service.dispatch('profile.lookup', { pubkey: peer })).profile, { name: 'Synthetic Agent' });
+assert.deepEqual((await service.dispatch('hangout.read', { limit: 5 })).notes, [{ text: 'untrusted note', event_id: '0' }]);
+assert.equal((await service.dispatch('hangout.publish', { text: 'public note' })).status, 'relay_accepted');
+assert.equal((await service.dispatch('marketplace.search', { query: 'book', currency: 'BTC', limit: 10 })).products[0].currency, 'BTC');
+const published = await service.dispatch('marketplace.publish', { name: 'Book', description: 'Synthetic', currency: 'BTC', price: '0.25' });
+assert.equal(published.currency, 'BTC'); assert.equal(published.price_atomic, '25000000');
+assert.equal((await service.dispatch('marketplace.withdraw', { product_id: 'test-product' })).status, 'relay_accepted');
+await assert.rejects(service.dispatch('marketplace.publish', { name: 'Book', description: 'Synthetic', currency: 'BTC', price: '0.25', image_url: 'javascript:alert(1)' }), /invalid-image-url/);
 
 const listed = await service.dispatch('list', {});
 assert.deepEqual(listed.conversations.map(item => item.pubkey), [peer, blockedPeer]);
@@ -89,6 +109,10 @@ assert.equal(expiredStop.changed, false, 'an expired local activity state is rem
 await expiryService.close();
 assert.deepEqual(expiryActivities.map(item => [item[0], item[1]]), [[expiredPeer, 'thinking'], [activePeer, 'thinking'], [activePeer, 'stop']],
   'expiry prunes stale states and daemon close stops only the current active indicator');
+
+const removed = await service.dispatch('relay.remove', { relay: 'ws://127.0.0.1:7447' });
+assert.equal(removed.relay_count, 0);
+assert.deepEqual(announcements.at(-1), { relays: [], targets: ['ws://127.0.0.1:7447'] }, 'removing the final relay announces an empty inbox list to the former relay');
 
 await assert.rejects(service.dispatch('invite.make', {}), /tool-not-allowed/);
 await assert.rejects(service.dispatch('contact.configure', {}), /tool-not-allowed/);

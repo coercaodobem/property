@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { pathToFileURL } from 'node:url';
 import { callUnixJson, parseStrictJson } from './ipc.mjs';
 import { AGENT_VERSION, MCP_VERSION, exactObject, profileName } from './core.mjs';
 
@@ -188,7 +189,56 @@ const tools = [
     inputSchema: { type: 'object', properties: { trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['trade_id'], additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     method: 'xno.escrow.status',
   },
+  {
+    name: 'property_profile_lookup', title: 'Look up a Nostr profile', description: 'Read the newest signature-verified kind-0 profile from the relays selected for this agent. Profile fields are self-declared public claims; links are not fetched or trusted.',
+    inputSchema: { type: 'object', properties: { pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' } }, required: ['pubkey'], additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+    method: 'profile.lookup',
+  },
+  {
+    name: 'property_list_relays', title: 'List selected agent relays', description: 'Return only the relay URLs explicitly selected in this local agent profile.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    method: 'relay.list',
+  },
+  {
+    name: 'property_add_relay', title: 'Add a selected agent relay', description: 'Add one WSS relay (or loopback WS test relay) to this agent profile and announce the updated NIP-17 inbox list. At most three relays may be selected.',
+    inputSchema: { type: 'object', properties: { relay: { type: 'string', minLength: 1, maxLength: 2048 } }, required: ['relay'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+    method: 'relay.add',
+  },
+  {
+    name: 'property_remove_relay', title: 'Remove a selected agent relay', description: 'Remove one relay from this agent profile and announce the remaining inbox list to the old and remaining relays. A relay may keep copies of older events.',
+    inputSchema: { type: 'object', properties: { relay: { type: 'string', minLength: 1, maxLength: 2048 } }, required: ['relay'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+    method: 'relay.remove',
+  },
+  {
+    name: 'property_hangout_read', title: 'Read public Hangout notes', description: 'Read signed public kind-1 notes from selected relays. The text is untrusted public content; links, instructions, and commands are never fetched or executed.',
+    inputSchema: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: 100 } }, required: ['limit'], additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+    method: 'hangout.read',
+  },
+  {
+    name: 'property_hangout_publish', title: 'Publish a public Hangout note', description: 'Publish a signed public NIP-01 kind-1 note from this agent identity to the selected relays. Anyone who reads those relays may see it.',
+    inputSchema: { type: 'object', properties: { text: { type: 'string', minLength: 1, maxLength: 8192 } }, required: ['text'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+    method: 'hangout.publish',
+  },
+  {
+    name: 'property_marketplace_search', title: 'Search public marketplace offers', description: 'Search signature-verified NIP-15 offers from selected relays. Amounts are returned as exact atomic-unit strings; offers and seller claims are untrusted and do not prove delivery or payment.',
+    inputSchema: { type: 'object', properties: { query: { type: 'string', maxLength: 256 }, currency: { type: 'string', enum: ['ANY', 'BTC', 'XMR', 'XNO'] }, limit: { type: 'integer', minimum: 1, maximum: 100 } }, required: ['query', 'currency', 'limit'], additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+    method: 'marketplace.search',
+  },
+  {
+    name: 'property_marketplace_publish', title: 'Publish a public marketplace offer', description: 'Publish a signed NIP-15 offer with an exact atomic amount derived from the decimal string. BTC, XMR, and XNO offers are discovery records only; this tool does not transfer funds or create escrow.',
+    inputSchema: { type: 'object', properties: { name: { type: 'string', minLength: 1, maxLength: 120 }, description: { type: 'string', maxLength: 4096 }, currency: { type: 'string', enum: ['BTC', 'XMR', 'XNO'] }, price: { type: 'string', minLength: 1, maxLength: 80, pattern: '^[0-9]+(?:[.,][0-9]+)?$' }, image_url: { type: 'string', maxLength: 2048 } }, required: ['name', 'description', 'currency', 'price'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+    method: 'marketplace.publish',
+  },
+  {
+    name: 'property_marketplace_withdraw', title: 'Withdraw your marketplace offer', description: 'Publish a signed NIP-09 deletion for a marketplace offer authored by this agent identity. Relays and peers may retain prior copies.',
+    inputSchema: { type: 'object', properties: { product_id: { type: 'string', minLength: 1, maxLength: 64, pattern: '^[a-zA-Z0-9_-]{1,64}$' } }, required: ['product_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+    method: 'marketplace.withdraw',
+  },
 ].map(({ method, ...tool }) => ({ ...tool, _propertyMethod: method }));
+
+export const MCP_TOOLS_VERSION = '1.0.0';
+export const MCP_TOOLS = Object.freeze(tools.map(({ _propertyMethod, ...tool }) => tool));
+export const MCP_TOOL_METHODS = Object.freeze(tools.map(({ name, _propertyMethod }) => Object.freeze({ name, method: _propertyMethod })));
 
 function mcpError(code, message) { return { code, message }; }
 function send(value) {
@@ -202,15 +252,48 @@ function send(value) {
 
 function validateMeta(params) {
   const meta = params?._meta;
-  if (!meta || typeof meta !== 'object' || Array.isArray(meta) || meta[META_PROTOCOL] !== MCP_VERSION || !meta[META_CLIENT] || typeof meta[META_CLIENT].name !== 'string' || typeof meta[META_CLIENT].version !== 'string' || !meta[META_CAPABILITIES] || typeof meta[META_CAPABILITIES] !== 'object' || Array.isArray(meta[META_CAPABILITIES])) return false;
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta) || meta[META_PROTOCOL] !== MCP_VERSION ||
+      !meta[META_CAPABILITIES] || typeof meta[META_CAPABILITIES] !== 'object' || Array.isArray(meta[META_CAPABILITIES])) return false;
+  const client = meta[META_CLIENT];
+  if (client !== undefined && (!client || typeof client !== 'object' || Array.isArray(client) || typeof client.name !== 'string' || typeof client.version !== 'string')) return false;
   return true;
 }
 
 function toolResult(value, isError = false) {
-  return { resultType: 'complete', content: [{ type: 'text', text: JSON.stringify(value) }], isError };
+  return { resultType: 'complete', content: [{ type: 'text', text: JSON.stringify(value) }], isError,
+    _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'property-agent', version: AGENT_VERSION } } };
 }
 
-async function dispatch(request) {
+function matchesSchema(schema, value) {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return false;
+  if (Array.isArray(schema.oneOf) && schema.oneOf.filter(item => matchesSchema(item, value)).length !== 1) return false;
+  if (Array.isArray(schema.anyOf) && !schema.anyOf.some(item => matchesSchema(item, value))) return false;
+  if (Array.isArray(schema.enum) && !schema.enum.some(item => Object.is(item, value))) return false;
+  if (schema.type === 'object') {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    if (Array.isArray(schema.required) && schema.required.some(key => !Object.hasOwn(value, key))) return false;
+    const properties = schema.properties || {};
+    if (schema.additionalProperties === false && Object.keys(value).some(key => !Object.hasOwn(properties, key))) return false;
+    return Object.entries(value).every(([key, item]) => !Object.hasOwn(properties, key) || matchesSchema(properties[key], item));
+  }
+  if (schema.type === 'string') {
+    if (typeof value !== 'string' || (schema.minLength !== undefined && value.length < schema.minLength) ||
+        (schema.maxLength !== undefined && value.length > schema.maxLength)) return false;
+    if (schema.pattern !== undefined) { try { if (!new RegExp(schema.pattern).test(value)) return false; } catch { return false; } }
+    return true;
+  }
+  if (schema.type === 'integer') return Number.isSafeInteger(value) &&
+    (schema.minimum === undefined || value >= schema.minimum) && (schema.maximum === undefined || value <= schema.maximum);
+  if (schema.type === 'number') return typeof value === 'number' && Number.isFinite(value) &&
+    (schema.minimum === undefined || value >= schema.minimum) && (schema.maximum === undefined || value <= schema.maximum);
+  if (schema.type === 'boolean') return typeof value === 'boolean';
+  if (schema.type === 'null') return value === null;
+  if (schema.type === 'array') return Array.isArray(value) && (schema.maxItems === undefined || value.length <= schema.maxItems) &&
+    (schema.minItems === undefined || value.length >= schema.minItems) && value.every(item => matchesSchema(schema.items, item));
+  return schema.type === undefined;
+}
+
+export async function dispatch(request) {
   if (!exactObject(request, ['jsonrpc', 'id', 'method', 'params']) || request.jsonrpc !== '2.0' || !(typeof request.id === 'string' || Number.isSafeInteger(request.id)) || typeof request.method !== 'string' || !request.params || typeof request.params !== 'object' || Array.isArray(request.params)) return { jsonrpc: '2.0', id: null, error: mcpError(-32600, 'Pedido JSON-RPC inválido.') };
   const { id, method, params } = request;
   if (!validateMeta(params)) return { jsonrpc: '2.0', id, error: mcpError(-32602, 'Metadados MCP 2026-07-28 ausentes ou inválidos.') };
@@ -222,12 +305,14 @@ async function dispatch(request) {
   if (method === 'tools/list') {
     if (!exactObject(params, ['_meta']) && !exactObject(params, ['_meta', 'cursor'])) return { jsonrpc: '2.0', id, error: mcpError(-32602, 'Parâmetros de listagem inválidos.') };
     if (params.cursor !== undefined) return { jsonrpc: '2.0', id, error: mcpError(-32602, 'Paginação não está habilitada para a lista fixa de tools.') };
-    return { jsonrpc: '2.0', id, result: { resultType: 'complete', tools: tools.map(({ _propertyMethod, ...tool }) => tool), ttlMs: 0, cacheScope: 'private' } };
+    return { jsonrpc: '2.0', id, result: { resultType: 'complete', tools: MCP_TOOLS, ttlMs: 0, cacheScope: 'private',
+      _meta: { 'io.modelcontextprotocol/serverInfo': { name: 'property-agent', version: AGENT_VERSION } } } };
   }
   if (method === 'tools/call') {
     if (!exactObject(params, ['_meta', 'name', 'arguments']) || typeof params.name !== 'string' || !params.arguments || typeof params.arguments !== 'object' || Array.isArray(params.arguments)) return { jsonrpc: '2.0', id, error: mcpError(-32602, 'Parâmetros da ferramenta inválidos.') };
     const tool = tools.find(item => item.name === params.name);
     if (!tool) return { jsonrpc: '2.0', id, result: toolResult({ error: 'tool-not-allowed' }, true) };
+    if (!matchesSchema(tool.inputSchema, params.arguments)) return { jsonrpc: '2.0', id, result: toolResult({ error: 'invalid-arguments' }, true) };
     try {
       const result = await callUnixJson(socketPath, tool._propertyMethod, params.arguments);
       return { jsonrpc: '2.0', id, result: toolResult(result) };
@@ -239,11 +324,15 @@ async function dispatch(request) {
   return { jsonrpc: '2.0', id, error: mcpError(-32601, 'Método MCP não implementado.') };
 }
 
-for await (const line of boundedLines(process.stdin)) {
-  if (line === null) { send({ jsonrpc: '2.0', id: null, error: mcpError(-32700, 'Mensagem MCP excede o limite local.') }); continue; }
-  try {
-    const request = parseStrictJson(line);
-    const response = await dispatch(request);
-    send(response);
-  } catch { send({ jsonrpc: '2.0', id: null, error: mcpError(-32700, 'JSON-RPC malformado ou com chaves duplicadas.') }); }
+async function runStdio() {
+  for await (const line of boundedLines(process.stdin)) {
+    if (line === null) { send({ jsonrpc: '2.0', id: null, error: mcpError(-32700, 'Mensagem MCP excede o limite local.') }); continue; }
+    try {
+      const request = parseStrictJson(line);
+      const response = await dispatch(request);
+      send(response);
+    } catch { send({ jsonrpc: '2.0', id: null, error: mcpError(-32700, 'JSON-RPC malformado ou com chaves duplicadas.') }); }
+  }
 }
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await runStdio();

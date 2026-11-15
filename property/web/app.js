@@ -116,7 +116,7 @@
   const N = window.NostrTools;
   const bridge = Bridge?.createBridge(event => N.verifyEvent(event));
   const protocolFamilyByKind = new Map([
-    [1, 'public_note'], [3, 'relay_discovery'], [10002, 'relay_discovery'], [10011, 'identity_claim'],
+    [0, 'profile'], [1, 'public_note'], [3, 'relay_discovery'], [10002, 'relay_discovery'], [10011, 'identity_claim'],
     [10050, 'relay_discovery'], [1059, 'private_message'], [30017, 'marketplace_offer'], [30018, 'marketplace_offer'],
     [30078, 'campaign_sponsorship'], [30079, 'campaign_sponsorship'], [30080, 'campaign_sponsorship'], [30082, 'campaign_sponsorship'],
   ]);

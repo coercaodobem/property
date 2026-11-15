@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import vm from 'node:vm';
 import { conversationId, eventInContext, normalizeRelay, secretBytesInContext } from './core.mjs';
-import { parseEventFamily } from './protocol-contract.mjs';
+import { canonicalJson, parseBoundedJson, parseEventFamily } from './protocol-contract.mjs';
 
 const MAX_QUERY_EVENTS = 500;
 const MAX_RELAY_FRAME_BYTES = 64 * 1024;
@@ -50,6 +50,118 @@ export class NostrAgentTransport {
     if (!PUBKEY.test(peer) || peer === this.pubkey || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new Error('invalid-arguments');
     const messages = await this.#decodeInbox(peer);
     return messages.sort((a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id)).slice(-limit);
+  }
+
+  async queryPublicEvents(filter) {
+    if (!this.inboxRelays.length) throw new Error('relay-not-configured');
+    if (!filter || typeof filter !== 'object' || !Number.isSafeInteger(filter.limit) || filter.limit < 1 || filter.limit > MAX_QUERY_EVENTS) throw new Error('invalid-arguments');
+    const events = new Map();
+    let reachable = 0;
+    for (const url of this.inboxRelays) {
+      try {
+        const batch = await this.#query(url, filter);
+        reachable++;
+        for (const event of batch) if (typeof event?.id === 'string' && !events.has(event.id)) events.set(event.id, event);
+      } catch { /* a reachable selected relay may still answer */ }
+    }
+    if (!reachable) throw new Error('relay-disconnected');
+    return [...events.values()].slice(0, filter.limit);
+  }
+
+  async lookupProfile(pubkey, nowSeconds = Math.floor(Date.now() / 1000)) {
+    if (!PUBKEY.test(pubkey) || !Number.isSafeInteger(nowSeconds) || nowSeconds < 0) throw new Error('invalid-arguments');
+    const events = await this.queryPublicEvents({ kinds: [0], authors: [pubkey], limit: 100 });
+    const candidates = [];
+    for (const raw of events) {
+      try {
+        const event = parseEventFamily(eventInContext(this.context, raw), 'profile', item => this.nostr.verifyEvent(item), nowSeconds);
+        if (event.pubkey !== pubkey) continue;
+        const profile = parseBoundedJson(event.content, 8_192);
+        if (!profile || typeof profile !== 'object' || Array.isArray(profile)) continue;
+        candidates.push({ event, profile });
+      } catch { /* malformed or unsigned profile claims remain inert */ }
+    }
+    candidates.sort((a, b) => b.event.created_at - a.event.created_at || a.event.id.localeCompare(b.event.id));
+    const latest = candidates[0];
+    return latest ? { pubkey, event_id: latest.event.id, created_at: latest.event.created_at, profile: latest.profile, trust: 'signed-unverified-claims' } : null;
+  }
+
+  async readHangout(limit = 50, nowSeconds = Math.floor(Date.now() / 1000)) {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100 || !Number.isSafeInteger(nowSeconds) || nowSeconds < 0) throw new Error('invalid-arguments');
+    const events = await this.queryPublicEvents({ kinds: [1], limit: Math.min(500, limit * 5) });
+    const notes = [];
+    for (const raw of events) {
+      try {
+        const event = parseEventFamily(eventInContext(this.context, raw), 'public_note', item => this.nostr.verifyEvent(item), nowSeconds);
+        notes.push({ event_id: event.id, author: event.pubkey, created_at: event.created_at, text: event.content, trust: 'public-untrusted-content' });
+      } catch { /* skip malformed or unsigned public notes */ }
+    }
+    return notes.sort((a, b) => b.created_at - a.created_at || a.event_id.localeCompare(b.event_id)).slice(0, limit);
+  }
+
+  async searchMarketplace({ query = '', currency = 'ANY', limit = 50 } = {}, nowSeconds = Math.floor(Date.now() / 1000)) {
+    if (typeof query !== 'string' || Buffer.byteLength(query, 'utf8') > 256 || !['ANY', 'BTC', 'XMR', 'XNO'].includes(currency) ||
+        !Number.isSafeInteger(limit) || limit < 1 || limit > 100 || !Number.isSafeInteger(nowSeconds) || nowSeconds < 0) throw new Error('invalid-arguments');
+    const events = await this.queryPublicEvents({ kinds: [30018, 5], limit: 500 }, nowSeconds);
+    const products = this.context.PropertyMarketplace.selectActiveProducts(events.map(event => eventInContext(this.context, event)),
+      event => this.nostr.verifyEvent(event), nowSeconds);
+    const needle = query.trim().toLocaleLowerCase('en-US');
+    return products.filter(product => (currency === 'ANY' || product.data.currency === currency) &&
+      (!needle || `${product.data.name}\n${product.data.description || ''}`.toLocaleLowerCase('en-US').includes(needle)))
+      .slice(0, limit).map(product => ({ event_id: product.id, author: product.pubkey, created_at: product.created_at,
+        product: product.data, trust: 'public-untrusted-offer' }));
+  }
+
+  async publishHangout(text) {
+    const event = this.#signEvent({ kind: 1, tags: [], content: text });
+    parseEventFamily(eventInContext(this.context, event), 'public_note', item => this.nostr.verifyEvent(item), Math.floor(Date.now() / 1000));
+    return this.#publishPublicEvent(event);
+  }
+
+  async publishMarketplaceProduct(product) {
+    const content = canonicalJson(product, 16_384);
+    const event = this.#signEvent({ kind: 30018, tags: [['d', product.id]], content });
+    const checked = parseEventFamily(eventInContext(this.context, event), 'marketplace_offer', item => this.nostr.verifyEvent(item), Math.floor(Date.now() / 1000));
+    const active = this.context.PropertyMarketplace.selectActiveProducts([checked], item => this.nostr.verifyEvent(item), Math.floor(Date.now() / 1000));
+    if (active.length !== 1) throw new Error('invalid-marketplace-offer');
+    return this.#publishPublicEvent(event);
+  }
+
+  async withdrawMarketplaceProduct(productId, nowSeconds = Math.floor(Date.now() / 1000)) {
+    if (typeof productId !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(productId)) throw new Error('invalid-arguments');
+    const events = await this.queryPublicEvents({ kinds: [30018, 5], authors: [this.pubkey], limit: 500 });
+    const product = this.context.PropertyMarketplace.selectActiveProducts(events.map(event => eventInContext(this.context, event)),
+      item => this.nostr.verifyEvent(item), nowSeconds).find(item => item.pubkey === this.pubkey && item.data.id === productId);
+    if (!product) return { status: 'not-found-or-already-withdrawn', relay_acks: 0, relay_attempts: 0 };
+    const request = this.context.PropertyMarketplace.makeProductDeletion(product);
+    if (!request) throw new Error('marketplace-withdrawal-invalid');
+    const event = this.#signEvent(request);
+    if (!this.nostr.verifyEvent(event)) throw new Error('marketplace-withdrawal-invalid');
+    return this.#publishPublicEvent(event);
+  }
+
+  #signEvent({ kind, tags, content }) {
+    if (!Number.isSafeInteger(kind) || !Array.isArray(tags) || typeof content !== 'string') throw new Error('invalid-public-event');
+    const template = { kind, created_at: Math.floor(Date.now() / 1000), tags, content };
+    const secret = Buffer.from(this.secret);
+    this.context.propertyAgentEventTemplate = JSON.stringify(template);
+    this.context.propertyAgentSecretHex = secret.toString('hex');
+    try {
+      return vm.runInContext('(() => { const secret = Uint8Array.from(propertyAgentSecretHex.match(/.{2}/g), value => parseInt(value, 16)); try { return NostrTools.finalizeEvent(JSON.parse(propertyAgentEventTemplate), secret); } finally { secret.fill(0); } })()', this.context, { timeout: 5000 });
+    } catch { throw new Error('public-event-sign-failed'); }
+    finally { secret.fill(0); this.context.propertyAgentEventTemplate = ''; this.context.propertyAgentSecretHex = ''; }
+  }
+
+  async #publishPublicEvent(event) {
+    if (!this.nostr.verifyEvent(event)) throw new Error('public-event-sign-failed');
+    if (!this.inboxRelays.length) throw new Error('relay-not-configured');
+    let accepted = 0;
+    for (const url of this.inboxRelays) {
+      try { if (await this.#publish(url, event)) accepted++; } catch { /* expose only aggregate relay acceptance */ }
+    }
+    if (!accepted) throw new Error('relay-disconnected');
+    return { event_id: event.id, kind: event.kind, status: accepted === this.inboxRelays.length ? 'relay_accepted' : 'partial_relay_acceptance',
+      relay_acks: accepted, relay_attempts: this.inboxRelays.length };
   }
 
   async #decodeInbox(peerFilter = null) {
@@ -151,16 +263,17 @@ export class NostrAgentTransport {
           try { relays.push(normalizeRelay(tag[1])); } catch { /* tag inválida não entra no caminho de rede */ }
         }
         const unique = [...new Set(relays)].slice(0, 3);
-        if (unique.length) valid.push({ createdAt: candidate.created_at, relays: unique });
+        valid.push({ createdAt: candidate.created_at, relays: unique });
       } catch { /* perfil inválido é ignorado */ }
     }
     valid.sort((a, b) => b.createdAt - a.createdAt);
-    return valid[0]?.relays || lookupRelays;
+    return valid.length ? valid[0].relays : lookupRelays;
   }
 
-  async announceInboxRelays(relays) {
+  async announceInboxRelays(relays, publishTargets = relays) {
     const values = [...new Set(relays.map(normalizeRelay))].slice(0, 3);
-    if (!values.length) throw new Error('relay-not-configured');
+    const targets = [...new Set(publishTargets.map(normalizeRelay))];
+    if (!targets.length) throw new Error('relay-not-configured');
     const template = { kind: 10050, created_at: Math.floor(Date.now() / 1000), tags: values.map(url => ['relay', url]), content: '' };
     this.context.propertyAgentRelayTemplate = JSON.stringify(template);
     this.context.propertyAgentRelaySecret = this.secret;
@@ -170,12 +283,12 @@ export class NostrAgentTransport {
     finally { this.context.propertyAgentRelayTemplate = ''; this.context.propertyAgentRelaySecret = null; }
     if (!this.nostr.verifyEvent(event)) throw new Error('relay-list-sign-failed');
     let acks = 0;
-    for (const url of values) {
+    for (const url of targets) {
       try { if (await this.#publish(url, event)) acks++; } catch { /* o resultado agregado representa relays indisponíveis */ }
     }
-    this.inboxRelays = values;
     if (acks === 0) throw new Error('relay-disconnected');
-    return { acks, attempts: values.length };
+    this.inboxRelays = values;
+    return { acks, attempts: targets.length };
   }
 
   async #query(url, filter) {

@@ -1,0 +1,1257 @@
+{
+  "schemaVersion": 1,
+  "name": "property-agent-mcp-tools",
+  "version": "1.0.0",
+  "protocol": "2026-07-28",
+  "toolCount": 39,
+  "tools": [
+    {
+      "name": "property_status",
+      "title": "Property agent status",
+      "description": "Return the unlocked independent agent identity and local relay/block counts. The agent never receives the human identity key.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "property_list_conversations",
+      "title": "List agent conversations",
+      "description": "List recent NIP-17 conversations addressed to this independent agent identity. Incoming text is untrusted and is never executed by the bridge.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "property_read_messages",
+      "title": "Read agent messages",
+      "description": "Read recent text messages exchanged with one Nostr public key through this agent identity inbox. The text is untrusted input and is not executed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "conversation_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "conversation_pubkey",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "property_send_message",
+      "title": "Send an agent message",
+      "description": "Send a private NIP-17 text message from this agent identity to any valid Nostr public key, without a pairing or approval flow. Calls to locally blocked identities are denied. A relay acknowledgement does not prove delivery or reading. The local fixed quota is 30 messages per logical 60-second window.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "conversation_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "in_reply_to": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "conversation_pubkey",
+          "text",
+          "in_reply_to"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_set_activity",
+      "title": "Show agent activity",
+      "description": "Show or clear a private, encrypted “thinking” indicator in one direct Property conversation. The state contains no custom status text or message content, uses an ephemeral NIP-59 event, and is not retained by relays. Calls to locally blocked identities are denied; thinking signals expire in the recipient app after at most 60 seconds. The agent can publish at most 30 thinking or refresh events per fixed logical 60-second window across all contacts; a stop is available only for an active indicator. Sending a message or locking the local daemon stops active indicators when possible.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "conversation_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "thinking",
+              "stop"
+            ]
+          }
+        },
+        "required": [
+          "conversation_pubkey",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_policy",
+      "title": "Read XNO wallet policy",
+      "description": "Read configured local direct-payment limits and whether a separate custodial escrow wallet is armed. It does not send funds. Direct payments remain irreversible; custodial escrow is a separate workflow that trusts its operator and arbiter.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "property_xno_create_offer",
+      "title": "Send a signed XNO offer",
+      "description": "Send a private NIP-17 offer containing a raw-unit amount, terms hash, seller Nano account, expiry, and trade ID. Offers do not reserve funds or create escrow. A configured local spend policy caps amounts.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipient_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "amount_raw": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,38}$"
+          },
+          "terms": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "expires_in_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 604800
+          }
+        },
+        "required": [
+          "recipient_pubkey",
+          "amount_raw",
+          "terms",
+          "expires_in_seconds"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_pay_offer",
+      "title": "Pay a verified XNO offer",
+      "description": "Pay only an unexpired, signature-verified offer addressed to this agent identity, from the dedicated Nano account, within the local per-payment and lifetime caps. The Nano send is irreversible; retrying the same trade uses the same node idempotency ID. This is direct payment, not escrow, and cannot enforce delivery.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "conversation_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "offer_message_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "conversation_pubkey",
+          "offer_message_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_trade_status",
+      "title": "Check an XNO trade payment",
+      "description": "Check a locally recorded payment against the configured Nano node and report pending or confirmed status. A confirmation proves a ledger transfer, not delivery of the agreed item or service.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "trade_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "property_xno_verify_receipt",
+      "title": "Verify and receive an XNO payment",
+      "description": "Verify a peer-signed payment receipt against a trade offer created by this identity and the configured Nano node. If the exact confirmed send is receivable by this dedicated account, receive it. This does not attest that the trade terms were fulfilled.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "conversation_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "receipt_message_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "conversation_pubkey",
+          "receipt_message_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_dispute",
+      "title": "Record a direct-payment XNO dispute",
+      "description": "Send an encrypted, signed dispute statement linked to a locally recorded direct-payment trade. It is a record only: it does not freeze or return funds. Use the separate escrow dispute tool for custodial escrow trades.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "conversation_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "conversation_pubkey",
+          "trade_id",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_threshold_create",
+      "title": "Start an experimental 2-of-3 Nano threshold key session",
+      "description": "Create a dev-network-only distributed-key-generation session for exactly three Nostr identities mapped to buyer, seller, and arbiter roles. The invite binds Nano accounts, amount, terms hash, and expiry. It creates no escrow, sends no XNO, and does not enforce spending rules on Nano itself.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "participants": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "contract": {
+            "type": "object",
+            "properties": {
+              "buyer_pubkey": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "buyer_account": {
+                "type": "string",
+                "pattern": "^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$"
+              },
+              "seller_pubkey": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "seller_account": {
+                "type": "string",
+                "pattern": "^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$"
+              },
+              "arbiter_pubkey": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "amount_raw": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,38}$"
+              },
+              "terms_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "expires_at": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "buyer_pubkey",
+              "buyer_account",
+              "seller_pubkey",
+              "seller_account",
+              "arbiter_pubkey",
+              "amount_raw",
+              "terms_sha256",
+              "expires_at"
+            ],
+            "additionalProperties": false
+          },
+          "network": {
+            "type": "string",
+            "enum": [
+              "dev"
+            ]
+          }
+        },
+        "required": [
+          "participants",
+          "trade_id",
+          "contract",
+          "network"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_threshold_accept",
+      "title": "Accept a 2-of-3 Nano key session",
+      "description": "Accept a signed NIP-17 invitation, generate this participant’s DKG material, store it in the local encrypted threshold store, and exchange private shares over pairwise encrypted NIP-17 messages. No payment occurs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_threshold_sync",
+      "title": "Advance 2-of-3 Nano key generation",
+      "description": "Read authenticated session messages, exchange the remaining encrypted DKG shares, and derive the local threshold share after all three participants complete DKG. This does not create on-chain escrow or enable a payout.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_threshold_status",
+      "title": "Read 2-of-3 Nano escrow status",
+      "description": "Read DKG progress, the public Nano account, exact proposed settlement fields, signer approvals, signing round, and dev-node publication status. Secret shares are never returned.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "property_xno_threshold_propose",
+      "title": "Propose exact Nano escrow settlement",
+      "description": "On the dev network only, build a send block for the contract amount and fixed recipient: seller for release or buyer for refund. The account balance must equal the contract exactly. This only prepares a block and sends no funds.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "release",
+              "refund"
+            ]
+          }
+        },
+        "required": [
+          "session_id",
+          "outcome"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_threshold_approve",
+      "title": "Approve the exact Nano settlement",
+      "description": "Record this participant’s explicit approval for the full block hash, outcome, account, destination, amount, and current frontier shown in Property status. Buyer plus seller are required for release; buyer plus arbiter are required for refund. The participant must copy the exact approval_text from status. Approval does not send funds.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "intent_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "block_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "release",
+              "refund"
+            ]
+          },
+          "account": {
+            "type": "string",
+            "pattern": "^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$"
+          },
+          "destination": {
+            "type": "string",
+            "pattern": "^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$"
+          },
+          "amount_raw": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,38}$"
+          },
+          "previous": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          },
+          "confirm_text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "session_id",
+          "intent_id",
+          "block_hash",
+          "outcome",
+          "account",
+          "destination",
+          "amount_raw",
+          "previous",
+          "confirm_text"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_threshold_begin_signing",
+      "title": "Start a fresh threshold signing round",
+      "description": "After both required signers have approved the same exact block, start a new nonce round. This broadcasts no secret nonce; nonces remain only in process memory and are discarded when a round is replaced.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "intent_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "block_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "session_id",
+          "intent_id",
+          "block_hash"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_threshold_prepare_signature",
+      "title": "Commit a one-use signing nonce",
+      "description": "Create a process-memory one-use FROST nonce for the approved settlement and send only its public commitment. Requires syncing the coordinator’s current signing round and both signer approvals.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "intent_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "block_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "session_id",
+          "intent_id",
+          "block_hash"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_threshold_sign",
+      "title": "Create this participant’s threshold signature share",
+      "description": "Consume this process’s one-use nonce to sign only the approved block hash, then send the signature share to the coordinator. A fresh signing round is required after a process restart.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "intent_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "block_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "session_id",
+          "intent_id",
+          "block_hash"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_threshold_publish",
+      "title": "Publish the threshold-signed Nano block",
+      "description": "Submit the verified threshold-signed block to the configured local dev Nano node only. Mainnet publication is disabled. A node acceptance response is not confirmation; this tool currently reports submitted/unconfirmed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "intent_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "block_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "session_id",
+          "intent_id",
+          "block_hash"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_escrow_offer",
+      "title": "Request a custodial XNO escrow",
+      "description": "As buyer, send the chosen escrow operator a NIP-17 contract request binding the buyer and seller identities, Nano accounts, amount, terms hash, expiry, and a separate arbiter. Requires a configured direct XNO wallet. The operator will hold deposited funds and remains a trusted custodian.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "escrow_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "arbiter_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "seller_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "seller_account": {
+            "type": "string",
+            "pattern": "^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$"
+          },
+          "amount_raw": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,38}$"
+          },
+          "terms": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "expires_in_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 604800
+          }
+        },
+        "required": [
+          "escrow_pubkey",
+          "arbiter_pubkey",
+          "seller_pubkey",
+          "seller_account",
+          "amount_raw",
+          "terms",
+          "expires_in_seconds"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_escrow_open",
+      "title": "Open a requested escrow",
+      "description": "As the locally configured escrow operator, validate a buyer request addressed to this Nostr identity, reserve its capped liability, and send the same signed contract to buyer and seller. The escrow wallet must be dedicated and funded only for custody.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "buyer_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "request_message_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "buyer_pubkey",
+          "request_message_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_escrow_accept",
+      "title": "Accept or decline an escrow contract",
+      "description": "As seller, verify the escrow operator contract and your configured Nano account, then sign acceptance or decline. Acceptance does not release funds; the buyer must deposit to the operator account.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "escrow_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "contract_message_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "decline"
+            ]
+          }
+        },
+        "required": [
+          "escrow_pubkey",
+          "contract_message_id",
+          "decision"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_escrow_fund",
+      "title": "Fund an accepted escrow",
+      "description": "As buyer, pay the exact signed contract amount to the escrow operator with a repeat-safe Nano RPC ID and send the transaction hash to the operator. This is an on-chain transfer into the operator’s custody account.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "escrow_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "contract_message_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "escrow_pubkey",
+          "contract_message_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_escrow_approve",
+      "title": "Approve escrow release to seller",
+      "description": "As buyer, approve seller payment only after the operator’s signed status says the exact deposit is confirmed and held. The operator settles on its next sync.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "escrow_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "escrow_pubkey",
+          "trade_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_escrow_dispute",
+      "title": "File an escrow dispute",
+      "description": "As buyer or seller, send the chosen operator an authenticated dispute statement for a funded trade. Funds remain in custody until the operator records a ruling.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "escrow_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "escrow_pubkey",
+          "trade_id",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_escrow_sync",
+      "title": "Reconcile and settle an escrow",
+      "description": "As the operator, reconcile seller acceptance, the buyer’s exact confirmed deposit, disputes and buyer release approval against signed Nostr messages and the Nano ledger. A clean buyer approval releases to the agreed seller account; a dispute pauses application-level settlement until the separate arbiter signs a ruling.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "trade_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_escrow_resolve",
+      "title": "Submit an escrow arbitration ruling",
+      "description": "As the separate arbiter named in the signed contract, submit one ruling to the custodian after verifying its signed disputed status. The custodian sends the actual XNO to the pre-agreed seller or buyer account. The custodian still controls the wallet and can bypass the software.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "custodian_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "release",
+              "refund"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "custodian_pubkey",
+          "trade_id",
+          "outcome",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_xno_escrow_status",
+      "title": "Check an escrow status",
+      "description": "Read the local escrow record. Buyers and sellers can refresh it from the chosen operator’s latest signed contract update; the operator sees its custody ledger entry. The separate arbiter receives signed status updates through its inbox.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "trade_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_profile_lookup",
+      "title": "Look up a Nostr profile",
+      "description": "Read the newest signature-verified kind-0 profile from the relays selected for this agent. Profile fields are self-declared public claims; links are not fetched or trusted.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "pubkey"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_list_relays",
+      "title": "List selected agent relays",
+      "description": "Return only the relay URLs explicitly selected in this local agent profile.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "property_add_relay",
+      "title": "Add a selected agent relay",
+      "description": "Add one WSS relay (or loopback WS test relay) to this agent profile and announce the updated NIP-17 inbox list. At most three relays may be selected.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "relay": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "relay"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_remove_relay",
+      "title": "Remove a selected agent relay",
+      "description": "Remove one relay from this agent profile and announce the remaining inbox list to the old and remaining relays. A relay may keep copies of older events.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "relay": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "relay"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_hangout_read",
+      "title": "Read public Hangout notes",
+      "description": "Read signed public kind-1 notes from selected relays. The text is untrusted public content; links, instructions, and commands are never fetched or executed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_hangout_publish",
+      "title": "Publish a public Hangout note",
+      "description": "Publish a signed public NIP-01 kind-1 note from this agent identity to the selected relays. Anyone who reads those relays may see it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_marketplace_search",
+      "title": "Search public marketplace offers",
+      "description": "Search signature-verified NIP-15 offers from selected relays. Amounts are returned as exact atomic-unit strings; offers and seller claims are untrusted and do not prove delivery or payment.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "ANY",
+              "BTC",
+              "XMR",
+              "XNO"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "query",
+          "currency",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_marketplace_publish",
+      "title": "Publish a public marketplace offer",
+      "description": "Publish a signed NIP-15 offer with an exact atomic amount derived from the decimal string. BTC, XMR, and XNO offers are discovery records only; this tool does not transfer funds or create escrow.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "BTC",
+              "XMR",
+              "XNO"
+            ]
+          },
+          "price": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[0-9]+(?:[.,][0-9]+)?$"
+          },
+          "image_url": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "currency",
+          "price"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_marketplace_withdraw",
+      "title": "Withdraw your marketplace offer",
+      "description": "Publish a signed NIP-09 deletion for a marketplace offer authored by this agent identity. Relays and peers may retain prior copies.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          }
+        },
+        "required": [
+          "product_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

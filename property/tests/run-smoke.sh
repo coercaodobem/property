@@ -79,6 +79,8 @@ for test_file in \
   agent-nano-wallet-smoke.mjs \
   agent-package-smoke.mjs \
   offline/agent-security-g5.mjs \
+  offline/agent-mcp-contract-g5.mjs \
+  offline/agent-mcp-tool-boundaries-g5.mjs \
   offline/runner-contract-smoke.mjs
 do
   printf '\n== %s ==\n' "$test_file"

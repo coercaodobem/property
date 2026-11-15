@@ -1,8 +1,15 @@
 {
   "name": "property-agent-local",
-  "version": "0.7.0",
-  "platformsImplemented": ["linux-x64"],
-  "platformsPending": ["windows", "macos", "android", "ios"],
+  "version": "0.8.0",
+  "platformsImplemented": [
+    "linux-x64"
+  ],
+  "platformsPending": [
+    "windows",
+    "macos",
+    "android",
+    "ios"
+  ],
   "node": ">=22",
   "mcpProtocol": "2026-07-28",
   "transport": "stdio",
@@ -49,6 +56,13 @@
     "vendor/nostr-tools-LICENSE",
     "vendor/node_modules/@noble/curves",
     "vendor/node_modules/@noble/hashes",
-    "vendor/NOTICE.md"
-  ]
+    "vendor/NOTICE.md",
+    "tools.manifest.json",
+    "vendor/protocol-contract.js",
+    "vendor/money.js",
+    "vendor/marketplace.js"
+  ],
+  "mcpToolsManifest": "tools.manifest.json",
+  "mcpToolsVersion": "1.0.0",
+  "mcpToolCount": 39
 }

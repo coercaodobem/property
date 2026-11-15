@@ -4,7 +4,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
-export const AGENT_VERSION = '0.7.0';
+export const AGENT_VERSION = '0.8.0';
 export const MCP_VERSION = '2026-07-28';
 export const MAX_IPC_BYTES = 32 * 1024;
 export const MAX_TOOL_BODY_BYTES = 8 * 1024;
@@ -92,8 +92,26 @@ export async function loadNostr(PROPERTY_ROOT) {
     try { vm.runInContext(await readFile(activityPath, 'utf8'), context, { timeout: 5000, filename: activityPath }); activityLoaded = true; break; } catch (error) { if (error?.code !== 'ENOENT') throw error; }
   }
   if (!activityLoaded) throw new Error('O módulo local de atividade privada não foi encontrado. Reinstale o runtime Property Agent.');
+  const sharedModules = [
+    ['protocol-contract.js', 'PropertyProtocol'],
+    ['money.js', 'PropertyMoney'],
+    ['marketplace.js', 'PropertyMarketplace'],
+  ];
+  for (const [filename, globalName] of sharedModules) {
+    const candidates = [path.join(agentRoot, 'vendor', filename), path.join(PROPERTY_ROOT, 'web', filename)];
+    let loaded = false;
+    for (const sourcePath of candidates) {
+      try {
+        vm.runInContext(await readFile(sourcePath, 'utf8'), context, { timeout: 5000, filename: sourcePath });
+        loaded = true;
+        break;
+      } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    }
+    if (!loaded || !context[globalName]) throw new Error(`O módulo local ${filename} não carregou. Reinstale o runtime Property Agent.`);
+  }
   if (!context.NostrTools?.nip17 || !context.PropertyAgentMessages || !context.PropertyTypingSignals) throw new Error('Os módulos locais de protocolo não carregaram.');
-  return Object.freeze({ context, nostr: context.NostrTools, messages: context.PropertyAgentMessages, activitySignals: context.PropertyTypingSignals });
+  return Object.freeze({ context, nostr: context.NostrTools, messages: context.PropertyAgentMessages,
+    activitySignals: context.PropertyTypingSignals, marketplace: context.PropertyMarketplace, money: context.PropertyMoney });
 }
 
 export function secretBytesInContext(context, secretHex) {

@@ -35,7 +35,7 @@
 | Agent envelope | `property-agent-message/v1`, only inside NIP-17 content. It is not a Nostr standard or a claim of external interoperability. |
 | Envelope fields | `protocol`, `version`, `conversation_id`, `message_id`, `in_reply_to`, and `body`; no attachments, commands, or extra fields. |
 | Limits | UTF-8 body up to 8 KiB, envelope up to 16 KiB, up to 3 inbox relays, 30 sends per agent per fixed logical 60-second window, and 30 thinking/refresh events per agent per fixed logical 60-second window. |
-| MCP | Version `2026-07-28`, local stdio, eleven fixed tools: five status/messaging/activity tools and six optional XNO trade tools. No Property approval tool. |
+| MCP | Version `2026-07-28`, local stdio, 39 fixed tools described in [`../agent/tools.manifest.json`](../agent/tools.manifest.json). No Property approval tool. |
 | A2A / NIP-89 / NIP-90 | Do not claim A2A conformance or use those protocols for identity/pairing. Evaluate interoperability separately before extending the contract. |
 
 Received content is untrusted text. Property does not execute instructions, Markdown, links, or message content. Events, signatures, envelope, and conversation identifier are checked before display; unknown versions get a clear warning or are rejected. Encryption protects message content, not all metadata: relays may still observe outer addressing, IP, size, and traffic patterns.

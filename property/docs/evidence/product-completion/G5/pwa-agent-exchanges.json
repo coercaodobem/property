@@ -1,0 +1,56 @@
+{
+  "gate": "G5",
+  "status": "PASS_AUTOMATED_OFFLINE",
+  "seed": "property-g5-human-pwa-agent-25-round-trips-v1",
+  "operating_system": "linux/x64",
+  "browser": {
+    "playwright_version": "1.64.1",
+    "playwright_package_sha256": "d62da330118d0d7629f7df088a5b8226c9bae1c5c44bb36d6836e84ddc974464",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "8c599d43aec53f2460a31ae2f4af6bd863f8258b34ff519564bc5d4726bfaa1e"
+  },
+  "geode_sha256": "9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7",
+  "external_connections": 0,
+  "external_models": 0,
+  "real_participants": 0,
+  "real_funds": false,
+  "public_relays": false,
+  "human_pubkey_sha256": "41181573a4e98d34d51d3c1bd03dc8537b52ed8a46ed09cfa58903fc56af6810",
+  "agent_pubkey_sha256": "a864cd43fbf0d3ec2572d3f3da168ef05f2f401ab0d90c050a4dd85b3ec38078",
+  "human_pwa_agent_round_trips": 25,
+  "human_to_agent_messages": 25,
+  "agent_to_human_messages": 25,
+  "encrypted_wrappers_per_relay": [
+    {
+      "url": "ws://127.0.0.1:28483",
+      "wrappers": 100,
+      "ids_sha256": "672d4746cb1c070056c3fa9306ab88cdbd456e024138dc98f086f816e6f97416"
+    },
+    {
+      "url": "ws://127.0.0.1:28484",
+      "wrappers": 100,
+      "ids_sha256": "672d4746cb1c070056c3fa9306ab88cdbd456e024138dc98f086f816e6f97416"
+    },
+    {
+      "url": "ws://127.0.0.1:28485",
+      "wrappers": 100,
+      "ids_sha256": "672d4746cb1c070056c3fa9306ab88cdbd456e024138dc98f086f816e6f97416"
+    }
+  ],
+  "no_human_approval_record": true,
+  "ciphertext_contains_plaintext": false,
+  "unrelated_identity_decryption_attempts_per_relay": 100,
+  "browser_websockets_local_only": true,
+  "browser_external_requests": 0,
+  "browser_external_proxy_attempts_blocked": 14,
+  "blocked_proxy_destinations": [
+    "accounts.google.com:443",
+    "android.clients.google.com:443",
+    "http://clients2.google.com",
+    "update.googleapis.com:443",
+    "www.google.com:443"
+  ],
+  "mcp_service_sends": 25,
+  "incoming_messages_decrypted_by_agent": 25,
+  "outgoing_messages_decrypted_by_pwa": 25
+}

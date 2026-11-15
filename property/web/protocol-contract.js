@@ -1,6 +1,7 @@
 'use strict';
 (() => {
   const EVENT_FAMILIES = Object.freeze({
+    profile: Object.freeze({ kinds: [0], maxContentBytes: 8_192, maxTags: 64 }),
     identity_claim: Object.freeze({ kinds: [10011], maxContentBytes: 16_384, maxTags: 64 }),
     private_message: Object.freeze({ kinds: [1059], maxContentBytes: 32_768, maxTags: 8 }),
     public_note: Object.freeze({ kinds: [1], maxContentBytes: 16_384, maxTags: 128 }),

@@ -114,13 +114,13 @@ O [plano central de testes](plano-de-testes-central.pt-BR.md) continua sendo a r
 
 **Critérios automatizados:**
 
-- Executar testes de contrato MCP stdio com 3 clientes MCP sintéticos locais; validar initialize, capacidades, schemas, erros estruturados e negociação de versão.
+- Executar testes de contrato MCP stdio com 3 clientes MCP sintéticos locais; validar `server/discover`, capacidades, todos os schemas, erros estruturados e negociação da versão `2026-07-28` por requisição. Essa versão é stateless e não usa o handshake legado `initialize`.
 - Executar 50 trocas ponta a ponta entre agentes em 3 relays isolados e 25 trocas entre PWA humana e agente com identidades sintéticas; verificar ciphertext NIP-17 e limites entre identidades.
 - Executar 100 casos de corpus de prompt injection/conteúdo. Nenhuma entrada aciona execução de processo, acesso a chave, ação de carteira, reconfiguração de relay ou ferramenta fora do escopo.
 - Executar 30 ciclos de instalar/desinstalar/atualizar/reiniciar em diretórios isolados Ubuntu. Preservar permissões do vault, identidade, rollback e restrições do socket; nenhuma conexão TCP fica aberta.
 - Verificar que cada ferramenta documentada tem teste de schema, limite de permissão e caso de falha. Solicitações de ferramenta desconhecida falham de forma segura.
 
-**Entregas:** Manifesto MCP versionado, pacote/instalador Ubuntu, referência de ferramentas, configuração de cliente de exemplo, modelo de ameaça e evidência sintética de integração. Outros hosts MCP não são suportados até compatibilidade automatizada de protocolo estar no CI; configuração manual por pessoa não é gate.
+**Entregas:** Manifesto MCP versionado, pacote/instalador Ubuntu, referência de ferramentas, configuração de cliente de exemplo, modelo de ameaça e evidência sintética de integração. Outros hosts MCP não são suportados até compatibilidade automatizada de protocolo estar no CI; configuração manual por pessoa não é gate. O resultado offline executado está registrado na [evidência do gate G5](evidence/product-completion/G5/gate-result.md).
 
 ### G6 — Hangout e descoberta descentralizada do marketplace
 
