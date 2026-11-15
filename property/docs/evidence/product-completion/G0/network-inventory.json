@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "scope": "Property-initiated runtime traffic and user-triggered external navigation; this inventory does not authorize network traffic during functional tests",
+  "destinations": [
+    {
+      "id": "web-relays",
+      "traffic": "browser WebSocket to Nostr relays",
+      "destination": "Six bundled wss relay URLs or relay URLs explicitly saved by the user; ws is allowed only for localhost tests.",
+      "trigger": "App startup after identity activation, explicit relay changes, or event publication/subscription.",
+      "data_exposure": "The selected relay can observe the connecting IP and public event metadata; private NIP-17 bodies remain encrypted.",
+      "offline_test_rule": "Replace bundled endpoints with local isolated relays and deny all external egress.",
+      "source_markers": [
+        {"path": "property/web/app.js", "marker": "new WebSocket(url)"},
+        {"path": "property/web/relay-defaults.js", "marker": "wss://relay.damus.io"},
+        {"path": "property/web/relay-defaults.js", "marker": "wss://nos.lol"}
+      ]
+    },
+    {
+      "id": "relay-nip11",
+      "traffic": "browser HTTPS GET to selected relay origin",
+      "destination": "HTTPS origin derived from a user-selected WSS relay for NIP-11 metadata.",
+      "trigger": "The user opens the relevant community/relay information flow.",
+      "data_exposure": "The relay host receives a metadata request; request uses no credentials and no referrer.",
+      "offline_test_rule": "Use local HTTP/HTTPS stubs inside the isolated namespace; no public relay request.",
+      "source_markers": [{"path": "property/web/app.js", "marker": "fetch(endpoint.href"}]
+    },
+    {
+      "id": "nip05-domain",
+      "traffic": "browser HTTPS GET to identity's claimed domain",
+      "destination": "https://<domain>/.well-known/nostr.json, where the domain comes from the identifier being checked.",
+      "trigger": "Explicit NIP-05 profile verification.",
+      "data_exposure": "The domain sees a public-key lookup and connecting IP; the result verifies only a published mapping, not a real-world person.",
+      "offline_test_rule": "Inject a local fetch stub and reject network egress.",
+      "source_markers": [{"path": "property/web/nip05.js", "marker": "fetcher(parsed.url"}]
+    },
+    {
+      "id": "nip39-github",
+      "traffic": "browser HTTPS GET to GitHub API",
+      "destination": "https://api.github.com/gists/<public-gist-id>.",
+      "trigger": "Explicit verification of a GitHub NIP-39 claim.",
+      "data_exposure": "GitHub receives the public gist identifier and connecting IP; content is treated as untrusted proof data.",
+      "offline_test_rule": "Inject a local fetch stub; never access the public API in functional tests.",
+      "source_markers": [{"path": "property/web/nip39.js", "marker": "https://api.github.com/gists/"}, {"path": "property/web/nip39.js", "marker": "fetcher(url, proofRequestOptions(accept))"}]
+    },
+    {
+      "id": "nip39-bluesky",
+      "traffic": "browser HTTPS GET to Bluesky public API",
+      "destination": "https://public.api.bsky.app/xrpc/.",
+      "trigger": "Explicit verification of a Bluesky NIP-39 claim.",
+      "data_exposure": "The API receives a public actor/post lookup and connecting IP; returned data is not an executable source.",
+      "offline_test_rule": "Inject a local fetch stub; never access the public API in functional tests.",
+      "source_markers": [{"path": "property/web/nip39.js", "marker": "https://public.api.bsky.app/xrpc"}]
+    },
+    {
+      "id": "webrtc-ice",
+      "traffic": "WebRTC ICE/STUN/TURN for direct calls and file transfer",
+      "destination": "Default Google STUN hosts; user-configured STUN/TURN endpoints are also supported.",
+      "trigger": "An explicitly initiated direct call or peer file transfer.",
+      "data_exposure": "ICE servers and peers can observe network addresses needed for connectivity; user TURN credentials are local configuration.",
+      "offline_test_rule": "Stub RTCPeerConnection/ICE in automated fixtures; no external STUN/TURN calls.",
+      "source_markers": [
+        {"path": "property/web/call-controller.js", "marker": "stun.l.google.com"},
+        {"path": "property/web/call-controller.js", "marker": "RTCPeerConnection"},
+        {"path": "property/web/direct-transfer-controller.js", "marker": "stun.l.google.com"},
+        {"path": "property/web/direct-transfer-controller.js", "marker": "RTCPeerConnection"},
+        {"path": "property/web/ice-servers.js", "marker": "stun.l.google.com"}
+      ]
+    },
+    {
+      "id": "same-origin-cache",
+      "traffic": "browser fetch of same-origin PWA resources",
+      "destination": "The origin hosting the static Property shell and its packaged assets.",
+      "trigger": "Initial page load, service-worker install/update, or a missing cached resource.",
+      "data_exposure": "The static host receives normal web request metadata; no executable source is intentionally loaded from a third-party CDN.",
+      "offline_test_rule": "Serve the full local bundle and deny all egress; fail on any undeclared origin.",
+      "source_markers": [
+        {"path": "property/web/sw.js", "marker": "fetch(event.request)"},
+        {"path": "property/web/index.html", "marker": "<script defer src=\"./app.js"}
+      ]
+    },
+    {
+      "id": "same-origin-emoji",
+      "traffic": "browser fetch of local emoji dataset",
+      "destination": "A JSON dataset packaged under the same PWA origin.",
+      "trigger": "The user opens the emoji picker.",
+      "data_exposure": "No third-party request is needed for the dataset.",
+      "offline_test_rule": "Serve the packaged data locally with egress blocked.",
+      "source_markers": [{"path": "property/web/emoji-picker.js", "marker": "fetch(DATA_PATH)"}]
+    },
+    {
+      "id": "opt-in-link-preview",
+      "traffic": "browser HTTPS GET to a public URL in a draft message",
+      "destination": "The HTTPS origin of the link being previewed; private, local, credentialed, and non-HTTPS targets are rejected by the parser.",
+      "trigger": "The enabled link-preview feature inspects a URL while composing a private message; the preview is sent only if the person includes it.",
+      "data_exposure": "The target host can observe the browser IP and that the URL was fetched; request has no credentials or referrer and HTML is bounded and parsed as data, never executed.",
+      "offline_test_rule": "Inject a local fetch stub for a reserved test hostname and deny all egress.",
+      "source_markers": [{"path": "property/web/link-preview.js", "marker": "fetcher(url, {"}, {"path": "property/web/app.js", "marker": "LinkPreview.fetchPreview(url)"}]
+    },
+    {
+      "id": "user-opened-map",
+      "traffic": "user-triggered external HTTPS navigation",
+      "destination": "OpenStreetMap page for coordinates in a location card.",
+      "trigger": "The user explicitly opens the map link.",
+      "data_exposure": "The map host receives coordinates and connecting IP; map tiles are not loaded in the Property app before the action.",
+      "offline_test_rule": "Assert link construction only; do not navigate outside the local test origin.",
+      "source_markers": [{"path": "property/web/location-cards.js", "marker": "www.openstreetmap.org"}]
+    },
+    {
+      "id": "agent-relays",
+      "traffic": "MCP agent process WebSocket to Nostr relays",
+      "destination": "Relays explicitly configured for the agent identity.",
+      "trigger": "An MCP tool or local agent action publishes/subscribes to Nostr.",
+      "data_exposure": "Relay observes agent public key, IP, event metadata, and ciphertext; private content remains encrypted.",
+      "offline_test_rule": "Point only to isolated local relay endpoints and block external egress.",
+      "source_markers": [{"path": "property/agent/relay.mjs", "marker": "new WebSocket(normalizeRelay(url))"}]
+    },
+    {
+      "id": "agent-wallet-loopback",
+      "traffic": "MCP agent HTTP request to authenticated Nano gateway",
+      "destination": "HTTP loopback only (127.0.0.0/8 or ::1); the client rejects non-loopback and non-HTTP URLs.",
+      "trigger": "An explicitly configured and locally budgeted XNO agent payment action.",
+      "data_exposure": "Local authenticated wallet gateway receives a bounded RPC action; credentials are not sent to a remote host.",
+      "offline_test_rule": "Use a private local Nano dev node and authenticated loopback gateway; no mainnet.",
+      "source_markers": [{"path": "property/agent/nano-wallet.mjs", "marker": "http.request(url"}, {"path": "property/agent/nano-wallet.mjs", "marker": "xno-rpc-must-be-authenticated-loopback"}]
+    },
+    {
+      "id": "relay-listener",
+      "traffic": "inbound Nostr relay server connections",
+      "destination": "The relay binds to 127.0.0.1:7447 by default; operator may deliberately configure a public bind.",
+      "trigger": "The relay operator starts the bundled Geode process.",
+      "data_exposure": "A public relay stores/serves its configured event data and may observe connecting client IPs; public exposure requires operator TLS/network policy.",
+      "offline_test_rule": "Bind all relays to isolated loopback/container addresses and block external egress.",
+      "source_markers": [{"path": "property/relay/README.md", "marker": "127.0.0.1:7447"}]
+    },
+    {
+      "id": "campaign-ledger-injection",
+      "traffic": "campaign engine's injected ledger adapter",
+      "destination": "The campaign engine itself has no fixed external endpoint; deployment-specific BTC/XMR/XNO adapters supply local wallet/node RPC endpoints.",
+      "trigger": "Relay operator invokes a campaign payment decision or reconciliation.",
+      "data_exposure": "Configured wallet/node receives the payment lookup or return request; exact endpoint and authentication belong to the injected adapter and require per-currency audit.",
+      "offline_test_rule": "Use isolated private local wallet/node RPCs only; missing endpoint classification fails closed.",
+      "source_markers": [{"path": "property/relay/campaign-engine.mjs", "marker": "ledger.lookupPayment"}, {"path": "property/relay/ledger-rpc.mjs", "marker": "http.request(url"}]
+    }
+  ]
+}

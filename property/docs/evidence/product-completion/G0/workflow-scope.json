@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "normal_push_branch": "modelo-mvp",
+  "non_ubuntu_execution": "deferred; no normal push or pull request from this task",
+  "dispatch_inputs_used": false,
+  "g12_marker_used": false,
+  "workflows": [
+    {
+      "id": "property-checks",
+      "path": ".github/workflows/property-checks.yml",
+      "sha256": "fa5f0041560547059055c8a844419cf5fb3a5417283ae7aa49ac67946c00f3b2",
+      "scope_check": "PASS"
+    },
+    {
+      "id": "property-offline-platforms",
+      "path": ".github/workflows/property-offline-platforms.yml",
+      "sha256": "a2263dfeff308e92f30886fa30f8e4709a9819b6af22e40eacc3c09b2de8257a",
+      "scope_check": "PASS"
+    },
+    {
+      "id": "pages",
+      "path": ".github/workflows/property-pages.yml",
+      "sha256": "21c854f0101ec0c012b3c73e24edc2522904c43bd01d16e1b1942b4e24e30618",
+      "scope_check": "PASS"
+    },
+    {
+      "id": "upstream-build",
+      "path": ".github/workflows/build.yml",
+      "sha256": "a54cd0e1480f4c482110cadf954369aab599a00e64478e5b38dd929bbbadf60b",
+      "scope_check": "PASS"
+    },
+    {
+      "id": "upstream-release",
+      "path": ".github/workflows/create-release.yml",
+      "sha256": "4aff23b37659d37c429ee4d2d4cc4efa267953684b88eb4e6aed4a7f5d51f8ba",
+      "scope_check": "PASS"
+    },
+    {
+      "id": "desktop-smoke",
+      "path": ".github/workflows/smoke-test-desktop.yml",
+      "sha256": "e8ebb1d2bac61904aa5772b55ac85c4bb3ee3ff1f23575796e8949f152101461",
+      "scope_check": "PASS"
+    }
+  ]
+}

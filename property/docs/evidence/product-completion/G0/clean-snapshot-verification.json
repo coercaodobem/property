@@ -1,0 +1,16 @@
+{
+  "gate": "G0",
+  "result": "PASS",
+  "snapshot_type": "git-archive-clean-source-snapshot",
+  "baseline_commit": "a6dd70907b9855f4de8132df37a6e6b3d7fee7c9",
+  "git_metadata_present": false,
+  "verified_runtime_files": 552,
+  "verifier_output": {
+    "gate": "G0",
+    "result": "PASS",
+    "runtime_files": 552,
+    "source_commit": "a6dd70907b9855f4de8132df37a6e6b3d7fee7c9",
+    "tree_sha256": "7067b852c4dd4252e06829bbb10dd3233dda79bf7b94d044ed37aec36e556854"
+  },
+  "scope": "Ubuntu Linux x86_64 only; no network requests; no other-OS execution"
+}

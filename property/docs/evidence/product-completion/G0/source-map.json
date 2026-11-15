@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "product": "Property",
+  "entrypoints": [
+    {
+      "id": "web-pwa",
+      "path": "property/web/index.html",
+      "kind": "static-browser-pwa",
+      "supporting_paths": ["property/web/app.js", "property/web/sw.js", "property/web/styles.css", "property/web/relay-defaults.js", "property/web/vault.js"],
+      "network_ids": ["web-relays", "relay-nip11", "nip05-domain", "nip39-github", "nip39-bluesky", "webrtc-ice", "same-origin-cache", "same-origin-emoji", "user-opened-map"]
+    },
+    {
+      "id": "relay-operator-linux",
+      "path": "property/relay/start.sh",
+      "kind": "ubuntu-linux-x86_64-geode-launcher",
+      "supporting_paths": ["property/relay/dist-parts/manifest.txt", "property/relay/dist-parts/SHA256SUMS", "property/relay/README.md"],
+      "network_ids": ["relay-listener", "campaign-ledger-injection"]
+    },
+    {
+      "id": "agent-cli",
+      "path": "property/agent/bin/property-agent",
+      "kind": "node-cli-stdio-mcp",
+      "supporting_paths": ["property/agent/property-agent.mjs", "property/agent/mcp-server.mjs", "property/agent/manifest.json", "property/agent/vendor/NOTICE.md"],
+      "network_ids": ["agent-relays", "agent-wallet-loopback"]
+    },
+    {
+      "id": "local-campaign-engine",
+      "path": "property/relay/campaign-engine.mjs",
+      "kind": "local-library-with-injected-wallet-and-relay-adapters",
+      "supporting_paths": ["property/relay/ledger-rpc.mjs", "property/tests/campaign-engine-smoke.mjs"],
+      "network_ids": ["campaign-ledger-injection"]
+    },
+    {
+      "id": "pages-publication-workflow",
+      "path": ".github/workflows/property-pages.yml",
+      "kind": "ubuntu-github-pages-deployment",
+      "supporting_paths": ["property/web/index.html", "property/README.md"],
+      "network_ids": ["same-origin-cache"]
+    },
+    {
+      "id": "community-contribution",
+      "path": "CONTRIBUTING.md",
+      "kind": "github-source-and-contribution-entrypoint",
+      "supporting_paths": ["CONTRIBUTING-WITH-AI.md", "SECURITY.md", "ROADMAP.md"],
+      "network_ids": []
+    }
+  ],
+  "test_profile": {
+    "operating_system": "Ubuntu Linux x86_64 only",
+    "network": "offline isolated local network for functional checks",
+    "human_review": false,
+    "other_operating_systems_executed": false,
+    "platform_binaries_in_repository_are_static_inventory_only": true
+  }
+}

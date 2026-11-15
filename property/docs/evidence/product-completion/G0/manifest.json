@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "gate": "G0",
+  "result": "PASS",
+  "source_commit": "a6dd70907b9855f4de8132df37a6e6b3d7fee7c9",
+  "branch": "modelo-mvp",
+  "property_remote_url": "https://github.com/coercaodobem/property.git",
+  "remote_tracking_commit": "a6dd70907b9855f4de8132df37a6e6b3d7fee7c9",
+  "remote_head_verified_before_inventory": "a6dd70907b9855f4de8132df37a6e6b3d7fee7c9",
+  "tracked_worktree_clean": true,
+  "scope": {
+    "os": "Ubuntu Linux x86_64 only",
+    "functional_test_network": "offline isolated local network",
+    "human_review": false,
+    "other_os_execution": false,
+    "public_relays_or_mainnet": false
+  },
+  "environment": {
+    "os": "Ubuntu 26.04 LTS",
+    "os_id": "ubuntu",
+    "kernel": "7.0.0-42-generic",
+    "architecture": "x86_64",
+    "node": "v22.22.1",
+    "python": "3.13.13",
+    "git": "git version 2.53.0"
+  },
+  "runtime_inventory": {
+    "file_count": 552,
+    "total_bytes": 249632803,
+    "tree_sha256": "7067b852c4dd4252e06829bbb10dd3233dda79bf7b94d044ed37aec36e556854"
+  },
+  "requirements_count": 17,
+  "entrypoints_count": 6,
+  "network_destination_classes": 14,
+  "dependency_components_count": 10,
+  "case_results": [
+    {
+      "case_id": "G0-01",
+      "result": "PASS",
+      "assertion": "Ubuntu x86_64 and Node.js >=22; model-mvp branch and coercaodobem/property remote verified.",
+      "observed": {
+        "branch": "modelo-mvp",
+        "remote_url": "https://github.com/coercaodobem/property.git",
+        "source_commit": "a6dd70907b9855f4de8132df37a6e6b3d7fee7c9",
+        "remote_tracking_commit": "a6dd70907b9855f4de8132df37a6e6b3d7fee7c9",
+        "tracked_worktree_clean": true,
+        "environment": {
+          "os": "Ubuntu 26.04 LTS",
+          "os_id": "ubuntu",
+          "kernel": "7.0.0-42-generic",
+          "architecture": "x86_64",
+          "node": "v22.22.1",
+          "python": "3.13.13",
+          "git": "git version 2.53.0"
+        }
+      }
+    },
+    {
+      "case_id": "G0-02",
+      "result": "PASS",
+      "assertion": "Requirements ledger has unique, sourced, actioned, scoped rows and automated case IDs.",
+      "observed": {
+        "requirements": 17
+      }
+    },
+    {
+      "case_id": "G0-03",
+      "result": "PASS",
+      "assertion": "All product entry points and supporting source paths exist in the clean source tree.",
+      "observed": {
+        "entrypoints": 6
+      }
+    },
+    {
+      "case_id": "G0-04",
+      "result": "PASS",
+      "assertion": "Runtime network destinations, initiators, triggers, exposure, and offline substitution rules are inventoried; external executable loads are rejected.",
+      "observed": {
+        "destination_classes": 14
+      }
+    },
+    {
+      "case_id": "G0-05",
+      "result": "PASS",
+      "assertion": "Vendored/runtime components have license/provenance evidence and no runtime downloads are declared.",
+      "observed": {
+        "components": 10
+      }
+    },
+    {
+      "case_id": "G0-06",
+      "result": "PASS",
+      "assertion": "Every tracked file under web/agent/relay matches its recorded SHA-256 and the runtime tree contains no untracked files or symlinks.",
+      "observed": {
+        "runtime_files": 552,
+        "runtime_bytes": 249632803,
+        "tree_sha256": "7067b852c4dd4252e06829bbb10dd3233dda79bf7b94d044ed37aec36e556854"
+      }
+    },
+    {
+      "case_id": "G0-07",
+      "result": "PASS",
+      "assertion": "The authorized plan restricts execution to offline Ubuntu x86_64; workflow conditions defer non-Ubuntu jobs and no dispatch or marker will be used.",
+      "observed": {
+        "human_review": false,
+        "other_operating_systems_executed": false,
+        "non_ubuntu_jobs_deferred": true,
+        "workflow_count": 6
+      }
+    }
+  ],
+  "note": "Static/inventory gate only. No product functional test, public-relay request, wallet RPC, other-OS execution, or human review was performed by G0."
+}

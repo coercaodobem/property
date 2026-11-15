@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "inventory_rule": "Runtime source and bundled components are local to the repository. Every runtime file under property/web, property/agent, and property/relay is hashed separately in runtime-files.json.",
+  "runtime_components": [
+    {
+      "id": "property-web-source",
+      "name": "Property PWA source and first-party modules",
+      "version": "repository commit pinned in manifest.json",
+      "license": "Project license and per-component notices apply; verify each vendored component separately.",
+      "evidence_paths": ["LICENSE", "property/web/index.html", "property/web/vendor/README.md"],
+      "runtime_downloads": false
+    },
+    {
+      "id": "nostr-tools-web-bundle",
+      "name": "nostr-tools browser bundle",
+      "version": "2.25.2",
+      "license": "Unlicense",
+      "evidence_paths": ["property/web/vendor/nostr-tools-2.25.2.bundle.js", "property/web/vendor/nostr-tools-LICENSE", "property/web/vendor/README.md"],
+      "runtime_downloads": false
+    },
+    {
+      "id": "qr-code-generator",
+      "name": "QR code generator core",
+      "version": "as recorded in vendor notice",
+      "license": "MIT",
+      "evidence_paths": ["property/web/vendor/qr-code-generator.js", "property/web/vendor/QR-CODE-GENERATOR-LICENSE.txt", "property/web/vendor/README.md"],
+      "runtime_downloads": false
+    },
+    {
+      "id": "emoji-mart-data",
+      "name": "Emoji dataset",
+      "version": "Emoji Mart 1.2.1 / Unicode 15",
+      "license": "MIT",
+      "evidence_paths": ["property/web/vendor/emoji-data-15.json", "property/web/vendor/licenses/emoji-mart-data-MIT.txt", "property/web/vendor/README.md"],
+      "runtime_downloads": false
+    },
+    {
+      "id": "ghostly-adapted-web",
+      "name": "Adapted Ghostly web interactions",
+      "version": "repository snapshot",
+      "license": "MIT; preserve upstream attribution",
+      "evidence_paths": ["property/web/GHOSTLY-MIT-LICENSE.txt", "property/web/chess/NOTICE.md"],
+      "runtime_downloads": false
+    },
+    {
+      "id": "chess-js",
+      "name": "chess.js rules engine",
+      "version": "1.4.0",
+      "license": "BSD-2-Clause",
+      "evidence_paths": ["property/web/chess/vendor/chess.js", "property/web/chess/vendor/CHESSJS-BSD-2-CLAUSE.txt", "property/web/chess/NOTICE.md"],
+      "runtime_downloads": false
+    },
+    {
+      "id": "noble-agent",
+      "name": "@noble/curves and @noble/hashes agent distributions",
+      "version": "2.4.0",
+      "license": "MIT",
+      "evidence_paths": ["property/agent/vendor/node_modules/@noble/curves/LICENSE", "property/agent/vendor/node_modules/@noble/hashes/LICENSE", "property/agent/vendor/NOTICE.md"],
+      "runtime_downloads": false
+    },
+    {
+      "id": "noble-web-chess",
+      "name": "@noble/hashes browser files used by chess component",
+      "version": "2.4.0",
+      "license": "MIT",
+      "evidence_paths": ["property/web/chess/vendor/noble-hashes/LICENSE", "property/web/chess/vendor/noble-hashes/MIT-LICENSE.txt", "property/web/chess/NOTICE.md"],
+      "runtime_downloads": false
+    },
+    {
+      "id": "geode-linux-runtime",
+      "name": "Geode standalone Nostr relay and Linux x86_64 runtime bundle",
+      "version": "Geode 1.20.0; Temurin Java 21.0.12.1",
+      "license": "Geode project MIT; bundled Temurin GPLv2 with Classpath Exception; transitive JAR licenses remain individual",
+      "evidence_paths": ["property/relay/dist-parts/PROVENANCE.md", "property/relay/dist-parts/SHA256SUMS", "property/relay/README.md"],
+      "runtime_downloads": false
+    },
+    {
+      "id": "geode-portable-runtime-records",
+      "name": "Repository also contains Windows and macOS runtime archives; static inventory only for this goal",
+      "version": "See per-platform manifests and provenance",
+      "license": "Temurin GPLv2 with Classpath Exception; each Geode JAR retains its declared license",
+      "evidence_paths": ["property/relay/portable/PROVENANCE.md", "property/relay/portable/windows-x64/manifest.json", "property/relay/portable/macos-arm64/manifest.json"],
+      "runtime_downloads": false,
+      "execution_in_this_goal": false
+    }
+  ],
+  "test_toolchain": [
+    {
+      "id": "node",
+      "minimum": "22",
+      "purpose": "Run existing Property smoke and product-completion scripts on Ubuntu x86_64.",
+      "scope": "Ubuntu test host only"
+    },
+    {
+      "id": "python3-stdlib",
+      "minimum": "host-provided",
+      "purpose": "Generate and verify the G0 evidence manifest without third-party packages.",
+      "scope": "Ubuntu test host only"
+    }
+  ]
+}
