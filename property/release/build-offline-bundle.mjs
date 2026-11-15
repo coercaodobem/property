@@ -206,7 +206,7 @@ function licenseFor(relative, runtimeLock) {
     throw new Error(`Chess vendored release file lacks a specific component/license mapping: ${p}`);
   }
   if (p.startsWith('property/agent/') || p.startsWith('property/web/') || p.startsWith('property/relay/') ||
-      p.startsWith('property/release/') || p === 'LICENSE') return firstParty('property-first-party');
+      p.startsWith('property/release/') || p === 'property/LICENSE' || p === 'LICENSE') return firstParty('property-first-party');
   throw new Error(`Release file has no component or license mapping: ${p}`);
 }
 
