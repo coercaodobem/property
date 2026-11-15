@@ -76,9 +76,9 @@ function makeNostrRuntime() {
 
 class RelayClient {
   constructor(url) {
-    assert.match(url, /^ws:\/\/127\.0\.0\.1:\d+\/$/, 'G4 relay endpoints stay on loopback');
-    this.url = url;
-    this.socket = new WebSocket(url);
+    assert.match(url, /^ws:\/\/127\.0\.0\.1:\d+\/?$/, 'G4 relay endpoints stay on loopback');
+    this.url = url.endsWith('/') ? url : `${url}/`;
+    this.socket = new WebSocket(this.url);
     this.acks = new Map();
     this.subscriptions = new Map();
     this.ready = new Promise((resolve, reject) => {

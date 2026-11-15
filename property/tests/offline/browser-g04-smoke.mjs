@@ -1307,6 +1307,11 @@ async function main() {
     await retryButton.click();
     await waitForMessageStatus(pageA, b.pubkey, allDown, 'sent');
     const retriedDelivery = await messageDeliveryAudit(pageA, b.pubkey, allDown);
+    report.message_checks.offline_retry = { initial_attempt_count: pendingDelivery.retryAttempts,
+      observed_retry_count: retriedDelivery.retryAttempts, initial_state: pendingDelivery.deliveryState,
+      final_state: retriedDelivery.deliveryState, retry_button_clicked: true,
+      stable_event_ids: JSON.stringify(retriedDelivery.eventIds) === JSON.stringify(pendingDelivery.eventIds),
+      one_logical_message: await pendingRow.count() === 1 };
     assert.equal(retriedDelivery.retryAttempts, 2, 'one user retry follows the initial queued attempt');
     assert.deepEqual(retriedDelivery.eventIds, pendingDelivery.eventIds, 'retry republishes the exact same signed event IDs');
     assert.equal(await pendingRow.count(), 1, 'retry keeps one logical message in the conversation');
@@ -2096,7 +2101,8 @@ async function main() {
     process.stdout.write(JSON.stringify({ result: report.result, cases: report.cases, output: path.resolve(options.output) }) + '\n');
     return report.result === 'PASS' ? 0 : 1;
   } catch (error) {
-    const current = report.cases.find(row => row.status === 'NOT_RUN');
+    const currentCase = stage.match(/G04-\d{2}/)?.[0];
+    const current = report.cases.find(row => row.case === currentCase && row.status === 'NOT_RUN') || report.cases.find(row => row.status === 'NOT_RUN');
     if (current) Object.assign(current, { status: /module|executable|version mismatch|ENOENT|permission|launch/i.test(error.message) ? 'BLOCKED' : 'FAIL', reason: safeText(error.message || error) });
     for (const row of report.cases) if (row.status === 'NOT_RUN') Object.assign(row, { status: 'BLOCKED', reason: 'A prior G04 case failed; dependent end-to-end flow was not started.' });
     report.result = report.cases.some(row => row.status === 'FAIL') ? 'FAIL' : 'BLOCKED'; report.error = safeText(error.message || error); report.error_stack = safeDiagnostic(error.stack || ''); report.current_stage = stage;
