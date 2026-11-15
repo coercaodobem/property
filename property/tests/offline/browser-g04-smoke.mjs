@@ -698,10 +698,16 @@ async function messageDeliveryAudit(page, peer, text) {
     const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
     const rows = await new Promise((resolve, reject) => { const request = db.transaction('messages').objectStore('messages').getAll(); request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error); });
     db.close();
-    const message = rows.find(row => row.peer === peerKey && row.text === messageText && row.direction === 'sent');
+    const matches = rows.filter(row => row.peer === peerKey && row.text === messageText && row.direction === 'sent');
+    const retryable = matches.filter(row => Array.isArray(row.retryPlan) && row.retryPlan.length >= 2)
+      .sort((left, right) => (right.retryAttempts || 0) - (left.retryAttempts || 0));
+    const message = retryable[0] || matches[0];
     if (!message) return null;
     return { status: message.status, deliveryState: message.deliveryState, retryAttempts: message.retryAttempts || 0,
-      eventIds: (message.retryPlan || []).map(item => item.event?.id || '').sort(), deliveryProgress: message.deliveryProgress || [] };
+      eventIds: (message.retryPlan || []).map(item => item.event?.id || '').sort(), deliveryProgress: message.deliveryProgress || [],
+      matchingRecordCount: matches.length, retryableRecordCount: retryable.length,
+      candidateStates: matches.map(row => ({ status: row.status, deliveryState: row.deliveryState || '', retryAttempts: row.retryAttempts || 0,
+        hasRetryPlan: Array.isArray(row.retryPlan) && row.retryPlan.length >= 2 })) };
   }, { peerKey: peer, messageText: text });
 }
 async function waitForMessageDelivery(page, peer, text, { retryAttempts, status, deliveryStates = [], watchdogMs = 30000 }) {
@@ -718,6 +724,7 @@ async function waitForMessageDelivery(page, peer, text, { retryAttempts, status,
     });
     db.close();
     return rows.some(row => row.peer === peerKey && row.text === messageText && row.direction === 'sent'
+      && Array.isArray(row.retryPlan) && row.retryPlan.length >= 2
       && (row.retryAttempts || 0) === attempts && row.status === expectedStatus
       && (!expectedStates.length || expectedStates.includes(row.deliveryState)));
   }, { peerKey: peer, messageText: text, attempts: retryAttempts, expectedStatus: status, expectedStates: deliveryStates }, { timeout: watchdogMs });
@@ -1314,7 +1321,19 @@ async function main() {
     const allDown = `property-g04-all-inboxes-down-${crypto.randomUUID()}`; await sendMessage(pageA, allDown);
     const localPending = await messageAudit(pageA, b.pubkey);
     assert.ok(localPending.some(row => row.text === allDown && row.status === 'pending'), 'all inboxes down is shown as pending');
-    const pendingDelivery = await waitForMessageDelivery(pageA, b.pubkey, allDown, { retryAttempts: 1, status: 'pending', deliveryStates: ['queued'] });
+    let pendingDelivery;
+    try {
+      pendingDelivery = await waitForMessageDelivery(pageA, b.pubkey, allDown, { retryAttempts: 1, status: 'pending', deliveryStates: ['queued'] });
+    } catch (error) {
+      const observed = await messageDeliveryAudit(pageA, b.pubkey, allDown);
+      report.message_checks.offline_pending = observed ? { matching_record_count: observed.matchingRecordCount,
+        retryable_record_count: observed.retryableRecordCount, observed_retry_count: observed.retryAttempts,
+        observed_status: observed.status, observed_state: observed.deliveryState, candidate_states: observed.candidateStates } : { record_found: false };
+      throw new Error(`${error.message}; pending observation=${JSON.stringify(report.message_checks.offline_pending)}`);
+    }
+    report.message_checks.offline_pending = { matching_record_count: pendingDelivery.matchingRecordCount,
+      retryable_record_count: pendingDelivery.retryableRecordCount, initial_attempt_count: pendingDelivery.retryAttempts,
+      initial_state: pendingDelivery.deliveryState, candidate_states: pendingDelivery.candidateStates };
     assert.equal(pendingDelivery.deliveryState, 'queued', 'no response from the selected inbox relays remains queued locally');
     assert.equal(pendingDelivery.retryAttempts, 1, 'the first completed publish attempt is persisted before the user retries');
     assert.equal(pendingDelivery.eventIds.length, 2, 'sender and recipient gift wraps are retained for an exact same-ID retry');
