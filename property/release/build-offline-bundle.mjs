@@ -135,7 +135,7 @@ async function verifyArchiveSource(root, scratch, lock) {
   assert.ok(names.length > 0, 'Geode runtime archive is empty');
   for (const entry of names) {
     const normalized = entry.replace(/^\.\//, '').replace(/\/$/, '');
-    if (!normalized || normalized === '.') continue;
+    if (!normalized || normalized === '.' || normalized === 'geode') continue;
     if (normalized.startsWith('/') || normalized.split('/').includes('..') || !normalized.startsWith('geode/')) {
       throw new Error(`Unsafe entry in pinned Geode archive: ${entry}`);
     }
