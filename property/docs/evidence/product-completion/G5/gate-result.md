@@ -4,7 +4,7 @@
 
 **Environment:** Ubuntu Linux x86_64, Node.js 22.22.1
 
-**Base commit:** `889c75bcedd5bc30db3a1058e1d8306c77881227`
+**Implementation commit:** `2f7b37ae866e9de16b26f191076d18f436b2f7fe`
 
 **Scope:** synthetic identities and local fixtures only; zero public relay connections, external model calls, real participants, or funds.
 
