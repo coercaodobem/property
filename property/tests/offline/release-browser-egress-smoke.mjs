@@ -65,6 +65,16 @@ async function main() {
   const manifest = JSON.parse(await readFile(args.manifest, 'utf8'));
   const packedWebFiles = new Set(manifest.files.filter(row => row.path.startsWith('property/web/')).map(row => `/${row.path.slice('property/web/'.length)}`));
   assert.ok(packedWebFiles.has('/index.html'), 'release manifest does not contain the PWA entry point');
+  const html = await readFile(path.join(webRoot, 'index.html'), 'utf8');
+  const staticScriptCounts = new Map();
+  for (const match of html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/gi)) {
+    const scriptUrl = new URL(match[1], 'http://property-static.invalid/');
+    assert.equal(scriptUrl.origin, 'http://property-static.invalid', `PWA has a non-local static script: ${match[1]}`);
+    staticScriptCounts.set(scriptUrl.pathname, (staticScriptCounts.get(scriptUrl.pathname) || 0) + 1);
+  }
+  assert.ok(staticScriptCounts.size > 0, 'PWA has no statically declared executable assets');
+  for (const assetPath of staticScriptCounts.keys()) assert.ok(packedWebFiles.has(assetPath), `static executable is absent from release manifest: ${assetPath}`);
+  const declaredScriptCountPerJourney = [...staticScriptCounts.values()].reduce((sum, count) => sum + count, 0);
 
   const packageInfo = JSON.parse(await readFile(path.join(path.dirname(args.playwright_module), 'package.json'), 'utf8'));
   assert.equal(packageInfo.name, 'playwright');
@@ -107,7 +117,8 @@ async function main() {
   let browser;
   const externalRequests = new Set();
   const scriptRequests = new Set();
-  const dynamicScripts = new Set();
+  const scriptRequestCounts = new Map();
+  const dynamicScriptElements = new Set();
   const pageErrors = [];
   const requiredLocalAssetsMissing = new Set();
   try {
@@ -120,14 +131,27 @@ async function main() {
         '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1', '--no-first-run'] });
     assert.equal(browser.version(), args.browser_version);
     const context = await browser.newContext({ serviceWorkers: 'allow' });
-    await context.exposeBinding('__propertyReportDynamicScript', (_source, scriptSource) => dynamicScripts.add(scriptSource));
+    await context.exposeBinding('__propertyReportDynamicScript', (_source, scriptSource) => dynamicScriptElements.add(scriptSource));
     await context.addInitScript(() => {
+      const scriptsCreatedByJavaScript = new WeakSet();
+      const createElement = Document.prototype.createElement;
+      Document.prototype.createElement = function(name, ...options) {
+        const element = Reflect.apply(createElement, this, [name, ...options]);
+        if (String(name).toLowerCase() === 'script') scriptsCreatedByJavaScript.add(element);
+        return element;
+      };
+      const createElementNS = Document.prototype.createElementNS;
+      Document.prototype.createElementNS = function(namespace, qualifiedName, ...options) {
+        const element = Reflect.apply(createElementNS, this, [namespace, qualifiedName, ...options]);
+        if (element.localName === 'script') scriptsCreatedByJavaScript.add(element);
+        return element;
+      };
       new MutationObserver(records => {
         for (const record of records) for (const node of record.addedNodes) {
           const scripts = [];
           if (node instanceof HTMLScriptElement) scripts.push(node);
           if (node?.querySelectorAll) scripts.push(...node.querySelectorAll('script'));
-          for (const script of scripts) window.__propertyReportDynamicScript(script.src || 'inline-script');
+          for (const script of scripts) if (scriptsCreatedByJavaScript.has(script)) window.__propertyReportDynamicScript(script.src || 'inline-script');
         }
       }).observe(document, { childList: true, subtree: true });
     });
@@ -154,6 +178,7 @@ async function main() {
       else {
         const assetPath = requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname;
         scriptRequests.add(assetPath);
+        scriptRequestCounts.set(assetPath, (scriptRequestCounts.get(assetPath) || 0) + 1);
         if (!packedWebFiles.has(assetPath)) requiredLocalAssetsMissing.add(assetPath);
       }
     });
@@ -170,13 +195,19 @@ async function main() {
     const blockedBrowserHosts = [...new Set(proxyAttempts.map(proxyHost))].sort();
     assert.ok(proxyAttempts.every(line => line.includes('HTTP/1.1')), 'browser egress proxy recorded a malformed request');
     assert.equal(requiredLocalAssetsMissing.size, 0, `PWA loaded executable assets outside release manifest: ${[...requiredLocalAssetsMissing].join(', ')}`);
-    assert.equal(dynamicScripts.size, 0, `PWA dynamically inserted executable elements: ${[...dynamicScripts].join(', ')}`);
+    assert.equal(dynamicScriptElements.size, 0, `PWA dynamically created executable elements: ${[...dynamicScriptElements].join(', ')}`);
+    const dynamicExecutableRequests = [...scriptRequests].filter(assetPath => !staticScriptCounts.has(assetPath));
+    assert.deepEqual(dynamicExecutableRequests, [], `PWA requested executable paths absent from static HTML: ${dynamicExecutableRequests.join(', ')}`);
+    const actualScriptRequests = [...scriptRequestCounts.values()].reduce((sum, count) => sum + count, 0);
+    assert.ok(actualScriptRequests <= declaredScriptCountPerJourney * 2,
+      `PWA made more script requests than its two static HTML navigations: ${actualScriptRequests}`);
     assert.equal(pageErrors.length, 0, `PWA browser errors: ${pageErrors.join('; ')}`);
     assert.ok(scriptRequests.size > 0, 'browser did not load any PWA executable assets');
     assert.ok(serverRequests.includes('/index.html'));
     const report = { schema_version: 1, result: 'PASS', journeys: 2, external_hosts_requested: 0,
       browser_background_egress_attempts_blocked: proxyAttempts.length, browser_background_hosts: blockedBrowserHosts,
-      undeclared_executable_assets: 0, dynamic_script_elements: 0,
+      undeclared_executable_assets: 0, dynamic_script_elements: 0, dynamic_executable_requests: 0,
+      static_script_declarations_per_journey: declaredScriptCountPerJourney, observed_script_requests: actualScriptRequests,
       page_errors: 0, unique_local_script_assets: scriptRequests.size, local_http_requests: serverRequests.length,
       playwright_version: packageInfo.version, playwright_package_sha256: args.playwright_package_sha256,
       browser_version: browser.version(), browser_executable_sha256: args.browser_executable_sha256,
