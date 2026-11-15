@@ -37,8 +37,8 @@ assert.equal(existingSettings.autoSelected, false);
 assert.equal(existingSettings.shouldPersist, false);
 
 const emptySettings = defaults.initialSelection({ values: [], autoSelected: false }, max => 0);
-assert.equal(emptySettings.values.length, 2, 'empty relay settings recover to the suggested pair');
-assert.equal(emptySettings.autoSelected, true);
-assert.equal(emptySettings.shouldPersist, true);
+assert.deepEqual([...emptySettings.values], [], 'an explicit empty relay list remains a valid offline choice');
+assert.equal(emptySettings.autoSelected, false);
+assert.equal(emptySettings.shouldPersist, false);
 
 console.log('PASS: fresh installs get two persisted relay suggestions without a manual setup barrier');

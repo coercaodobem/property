@@ -3242,8 +3242,8 @@
   }
   async function importSecretFromText(value, password) {
     const parsed = validateSecret(value);
-    if (parsed.backup) return unlockVault(parsed.backup, password);
-    return parsed.secret;
+    if (parsed.backup) return Vault.openPortableBackup(parsed.backup, password, N.getPublicKey);
+    return { secret: parsed.secret, localState: null };
   }
   function displayName(pubkey, local = '') { return local || `npub…${N.nip19.npubEncode(pubkey).slice(-8)}`; }
   async function groupMentionCandidates() {
@@ -3417,8 +3417,25 @@
     await activateIdentity(secret);
     return true;
   }
-  async function createOrImportRemembered(secret, password, remember) {
+  async function restorePortableLocalState(localState) {
+    const portable = Vault.validatePortableState(localState);
+    const currentRelays = await get('settings', 'relays');
+    if (!currentRelays || currentRelays.autoSelected === true) {
+      const values = portable.relay_preferences.values.map(normalizeRelay);
+      await put('settings', { id: 'relays', values, autoSelected: portable.relay_preferences.auto_selected });
+      state.relays = values;
+      state.autoSelectedRelays = portable.relay_preferences.auto_selected;
+    }
+    for (const contact of portable.contacts) {
+      if (await get('conversations', contact.pubkey)) continue;
+      await put('conversations', { pubkey: contact.pubkey, title: contact.title, relayHints: contact.relayHints,
+        group: false, lastMessage: '', lastAt: 0 });
+    }
+    setConnectionStatus();
+  }
+  async function createOrImportRemembered(secret, password, remember, localState = null) {
     const vault = await createVault(secret, password, remember);
+    if (localState) await restorePortableLocalState(localState);
     await put('vault', vault);
     state.account = vault;
     await activateIdentity(secret);
@@ -3433,7 +3450,6 @@
   }
   function parseRelayList(text) {
     const values = [...new Set(text.split(/[\n,]/).map(item => item.trim()).filter(Boolean).map(normalizeRelay))];
-    if (!values.length) throw new Error('Adicione pelo menos um relay.');
     if (values.length > 12) throw new Error('Use no máximo 12 relays por aparelho.');
     return values;
   }
@@ -6369,12 +6385,22 @@
     }
   }
 
-  function downloadBackup() {
+  function downloadBackup(backup = null) {
     if (!state.account) return;
-    const backup = Vault.exportBackup(state.account);
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const portableBackup = backup || Vault.exportBackup(state.account);
+    const blob = new Blob([JSON.stringify(portableBackup, null, 2)], { type: 'application/json' });
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `property-backup-${state.npub.slice(-8)}.json`; link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 1000); showToast('Backup criptografado baixado. Guarde-o junto com a senha.');
+  }
+  async function createCurrentPortableBackup(password, includeLocalContacts) {
+    const savedRelays = await get('settings', 'relays');
+    const conversations = includeLocalContacts ? (await all('conversations')).filter(row => row.group !== true)
+      .map(row => ({ pubkey: String(row.pubkey || '').toLowerCase(), title: String(row.title || ''),
+        relayHints: Array.isArray(row.relayHints) ? row.relayHints.slice(0, 3) : [] })) : [];
+    const localState = Vault.validatePortableState({ schema_version: 1,
+      relay_preferences: { values: Array.isArray(savedRelays?.values) ? savedRelays.values : state.relays,
+        auto_selected: savedRelays?.autoSelected === true }, contacts: conversations });
+    return Vault.createPortableBackup(state.account, password, localState, N.getPublicKey);
   }
   async function savePublicProfile() {
     const name = $('profile-name').value.trim();
@@ -6698,8 +6724,8 @@
     try {
       const password = $('import-password').value;
       if (password.length < 12) throw new Error('Escolha uma senha local com pelo menos 12 caracteres.');
-      const secret = await importSecretFromText($('import-secret').value, password);
-      await createOrImportRemembered(secret, password, $('remember-import').checked);
+      const imported = await importSecretFromText($('import-secret').value, password);
+      await createOrImportRemembered(imported.secret, password, $('remember-import').checked, imported.localState);
       $('import-secret').value = ''; $('import-password').value = '';
     } catch (error) { showError('import-error', error.message || 'Falha ao importar.'); }
   }
@@ -6723,9 +6749,58 @@
     const password = window.prompt('Confirme a senha da identidade para baixar o backup criptografado.');
     if (!password) return;
     try {
-      await unlockVault(state.account, password);
-      downloadBackup();
-    } catch { showError('profile-error', 'Senha incorreta. Backup não exportado.'); }
+      const backup = await createCurrentPortableBackup(password, $('backup-include-local-records')?.checked === true);
+      downloadBackup(backup);
+    } catch (error) { showError('profile-error', error.message || 'Backup não exportado. Confira a senha e os dados locais.'); }
+  }
+  function openIdentityReplacement() {
+    $('profile-dialog').close();
+    for (const id of ['rotate-current-password', 'rotate-new-password', 'rotate-confirm-password']) $(id).value = '';
+    $('rotate-remember-device').checked = Boolean(state.account?.session);
+    $('rotate-backup-saved').checked = false;
+    $('rotate-identity-submit').disabled = true;
+    $('rotate-identity-status').textContent = '';
+    showError('rotate-identity-error');
+    $('rotate-identity-dialog').showModal();
+  }
+  async function downloadIdentityReplacementBackup() {
+    const password = $('rotate-current-password').value;
+    if (!password) return showError('rotate-identity-error', localized('Enter the current password to prepare its encrypted backup.', 'Informe a senha atual para preparar o backup criptografado.'));
+    try {
+      const backup = await createCurrentPortableBackup(password, $('backup-include-local-records')?.checked === true);
+      downloadBackup(backup);
+      $('rotate-identity-status').textContent = localized('Backup download started. Save the file, then confirm below before replacing this identity.', 'O download do backup começou. Salve o arquivo e confirme abaixo antes de substituir esta identidade.');
+      $('rotate-backup-saved').focus();
+    } catch (error) { showError('rotate-identity-error', error.message || localized('Could not prepare the current identity backup.', 'Não foi possível preparar o backup da identidade atual.')); }
+  }
+  async function replaceActiveIdentity() {
+    const oldPassword = $('rotate-current-password').value;
+    const newPassword = $('rotate-new-password').value;
+    if (!$('rotate-backup-saved').checked) return showError('rotate-identity-error', localized('Download and save the current identity backup before continuing.', 'Baixe e salve o backup da identidade atual antes de continuar.'));
+    if (newPassword.length < 12) return showError('rotate-identity-error', localized('Choose a new password with at least 12 characters.', 'Escolha uma nova senha com pelo menos 12 caracteres.'));
+    if (newPassword !== $('rotate-confirm-password').value) return showError('rotate-identity-error', localized('The new passwords do not match.', 'As novas senhas não coincidem.'));
+    let verifiedSecret;
+    try {
+      verifiedSecret = await unlockVault(state.account, oldPassword);
+      if (N.getPublicKey(verifiedSecret) !== state.pubkey) throw new Error(localized('The current password did not unlock this identity.', 'A senha atual não desbloqueou esta identidade.'));
+    } catch (error) {
+      verifiedSecret?.fill(0);
+      return showError('rotate-identity-error', error.message || localized('The current password is incorrect.', 'A senha atual está incorreta.'));
+    }
+    verifiedSecret.fill(0);
+    const newSecret = N.generateSecretKey();
+    let activated = false;
+    try {
+      await lockIdentity();
+      await createOrImportRemembered(newSecret, newPassword, $('rotate-remember-device').checked);
+      activated = true;
+      $('rotate-identity-dialog').close();
+      showToast(localized('A new local Nostr identity is active. The previous identity remains separate.', 'Uma nova identidade Nostr local está ativa. A identidade anterior permanece separada.'));
+    } catch (error) {
+      showError('rotate-identity-error', error.message || localized('Could not replace the active identity. The previous encrypted vault remains available.', 'Não foi possível substituir a identidade ativa. O cofre criptografado anterior continua disponível.'));
+    } finally {
+      if (!activated) newSecret.fill(0);
+    }
   }
   function resetIdleLock() {
     clearTimeout(state.idleTimer);
@@ -7490,6 +7565,15 @@
       savePublicProfile().catch(error => showError('profile-error', error.message || localized('Could not save the profile.', 'Não foi possível salvar o perfil.')));
     });
     $('export-backup').addEventListener('click', exportBackupWithPassword);
+    $('replace-identity').addEventListener('click', openIdentityReplacement);
+    $('rotate-identity-close').addEventListener('click', () => $('rotate-identity-dialog').close());
+    $('rotate-download-backup').addEventListener('click', downloadIdentityReplacementBackup);
+    $('rotate-backup-saved').addEventListener('change', event => { $('rotate-identity-submit').disabled = !event.target.checked; });
+    $('rotate-identity-submit').addEventListener('click', replaceActiveIdentity);
+    $('rotate-identity-dialog').addEventListener('close', () => {
+      for (const id of ['rotate-current-password', 'rotate-new-password', 'rotate-confirm-password']) $(id).value = '';
+      $('rotate-backup-saved').checked = false; $('rotate-identity-submit').disabled = true;
+    });
     $('copy-npub').addEventListener('click', async () => { try { await navigator.clipboard.writeText(state.npub); showToast('npub copiado.'); } catch { showError('profile-error', state.npub); } });
     $('message-details-copy').addEventListener('click', async () => {
       try {

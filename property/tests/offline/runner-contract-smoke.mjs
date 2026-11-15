@@ -98,8 +98,10 @@ assert.match(browserG03Source, /decodeQrMatrix\(qrMatrix\)/,
   'G03 QR payload is decoded independently of the browser QR generator');
 assert.match(browserG03Source, /local_relay_selection_unchanged_by_received_hints/,
   'G03 verifies that incoming profile hints do not replace the saved relay selection');
-assert.match(browserG03Source, /denied_proxy_limited_to_bundled_relays/,
-  'G03 records blocked relay attempts separately from completed external requests');
+assert.match(browserG03Source, /denied_relay_hosts/,
+  'G03 records the blocked bundled relay destinations');
+assert.match(browserG03Source, /blocked_browser_background_hosts/,
+  'G03 classifies browser background requests separately from relay destinations');
 assert.match(runnerSource, /const g04Ids = \['G04-01', 'G04-02', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-09', 'G04-11', 'G04-12', 'G04-13', 'G04-14', 'G04-22', 'G04-23', 'G04-24', 'G04-25', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-27'\]/,
   'runner records the direct-message browser cases, including the welcome actions');
 assert.match(runnerSource, /property\/tests\/direct-file-resume-smoke\.mjs/,

@@ -33,6 +33,9 @@
   }
 
   function initialSelection(savedSettings, randomIntBelow) {
+    if (Array.isArray(savedSettings?.values) && savedSettings.values.length === 0 && savedSettings.autoSelected === false) {
+      return { values: [], autoSelected: false, shouldPersist: false };
+    }
     if (Array.isArray(savedSettings?.values) && savedSettings.values.length) {
       return {
         values: [...savedSettings.values],

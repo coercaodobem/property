@@ -419,7 +419,7 @@ async function main() {
     const download = await downloadPromise;
     const backupPath = await download.path();
     const backup = JSON.parse(await readFile(backupPath, 'utf8'));
-    assert.equal(backup.format, 'property-encrypted-key-v1');
+    assert.equal(backup.format, 'property-encrypted-key-v2');
     const oldFormatBackup = { ...backup, format: 'liberdade-encrypted-key-v1' };
 
     const importContext = await browserInfo.browser.newContext({ serviceWorkers: 'allow' });

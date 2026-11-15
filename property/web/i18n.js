@@ -111,6 +111,7 @@
     ['Password', 'Senha'], ['Use 12 characters or more', 'Use 12 caracteres ou mais'], ['Keep me signed in on this device', 'Manter sessão iniciada neste aparelho'],
     ['Unlock', 'Desbloquear'], ['Create identity', 'Criar identidade'], ['Import Nostr key', 'Importar chave Nostr'], ['Preparing local storage on this device…', 'Preparando armazenamento local neste aparelho…'],
     ['There is no recovery server. Export an encrypted backup to move to another device.', 'Sem servidor de recuperação. Exporte um backup criptografado para poder migrar de aparelho.'],
+    ['Leave this list empty to stay offline; messages will not be sent or synchronized.', 'Deixe esta lista vazia para permanecer offline; mensagens não serão enviadas nem sincronizadas.'],
     ['NEW IDENTITY', 'NOVA IDENTIDADE'], ['Protect your account', 'Proteja sua conta'], ['Password (12 characters or more)', 'Senha (12 caracteres ou mais)'],
     ['Confirm password', 'Confirme a senha'], ['A persistent session is convenient, but anyone with access to an unlocked browser can act as you. Use your device screen lock.', 'A sessão persistente é conveniente, mas alguém com acesso ao navegador já desbloqueado pode agir como você. Use bloqueio de tela no aparelho.'],
     ['Create and continue', 'Criar e continuar'], ['Back', 'Voltar'], ['IMPORT IDENTITY', 'IMPORTAR IDENTIDADE'], ['Use an existing key', 'Use uma chave existente'],
@@ -309,7 +310,29 @@
     ['Inspect separate copy', 'Inspecionar cópia separada'], ['Add this relay in Settings to inspect', 'Adicione este relay nas Configurações para inspecionar'],
     ['Select this relay in Settings before inspecting it.', 'Selecione este relay nas Configurações antes de inspecioná-lo.'],
     ['No verified public group matching this admin list entry was found on that relay.', 'Não foi encontrado nesse relay um grupo público verificado que corresponda à lista do administrador.'],
-    ['Could not inspect this group copy.', 'Não foi possível inspecionar esta cópia do grupo.']
+    ['Could not inspect this group copy.', 'Não foi possível inspecionar esta cópia do grupo.'],
+    ['Identity backup', 'Backup da identidade'],
+    ['The encrypted backup includes your relay selection. Message history is not included.', 'O backup criptografado inclui sua seleção de relays. O histórico de mensagens não é incluído.'],
+    ['Include local contact names and relay hints (optional)', 'Incluir nomes locais dos contatos e dicas de relay (opcional)'],
+    ['Replace active identity', 'Substituir identidade ativa'],
+    ['This creates a new random Nostr key on this device. Nostr has no global key rotation or revocation: old posts stay under the previous key. Local messages stay in this browser and may remain visible after replacement; they are not included in the backup. Use a separate browser profile if you need local history isolation. Download and save the previous key’s encrypted backup before continuing.', 'Isto cria uma nova chave Nostr aleatória neste aparelho. O Nostr não tem rotação ou revogação global de chave: publicações antigas continuam sob a chave anterior. As mensagens locais permanecem neste navegador e podem continuar visíveis após a substituição; elas não entram no backup. Use um perfil separado do navegador se precisar isolar o histórico local. Baixe e guarde o backup criptografado da chave anterior antes de continuar.'],
+    ['Download current encrypted backup', 'Baixar backup criptografado atual'],
+    ['Backup download started. Save the file, then confirm below before replacing this identity.', 'O download do backup começou. Salve o arquivo e confirme abaixo antes de substituir esta identidade.'],
+    ['I saved the encrypted backup and understand the previous identity stays separate', 'Salvei o backup criptografado e entendo que a identidade anterior continua separada'],
+    ['Current password', 'Senha atual'],
+    ['New password (12 characters or more)', 'Nova senha (12 caracteres ou mais)'],
+    ['Confirm new password', 'Confirme a nova senha'],
+    ['Keep the new identity signed in on this device', 'Manter a nova identidade conectada neste aparelho'],
+    ['Create new identity', 'Criar nova identidade'],
+    ['Enter the current password to prepare its encrypted backup.', 'Informe a senha atual para preparar o backup criptografado.'],
+    ['Choose a new password with at least 12 characters.', 'Escolha uma nova senha com pelo menos 12 caracteres.'],
+    ['The new passwords do not match.', 'As novas senhas não coincidem.'],
+    ['Download and save the current identity backup before continuing.', 'Baixe e salve o backup da identidade atual antes de continuar.'],
+    ['The current password did not unlock this identity.', 'A senha atual não desbloqueou esta identidade.'],
+    ['Could not prepare the current identity backup.', 'Não foi possível preparar o backup da identidade atual.'],
+    ['A new local Nostr identity is active. The previous identity remains separate.', 'Uma nova identidade Nostr local está ativa. A identidade anterior permanece separada.'],
+    ['Could not replace the active identity. The previous encrypted vault remains available.', 'Não foi possível substituir a identidade ativa. O cofre criptografado anterior continua disponível.'],
+    ['The local backup does not include message history.', 'O backup local não inclui o histórico de mensagens.']
   ];
   for (const [english, portuguese] of pairs) {
     EN_TO_PT.set(english, portuguese);

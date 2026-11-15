@@ -35,7 +35,7 @@
     return vault;
   }
   async function unlockVault(vault, password, getPublicKey) {
-    if (vault?.format !== undefined && !['property-encrypted-key-v1', 'liberdade-encrypted-key-v1'].includes(vault.format)) throw new Error('Backup Property inválido ou incompatível.');
+    if (vault?.format !== undefined && !['property-encrypted-key-v1', 'property-encrypted-key-v2', 'liberdade-encrypted-key-v1'].includes(vault.format)) throw new Error('Backup Property inválido ou incompatível.');
     if (vault?.version !== 1 || !vault.salt || !vault.iv || !vault.cipher || !vault.pubkey) throw new Error('Backup Property inválido ou incompatível.');
     try {
       const key = await derivePasswordKey(password, fromBase64(vault.salt));
@@ -58,5 +58,67 @@
     const { id, version, pubkey, salt, iv, cipher, createdAt } = vault;
     return { format: 'property-encrypted-key-v1', id, version, pubkey, salt, iv, cipher, createdAt };
   }
-  window.PropertyVault = Object.freeze({ ITERATIONS, toBase64, fromBase64, derivePasswordKey, encryptBytes, decryptBytes, makeSession, createVault, unlockVault, autoUnlock, exportBackup });
+  function validateRelay(value) {
+    if (typeof value !== 'string' || value.length > 500) throw new Error('Backup local contém um relay inválido.');
+    let url;
+    try { url = new URL(value.trim()); } catch { throw new Error('Backup local contém um relay inválido.'); }
+    const local = ['localhost', '127.0.0.1', '::1'].includes(url.hostname.toLowerCase());
+    if ((url.protocol !== 'wss:' && !(url.protocol === 'ws:' && local)) || url.username || url.password || url.hash) {
+      throw new Error('Backup local contém um relay inseguro ou inválido.');
+    }
+    return url.toString().replace(/\/$/, '');
+  }
+  function validatePortableState(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || value.schema_version !== 1) throw new Error('Dados locais do backup incompatíveis.');
+    if (Object.keys(value).some(key => !['schema_version', 'relay_preferences', 'contacts'].includes(key))) throw new Error('Dados locais do backup contêm campos não reconhecidos.');
+    const preferences = value.relay_preferences;
+    if (!preferences || typeof preferences !== 'object' || Array.isArray(preferences) ||
+      Object.keys(preferences).some(key => !['values', 'auto_selected'].includes(key)) || !Array.isArray(preferences.values) ||
+      preferences.values.length > 12 || typeof preferences.auto_selected !== 'boolean') throw new Error('Preferências de relay do backup inválidas.');
+    const relays = [...new Set(preferences.values.map(validateRelay))];
+    if (relays.length !== preferences.values.length) throw new Error('Backup local contém relays duplicados.');
+    if (!Array.isArray(value.contacts) || value.contacts.length > 500) throw new Error('Contatos locais do backup inválidos.');
+    const seen = new Set();
+    const contacts = value.contacts.map(contact => {
+      if (!contact || typeof contact !== 'object' || Array.isArray(contact) ||
+        Object.keys(contact).some(key => !['pubkey', 'title', 'relayHints'].includes(key)) ||
+        !/^[0-9a-f]{64}$/.test(contact.pubkey || '') || typeof contact.title !== 'string' || contact.title.length > 80 ||
+        !Array.isArray(contact.relayHints) || contact.relayHints.length > 3) throw new Error('Um contato local do backup é inválido.');
+      if (seen.has(contact.pubkey)) throw new Error('Backup local contém contatos duplicados.');
+      seen.add(contact.pubkey);
+      return { pubkey: contact.pubkey, title: contact.title, relayHints: [...new Set(contact.relayHints.map(validateRelay))] };
+    });
+    const normalized = { schema_version: 1, relay_preferences: { values: relays, auto_selected: preferences.auto_selected }, contacts };
+    if (new TextEncoder().encode(JSON.stringify(normalized)).length > 128 * 1024) throw new Error('Dados locais do backup excedem 128 KiB.');
+    return normalized;
+  }
+  async function createPortableBackup(vault, password, localState, getPublicKey) {
+    const verification = await unlockVault(vault, password, getPublicKey);
+    verification.fill(0);
+    const normalized = validatePortableState(localState);
+    const key = await derivePasswordKey(password, fromBase64(vault.salt));
+    const encrypted = await encryptBytes(key, new TextEncoder().encode(JSON.stringify(normalized)));
+    const backup = exportBackup(vault);
+    backup.format = 'property-encrypted-key-v2';
+    backup.local_state = encrypted;
+    return backup;
+  }
+  async function openPortableBackup(backup, password, getPublicKey) {
+    const secret = await unlockVault(backup, password, getPublicKey);
+    if (backup.format !== 'property-encrypted-key-v2') return { secret, localState: null };
+    try {
+      if (!backup.local_state || typeof backup.local_state.iv !== 'string' || typeof backup.local_state.cipher !== 'string') throw new Error('Dados locais do backup ausentes.');
+      const key = await derivePasswordKey(password, fromBase64(backup.salt));
+      const plaintext = await decryptBytes(key, backup.local_state.iv, backup.local_state.cipher);
+      let parsed;
+      try { parsed = JSON.parse(new TextDecoder().decode(plaintext)); }
+      finally { plaintext.fill(0); }
+      return { secret, localState: validatePortableState(parsed) };
+    } catch (error) {
+      secret.fill(0);
+      throw new Error(error?.message === 'Dados locais do backup ausentes.' ? error.message : 'Dados locais do backup inválidos ou adulterados.');
+    }
+  }
+  window.PropertyVault = Object.freeze({ ITERATIONS, toBase64, fromBase64, derivePasswordKey, encryptBytes, decryptBytes,
+    makeSession, createVault, unlockVault, autoUnlock, exportBackup, validatePortableState, createPortableBackup, openPortableBackup });
 })();

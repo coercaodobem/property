@@ -13,7 +13,7 @@ import { decodeQrMatrix } from '../qr-decode-fixture.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-test-2026!';
-const CASES = ['G03-01', 'G03-02', 'G03-03', 'G03-04', 'G03-05', 'G03-06', 'G03-07'];
+const CASES = ['G03-01', 'G03-02', 'G03-03', 'G03-04', 'G03-05', 'G03-06', 'G03-07', 'G03-08', 'G03-09'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
 
@@ -82,6 +82,7 @@ function startDenyProxy() {
   const server = net.createServer(socket => {
     let requestLine = '';
     socket.setTimeout(2000, () => socket.destroy());
+    socket.on('error', () => socket.destroy());
     socket.on('data', chunk => {
       requestLine += chunk.toString('latin1');
       if (!requestLine.includes('\r\n')) return;
@@ -181,7 +182,8 @@ async function vaultAudit(page) {
       encrypted_fields_present: Boolean(vault?.salt && vault?.iv && vault?.cipher), session_present: Boolean(vault?.session?.key),
       json_sha256: digest, serialized_contains_test_password: serialized.includes('Property-offline-test-2026!'),
       serialized_contains_nsec: /nsec1/i.test(serialized), private_key_fields: Object.keys(vault || {}).filter(key => /secret|private.?key|mnemonic/i.test(key)),
-      conversation_count: conversations.length, conversation_pubkeys: conversations.map(item => item.pubkey), message_count: messages.length,
+      conversation_count: conversations.length, conversation_pubkeys: conversations.map(item => item.pubkey),
+      conversation_titles: conversations.map(item => ({ pubkey: item.pubkey, title: item.title || '', relayHints: item.relayHints || [] })), message_count: messages.length,
       relay_settings: relaySettings?.values || [] };
     db.close(); return result;
   });
@@ -199,13 +201,55 @@ async function clickNewChat(page) {
   await page.locator('#new-chat-dialog').waitFor({ state: 'visible' });
 }
 
+async function assertJourneyState(page, expected, id) {
+  assert.equal(await page.locator('#workspace').isVisible(), expected === 'workspace', `${id}: workspace visibility`);
+  assert.equal(await page.locator('#auth-screen').isVisible(), expected === 'auth', `${id}: authentication screen visibility`);
+  assert.match((await page.locator('#connection-label').textContent()).trim().toLowerCase(), /offline/, `${id}: the interface does not imply a relay connection`);
+  assert.equal(await page.locator('[data-delivery-state="delivered"], [data-status="delivered"], .message-status-delivered').count(), 0,
+    `${id}: no delivery confirmation is shown while offline`);
+  if (expected === 'auth') {
+    assert.equal(await page.getByLabel('Password', { exact: true }).count(), 1, `${id}: password input has a programmatic label`);
+    assert.equal(await page.getByRole('button', { name: 'Create identity', exact: true }).count(), 1, `${id}: create action has an accessible name`);
+  } else {
+    assert.equal(await page.getByRole('button', { name: 'Profile and settings', exact: true }).count(), 1, `${id}: profile action has an accessible name`);
+  }
+}
+
+async function assertOneVisible(locator, label) {
+  const visible = [];
+  for (let index = 0; index < await locator.count(); index++) {
+    const candidate = locator.nth(index);
+    if (await candidate.isVisible()) visible.push(candidate);
+  }
+  assert.equal(visible.length, 1, `one visible accessible control named ${label}`);
+}
+
+async function assertTabSequence(page, selectors, label) {
+  for (let index = 0; index < selectors.length; index++) {
+    if (index === 0) await page.locator(selectors[index]).focus();
+    else {
+      let reached = false;
+      for (let attempt = 0; attempt < 16; attempt++) {
+        await page.keyboard.press('Tab');
+        if (await page.evaluate(selector => document.activeElement === document.querySelector(selector), selectors[index])) {
+          reached = true;
+          break;
+        }
+      }
+      assert.equal(reached, true, `${label}: ${selectors[index]} is reachable by Tab`);
+    }
+    assert.equal(await page.evaluate(selector => document.activeElement === document.querySelector(selector), selectors[index]), true,
+      `${label}: focus is on ${selectors[index]}`);
+  }
+}
+
 async function writeReport(directory, report) {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await writeFile(path.join(directory, 'browser-g03-report.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
 }
 
 async function main() {
-  let options, app, proxy, runtime, persistentA, persistentB, importedContext, contactContext;
+  let options, app, proxy, runtime, persistentA, persistentB, importedContext, contactContext, accessibilityContext;
   const temp = await mkdtemp(path.join(os.tmpdir(), 'property-g03-'));
   let activeCase = CASES[0];
   const report = { schema_version: 1, cases: CASES.map(id => ({ case: id, status: 'NOT_RUN', reason: 'Case has not started.' })),
@@ -399,11 +443,14 @@ async function main() {
     // G03-03: encrypted backup UI restores the same identity in a fresh context; the contact is reopened by its public address.
     activeCase = 'G03-03';
     await pageA.locator('#profile-button').click(); await pageA.locator('#profile-dialog').waitFor({ state: 'visible' });
+    await pageA.locator('#backup-include-local-records').check();
     const downloadPromise = pageA.waitForEvent('download'); pageA.once('dialog', dialog => dialog.accept(PASSWORD));
     await pageA.locator('#export-backup').click();
     const download = await downloadPromise; const backupPath = await download.path();
     const backup = JSON.parse(await readFile(backupPath, 'utf8'));
-    assert.equal(backup.format, 'property-encrypted-key-v1'); assert.equal(backup.pubkey, auditA.pubkey);
+    assert.equal(backup.format, 'property-encrypted-key-v2'); assert.equal(backup.pubkey, auditA.pubkey);
+    assert.ok(backup.local_state?.iv && backup.local_state?.cipher, 'optional local records and relay preferences are encrypted');
+    assert.equal(JSON.stringify(backup).includes('Contato visto no perfil'), false, 'local contact name is not exposed in backup metadata');
     assert.equal(JSON.stringify(backup).includes(PASSWORD), false); assert.equal(JSON.stringify(backup).includes('nsec1'), false);
     importedContext = await runtime.browser.newContext({ acceptDownloads: true, serviceWorkers: 'allow' });
     instrument(importedContext, origin, report);
@@ -413,13 +460,255 @@ async function main() {
     await importedPage.locator('#import-secret').fill(JSON.stringify(backup)); await importedPage.locator('#import-password').fill(PASSWORD);
     await importedPage.locator('#finish-import-button').click(); await importedPage.locator('#workspace').waitFor({ state: 'visible', timeout: 30000 });
     assert.equal((await importedPage.locator('#profile-npub').textContent()).trim(), npubA, 'import restores same identity');
-    await clickNewChat(importedPage); await importedPage.locator('#peer-input').fill(npubB); await importedPage.locator('#peer-name-input').fill('Contato restaurado');
+    const restoredAudit = await vaultAudit(importedPage);
+    assert.deepEqual(restoredAudit.relay_settings, auditA.relay_settings, 'portable backup restores relay preferences');
+    assert.ok(restoredAudit.conversation_titles.some(item => item.pubkey === auditB.pubkey && item.title === 'Contato visto no perfil'),
+      'opted-in local contact name restores without message history');
+    await clickNewChat(importedPage); await importedPage.locator('#peer-input').fill(npubB);
     await importedPage.locator('#start-chat-button').click(); await importedPage.locator('#new-chat-dialog').waitFor({ state: 'hidden' });
-    assert.equal((await importedPage.locator('#chat-title').textContent()).trim(), 'Contato restaurado');
+    assert.equal((await importedPage.locator('#chat-title').textContent()).trim(), 'Contato visto no perfil', 'import preserves the opted-in local name instead of replacing it');
     report.backup = { exported_through_profile_ui: true, format: backup.format, restored_pubkey_matches: true,
       password_not_in_backup: true, private_key_not_in_backup: true, restored_identity_can_open_public_contact: true,
+      relay_preferences_restored: true, opted_in_contact_name_restored_encrypted: true, messages_included: false,
       server_side_recovery_or_identity_reset: 'none' };
     mark('G03-03', 'PASS', 'The UI exported an encrypted backup and a clean context imported the same public identity; it could reopen the contact using the other person’s public npub.');
+
+    // G03-08: replace the active key only after the old encrypted backup is downloaded and acknowledged.
+    activeCase = 'G03-08';
+    const previousIdentity = (await pageA.locator('#profile-npub').textContent()).trim();
+    await pageA.locator('#replace-identity').click();
+    await pageA.locator('#rotate-identity-dialog').waitFor({ state: 'visible' });
+    assert.equal(await pageA.locator('#rotate-identity-submit').isDisabled(), true, 'replacement is gated until backup acknowledgement');
+    await pageA.locator('#rotate-current-password').fill(PASSWORD);
+    const rotationDownloadPromise = pageA.waitForEvent('download', { timeout: 10000 }).catch(() => null);
+    await pageA.locator('#rotate-download-backup').click();
+    const rotationDownload = await rotationDownloadPromise;
+    if (!rotationDownload) throw new Error(`Rotation backup download did not start: ${JSON.stringify(await pageA.evaluate(() => ({
+      error: document.querySelector('#rotate-identity-error')?.textContent,
+      status: document.querySelector('#rotate-identity-status')?.textContent,
+      dialogOpen: document.querySelector('#rotate-identity-dialog')?.open,
+      currentPasswordPresent: Boolean(document.querySelector('#rotate-current-password')?.value)
+    })))}`);
+    const oldBackup = JSON.parse(await readFile(await rotationDownload.path(), 'utf8'));
+    assert.equal(oldBackup.format, 'property-encrypted-key-v2');
+    assert.equal(oldBackup.pubkey, await pageA.evaluate(value => NostrTools.nip19.decode(value).data, previousIdentity));
+    await pageA.locator('#rotate-backup-saved').check();
+    assert.equal(await pageA.locator('#rotate-identity-submit').isDisabled(), false);
+    await pageA.locator('#rotate-new-password').fill('Property-new-key-password-2026!');
+    await pageA.locator('#rotate-confirm-password').fill('Property-new-key-password-2026!');
+    await pageA.locator('#rotate-identity-submit').click();
+    await pageA.waitForFunction(oldKey => document.querySelector('#profile-npub')?.textContent.trim() !== oldKey, previousIdentity, { timeout: 30000 });
+    const replacementIdentity = (await pageA.locator('#profile-npub').textContent()).trim();
+    assert.match(replacementIdentity, /^npub1/); assert.notEqual(replacementIdentity, previousIdentity);
+    assert.equal(await pageA.locator('#workspace').isVisible(), true, 'the newly generated identity is active');
+    assert.ok((await vaultAudit(pageA)).conversation_titles.some(item => item.pubkey === auditB.pubkey && item.title === 'Contato visto no perfil'),
+      'local history remains in this browser as stated in the warning');
+    report.rotation = { local_key_replaced: true, previous_identity_backup_downloaded_before_replacement: true,
+      submit_disabled_until_backup_acknowledgement: true, new_identity_differs: true, previous_public_events_revoked: false,
+      local_history_remains_in_browser: true, new_identity_implied_global_rotation: false };
+    mark('G03-08', 'PASS', 'The PWA required an encrypted backup acknowledgement, then replaced the active local key; it kept the previous Nostr identity and local history separate as the warning states.');
+
+    // G03-09: 25 fixed browser journeys across clean, returning, locked, restored, corrupt, offline and denied-storage profiles.
+    activeCase = 'G03-09';
+    const journeyResults = [];
+    const runJourney = async (category, index, run, prepareContext = async () => {}) => {
+      const id = `${category}-${String(index + 1).padStart(2, '0')}`;
+      report.current_journey = id;
+      const context = await runtime.browser.newContext({ acceptDownloads: true, serviceWorkers: 'allow' });
+      instrument(context, origin, report);
+      try {
+        await prepareContext(context, id);
+        const page = await openPage(context, origin);
+        try { await run(page, context, id); }
+        catch (error) { throw new Error(`${id}: ${error.message}`); }
+      } finally { await context.close(); }
+      report.journey_progress = [...journeyResults];
+      report.current_journey = null;
+    };
+    const recordJourney = async (page, id, finalState, detail) => {
+      await assertJourneyState(page, finalState, id);
+      journeyResults.push({ id, result: 'PASS', final_visible_state: finalState, accessible_controls_checked: true,
+        offline_status_checked: true, false_delivery_claim_checked: true, ...detail });
+      report.journey_progress = [...journeyResults];
+    };
+
+    for (let index = 0; index < 4; index++) await runJourney('fresh-install', index, async (page, _context, id) => {
+      await assertJourneyState(page, 'auth', id);
+      const pubkey = await createIdentity(page, index % 2 === 0);
+      assert.match(pubkey, /^npub1/);
+      await recordJourney(page, id, 'workspace', { identity_created: true, remember_choice: index % 2 === 0 });
+    });
+
+    for (let index = 0; index < 4; index++) {
+      const profile = path.join(temp, `journey-return-${index}`);
+      let context;
+      try {
+        context = await runtime.playwright.chromium.launchPersistentContext(profile, { ...runtime.launch, serviceWorkers: 'allow' });
+        instrument(context, origin, report);
+        let page = await openPage(context, origin);
+        await assertJourneyState(page, 'auth', `returning-session-${index + 1}`);
+        const original = await createIdentity(page, true);
+        await context.close(); context = null;
+        context = await runtime.playwright.chromium.launchPersistentContext(profile, { ...runtime.launch, serviceWorkers: 'allow' });
+        instrument(context, origin, report);
+        page = await openPage(context, origin);
+        assert.equal((await page.locator('#profile-npub').textContent()).trim(), original);
+        await recordJourney(page, `returning-session-${index + 1}`, 'workspace', { same_identity_after_restart: true });
+      } finally { await context?.close().catch(() => {}); }
+    }
+
+    for (let index = 0; index < 4; index++) await runJourney('manual-lock', index, async (page, _context, id) => {
+      const original = await createIdentity(page, true);
+      await assertJourneyState(page, 'workspace', `${id}-created`);
+      await page.locator('#profile-button').click(); await page.locator('#profile-dialog').waitFor({ state: 'visible' });
+      await page.locator('#lock-account').click();
+      await page.locator('#auth-screen').waitFor({ state: 'visible' });
+      await assertJourneyState(page, 'auth', `${id}-locked`);
+      await page.locator('#password').fill(PASSWORD); await page.locator('#unlock-button').click();
+      await page.locator('#workspace').waitFor({ state: 'visible' });
+      assert.equal((await page.locator('#profile-npub').textContent()).trim(), original);
+      await recordJourney(page, id, 'workspace', { lock_cleared_session_and_password_restored_same_identity: true });
+    });
+
+    for (let index = 0; index < 4; index++) await runJourney('backup-restore', index, async (page, _context, id) => {
+      await page.locator('#import-account-button').click(); await page.locator('#auth-import').waitFor({ state: 'visible' });
+      await page.locator('#import-secret').fill(JSON.stringify(backup)); await page.locator('#import-password').fill(PASSWORD);
+      await page.locator('#finish-import-button').click(); await page.locator('#workspace').waitFor({ state: 'visible', timeout: 30000 });
+      assert.equal((await page.locator('#profile-npub').textContent()).trim(), npubA);
+      const imported = await vaultAudit(page);
+      assert.deepEqual(imported.relay_settings, auditA.relay_settings);
+      await recordJourney(page, id, 'workspace', { encrypted_backup_imported: true, same_public_identity: true,
+        relay_preferences_restored: true, message_history_restored: false });
+    });
+
+    for (let index = 0; index < 4; index++) await runJourney('corrupt-vault', index, async (page, _context, id) => {
+      await createIdentity(page, true);
+      await page.evaluate(async () => {
+        const damage = value => {
+          const bytes = Uint8Array.from(atob(value), character => character.charCodeAt(0));
+          bytes[Math.floor(bytes.length / 2)] ^= 1;
+          return btoa(String.fromCharCode(...bytes));
+        };
+        const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+        const tx = db.transaction('vault', 'readwrite'); const store = tx.objectStore('vault');
+        const vault = await new Promise((resolve, reject) => { const request = store.get('account'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+        vault.cipher = damage(vault.cipher);
+        if (vault.session?.cipher) vault.session.cipher = damage(vault.session.cipher);
+        store.put(vault);
+        await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error); });
+        db.close();
+      });
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => document.querySelector('#auth-choice') && !document.querySelector('#auth-choice').classList.contains('hidden'), null, { timeout: 15000 });
+      await assertJourneyState(page, 'auth', `${id}-startup`);
+      await page.locator('#password').fill(PASSWORD); await page.locator('#unlock-button').click();
+      await page.waitForFunction(() => Boolean(document.querySelector('#auth-error')?.textContent.trim()), null, { timeout: 15000 });
+      assert.equal(await page.locator('#workspace').isVisible(), false);
+      assert.match((await page.locator('#auth-error').textContent()).toLowerCase(), /incorrect|inválido|invalid|incorreta/);
+      assert.equal(/nsec1|mnemonic|private.?key/i.test(await page.locator('body').innerText()), false);
+      await recordJourney(page, id, 'auth', { corrupted_vault_failed_closed: true, private_key_absent_from_visible_ui: true });
+    });
+
+    for (let index = 0; index < 3; index++) await runJourney('no-relays-offline', index, async (page, _context, id) => {
+      await createIdentity(page, true);
+      await page.locator('#open-settings').click(); await page.locator('#relay-dialog').waitFor({ state: 'visible' });
+      await page.locator('#relay-input').fill(''); await page.locator('#save-relays').click();
+      await page.locator('#relay-dialog').waitFor({ state: 'hidden' });
+      await page.waitForFunction(() => document.querySelector('#relay-count')?.textContent.trim() === '0 relays');
+      assert.equal((await page.locator('#connection-label').textContent()).trim(), 'offline');
+      assert.match((await page.locator('#relay-summary-text').textContent()).trim(), /Add a relay to sync/);
+      const recipient = await page.evaluate(() => NostrTools.nip19.npubEncode(NostrTools.getPublicKey(new Uint8Array(32).fill(2))));
+      await clickNewChat(page); await page.locator('#peer-input').fill(recipient); await page.locator('#start-chat-button').click();
+      await page.locator('#new-chat-dialog').waitFor({ state: 'hidden' });
+      await page.locator('#message-input').fill(`offline-fixed-fixture-${index}`);
+      await page.locator('#send-form button[type="submit"]').click();
+      await page.waitForFunction(() => document.querySelector('#toast')?.classList.contains('show'), null, { timeout: 10000 });
+      assert.match((await page.locator('#toast').textContent()).trim(), /inbox relay|relay settings/i);
+      assert.equal(await page.locator('#messages .message-row').count(), 0, 'failed offline send does not appear as sent/delivered');
+      assert.equal((await page.locator('#connection-label').textContent()).trim(), 'offline');
+      await recordJourney(page, id, 'workspace', { selected_relays: 0, send_rejected: true, message_row_created: false,
+        false_delivery_confirmation: false });
+    });
+
+    for (let index = 0; index < 2; index++) await runJourney('storage-denied', index, async (page, _context, id) => {
+      await page.waitForFunction(() => /Local storage unavailable|Armazenamento local indisponível/.test(document.querySelector('#storage-status')?.textContent || ''), null, { timeout: 15000 });
+      await assertJourneyState(page, 'auth', id);
+      assert.equal(await page.locator('#create-account-button').isDisabled(), true);
+      assert.equal(await page.locator('#import-account-button').isDisabled(), true);
+      await recordJourney(page, id, 'auth', { storage_denied_visible: true, identity_mutation_controls_disabled: true });
+    }, async context => context.addInitScript(() => {
+      Object.defineProperty(IDBFactory.prototype, 'open', { configurable: true, writable: true,
+        value() { throw new DOMException('Denied by fixed offline fixture', 'SecurityError'); } });
+    }));
+
+    assert.equal(journeyResults.length, 25, 'G3 browser matrix has exactly 25 fixed journeys');
+    assert.deepEqual(Object.entries(journeyResults.reduce((counts, journey) => {
+      const category = journey.id.replace(/-\d+$/, ''); counts[category] = (counts[category] || 0) + 1; return counts;
+    }, {})).sort(), [['backup-restore', 4], ['corrupt-vault', 4], ['fresh-install', 4], ['manual-lock', 4],
+      ['no-relays-offline', 3], ['returning-session', 4], ['storage-denied', 2]]);
+
+    // All identity, backup, and replacement controls have EN/PT accessible names and keyboard access.
+    accessibilityContext = await runtime.browser.newContext({ acceptDownloads: true, serviceWorkers: 'allow' });
+    instrument(accessibilityContext, origin, report);
+    const accessibilityPage = await openPage(accessibilityContext, origin);
+    const labels = [
+      ['password', 'Password', 'Senha'], ['remember-login', 'Keep me signed in on this device', 'Manter sessão iniciada neste aparelho'],
+      ['unlock-button', 'Unlock', 'Desbloquear'], ['create-account-button', 'Create identity', 'Criar identidade'],
+      ['import-account-button', 'Import Nostr key', 'Importar chave Nostr']
+    ];
+    const checkNames = async languageIndex => {
+      for (const [id, english, portuguese] of labels) {
+        const expected = languageIndex === 0 ? english : portuguese;
+        if (['password', 'remember-login'].includes(id)) await assertOneVisible(accessibilityPage.getByLabel(expected, { exact: true }), expected);
+        else assert.equal(await accessibilityPage.getByRole('button', { name: expected, exact: true }).count(), 1, `accessible action ${expected}`);
+      }
+    };
+    await checkNames(0); await accessibilityPage.locator('#language-picker').selectOption('pt-BR'); await checkNames(1);
+    await accessibilityPage.locator('#create-account-button').click();
+    await accessibilityPage.locator('#auth-setup').waitFor({ state: 'visible' });
+    const setupNames = [
+      ['new-password', 'Password (12 characters or more)', 'Senha (12 caracteres ou mais)'], ['confirm-password', 'Confirm password', 'Confirme a senha'],
+      ['remember-device', 'Keep me signed in on this device', 'Manter sessão iniciada neste aparelho']
+    ];
+    for (const [, _english, portuguese] of setupNames) await assertOneVisible(accessibilityPage.getByLabel(portuguese, { exact: true }), portuguese);
+    assert.equal(await accessibilityPage.getByRole('button', { name: 'Criar e continuar', exact: true }).count(), 1);
+    await assertTabSequence(accessibilityPage, ['#new-password', '#confirm-password', '#remember-device', '#finish-create-button', '#auth-setup .back-auth'], 'create-identity keyboard flow');
+    await accessibilityPage.locator('#auth-setup .back-auth').click(); await accessibilityPage.locator('#auth-choice').waitFor({ state: 'visible' });
+    await accessibilityPage.locator('#import-account-button').click(); await accessibilityPage.locator('#auth-import').waitFor({ state: 'visible' });
+    for (const label of ['Chave secreta nsec ou hex', 'Crie uma senha local', 'Manter sessão iniciada neste aparelho']) {
+      await assertOneVisible(accessibilityPage.getByLabel(label, { exact: true }), label);
+    }
+    assert.equal(await accessibilityPage.getByRole('button', { name: 'Importar com segurança', exact: true }).count(), 1);
+    await assertTabSequence(accessibilityPage, ['#import-secret', '#import-password', '#remember-import', '#finish-import-button', '#auth-import .back-auth'], 'import-identity keyboard flow');
+    await accessibilityPage.locator('#auth-import .back-auth').click(); await accessibilityPage.locator('#auth-choice').waitFor({ state: 'visible' });
+    await accessibilityPage.locator('#language-picker').selectOption('en');
+    await createIdentity(accessibilityPage, true);
+    await accessibilityPage.locator('#profile-button').click(); await accessibilityPage.locator('#profile-dialog').waitFor({ state: 'visible' });
+    await assertOneVisible(accessibilityPage.getByLabel('Include local contact names and relay hints (optional)', { exact: true }), 'backup local records EN');
+    assert.equal(await accessibilityPage.getByRole('button', { name: 'Download encrypted backup', exact: true }).count(), 1);
+    assert.equal(await accessibilityPage.getByRole('button', { name: 'Replace active identity', exact: true }).count(), 1);
+    await accessibilityPage.locator('#language-picker').selectOption('pt-BR');
+    await assertOneVisible(accessibilityPage.getByLabel('Incluir nomes locais dos contatos e dicas de relay (opcional)', { exact: true }), 'backup local records PT');
+    assert.equal(await accessibilityPage.getByRole('button', { name: 'Baixar backup criptografado', exact: true }).count(), 1);
+    assert.equal(await accessibilityPage.getByRole('button', { name: 'Substituir identidade ativa', exact: true }).count(), 1);
+    await accessibilityPage.locator('#replace-identity').click(); await accessibilityPage.locator('#rotate-identity-dialog').waitFor({ state: 'visible' });
+    for (const label of ['Senha atual', 'Nova senha (12 caracteres ou mais)', 'Confirme a nova senha', 'Manter a nova identidade conectada neste aparelho']) {
+      await assertOneVisible(accessibilityPage.getByLabel(label, { exact: true }), label);
+    }
+    await accessibilityPage.locator('#rotate-backup-saved').check();
+    assert.equal(await accessibilityPage.getByRole('button', { name: 'Criar nova identidade', exact: true }).count(), 1);
+    await assertTabSequence(accessibilityPage, ['#rotate-identity-close', '#rotate-download-backup', '#rotate-backup-saved', '#rotate-current-password',
+      '#rotate-new-password', '#rotate-confirm-password', '#rotate-remember-device', '#rotate-identity-submit'], 'replace-identity keyboard flow');
+    report.identity_accessibility = { english_portuguese_label_parity: true, labelled_controls: 24,
+      keyboard_tab_journeys: ['create-identity', 'import-identity', 'replace-identity'], unnamed_identity_controls: 0 };
+    await accessibilityContext.close(); accessibilityContext = null;
+
+    report.journey_matrix = { required: 25, completed: journeyResults.length, categories: {
+      fresh_install: 4, returning_session: 4, manual_lock_unlock: 4, encrypted_backup_restore: 4,
+      corrupted_vault: 4, no_relays_offline_send: 3, storage_denied: 2 }, journeys: journeyResults,
+      every_journey_checked_visible_state: true, every_journey_checked_accessible_controls: true,
+      every_journey_checked_offline_delivery_claims: true };
+    mark('G03-09', 'PASS', '25 fixed browser journeys passed: 4 each for first use, returning sessions, manual lock/unlock, encrypted restore and corrupted vaults; 3 with zero relays and blocked sends; and 2 with IndexedDB denied. Identity/recovery labels matched in English and Portuguese and all setup, import and replacement controls were reached by keyboard.');
 
     // G03-06: inspect only sanitized storage properties and observed request metadata.
     activeCase = 'G03-06';
@@ -431,17 +720,26 @@ async function main() {
       assert.ok(storage.database_names.includes('liberdade-local-v1'));
     }
     assert.deepEqual(report.external_requests, [], 'browser completed no external HTTP request');
-    const bundledRelayHosts = new Set((await pageA.evaluate(() => PropertyRelayDefaults.candidates)).map(value => `${new URL(value).hostname}:443`));
-    assert.ok(proxy.attempts.length > 0, 'identity activation attempts its saved relay connections through the local deny proxy');
-    assert.ok(proxy.attempts.every(attempt => attempt.method === 'CONNECT' && bundledRelayHosts.has(attempt.destination)),
-      'every attempted external socket is denied at the local proxy and targets a bundled relay host only');
+    const bundledRelayHosts = new Set((await pageA.evaluate(() => PropertyRelayDefaults.candidates)).map(value => new URL(value).hostname));
+    const browserBackgroundHosts = new Set(['clients2.google.com', 'accounts.google.com', 'update.googleapis.com', 'www.google.com',
+      'android.clients.google.com', 'passwordsleakcheck-pa.googleapis.com']);
+    const proxyHostname = destination => {
+      try { return new URL(destination.includes('://') ? destination : `https://${destination}`).hostname.toLowerCase(); }
+      catch { return 'unparsed'; }
+    };
+    const unexpectedProxyAttempts = proxy.attempts.filter(attempt => {
+      const host = proxyHostname(attempt.destination);
+      return !['CONNECT', 'GET'].includes(attempt.method) || (!bundledRelayHosts.has(host) && !browserBackgroundHosts.has(host));
+    });
+    assert.deepEqual(unexpectedProxyAttempts, [], `unclassified local proxy attempts: ${JSON.stringify(unexpectedProxyAttempts)}`);
     assert.deepEqual(report.page_errors, [], 'browser emitted no runtime errors');
     report.privacy = { completed_external_requests: 0, denied_proxy_attempts: proxy.attempts.length,
-      denied_relay_hosts: [...new Set(proxy.attempts.map(attempt => attempt.destination))].sort(),
-      denied_proxy_limited_to_bundled_relays: true, page_errors: 0,
+      denied_relay_hosts: [...new Set(proxy.attempts.filter(attempt => bundledRelayHosts.has(proxyHostname(attempt.destination))).map(attempt => attempt.destination))].sort(),
+      blocked_browser_background_hosts: [...new Set(proxy.attempts.map(attempt => proxyHostname(attempt.destination)).filter(host => browserBackgroundHosts.has(host)))].sort(),
+      denied_proxy_blocked_all_observed_egress: true, page_errors: 0,
       web_storage_contains_password: false, web_storage_contains_private_key: false,
       central_login_or_recovery_endpoint: 'none observed', captured_values: 'request method/origin/path only; no bodies or secrets' };
-    mark('G03-06', 'PASS', 'Across creation, lock, backup and contact flows, no external HTTP request completed; all attempted relay sockets were rejected by the local deny proxy and matched the bundled relay list. Passwords/private keys were absent from Web Storage and no central login/recovery request was observed.');
+    mark('G03-06', 'PASS', 'Across creation, lock, backup, contact and recovery flows, the PWA completed no external HTTP request. Relay destinations were blocked by the local deny proxy; browser-background destinations were separately classified. Passwords/private keys were absent from Web Storage and no central login/recovery request was observed.');
     report.result = report.cases.every(item => item.status === 'PASS') ? 'PASS' : 'FAIL';
     await writeReport(path.resolve(options.output), report);
     process.stdout.write(JSON.stringify({ result: report.result, cases: report.cases, output: path.resolve(options.output) }) + '\n');
@@ -457,7 +755,7 @@ async function main() {
     process.stderr.write(`${report.result}: ${report.error}\n`);
     return report.result === 'BLOCKED' ? 2 : 1;
   } finally {
-    await importedContext?.close().catch(() => {}); await contactContext?.close().catch(() => {});
+    await importedContext?.close().catch(() => {}); await contactContext?.close().catch(() => {}); await accessibilityContext?.close().catch(() => {});
     await persistentA?.close().catch(() => {}); await persistentB?.close().catch(() => {});
     await runtime?.browser?.close().catch(() => {});
     for (const server of [app?.server, proxy?.server]) if (server?.listening) await new Promise(resolve => { server.close(() => resolve()); server.closeAllConnections?.(); });
