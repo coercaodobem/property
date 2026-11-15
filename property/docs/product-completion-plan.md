@@ -134,7 +134,7 @@ The historical [central test plan](plano-de-testes-central.md) remains the autho
 - Run 25 browser journeys per language through browse-to-contact and publish-to-withdraw flows; assert accessible names, clear public/private labeling, and absence of a false paid indicator.
 - Replay 20 same-author offer conflicts and 20 cross-relay out-of-order updates; apply the G1 rule deterministically.
 
-**Deliverables:** Offer/event schema, NIP-15 adapter decision, complete human PWA marketplace and Hangout journeys, and both-language automated evidence.
+**Deliverables:** Offer/event schema, the [NIP-15 adapter decision](nip15-property-adapter.md), complete human PWA marketplace and Hangout journeys, and both-language automated evidence. `marketplace-g6-fixed-count.mjs` owns the exact amount/lifecycle/conflict counts; the browser gate checks five local Geode relays and the fixed-language UI journeys. The executed result is recorded in the [G6 gate evidence](evidence/product-completion/G6/gate-result.md).
 
 ### G7 — Trade state, payment verification, and honest settlement limits
 

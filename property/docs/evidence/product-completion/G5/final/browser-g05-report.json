@@ -1,0 +1,1862 @@
+{
+  "schema_version": 1,
+  "network_isolation": {
+    "mode": "unshared-netns"
+  },
+  "cases": [
+    {
+      "case": "G05-01",
+      "status": "PASS",
+      "reason": "A signed public event traversed three actual PWA bridge contexts and four independent Geode relays in the R1→R2→R3→R4 chain; each hop and the final inbox were independently reconciled."
+    },
+    {
+      "case": "G05-02",
+      "status": "PASS",
+      "reason": "Stopping P23 stopped new delivery at R2; restarting its PWA bridge replayed the eligible event through R3/R4. Age boundaries are covered separately with a fixed logical clock in G05-06."
+    },
+    {
+      "case": "G05-03",
+      "status": "PASS",
+      "reason": "Diamond, cycle and star topologies delivered through independent real browser bridges; relay ID queries showed one stored copy, and stopping one diamond path preserved delivery over the other."
+    },
+    {
+      "case": "G05-04",
+      "status": "PASS",
+      "reason": "Relay groups remained partitioned, then rejoined through a restarted P23. Two events published out of order reconciled once at R4 without duplicate IDs."
+    },
+    {
+      "case": "G05-05",
+      "status": "PASS",
+      "reason": "Three non-recipient bridge identities did not forward B’s envelope. B’s real PWA bridge forwarded only B’s recipient wrap to B’s inbox; A’s sender copy followed A’s inbox when A was the bridge identity."
+    },
+    {
+      "case": "G05-06",
+      "status": "PASS",
+      "reason": "UI toggle stopped and resumed the real PWA bridge. Fixed-input checks verified source exclusion, ID deduplication, signature/age boundaries, a 60-of-61 event batch and UTF-8 byte-based containment above 2 MB."
+    },
+    {
+      "case": "G05-07",
+      "status": "PASS",
+      "reason": "Closing the mobile-sized browser context stopped its bridge while both independent Geode relays remained available; a reopened context resumed forwarding. This is desktop viewport emulation only and does not certify physical mobile suspension/background behavior."
+    },
+    {
+      "case": "G05-08",
+      "status": "PASS",
+      "reason": "Two relay groups accepted conflicting signed updates while partitioned. The actual bridge reconciled them after reconnection, all relays selected the same NIP-01 tie winner independent of resolver input order, both append-only notes survived once, a later update superseded the conflict everywhere, and the marketplace UI rendered one valid card after each reconciliation."
+    }
+  ],
+  "nodes": [
+    {
+      "label": "P12",
+      "pubkey": "b3f047ae727d158a22f619016d97987ba16810a2c1eba3923271d6847f9ca486",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "P23",
+      "pubkey": "d23690e6979747d7211988f9f67b676c8e07c81a079ae73c85f16c740cdcdb9f",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "P34",
+      "pubkey": "e986b8eea01a7bd5c94d1fca308acf3bf2a68a5f6fe1c8bc8d812b9fe3e98fe3",
+      "general_relays": [
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "P23-restarted",
+      "pubkey": "b96f9e905dd3809ca38d9ff8b1b13242142bb13da0f07074a263858ab2c2c2ad",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "D-P12",
+      "pubkey": "f73b784cd3d5f340973c09af4f209e8afabf466e4d6c6147df81c98346291d46",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "D-P13",
+      "pubkey": "ce3778648ec25b6ae5254a7c2f2fc91cbc6a9965fb66b84ca3f9097a487cac5b",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "D-P24",
+      "pubkey": "d897a5e735d6093291b8f79c10530dd66df0212c2f87d7ce6b73e920f0361157",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "D-P34",
+      "pubkey": "97ec9e2e15acb03b91a3f1584f6bb427beb50afb05d2c3bccb57e4ea8f5d691a",
+      "general_relays": [
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "D-P41",
+      "pubkey": "9b0e3ff0a1e765bbfa6576b9f20c86796a91ca0b5cb3a7cf413e1da002a78894",
+      "general_relays": [
+        "ws://127.0.0.1:28475",
+        "ws://127.0.0.1:28472"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "S12",
+      "pubkey": "ae814d8209e8f7295c5fcddfd628012ca55cb566a60124ced1994338dd8364aa",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "S13",
+      "pubkey": "f1d8628845bc0c6212d4acd5a6177be0505f779b4321dd798176029d064f161f",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "S14",
+      "pubkey": "b843531183bb37db67e02692c9fbdecc846aa427588090690198bf1ac2e9c8a1",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "Q12",
+      "pubkey": "1880f906895d02816c926172caee7843e33c76395cd50c9e3e1d0b18353cff87",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "Q34",
+      "pubkey": "decb6a8110ee5771ca3518e043d41d46f0166986b13e1ce3e2af87494315ed9b",
+      "general_relays": [
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "Q23-rejoined",
+      "pubkey": "8b2cf821aab9f3baddde43a696204e11e3ffbc448957a2b2ff3c53e1b42179f2",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "Q23-conflict-rejoined",
+      "pubkey": "6338f60971ac6561328250dda0cad86f04288b3bfc123f64401f9488e5846d81",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "Q23-later-update-rejoined",
+      "pubkey": "1e704bc9212cccaf018ab4b5bff31bb140874175fb3df97e88cc79181a983ec3",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "C12-identity-C",
+      "pubkey": "90a6d28576198211079ce3239d66cfe478732e3c03f35a0963b188d5810f7254",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "C23-identity-C",
+      "pubkey": "04f58559e7fad2b18f75dd1c5de3772fe41b608e37bff66a2648a8fa46fb1b13",
+      "general_relays": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "C34-identity-C",
+      "pubkey": "23f1d424411bfd08239c87c436d49e6faf813951084ac7a1ca76c2e2ea9317ab",
+      "general_relays": [
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "B-identity-B",
+      "pubkey": "7e4e530ca417f2ecab68c31847ac03602b74935d687087d58bf01fd7488562a8",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [
+        "ws://127.0.0.1:28473"
+      ],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "A-identity-A",
+      "pubkey": "0f6cde488b55e65896b4ae688ea36df5dff56668926077c2489268def272850c",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [
+        "ws://127.0.0.1:28473"
+      ],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "toggle-node",
+      "pubkey": "aaf7a5064ddfc21c3001c9e6898993dd8ecdfa8ff8defc6fb56c5a73184540e4",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "mobile-emulation",
+      "pubkey": "95bb14f89ec2ac2c5e05089479822fd77971e51507faa3da6deba9467647482c",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": true,
+      "browser_bridge_enabled": true
+    },
+    {
+      "label": "mobile-emulation-reopened",
+      "pubkey": "0db21a6d77ab4a955b48f14eb240d8f3ea7b0a8bbf28bd610f400c677b651262",
+      "general_relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": true,
+      "browser_bridge_enabled": true
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28472",
+      "process_id": 922152,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28473",
+      "process_id": 922634,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28474",
+      "process_id": 923129,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28475",
+      "process_id": 923596,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28474/",
+    "ws://127.0.0.1:28475/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/",
+    "ws://127.0.0.1:28472/",
+    "ws://127.0.0.1:28473/"
+  ],
+  "denied_proxy_attempts": [
+    {
+      "method": "CONNECT",
+      "destination": "update.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "update.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "android.clients.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "android.clients.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    }
+  ],
+  "page_errors": [],
+  "topologies": {
+    "browser_engine_check": {
+      "valid": true,
+      "targets": [
+        "ws://127.0.0.1:28473"
+      ]
+    },
+    "chain": {
+      "relays": [
+        "ws://127.0.0.1:28472",
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "bridge_hops": [
+        "P12:R1->R2",
+        "P23:R2->R3",
+        "P34:R3->R4"
+      ],
+      "counts": {
+        "R1": 1,
+        "R2": 1,
+        "R3": 1,
+        "R4": 1
+      },
+      "event_id": "29a55c904c7acca0a93df64fdcdf1adc1dcb112caa2dcdb08dabd44e3bb47a01",
+      "signature_valid": true
+    },
+    "p23_failure": {
+      "event_id": "ea9eda32f0e81ec5272c58a3904b127876eb616421254eba521e218add1d644a",
+      "stored_while_partitioned": {
+        "R2": true,
+        "R3": false,
+        "R4": false
+      },
+      "replay_after_restart": {
+        "R3": true,
+        "R4": true
+      }
+    },
+    "diamond_and_cycle": {
+      "event_id": "4b10c916f10ecc256c7a6ef65e40c75f4f4b477e5486a20e7a3cdfe7f3e5845a",
+      "per_relay_unique_count": 1,
+      "edges": {
+        "P12": [
+          "ws://127.0.0.1:28473"
+        ],
+        "P13": [
+          "ws://127.0.0.1:28474"
+        ],
+        "P24": [
+          "ws://127.0.0.1:28473"
+        ],
+        "P34": [
+          "ws://127.0.0.1:28474"
+        ],
+        "P41": [
+          "ws://127.0.0.1:28475"
+        ]
+      },
+      "alternate_path_after_P12_stopped": {
+        "event_id": "981219ed9351d678bfeba082d2c5703f470fca395a9cbecbf20a3937325736aa",
+        "R4_received": true
+      }
+    },
+    "star": {
+      "event_id": "7085b76ffb1089fa433cae9e9f493b2768f9f18d943315befd7a462b4722fcea",
+      "center": "ws://127.0.0.1:28472",
+      "leaves": [
+        "ws://127.0.0.1:28473",
+        "ws://127.0.0.1:28474",
+        "ws://127.0.0.1:28475"
+      ],
+      "per_relay_unique_count": 1
+    },
+    "partition_rejoin": {
+      "out_of_order_source_publications": [
+        "e4e6fe8818d3221fc18d520fadb8cec03d7318187867f7000fe15d14228289e7",
+        "46fa552821870977418ebd8e69d185edaa4ec7bc891b0b731dcee5c7365148da"
+      ],
+      "reconciled_at_R4": {
+        "first": 1,
+        "second": 1
+      },
+      "no_duplicate_ids": true
+    },
+    "partition_conflicts": {
+      "relays": {
+        "left": [
+          "ws://127.0.0.1:28472",
+          "ws://127.0.0.1:28473"
+        ],
+        "right": [
+          "ws://127.0.0.1:28474",
+          "ws://127.0.0.1:28475"
+        ]
+      },
+      "address": "30018:84bf7562262bbd6940085748f3be6afa52ae317155181ece31b66351ccffa4b0:property-g05-partition-conflict",
+      "concurrent_equal_time_ids": [
+        "c3d67b4f64132c06fc6377845f113d442caf7ab011e45e3c7b6b29061bb4a0d0",
+        "17c0ac78e4ea83dcada779b43acd1558c6d4831178c01871d904b1f398b90631"
+      ],
+      "equal_time_winner": "17c0ac78e4ea83dcada779b43acd1558c6d4831178c01871d904b1f398b90631",
+      "selector_order_permutations": [
+        [
+          "17c0ac78e4ea83dcada779b43acd1558c6d4831178c01871d904b1f398b90631"
+        ],
+        [
+          "17c0ac78e4ea83dcada779b43acd1558c6d4831178c01871d904b1f398b90631"
+        ]
+      ],
+      "reconciled_effective_ids": [
+        [
+          "5365ae786aae604ffcdbadb280fd3a83d3a1da813dfac8c677324da80a61a048"
+        ],
+        [
+          "5365ae786aae604ffcdbadb280fd3a83d3a1da813dfac8c677324da80a61a048"
+        ],
+        [
+          "5365ae786aae604ffcdbadb280fd3a83d3a1da813dfac8c677324da80a61a048"
+        ],
+        [
+          "5365ae786aae604ffcdbadb280fd3a83d3a1da813dfac8c677324da80a61a048"
+        ]
+      ],
+      "append_only_note_ids": [
+        "d82be8d49ddc4d97a676b49aab29631b7ed14624566faf1968567693021feebf",
+        "c46a96322e52227af0397fc38ecf4756cf94f68b791cffd409c14023e8c5433c"
+      ],
+      "later_update_id": "5365ae786aae604ffcdbadb280fd3a83d3a1da813dfac8c677324da80a61a048",
+      "tampered_signature_rejected": true,
+      "marketplace_cards_after_each_reconciliation": [
+        "Partition update from R3",
+        "Partition update after reconnect"
+      ],
+      "absence_query_repetitions_per_destination": 3
+    }
+  },
+  "privacy": {
+    "recipient_event_id": "e6951133aa7112ddd6ca5c39005e221ebcfd80ebefee654b6a524c69896520a5",
+    "sender_copy_event_id": "ab52e57330f180814832401360f90b67d19ea2107560d4570807c397f57eff02",
+    "outsider_C_forwarded_recipient_event": false,
+    "B_forwarded_own_recipient_envelope_only_to_B_inbox": true,
+    "B_forwarded_A_sender_copy": false,
+    "A_forwarded_own_sender_copy_to_A_inbox": true,
+    "plaintext_test_content_in_relay_events": true
+  },
+  "limits": {
+    "bridge_off_stopped_forwarding": true,
+    "bridge_on_resumed_forwarding": true,
+    "origin_excluded": true,
+    "duplicate_suppressed": true,
+    "invalid_signature_rejected": true,
+    "invalid_boundary_repetitions": 3,
+    "old_and_future_events_rejected": true,
+    "age_boundary_accepted": true,
+    "future_skew_boundary_accepted": true,
+    "accepted_events_before_rate_limit": 60,
+    "rate_limit": 60,
+    "utf8_json_bytes": 400342,
+    "six_destination_bytes_exceed_2mb": true,
+    "byte_limit_contained": true
+  },
+  "mobile_emulation": {
+    "viewport": "390x844",
+    "context_closed_before_test_message": true,
+    "browser_bridge_stopped": true,
+    "independent_geode_relays_remained_available": true,
+    "reopened_context_resumed_forwarding": true,
+    "physical_mobile_os_suspension_or_background_service_certified": false
+  },
+  "browser": {
+    "playwright_version": "1.64.1",
+    "playwright_package_sha256": "d62da330118d0d7629f7df088a5b8226c9bae1c5c44bb36d6836e84ddc974464",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "8c599d43aec53f2460a31ae2f4af6bd863f8258b34ff519564bc5d4726bfaa1e"
+  },
+  "local_origin": "http://127.0.0.1:38285",
+  "result": "PASS"
+}

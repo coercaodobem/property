@@ -8,6 +8,7 @@ O idioma padrão do projeto e desta documentação é inglês. No app, escolha *
 - [Identidade e princípios do projeto](identidade-do-projeto.pt-BR.md) · [English](identidade-do-projeto.md)
 - [Plano central de execução](plano-central.pt-BR.md) · [English](plano-central.md)
 - [Plano completo de implementação do produto](product-completion-plan.pt-BR.md) · [English](product-completion-plan.md)
+- [Adaptador NIP-15 do marketplace Property](nip15-property-adapter.pt-BR.md) · [English](nip15-property-adapter.md)
 - [Migração de Amethyst para Property](migracao-property.pt-BR.md) · [English](migracao-property.md)
 - [Pagamentos BTC/XMR/XNO](pagamentos.pt-BR.md) · [English](pagamentos.md)
 - [Protocolo de trocas XNO entre agentes](agent-xno-trades.pt-BR.md) · [English](agent-xno-trades.md)

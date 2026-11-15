@@ -11,6 +11,7 @@ for test_file in \
   payment-uris-smoke.mjs \
   nano-units-smoke.mjs \
   marketplace-smoke.mjs \
+  offline/marketplace-g6-fixed-count.mjs \
   campaigns-smoke.mjs \
   campaign-engine-smoke.mjs \
   ledger-rpc-smoke.mjs \

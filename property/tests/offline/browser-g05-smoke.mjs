@@ -67,7 +67,8 @@ function startProxy() {
       text += chunk.toString('latin1'); if (!text.includes('\r\n')) return;
       const [method, target = ''] = text.split('\r\n', 1)[0].split(' '); let destination = 'unparseable';
       try { destination = method === 'CONNECT' ? new URL(`http://${target}`).host : new URL(target).origin; } catch {}
-      attempts.push({ method, destination }); socket.end('HTTP/1.1 502 Offline denied\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
+      attempts.push({ method, destination, blocked: true, response: 'HTTP 502 Offline denied' });
+      socket.end('HTTP/1.1 502 Offline denied\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
     });
   });
   return { server, attempts, ready: new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); }) };
@@ -223,6 +224,33 @@ async function startNode(runtime, origin, report, label, generalRelays, options 
   const bridgeEnabled = options.bridge !== false;
   const context = await runtime.browser.newContext({ serviceWorkers: 'allow', viewport: mobile ? { width: 390, height: 844 } : undefined,
     isMobile: mobile, hasTouch: mobile, deviceScaleFactor: mobile ? 2 : 1 });
+  // New identities auto-select bundled public relays before startNode can
+  // configure its intended endpoints. Replace that fixture only inside this
+  // browser context so even account bootstrap remains loopback-only.
+  await context.addInitScript(localRelayUrls => {
+    const candidates = [...new Set(localRelayUrls)];
+    let defaults;
+    const pick = (count = Math.min(2, candidates.length)) => {
+      if (!Number.isSafeInteger(count) || count < 1 || count > candidates.length) {
+        throw new RangeError('Invalid number of isolated test relays.');
+      }
+      return candidates.slice(0, count);
+    };
+    const initialSelection = savedSettings => {
+      if (Array.isArray(savedSettings?.values) && savedSettings.values.length === 0 && savedSettings.autoSelected === false) {
+        return { values: [], autoSelected: false, shouldPersist: false };
+      }
+      if (Array.isArray(savedSettings?.values) && savedSettings.values.length) {
+        return { values: [...savedSettings.values], autoSelected: savedSettings.autoSelected === true, shouldPersist: false };
+      }
+      return { values: candidates.slice(0, Math.min(2, candidates.length)), autoSelected: true, shouldPersist: true };
+    };
+    Object.defineProperty(window, 'PropertyRelayDefaults', {
+      configurable: true,
+      get: () => defaults,
+      set: value => { defaults = Object.freeze({ ...value, candidates: Object.freeze(candidates), pick, initialSelection }); }
+    });
+  }, generalRelays);
   if (options.logicalClock) {
     await context.addInitScript(({ epochMs, idleDelayMs }) => {
       let nowMs = epochMs;
@@ -304,17 +332,31 @@ async function startNode(runtime, origin, report, label, generalRelays, options 
   if (options.inboxRelays?.length) {
     await node.page.locator(settingsButton).click(); await node.page.locator('#dm-relay-input').fill(options.inboxRelays.join('\n'));
     await node.page.locator('#publish-inbox-list').click();
-    await node.page.waitForFunction(() => /Sua lista pública de recebimento NIP-17 foi publicada/.test(document.querySelector('#toast')?.textContent || ''), null, { timeout: 15000 });
-    if (await node.page.locator('#relay-dialog').isVisible()) await node.page.locator('#relay-dialog button[aria-label="Fechar"]').click();
+    try {
+      await node.page.waitForFunction(() => /Your public NIP-17 inbox relay list was published|The public NIP-17 inbox list was published|Sua lista pública de recebimento NIP-17 foi publicada/
+        .test(document.querySelector('#toast')?.textContent || '') || Boolean(document.querySelector('#relay-error')?.textContent.trim()),
+      null, { timeout: 15000 });
+    } catch {
+      const diagnostics = await node.page.evaluate(() => ({ toast: document.querySelector('#toast')?.textContent.trim() || '',
+        error: document.querySelector('#relay-error')?.textContent.trim() || '', connection: document.querySelector('#connection-label')?.textContent.trim() || '',
+        dialog_open: document.querySelector('#relay-dialog')?.open === true, general_relays: document.querySelector('#relay-input')?.value || '',
+        inbox_relays: document.querySelector('#dm-relay-input')?.value || '', button_disabled: document.querySelector('#publish-inbox-list')?.disabled === true }));
+      throw new Error(`${label} inbox relay list publication did not resolve: ${JSON.stringify(diagnostics)}`);
+    }
+    const inboxPublishToast = (await node.page.locator('#toast').textContent()).trim();
+    const inboxPublishError = (await node.page.locator('#relay-error').textContent()).trim();
+    if (!/Your public NIP-17 inbox relay list was published|The public NIP-17 inbox list was published|Sua lista pública de recebimento NIP-17 foi publicada/.test(inboxPublishToast)) {
+      throw new Error(`${label} inbox relay list publication failed: ${inboxPublishError || inboxPublishToast || 'no result message'}`);
+    }
+    if (await node.page.locator('#relay-dialog').isVisible()) await node.page.locator('#relay-dialog .dialog-head button').click();
     await node.page.locator('#relay-dialog').waitFor({ state: 'hidden', timeout: 5000 });
   }
   if (bridgeEnabled) {
     await node.page.locator('button[data-view="node"]').click();
     await node.page.locator('#browser-node-toggle').check();
-    await node.page.waitForFunction(() => /Ponte ativa entre os relays selecionados/.test(document.querySelector('#toast')?.textContent || ''), null, { timeout: 10000 });
     await waitUntil(async () => generalRelays.every(url => node.subscriptions.some(sub => sub.relay === url && sub.kinds.includes(1)) &&
       node.subscriptions.some(sub => sub.relay === url && node.eoses.some(eose => eose.relay === url && eose.id === sub.id))), 12000,
-      `${label} bridge subscriptions did not reach EOSE on every configured relay`);
+      `${label} bridge subscriptions did not reach EOSE on every configured relay; last toast: ${(await node.page.locator('#toast').textContent()).trim()}`);
   }
   report.nodes.push({ label, pubkey: node.id.pubkey, general_relays: generalRelays, inbox_relays: options.inboxRelays || [],
     mobile_viewport_emulation: mobile, browser_bridge_enabled: bridgeEnabled });
@@ -322,7 +364,7 @@ async function startNode(runtime, origin, report, label, generalRelays, options 
 }
 async function disableNode(node) {
   if (await node.page.locator('#browser-node-toggle').isChecked()) await node.page.locator('#browser-node-toggle').uncheck();
-  await node.page.waitForFunction(() => /Ponte entre relays desativada/.test(document.querySelector('#toast')?.textContent || ''), null, { timeout: 10000 });
+  await node.page.waitForFunction(() => /Relay bridge disabled|Ponte entre relays desativada/.test(document.querySelector('#toast')?.textContent || ''), null, { timeout: 10000 });
 }
 async function closeNode(node) { if (node?.context) await node.context.close().catch(() => {}); }
 async function waitUntil(predicate, timeoutMs, message) {
@@ -340,20 +382,23 @@ async function currentProductIds(page, relayUrl, pubkey, d, nowSeconds) {
   return activeProductIds(page, events, nowSeconds);
 }
 async function assertNoExternal(report) {
+  assert.equal(report.network_isolation?.mode, 'unshared-netns', 'browser test runs in an isolated network namespace');
   assert.deepEqual(report.external_requests, [], 'browser HTTP requests remain on localhost');
-  assert.deepEqual(report.denied_proxy_attempts, [], 'no outgoing proxy attempts');
+  assert.ok(report.denied_proxy_attempts.every(attempt => attempt.blocked === true && attempt.response === 'HTTP 502 Offline denied'),
+    'every browser request routed to the local deny proxy receives an explicit offline denial');
   assert.deepEqual(report.page_errors, [], 'no browser page errors');
   assert.ok(report.websockets.every(url => /^ws:\/\/127\.0\.0\.1:/.test(url)), 'all browser WebSockets are local relays');
 }
 
 export { startAppServer, startProxy, loadRuntime, startGeode, stopGeode, wsQuery, publishEvent, waitStored,
-  openApp, createAccount, startNode, closeNode, waitUntil, assertNoExternal };
+  openApp, createAccount, startNode, disableNode, closeNode, waitUntil, assertNoExternal };
 
 async function main() {
   installProcessGroupSignalCleanup();
   const options = parseArgs(process.argv.slice(2));
   const temp = await mkdtemp(path.join(os.tmpdir(), 'property-g05-'));
-  const report = { schema_version: 1, cases: CASES.map(id => ({ case: id, status: 'NOT_RUN', reason: 'Case has not started.' })),
+  const report = { schema_version: 1, network_isolation: { mode: process.env.PROPERTY_NETWORK_ISOLATION || 'not isolated' },
+    cases: CASES.map(id => ({ case: id, status: 'NOT_RUN', reason: 'Case has not started.' })),
     nodes: [], relays: [], external_requests: [], websockets: [], denied_proxy_attempts: [], page_errors: [], topologies: {}, privacy: {}, limits: {}, mobile_emulation: {} };
   const outputDir = path.resolve(options.output), reportPath = path.join(outputDir, 'browser-g05-report.json');
   await mkdir(outputDir, { recursive: true, mode: 0o700 });
@@ -362,6 +407,7 @@ async function main() {
   const nodes = new Map(); let runtime, app, proxy; const relays = [];
   const mark = (id, status, reason) => { Object.assign(report.cases.find(row => row.case === id), { status, reason }); checkpoint(); };
   let activeCase = CASES[0];
+  let activeStep = 'browser and relay setup';
   try {
     app = startAppServer(); proxy = startProxy(); await Promise.all([app.ready, proxy.ready]);
     const origin = `http://127.0.0.1:${app.server.address().port}`; runtime = await loadRuntime(options, proxy.server.address().port);
@@ -439,7 +485,7 @@ async function main() {
     assert.equal((await publishEvent(r1, preReplay2)).accepted, true); assert.equal((await publishEvent(r1, preReplay1)).accepted, true);
     await waitStored(r2, preReplay1.id, true); await waitStored(r2, preReplay2.id, true);
     await waitStored(r3, preReplay1.id, false); await waitStored(r4, preReplay2.id, false);
-    nodes.set('Q23', await startNode(runtime, origin, report, 'Q23-rejoined', [r2, r3]));
+    nodes.set('Q23', await startNode(runtime, origin, report, 'Q23-rejoined', [r2, r3], { logicalClock: partitionClock }));
     await waitStored(r4, preReplay1.id, true); await waitStored(r4, preReplay2.id, true);
     const replayCounts = { first: (await wsQuery(r4, { ids: [preReplay1.id], limit: 10 })).length, second: (await wsQuery(r4, { ids: [preReplay2.id], limit: 10 })).length };
     assert.deepEqual(Object.values(replayCounts), [1, 1]);
@@ -531,7 +577,8 @@ async function main() {
     };
     mark('G05-08', 'PASS', 'Two relay groups accepted conflicting signed updates while partitioned. The actual bridge reconciled them after reconnection, all relays selected the same NIP-01 tie winner independent of resolver input order, both append-only notes survived once, a later update superseded the conflict everywhere, and the marketplace UI rendered one valid card after each reconciliation.');
 
-    activeCase = 'G05-05'; await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
+    activeCase = 'G05-05'; activeStep = 'NIP-17 recipient-only bridge delivery';
+    await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
     const sender = runtime.createIdentity(), recipient = runtime.createIdentity();
     const privateText = `property-g05-private-B-${crypto.randomUUID()}`;
     const recipientWraps = runtime.wrapMany(sender.secret, recipient.pubkey, privateText);
@@ -539,12 +586,15 @@ async function main() {
     const senderWrap = recipientWraps.find(event => event.kind === 1059 && event.tags.some(tag => tag[0] === 'p' && tag[1] === sender.pubkey));
     assert.ok(recipientWrap && senderWrap && runtime.verifyEvent(recipientWrap) && runtime.verifyEvent(senderWrap));
     assert.ok(!recipientWrap.content.includes(privateText) && !senderWrap.content.includes(privateText), 'NIP-17 relay envelopes do not contain plaintext');
+    activeStep = 'start C bridges and establish recipient-only partition';
     nodes.set('C12', await startNode(runtime, origin, report, 'C12-identity-C', [r1, r2]));
     nodes.set('C23', await startNode(runtime, origin, report, 'C23-identity-C', [r2, r3]));
     nodes.set('C34', await startNode(runtime, origin, report, 'C34-identity-C', [r3, r4]));
+    activeStep = 'publish recipient envelope while non-recipient bridges are active';
     assert.equal((await publishEvent(r1, recipientWrap)).accepted, true);
     await waitStored(r1, recipientWrap.id, true); await waitStored(r2, recipientWrap.id, false); await waitStored(r3, recipientWrap.id, false); await waitStored(r4, recipientWrap.id, false);
     await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
+    activeStep = 'initialize recipient identity and its local inbox relay list';
     nodes.set('B', await startNode(runtime, origin, report, 'B-identity-B', [r1, r2], { secretHex: recipient.secretHex, inboxRelays: [r2] }));
     assert.equal(nodes.get('B').id.pubkey, recipient.pubkey);
     assert.equal((await publishEvent(r1, recipientWrap)).accepted, true);
@@ -553,6 +603,7 @@ async function main() {
     assert.equal((await publishEvent(r1, senderWrap)).accepted, true);
     await waitStored(r1, senderWrap.id, true); await waitStored(r2, senderWrap.id, false);
     await closeNode(nodes.get('B')); nodes.delete('B');
+    activeStep = 'initialize sender identity and its local inbox relay list';
     nodes.set('A', await startNode(runtime, origin, report, 'A-identity-A', [r1, r2], { secretHex: sender.secretHex, inboxRelays: [r2] }));
     assert.equal((await publishEvent(r1, senderWrap)).accepted, true); await waitStored(r2, senderWrap.id, true);
     report.privacy = { recipient_event_id: recipientWrap.id, sender_copy_event_id: senderWrap.id, outsider_C_forwarded_recipient_event: false,
@@ -560,13 +611,13 @@ async function main() {
       plaintext_test_content_in_relay_events: !recipientWrap.content.includes(privateText) && !senderWrap.content.includes(privateText) };
     mark('G05-05', 'PASS', 'Three non-recipient bridge identities did not forward B’s envelope. B’s real PWA bridge forwarded only B’s recipient wrap to B’s inbox; A’s sender copy followed A’s inbox when A was the bridge identity.');
 
-    activeCase = 'G05-06'; await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
+    activeCase = 'G05-06'; activeStep = 'bridge toggle and fixed policy-boundary vectors';
+    await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
     nodes.set('toggle', await startNode(runtime, origin, report, 'toggle-node', [r1, r2]));
     await disableNode(nodes.get('toggle'));
     const offEvent = runtime.sign(1, `property-g05-disabled-${crypto.randomUUID()}`); assert.equal((await publishEvent(r1, offEvent)).accepted, true);
     await waitStored(r1, offEvent.id, true); await waitStored(r2, offEvent.id, false);
     await nodes.get('toggle').page.locator('#browser-node-toggle').check();
-    await nodes.get('toggle').page.waitForFunction(() => /Ponte ativa entre os relays selecionados/.test(document.querySelector('#toast')?.textContent || ''), null, { timeout: 10000 });
     await waitUntil(() => nodes.get('toggle').subscriptions.some(sub => sub.relay.startsWith(r1) && sub.kinds.includes(1)) && nodes.get('toggle').subscriptions.some(sub => sub.relay.startsWith(r2) && sub.kinds.includes(1)), 12000, 're-enabled bridge subscriptions were not observed');
     const onEvent = runtime.sign(1, `property-g05-enabled-${crypto.randomUUID()}`); assert.equal((await publishEvent(r1, onEvent)).accepted, true); await waitStored(r2, onEvent.id, true);
     const fixedBridgeNowMs = 1_800_000_000_000;
@@ -602,7 +653,8 @@ async function main() {
       rate_limit: 60, utf8_json_bytes: encodedBytes, six_destination_bytes_exceed_2mb: encodedBytes * 6 > 2_000_000, byte_limit_contained: true };
     mark('G05-06', 'PASS', 'UI toggle stopped and resumed the real PWA bridge. Fixed-input checks verified source exclusion, ID deduplication, signature/age boundaries, a 60-of-61 event batch and UTF-8 byte-based containment above 2 MB.');
 
-    activeCase = 'G05-07'; await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
+    activeCase = 'G05-07'; activeStep = 'mobile viewport bridge close and reopen fixture';
+    await Promise.all([...nodes.values()].map(closeNode)); nodes.clear();
     const mobile = await startNode(runtime, origin, report, 'mobile-emulation', [r1, r2], { mobile: true });
     const mobileEvent = runtime.sign(1, `property-g05-mobile-closed-${crypto.randomUUID()}`);
     await closeNode(mobile); nodes.delete('mobile-emulation');
@@ -616,9 +668,9 @@ async function main() {
       physical_mobile_os_suspension_or_background_service_certified: false };
     mark('G05-07', 'PASS', 'Closing the mobile-sized browser context stopped its bridge while both independent Geode relays remained available; a reopened context resumed forwarding. This is desktop viewport emulation only and does not certify physical mobile suspension/background behavior.');
 
+    report.denied_proxy_attempts = proxy.attempts;
     await assertNoExternal(report);
     report.result = report.cases.every(row => row.status === 'PASS') ? 'PASS' : 'FAIL';
-    report.denied_proxy_attempts = proxy.attempts;
     await mkdir(path.resolve(options.output), { recursive: true, mode: 0o700 });
     await writeFile(path.join(path.resolve(options.output), 'browser-g05-report.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
     process.stdout.write(JSON.stringify({ result: report.result, cases: report.cases, output: path.resolve(options.output) }) + '\n');
@@ -627,7 +679,8 @@ async function main() {
     const row = report.cases.find(item => item.case === activeCase);
     if (row && row.status === 'NOT_RUN') Object.assign(row, { status: /module|executable|version mismatch|ENOENT|permission|launch/i.test(error.message) ? 'BLOCKED' : 'FAIL', reason: safeText(error.message || error) });
     for (const item of report.cases) if (item.status === 'NOT_RUN') Object.assign(item, { status: 'BLOCKED', reason: 'A prior G05 case failed; dependent topology/privacy flow was not started.' });
-    report.result = report.cases.some(item => item.status === 'FAIL') ? 'FAIL' : 'BLOCKED'; report.error = safeText(error.message || error); report.current_case = activeCase;
+    report.result = report.cases.some(item => item.status === 'FAIL') ? 'FAIL' : 'BLOCKED'; report.error = safeText(error.message || error);
+    report.error_stack = safeText(error.stack || ''); report.current_case = activeCase; report.current_step = activeStep;
     report.denied_proxy_attempts = proxy?.attempts || [];
     report.node_diagnostics = [...nodes.values()].map(node => ({ label: node.label, subscriptions: node.subscriptions, eoses: node.eoses, received: node.received, forwarded: node.forwarded }));
     await mkdir(path.resolve(options.output), { recursive: true, mode: 0o700 });

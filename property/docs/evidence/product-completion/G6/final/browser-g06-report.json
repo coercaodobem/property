@@ -1,0 +1,1636 @@
+{
+  "schema_version": 1,
+  "network_isolation": {
+    "mode": "unshared-netns"
+  },
+  "cases": [
+    {
+      "case": "G06-01",
+      "status": "PASS",
+      "reason": "A signed public kind-1 post traversed five actual Geode relays through the PWA bridge. Buyer B saw the author, and the contact action selected that author in private-message navigation while the post remained public; an empty-feed state was also checked."
+    },
+    {
+      "case": "G06-02",
+      "status": "PASS",
+      "reason": "The browser published, discovered, and edited one satoshi, one piconero, and one raw through an actual five-relay Geode bridge. Exact atomic strings, event authorship, stable d tags, signatures, and rendered prices survived each round-trip; currency maxima and overflow were checked."
+    },
+    {
+      "case": "G06-03",
+      "status": "PASS",
+      "reason": "Seller withdrawal hid the offer even after the older signed event was replayed to R5. Geode rejected reinsertion under its deletion tombstone. Another author could not remove an offer; the client reducer ignored an older deletion timestamp without sending that fixture to the relay."
+    },
+    {
+      "case": "G06-04",
+      "status": "PASS",
+      "reason": "Expired and future-timestamp, unknown-currency, malformed, and ambiguous-address listings were filtered. The browser blocked excess precision, overflow, and unsupported-currency submissions; unsafe image URLs were not linked or fetched, and injected markup remained literal text."
+    },
+    {
+      "case": "G06-05",
+      "status": "PASS",
+      "reason": "Contact from the marketplace opened the correct seller conversation target without changing the displayed offer, publishing any payment/checkout/private-message event, or exposing a checkout control. The UI identifies NIP-15 as draft and states that payments/custody are not handled."
+    },
+    {
+      "case": "G06-06",
+      "status": "PASS",
+      "reason": "Published 20 synthetic offers per currency, edited 10, withdrew 10 and expired 10 per currency. Each of five local Geode relays served the same current replaceable heads, all 30 signed withdrawal tombstones, and identical active state before and after the logical expiry boundary. Superseded/deleted payloads were not incorrectly required to remain queryable. Bridge coverage passed earlier; this larger fixed-count batch bypassed its explicit forwarding quota."
+    },
+    {
+      "case": "G06-07",
+      "status": "PASS",
+      "reason": "Completed 50 PWA Hangout journeys against signed authors. Duplicate copies from five relays rendered once; the buyer changed from R5 to R4, direct-contact navigation selected the post author without sending a message, and malformed local fixtures failed closed. English and pt-BR each covered 25 journeys."
+    },
+    {
+      "case": "G06-08",
+      "status": "PASS",
+      "reason": "Completed 50 real PWA marketplace journeys (25 English, 25 Brazilian Portuguese) across BTC/XMR/XNO. Each published the versioned offer, browsed it from the other identity, checked public/private and no-paid labeling, opened the seller conversation, and withdrew the offer with a signed NIP-09 request."
+    }
+  ],
+  "nodes": [
+    {
+      "label": "G06 seller A",
+      "pubkey": "db6bc5d9de8dd3e5a8c96179586f97e1455ba3738859873ed2963f3264dca6c1",
+      "general_relays": [
+        "ws://127.0.0.1:28480"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": false
+    },
+    {
+      "label": "G06 buyer B",
+      "pubkey": "98c0d3e753959444e41e243b52472db44a866a31b4a8c094f34803371f837a04",
+      "general_relays": [
+        "ws://127.0.0.1:28484"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": false
+    },
+    {
+      "label": "G06 public relay bridge",
+      "pubkey": "a4a0c3b18026313fb6eeaa2a2a5cb3fa0208a041b81e70184d0bb9662eeb2e71",
+      "general_relays": [
+        "ws://127.0.0.1:28480",
+        "ws://127.0.0.1:28481",
+        "ws://127.0.0.1:28482",
+        "ws://127.0.0.1:28483",
+        "ws://127.0.0.1:28484"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28480",
+      "process_id": 799867,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28481",
+      "process_id": 800458,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28482",
+      "process_id": 800906,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28483",
+      "process_id": 801397,
+      "data_dir_mode": "temporary private directory"
+    },
+    {
+      "url": "ws://127.0.0.1:28484",
+      "process_id": 801879,
+      "data_dir_mode": "temporary private directory"
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28484/",
+    "ws://127.0.0.1:28484/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28482/",
+    "ws://127.0.0.1:28483/",
+    "ws://127.0.0.1:28484/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28482/",
+    "ws://127.0.0.1:28483/",
+    "ws://127.0.0.1:28484/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28482/",
+    "ws://127.0.0.1:28483/",
+    "ws://127.0.0.1:28484/",
+    "ws://127.0.0.1:28483/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28482/",
+    "ws://127.0.0.1:28483/",
+    "ws://127.0.0.1:28484/"
+  ],
+  "denied_proxy_attempts": [
+    {
+      "method": "CONNECT",
+      "destination": "update.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "update.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "www.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "android.clients.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "android.clients.google.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "update.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    },
+    {
+      "method": "CONNECT",
+      "destination": "content-autofill.googleapis.com:443",
+      "blocked": true,
+      "response": "HTTP 502 Offline denied"
+    }
+  ],
+  "page_errors": [],
+  "hangout": {
+    "empty_feed_state": true,
+    "event_id": "122847438a96ccaddd328eae337ee6cf2c242626a0d4bef175e7a7e75e27af83",
+    "author": "db6bc5d9de8dd3e5a8c96179586f97e1455ba3738859873ed2963f3264dca6c1",
+    "R1_signature_valid": true,
+    "R5_copy_same_id": true,
+    "public_feed_label_visible": true,
+    "contact_target_npub": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+    "private_room_created": false,
+    "fixed_journeys": 50,
+    "language_journeys": {
+      "en": 25,
+      "pt-BR": 25
+    },
+    "verified_authors": 50,
+    "unique_events_after_five_relay_dedupe": 50,
+    "relay_change": {
+      "from": "ws://127.0.0.1:28484",
+      "to": "ws://127.0.0.1:28483"
+    },
+    "direct_message_targets_selected": 50,
+    "messages_sent": 0,
+    "empty_feed_state_checked": true,
+    "hostile_markup_rendered_as_text": true,
+    "malformed_signature_size_and_timestamp_fixtures_rejected": true,
+    "five_relays_converged": true
+  },
+  "marketplace": {
+    "offers": [
+      {
+        "currency": "BTC",
+        "unit": "satoshi",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "b76701f7-b528-4866-a02f-aed207bde60e",
+        "initial_event_id": "7e208b84fb4505f8d522122924132b5ac343b2a4999f2e352929a2f7647b864f",
+        "updated_event_id": "5afc0fa9702224db15a0d5b8805aa1d6343e79027cb2f9a29a947edb843ebe79",
+        "seller_signature_valid": true,
+        "R5_copy": true,
+        "initial_ui_price": "0.00000001 BTC",
+        "updated_ui_price": "0.00000002 BTC"
+      },
+      {
+        "currency": "XMR",
+        "unit": "piconero",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "26a63124-58f3-4cc9-889c-082fda1a7f8f",
+        "initial_event_id": "5003da73e3ee2bb00a9d065da65242a6be93db18f64dcae1685ea7f8d93253c2",
+        "updated_event_id": "e61b35f968d13904cbbea26ccfc2ded3c026d5b8a91f7b531c6cbe37ee80d155",
+        "seller_signature_valid": true,
+        "R5_copy": true,
+        "initial_ui_price": "0.000000000001 XMR",
+        "updated_ui_price": "0.000000000002 XMR"
+      },
+      {
+        "currency": "XNO",
+        "unit": "raw",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "77f28272-1ce7-4053-b002-22a4ab12c0f9",
+        "initial_event_id": "264b6a470577d6410175705c695a39424ce47fc7a1f1af9ea4913ca42de3642b",
+        "updated_event_id": "d265d84e5103d32df4a226727a9a8fead6f80fb7e16f919659a3c31cf54f2c0e",
+        "seller_signature_valid": true,
+        "R5_copy": true,
+        "initial_ui_price": "0.000000000000000000000000000001 XNO",
+        "updated_ui_price": "0.000000000000000000000000000002 XNO"
+      }
+    ],
+    "currency_atomic_bounds": {
+      "BTC": {
+        "max_accepted": "2100000000000000",
+        "over_max_rejected": true
+      },
+      "XNO": {
+        "max_accepted": "340282366920938463463374607431768211455",
+        "over_max_rejected": true
+      },
+      "XMR": {
+        "max_accepted": "18446744073709551615",
+        "over_max_rejected": true
+      }
+    },
+    "amount_representation": "decimal integer strings; no float used for atomic values",
+    "five_relay_lifecycle": {
+      "created": 60,
+      "edited": 30,
+      "withdrawn": 30,
+      "expired": 30,
+      "offers_by_currency": {
+        "BTC": {
+          "created": 20,
+          "edited": 10,
+          "withdrawn": 10,
+          "expired": 10
+        },
+        "XMR": {
+          "created": 20,
+          "edited": 10,
+          "withdrawn": 10,
+          "expired": 10
+        },
+        "XNO": {
+          "created": 20,
+          "edited": 10,
+          "withdrawn": 10,
+          "expired": 10
+        }
+      },
+      "event_ids": [
+        "8b01dfeab58a52f857a1900b59cdbe666a790624d4b8c27a0303fc8efb75f583",
+        "bccd96e6bcfb4efc6a70ce4d3c74ff919f2d1349cb40fa2109791ff374e555de",
+        "d8b07fa034642b7efcf8dd49c3c3baf1898c253e743b86d92b45e004d2569bc9",
+        "12a6a8bd529cceff207a4e0253e4d29bd0fa8784378bce88e3f26140f666f1fd",
+        "47f8a26f3ede49775a0e60ba6e805869749c0c4a2c51cda8942383798e5000bb",
+        "645db23c3254f61c21d39cdb412f58760c9d989c07737e5301ff9fbacf722496",
+        "e7699eb11fa9c0da6df9c0cc3c35cb661614c99bd63855c5150dd10a3b12f4ce",
+        "88ba674a74dc94dddd5c8376122139f028bc7fd5573c51d8b3a03d9142da7516",
+        "f65ecd0c513428650f4c9b3cf4489b5383a1e475534e7daf16dc4660838e838a",
+        "e93dddd5b1b931e1e66176086ba54b235fedd99fd82662b5ae8b20cfa4b43330",
+        "c34623dae56663cd30667310405e6af890dffed75bf917e3dbb4d5232f36fed9",
+        "60a2726232e9c29e5ff01f06e1cac94d1c8017d198e8f669e1a0c363db7b0d8b",
+        "552cd98b9b8176216f5a5649f91cf4fde953a54d6f757d917a5f72a16ac16dca",
+        "c928dbafeac6936ed09b990a5b7b3f416e728cac22ee54a088e5651b828656ab",
+        "b6ebdaf2223a08bde34d6f18e215c59bd6910ef0c4688a911228a2581c2c65e8",
+        "32cad92cd2cf4a492da863558065bc81682aaedf840c5a343942b3c8d4a07fb5",
+        "284140728505618786dccf1467fdcd7c41d3f93fc8a727017d0a8075871cc44a",
+        "47cfe750c1d27fb794d7554763b069308d40478736408fb94832d421feb06b8a",
+        "ab4d879e6eda73bf8122aa7e495ca8bbd4b0405a9a573b51f6366afa650c6ab1",
+        "06953d9ff40461794c2b18a2ec2cac555cb43d88c6ee7ca02f9ece683d09e3b9",
+        "b6b0d4e136e910947b155285fe0ab0e2e984f7ac44c9b368064c8a173a5ed592",
+        "df6edc3b644556b5d78d48570bb8fed06a502f1798a774354f5ed89abe8a459d",
+        "6fd1ce73cc423db882c4558aa9274e1e44aa00c3a3e26b38bac11fbad92c4ba8",
+        "b8bfc39fd39d7aea65038111264de78bae5f1bd672b9d52521577301c7e3c4f2",
+        "c09c5f570b00d752957646bc833e373f1489fa2357bc8526e143352c58b8d453",
+        "59a8f889848ff6fbb683d88f08909c9b02b8d6e623cc8987bd8a3efaa01074af",
+        "af318bd31bb3f55a90747fc85402ec4a8848ebdab9a668a1a797a7c81c75a9f0",
+        "34749df6a95b8046e8ecd0339d5e105e2cd4c94f3e698369fdf39db212356f5b",
+        "745d7ad68719bc16a93bbde6392ced4f5cca28bd8bed67690da2fd06f2c9bf83",
+        "3a86722498a6748fdddb9e1eb9cfc782a1e674735659cc4887f84de21a6159a3",
+        "5c1b762c18b3a170eda2c23723b7d34b2cb32d23849dd46f6b656d0dfe9aefbe",
+        "cf6a51cf6cd08f34a165248047234ee0eac85e76ab29d7a3efe30510d26bec45",
+        "42d410f5536a2ae7eefbc82defa7c39d0673efe519ee6d9f6bcd0a42a84772f8",
+        "f2f7c30df236d12c56298a40720aec631b52145c2b65598bbaff85c9495e64d6",
+        "e063bc01910d1a5c1c0e434a17c1d0484af30a3010e7449e94fb4fe5177ec44a",
+        "c40e9c60a37cb4ea0a4a666d08e7d07a1cd77cb38eda55f367c732f272201dfe",
+        "f3cb70fdb4a151b8dbd0dfef6d0f390cfc1066eb1d4e6615ef45150b459e06b0",
+        "7820cf24f0c25d064776d82ccd99ca1c3a8ed5ad2aee7331b6a29cd8194b0e14",
+        "3e9bebe675cbe9ef65efc43fff28d7176354945c9845b480f5256c5f62cfad51",
+        "1008f1041a4ee73b5ec7ec727dadbfe33b2dfe81448ac3714c676d0e3751c314",
+        "66a13d94a7b92992900fb190e80cd0917304c1fc9e04068130587af0564033cc",
+        "a847146d4f1a563f43777225598b17c9a624394e2f38501c2fc8c048483eacec",
+        "0d8503d968b0cd0dca9c99906ffd891c39dc1053b5ea224dfd4c446d5c11c431",
+        "9aadd5b808c3a50ee50562edd97ed69d7bd092c9e099e9a57cda47f8fbdb0a36",
+        "7f4eeede2868e7674f9b89b2512638e74f7b1fac1f5407551c441baf7d7426d2",
+        "f1866d489b35eee74ec23f6bfb2ea67ee1218b3a6290200baccf7e207e8b2d9b",
+        "ee7b5213c4cc8c4f899ef61392dfc59b555e757950091f9a5448513f7dd71e83",
+        "9249e3d240d8dd70b9360b494a93e7ba38a7b1d75f280600c58ad217b1860b90",
+        "7111b0c5829e7d82afa3f652140ceb9ec236dedcfc22b7a0861303a7e0c7eabf",
+        "de372a157b9a014363fa2420c03e0178360a1a31e9e6b4b17bfa70cd04733b04",
+        "3611b57393686f49fc4947efe05811f82db56ed1f4690cb6398d476d02e7e36f",
+        "934c269833b0c15a712aa0b393b166ea04189be76d6f517cc705e15e69d22d72",
+        "9004fe83d77e6c08ad59d26be4dc1a137b7cba350824b25c77ee39fe24222614",
+        "3a3e6662e25ed6401a8618515983022bbed212557eb6b81f4e35ca71fcc07688",
+        "e795281d97620139bffe5f264399f453c1df4d824eab17533b2b031ee1fb03e1",
+        "78c60e89025be633c90c0ccf51aab9a0b3c287b8dd9d4c4253b10b9fbd94e1fc",
+        "b686ac429cd4b160e4086a7f16644c846610f60960ac13d2a34221ebc7ca3b42",
+        "64c3a3d490411382e13c2ffe25fc87d9670678a4a6f4fcfd1a0180aefe1a6adf",
+        "9d4fda380df641aa10dede1572c2ea1949b70ea7f472d7bd132bb1acff928e47",
+        "552f834c585d81477c024209566a99eb6d5371888f3c9e87a3d8ba52c58d7596",
+        "466ab281aac8000320b7a5eb96698cee18ea04871999f82742b963f65e600594",
+        "35cb647a67d4869cb199b38a19bf9839a6c4024c3e21d6346598dae4410f0e06",
+        "aad995b1d3c1423d06eb0f36cd8ed9126cd16c18e563fd78ee48a87b004b73df",
+        "8081dfbe02dfe4eccd5083d2b93dc7e9e8663cfcf4996952d77c843d58e91165",
+        "e7be7de448672973cbd091472bfc9fca59904cbb66e0f65ba804e09a6b7afa33",
+        "270a454a9ea71dd6f1aca9c383de3b81a6494342318f45755f39ddb56c474ae2",
+        "27efa912c38fa14448d6fea094b595e71d07a96fb93634a471976eeca4859e96",
+        "39e3dd9abcbe957766f43b84510e4d4e27e1e77b4189ec24d714f3f2ff1ba1e5",
+        "40d33c1b2c5659ac6bfe6b255de91ce6014861de678cad060a1d0b0c48d326b2",
+        "8e0ff5a90e62c784d2959177cfa77c2af0a551f9a1a188a6d1082c2c1cc1a1ed",
+        "58a244e5ddb22cbecc3cf9779c7a1c9e5d39d1126ae339362e19a285fb3f5e5a",
+        "bf108f422e13f33e591e1e2e03581c48bb22c9f5c6f73178bbf9541ebd07022b",
+        "296f1b4cbc9b9bfa852ab9ce589f2e72c243a0f24d41d4aed66b43ca912cbcc8",
+        "d45da39616ddb461edc6669528da5f739be007cf6a0e70ab5bf552bba93a7ea9",
+        "ec5f0d01c5a8b129e2e219a3e0c67486c1d5372cfd1441afe67df7dfac7150e6",
+        "28c18df4a97c00d73ba881886ef23be4fbebd4a88f2daf1da9ca83c1d1250da3",
+        "4e305d2152443ce022b72622f6e70aaab94c84da01011c7a4b87ec7eaca394f7",
+        "37fda6aa9e87cd22cdb9a8e826a21e773ee5b871398b159ffce7735353f8e914",
+        "1aacd5a36e2e97498676bd9d112b775057fd64f7eb6fa41fd4f89c97fad2b71b",
+        "737a4ee199bdf5cbd206947b196c7266f4413fa9af4a13725d4482fbcdefbcaa",
+        "34424353d51e40e21184935eaa3df5ab7dc675636aff8eaf7b140df6fddbb0ba",
+        "926307d469b4dce40b9b6f0425840cb2cb161962c2f3c314fcd4fcab45a0536e",
+        "0b2400a1f5565e00e3305892188d6c8b807b43e00a64d782da9420d0f0e54513",
+        "9c22603733662548f89e15aba75d6f052768d1a5b799632c99591c2b2f67a70b",
+        "e07fd5c0ee0a045b1e19860bdb3d2529e332ca4bb55fe9efc6b66dac8f2697a7",
+        "60220ac526fdceaacd0ba4b4c39873b0f1b9b1abf9e3c4a26c01782ba3e895f9",
+        "6ea8e0af7c8cf2da4eea20df765086cdeb5e4d0edd4d17291e3ca82a2052b3a7",
+        "5348160776f682ae03673128586d8256b8cba21197019ae6a2c730c920afe6e2",
+        "bd56308f58cddd63c07ddbf042a764e629da882afb2913a7791ca3a7deab9c9f",
+        "1ede2a894e9a306dc2f9bc8c6b4f0d044dd5beb7c5873d73a7178e89749fafa2",
+        "e77c38ca821693596744ff7877812a09205057f5f8527ec5cb2ab4e89de1dd38",
+        "5ddd173193c264432ea851bc490b5965a041e77d47a37598fecba4cd46fcb19f",
+        "cb2177f791bf7c744ef9557d576961c64932260c0383ec3fc9fc2ab5bbaf4ce4",
+        "d84334083f679dcab69dd7d65708ded3c716d66a48a054513ae90a2e23de24ae",
+        "97256eeca5a646aaadc046c630ac8b51bfa1cf26458845ca5e7ecec184c2e098",
+        "9531c431da2c00d12104b48f9387d4b425ee449ddd7289acdbbb11d0d3386499",
+        "2aafbb23a45e8caa754154f389e823723552ed689edd2379339c95b026a3188d",
+        "c08b16e5ff560d865d2e4abbbf53a1d12f09640bb324c0d72825c91e993ae671",
+        "7a857357d34b048c7e5b1f9aed94da9bd9404237670bcce6df0cee1a6b3419d0",
+        "dfba3b28a6531a770dbcc2a65917ac93d500ce440488febf253c2dc42b44e3b9",
+        "247fbb1b7e69d8877371effde1e5cb9e3472ba1e35448cf8f959078080860d0a",
+        "d563abb889fcd58593352f7972ba3ddfab04504301c240f650e78e5ae11afbaf",
+        "f41bdc544e60e7b22a98d4326588a1b0993aabcc9b3b4211903488c94ab74a90",
+        "67a68ea87680b40e432c1d5b1c4d48d4cc095ee04f0a035e4e0bc328d052330d",
+        "7ccf7594f04f697505ac272d99f854f8023a5a299be33b149829d8bd0c30ccd0",
+        "45b3023e8755d35093c840b561e234541df8bffcbd144ba7a46271d77faff1d3",
+        "9d46dac28815917b0771a86591cc79f2f9e29cc7e045c05a22cfe3a7aee5048e",
+        "ccaaaece099ee9c5207747363d4c88c2c0c5a5568d293143c8f1d85760da9934",
+        "d2dd78821d9be56d09f738f58e5e49368e690ebcaadc3cd4a8ef9e6d4655a82f",
+        "be9f4b62db8db3fe6f763c7c997aac2fc8021dc39443ac2885d66a0cfcdf0a40",
+        "373eb5c45ff535378a91c4f31b43dc3019dfdc8751755dd55143c272eb029df1",
+        "08c68c0805583abeab0af9b985991c4ee3a09cea45d30a36a408a65e3a4f6541",
+        "3d051ff8f0d8ce753b717c2c33f30b08131a3ed9110a11d69770b2c9d415bf9d",
+        "1a9d9dde7fdb8e66ab391f80f1bac88e03c3d35abb15764cc4cc45ca7890a150",
+        "97fe998ed37ab755a13a593196049b3324c7d7e41a5cce03742e5efa8988d363",
+        "4656ea44c120e8d5974e759f90c6f69dfe0cf6dbbd741cb936fc09783fda14f2",
+        "08610e0695ab4e942677ab4bce1b36aa6864e8106d1ee784ad52339cdb8759e7",
+        "76cda09357d508710c89ac3640311ed6565a3c3baa12610efc93f628d272dec0",
+        "ade9ed446373e5c35a56ed723d46d58a63f96648f11b92b89a9a6f2168b328ed",
+        "17314369bc121e3d5f7419ecfd1f22f15c7f30976bdfd0940c04765fc2d09a7c",
+        "3b7a130aaca0868bf0ed9f6dee45a78b3ac169877ede474f035b6b312ac9fe6b"
+      ],
+      "deletion_ids_by_offer": {
+        "g6-lifecycle-BTC-00": {
+          "deletion_id": "e77c38ca821693596744ff7877812a09205057f5f8527ec5cb2ab4e89de1dd38",
+          "edited_event_id": "466ab281aac8000320b7a5eb96698cee18ea04871999f82742b963f65e600594"
+        },
+        "g6-lifecycle-BTC-01": {
+          "deletion_id": "5ddd173193c264432ea851bc490b5965a041e77d47a37598fecba4cd46fcb19f",
+          "edited_event_id": "35cb647a67d4869cb199b38a19bf9839a6c4024c3e21d6346598dae4410f0e06"
+        },
+        "g6-lifecycle-BTC-02": {
+          "deletion_id": "cb2177f791bf7c744ef9557d576961c64932260c0383ec3fc9fc2ab5bbaf4ce4",
+          "edited_event_id": "aad995b1d3c1423d06eb0f36cd8ed9126cd16c18e563fd78ee48a87b004b73df"
+        },
+        "g6-lifecycle-BTC-03": {
+          "deletion_id": "d84334083f679dcab69dd7d65708ded3c716d66a48a054513ae90a2e23de24ae",
+          "edited_event_id": "8081dfbe02dfe4eccd5083d2b93dc7e9e8663cfcf4996952d77c843d58e91165"
+        },
+        "g6-lifecycle-BTC-04": {
+          "deletion_id": "97256eeca5a646aaadc046c630ac8b51bfa1cf26458845ca5e7ecec184c2e098",
+          "edited_event_id": "e7be7de448672973cbd091472bfc9fca59904cbb66e0f65ba804e09a6b7afa33"
+        },
+        "g6-lifecycle-BTC-05": {
+          "deletion_id": "9531c431da2c00d12104b48f9387d4b425ee449ddd7289acdbbb11d0d3386499",
+          "edited_event_id": "270a454a9ea71dd6f1aca9c383de3b81a6494342318f45755f39ddb56c474ae2"
+        },
+        "g6-lifecycle-BTC-06": {
+          "deletion_id": "2aafbb23a45e8caa754154f389e823723552ed689edd2379339c95b026a3188d",
+          "edited_event_id": "27efa912c38fa14448d6fea094b595e71d07a96fb93634a471976eeca4859e96"
+        },
+        "g6-lifecycle-BTC-07": {
+          "deletion_id": "c08b16e5ff560d865d2e4abbbf53a1d12f09640bb324c0d72825c91e993ae671",
+          "edited_event_id": "39e3dd9abcbe957766f43b84510e4d4e27e1e77b4189ec24d714f3f2ff1ba1e5"
+        },
+        "g6-lifecycle-BTC-08": {
+          "deletion_id": "7a857357d34b048c7e5b1f9aed94da9bd9404237670bcce6df0cee1a6b3419d0",
+          "edited_event_id": "40d33c1b2c5659ac6bfe6b255de91ce6014861de678cad060a1d0b0c48d326b2"
+        },
+        "g6-lifecycle-BTC-09": {
+          "deletion_id": "dfba3b28a6531a770dbcc2a65917ac93d500ce440488febf253c2dc42b44e3b9",
+          "edited_event_id": "8e0ff5a90e62c784d2959177cfa77c2af0a551f9a1a188a6d1082c2c1cc1a1ed"
+        },
+        "g6-lifecycle-XMR-00": {
+          "deletion_id": "247fbb1b7e69d8877371effde1e5cb9e3472ba1e35448cf8f959078080860d0a",
+          "edited_event_id": "58a244e5ddb22cbecc3cf9779c7a1c9e5d39d1126ae339362e19a285fb3f5e5a"
+        },
+        "g6-lifecycle-XMR-01": {
+          "deletion_id": "d563abb889fcd58593352f7972ba3ddfab04504301c240f650e78e5ae11afbaf",
+          "edited_event_id": "bf108f422e13f33e591e1e2e03581c48bb22c9f5c6f73178bbf9541ebd07022b"
+        },
+        "g6-lifecycle-XMR-02": {
+          "deletion_id": "f41bdc544e60e7b22a98d4326588a1b0993aabcc9b3b4211903488c94ab74a90",
+          "edited_event_id": "296f1b4cbc9b9bfa852ab9ce589f2e72c243a0f24d41d4aed66b43ca912cbcc8"
+        },
+        "g6-lifecycle-XMR-03": {
+          "deletion_id": "67a68ea87680b40e432c1d5b1c4d48d4cc095ee04f0a035e4e0bc328d052330d",
+          "edited_event_id": "d45da39616ddb461edc6669528da5f739be007cf6a0e70ab5bf552bba93a7ea9"
+        },
+        "g6-lifecycle-XMR-04": {
+          "deletion_id": "7ccf7594f04f697505ac272d99f854f8023a5a299be33b149829d8bd0c30ccd0",
+          "edited_event_id": "ec5f0d01c5a8b129e2e219a3e0c67486c1d5372cfd1441afe67df7dfac7150e6"
+        },
+        "g6-lifecycle-XMR-05": {
+          "deletion_id": "45b3023e8755d35093c840b561e234541df8bffcbd144ba7a46271d77faff1d3",
+          "edited_event_id": "28c18df4a97c00d73ba881886ef23be4fbebd4a88f2daf1da9ca83c1d1250da3"
+        },
+        "g6-lifecycle-XMR-06": {
+          "deletion_id": "9d46dac28815917b0771a86591cc79f2f9e29cc7e045c05a22cfe3a7aee5048e",
+          "edited_event_id": "4e305d2152443ce022b72622f6e70aaab94c84da01011c7a4b87ec7eaca394f7"
+        },
+        "g6-lifecycle-XMR-07": {
+          "deletion_id": "ccaaaece099ee9c5207747363d4c88c2c0c5a5568d293143c8f1d85760da9934",
+          "edited_event_id": "37fda6aa9e87cd22cdb9a8e826a21e773ee5b871398b159ffce7735353f8e914"
+        },
+        "g6-lifecycle-XMR-08": {
+          "deletion_id": "d2dd78821d9be56d09f738f58e5e49368e690ebcaadc3cd4a8ef9e6d4655a82f",
+          "edited_event_id": "1aacd5a36e2e97498676bd9d112b775057fd64f7eb6fa41fd4f89c97fad2b71b"
+        },
+        "g6-lifecycle-XMR-09": {
+          "deletion_id": "be9f4b62db8db3fe6f763c7c997aac2fc8021dc39443ac2885d66a0cfcdf0a40",
+          "edited_event_id": "737a4ee199bdf5cbd206947b196c7266f4413fa9af4a13725d4482fbcdefbcaa"
+        },
+        "g6-lifecycle-XNO-00": {
+          "deletion_id": "373eb5c45ff535378a91c4f31b43dc3019dfdc8751755dd55143c272eb029df1",
+          "edited_event_id": "34424353d51e40e21184935eaa3df5ab7dc675636aff8eaf7b140df6fddbb0ba"
+        },
+        "g6-lifecycle-XNO-01": {
+          "deletion_id": "08c68c0805583abeab0af9b985991c4ee3a09cea45d30a36a408a65e3a4f6541",
+          "edited_event_id": "926307d469b4dce40b9b6f0425840cb2cb161962c2f3c314fcd4fcab45a0536e"
+        },
+        "g6-lifecycle-XNO-02": {
+          "deletion_id": "3d051ff8f0d8ce753b717c2c33f30b08131a3ed9110a11d69770b2c9d415bf9d",
+          "edited_event_id": "0b2400a1f5565e00e3305892188d6c8b807b43e00a64d782da9420d0f0e54513"
+        },
+        "g6-lifecycle-XNO-03": {
+          "deletion_id": "1a9d9dde7fdb8e66ab391f80f1bac88e03c3d35abb15764cc4cc45ca7890a150",
+          "edited_event_id": "9c22603733662548f89e15aba75d6f052768d1a5b799632c99591c2b2f67a70b"
+        },
+        "g6-lifecycle-XNO-04": {
+          "deletion_id": "97fe998ed37ab755a13a593196049b3324c7d7e41a5cce03742e5efa8988d363",
+          "edited_event_id": "e07fd5c0ee0a045b1e19860bdb3d2529e332ca4bb55fe9efc6b66dac8f2697a7"
+        },
+        "g6-lifecycle-XNO-05": {
+          "deletion_id": "4656ea44c120e8d5974e759f90c6f69dfe0cf6dbbd741cb936fc09783fda14f2",
+          "edited_event_id": "60220ac526fdceaacd0ba4b4c39873b0f1b9b1abf9e3c4a26c01782ba3e895f9"
+        },
+        "g6-lifecycle-XNO-06": {
+          "deletion_id": "08610e0695ab4e942677ab4bce1b36aa6864e8106d1ee784ad52339cdb8759e7",
+          "edited_event_id": "6ea8e0af7c8cf2da4eea20df765086cdeb5e4d0edd4d17291e3ca82a2052b3a7"
+        },
+        "g6-lifecycle-XNO-07": {
+          "deletion_id": "76cda09357d508710c89ac3640311ed6565a3c3baa12610efc93f628d272dec0",
+          "edited_event_id": "5348160776f682ae03673128586d8256b8cba21197019ae6a2c730c920afe6e2"
+        },
+        "g6-lifecycle-XNO-08": {
+          "deletion_id": "ade9ed446373e5c35a56ed723d46d58a63f96648f11b92b89a9a6f2168b328ed",
+          "edited_event_id": "bd56308f58cddd63c07ddbf042a764e629da882afb2913a7791ca3a7deab9c9f"
+        },
+        "g6-lifecycle-XNO-09": {
+          "deletion_id": "17314369bc121e3d5f7419ecfd1f22f15c7f30976bdfd0940c04765fc2d09a7c",
+          "edited_event_id": "1ede2a894e9a306dc2f9bc8c6b4f0d044dd5beb7c5873d73a7178e89749fafa2"
+        }
+      },
+      "relay_1": {
+        "queried_current_events": 69,
+        "deletion_tombstones": 31,
+        "signed_withdrawals_verified": 30,
+        "active_before_expiry": 31,
+        "active_after_expiry": 1,
+        "current_heads_and_tombstones_agree": true,
+        "signature_checked_by_client_reducer": true
+      },
+      "relay_2": {
+        "queried_current_events": 69,
+        "deletion_tombstones": 31,
+        "signed_withdrawals_verified": 30,
+        "active_before_expiry": 31,
+        "active_after_expiry": 1,
+        "current_heads_and_tombstones_agree": true,
+        "signature_checked_by_client_reducer": true
+      },
+      "relay_3": {
+        "queried_current_events": 69,
+        "deletion_tombstones": 31,
+        "signed_withdrawals_verified": 30,
+        "active_before_expiry": 31,
+        "active_after_expiry": 1,
+        "current_heads_and_tombstones_agree": true,
+        "signature_checked_by_client_reducer": true
+      },
+      "relay_4": {
+        "queried_current_events": 69,
+        "deletion_tombstones": 31,
+        "signed_withdrawals_verified": 30,
+        "active_before_expiry": 31,
+        "active_after_expiry": 1,
+        "current_heads_and_tombstones_agree": true,
+        "signature_checked_by_client_reducer": true
+      },
+      "relay_5": {
+        "queried_current_events": 70,
+        "deletion_tombstones": 31,
+        "signed_withdrawals_verified": 30,
+        "active_before_expiry": 31,
+        "active_after_expiry": 1,
+        "current_heads_and_tombstones_agree": true,
+        "signature_checked_by_client_reducer": true
+      }
+    },
+    "amounts_per_currency": {
+      "BTC": {
+        "created": 20,
+        "edited": 10,
+        "withdrawn": 10,
+        "expired": 10
+      },
+      "XMR": {
+        "created": 20,
+        "edited": 10,
+        "withdrawn": 10,
+        "expired": 10
+      },
+      "XNO": {
+        "created": 20,
+        "edited": 10,
+        "withdrawn": 10,
+        "expired": 10
+      }
+    },
+    "multilingual_browser_journeys": [
+      {
+        "sequence": 1,
+        "language": "en",
+        "currency": "BTC",
+        "offer_id": "13296b54-e22e-439e-9723-9333c2a18672",
+        "title": "G06 en browse contact withdraw 00 83e82d98-fc16-46af-9b95-1381a83d448c",
+        "event_id": "bce4b7d3613fd670f3bb8acbcd539a584f3a5d8fc5b349cf6328dff2b60a2a91",
+        "withdrawal_id": "af8e2e86385b1c05bbcccab745bfebeeeb0a7fac93456f5e268186d9b1646f05",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 2,
+        "language": "en",
+        "currency": "XMR",
+        "offer_id": "114bea04-2814-46e4-a33a-f277ee29d9e5",
+        "title": "G06 en browse contact withdraw 01 7a0af422-2af2-4b87-b261-4f54b81e1598",
+        "event_id": "7b0983fb85f1a31f2177b848ceb5f464b65670f91d962adcb5d30e0e8d4464fe",
+        "withdrawal_id": "ebe7353b67e5f58917ce85aa21e5722c50d4d1ba1ebddb95ecc84736753bb070",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 3,
+        "language": "en",
+        "currency": "XNO",
+        "offer_id": "9c44de37-120c-496e-872d-7b60b4b59eee",
+        "title": "G06 en browse contact withdraw 02 537d8b9f-019f-495b-971f-f0569ac47846",
+        "event_id": "d103332ae02fa0fd7d3b6292eac3ecd4f6326893c842fd6fedd08f5b66b27db0",
+        "withdrawal_id": "9400ac932dbc617a8cfe8405ebb332687e26ca6567d1380b16272f639b3e1a72",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 4,
+        "language": "en",
+        "currency": "BTC",
+        "offer_id": "79f8915d-5dc6-4164-8892-079e23bba8c8",
+        "title": "G06 en browse contact withdraw 03 711f7acd-c428-4189-96f8-4a55304030eb",
+        "event_id": "f3ba6a7930172c74732fa570fbcab078b04277b1f0bf0775bcafa519f34f57e7",
+        "withdrawal_id": "33a580153204a7e5f067998aae5638b295710049173fb691bb95885ff912c379",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 5,
+        "language": "en",
+        "currency": "XMR",
+        "offer_id": "2a87499d-641e-4831-9ff7-f1736b31bf9c",
+        "title": "G06 en browse contact withdraw 04 a7b9899f-c0a2-4713-a510-17ce9ce8e08f",
+        "event_id": "cca46b38332eb5b2540b3a38e688b97cfa2a7b311fca1d70dc14035b732b8409",
+        "withdrawal_id": "91867784c2c481585b476d944ad65f058d69d8c9418746dfadb5a4f5c5877efd",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 6,
+        "language": "en",
+        "currency": "XNO",
+        "offer_id": "0c903f3c-aa19-4916-a81c-f9172b08ad91",
+        "title": "G06 en browse contact withdraw 05 b3c496e1-20f4-473e-b4be-f2fd0267fbe1",
+        "event_id": "071ff17dc05a29106b02fd0ba7affeb54640146586f938098c7d0775c093412e",
+        "withdrawal_id": "ef9bc0af8be456af88baa4df539d42b9f542a2f8407c76f7bea428c5cef08961",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 7,
+        "language": "en",
+        "currency": "BTC",
+        "offer_id": "5d0b0bc8-6afc-4df6-950b-15e02e112939",
+        "title": "G06 en browse contact withdraw 06 8004c87b-0cb7-4481-b255-4b9071adfd31",
+        "event_id": "05d6140c203369688048977852618d081e4f366980876f282bbd8632764df008",
+        "withdrawal_id": "3fd9789362651a03b1c02724bcc258b91ec5d5fcf79a99e305f447ea772e69e8",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 8,
+        "language": "en",
+        "currency": "XMR",
+        "offer_id": "469375da-e559-4ed5-8ca9-7e45828842d9",
+        "title": "G06 en browse contact withdraw 07 02ea43a0-1ec6-4561-8392-ebbac0486adc",
+        "event_id": "55ffd723c9faf784ef5a17a57faee98d6a87150c32c2134d18d200b6ebfee974",
+        "withdrawal_id": "0a4559c2601ea58cad177f1a38322572f1632725a99e7d798b3a792468ee5506",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 9,
+        "language": "en",
+        "currency": "XNO",
+        "offer_id": "f4514790-7c1b-4122-a384-d5709a52670b",
+        "title": "G06 en browse contact withdraw 08 d23d1b89-d6f3-42af-9013-8f72fbe90d2b",
+        "event_id": "de0ecb5e96489464e191ea49a0b7e8129798cd3e065f717409cbd69eef2a44a8",
+        "withdrawal_id": "738d8279c4a043b5a61cfd55d69afa74cbff639384282cbc8f7700353235203a",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 10,
+        "language": "en",
+        "currency": "BTC",
+        "offer_id": "376c4513-5043-458c-aa3f-2de9333cafd4",
+        "title": "G06 en browse contact withdraw 09 7d8e368d-5eb2-404a-899e-aa2803b52e9d",
+        "event_id": "305e821e3b4e552e7351d9f87a8fae287e0558c8a18e70e4a96600300d649cdb",
+        "withdrawal_id": "f41b2147c2fb87bc97f8759546d5d636299e4d74cef0bed0a86fd902c3c3f7fe",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 11,
+        "language": "en",
+        "currency": "XMR",
+        "offer_id": "7cf551bb-7fb3-43d6-b72c-b099ccba1baa",
+        "title": "G06 en browse contact withdraw 10 396d7619-64ea-41c7-afe3-ead1390ff64d",
+        "event_id": "ba409e049faf21401e11bf35a6bcb08f07033bc7fc49478fe9b7819fd9da13c8",
+        "withdrawal_id": "874dc66e9f70746b79eb236aa11ac5616afd83f7154920c20c7b0c7b0c3e338f",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 12,
+        "language": "en",
+        "currency": "XNO",
+        "offer_id": "29730952-6c58-407c-96a1-e3f558aa1e5f",
+        "title": "G06 en browse contact withdraw 11 c6465a55-3df9-4bf0-aba9-a94678029bf2",
+        "event_id": "ef7644d205e862970cca0af406cff9b402df95c0ca8754b53245b59f274532e2",
+        "withdrawal_id": "ca1082658bec13e824970039db67ea9178439833457dd3fa799374457693348f",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 13,
+        "language": "en",
+        "currency": "BTC",
+        "offer_id": "84c8f21d-d791-461f-8beb-c4e0d707b90c",
+        "title": "G06 en browse contact withdraw 12 33c15487-60f7-4bba-8320-87a6e7ae5ba9",
+        "event_id": "b7782d2718d58ac74107e9cbf6a8806d91be1111b49dfe8ebdf6c0762cc80f10",
+        "withdrawal_id": "15fcbc2c756f2a27b383eb05cb3cd546c61db0a9b189eb4f7918b89c6515005c",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 14,
+        "language": "en",
+        "currency": "XMR",
+        "offer_id": "bbf771ff-1f0b-42b5-aef2-5e23383e4138",
+        "title": "G06 en browse contact withdraw 13 652351bc-d191-4c8a-8374-f19cf593e45d",
+        "event_id": "4e4700c0d25277f909f6cb08b298b9bfc5c86a9fba3e7bcd2978206cd528d722",
+        "withdrawal_id": "0c6f299bbf09cfd965050d7a7296426cd223a056c987d7d3c16c04bcc06b7281",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 15,
+        "language": "en",
+        "currency": "XNO",
+        "offer_id": "65d47778-4813-438e-8077-e7db352e0af5",
+        "title": "G06 en browse contact withdraw 14 4383e3be-9d26-4e49-bdac-1c4395f63b5f",
+        "event_id": "333b9f79ccbc68605acc435842e98cf1f69844b76b63b826614aa3e54179ee7c",
+        "withdrawal_id": "a18d4f77b47b2747b3132e30d521bd5a89ec26138d3c8d6f806011cad4e79454",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 16,
+        "language": "en",
+        "currency": "BTC",
+        "offer_id": "b7abb9f2-3a0c-473c-a483-66ea8996bf7c",
+        "title": "G06 en browse contact withdraw 15 d9f8853b-db87-41b8-a821-ada27a5fecf5",
+        "event_id": "dabe3adc8d0d3b8fcfe1d3967207865b1f6e57815c42fbd15a93ffddf61ad8ff",
+        "withdrawal_id": "0635712a73898a147c0f38587b6066c0ac7d6725c29c3052d90cf0807a820cd8",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 17,
+        "language": "en",
+        "currency": "XMR",
+        "offer_id": "b837e135-ffe8-485b-9eba-51cf5ffdbab1",
+        "title": "G06 en browse contact withdraw 16 03e97bb2-cc66-43f5-8410-f8798c0394c7",
+        "event_id": "6732de3e03b9e8470585f9ecd11fbda27a00dcc009e84ca42131c911bd66121e",
+        "withdrawal_id": "f0908081991ce76efc1ce4b33645bacc0e2769a5a5cfaa732cc809a275e9c2cd",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 18,
+        "language": "en",
+        "currency": "XNO",
+        "offer_id": "50417fac-46ca-4278-94ed-1a491756922e",
+        "title": "G06 en browse contact withdraw 17 2787aac4-b208-449f-9096-89f08648f9b4",
+        "event_id": "7444104b398c8dcc44e43e877ef734b807dedf1c5747e5cf3da0c244548bc607",
+        "withdrawal_id": "b056122f81497ab5989cffee21141fa418f8273ea2d06baa99fd4341f000193b",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 19,
+        "language": "en",
+        "currency": "BTC",
+        "offer_id": "1da7d89f-7cd1-4757-81a2-60c8df550a39",
+        "title": "G06 en browse contact withdraw 18 3f2ddf03-cf60-4826-ac1a-5e8eabdd4576",
+        "event_id": "19307715b81980368af54bc23b1341cfb5dcff09772cec453052863668c7bbc4",
+        "withdrawal_id": "6bcea0a917cff65ecbc42eab824b8b530cbd4e8398bad97f45277280b64da0c5",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 20,
+        "language": "en",
+        "currency": "XMR",
+        "offer_id": "74a4d3c7-1a60-46ba-8a18-06fa68ea4abc",
+        "title": "G06 en browse contact withdraw 19 9533039c-b7ca-43d2-8db8-bf3ce30803ba",
+        "event_id": "7327f3a24b124ff643d5f30b44792ddb6765193d7e1b79a11ccbd10456343916",
+        "withdrawal_id": "1c04a7f56a0f89b980859f13fa525178545e928dd0162d1255ab1aa227604310",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 21,
+        "language": "en",
+        "currency": "XNO",
+        "offer_id": "90be4999-2b1d-4382-bb30-5bc720098155",
+        "title": "G06 en browse contact withdraw 20 a1e1955e-b747-4a7a-83f3-6448df477e42",
+        "event_id": "6991d41751c39b0fd199cb407b4790b1c169a6c6728764b54c5c159a9f57a16e",
+        "withdrawal_id": "5be7ba9b1d081fda84bce4e095e70b3e8327d3e18eb1cc675db8fdd4b1b71748",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 22,
+        "language": "en",
+        "currency": "BTC",
+        "offer_id": "12932afc-1606-4615-8072-c7555a995acd",
+        "title": "G06 en browse contact withdraw 21 933c9036-efcd-409f-8f88-f07f134267e3",
+        "event_id": "ce34b4c51e8d25a675a134c9f33d659587c158ac8b44a62ce12aeb08bed1187a",
+        "withdrawal_id": "025e42b9ddc8ee88275cfa45fcdc9f98ed5af0acba859bdf2107df12f9680373",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 23,
+        "language": "en",
+        "currency": "XMR",
+        "offer_id": "f8d313ce-6afa-4da5-9aea-1698ca647891",
+        "title": "G06 en browse contact withdraw 22 948d5c93-d787-4255-a262-67129b2d5b97",
+        "event_id": "9aeec3ac1e4c073f559c0b8738fdd12c5cdcbaecbbb51a0d280932b7d3804db5",
+        "withdrawal_id": "a262e5f539aaa50d3c90d225c7d774d71824e8df8abef0aef48371c930a403f6",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 24,
+        "language": "en",
+        "currency": "XNO",
+        "offer_id": "9fe4cac6-3bec-45e1-99b5-48b142c06edc",
+        "title": "G06 en browse contact withdraw 23 bd454e93-f903-4599-a964-5a812aeefaa3",
+        "event_id": "f278db3e1a6209434b7fbadf22cc58705f6b2c21f47a679a68126045b3c4f65e",
+        "withdrawal_id": "14c50a7f327d7f10686f5f0cc9f532421fab135aea8c5148a536863bde2a061e",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 25,
+        "language": "en",
+        "currency": "BTC",
+        "offer_id": "9c4b2f69-d8aa-4a20-8344-dfa69dd49500",
+        "title": "G06 en browse contact withdraw 24 11382735-2e15-4474-b632-04c85402c4b6",
+        "event_id": "0bdb43cb54f4ac6de16a8f9ee353a4920f04e165daebb1753277f260e7fb6222",
+        "withdrawal_id": "6ee9f62c9374207f30fab672b2110b0834ed74068e250cba3de8061c52c25318",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 26,
+        "language": "pt-BR",
+        "currency": "BTC",
+        "offer_id": "19cfc872-d6c7-4dc1-a312-9e4739c0c587",
+        "title": "G06 pt-BR browse contact withdraw 25 4cf08d1f-3796-424a-b6e8-8b2b2ba8b81a",
+        "event_id": "82470c3cfac98febb138cb3e95a97f414432cdc13bce3c57edef510be0b0e629",
+        "withdrawal_id": "676f59853398688893ab5978742c7e348905f6582b302d8f4c019760a856ce84",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 27,
+        "language": "pt-BR",
+        "currency": "XMR",
+        "offer_id": "30ad193a-a89c-4fab-9cb4-580f029c5476",
+        "title": "G06 pt-BR browse contact withdraw 26 c49ab64f-661f-4ad4-8f6d-a2cca4c3c0c7",
+        "event_id": "6887d015e2a917a48f6191682d705c643c1fb0b14f57da8eb0d015b54b68ebf5",
+        "withdrawal_id": "073cc0fc284cda290a0bd044f3e81bef5d9495257a54af04322236ff992267ab",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 28,
+        "language": "pt-BR",
+        "currency": "XNO",
+        "offer_id": "90c1410b-85b9-40b8-9e7d-82806c106eca",
+        "title": "G06 pt-BR browse contact withdraw 27 72be00a0-7f53-431d-864c-d4dbd42fa0a6",
+        "event_id": "cc1a0127e02c91cff6093b940b09c12ac573034e8bbc0d042691bdd204cfa134",
+        "withdrawal_id": "ae1141db60a892ce1aba8f7cd4164d21c57cbdb3a9b8e80ac5ad67c5cec1993a",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 29,
+        "language": "pt-BR",
+        "currency": "BTC",
+        "offer_id": "949aece6-8055-4d0a-8c5a-b55136aa9e90",
+        "title": "G06 pt-BR browse contact withdraw 28 58c64329-ce2b-4c56-a069-bf1772ae1eee",
+        "event_id": "da343e3aaefc36f5966c6049256568ec73cdc4c763dbd83179c5772f8d3a7057",
+        "withdrawal_id": "c01b0ed3de1d9d74620e5faf451be2b96f4e6a8121ce79e1b6fdd08e1860be18",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 30,
+        "language": "pt-BR",
+        "currency": "XMR",
+        "offer_id": "8cc775fb-c5be-4f0b-95f8-f98ff02f37d5",
+        "title": "G06 pt-BR browse contact withdraw 29 3f0ae198-d2d2-4e58-8d86-ef5e2b0349ed",
+        "event_id": "68605af75d740b3e0c48aa8590b06741957f8b6c656bf434ed27f72f3db1bc4e",
+        "withdrawal_id": "5731109a14a199e5c615692a7dc0d3262f99bf4292cd5fe4bb7c3d6669642a34",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 31,
+        "language": "pt-BR",
+        "currency": "XNO",
+        "offer_id": "25792c46-715e-49a4-a152-20f2416ac00f",
+        "title": "G06 pt-BR browse contact withdraw 30 c2094aee-b3f8-437a-88ec-64865d720888",
+        "event_id": "f27e282bc5e3f4ee6bfc1128392fd63c112ce7919af8b09eb7646e6da58862ef",
+        "withdrawal_id": "d458a24f44cf4e9bae8b2fcbbe507335743ca3ed34f6e55b2703078aacaa6864",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 32,
+        "language": "pt-BR",
+        "currency": "BTC",
+        "offer_id": "6a0d771f-7909-4ebe-b852-a8ad43e7ca83",
+        "title": "G06 pt-BR browse contact withdraw 31 45ff511c-50ca-4c2d-a943-d1beea3e2a12",
+        "event_id": "fffe26be0d989c3bf242a4bf55f1575a9a244dfc1598eff9d380400adb7cd140",
+        "withdrawal_id": "36bfbe4f3e2a721d1d981113ce4386a5ca0dce788bb0de08861cbe20f4f13d19",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 33,
+        "language": "pt-BR",
+        "currency": "XMR",
+        "offer_id": "9c42f920-e509-4d8f-9845-c0f1f2895db2",
+        "title": "G06 pt-BR browse contact withdraw 32 085e4d05-3318-4844-806b-04608857347a",
+        "event_id": "46c0215a35bc43061523ec804545d7af859805f64a83d1a84a6f5d31ec94188d",
+        "withdrawal_id": "a453f0a099e0c9d2b01b79a51750b86511081c45570911fd7c83e8b05564c9a1",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 34,
+        "language": "pt-BR",
+        "currency": "XNO",
+        "offer_id": "da2be756-7ea1-4c58-82d5-d0213415514f",
+        "title": "G06 pt-BR browse contact withdraw 33 10c5e3ab-7792-417a-b35d-aac39fff1199",
+        "event_id": "20fdad03cb93d2c181d1fc2915f23fac659a748b1ce59d0ab6079f99bef6e2a2",
+        "withdrawal_id": "69a70ab764b019b3cbe650f133287945697598614c6589611f15f582835bc4bb",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 35,
+        "language": "pt-BR",
+        "currency": "BTC",
+        "offer_id": "c41cfba3-3e50-4553-b8fc-e0acd2f7f7c3",
+        "title": "G06 pt-BR browse contact withdraw 34 9ea5153e-99ac-4575-8079-97fe1a5b35ad",
+        "event_id": "24276391924cc7841d21ac7d1096c21bb56aa3827a7f58b82857062a500135ed",
+        "withdrawal_id": "951f7c7ec72c370407a5eda8733baee7d3632fb820c2abb24ad3a72ce4f1eca0",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 36,
+        "language": "pt-BR",
+        "currency": "XMR",
+        "offer_id": "b35a794d-4e29-4db3-85af-2836094a67fa",
+        "title": "G06 pt-BR browse contact withdraw 35 c8f1e635-f1c1-45d0-97cf-51f804d36b27",
+        "event_id": "10c92e2d9116c02d0fdf3aa5b04ef4a5f96de6a4e80fd16b4d174800f8b0128b",
+        "withdrawal_id": "c03e59ff04199fb2e7e46652ce6e1467b26ee44a726cce561ce772ca85f561ef",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 37,
+        "language": "pt-BR",
+        "currency": "XNO",
+        "offer_id": "0b773804-0e3f-4caf-accc-07ae1853c321",
+        "title": "G06 pt-BR browse contact withdraw 36 48b4e374-886c-4b7c-967e-aa0c0d62f85e",
+        "event_id": "ef82bdf9bf468ae2e1635fc1cb7e6a9e30dc3e26dee1080798b9ee33a5b5713e",
+        "withdrawal_id": "dbf5e1bdbfb6bd5cd83688e96005783f586f3a607e4fcbb66ea12a7f2e930b6a",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 38,
+        "language": "pt-BR",
+        "currency": "BTC",
+        "offer_id": "0ba4141a-1c23-4cc3-a80c-53b2384a0155",
+        "title": "G06 pt-BR browse contact withdraw 37 d5f8e3f3-b44e-4751-930a-c25a482dbb05",
+        "event_id": "b2ce81cfe652f1df904fcdc5a9a02eaf7055b7a7111e671804a528dc140cd14f",
+        "withdrawal_id": "56e219d075cbd632908e0fe2a890179fc63e2965824dc93ceca343b1fd43be71",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 39,
+        "language": "pt-BR",
+        "currency": "XMR",
+        "offer_id": "9b53287f-57c8-4e82-b0e5-775c8514d8aa",
+        "title": "G06 pt-BR browse contact withdraw 38 56f8b396-0868-434c-8fd9-51013212878d",
+        "event_id": "d35f5c080aa5fc7cef67cd02e946e9b93f63986c56a73fc670243a194d36f5d9",
+        "withdrawal_id": "b9a0a05c1aea104ad8c23c304cdee122dd2979c940bc0379bea1cf92380350fb",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 40,
+        "language": "pt-BR",
+        "currency": "XNO",
+        "offer_id": "dad148cb-9178-4e04-8025-394a56b45823",
+        "title": "G06 pt-BR browse contact withdraw 39 60ac62d1-aa7f-43e3-9aeb-dc71bb0225c1",
+        "event_id": "2d1afab3400640fe95c8f6947833e1f531873fd986f1576b54bba3b13a88a068",
+        "withdrawal_id": "748bf309e3605c1837de8eac94a355007f0a71ef080bca008cb528bc04a63993",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 41,
+        "language": "pt-BR",
+        "currency": "BTC",
+        "offer_id": "2090df1a-695d-464a-b41c-4eb54847e0c1",
+        "title": "G06 pt-BR browse contact withdraw 40 910e3bc5-0688-4ce7-b30b-413bf7de65c3",
+        "event_id": "bcce81872910c96120cda2c4c919afc9f5b1093438ef4225962bcae94f3d4075",
+        "withdrawal_id": "aeedeacd845a29236b6a1f83eaf9636fe06be86ed68a130d12909c18357a167f",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 42,
+        "language": "pt-BR",
+        "currency": "XMR",
+        "offer_id": "a23b4781-dea3-439c-8e07-3e1888d3329f",
+        "title": "G06 pt-BR browse contact withdraw 41 4d3e1182-f567-41c7-9dd1-2d43c14a069c",
+        "event_id": "f2d6525027136e14bf9c944bc56ee12a994985773912694224755c762742d870",
+        "withdrawal_id": "98c0cba513c39e7abb6471487059ccf184e9f1a927e6e0d44e97cf0379ae55dd",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 43,
+        "language": "pt-BR",
+        "currency": "XNO",
+        "offer_id": "210242d5-ab3c-47e2-aeff-4ea6264d54d7",
+        "title": "G06 pt-BR browse contact withdraw 42 57b7a307-2291-49c6-aad9-e9232a99af83",
+        "event_id": "f704c918ad429ca7ccd1684d2fd6df8e75c74faa17e45ee4adc027fdbaf8a1c9",
+        "withdrawal_id": "9ef7dfcbe16c655abb68380a5dfdbd6c4a3c341d447a6b189136bc02cee12aed",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 44,
+        "language": "pt-BR",
+        "currency": "BTC",
+        "offer_id": "088c9386-cd50-498f-8530-c01b59e0bf07",
+        "title": "G06 pt-BR browse contact withdraw 43 d62e8f1f-efae-47c3-aa04-34a5ed248599",
+        "event_id": "89382313964b03b3e5742c3928efb3d3df0ea6490af408a5a36b81c8b781b2a1",
+        "withdrawal_id": "a314846a4e0a1c10115fd268acc9ae96f16842d3ec6b2f60088589c4b9d00918",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 45,
+        "language": "pt-BR",
+        "currency": "XMR",
+        "offer_id": "9406f89e-646d-40a1-ba8b-8d77aefa4838",
+        "title": "G06 pt-BR browse contact withdraw 44 f02d6479-0350-4aac-9bd2-74ea0fa4877d",
+        "event_id": "0a80203760971088e6b374df4d31af64ef9eac3fe0ceed3363d2f5e90625613c",
+        "withdrawal_id": "6a8d941fe1992234b4ae5229a0b5c02f82dfba0557157e660f83c0e0f6ab964b",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 46,
+        "language": "pt-BR",
+        "currency": "XNO",
+        "offer_id": "e7d1eb30-254a-4f3b-baf0-59e05d7c27b9",
+        "title": "G06 pt-BR browse contact withdraw 45 c3c1ee02-274c-4f23-84b0-512890d525c4",
+        "event_id": "a7712f3449058d838d61615fee7d1a507ef348fef706d7dd23b1b5997f388367",
+        "withdrawal_id": "9715dfc5c4aabb7ae39cd2a71e9ab917c5535f4795dbe593708c3e1ecf25bae1",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 47,
+        "language": "pt-BR",
+        "currency": "BTC",
+        "offer_id": "f40c7a0a-0be5-443d-bda4-82427a2e4637",
+        "title": "G06 pt-BR browse contact withdraw 46 5ed705ea-b90b-4e39-8be9-425be88ad4dd",
+        "event_id": "a39d8ddb483bdc784d490be6c6ef6f0214604b80bd8538db72d45207dcd0ca92",
+        "withdrawal_id": "1b9e8b9ad0de5bf5ba71850462b427ade769dea851e6f32e6c129a9e0d819a96",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 48,
+        "language": "pt-BR",
+        "currency": "XMR",
+        "offer_id": "ce1c7fe8-2830-47f9-8dd3-cd3806fd2401",
+        "title": "G06 pt-BR browse contact withdraw 47 6bdb9e97-1534-42d5-9e57-9af0cdf6ceeb",
+        "event_id": "0c0718f0cba1b826de6dd9671c3c31e2982a775a676a8cc3d23d3465d44f93ef",
+        "withdrawal_id": "9a9b83e2eae9809fc889c4e6839dc749f45fb0dfea07c963afb93abc5d31081d",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 49,
+        "language": "pt-BR",
+        "currency": "XNO",
+        "offer_id": "99721d7f-0890-48e7-b5b5-15cd4668e5d6",
+        "title": "G06 pt-BR browse contact withdraw 48 fd9242fc-c08b-4a64-843c-ce8580c3a2e0",
+        "event_id": "2a1cc80901c959fbf28980327aceb27749eaf39527a99eddf59240436f807bee",
+        "withdrawal_id": "3958c8a885b645230bf257eb2babc0d0f5dfc7877ed5b84835d9e9262f6df762",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 50,
+        "language": "pt-BR",
+        "currency": "BTC",
+        "offer_id": "e3b68d95-c44d-4eb1-8abc-e067e20673b5",
+        "title": "G06 pt-BR browse contact withdraw 49 8076f08f-2b5d-483b-ab32-99cf70bcf7b3",
+        "event_id": "62e137ed3b9ae37a2ad420fe724aaf655d00ab4bb9f9b4a90f3721d68a7e1c2d",
+        "withdrawal_id": "60a68fd5ac99c3405a1cbf195842ac899d3e1bf9116b12f95259a583aaa84770",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+        "private_message_sent": false,
+        "paid_claim": false
+      }
+    ],
+    "browser_journey_count": 50,
+    "languages": {
+      "en": 25,
+      "pt-BR": 25
+    },
+    "public_private_labels_clear": true,
+    "contact_did_not_publish_message": true,
+    "withdrawal_events_signed": 50,
+    "false_paid_indicators": 0
+  },
+  "deletion": {
+    "seller_signed_withdrawal_id": "e39a37501be1835e43ed1d1f0c81d02511285c8881019da988ead658d2040d3f",
+    "seller_withdrawal_signature_valid": true,
+    "old_copy_replayed_to_R5_after_tombstone": true,
+    "tombstone_removed_prior_copy": true,
+    "replay_ack": {
+      "accepted": false,
+      "message": "Error code: 1811, message: blocked: a deletion event exists"
+    },
+    "relay_product_copies_after_withdrawal": [
+      {
+        "id": "d265d84e5103d32df4a226727a9a8fead6f80fb7e16f919659a3c31cf54f2c0e",
+        "d": "77f28272-1ce7-4053-b002-22a4ab12c0f9",
+        "name": "G06 one raw 55e9f574-7fa2-45bf-9403-b90d0949421d"
+      },
+      {
+        "id": "e61b35f968d13904cbbea26ccfc2ded3c026d5b8a91f7b531c6cbe37ee80d155",
+        "d": "26a63124-58f3-4cc9-889c-082fda1a7f8f",
+        "name": "G06 one piconero 01d38d50-5f28-4cb9-a9aa-b3cad1770b8e"
+      }
+    ],
+    "active_names_after_withdrawal": [
+      "G06 one raw 55e9f574-7fa2-45bf-9403-b90d0949421d",
+      "G06 one piconero 01d38d50-5f28-4cb9-a9aa-b3cad1770b8e"
+    ],
+    "old_copy_did_not_resurrect": true,
+    "unauthorized_deletion_id": "f8e1957b965045a12798d7ee3e1f55ed06d76880c380959c42f2437af2f644a3",
+    "unauthorized_author_could_not_withdraw": true,
+    "earlier_timestamp_deletion_fixture_id": "4e30820e1882c855f5bee5610ec155890552fb2bd9d978a44efb3047c81fd4e2",
+    "client_ignored_older_deletion_timestamp": true,
+    "relay_unmodified_by_older_deletion_fixture": true
+  },
+  "security": {
+    "time_fixture_relay_acks": [
+      {
+        "id": "5abb5e4ef6e724ebe0ff43b90b3cc00c0320b1fca99fceccdc57dff8f779330d",
+        "accepted": true,
+        "message": ""
+      },
+      {
+        "id": "198370e4ca249c00a665cd57a815056c7c6cf043f2f2db1a56789fa9dcb12d39",
+        "accepted": true,
+        "message": ""
+      }
+    ],
+    "fixture_relay_acks": [
+      {
+        "id": "c487c0624c8d977dd18be402cde8b1e980e07467bfc60fedad26a070199a251a",
+        "accepted": true,
+        "message": ""
+      },
+      {
+        "id": "8a9bdcf73ab287e24341336b0dc82b9415af3e5fe194377011d8beb30942d082",
+        "accepted": true,
+        "message": ""
+      },
+      {
+        "id": "2e679f6f661267ce03636bec82e2863b292ba422e84e7306768d6ca2db4980a9",
+        "accepted": true,
+        "message": ""
+      },
+      {
+        "id": "ca647ce10f66f84869175b660544553cf0022b115a873e3e7689e9a7cebe6fe0",
+        "accepted": true,
+        "message": ""
+      }
+    ],
+    "expired_event_rejected_by_expiration_tag": true,
+    "future_timestamp_hidden": true,
+    "unknown_currency_hidden": true,
+    "malformed_content_hidden": true,
+    "duplicate_address_tag_hidden": true,
+    "unsafe_http_image_not_linked_or_loaded": true,
+    "injected_html_rendered_as_text": true,
+    "script_execution": false,
+    "unsupported_currency_submission_blocked": true,
+    "excess_precision_submission_blocked": true,
+    "overflow_submission_blocked": true,
+    "invalid_submissions_published": false
+  },
+  "contact": {
+    "target_pubkey": "db6bc5d9de8dd3e5a8c96179586f97e1455ba3738859873ed2963f3264dca6c1",
+    "target_npub": "npub1md4utkw73hf7t2xfv9u4smuhu9z4hgmn3pvcw0kjjclnyexu5mqsm4hr4d",
+    "offer_price_preserved": true,
+    "event_ids_before_and_after_equal": true,
+    "checkout_or_payment_event_created": false,
+    "private_message_sent": false,
+    "nip15_draft_notice": "NIP-15 is a draft protocol marked as not recommended. The MVP lets you publish, edit, and request removal of offers; it does not process payments or provide custody. The payment rail is a seller declaration, not verified wallet ownership or proof of payment."
+  },
+  "browser": {
+    "playwright_version": "1.64.1",
+    "playwright_package_sha256": "d62da330118d0d7629f7df088a5b8226c9bae1c5c44bb36d6836e84ddc974464",
+    "browser_version": "153.0.8010.12",
+    "browser_executable_sha256": "8c599d43aec53f2460a31ae2f4af6bd863f8258b34ff519564bc5d4726bfaa1e"
+  },
+  "local_origin": "http://127.0.0.1:35913",
+  "identities": {
+    "seller_pubkey": "db6bc5d9de8dd3e5a8c96179586f97e1455ba3738859873ed2963f3264dca6c1",
+    "buyer_pubkey": "98c0d3e753959444e41e243b52472db44a866a31b4a8c094f34803371f837a04",
+    "bridge_pubkey": "a4a0c3b18026313fb6eeaa2a2a5cb3fa0208a041b81e70184d0bb9662eeb2e71"
+  },
+  "result": "PASS"
+}

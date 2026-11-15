@@ -8,7 +8,9 @@ fi
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
-SCRATCH_BASE="$REPO_ROOT/property/docs/evidence/offline/.scratch"
+# Chromium creates a Unix-domain singleton socket below TMPDIR. Keep the
+# private scratch path short enough to stay within Linux's sockaddr length.
+SCRATCH_BASE="/tmp/property-offline-scratch"
 mkdir -p -- "$SCRATCH_BASE"
 chmod 700 "$SCRATCH_BASE"
 SCRATCH_DIR="$(mktemp -d "$SCRATCH_BASE/run.XXXXXX")"

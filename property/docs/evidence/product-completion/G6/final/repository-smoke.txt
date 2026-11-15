@@ -1,0 +1,937 @@
+
+== money-smoke.mjs ==
+PASS: BTC/satoshi, XMR/piconero e XNO/raw exatos, limites, precisão e rejeição de moedas/unidades inválidas
+
+== payment-card-smoke.mjs ==
+payment-card: exact currency amounts, strict network labels, readable round-trip and hostile input checks passed
+
+== payment-uris-smoke.mjs ==
+payment-uris: BTC/BIP-321 and Monero payment messages retain supported fields including 16-hex payment IDs; unsafe or incomplete URIs fail closed
+
+== nano-units-smoke.mjs ==
+PASS: XNO/raw exact integer conversion, 1 raw/1 XNO boundaries, comma decimals and invalid inputs
+
+== marketplace-smoke.mjs ==
+PASS: marketplace BTC/XMR/XNO exatos, edições addressable e conflito simultâneo, exclusão NIP-09, expiração e validação de listagens
+
+== offline/marketplace-g6-fixed-count.mjs ==
+{
+  "gate": "G6",
+  "suite": "marketplace-g6-fixed-count",
+  "result": "PASS",
+  "network": "signed synthetic fixtures; local reducer; no relay, wallet, or public network access",
+  "amount_vectors": {
+    "BTC": {
+      "total": 100,
+      "valid_round_trips": 50,
+      "rejected_atomic_values": 50,
+      "maximum": "2100000000000000",
+      "zero_supported_as_free_offer": true
+    },
+    "XMR": {
+      "total": 100,
+      "valid_round_trips": 50,
+      "rejected_atomic_values": 50,
+      "maximum": "18446744073709551615",
+      "zero_supported_as_free_offer": true
+    },
+    "XNO": {
+      "total": 100,
+      "valid_round_trips": 50,
+      "rejected_atomic_values": 50,
+      "maximum": "340282366920938463463374607431768211455",
+      "zero_supported_as_free_offer": true
+    }
+  },
+  "lifecycle": {
+    "per_currency": {
+      "BTC": {
+        "created": 20,
+        "edited": 10,
+        "withdrawn": 10,
+        "expiring": 10
+      },
+      "XMR": {
+        "created": 20,
+        "edited": 10,
+        "withdrawn": 10,
+        "expiring": 10
+      },
+      "XNO": {
+        "created": 20,
+        "edited": 10,
+        "withdrawn": 10,
+        "expiring": 10
+      }
+    },
+    "synthetic_offer_events": 121,
+    "relays_simulated": 5,
+    "active_before_expiry": 31,
+    "active_after_expiry": 1,
+    "unrelated_offer_preserved": true,
+    "all_five_states_converged": true
+  },
+  "conflicts": {
+    "same_author_equal_time": 20,
+    "cross_relay_out_of_order": 20,
+    "deterministic_rule": "newer created_at; on tie lexicographically lowest event id"
+  }
+}
+
+== campaigns-smoke.mjs ==
+PASS: campanhas assinadas, raw exato, URLs/imagens limitadas, expiração, bloqueio local e limite de exposição
+
+== campaign-engine-smoke.mjs ==
+{"gate":"G1-campaign-integration","result":"PASS","network":"offline-local-fixtures-only","funds_used":false,"duplicate_offer_decisions":50,"duplicate_payment_reconciliations":50,"duplicate_refund_requests":50,"published_campaigns_after_replay":1,"refund_calls_after_replay":1}
+
+== ledger-rpc-smoke.mjs ==
+PASS: Nano v28 open/state history, normalized history fallback, and string confirmation values reconcile exactly.
+
+== protocol-contract-g1.mjs ==
+{
+  "gate": "G1",
+  "result": "PASS",
+  "counts": {
+    "event_families": 8,
+    "vectors_per_family": 100,
+    "valid_vectors_per_family": 50,
+    "invalid_vectors_per_family": 50,
+    "total_event_vectors": 800,
+    "malformed_inputs_per_family_parser": 100,
+    "total_malformed_inputs": 800,
+    "duplicate_copies_per_family": 50,
+    "reordered_batches_per_family": 50,
+    "atomic_currency_boundaries": 3
+  }
+}
+
+== protocol-smoke.mjs ==
+PASS: NIP-17 wrap/unwrap, recipient isolation, kind-10050 inbox routing, local AES-GCM, vendor hash
+
+== message-edits-smoke.mjs ==
+PASS: NIP-17 message edits, private wrappers, out-of-order delivery, and relay-order convergence.
+
+== message-deletions-smoke.mjs ==
+PASS: private NIP-17 message deletion, recipient isolation, author binding, attachment clearing, duplicate rejection, and out-of-order tombstones
+
+== message-pins-smoke.mjs ==
+PASS: private NIP-17 shared pins, recipient isolation, group fan-out, and deterministic unpin convergence.
+
+== typing-signals-smoke.mjs ==
+PASS: encrypted NIP-59 activity and call signals enforce expiry, direct recipients, validated SDP and bounded ICE restart metadata
+
+== call-controller-smoke.mjs ==
+PASS: WebRTC calls cover ICE restart negotiation, media selection, screen sharing and cleanup
+
+== ice-servers-smoke.mjs ==
+PASS: bounded ICE URLs, TURN credentials, encrypted local identity-bound settings, and fail-closed relay-only routing
+
+== call-window-smoke.mjs ==
+PASS: Ghostly-style call mini-window toggles, stays within viewport bounds, and releases pointer handlers.
+
+== chess-controller-smoke.mjs ==
+TAP version 13
+# Subtest: Property chess protocol has a domain-specific identity and rejects oversized or malformed input
+ok 1 - Property chess protocol has a domain-specific identity and rejects oversized or malformed input
+  ---
+  duration_ms: 4.314049
+  type: 'test'
+  ...
+# Subtest: Property chess colour toss is deterministic and independent of participant order
+ok 2 - Property chess colour toss is deterministic and independent of participant order
+  ---
+  duration_ms: 3.014944
+  type: 'test'
+  ...
+# Subtest: two offline Property clients establish, exchange a legal move, and recover their saved board after reopening
+ok 3 - two offline Property clients establish, exchange a legal move, and recover their saved board after reopening
+  ---
+  duration_ms: 17.644925
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 38.948641
+
+== app-directory-smoke.mjs ==
+PASS: built-in app chat picker exposes only unique, valid one-to-one human conversations and fails closed on invalid inputs
+
+== identity-marks-smoke.mjs ==
+PASS: identity marks require explicit successful checks for exact signed GitHub, Bluesky, or NIP-05 claims and fail closed on stale or missing state
+
+== direct-file-envelope-smoke.mjs ==
+PASS direct NIP-17 file envelopes: 15 integrity, privacy, recipient, and sequence assertions
+
+== direct-file-chunks-smoke.mjs ==
+PASS direct file blocks: 2 fixed-size blocks, bounded frame, stream hash, per-block integrity and 100 MiB manifest cap
+
+== direct-file-storage-smoke.mjs ==
+PASS direct file storage: identity-derived AES-GCM at rest, reload, identity isolation, legacy migration, bounded blocks, full-file hash and corrupt-block rejection
+
+== direct-transfer-controller-smoke.mjs ==
+PASS: direct file controller enforces consent gating, bounded binary blocks, batched acknowledgements, final verification and manifest limits
+
+== direct-file-resume-smoke.mjs ==
+PASS G04-27: same-page and post-reload resume, encrypted prefix, fixed invalid-prefix cases, peer confirmation and whole-file integrity
+
+== image-viewer-smoke.mjs ==
+PASS Ghostly-adapted image viewer: bounded zoom, pinch, drag, double tap/click, wheel, keyboard, backdrop close and focus restoration
+
+== chat-search-smoke.mjs ==
+PASS: local chat search is case/accent insensitive, keeps message order, skips reactions, and maps safe highlight spans
+
+== conversation-folders-smoke.mjs ==
+PASS: local conversation folders and pinned chats validate, sort, organize conversations, persist collapse/order, flatten search, and never delete conversations
+
+== chat-drafts-smoke.mjs ==
+PASS: local drafts restore per identity and chat, reject mismatched records, isolate groups, and preserve Unicode bounds
+
+== group-mentions-smoke.mjs ==
+PASS: group mention autocomplete logic, stable identity bindings, and NIP-27 wire round trips
+
+== group-invites-smoke.mjs ==
+PASS: local NIP-44 group invite round-trip, recipient binding, signature verification, fragment privacy, strict membership and size checks
+
+== community-groups-smoke.mjs ==
+PASS: NIP-29 public discovery, relay-scoped forks, pending membership, NIP-51 migration hints, and group-local post references.
+
+== notification-preferences-smoke.mjs ==
+PASS: notification permission is opt-in; private per-identity mutes use fixed logical time and never alter relay events
+
+== app-badge-smoke.mjs ==
+PASS: app icon badge is optional, identity-local, bounded, derived from local unread counts, and fails closed without relay events
+
+== message-days-smoke.mjs ==
+PASS: message day separators format Today/Yesterday, localized dates and year boundaries without changing message timestamps
+
+== message-scroll-smoke.mjs ==
+PASS: chat scroll button counts only newly arrived messages, preserves history catch-up, and localizes accessible labels
+
+== rich-text-smoke.mjs ==
+PASS: Ghostly-style rich text stays local, safely renders formatting and HTTP(S) links, preserves plain-message semantics, and hides spoilers in previews
+
+== location-cards-smoke.mjs ==
+PASS: geo and map URLs become bounded local cards; code/spoilers and invalid coordinates stay inert; maps open only by explicit link and send no automatic request
+
+== message-forwards-smoke.mjs ==
+PASS: encrypted-message forward markers have bounded hop counts, reject ambiguous tags, and localize without attributing the original author
+
+== link-preview-smoke.mjs ==
+PASS: link previews are opt-in data, bounded, HTTPS-only, credential/referrer/redirect-free, text-only and tied to the encrypted message link
+
+== voice-messages-smoke.mjs ==
+PASS: private NIP-17 voice payloads, pause/resume excludes paused time, direct (2) and group (3) recipient wrapping/isolation, 5 bounded relay envelopes, integrity guards, and microphone release
+
+== audio-playback-smoke.mjs ==
+PASS: one local audio player survives view changes, preserves session positions, exposes accessible controls, and clears on lock
+
+== file-transfers-smoke.mjs ==
+PASS NIP-17 file transfer primitives: 3 chunks, 3 wrappers, max 38737 bytes
+
+== nostr-entities-smoke.mjs ==
+PASS: valid npub/nprofile references become bounded local contact cards; malformed, code and link text stay inert; previews and PT-BR retain the source code
+
+== secret-guard-smoke.mjs ==
+PASS: local secret guard catches Nostr, Bitcoin, English/Portuguese recovery phrases and ecash without returning message text
+
+== nip05-smoke.mjs ==
+PASS: NIP-05 checks are explicit, HTTPS-only, bounded, redirect-safe, credential-free, and compare only the requested public key
+
+== nip39-smoke.mjs ==
+PASS: NIP-39 kind 10011 parsing, future-tag preservation, GitHub and Bluesky claims, bounded explicit proof checks
+
+== vault-smoke.mjs ==
+PASS: criação, senha errada, desbloqueio, sessão persistente e backup cifrado
+
+== forwarding-smoke.mjs ==
+PASS: event signature/time/kind validation, per-event deduplication, source exclusion, private-route boundary, event rate and UTF-8 byte limits
+
+== sw-update-smoke.mjs ==
+PASS: PWA install reloads all local assets, covers versioned HTML references, preserves unrelated caches
+
+== contact-smoke.mjs ==
+PASS: hex/npub/nprofile reais; nome livre, vazio, nsec, bech32 truncado e hints inválidos recebem validação segura em português
+
+== contact-share-smoke.mjs ==
+PASS: NIP-19 contact share, Property URL/QR payload, safe relay-hint filtering, paste formats, and bilingual validation
+
+== qr-code-smoke.mjs ==
+PASS: offline QR encoder produces deterministic, accessible SVG symbols with quiet zone and bounded inputs
+
+== emoji-picker-smoke.mjs ==
+PASS: local Ghostly emoji catalog, Portuguese search, skin tone, and older-device filtering
+
+== chat-gestures-smoke.mjs ==
+PASS: fixed touch-reply thresholds and safe ArrowUp edit-last guards
+
+== relay-defaults-smoke.mjs ==
+PASS: fresh installs get two persisted relay suggestions without a manual setup barrier
+
+== share-target-smoke.mjs ==
+PASS: local share target bounds text and files, queues files locally, and requires explicit review before sending
+
+== pwa-smoke.mjs ==
+PASS: PWA shortcuts, initial and active-session contact-link intake, safe URL cleanup, and install controls
+
+== app-contract-smoke.mjs ==
+PASS: local-only web assets, CSP, unified Property PWA packaging, segmented relay package, pinned Pages workflow, no eval, JS/shell syntax
+
+== relay-migration-smoke.mjs ==
+PASS: launcher preserves legacy data/config, new variables override aliases, invalid ports rejected (fixture runtime)
+
+== portable-packages-smoke.mjs ==
+PASS: windows-x64, 85 parts, 89033587 bytes, SHA-256 and launcher pin match
+PASS: macos-arm64, 85 parts, 88601649 bytes, SHA-256 and launcher pin match
+
+== relay-package-smoke.mjs ==
+PASS: 130 relay segments reconstruct 67845545 bytes with the pinned SHA-256
+
+== agent-messaging-g0-smoke.mjs ==
+PASS: G0 protocol snapshots, exact hashes, required protocol semantics, local script sources, and vendored Nostr runtime (17 fixed cases; 38 exact assertions).
+
+== agent-service-smoke.mjs ==
+PASS: agente envia mensagens e estados thinking privados sem aprovação; estados sem texto, limite fixo, bloqueio local revogável e migração v3.
+
+== agent-messaging-smoke.mjs ==
+{
+  "gate": "G3",
+  "suite": "envelope-unit",
+  "status": "PASS_TECHNICAL",
+  "seed": "property-agent-envelope-fixed-v1",
+  "logicalNow": 1900000000,
+  "caseCount": 27,
+  "cases": [
+    {
+      "id": "G3-envelope-valid-01",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-02",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-03",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-04",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-05",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-06",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-07",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-08",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-09",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-valid-10",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-unknown-protocol",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-unknown-version",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-unknown-field",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-missing-field",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-bad-conversation-id",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-bad-message-id",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-bad-correlation",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-body-not-text",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-body-over-8192-bytes",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-duplicate-key",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-excess-depth",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-envelope-reject-over-16KiB",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-conversation-id-order-independent",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-conversation-id-rejects-self",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-rate-limit-fixed-window-30",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-rate-limit-resets-next-logical-window",
+      "result": "PASS"
+    },
+    {
+      "id": "G3-message-id-fixed-random-fixture",
+      "result": "PASS"
+    }
+  ]
+}
+
+== agent-xno-trades-smoke.mjs ==
+{
+  "gate": "G8-XNO-trades",
+  "profile": "offline",
+  "seed": "property-xno-trade-fixed-v1",
+  "logicalNow": 1900000000,
+  "cases": [
+    {
+      "id": "encrypted-policy-contains-no-plaintext-secret",
+      "result": "PASS"
+    },
+    {
+      "id": "encrypted-payload-context-and-password-binding",
+      "result": "PASS"
+    },
+    {
+      "id": "policy",
+      "result": "PASS"
+    },
+    {
+      "id": "offer",
+      "result": "PASS"
+    },
+    {
+      "id": "unknown-offer-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "forged-signer-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "terms-hash-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "duplicate-json-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "blocked-peer-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "bad-peer-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "bad-message-id-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "extra-argument-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "lost-send-response-reserved",
+      "result": "PASS"
+    },
+    {
+      "id": "same-id-retry-single-transfer",
+      "result": "PASS"
+    },
+    {
+      "id": "receipt-waits-for-confirmation",
+      "result": "PASS"
+    },
+    {
+      "id": "lost-receive-response-recovered-on-retry",
+      "result": "PASS"
+    },
+    {
+      "id": "confirmed-receipt-received-once",
+      "result": "PASS"
+    },
+    {
+      "id": "receipt-replay-deduplicated",
+      "result": "PASS"
+    },
+    {
+      "id": "confirmed-status",
+      "result": "PASS"
+    },
+    {
+      "id": "dispute-recorded-no-freeze",
+      "result": "PASS"
+    },
+    {
+      "id": "restart-retry-no-duplicate",
+      "result": "PASS"
+    },
+    {
+      "id": "expired-offer-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "over-cap-offer-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "lifetime-budget-exhausted-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "journal-budget-tamper-rejected",
+      "result": "PASS"
+    },
+    {
+      "id": "journal-encrypted-at-rest",
+      "result": "PASS"
+    },
+    {
+      "id": "journal-authentication-and-identity-binding",
+      "result": "PASS"
+    },
+    {
+      "id": "plaintext-or-tampered-journal-fails-closed",
+      "result": "PASS"
+    }
+  ],
+  "caseCount": 28,
+  "rawAmounts": [
+    "40",
+    "100",
+    "101",
+    "150"
+  ],
+  "actualNanoTransfers": 1,
+  "actualNanoReceiveBlocks": 1,
+  "stateful_replay_counts": {
+    "duplicate_payment_commands": 50,
+    "duplicate_receipt_commands": 50
+  },
+  "fundsUsed": false,
+  "relayUsed": "local-fixtures-only",
+  "escrow": false
+}
+
+== agent-xno-escrow-smoke.mjs ==
+{
+  "gate": "G10-XNO-custodial-escrow",
+  "profile": "offline",
+  "seed": "property-xno-escrow-fixed-v1",
+  "logicalNow": 1900000000,
+  "cases": [
+    {
+      "id": "four-distinct-contract-parties-and-fixed-account-binding",
+      "result": "PASS"
+    },
+    {
+      "id": "buyer-request-and-custodian-contract-field-binding",
+      "result": "PASS"
+    },
+    {
+      "id": "seller-acceptance-refuses-mismatched-local-nano-account",
+      "result": "PASS"
+    },
+    {
+      "id": "duplicate-open-and-accept-do-not-create-new-contracts",
+      "result": "PASS"
+    },
+    {
+      "id": "unknown-peer-and-message-ids-fail-closed",
+      "result": "PASS"
+    },
+    {
+      "id": "buyer-cannot-fund-a-seller-contract-or-outsider-custodian",
+      "result": "PASS"
+    },
+    {
+      "id": "exact-confirmed-deposit-is-verified-by-custodian",
+      "result": "PASS"
+    },
+    {
+      "id": "buyer-independently-verifies-deposit-confirmation-before-release",
+      "result": "PASS"
+    },
+    {
+      "id": "lost-receive-response-recovers-without-double-credit",
+      "result": "PASS"
+    },
+    {
+      "id": "buyer-approved-release-pays-only-contract-agreed-seller-account",
+      "result": "PASS"
+    },
+    {
+      "id": "lost-payout-response-retries-without-duplicate-transfer",
+      "result": "PASS"
+    },
+    {
+      "id": "seller-dispute-pauses-settlement",
+      "result": "PASS"
+    },
+    {
+      "id": "buyer-cannot-release-while-disputed",
+      "result": "PASS"
+    },
+    {
+      "id": "arbiter-cannot-rule-before-dispute",
+      "result": "PASS"
+    },
+    {
+      "id": "independent-arbiter-refund-pays-only-contract-bound-buyer-account",
+      "result": "PASS"
+    },
+    {
+      "id": "arbiter-ruling-is-immutable-after-settlement",
+      "result": "PASS"
+    },
+    {
+      "id": "partial-status-delivery-retries-only-missing-notice",
+      "result": "PASS"
+    },
+    {
+      "id": "aggregate-open-liability-cap-is-enforced",
+      "result": "PASS"
+    },
+    {
+      "id": "buyer-escrow-deposits-count-against-lifetime-budget",
+      "result": "PASS"
+    },
+    {
+      "id": "legacy-journal-migrates-with-empty-escrow-map",
+      "result": "PASS"
+    }
+  ],
+  "caseCount": 20,
+  "trades": 2,
+  "pendingCapRequests": 2,
+  "syntheticDepositRaw": [
+    "40",
+    "40"
+  ],
+  "syntheticPayoutRaw": [
+    "40",
+    "40"
+  ],
+  "syntheticPayouts": [
+    "nano_333333333333333333333333333333333333333333333333333333333333",
+    "nano_111111111111111111111111111111111111111111111111111111111111"
+  ],
+  "relayUsed": "in-memory transport fixture",
+  "liveNanoRpc": false,
+  "fundsUsed": false,
+  "cryptographicNip17ValidatedHere": false,
+  "separateNip17RelayGate": "G4",
+  "trustBoundary": "custodial operator can bypass software and move pooled funds"
+}
+
+== agent-xno-threshold-smoke.mjs ==
+PASS: Nano 2-of-3 threshold DKG and block signature, one-shot nonce tickets, altered-message and threshold rejection, Nano account encoding, published state-block hash vector, exact send construction, and wire serialization. Offline simulation only; no Nano node or funds used.
+
+== agent-xno-threshold-store-smoke.mjs ==
+{
+  "gate": "XNO-T3a-encrypted-share-storage",
+  "profile": "offline-synthetic",
+  "seed": "property-xno-threshold-store-fixed-v1",
+  "cases": [
+    {
+      "id": "empty-store-load",
+      "result": "PASS"
+    },
+    {
+      "id": "AES-GCM-threshold-share-at-rest",
+      "result": "PASS"
+    },
+    {
+      "id": "restart-recovery",
+      "result": "PASS"
+    },
+    {
+      "id": "wrong-password-fails-closed",
+      "result": "PASS"
+    },
+    {
+      "id": "tamper-detection",
+      "result": "PASS"
+    },
+    {
+      "id": "invalid-session-state-rejected",
+      "result": "PASS"
+    }
+  ],
+  "caseCount": 6,
+  "fundsUsed": false,
+  "relayAccess": false,
+  "secretValuesInReport": false
+}
+
+== agent-xno-threshold-protocol-smoke.mjs ==
+{
+  "gate": "XNO-T3a-threshold-dkg-transport",
+  "profile": "offline-synthetic",
+  "protocol": "property-xno-threshold/v2",
+  "seed": "property-xno-threshold-identities-fixed-v1",
+  "cases": [
+    {
+      "id": "signed-private-invites-only-for-three-participants",
+      "result": "PASS"
+    },
+    {
+      "id": "all-three-accept-and-exchange-round1",
+      "result": "PASS"
+    },
+    {
+      "id": "pairwise-share-recipient-binding",
+      "result": "PASS"
+    },
+    {
+      "id": "three-independent-group-keys-match",
+      "result": "PASS"
+    },
+    {
+      "id": "sensitive-round1-polynomial-cleared",
+      "result": "PASS"
+    },
+    {
+      "id": "threshold-share-retained-in-store",
+      "result": "PASS"
+    },
+    {
+      "id": "strict-state-id-validation",
+      "result": "PASS"
+    },
+    {
+      "id": "mainnet-dkg-session-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "exact-contract-bound-send-proposal",
+      "result": "PASS"
+    },
+    {
+      "id": "no-signing-before-required-approvals",
+      "result": "PASS"
+    },
+    {
+      "id": "buyer-plus-arbiter-cannot-approve-release",
+      "result": "PASS"
+    },
+    {
+      "id": "buyer-and-seller-approve-exact-frontier-and-block",
+      "result": "PASS"
+    },
+    {
+      "id": "all-three-participants-observe-identical-intent-before-approval",
+      "result": "PASS"
+    },
+    {
+      "id": "one-use-nonce-round",
+      "result": "PASS"
+    },
+    {
+      "id": "two-approved-shares-aggregate-for-exact-block",
+      "result": "PASS"
+    },
+    {
+      "id": "mock-dev-publication-remains-unconfirmed",
+      "result": "PASS"
+    },
+    {
+      "id": "release-rejected-at-exact-expiry",
+      "result": "PASS"
+    },
+    {
+      "id": "early-refund-rejected-and-reported-by-buyer-and-seller",
+      "result": "PASS"
+    },
+    {
+      "id": "single-recipient-equivocation-report-freezes-all-three",
+      "result": "PASS"
+    },
+    {
+      "id": "equivocated-intent-cannot-start-signing",
+      "result": "PASS"
+    },
+    {
+      "id": "both-parties-can-locally-block-the-reported-arbiter",
+      "result": "PASS"
+    },
+    {
+      "id": "four-alternate-arbiters-can-be-chosen-after-local-block",
+      "result": "PASS"
+    },
+    {
+      "id": "legacy-v1-session-fails-closed",
+      "result": "PASS"
+    }
+  ],
+  "caseCount": 23,
+  "participantFixtures": 7,
+  "adversarialSessions": 1,
+  "arbiterCandidates": 5,
+  "alternateSessionsAfterLocalBlock": 4,
+  "transport": "in-memory-message-contract-fixture; real NIP-17 crypto not invoked",
+  "fundsUsed": false,
+  "relaysContacted": false,
+  "realParticipantsSimulated": false,
+  "secretValuesInReport": false
+}
+
+== agent-nano-wallet-smoke.mjs ==
+{
+  "gate": "G9-XNO-wallet-adapter",
+  "profile": "offline",
+  "seed": "property-xno-wallet-fixed-v1",
+  "cases": [
+    {
+      "id": "dedicated-account-unlock-and-live-network-check",
+      "result": "PASS"
+    },
+    {
+      "id": "raw-send-with-local-per-payment-cap",
+      "result": "PASS"
+    },
+    {
+      "id": "same-id-is-idempotent-after-balance-falls",
+      "result": "PASS"
+    },
+    {
+      "id": "nano-node-rejects-new-send-above-balance",
+      "result": "PASS"
+    },
+    {
+      "id": "invalid-amount-and-self-send-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "pending-and-confirmed-ledger-checks",
+      "result": "PASS"
+    },
+    {
+      "id": "wrong-amount-or-recipient-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "unconfirmed-and-mismatched-incoming-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "lost-receive-response-recovered-from-account-history",
+      "result": "PASS"
+    },
+    {
+      "id": "confirmed-incoming-transfer-received-once",
+      "result": "PASS"
+    },
+    {
+      "id": "duplicate-receive-recovery-deduplicated",
+      "result": "PASS"
+    },
+    {
+      "id": "wrong-network-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "multi-account-wallet-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "remote-and-localhost-rpc-hosts-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "unauthenticated-gateway-request-refused",
+      "result": "PASS"
+    },
+    {
+      "id": "threshold-account-bound-to-dkg-public-key-and-confirmed-frontier",
+      "result": "PASS"
+    },
+    {
+      "id": "threshold-work-generated-for-exact-state-block",
+      "result": "PASS"
+    },
+    {
+      "id": "threshold-signed-state-block-published-to-dev-only",
+      "result": "PASS"
+    },
+    {
+      "id": "threshold-publish-refused-on-mainnet",
+      "result": "PASS"
+    }
+  ],
+  "caseCount": 19,
+  "nanoRpcRequests": 87,
+  "syntheticTransfers": 2,
+  "fundsUsed": false,
+  "outsideNetwork": false,
+  "secretValuesInReport": false
+}
+
+== agent-package-smoke.mjs ==
+PASS: manifesto, 39 schemas MCP versionados, hashes, pacote fixado, escopo de plataforma e contratos de instalação conferidos.
+
+== offline/agent-security-g5.mjs ==
+PASS_G5_AUTOMATED_OFFLINE
+{"seed":"property-g5-hostile-direct-message-block-quota-v2","logicalNow":1900000000,"sourceCommit":"f3a307af644aff87d96f000298b4c6f47958fa7e","counts":{"hostileFixtures":100,"replayDuplicateCopies":100,"directUnpairedReadSendCases":25,"overQuotaAttempts":50,"successfulSendsBeforeQuota":30,"localBlockUnblockCycles":20,"testCases":342},"categories":{"prompt-injection-text":15,"markdown-links-and-images":10,"url-redirection":10,"spoofed-agent-profile":10,"deep-json-text":10,"duplicate-json-fields":10,"oversized-payload":10,"embedded-commands":10,"secret-exfiltration-requests":15},"records":342,"corpusManifestSha256":"2f84535bb937a77302af7c7b691af6cc4cf1f6cf201fec9e3d6827da8e4391b4","fixtureCodeSha256":"185e981153e790cf10dc6fc7312dec9382eecb2cd65f5804a4ad26d0b843e0c8","humanSecurityReview":"OUT_OF_SCOPE"}
+
+== offline/agent-mcp-contract-g5.mjs ==
+{"result":"PASS","operating_system":"linux/x64","protocol":"2026-07-28","manifest_version":"1.0.0","clients":[{"client":"synthetic-client-a","requests":45,"schemas_rejected":39,"unknown_tool_rejected":true,"unsupported_version_rejected":true},{"client":"synthetic-client-b","requests":45,"schemas_rejected":39,"unknown_tool_rejected":true,"unsupported_version_rejected":true},{"client":"synthetic-client-c","requests":45,"schemas_rejected":39,"unknown_tool_rejected":true,"unsupported_version_rejected":true}],"total_schema_rejections":117,"unknown_tool_rejections":3,"failures_are_structured":true,"stateless_protocol":true,"prohibited_tools_not_exposed":true}
+
+== offline/agent-mcp-tool-boundaries-g5.mjs ==
+{"result":"PASS","operating_system":"linux/x64","tool_count":39,"unique_service_dispatches":39,"read_only_annotations_checked":39,"fail_closed_cases":35,"write_side_effects":0,"read_queries":1,"cases":[{"name":"property_status","method":"status","read_only":true,"outcome":"read-only result","failure_case":null},{"name":"property_list_conversations","method":"list","read_only":true,"outcome":"read-only result","failure_case":null},{"name":"property_read_messages","method":"read","read_only":true,"outcome":"invalid-arguments","failure_case":"invalid-arguments"},{"name":"property_send_message","method":"send","read_only":false,"outcome":"invalid-arguments","failure_case":"invalid-arguments"},{"name":"property_set_activity","method":"activity","read_only":false,"outcome":"invalid-arguments","failure_case":"invalid-arguments"},{"name":"property_xno_policy","method":"xno.policy","read_only":true,"outcome":"read-only result","failure_case":null},{"name":"property_xno_create_offer","method":"xno.offer","read_only":false,"outcome":"xno-wallet-not-configured","failure_case":"xno-wallet-not-configured"},{"name":"property_xno_pay_offer","method":"xno.pay","read_only":false,"outcome":"xno-wallet-not-configured","failure_case":"xno-wallet-not-configured"},{"name":"property_xno_trade_status","method":"xno.trade.status","read_only":true,"outcome":"xno-wallet-not-configured","failure_case":"xno-wallet-not-configured"},{"name":"property_xno_verify_receipt","method":"xno.receipt.verify","read_only":false,"outcome":"xno-wallet-not-configured","failure_case":"xno-wallet-not-configured"},{"name":"property_xno_dispute","method":"xno.dispute","read_only":false,"outcome":"xno-wallet-not-configured","failure_case":"xno-wallet-not-configured"},{"name":"property_xno_threshold_create","method":"xno.threshold.create","read_only":false,"outcome":"xno-threshold-not-configured","failure_case":"xno-threshold-not-configured"},{"name":"property_xno_threshold_accept","method":"xno.threshold.accept","read_only":false,"outcome":"xno-threshold-not-configured","failure_case":"xno-threshold-not-configured"},{"name":"property_xno_threshold_sync","method":"xno.threshold.sync","read_only":false,"outcome":"xno-threshold-not-configured","failure_case":"xno-threshold-not-configured"},{"name":"property_xno_threshold_status","method":"xno.threshold.status","read_only":true,"outcome":"xno-threshold-not-configured","failure_case":"xno-threshold-not-configured"},{"name":"property_xno_threshold_propose","method":"xno.threshold.propose","read_only":false,"outcome":"xno-threshold-not-configured","failure_case":"xno-threshold-not-configured"},{"name":"property_xno_threshold_approve","method":"xno.threshold.approve","read_only":false,"outcome":"xno-threshold-not-configured","failure_case":"xno-threshold-not-configured"},{"name":"property_xno_threshold_begin_signing","method":"xno.threshold.begin_signing","read_only":false,"outcome":"xno-threshold-not-configured","failure_case":"xno-threshold-not-configured"},{"name":"property_xno_threshold_prepare_signature","method":"xno.threshold.prepare_signature","read_only":false,"outcome":"xno-threshold-not-configured","failure_case":"xno-threshold-not-configured"},{"name":"property_xno_threshold_sign","method":"xno.threshold.sign","read_only":false,"outcome":"xno-threshold-not-configured","failure_case":"xno-threshold-not-configured"},{"name":"property_xno_threshold_publish","method":"xno.threshold.publish","read_only":false,"outcome":"xno-threshold-not-configured","failure_case":"xno-threshold-not-configured"},{"name":"property_xno_escrow_offer","method":"xno.escrow.offer","read_only":false,"outcome":"xno-escrow-not-configured","failure_case":"xno-escrow-not-configured"},{"name":"property_xno_escrow_open","method":"xno.escrow.open","read_only":false,"outcome":"xno-escrow-not-configured","failure_case":"xno-escrow-not-configured"},{"name":"property_xno_escrow_accept","method":"xno.escrow.accept","read_only":false,"outcome":"xno-escrow-not-configured","failure_case":"xno-escrow-not-configured"},{"name":"property_xno_escrow_fund","method":"xno.escrow.fund","read_only":false,"outcome":"xno-escrow-not-configured","failure_case":"xno-escrow-not-configured"},{"name":"property_xno_escrow_approve","method":"xno.escrow.approve","read_only":false,"outcome":"xno-escrow-not-configured","failure_case":"xno-escrow-not-configured"},{"name":"property_xno_escrow_dispute","method":"xno.escrow.dispute","read_only":false,"outcome":"xno-escrow-not-configured","failure_case":"xno-escrow-not-configured"},{"name":"property_xno_escrow_sync","method":"xno.escrow.sync","read_only":false,"outcome":"xno-escrow-not-configured","failure_case":"xno-escrow-not-configured"},{"name":"property_xno_escrow_resolve","method":"xno.escrow.resolve","read_only":false,"outcome":"xno-escrow-not-configured","failure_case":"xno-escrow-not-configured"},{"name":"property_xno_escrow_status","method":"xno.escrow.status","read_only":true,"outcome":"xno-escrow-not-configured","failure_case":"xno-escrow-not-configured"},{"name":"property_profile_lookup","method":"profile.lookup","read_only":true,"outcome":"invalid-arguments","failure_case":"invalid-arguments"},{"name":"property_list_relays","method":"relay.list","read_only":true,"outcome":"read-only result","failure_case":null},{"name":"property_add_relay","method":"relay.add","read_only":false,"outcome":"invalid-arguments","failure_case":"invalid-arguments"},{"name":"property_remove_relay","method":"relay.remove","read_only":false,"outcome":"invalid-arguments","failure_case":"invalid-arguments"},{"name":"property_hangout_read","method":"hangout.read","read_only":true,"outcome":"invalid-arguments","failure_case":"invalid-arguments"},{"name":"property_hangout_publish","method":"hangout.publish","read_only":false,"outcome":"invalid-arguments","failure_case":"invalid-arguments"},{"name":"property_marketplace_search","method":"marketplace.search","read_only":true,"outcome":"invalid-arguments","failure_case":"invalid-arguments"},{"name":"property_marketplace_publish","method":"marketplace.publish","read_only":false,"outcome":"invalid-arguments","failure_case":"invalid-arguments"},{"name":"property_marketplace_withdraw","method":"marketplace.withdraw","read_only":false,"outcome":"invalid-arguments","failure_case":"invalid-arguments"}]}
+
+== offline/runner-contract-smoke.mjs ==
+PASS: offline runner contract, resume safety and G00-04 interruption verified
+
+== agent-package-smoke.sh ==
+Property Agent instalado/atualizado em /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.bFcDnn/prefix/share/property/agent
+Execute: /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.bFcDnn/prefix/bin/property-agent status
+Property Agent instalado/atualizado em /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.bFcDnn/prefix/share/property/agent
+Execute: /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.bFcDnn/prefix/bin/property-agent status
+Executáveis Property Agent removidos de /home/guilherme/Liberdade/amethyst-upstream/property/tests/.agent-package-smoke.bFcDnn/prefix. Cofres em XDG_DATA_HOME/property/agents não foram alterados.
+PASS: instalação, atualização, remoção, wrapper CLI e preservação do cofre/dados locais.
+
+PASS: suíte smoke local concluída.

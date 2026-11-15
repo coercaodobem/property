@@ -17,7 +17,7 @@ export const PROTOCOL_VERSIONS = Object.freeze({
   identity_claim: Object.freeze(['nostr-nip39-kind-10011/v1']),
   private_message: Object.freeze(['nostr-nip17-nip59/v1']),
   public_note: Object.freeze(['nostr-nip01-kind-1/v1']),
-  marketplace_offer: Object.freeze(['nostr-nip15-kind-30018/v1']),
+  marketplace_offer: Object.freeze(['nostr-nip15-kind-30018/v1', 'property-marketplace-offer/v1']),
   trade_state: Object.freeze([
     'property-xno-trade/v1',
     'property-xno-escrow/v1',

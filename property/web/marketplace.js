@@ -2,6 +2,8 @@
 /* global BigInt */
 (() => {
   const HEX_64 = /^[0-9a-f]{64}$/;
+  const OFFER_SCHEMA = 'property-marketplace-offer/v1';
+  const PAYMENT_RAILS = Object.freeze({ BTC: 'bitcoin-onchain', XMR: 'monero-onchain', XNO: 'nano-direct' });
 
   function parsePrice(value, nanoUnits, selectedCurrency = 'XNO') {
     const match = typeof value === 'string' && value.trim().match(/^([0-9]+(?:[.,][0-9]+)?)\s*([a-zA-Z]{2,12})?$/);
@@ -42,6 +44,36 @@
     } catch { return ''; }
   }
 
+  function makeOfferData(input) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Oferta inválida.');
+    const { id, stallId, name, terms = '', images = [], currency, atomic, sellerPubkey, paymentRail, relayHints = [], expiresAt = null } = input;
+    if (typeof id !== 'string' || !id || id.length > 256 || typeof stallId !== 'string' || !stallId ||
+        typeof name !== 'string' || !name.trim() || name.length > 140 || typeof terms !== 'string' || terms.length > 2000 ||
+        !['item', 'service'].includes(input.offerType) || !HEX_64.test(sellerPubkey || '') ||
+        paymentRail !== PAYMENT_RAILS[currency] || !Array.isArray(images) || images.length > 1 ||
+        !Array.isArray(relayHints) || relayHints.length > 5 ||
+        (expiresAt !== null && (!Number.isSafeInteger(expiresAt) || expiresAt < 1))) throw new Error('Campos da oferta inválidos.');
+    const amount = window.PropertyMoney.validateAtomic(atomic, currency);
+    if (images.some(image => typeof image !== 'string' || !safeExternalImageUrl(image))) throw new Error('Imagem da oferta inválida.');
+    for (const hint of relayHints) {
+      if (typeof hint !== 'string' || hint.length > 2048) throw new Error('Dica de relay inválida.');
+      let url;
+      try { url = new URL(hint); } catch { throw new Error('Dica de relay inválida.'); }
+      if (url.protocol !== 'wss:' || url.username || url.password || !url.hostname) throw new Error('Dica de relay inválida.');
+    }
+    const exact = window.PropertyMoney.fromAtomic(amount, currency);
+    const price = Number(exact);
+    const [wholeText, fraction = ''] = exact.split('.');
+    const whole = BigInt(wholeText);
+    if (!Number.isFinite(price) || whole > BigInt(Number.MAX_SAFE_INTEGER) ||
+        (whole === BigInt(Number.MAX_SAFE_INTEGER) && /[1-9]/.test(fraction))) throw new Error('Preço fora do intervalo compatível com a vitrine NIP-15.');
+    return Object.freeze({ schema: OFFER_SCHEMA, id, stall_id: stallId, name: name.trim(), description: terms, terms,
+      offer_type: input.offerType, seller_pubkey: sellerPubkey, images: [...images], currency, price, price_atomic: amount,
+      ...(currency === 'XNO' ? { price_raw: amount } : {}), payment_rail: paymentRail,
+      expires_at: expiresAt, relay_hints: [...relayHints], contact_event: null,
+      quantity: null, specs: [], shipping: [] });
+  }
+
   function productAddress(event) {
     if (!event || event.kind !== 30018 || !HEX_64.test(event.pubkey || '') || !Array.isArray(event.tags)) return '';
     const ids = event.tags.filter(tag => Array.isArray(tag) && tag[0] === 'd');
@@ -67,14 +99,20 @@
     return Number.isSafeInteger(expiration) && expiration > nowSeconds;
   }
 
-  function validProductData(data, d) {
+  function validProductData(data, d, author) {
     if (!data || typeof data !== 'object' || Array.isArray(data) || data.id !== d || typeof data.stall_id !== 'string' ||
         !data.stall_id || typeof data.name !== 'string' || !data.name.trim()) return false;
+    if (data.schema !== undefined && data.schema !== OFFER_SCHEMA) return false;
+    if (data.schema === OFFER_SCHEMA && (data.price_atomic === undefined || data.seller_pubkey !== author || !['item', 'service'].includes(data.offer_type) ||
+        typeof data.terms !== 'string' || data.terms !== data.description || data.payment_rail !== PAYMENT_RAILS[data.currency] ||
+        !Array.isArray(data.relay_hints) || data.relay_hints.length > 5 ||
+        (data.expires_at !== null && !Number.isSafeInteger(data.expires_at)) || data.contact_event !== null)) return false;
     const currency = data.currency;
     if (typeof currency !== 'string' || !Object.hasOwn(window.PropertyMoney.CURRENCIES, currency)) return false;
     const atomic = currency === 'XNO' ? (data.price_atomic ?? data.price_raw) : data.price_atomic;
     try { window.PropertyMoney.validateAtomic(atomic, currency); } catch { return false; }
     if (currency === 'XNO' && data.price_raw !== undefined && data.price_raw !== atomic) return false;
+    if (data.schema === OFFER_SCHEMA && currency !== 'XNO' && data.price_raw !== undefined) return false;
     if (typeof data.price !== 'number' || !Number.isFinite(data.price) || data.price < 0) return false;
     try {
       const exact = window.PropertyMoney.fromAtomic(atomic, currency);
@@ -106,7 +144,18 @@
       try {
         const data = JSON.parse(event.content);
         const d = address.slice(`30018:${event.pubkey}:`.length);
-        if (!validProductData(data, d)) continue;
+        if (!validProductData(data, d, event.pubkey)) continue;
+        if (data.schema === OFFER_SCHEMA) {
+          const expirationTags = event.tags.filter(tag => Array.isArray(tag) && tag[0] === 'expiration');
+          if (data.expires_at === null ? expirationTags.length !== 0 :
+              expirationTags.length !== 1 || expirationTags[0][1] !== String(data.expires_at)) continue;
+          const invalidRelayHint = data.relay_hints.some(hint => {
+            if (typeof hint !== 'string' || hint.length > 2048) return true;
+            try { const relay = new URL(hint); return relay.protocol !== 'wss:' || relay.username !== '' || relay.password !== ''; }
+            catch { return true; }
+          });
+          if (invalidRelayHint) continue;
+        }
         const current = products.get(address);
         if (!current || event.created_at > current.created_at ||
             (event.created_at === current.created_at && event.id.localeCompare(current.id) < 0)) {
@@ -122,5 +171,6 @@
     }).sort((a, b) => b.created_at - a.created_at);
   }
 
-  window.PropertyMarketplace = Object.freeze({ parsePrice, displayPrice, safeExternalImageUrl, productAddress, makeProductDeletion, selectActiveProducts });
+  window.PropertyMarketplace = Object.freeze({ OFFER_SCHEMA, PAYMENT_RAILS, parsePrice, displayPrice, safeExternalImageUrl,
+    makeOfferData, productAddress, makeProductDeletion, selectActiveProducts });
 })();

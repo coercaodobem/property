@@ -134,7 +134,7 @@ O [plano central de testes](plano-de-testes-central.pt-BR.md) continua sendo a r
 - Executar 25 jornadas por idioma no navegador nos fluxos de navegação→contato e publicação→retirada; verificar nomes acessíveis, marcação clara de público/privado e ausência de indicador falso de pagamento.
 - Reproduzir 20 conflitos de oferta do mesmo autor e 20 atualizações fora de ordem entre relays; aplicar a regra do G1 de forma determinística.
 
-**Entregas:** Schema de oferta/evento, decisão do adapter NIP-15, jornadas completas do marketplace e Hangout na PWA humana e evidência automatizada nos dois idiomas.
+**Entregas:** Schema de oferta/evento, [decisão do adaptador NIP-15](nip15-property-adapter.pt-BR.md), jornadas completas do marketplace e Hangout na PWA humana e evidência automatizada nos dois idiomas. `marketplace-g6-fixed-count.mjs` contém as contagens exatas de valores/lifecycle/conflitos; o gate de navegador confere cinco relays Geode locais e percursos fixos da interface nos dois idiomas. O resultado executado está registrado na [evidência G6](evidence/product-completion/G6/gate-result.md).
 
 ### G7 — Estado da troca, verificação de pagamento e limites honestos de liquidação
 

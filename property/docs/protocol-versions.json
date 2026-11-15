@@ -53,11 +53,11 @@
     {
       "id": "marketplace_offer",
       "kinds": [30017, 30018],
-      "protocols": ["nostr-nip15-kind-30018/v1"],
+      "protocols": ["nostr-nip15-kind-30018/v1", "property-marketplace-offer/v1"],
       "content_max_bytes": 16384,
       "tags_max": 32,
       "implementation": ["property/web/marketplace.js", "property/web/app.js"],
-      "compatibility": "NIP-15 stall/product event kinds are retained. Property adds exact atomic-unit string fields for BTC, XMR, and XNO; legacy decimal display values are accepted only when consistent."
+      "compatibility": "NIP-15 stall/product event kinds are retained. Property writes property-marketplace-offer/v1 payloads with explicit seller, item/service, terms, payment-rail declaration, expiry, relay hints, contact reference, currency, and exact atomic-unit strings. The NIP-15 numeric price remains compatibility-only. Versionless legacy offers are display-only and must carry an exact amount extension consistent with the currency; ambiguous number-only payloads and unknown schema versions fail closed."
     },
     {
       "id": "trade_state",
@@ -91,12 +91,13 @@
     "BTC": {"unit": "satoshi", "max_atomic": "2100000000000000"},
     "XMR": {"unit": "piconero", "max_atomic": "18446744073709551615"},
     "XNO": {"unit": "raw", "max_atomic": "340282366920938463463374607431768211455"},
-    "wire_format": "positive base-10 integer string with no leading zero; no floating point, ticker alias, conversion, or inferred decimal precision"
+    "wire_format": "non-negative base-10 integer string with no leading zero except zero itself; no floating point, ticker alias, conversion, or inferred decimal precision; zero represents a free offer and cannot authorize a payment"
   },
   "migration_rules": [
     {"from": "property-xno-threshold/v1", "to": "property-xno-threshold/v2", "rule": "incompatible; reject v1 settlement messages; start a new v2 session; never silently downgrade"},
     {"from": "property-sponsored-v1", "to": "property-sponsored-v2", "rule": "v1 may be rendered as legacy public content only; no v1 event may authorize a new payment, decision, refund, or state transition"},
-    {"from": "NIP-15 decimal price only", "to": "NIP-15 plus price_atomic", "rule": "accept only if the decimal amount converts exactly to the declared currency atomics; reject mismatches and ambiguity"},
+    {"from": "NIP-15 decimal price only", "to": "property-marketplace-offer/v1", "rule": "display a legacy offer only when currency and exact price_atomic (or matching legacy XNO price_raw) are present; never infer a currency or derive payment amounts from the NIP-15 number"},
+    {"from": "property-marketplace-offer/v1", "to": "unknown schema", "rule": "reject unknown schema values and do not mutate offer state; the versionless NIP-15 reader remains an explicit display-only compatibility path"},
     {"from": "unknown noncritical Nostr tags", "to": "current Property parser", "rule": "retain the original signed event; ignore unknown tags unless explicitly listed in property-crit"},
     {"from": "unknown critical protocol or tag", "to": "current Property parser", "rule": "typed rejection; no partial state mutation or payment action"}
   ],

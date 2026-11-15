@@ -6441,14 +6441,23 @@
       if (!name) throw new Error('Informe o nome da oferta.');
       const rawPrice = $('product-price').value.trim();
       if (!rawPrice) throw new Error('Informe o preço em BTC, XMR ou XNO.');
-      const { price, currency, atomic, raw } = Marketplace.parsePrice(rawPrice, Nano, $('product-currency').value);
+      const { currency, atomic } = Marketplace.parsePrice(rawPrice, Nano, $('product-currency').value);
       let image = $('product-image').value.trim();
       if (image) { image = Marketplace.safeExternalImageUrl(image); if (!image) throw new Error('Informe uma imagem HTTPS válida, sem credenciais ou endereço local.'); }
       if (!(await requestSecretSendConfirmation(`${name}\n${description}\n${image}`, '', localized('anyone who reads public marketplace offers', 'qualquer pessoa que leia ofertas públicas do marketplace')))) return;
       const id = state.editingProduct?.data.id || crypto.randomUUID();
       const stallId = state.editingProduct?.data.currency === currency ? state.editingProduct.data.stall_id : await ensureStall(name, currency);
-      const payload = { id, stall_id: stallId, name, description, images: image ? [image] : [], currency, price, price_atomic: atomic, ...(raw ? { price_raw: raw } : {}), quantity: null, specs: [], shipping: [] };
-      const event = finalize(30018, PropertyProtocol.canonicalJson(payload), [['d', id]]);
+      const expirationChoice = $('product-expiry').value;
+      const expiresAt = expirationChoice === 'preserve' && state.editingProduct
+        ? state.editingProduct.data.expires_at
+        : expirationChoice === 'never' ? null : Math.floor(Date.now() / 1000) + Number(expirationChoice);
+      const relayHints = state.relays.filter(value => value.startsWith('wss://')).slice(0, 5);
+      const payload = Marketplace.makeOfferData({ id, stallId, name, terms: description, offerType: $('product-offer-type').value,
+        images: image ? [image] : [], currency, atomic, sellerPubkey: state.pubkey,
+        paymentRail: $('product-payment-rail').value, relayHints, expiresAt });
+      const tags = [['d', id]];
+      if (expiresAt !== null) tags.push(['expiration', String(expiresAt)]);
+      const event = finalize(30018, PropertyProtocol.canonicalJson(payload), tags);
       const sent = await publishToRelays(event);
       if (!sent) throw new Error('Nenhum relay confirmou a oferta.');
       $('product-dialog').close(); resetProductForm();
@@ -6460,13 +6469,20 @@
     state.editingProduct = product;
     $('product-name').value = product?.data.name || '';
     $('product-description').value = product?.data.description || '';
+    $('product-offer-type').value = product?.data.offer_type || 'item';
     let price = product?.data.price ?? '';
     const currency = product?.data.currency || 'XNO';
     $('product-currency').value = currency;
     const atomic = product?.data.price_atomic ?? (currency === 'XNO' ? product?.data.price_raw : undefined);
     if (atomic !== undefined) { try { price = Money.fromAtomic(atomic, currency); } catch {} }
     $('product-price').value = price;
+    const expiry = $('product-expiry');
+    expiry.querySelector('option[value="preserve"]')?.remove();
+    if (product?.data.expires_at !== null && product?.data.expires_at !== undefined) {
+      const keep = document.createElement('option'); keep.value = 'preserve'; keep.textContent = localized('Keep current expiry', 'Manter vencimento atual'); expiry.append(keep); expiry.value = 'preserve';
+    } else expiry.value = 'never';
     $('product-image').value = Array.isArray(product?.data.images) ? product.data.images[0] || '' : '';
+    $('product-payment-rail').value = product?.data.payment_rail || Marketplace.PAYMENT_RAILS[currency];
     $('product-dialog-title').textContent = product ? 'Editar oferta' : 'Publicar oferta';
     $('publish-product').textContent = product ? 'Assinar e atualizar' : 'Assinar e publicar';
     showError('product-error');
@@ -7688,6 +7704,9 @@
     });
     $('publish-hangout').addEventListener('click', () => publishHangoutPost().catch(error => showToast(error.message || 'Falha ao publicar.')));
     $('publish-product-button').addEventListener('click', () => openProductEditor());
+    $('product-currency').addEventListener('change', () => {
+      $('product-payment-rail').value = Marketplace.PAYMENT_RAILS[$('product-currency').value];
+    });
     $('refresh-marketplace').addEventListener('click', () => refreshMarketplace().catch(error => showToast(error.message || 'Falha ao atualizar ofertas.')));
     $('publish-product').addEventListener('click', publishProduct);
     $('confirm-delete-product').addEventListener('click', () => deleteProduct(state.deletingProduct).catch(error => showError('delete-product-error', error.message || 'Falha ao retirar oferta.')));

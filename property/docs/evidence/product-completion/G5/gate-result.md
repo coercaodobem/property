@@ -26,3 +26,10 @@
 The PWA test made zero external HTTP requests and opened WebSockets only to local relays. Chromium made 14 background egress attempts to Google-related endpoints; the test's local deny proxy returned HTTP 502 for every attempt. No external connection succeeded. Public relay behavior, external MCP hosts, human participants, and operating systems other than Linux x86_64 were not tested.
 
 This gate proves the listed automated offline cases only. It does not establish independent security review, production relay compatibility, or production payment safety. Nano threshold publication remains dev-only, and direct XNO/custodial paths retain their documented limits.
+
+## Supplemental browser bridge revalidation
+
+The browser bridge was subsequently revalidated in the isolated G6 candidate: all eight fixed G05 browser scenarios passed against four temporary local relays. The report recorded zero external requests and 195 Chromium background attempts, all denied by the local HTTP 502 proxy; WebSockets remained on loopback. This supplements the evidence above and does not claim physical mobile/background execution.
+
+- [G05 browser report](final/browser-g05-report.json)
+- SHA-256: `61fdcf40e5427bec09b6194ea2e82237f3c8db9484389a012fb48ff5080fa63f`
