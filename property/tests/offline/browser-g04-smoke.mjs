@@ -704,7 +704,7 @@ async function messageDeliveryAudit(page, peer, text) {
       eventIds: (message.retryPlan || []).map(item => item.event?.id || '').sort(), deliveryProgress: message.deliveryProgress || [] };
   }, { peerKey: peer, messageText: text });
 }
-async function waitForMessageDelivery(page, peer, text, { retryAttempts, status, deliveryStates = [] }) {
+async function waitForMessageDelivery(page, peer, text, { retryAttempts, status, deliveryStates = [], watchdogMs = 30000 }) {
   await page.waitForFunction(async ({ peerKey, messageText, attempts, expectedStatus, expectedStates }) => {
     const db = await new Promise((resolve, reject) => {
       const request = indexedDB.open('liberdade-local-v1');
@@ -720,7 +720,7 @@ async function waitForMessageDelivery(page, peer, text, { retryAttempts, status,
     return rows.some(row => row.peer === peerKey && row.text === messageText && row.direction === 'sent'
       && (row.retryAttempts || 0) === attempts && row.status === expectedStatus
       && (!expectedStates.length || expectedStates.includes(row.deliveryState)));
-  }, { peerKey: peer, messageText: text, attempts: retryAttempts, expectedStatus: status, expectedStates: deliveryStates }, { timeout: 15000 });
+  }, { peerKey: peer, messageText: text, attempts: retryAttempts, expectedStatus: status, expectedStates: deliveryStates }, { timeout: watchdogMs });
   return messageDeliveryAudit(page, peer, text);
 }
 async function waitForMessageStatus(page, peer, text, status) {

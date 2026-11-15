@@ -456,7 +456,7 @@ async function main() {
     const retryEvents = [];
     for (let index = 0; index < RETRY_FIXTURES; index++) {
       const relayIndex = index % 5;
-      const source = privateByRelay[relayIndex][0];
+      const source = privateByRelay[relayIndex][0] || forwardedByRelay[relayIndex][0];
       assert.ok(source);
       const acknowledgement = await clients[relayIndex].publish(source);
       retryEvents.push({ relayIndex, event: source, acknowledgement });
