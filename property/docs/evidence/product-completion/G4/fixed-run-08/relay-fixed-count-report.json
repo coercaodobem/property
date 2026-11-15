@@ -1,0 +1,417 @@
+{
+  "schema_version": 1,
+  "gate": "G4",
+  "suite": "isolated-five-relay-fixed-count",
+  "result": "PASS",
+  "operating_system": "Ubuntu Linux x86_64",
+  "runtime": {
+    "node": "v22.22.1",
+    "nostr_bundle": "bundled nostr-tools 2.25.2"
+  },
+  "predefined_variables": {
+    "synthetic_identities": 6,
+    "isolated_relays": 5,
+    "relay_groups": [
+      [
+        0,
+        1
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        4
+      ]
+    ],
+    "private_messages_per_ordered_identity_pair": 50,
+    "public_events": 100,
+    "partition_transitions": 40,
+    "conflicting_profile_offer_updates": 20,
+    "restarts_per_relay": 2,
+    "repeated_event_fixtures": 20,
+    "failure_fixtures_per_category": 10,
+    "fixed_event_epoch": 1794384000
+  },
+  "cases": [
+    {
+      "case": "G04-PARTITION-40",
+      "status": "PASS",
+      "transitions": 40,
+      "group_distribution": [
+        14,
+        13,
+        13
+      ],
+      "disconnected_groups_did_not_observe_other_group_events": true
+    },
+    {
+      "case": "G04-PUBLIC-100",
+      "status": "PASS",
+      "events": 100,
+      "relays": 5,
+      "signatures_and_ids_preserved": true,
+      "one_copy_per_id": true
+    },
+    {
+      "case": "G04-CONFLICT-20",
+      "status": "PASS",
+      "updates": 20,
+      "profile_updates": 10,
+      "offer_updates": 10,
+      "deterministic_latest_and_tie_break_convergence": true,
+      "same_result_on_all_relays": true
+    },
+    {
+      "case": "G04-PRIVATE-1500",
+      "status": "PASS",
+      "identity_count": 6,
+      "ordered_directions": 30,
+      "messages_per_direction": 50,
+      "total_messages": 1500,
+      "intended_decryptions": 3000,
+      "rejected_nonparticipant_decryptions": 6000,
+      "stable_signed_ids_after_storage_and_forwarding": true,
+      "plaintext_seen_by_relays": false
+    },
+    {
+      "case": "G04-FAILURES-10-EACH",
+      "status": "PASS",
+      "malformed_envelopes": 10,
+      "unavailable_relays": 10,
+      "oversized_events": 10,
+      "duplicate_ack_fixtures": 10,
+      "false_delivery_or_read_receipts": 0
+    },
+    {
+      "case": "G04-RESTART-10-RETRY-20",
+      "status": "PASS",
+      "relay_count": 5,
+      "restarts_per_relay": 2,
+      "retries": 20,
+      "one_stored_copy_per_event_id": true,
+      "only_observed_ack_frames_counted": true
+    }
+  ],
+  "relays": [
+    {
+      "relay": "R1",
+      "endpoint": "127.0.0.1",
+      "port": 42147,
+      "storage": "private isolated directory",
+      "group": 0
+    },
+    {
+      "relay": "R2",
+      "endpoint": "127.0.0.1",
+      "port": 32889,
+      "storage": "private isolated directory",
+      "group": 0
+    },
+    {
+      "relay": "R3",
+      "endpoint": "127.0.0.1",
+      "port": 34539,
+      "storage": "private isolated directory",
+      "group": 1
+    },
+    {
+      "relay": "R4",
+      "endpoint": "127.0.0.1",
+      "port": 33615,
+      "storage": "private isolated directory",
+      "group": 1
+    },
+    {
+      "relay": "R5",
+      "endpoint": "127.0.0.1",
+      "port": 42595,
+      "storage": "private isolated directory",
+      "group": 2
+    }
+  ],
+  "private_messages": {
+    "directed_identity_pairs": 30,
+    "messages_per_direction": 50,
+    "total_private_messages": 1500,
+    "wrapped_events": 3000,
+    "authorized_decryptions": 3000,
+    "unauthorized_decryption_attempts": 6000,
+    "unauthorized_decryptions": 0,
+    "stored_and_forwarded_signatures_and_ids_unchanged": true,
+    "message_plaintext_in_relays": false,
+    "event_ids_sha256": "e749034d734ba8d9661dd40c357aac9b2a263328bd64bef8ba4d8016db7470cc"
+  },
+  "public_events": {
+    "count": 100,
+    "unique_id_digest": "278c5dfcfef6f07c685743382268f543f91044b27317c92cff87851deb8ea7c9",
+    "all_five_relays_converged": true,
+    "stored_copies_per_relay": 100
+  },
+  "partition_recovery": {
+    "transitions": [
+      {
+        "ordinal": 1,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 2,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 3,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 4,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 5,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 6,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 7,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 8,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 9,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 10,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 11,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 12,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 13,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 14,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 15,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 16,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 17,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 18,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 19,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 20,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 21,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 22,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 23,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 24,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 25,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 26,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 27,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 28,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 29,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 30,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 31,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 32,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 33,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 34,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 35,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 36,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 37,
+        "group": 0,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 38,
+        "group": 1,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 39,
+        "group": 2,
+        "state": "partitioned"
+      },
+      {
+        "ordinal": 40,
+        "group": 0,
+        "state": "partitioned"
+      }
+    ],
+    "isolation_matrix_passed": true,
+    "transitions_completed": 40,
+    "partitioned_event_ids_sha256": "b8f8d2015beacc24fdb2eca15488c3d15a92fd3c447ebe243b67ad7a1f9f8fa6",
+    "reconnected_all_five_relays": true,
+    "public_event_convergence_count": 100
+  },
+  "conflicts": {
+    "conflicting_update_count": 20,
+    "profile_updates": 10,
+    "product_updates": 10,
+    "winner_rule": "greatest created_at; equal timestamps choose the lexicographically lower event ID",
+    "profile_winner_id": "254dbed5ddf909884cfe4c154a12e5f2407210b9ec4900c4ce08202d4d5e8f30",
+    "product_winner_ids": [
+      "0d3df50488193551de90dd723318c1623f068d42426202f27141e5ee86e6e70d",
+      "1056eca37940e6230f94cd3f659389808d8e0fd5066097a4f351181d27522f2c",
+      "24b9784e526cbf9b394612f80a356ccfb17727959d46448baef772a79ce5e649",
+      "43733772a02c6d03fa0357a4806862523d20fa94926ca4bce19ac252b444e2b7",
+      "a3869600a47e12647c82741e842215925548b73ecd8c182055402266dcc2b0fb"
+    ],
+    "same_winner_on_every_relay": true,
+    "conflicting_event_ids_sha256": "55d1fe6928b642a14103cff57284eca47cc9467f9558d1a424b74193afa7f8f6"
+  },
+  "restart_retry": {
+    "relays": 5,
+    "restarts_each": 2,
+    "total_restarts": 10,
+    "retry_fixtures": 20,
+    "acknowledgements_observed": 20,
+    "acknowledgements_fabricated": 0,
+    "unique_logical_messages_per_event_id": true,
+    "restart_persistence_checks": 10,
+    "retained_logical_event_ids_per_relay": [
+      2106,
+      1106,
+      1106,
+      1106,
+      1106
+    ],
+    "persistent_data_survived_restarts": true,
+    "duplicate_ids_sha256": "725dc52b73e796d3e870723e05315a0469c3f5cb9b262becab8f2bad43d03ed8"
+  },
+  "failure_fixtures": {
+    "malformed_envelope": {
+      "count": 10,
+      "decrypted": 0
+    },
+    "unavailable_relay": {
+      "count": 10,
+      "fabricated_acknowledgements": 0
+    },
+    "oversized_event": {
+      "count": 10,
+      "accepted_by_property_contract": 0
+    },
+    "duplicate_relay_response": {
+      "count": 10,
+      "duplicate_or_unaddressed_acknowledgements_counted": 0
+    }
+  },
+  "egress": {
+    "external_targets": [],
+    "relay_targets_loopback_only": true
+  }
+}
