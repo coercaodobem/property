@@ -1,0 +1,64 @@
+{
+  "result": "PASS",
+  "worktrees": 2,
+  "source_commit": "5a4bc8b42a80be9d4b4d1ef62398822b4353a17f",
+  "artifact_hashes": [
+    {
+      "name": "property-ubuntu-x86_64.tar.gz",
+      "bytes": 68876995,
+      "sha256": "81794ff5c6efa884a5695f9170f9af44827888e274cd5deb9c8974ff73d1a028"
+    },
+    {
+      "name": "release-archive.sha256",
+      "bytes": 96,
+      "sha256": "a4daeeb3331016c603bd2c752423704f433b4c37224af2828b08d5a6a92d4661"
+    },
+    {
+      "name": "release-manifest.json",
+      "bytes": 142134,
+      "sha256": "13955476253f95c8b7f7ff9e6462b3153b9f151b66ad64a182f794c025dcd6e7"
+    },
+    {
+      "name": "release-manifest.sha256",
+      "bytes": 88,
+      "sha256": "f5b29c6e685e722d4b3cadc0f2313836c36880fec7d192be1b047e4aac1bbf15"
+    },
+    {
+      "name": "release-manifest.sig",
+      "bytes": 89,
+      "sha256": "bc671a39ccdb28257976896db8799eb801c391151226e857fb0a8115fae78f87"
+    },
+    {
+      "name": "release-signing-public.pem",
+      "bytes": 113,
+      "sha256": "405bd27f4134265193ce4460880480c6780fc19e8470461810fa3ab7cc185c61"
+    }
+  ],
+  "byte_identical": true,
+  "build_a": {
+    "result": "PASS",
+    "source_commit": "5a4bc8b42a80be9d4b4d1ef62398822b4353a17f",
+    "profile": "ubuntu-linux-x86_64",
+    "file_count": 402,
+    "jar_count": 48,
+    "runtime_file_count": 141,
+    "archive_bytes": 68876995,
+    "archive_sha256": "81794ff5c6efa884a5695f9170f9af44827888e274cd5deb9c8974ff73d1a028",
+    "sbom_sha256": "3cb3cbaf8830775912e373e4ce8389938aa1b4ac735cc2aa8909353252f7a13f",
+    "manifest_sha256": "13955476253f95c8b7f7ff9e6462b3153b9f151b66ad64a182f794c025dcd6e7",
+    "signer_public_key_sha256": "129cb2c600fe6df6fc0cf4e5a9f189d2b24f3671f08a7c46da2254cdb0e85350"
+  },
+  "build_b": {
+    "result": "PASS",
+    "source_commit": "5a4bc8b42a80be9d4b4d1ef62398822b4353a17f",
+    "profile": "ubuntu-linux-x86_64",
+    "file_count": 402,
+    "jar_count": 48,
+    "runtime_file_count": 141,
+    "archive_bytes": 68876995,
+    "archive_sha256": "81794ff5c6efa884a5695f9170f9af44827888e274cd5deb9c8974ff73d1a028",
+    "sbom_sha256": "3cb3cbaf8830775912e373e4ce8389938aa1b4ac735cc2aa8909353252f7a13f",
+    "manifest_sha256": "13955476253f95c8b7f7ff9e6462b3153b9f151b66ad64a182f794c025dcd6e7",
+    "signer_public_key_sha256": "129cb2c600fe6df6fc0cf4e5a9f189d2b24f3671f08a7c46da2254cdb0e85350"
+  }
+}

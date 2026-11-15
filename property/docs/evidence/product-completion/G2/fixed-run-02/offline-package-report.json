@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "gate": "G2",
+  "result": "PASS",
+  "source_commit": "5a4bc8b42a80be9d4b4d1ef62398822b4353a17f",
+  "cases": [
+    {
+      "id": "missing-required-signature",
+      "result": "PASS",
+      "installer_rejected": true,
+      "prefix_created": false
+    },
+    {
+      "id": "altered-manifest-checksum",
+      "result": "PASS",
+      "installer_rejected": true,
+      "prefix_created": false
+    },
+    {
+      "id": "unknown-license-or-provenance",
+      "result": "PASS",
+      "license_rejected": true,
+      "missing_provenance_rejected": true
+    },
+    {
+      "id": "offline-install-update-uninstall",
+      "result": "PASS",
+      "installs": 2,
+      "agent_cli": "property-agent 0.7.0; MCP 2026-07-28; Nostr tools 2.25.2 local",
+      "relay_cli": "geode 1.20.0",
+      "agent_state_preserved": true,
+      "relay_state_preserved": true,
+      "uninstall_preserved_data": true
+    }
+  ]
+}

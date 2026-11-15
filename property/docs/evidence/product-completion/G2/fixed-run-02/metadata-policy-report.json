@@ -1,0 +1,8 @@
+{
+  "result": "PASS",
+  "cases": 6,
+  "accepted_known_license": 3,
+  "rejected_unknown_license": 1,
+  "rejected_missing_source": 1,
+  "rejected_missing_component": 1
+}
