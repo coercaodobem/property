@@ -1,5 +1,5 @@
 export const KNOWN_LICENSES = new Set([
-  'MIT', 'Apache-2.0', 'BSD-2-Clause', 'Unlicense',
+  'MIT', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause', 'MIT AND BSD-3-Clause', 'Unlicense',
   'GPL-2.0-only', 'GPL-2.0-only WITH Classpath-exception-2.0'
 ]);
 

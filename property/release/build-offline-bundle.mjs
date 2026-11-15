@@ -171,6 +171,14 @@ function licenseFor(relative, runtimeLock) {
   if (p === 'property/agent/vendor/nostr-tools-2.25.2.bundle.js' || p === 'property/agent/vendor/nostr-tools-LICENSE.txt' || p === 'property/agent/vendor/nostr-tools-LICENSE') return { component: 'nostr-tools-agent-2.25.2', license: 'Unlicense', source: p };
   if (p === 'property/web/vendor/qr-code-generator.js' || p === 'property/web/vendor/QR-CODE-GENERATOR-LICENSE.txt') return { component: 'qr-code-generator', license: 'MIT', source: p };
   if (p === 'property/web/vendor/emoji-data-15.json') return { component: 'emoji-mart-data-1.2.1', license: 'MIT', source: p };
+  if (p === 'property/web/vendor/licenses/emoji-mart-data-MIT.txt') return { component: 'emoji-mart-data-1.2.1', license: 'MIT', source: p };
+  if (p === 'property/web/secret-guard.js') return { component: 'secret-guard-web-bundle', license: 'MIT AND BSD-3-Clause', source: 'property/web/vendor/licenses/secret-guard/README.md' };
+  if (p === 'property/web/vendor/licenses/secret-guard/README.md') return firstParty('property-first-party');
+  if (p === 'property/web/vendor/licenses/secret-guard/NOBLE-HASHES-MIT.txt') return { component: 'noble-hashes-web-2.4.0', license: 'MIT', source: p };
+  if (p === 'property/web/vendor/licenses/secret-guard/SCURE-BASE-MIT.txt') return { component: 'scure-base-web', license: 'MIT', source: p };
+  if (p === 'property/web/vendor/licenses/secret-guard/SCURE-BIP39-MIT.txt') return { component: 'scure-bip39-web', license: 'MIT', source: p };
+  if (p === 'property/web/vendor/licenses/secret-guard/MONERO-ENGLISH-BSD-3-CLAUSE.txt') return { component: 'monero-english-seed-words', license: 'BSD-3-Clause', source: p };
+  if (p === 'property/web/vendor/licenses/secret-guard/MONERO-PORTUGUESE-MIT-NOTICE.txt') return { component: 'monero-portuguese-seed-words', license: 'MIT', source: p };
   if (p === 'property/web/GHOSTLY-MIT-LICENSE.txt') return { component: 'ghostly-adapted-web', license: 'MIT', source: p };
   if (p === 'property/web/chess/vendor/chess.js' || p === 'property/web/chess/vendor/chess.d.ts' || p === 'property/web/chess/vendor/CHESSJS-BSD-2-CLAUSE.txt') return { component: 'chess-js-1.4.0', license: 'BSD-2-Clause', source: p };
   if (p.startsWith('property/web/chess/vendor/noble-hashes/')) return { component: 'noble-hashes-web-2.4.0', license: 'MIT', source: p };
@@ -217,6 +225,11 @@ function thirdPartyNotices(runtimeLock) {
     '| Emoji Mart data | 1.2.1 / Unicode 15 | MIT | Vendored notice |',
     '| chess.js | 1.4.0 | BSD-2-Clause | `property/web/chess/vendor/CHESSJS-BSD-2-CLAUSE.txt` |',
     '| @noble/hashes | 2.4.0 | MIT | Vendored license and notice files |',
+    '| Local secret guard bundle | Property browser bundle | MIT AND BSD-3-Clause | `property/web/vendor/licenses/secret-guard/README.md` |',
+    '| @scure/base | Vendored local bundle; upstream version not recorded in the source notice | MIT | `property/web/vendor/licenses/secret-guard/SCURE-BASE-MIT.txt` |',
+    '| @scure/bip39 | 2.4.0 per the local source notice | MIT | `property/web/vendor/licenses/secret-guard/SCURE-BIP39-MIT.txt` |',
+    '| Monero English seed-word list | Source copyright 2014–2024 | BSD-3-Clause | `property/web/vendor/licenses/secret-guard/MONERO-ENGLISH-BSD-3-CLAUSE.txt` |',
+    '| Monero Portuguese seed-word list | Adapted from Monero v0.18.4.3 | MIT | `property/web/vendor/licenses/secret-guard/MONERO-PORTUGUESE-MIT-NOTICE.txt` |',
     '',
     '## Ubuntu relay runtime',
     '',
@@ -241,6 +254,11 @@ async function makeSbom(root, rows, commit, commitTime, runtimeLock) {
     ['nostr-tools-agent-2.25.2', { name: 'nostr-tools agent bundle', version: '2.25.2', license: 'Unlicense', source: 'property/agent/manifest.json' }],
     ['qr-code-generator', { name: 'QR code generator', version: 'see property/web/vendor/README.md', license: 'MIT', source: 'property/web/vendor/README.md' }],
     ['emoji-mart-data-1.2.1', { name: 'Emoji Mart data', version: '1.2.1 / Unicode 15', license: 'MIT', source: 'property/web/vendor/README.md' }],
+    ['secret-guard-web-bundle', { name: 'Property local secret guard bundle', version: 'Property browser artifact', license: 'MIT AND BSD-3-Clause', source: 'property/web/vendor/licenses/secret-guard/README.md' }],
+    ['scure-base-web', { name: '@scure/base web bundle', version: 'vendored source; version not recorded', license: 'MIT', source: 'property/web/vendor/licenses/secret-guard/SCURE-BASE-MIT.txt' }],
+    ['scure-bip39-web', { name: '@scure/bip39 web bundle', version: '2.4.0 per local source notice', license: 'MIT', source: 'property/web/vendor/licenses/secret-guard/SCURE-BIP39-MIT.txt' }],
+    ['monero-english-seed-words', { name: 'Monero English seed-word list', version: 'source copyright 2014-2024', license: 'BSD-3-Clause', source: 'property/web/vendor/licenses/secret-guard/MONERO-ENGLISH-BSD-3-CLAUSE.txt' }],
+    ['monero-portuguese-seed-words', { name: 'Monero Portuguese seed-word list', version: 'adapted from v0.18.4.3', license: 'MIT', source: 'property/web/vendor/licenses/secret-guard/MONERO-PORTUGUESE-MIT-NOTICE.txt' }],
     ['ghostly-adapted-web', { name: 'Ghostly-adapted web interactions', version: 'repository snapshot', license: 'MIT', source: 'property/web/GHOSTLY-MIT-LICENSE.txt' }],
     ['chess-js-1.4.0', { name: 'chess.js', version: '1.4.0', license: 'BSD-2-Clause', source: 'property/web/chess/NOTICE.md' }],
     ['noble-hashes-web-2.4.0', { name: '@noble/hashes web component', version: '2.4.0', license: 'MIT', source: 'property/web/chess/NOTICE.md' }],
