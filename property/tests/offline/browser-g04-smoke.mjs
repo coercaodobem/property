@@ -478,11 +478,12 @@ async function openConversation(page, peerNpub, title) {
   await page.locator('#start-chat-button').click();
   await waitForNewChatResult(page, peerNpub); await page.locator('#conversation-pane').waitFor({ state: 'visible' });
 }
-async function sendMessage(page, text) {
+async function sendMessage(page, text, { waitForCompletion = false } = {}) {
   await page.locator('#message-input').fill(text); await page.locator('#send-form button[type="submit"]').click();
   await page.waitForFunction(value => {
     const rows = [...document.querySelectorAll('#messages .message-row')]; return rows.some(row => row.textContent.includes(value));
   }, text, { timeout: 10000 });
+  if (waitForCompletion) await page.waitForFunction(() => !document.querySelector('#send-form button[type="submit"]')?.disabled, null, { timeout: 30000 });
 }
 async function runTypingIndicatorCase({ pageA, pageB, a, b, relay0, relay1, runtime, options, report, mark }) {
   const messageRowsBeforeTyping = await pageA.locator('#messages .message-row').count();
@@ -710,26 +711,6 @@ async function messageDeliveryAudit(page, peer, text) {
         hasRetryPlan: Array.isArray(row.retryPlan) && row.retryPlan.length >= 2 })) };
   }, { peerKey: peer, messageText: text });
 }
-async function waitForMessageDelivery(page, peer, text, { retryAttempts, status, deliveryStates = [], watchdogMs = 30000 }) {
-  await page.waitForFunction(async ({ peerKey, messageText, attempts, expectedStatus, expectedStates }) => {
-    const db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open('liberdade-local-v1');
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    const rows = await new Promise((resolve, reject) => {
-      const request = db.transaction('messages').objectStore('messages').getAll();
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => reject(request.error);
-    });
-    db.close();
-    return rows.some(row => row.peer === peerKey && row.text === messageText && row.direction === 'sent'
-      && Array.isArray(row.retryPlan) && row.retryPlan.length >= 2
-      && (row.retryAttempts || 0) === attempts && row.status === expectedStatus
-      && (!expectedStates.length || expectedStates.includes(row.deliveryState)));
-  }, { peerKey: peer, messageText: text, attempts: retryAttempts, expectedStatus: status, expectedStates: deliveryStates }, { timeout: watchdogMs });
-  return messageDeliveryAudit(page, peer, text);
-}
 async function waitForMessageStatus(page, peer, text, status) {
   await page.waitForFunction(async ({ peerKey, messageText, expectedStatus }) => {
     const db = await new Promise((resolve, reject) => {
@@ -755,7 +736,10 @@ async function main() {
   const temp = await mkdtemp(path.join(os.tmpdir(), 'property-g04-'));
   const report = { schema_version: 1, cases: CASES.map(id => ({ case: id, status: 'NOT_RUN', reason: 'Case has not started.' })),
     relays: [], external_requests: [], websockets: [], denied_proxy_attempts: [], page_errors: [], inbox_checks: {}, message_checks: {}, failure_checks: {}, reconciliation: {} };
-  const mark = (id, status, reason) => Object.assign(report.cases.find(row => row.case === id), { status, reason });
+  const mark = (id, status, reason) => {
+    Object.assign(report.cases.find(row => row.case === id), { status, reason });
+    process.stdout.write(`${id} ${status}\n`);
+  };
   try {
     options = parseArgs(process.argv.slice(2));
     const onlyTypingCase = options.case === 'G04-25';
@@ -771,6 +755,16 @@ async function main() {
     if (!onlyTypingCase) contextC = await runtime.playwright[options.engine].launchPersistentContext(profileC, { ...runtime.launch, acceptDownloads: true, serviceWorkers: 'allow' });
     for (const context of [contextA, contextB, contextC].filter(Boolean)) instrument(context, origin, report);
     await contextA.addInitScript(() => {
+      window.__propertyG4TrackedText = '';
+      window.__propertyG4OutboxWrites = [];
+      const nativeMessagePut = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function (value, ...args) {
+        if (this.name === 'messages' && value?.text === window.__propertyG4TrackedText && Array.isArray(value.retryPlan)) {
+          window.__propertyG4OutboxWrites.push({ retryAttempts: value.retryAttempts || 0, status: value.status,
+            deliveryState: value.deliveryState || '', progressRows: value.deliveryProgress?.length || 0 });
+        }
+        return nativeMessagePut.call(this, value, ...args);
+      };
       window.__propertyNotificationProbe = { permissionRequests: 0, displayed: [] };
       class FakeNotification {
         static permission = 'default';
@@ -1318,22 +1312,16 @@ async function main() {
     const oneDown = `property-g04-one-inbox-down-${crypto.randomUUID()}`; await sendMessage(pageA, oneDown);
     await pageB.locator('#messages .message-bubble').filter({ hasText: oneDown }).waitFor({ state: 'visible', timeout: 15000 });
     stage = 'G04-04: all inbox relays down'; await stopGeode(relay0);
-    const allDown = `property-g04-all-inboxes-down-${crypto.randomUUID()}`; await sendMessage(pageA, allDown);
+    const allDown = `property-g04-all-inboxes-down-${crypto.randomUUID()}`;
+    await pageA.evaluate(text => { window.__propertyG4TrackedText = text; window.__propertyG4OutboxWrites = []; }, allDown);
+    await sendMessage(pageA, allDown, { waitForCompletion: true });
     const localPending = await messageAudit(pageA, b.pubkey);
     assert.ok(localPending.some(row => row.text === allDown && row.status === 'pending'), 'all inboxes down is shown as pending');
-    let pendingDelivery;
-    try {
-      pendingDelivery = await waitForMessageDelivery(pageA, b.pubkey, allDown, { retryAttempts: 1, status: 'pending', deliveryStates: ['queued'] });
-    } catch (error) {
-      const observed = await messageDeliveryAudit(pageA, b.pubkey, allDown);
-      report.message_checks.offline_pending = observed ? { matching_record_count: observed.matchingRecordCount,
-        retryable_record_count: observed.retryableRecordCount, observed_retry_count: observed.retryAttempts,
-        observed_status: observed.status, observed_state: observed.deliveryState, candidate_states: observed.candidateStates } : { record_found: false };
-      throw new Error(`${error.message}; pending observation=${JSON.stringify(report.message_checks.offline_pending)}`);
-    }
+    const pendingDelivery = await messageDeliveryAudit(pageA, b.pubkey, allDown);
     report.message_checks.offline_pending = { matching_record_count: pendingDelivery.matchingRecordCount,
       retryable_record_count: pendingDelivery.retryableRecordCount, initial_attempt_count: pendingDelivery.retryAttempts,
-      initial_state: pendingDelivery.deliveryState, candidate_states: pendingDelivery.candidateStates };
+      initial_state: pendingDelivery.deliveryState, candidate_states: pendingDelivery.candidateStates,
+      outbox_writes: await pageA.evaluate(() => window.__propertyG4OutboxWrites || []) };
     assert.equal(pendingDelivery.deliveryState, 'queued', 'no response from the selected inbox relays remains queued locally');
     assert.equal(pendingDelivery.retryAttempts, 1, 'the first completed publish attempt is persisted before the user retries');
     assert.equal(pendingDelivery.eventIds.length, 2, 'sender and recipient gift wraps are retained for an exact same-ID retry');
@@ -1346,25 +1334,37 @@ async function main() {
     await retryButton.click();
     let retriedDelivery;
     try {
-      retriedDelivery = await waitForMessageDelivery(pageA, b.pubkey, allDown,
-        { retryAttempts: 2, status: 'sent', deliveryStates: ['relay-accepted', 'observed'] });
+      await pageA.waitForFunction(text => {
+        const row = [...document.querySelectorAll('#messages .message-row')].find(item => item.textContent.includes(text));
+        const deliveryState = row?.querySelector('.message-meta')?.dataset.deliveryState || '';
+        const button = row?.querySelector('.message-delivery-retry');
+        return ['relay-accepted', 'observed'].includes(deliveryState) && Boolean(button) && !button.disabled;
+      }, allDown, { timeout: 30000 });
+      retriedDelivery = await messageDeliveryAudit(pageA, b.pubkey, allDown);
     } catch (error) {
       const observed = await messageDeliveryAudit(pageA, b.pubkey, allDown);
       report.message_checks.offline_retry = { initial_attempt_count: pendingDelivery.retryAttempts,
         observed_retry_count: observed?.retryAttempts ?? null, observed_status: observed?.status ?? null,
         observed_state: observed?.deliveryState ?? null, retry_button_clicked: true,
         observed_relay_progress: (observed?.deliveryProgress || []).map(item => ({ accepted: item.acceptedRelayUrls.length,
-          rejected: item.rejectedRelayUrls.length, unanswered: item.unansweredRelayUrls.length })) };
+          rejected: item.rejectedRelayUrls.length, unanswered: item.unansweredRelayUrls.length })),
+        outbox_writes: await pageA.evaluate(() => window.__propertyG4OutboxWrites || []) };
       throw new Error(`${error.message}; retry observation=${JSON.stringify(report.message_checks.offline_retry)}`);
     }
     report.message_checks.offline_retry = { initial_attempt_count: pendingDelivery.retryAttempts,
       observed_retry_count: retriedDelivery.retryAttempts, initial_state: pendingDelivery.deliveryState,
       final_state: retriedDelivery.deliveryState, retry_button_clicked: true,
+      matching_record_count: retriedDelivery.matchingRecordCount, retryable_record_count: retriedDelivery.retryableRecordCount,
+      candidate_states: retriedDelivery.candidateStates,
       stable_event_ids: JSON.stringify(retriedDelivery.eventIds) === JSON.stringify(pendingDelivery.eventIds),
       one_logical_message: await pendingRow.count() === 1,
       initial_relay_progress: pendingDelivery.deliveryProgress.map(item => ({ accepted: item.acceptedRelayUrls.length, unanswered: item.unansweredRelayUrls.length })),
-      final_relay_progress: retriedDelivery.deliveryProgress.map(item => ({ accepted: item.acceptedRelayUrls.length, unanswered: item.unansweredRelayUrls.length })) };
+      final_relay_progress: retriedDelivery.deliveryProgress.map(item => ({ accepted: item.acceptedRelayUrls.length, unanswered: item.unansweredRelayUrls.length })),
+      outbox_writes: await pageA.evaluate(() => window.__propertyG4OutboxWrites || []),
+      retry_toast: (await pageA.locator('#toast').textContent().catch(() => '')).trim() };
     assert.equal(retriedDelivery.retryAttempts, 2, 'one user retry follows the initial queued attempt');
+    assert.equal(retriedDelivery.retryableRecordCount, 1, 'retry observes one persisted outgoing event plan');
+    assert.equal(retriedDelivery.status, 'sent', 'the restored relay accepts both NIP-17 envelopes');
     assert.deepEqual(retriedDelivery.eventIds, pendingDelivery.eventIds, 'retry republishes the exact same signed event IDs');
     assert.equal(await pendingRow.count(), 1, 'retry keeps one logical message in the conversation');
     assert.ok(['relay-accepted', 'observed'].includes(retriedDelivery.deliveryState), 'relay ACK/query state does not claim recipient decryption');
@@ -1964,7 +1964,7 @@ async function main() {
       && document.querySelector('#chat-nip39-list .identity-proof-entry button')?.textContent.trim() === 'Verificar no GitHub');
     assert.match(await defaultPage.locator('#chat-nip39-list .identity-proof-entry [role="status"]').textContent(), /Declaração assinada · não verificada/i, 'contact claim status is translated to Portuguese');
     assert.match(await defaultPage.locator('#chat-profile-status').textContent(), /Nenhum perfil assinado kind 0 foi encontrado/i, 'the missing-profile status is translated after changing language');
-    assert.match(await defaultPage.locator('#chat-nip39-section > .fine-print').last().textContent(), /Uma declaração Nostr assinada vincula este perfil/i, 'the identity-proof privacy explanation is translated');
+    assert.match(await defaultPage.locator('#chat-nip39-section > .fine-print').last().textContent(), /Uma declaração Nostr assinada não comprova, por si só/i, 'the identity-proof privacy explanation is translated');
     await defaultPage.screenshot({ path: path.join(options.output, 'g04-nip39-contact-unverified-mobile-pt-BR.png') });
     await defaultPage.locator('#language-picker').selectOption('en');
     await defaultPage.locator('#chat-nip39-section').scrollIntoViewIfNeeded();
@@ -2075,8 +2075,8 @@ async function main() {
     mark('G04-21', 'PASS', 'Typing a link and canceling consent made zero requests. One explicit confirmation made exactly one mocked HTTPS metadata request without credentials/referrer or redirects. The sender attached one text-only preview tag to the NIP-17 rumor; the recipient rendered it in both languages without fetching the page, and the loopback relay saw no preview URL, title, or custom tag in its encrypted wrapper.');
 
     stage = 'G04-26: cached PWA shell with all relays offline';
+    await pageA.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, { timeout: 10000 });
     const shellCache = await pageA.evaluate(async () => {
-      await navigator.serviceWorker.ready;
       const controller = navigator.serviceWorker.controller;
       const names = await caches.keys();
       const shellName = names.find(name => /^property-shell-/.test(name));
