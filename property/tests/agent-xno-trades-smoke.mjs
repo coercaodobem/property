@@ -147,6 +147,11 @@ assert.equal(retry.status, 'submitted');
 assert.equal(sendCalls.length, 2, 'the RPC retry is made with the same logical trade');
 assert.equal(new Set(sendCalls.map(call => call.idempotencyKey)).size, 1);
 assert.equal(broadcasts.size, 1, 'a lost response and retry create only one underlying Nano transfer');
+for (let replay = 0; replay < 50; replay++) {
+  await buyer.service.payOffer({ conversation_pubkey: sellerPub, offer_message_id: offerResult.offer_message_id });
+}
+assert.equal(sendCalls.length, 2, '50 duplicate payment commands do not create more wallet sends');
+assert.equal(broadcasts.size, 1, '50 duplicate payment commands preserve one transfer');
 assert.equal(retry.receipt.status, 'relay_accepted');
 assert.equal(inbox.seller.at(-1).direction, 'received');
 
@@ -161,9 +166,11 @@ const verified = await seller.service.verifyReceipt({ conversation_pubkey: buyer
 assert.equal(verified.status, 'received');
 assert.equal(verified.confirmed, true);
 assert.equal(receivedCount, 1);
-const duplicateReceipt = await seller.service.verifyReceipt({ conversation_pubkey: buyerPub, receipt_message_id: receiptMessage.message_id });
-assert.equal(duplicateReceipt.duplicated, true);
-assert.equal(receivedCount, 1, 'a replayed receipt cannot trigger a second receive');
+for (let replay = 0; replay < 50; replay++) {
+  const duplicateReceipt = await seller.service.verifyReceipt({ conversation_pubkey: buyerPub, receipt_message_id: receiptMessage.message_id });
+  assert.equal(duplicateReceipt.duplicated, true);
+}
+assert.equal(receivedCount, 1, '50 replayed receipts cannot trigger a second receive');
 
 const payerStatus = await buyer.service.tradeStatus({ trade_id: offerResult.trade_id });
 assert.equal(payerStatus.status, 'confirmed');
@@ -227,4 +234,5 @@ const expectedIds = ['encrypted-policy-contains-no-plaintext-secret', 'encrypted
   'journal-encrypted-at-rest', 'journal-authentication-and-identity-binding', 'plaintext-or-tampered-journal-fails-closed'];
 process.stdout.write(JSON.stringify({ gate: 'G8-XNO-trades', profile: 'offline', seed: 'property-xno-trade-fixed-v1', logicalNow: now,
   cases: expectedIds.map(id => ({ id, result: 'PASS' })), caseCount: expectedIds.length, rawAmounts: ['40', '100', '101', '150'], actualNanoTransfers: broadcasts.size,
-  actualNanoReceiveBlocks: receivedCount, fundsUsed: false, relayUsed: 'local-fixtures-only', escrow: false }, null, 2) + '\n');
+  actualNanoReceiveBlocks: receivedCount, stateful_replay_counts: { duplicate_payment_commands: 50, duplicate_receipt_commands: 50 },
+  fundsUsed: false, relayUsed: 'local-fixtures-only', escrow: false }, null, 2) + '\n');

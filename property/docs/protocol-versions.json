@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "contract": "property-protocol-contract/v1",
+  "wire_serialization": {
+    "nostr_event_id": "UTF-8 SHA-256 of the NIP-01 array [0, pubkey, created_at, kind, tags, content]",
+    "property_json": "UTF-8 JSON; object keys sorted by JavaScript code-unit order; arrays retain order; only null, strings, booleans, safe integers, arrays, and plain objects; amounts are canonical decimal strings",
+    "legacy_reading": "Property parsers accept bounded valid legacy JSON key order; writers emit canonical JSON",
+    "unicode_normalization": "none; strings are signed and compared as provided"
+  },
+  "critical_extension": {
+    "tag": "property-crit",
+    "value": "one or more tag names that a Property parser must understand",
+    "unknown_critical_behavior": "reject the event before applying state",
+    "unknown_unmarked_tag_behavior": "preserve the signed event and ignore the unknown tag unless its family parser defines another rule"
+  },
+  "event_families": [
+    {
+      "id": "identity_claim",
+      "kinds": [10011],
+      "protocols": ["nostr-nip39-kind-10011/v1"],
+      "content_max_bytes": 16384,
+      "tags_max": 64,
+      "implementation": ["property/web/nip39.js"],
+      "compatibility": "NIP-39 claims are signed profile statements; a claim is not proof that an external platform still controls the account."
+    },
+    {
+      "id": "private_message",
+      "kinds": [1059],
+      "protocols": ["nostr-nip17-nip59/v1"],
+      "content_max_bytes": 32768,
+      "tags_max": 8,
+      "implementation": ["property/web/vendor/nostr-tools-2.25.2.bundle.js", "property/web/agent-messaging.js", "property/agent/relay.mjs"],
+      "compatibility": "NIP-17 gift wraps and NIP-59 seals remain standard Nostr events; delivery acknowledgements do not prove recipient observation or decryption."
+    },
+    {
+      "id": "public_note",
+      "kinds": [1],
+      "protocols": ["nostr-nip01-kind-1/v1"],
+      "content_max_bytes": 16384,
+      "tags_max": 128,
+      "implementation": ["property/web/app.js", "property/web/vendor/nostr-tools-2.25.2.bundle.js"],
+      "compatibility": "NIP-01 kind 1 remains interoperable; signed content is public and relays may retain copies."
+    },
+    {
+      "id": "marketplace_offer",
+      "kinds": [30017, 30018],
+      "protocols": ["nostr-nip15-kind-30018/v1"],
+      "content_max_bytes": 16384,
+      "tags_max": 32,
+      "implementation": ["property/web/marketplace.js", "property/web/app.js"],
+      "compatibility": "NIP-15 stall/product event kinds are retained. Property adds exact atomic-unit string fields for BTC, XMR, and XNO; legacy decimal display values are accepted only when consistent."
+    },
+    {
+      "id": "trade_state",
+      "kinds": [1059],
+      "protocols": ["property-xno-trade/v1", "property-xno-escrow/v1", "property-xno-threshold/v2"],
+      "content_max_bytes": 24576,
+      "tags_max": 16,
+      "implementation": ["property/agent/xno-trades.mjs", "property/agent/xno-escrow.mjs", "property/agent/xno-threshold-protocol.mjs"],
+      "compatibility": "Trade payloads are sent inside NIP-17 encrypted messages. Threshold v1 is incompatible with v2 and must fail closed; a new session is required. Escrow remains dev-only and does not change Nano consensus."
+    },
+    {
+      "id": "campaign_sponsorship",
+      "kinds": [30078, 30079, 30080, 30082],
+      "protocols": ["property-campaign-offer-v1", "property-campaign-decision-v1", "property-campaign-refund-v1", "property-sponsored/v2"],
+      "content_max_bytes": 200000,
+      "tags_max": 16,
+      "implementation": ["property/relay/campaign-engine.mjs", "property/web/campaigns.js"],
+      "compatibility": "New published sponsorship events use property-sponsored-v2. Legacy sponsored-v1 records remain display-only where a reader explicitly supports them; new decisions and payments are never inferred from legacy display data."
+    },
+    {
+      "id": "relay_discovery",
+      "kinds": [3, 10002, 10050],
+      "protocols": ["nostr-nip02-kind-3/v1", "nostr-nip65-kind-10002/v1", "nostr-nip17-kind-10050/v1"],
+      "content_max_bytes": 8192,
+      "tags_max": 512,
+      "implementation": ["property/web/relay-defaults.js", "property/web/routing.js", "property/agent/relay.mjs"],
+      "compatibility": "Existing Nostr relay-list events remain readable. Inbox routing uses a signed kind 10050 list; missing or invalid lists never trigger an unselected public fallback."
+    }
+  ],
+  "currency_atomic_units": {
+    "BTC": {"unit": "satoshi", "max_atomic": "2100000000000000"},
+    "XMR": {"unit": "piconero", "max_atomic": "18446744073709551615"},
+    "XNO": {"unit": "raw", "max_atomic": "340282366920938463463374607431768211455"},
+    "wire_format": "positive base-10 integer string with no leading zero; no floating point, ticker alias, conversion, or inferred decimal precision"
+  },
+  "migration_rules": [
+    {"from": "property-xno-threshold/v1", "to": "property-xno-threshold/v2", "rule": "incompatible; reject v1 settlement messages; start a new v2 session; never silently downgrade"},
+    {"from": "property-sponsored-v1", "to": "property-sponsored-v2", "rule": "v1 may be rendered as legacy public content only; no v1 event may authorize a new payment, decision, refund, or state transition"},
+    {"from": "NIP-15 decimal price only", "to": "NIP-15 plus price_atomic", "rule": "accept only if the decimal amount converts exactly to the declared currency atomics; reject mismatches and ambiguity"},
+    {"from": "unknown noncritical Nostr tags", "to": "current Property parser", "rule": "retain the original signed event; ignore unknown tags unless explicitly listed in property-crit"},
+    {"from": "unknown critical protocol or tag", "to": "current Property parser", "rule": "typed rejection; no partial state mutation or payment action"}
+  ],
+  "security_claims": {
+    "signature": "proves that the event bytes were signed by the corresponding Nostr private key and were not changed; it does not identify a legal person or prove that a claim is true",
+    "encryption": "protects the encrypted payload for intended keys; outer routing, IP addresses, timing, sizes, and relay access can still expose metadata",
+    "relay_ack": "proves only that a relay accepted an event; it does not prove global propagation, recipient delivery, display, or reading",
+    "wallet_observation": "proves only the evidence returned by the configured local node/wallet and the adapter checks; a declared transaction ID or signed offer is not settlement",
+    "nano": "Nano consensus does not enforce escrow, delivery, refunds, arbitration, identity binding, or Property's threshold policy; XNO threshold settlement remains experimental and dev-only"
+  }
+}

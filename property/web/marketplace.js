@@ -93,7 +93,12 @@
     const products = new Map();
     const deletions = [];
     for (const event of events || []) {
-      if (!event || !verifyEvent(event) || !unexpired(event, nowSeconds)) continue;
+      if (!event || !unexpired(event, nowSeconds)) continue;
+      if (event.kind === 5) { if (!verifyEvent(event)) continue; }
+      else {
+        try { window.PropertyProtocol.validateEventFamily(event, 'marketplace_offer', verifyEvent, nowSeconds); }
+        catch { continue; }
+      }
       if (event.kind === 5 && Number.isSafeInteger(event.created_at) && Array.isArray(event.tags)) { deletions.push(event); continue; }
       if (event.kind !== 30018 || !HEX_64.test(event.id || '') || !Number.isSafeInteger(event.created_at) || event.created_at > nowSeconds + 300) continue;
       const address = productAddress(event);

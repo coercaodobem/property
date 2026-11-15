@@ -1,7 +1,11 @@
 'use strict';
 (() => {
+  function validEventFamily(event, family, verifyEvent, nowSeconds = Math.floor(Date.now() / 1000)) {
+    try { return window.PropertyProtocol.validateEventFamily(event, family, verifyEvent, nowSeconds) === event; }
+    catch { return false; }
+  }
   function inboxRelays(event, verifyEvent, normalizeRelay) {
-    if (!event || event.kind !== 10050 || !verifyEvent(event) || !Array.isArray(event.tags)) return [];
+    if (!event || event.kind !== 10050 || !validEventFamily(event, 'relay_discovery', verifyEvent) || !Array.isArray(event.tags)) return [];
     const urls = [];
     for (const tag of event.tags) {
       if (tag[0] !== 'relay' || typeof tag[1] !== 'string') continue;
@@ -29,7 +33,7 @@
     const deliveries = [];
     const seen = new Set();
     for (const event of wraps) {
-      if (event?.kind !== 1059 || !verifyEvent(event)) return { ready: false, deliveries: [], reason: 'invalid-gift-wrap' };
+      if (event?.kind !== 1059 || !validEventFamily(event, 'private_message', verifyEvent)) return { ready: false, deliveries: [], reason: 'invalid-gift-wrap' };
       const recipients = (event.tags || []).filter(tag => tag[0] === 'p').map(tag => tag[1]);
       if (recipients.length !== 1 || !expected.has(recipients[0]) || seen.has(recipients[0])) return { ready: false, deliveries: [], reason: 'unexpected-recipient' };
       const recipient = recipients[0];
@@ -51,7 +55,7 @@
     const seen = new Set();
     const deliveries = [];
     for (const event of wraps) {
-      if (event?.kind !== 1059 || !verifyEvent(event)) return { ready: false, deliveries: [], reason: 'invalid-gift-wrap' };
+      if (event?.kind !== 1059 || !validEventFamily(event, 'private_message', verifyEvent)) return { ready: false, deliveries: [], reason: 'invalid-gift-wrap' };
       const recipients = (event.tags || []).filter(tag => tag[0] === 'p').map(tag => tag[1]);
       if (recipients.length !== 1 || !expected.has(recipients[0]) || seen.has(recipients[0])) return { ready: false, deliveries: [], reason: 'unexpected-recipient' };
       const recipient = recipients[0];

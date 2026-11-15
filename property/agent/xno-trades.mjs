@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { parseStrictJson } from './ipc.mjs';
 import { exactObject, PUBKEY, validateToolText } from './core.mjs';
+import { canonicalJson, parseVersionedJson } from './protocol-contract.mjs';
 import { nanoTradeIdempotencyKey } from './nano-wallet.mjs';
 
 export const XNO_TRADE_PROTOCOL = 'property-xno-trade/v1';
@@ -43,7 +43,7 @@ function parseOfferMessage(message, sender, receiver) {
     throw new Error('xno-offer-not-authenticated');
   }
   let value;
-  try { value = parseStrictJson(message.body, 8 * 1024); } catch { throw new Error('xno-offer-invalid'); }
+  try { value = parseVersionedJson(message.body, 'trade_state', { maxBytes: 8 * 1024 }); } catch { throw new Error('xno-offer-invalid'); }
   return validateOffer(value, sender, receiver);
 }
 
@@ -165,7 +165,7 @@ export function createXnoTradeService({ pubkey, blockedPubkeys = () => [], relay
     const offer = { protocol: XNO_TRADE_PROTOCOL, type: 'offer', trade_id: tradeId, buyer_pubkey: params.recipient_pubkey,
       seller_pubkey: pubkey, seller_account: wallet.account, amount_raw: amount.toString(), terms, terms_sha256: digest(terms),
       created_at: current, expires_at: current + ttl };
-    const result = await transport.sendMessage(params.recipient_pubkey, JSON.stringify(offer), null, configRelays());
+    const result = await transport.sendMessage(params.recipient_pubkey, canonicalJson(offer, 8 * 1024), null, configRelays());
     if (!result || !/^[0-9a-f]{32}$/.test(result.message_id || '')) throw new Error('xno-offer-send-failed');
     const state = await journal();
     state.offers[tradeId] = { trade_id: tradeId, peer_pubkey: params.recipient_pubkey, account: wallet.account,
@@ -218,7 +218,7 @@ export function createXnoTradeService({ pubkey, blockedPubkeys = () => [], relay
         payer_pubkey: pubkey, payer_account: wallet.account, payee_pubkey: params.conversation_pubkey, payee_account: offer.seller_account,
         amount_raw: offer.amount_raw, terms_sha256: offer.terms_sha256, txid: record.txid };
       try {
-        const result = await transport.sendMessage(params.conversation_pubkey, JSON.stringify(body), message.message_id, configRelays());
+        const result = await transport.sendMessage(params.conversation_pubkey, canonicalJson(body, 8 * 1024), message.message_id, configRelays());
         if (/^[0-9a-f]{32}$/.test(result?.message_id || '')) {
           record.receipt_message_id = result.message_id;
           receipt = { status: result.status || 'sent', message_id: result.message_id, relay_acks: result.relay_acks || 0, relay_attempts: result.relay_attempts || 0 };
@@ -253,7 +253,7 @@ export function createXnoTradeService({ pubkey, blockedPubkeys = () => [], relay
     const message = messages.find(item => item.message_id === params.receipt_message_id);
     if (!message || message.direction !== 'received' || message.conversation_pubkey !== params.conversation_pubkey) throw new Error('xno-receipt-not-authenticated');
     let payload;
-    try { payload = parseStrictJson(message.body, 8 * 1024); } catch { throw new Error('xno-receipt-invalid'); }
+    try { payload = parseVersionedJson(message.body, 'trade_state', { maxBytes: 8 * 1024 }); } catch { throw new Error('xno-receipt-invalid'); }
     const receipt = validateReceipt(payload, params.conversation_pubkey, pubkey);
     const state = await journal();
     const offer = state.offers[receipt.trade_id];
@@ -288,7 +288,7 @@ export function createXnoTradeService({ pubkey, blockedPubkeys = () => [], relay
     if (peer !== params.conversation_pubkey) throw new Error('xno-trade-peer-mismatch');
     const body = { protocol: XNO_TRADE_PROTOCOL, type: 'dispute', trade_id: params.trade_id, author_pubkey: pubkey, summary, summary_sha256: digest(summary) };
     const relatedMessageId = offer?.message_id || payment?.offer_message_id || receipt?.offer_message_id;
-    const result = await transport.sendMessage(params.conversation_pubkey, JSON.stringify(body), relatedMessageId, configRelays());
+    const result = await transport.sendMessage(params.conversation_pubkey, canonicalJson(body, 8 * 1024), relatedMessageId, configRelays());
     if (!/^[0-9a-f]{32}$/.test(result?.message_id || '')) throw new Error('xno-dispute-send-failed');
     state.disputes[params.trade_id] = { trade_id: params.trade_id, message_id: result.message_id, summary_sha256: digest(summary) };
     await saveJournal(validateXnoJournal(state));

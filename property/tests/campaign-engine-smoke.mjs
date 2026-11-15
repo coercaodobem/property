@@ -82,7 +82,9 @@ try {
   assert.equal(acceptance.amount_atomic, '1');
   assert.ok(acceptance.payment_address);
   assert.ok(acceptance.refund_terms);
-  assert.equal((await nodeAEngine.decide(firstOffer)).event.id, accepted.event.id, 'same offer is decided once');
+  for (let replay = 0; replay < 50; replay++) {
+    assert.equal((await nodeAEngine.decide(firstOffer)).event.id, accepted.event.id, 'duplicate offer reuses its original decision');
+  }
   const changedTerms = await nodeAEngine.decide(offer({ id: accepted.record.campaign_id, amount: '2' }));
   assert.equal(changedTerms.decision, 'rejected', 'a changed offer using the same campaign ID receives a signed refusal');
   assert.equal(JSON.parse(changedTerms.event.content).reason, 'campaign_id_conflict');
@@ -110,6 +112,9 @@ try {
   assert.equal(published.filter(event => event.kind === 30078).length, 1);
   nodeAEngine = engine(nodeA, nodeADir);
   assert.equal((await nodeAEngine.reconcile(accepted.record.campaign_id)).status, 'published', 'restart and duplicate reconciliation do not duplicate publication');
+  for (let replay = 0; replay < 50; replay++) {
+    assert.equal((await nodeAEngine.reconcile(accepted.record.campaign_id)).status, 'published');
+  }
   assert.equal(published.filter(event => event.kind === 30078).length, 1);
   now = activeCampaign.expires_at + 1;
   const expired = await nodeAEngine.reconcile(accepted.record.campaign_id);
@@ -145,8 +150,10 @@ try {
   assert.equal(refunded.status, 'refunded');
   assert.equal(refunded.refund.amount_atomic, '2', 'refund covers the exact observed atomic amount');
   assert.equal(verifyEvent(refundRequest), true);
-  const duplicateRefund = await engine(nodeA, nodeADir).refund(refundRequest);
-  assert.equal(duplicateRefund.status, 'refunded');
+  for (let replay = 0; replay < 50; replay++) {
+    const duplicateRefund = await engine(nodeA, nodeADir).refund(refundRequest);
+    assert.equal(duplicateRefund.status, 'refunded');
+  }
   assert.equal(refundCalls, beforeRefundCalls + 1, 'restart and duplicate refund request remain idempotent');
   assert.equal((await engine(nodeA, nodeADir).get(mismatchAcceptance.record.campaign_id)).status, 'refunded');
 
@@ -154,7 +161,9 @@ try {
   changedOffer.content = changedOffer.content.replace('"amount_atomic":"1"', '"amount_atomic":"2"');
   assert.throws(() => offerPayloadForSmoke(changedOffer), /signature/i);
   assert.ok(lookupCalls >= 4, 'payment state comes from the ledger adapter, not a declared transaction ID');
-  console.log('PASS: signed node decisions, independent policy, persisted campaign state machine, exact payment reconciliation, idempotent publication/refund, and expiry tombstone');
+  console.log(JSON.stringify({ gate: 'G1-campaign-integration', result: 'PASS', network: 'offline-local-fixtures-only', funds_used: false,
+    duplicate_offer_decisions: 50, duplicate_payment_reconciliations: 50, duplicate_refund_requests: 50,
+    published_campaigns_after_replay: published.filter(event => event.kind === 30078).length, refund_calls_after_replay: refundCalls }));
 } finally {
   await rm(temp, { recursive: true, force: true });
 }

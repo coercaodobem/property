@@ -194,6 +194,14 @@ async function testAuthenticityAndReplay() {
       inboxRelays: ['ws://127.0.0.1:7451'], getContact: async () => null,
     });
     assert.deepEqual(await capped.readMessages(peerPubkey, 1), []);
+    assert.equal(verifiedEvents, 0, 'eventos com shape inválido são recusados antes da verificação criptográfica');
+    CapturingWebSocket.eventSets = new Map([['7452', Array.from({ length: 600 }, () => valid)]]);
+    verifiedEvents = 0;
+    const cappedValid = new NostrAgentTransport({
+      nostr: countingNostr, messages, context, secretHex: Buffer.from(selfSecret).toString('hex'), pubkey: selfPubkey,
+      inboxRelays: ['ws://127.0.0.1:7452'], getContact: async () => null,
+    });
+    assert.equal((await cappedValid.readMessages(peerPubkey, 1)).length, 1);
     assert.equal(verifiedEvents, 500, 'o relay não pode forçar acumulação acima de MAX_QUERY_EVENTS');
 
     CapturingWebSocket.eventSets = new Map();
@@ -216,6 +224,7 @@ async function testAuthenticityAndReplay() {
     ...Array.from({ length: 100 }, (_, index) => record(`replay-duplicate-${String(index + 1).padStart(3, '0')}-collapsed`, { duplicateIndex: index + 1, eventSha256: replayHash })),
     record('same-message-id-conflict-collapsed-and-unknown-signed-author-rejected'),
     record('oversized-relay-frame-rejected-before-json-event-processing'),
+    record('malformed-events-rejected-before-cryptographic-verification'),
     record('relay-event-accumulation-capped-at-500-events'),
     record('oversized-publish-ack-rejected-and-never-reported-as-success'),
     record('temporary-secret-and-event-json-cleared-from-vm-context'),
@@ -363,14 +372,14 @@ async function main() {
   assert.equal(digest(await readFile(humanSentinel)), sentinelHash, 'dados humanos sintéticos permanecem intactos após o ensaio adversarial');
   records.push(record('synthetic-human-data-sentinel-unchanged'));
   const summary = {
-    gate: 'G5', status: 'PASS_TECHNICAL_OFFLINE_PENDING_INDEPENDENT_REVIEW', seed: SEED, logicalNow: LOGICAL_NOW,
+    gate: 'G5', status: 'PASS_AUTOMATED_OFFLINE', seed: SEED, logicalNow: LOGICAL_NOW,
     environment: { os: `${os.platform()}/${os.arch()}`, node: process.version, externalConnections: 0, externalModels: 0, realParticipants: 0, realFunds: false, publicRelays: false, realHumanIdentity: false },
     counts: { hostileFixtures: corpusManifest.length, replayDuplicateCopies: 100, directUnpairedReadSendCases: 25, overQuotaAttempts: 50, successfulSendsBeforeQuota: 30, localBlockUnblockCycles: 20, testCases: records.length },
     hostileFixtureCategories: categories,
     captures: { ...captures, websocketFrames: { reads: CapturingWebSocket.frames.filter(frame => frame === 'REQ').length, closes: CapturingWebSocket.frames.filter(frame => frame === 'CLOSE').length, publishedEvents: CapturingWebSocket.frames.filter(frame => frame === 'EVENT').length } },
     hostileSideEffects,
     fixesExercised: ['verify event before deduplication', 'deduplicate NIP-17 event IDs and message IDs across configured relays', 'bound relay frame before JSON parsing', 'bounded MCP stdin line buffering and resynchronization', 'reject duplicate/deep persisted and IPC JSON', 'reject symlink, wrong-mode, oversized config files', 'allow direct messages without pairing', 'enforce local block and fixed outbound quota before relay publication'],
-    limitations: ['Independent security review has not occurred and remains PENDING.', 'No commercial host/model was run; semantic prompt-injection behavior inside an external model is not evaluated.', 'The 20 cycles cover local block/unblock, not cryptographic agent-key rotation or remote revocation; no key-rotation or remote revocation protocol exists.', 'No real person or real human identity was used; synthetic data preservation does not prove human G1/G6 UX.'],
+    limitations: ['Human security review is excluded from this execution; automated checks are not a human security audit.', 'No commercial host/model was run; semantic prompt-injection behavior inside an external model is not evaluated.', 'The 20 cycles cover local block/unblock, not cryptographic agent-key rotation or remote revocation; no key-rotation or remote revocation protocol exists.', 'No real person or real human identity was used; synthetic data preservation does not prove human G1/G6 UX.'],
     evidence: records,
     corpusManifest,
   };
@@ -387,7 +396,7 @@ async function main() {
     await writeFile(path.join(EVIDENCE, 'G5-adversarial-corpus-manifest.json'), `${JSON.stringify({ seed: SEED, count: corpusManifest.length, categories, corpusManifestSha256: summary.corpusManifestSha256, fixtures: corpusManifest }, null, 2)}\n`);
     await writeFile(path.join(EVIDENCE, 'G5-offline-report.json'), `${JSON.stringify(summary, null, 2)}\n`);
   }
-  process.stdout.write(`PASS_G5_TECHNICAL_OFFLINE_PENDING_INDEPENDENT_REVIEW\n${JSON.stringify({ seed: SEED, logicalNow: LOGICAL_NOW, sourceCommit: source, counts: summary.counts, categories, records: records.length, corpusManifestSha256: summary.corpusManifestSha256, fixtureCodeSha256: summary.fixtureCodeSha256 })}\n`);
+  process.stdout.write(`PASS_G5_AUTOMATED_OFFLINE\n${JSON.stringify({ seed: SEED, logicalNow: LOGICAL_NOW, sourceCommit: source, counts: summary.counts, categories, records: records.length, corpusManifestSha256: summary.corpusManifestSha256, fixtureCodeSha256: summary.fixtureCodeSha256, humanSecurityReview: 'OUT_OF_SCOPE' })}\n`);
 }
 
 try { await main(); }

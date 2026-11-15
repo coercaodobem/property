@@ -11,6 +11,7 @@ vm.createContext(context);
 vm.runInContext(source, context, { timeout: 5000 });
 const nostr = context.NostrTools;
 assert.ok(nostr?.nip17?.wrapManyEvents, 'local bundle must expose NIP-17');
+vm.runInContext(await readFile(new URL('../web/protocol-contract.js', import.meta.url), 'utf8'), context, { timeout: 5000 });
 vm.runInContext(await readFile(new URL('../web/routing.js', import.meta.url), 'utf8'), context, { timeout: 5000 });
 const routing = context.PropertyNostrRouting;
 function signEvent(template, secret) {

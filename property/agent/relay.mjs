@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import vm from 'node:vm';
 import { conversationId, eventInContext, normalizeRelay, secretBytesInContext } from './core.mjs';
+import { parseEventFamily } from './protocol-contract.mjs';
 
 const MAX_QUERY_EVENTS = 500;
 const MAX_RELAY_FRAME_BYTES = 64 * 1024;
@@ -62,9 +63,9 @@ export class NostrAgentTransport {
       if (!event || typeof event !== 'object') continue;
       let candidate;
       try { candidate = eventInContext(this.context, event); } catch { continue; }
-      let authentic = false;
-      try { authentic = this.nostr.verifyEvent(candidate); } catch { /* evento malformado: rejeitar sem abortar a leitura */ }
-      if (!authentic || typeof candidate.id !== 'string' || eventIds.has(candidate.id)) continue;
+      try { parseEventFamily(candidate, 'private_message', event => this.nostr.verifyEvent(event), Math.floor(Date.now() / 1000)); }
+      catch { continue; }
+      if (typeof candidate.id !== 'string' || eventIds.has(candidate.id)) continue;
       eventIds.add(candidate.id);
       let rumor;
       try { rumor = this.nostr.nip17.unwrapEvent(candidate, this.secret); } catch { continue; }
@@ -142,7 +143,8 @@ export class NostrAgentTransport {
       let candidate;
       try { candidate = eventInContext(this.context, event); } catch { continue; }
       try {
-        if (candidate.kind !== 10050 || candidate.pubkey !== peer || !this.nostr.verifyEvent(candidate) || !Array.isArray(candidate.tags)) continue;
+        parseEventFamily(candidate, 'relay_discovery', event => this.nostr.verifyEvent(event), Math.floor(Date.now() / 1000));
+        if (candidate.kind !== 10050 || candidate.pubkey !== peer || !Array.isArray(candidate.tags)) continue;
         const relays = [];
         for (const tag of candidate.tags) {
           if (tag[0] !== 'relay' || typeof tag[1] !== 'string') continue;

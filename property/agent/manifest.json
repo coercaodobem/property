@@ -33,6 +33,7 @@
     "service.mjs",
     "relay.mjs",
     "ipc.mjs",
+    "protocol-contract.mjs",
     "store.mjs",
     "vault.mjs",
     "nano-wallet.mjs",

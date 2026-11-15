@@ -8,6 +8,7 @@ const context = { console, crypto: globalThis.crypto, TextEncoder, TextDecoder, 
 context.window = context;
 vm.createContext(context);
 vm.runInContext(bundle, context, { timeout: 5000 });
+vm.runInContext(await readFile(new URL('web/protocol-contract.js', root), 'utf8'), context, { timeout: 5000 });
 vm.runInContext(await readFile(new URL('web/nip39.js', root), 'utf8'), context, { timeout: 5000 });
 const nostr = context.NostrTools;
 const nip39 = context.PropertyNip39;
@@ -42,21 +43,22 @@ assert.deepEqual(JSON.parse(JSON.stringify(nip39.eventTags([{ platform: 'bluesky
   [['i', 'bluesky:alice.bsky.social', '3abcdeFG', 'future-field']], 'republishing preserves future NIP-39 tag parameters');
 
 const claim = { platform: 'github', identity: 'alice', proof: '0123456789abcdef0123456789abcdef' };
+const fixtureNow = 1_800_000_010;
 const event = sign({ kind: 10011, content: '', tags: [['i', 'github:alice', claim.proof], ['i', 'telegram:12345', 'nostrdirectory/770', 'future-field']], created_at: 1_800_000_000 });
-const parsed = nip39.parseEvent(event, pubkey, nostr.verifyEvent);
+const parsed = nip39.parseEvent(event, pubkey, nostr.verifyEvent, fixtureNow);
 assert.equal(parsed.pubkey, pubkey);
 assert.equal(parsed.claims.length, 2);
 assert.equal(parsed.claims[0].platform, 'github');
 assert.deepEqual(JSON.parse(JSON.stringify(parsed.claims[1].extra)), ['future-field'], 'future NIP-39 tag fields are preserved');
-assert.equal(nip39.parseEvent(event, 'ab'.repeat(32), nostr.verifyEvent), null, 'a signed event cannot be attributed to a different key');
+assert.equal(nip39.parseEvent(event, 'ab'.repeat(32), nostr.verifyEvent, fixtureNow), null, 'a signed event cannot be attributed to a different key');
 context.mutatedEventJson = JSON.stringify({ ...event, sig: '00'.repeat(64) });
 const mutatedEvent = vm.runInContext('JSON.parse(mutatedEventJson)', context, { timeout: 5000 });
-assert.equal(nip39.parseEvent(mutatedEvent, pubkey, nostr.verifyEvent), null, 'invalid event signatures are rejected');
-assert.equal(nip39.parseEvent({ ...event, kind: 0 }, pubkey, nostr.verifyEvent), null, 'only kind 10011 is accepted');
+assert.equal(nip39.parseEvent(mutatedEvent, pubkey, nostr.verifyEvent, fixtureNow), null, 'invalid event signatures are rejected');
+assert.equal(nip39.parseEvent({ ...event, kind: 0 }, pubkey, nostr.verifyEvent, fixtureNow), null, 'only kind 10011 is accepted');
 const duplicate = sign({ kind: 10011, content: '', tags: [['i', 'github:alice', claim.proof], ['i', 'github:ALICE', '1123456789abcdef0123456789abcdef']], created_at: 1_800_000_001 });
-assert.equal(nip39.parseEvent(duplicate, pubkey, nostr.verifyEvent).claims.length, 1, 'duplicate provider identities are shown once');
+assert.equal(nip39.parseEvent(duplicate, pubkey, nostr.verifyEvent, fixtureNow).claims.length, 1, 'duplicate provider identities are shown once');
 const newer = sign({ kind: 10011, content: '', tags: [], created_at: 1_800_000_002 });
-assert.equal(nip39.latestRecord([event, newer], pubkey, nostr.verifyEvent).claims.length, 0, 'a newer empty replaceable event removes old identity claims');
+assert.equal(nip39.latestRecord([event, newer], pubkey, nostr.verifyEvent, fixtureNow).claims.length, 0, 'a newer empty replaceable event removes old identity claims');
 
 let capturedRequest;
 const verified = await nip39.verifyGitHubClaim(claim, npub, async (url, options) => {

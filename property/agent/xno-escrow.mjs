@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { parseStrictJson } from './ipc.mjs';
 import { exactObject, PUBKEY, validateToolText } from './core.mjs';
+import { canonicalJson, parseVersionedJson } from './protocol-contract.mjs';
 import { recalculateXnoJournalBudget, validateXnoJournal } from './xno-trades.mjs';
 
 export const XNO_ESCROW_PROTOCOL = 'property-xno-escrow/v1';
@@ -36,7 +36,7 @@ function messageFrom(messages, id, peer) {
   return message;
 }
 function parseJson(body, maxBytes = 12 * 1024) {
-  try { return parseStrictJson(body, maxBytes); } catch { throw new Error('xno-escrow-message-invalid'); }
+  try { return parseVersionedJson(body, 'trade_state', { maxBytes }); } catch { throw new Error('xno-escrow-message-invalid'); }
 }
 function recordFrom(value, role, status) {
   return {
@@ -121,7 +121,7 @@ export function createXnoEscrowService({ pubkey, wallet = null, escrowWallet = n
   const save = async value => saveJournal(validateXnoJournal(value));
   const send = async (peer, payload, replyTo = null) => {
     ensurePeer(peer);
-    const result = await transport.sendMessage(peer, JSON.stringify(payload), replyTo, getRelays());
+    const result = await transport.sendMessage(peer, canonicalJson(payload, 12 * 1024), replyTo, getRelays());
     if (!MESSAGE_ID.test(result?.message_id || '')) throw new Error('xno-escrow-send-failed');
     return result;
   };

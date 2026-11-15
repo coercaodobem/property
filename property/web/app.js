@@ -115,6 +115,18 @@
   let shareHandoffAnnounced = false;
   const N = window.NostrTools;
   const bridge = Bridge?.createBridge(event => N.verifyEvent(event));
+  const protocolFamilyByKind = new Map([
+    [1, 'public_note'], [3, 'relay_discovery'], [10002, 'relay_discovery'], [10011, 'identity_claim'],
+    [10050, 'relay_discovery'], [1059, 'private_message'], [30017, 'marketplace_offer'], [30018, 'marketplace_offer'],
+    [30078, 'campaign_sponsorship'], [30079, 'campaign_sponsorship'], [30080, 'campaign_sponsorship'], [30082, 'campaign_sponsorship'],
+  ]);
+  function isProtocolEvent(event, family = protocolFamilyByKind.get(event?.kind)) {
+    if (!family || !window.PropertyProtocol?.validateEventFamily) return false;
+    try {
+      window.PropertyProtocol.validateEventFamily(event, family, value => N.verifyEvent(value), Math.floor(Date.now() / 1000));
+      return true;
+    } catch { return false; }
+  }
 
   function audioTimeLabel(seconds) {
     const value = Number.isFinite(seconds) && seconds > 0 ? Math.floor(seconds) : 0;
@@ -3981,6 +3993,8 @@
     });
   }
   async function publishToRelays(event, targetRelays = state.relays) {
+    const family = protocolFamilyByKind.get(event?.kind);
+    if (family && !isProtocolEvent(event, family)) throw new Error('Evento inválido para o contrato de protocolo Property.');
     bridge?.markPublished(event);
     const allowed = new Set(targetRelays.map(normalizeRelay));
     for (const url of allowed) connectRelay(url);
@@ -5904,7 +5918,7 @@
     const [events, campaigns = []] = await Promise.all(tasks);
     await renderNodeCampaigns(campaigns);
     const unique = new Map();
-    for (const event of events) if (N.verifyEvent(event) && event.kind === 1) unique.set(event.id, event);
+    for (const event of events) if (isProtocolEvent(event, 'public_note')) unique.set(event.id, event);
     const ordered = [...unique.values()].sort((a, b) => b.created_at - a.created_at).slice(0, 50);
     if (!ordered.length) { $('hangout-list').append(makeEmpty('Nenhuma publicação encontrada', 'Tente atualizar quando os relays estiverem conectados.')); return; }
     for (const event of ordered) {
@@ -6209,7 +6223,7 @@
     else if (community.restricted && !canPost) $('community-membership').textContent += localized(' Only confirmed members can post here.', ' Somente participantes confirmados podem publicar aqui.');
     const feed = $('community-room-feed');
     feed.replaceChildren();
-    const posts = events.filter(event => event.kind === 1 && N.verifyEvent(event) && event.tags?.some(tag => Array.isArray(tag) && tag[0] === 'h' && tag[1] === community.id))
+    const posts = events.filter(event => isProtocolEvent(event, 'public_note') && event.tags?.some(tag => Array.isArray(tag) && tag[0] === 'h' && tag[1] === community.id))
       .sort((a, b) => b.created_at - a.created_at || String(b.id).localeCompare(String(a.id))).slice(0, 100);
     if (!posts.length) feed.append(makeEmpty(localized('No text posts yet', 'Ainda não há mensagens de texto'), localized('This public group history is fetched from its hosting relay.', 'O histórico deste grupo público vem do relay que o hospeda.')));
     for (const post of posts) {
@@ -6249,7 +6263,7 @@
     const content = $('community-post-text').value.trim();
     const membership = CommunityGroups.membership(state.activeCommunityEvents, community.id, state.pubkey, N.verifyEvent, state.activeCommunityModerators);
     if (community.restricted && membership !== 'member') throw new Error(localized('This relay has not confirmed your membership, so Property will not post to this restricted group.', 'Este relay ainda não confirmou sua participação; o Property não vai publicar neste grupo restrito.'));
-    const previousIds = state.activeCommunityEvents.filter(event => event.kind === 1 && event.pubkey !== state.pubkey && N.verifyEvent(event))
+    const previousIds = state.activeCommunityEvents.filter(event => isProtocolEvent(event, 'public_note') && event.pubkey !== state.pubkey)
       .sort((a, b) => b.created_at - a.created_at).slice(0, 3).map(event => event.id);
     const unsigned = CommunityGroups.createPublicPost({ pubkey: state.pubkey, groupId: community.id, content, previousIds, membershipStatus: membership, restricted: community.restricted });
     const event = finalize(unsigned.kind, unsigned.content, unsigned.tags);
@@ -6264,7 +6278,7 @@
     let saved = await get('settings', key);
     if (saved?.stallId) return saved.stallId;
     const id = crypto.randomUUID();
-    const content = JSON.stringify({ id, name: `${name} · Property`, description: 'Vitrine pública no Nostr', currency, shipping: [] });
+    const content = PropertyProtocol.canonicalJson({ id, name: `${name} · Property`, description: 'Vitrine pública no Nostr', currency, shipping: [] });
     const event = finalize(30017, content, [['d', id]]);
     const accepted = await publishToRelays(event);
     if (!accepted) throw new Error('Nenhum relay confirmou a vitrine. Tente novamente.');
@@ -6286,7 +6300,7 @@
       const id = state.editingProduct?.data.id || crypto.randomUUID();
       const stallId = state.editingProduct?.data.currency === currency ? state.editingProduct.data.stall_id : await ensureStall(name, currency);
       const payload = { id, stall_id: stallId, name, description, images: image ? [image] : [], currency, price, price_atomic: atomic, ...(raw ? { price_raw: raw } : {}), quantity: null, specs: [], shipping: [] };
-      const event = finalize(30018, JSON.stringify(payload), [['d', id]]);
+      const event = finalize(30018, PropertyProtocol.canonicalJson(payload), [['d', id]]);
       const sent = await publishToRelays(event);
       if (!sent) throw new Error('Nenhum relay confirmou a oferta.');
       $('product-dialog').close(); resetProductForm();

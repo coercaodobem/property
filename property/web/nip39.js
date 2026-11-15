@@ -44,14 +44,14 @@
     } catch { return null; }
   }
 
-  function parseEvent(event, expectedPubkey, verifyEvent) {
+  function parseEvent(event, expectedPubkey, verifyEvent, nowSeconds = Math.floor(Date.now() / 1000)) {
     const pubkey = typeof expectedPubkey === 'string' ? expectedPubkey.toLowerCase() : '';
     if (!/^[0-9a-f]{64}$/.test(pubkey) || !event || event.kind !== KIND || event.pubkey !== pubkey ||
         !Number.isSafeInteger(event.created_at) || event.created_at < 0 || typeof event.content !== 'string' ||
         encoder.encode(event.content).byteLength > MAX_EVENT_BYTES || !/^[0-9a-f]{64}$/.test(event.id || '') ||
         !/^[0-9a-f]{128}$/.test(event.sig || '') || !Array.isArray(event.tags) || event.tags.length > MAX_TAGS || typeof verifyEvent !== 'function') return null;
     try {
-      if (!verifyEvent(event)) return null;
+      window.PropertyProtocol.validateEventFamily(event, 'identity_claim', verifyEvent, nowSeconds);
       const claims = [];
       const seen = new Set();
       for (const tag of event.tags) {
@@ -66,12 +66,12 @@
     } catch { return null; }
   }
 
-  function latestRecord(events, expectedPubkey, verifyEvent) {
+  function latestRecord(events, expectedPubkey, verifyEvent, nowSeconds = Math.floor(Date.now() / 1000)) {
     const ordered = (Array.isArray(events) ? events : [])
       .filter(event => event && Number.isSafeInteger(event.created_at) && typeof event.id === 'string')
       .sort((left, right) => right.created_at - left.created_at || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
     for (const event of ordered) {
-      const record = parseEvent(event, expectedPubkey, verifyEvent);
+      const record = parseEvent(event, expectedPubkey, verifyEvent, nowSeconds);
       if (record) return { ...record, event };
     }
     return null;

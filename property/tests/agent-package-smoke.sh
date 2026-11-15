@@ -13,7 +13,7 @@ XDG_DATA_HOME="$DATA_HOME" bash "$PROPERTY_ROOT/agent/install.sh" "$PREFIX"
 VERSION="$(XDG_DATA_HOME="$DATA_HOME" "$LAUNCHER" --version)"
 [[ "$VERSION" == *"property-agent 0.7.0"* ]]
 [[ "$VERSION" == *"MCP 2026-07-28"* ]]
-for file in property-agent.mjs bin/property-agent mcp-server.mjs daemon.mjs core.mjs service.mjs relay.mjs ipc.mjs store.mjs vault.mjs nano-wallet.mjs xno-trades.mjs xno-journal.mjs xno-threshold.mjs xno-threshold-store.mjs xno-threshold-protocol.mjs agent-messaging.js typing-signals.js vendor/nostr-tools-2.25.2.bundle.js vendor/nostr-tools-LICENSE vendor/node_modules/@noble/curves/ed25519.js vendor/node_modules/@noble/curves/abstract/frost.js vendor/node_modules/@noble/hashes/blake2.js vendor/NOTICE.md; do
+for file in property-agent.mjs bin/property-agent mcp-server.mjs daemon.mjs core.mjs service.mjs relay.mjs ipc.mjs protocol-contract.mjs store.mjs vault.mjs nano-wallet.mjs xno-trades.mjs xno-journal.mjs xno-threshold.mjs xno-threshold-store.mjs xno-threshold-protocol.mjs agent-messaging.js typing-signals.js vendor/nostr-tools-2.25.2.bundle.js vendor/nostr-tools-LICENSE vendor/node_modules/@noble/curves/ed25519.js vendor/node_modules/@noble/curves/abstract/frost.js vendor/node_modules/@noble/hashes/blake2.js vendor/NOTICE.md; do
   [[ -f "$PREFIX/share/property/agent/$file" ]]
 done
 [[ -x "$PREFIX/share/property/agent/bin/property-agent" ]]

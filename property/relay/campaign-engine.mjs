@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { canonicalJson, parseVersionedJson } from '../agent/protocol-contract.mjs';
 
 const OFFER_KIND = 30079;
 const DECISION_KIND = 30080;
@@ -47,7 +48,7 @@ function offerPayload(event, verifyEvent, now) {
   const campaignId = exactTags(event, 'd');
   if (!UUID.test(campaignId)) throw new Error('Identificador da campanha inválido.');
   let payload;
-  try { payload = JSON.parse(event.content); } catch { throw new Error('Conteúdo da proposta não é JSON válido.'); }
+  try { payload = parseVersionedJson(event.content, 'campaign_sponsorship', { versionField: 'schema', maxBytes: 16_000 }); } catch { throw new Error('Conteúdo da proposta não é JSON válido.'); }
   if (!payload || typeof payload !== 'object' || Array.isArray(payload) || payload.schema !== OFFER_TAG ||
       payload.campaign_id !== campaignId || payload.advertiser_pubkey !== event.pubkey) {
     throw new Error('A proposta não corresponde ao autor ou ao identificador assinado.');
@@ -150,9 +151,9 @@ export function createCampaignEngine(options) {
       else if (conflict) rejectionReason = 'campaign_id_conflict';
       const approved = !rejectionReason;
       if (!approved) {
-        const decision = await sign(DECISION_KIND, JSON.stringify({ schema: DECISION_TAG, status: 'rejected',
+        const decision = await sign(DECISION_KIND, canonicalJson({ schema: DECISION_TAG, status: 'rejected',
           offer_event_id: offer.eventId, terms_hash: offer.termsHash, currency: offer.currency,
-          amount_atomic: offer.amountAtomic, expires_at: offer.expiresAt, node_pubkey: nodePubkey, reason: rejectionReason }),
+          amount_atomic: offer.amountAtomic, expires_at: offer.expiresAt, node_pubkey: nodePubkey, reason: rejectionReason }, 16_000),
         [['t', DECISION_TAG], ['d', offer.campaignId], ['e', offer.eventId], ['p', offer.advertiserPubkey]]);
         const record = { campaign_id: offer.campaignId, offer_event_id: offer.eventId, advertiser_pubkey: offer.advertiserPubkey,
           terms_hash: offer.termsHash, currency: offer.currency, amount_atomic: offer.amountAtomic, expires_at: offer.expiresAt,
@@ -165,10 +166,10 @@ export function createCampaignEngine(options) {
       const address = await addressProvider({ campaignId: offer.campaignId, currency: offer.currency, offerEventId: offer.eventId });
       if (typeof address !== 'string' || !address.trim() || address.length > 256) throw new Error('O adaptador não gerou endereço exclusivo válido.');
       if (Object.values(current.campaigns).some(record => record.payment_address === address)) throw new Error('O endereço de pagamento já foi associado a outra campanha.');
-      const decision = await sign(DECISION_KIND, JSON.stringify({ schema: DECISION_TAG, status: 'accepted',
+      const decision = await sign(DECISION_KIND, canonicalJson({ schema: DECISION_TAG, status: 'accepted',
         offer_event_id: offer.eventId, terms_hash: offer.termsHash, currency: offer.currency,
         amount_atomic: offer.amountAtomic, payment_address: address, expires_at: offer.expiresAt,
-        refund_terms: offer.refundTerms, node_pubkey: nodePubkey }),
+        refund_terms: offer.refundTerms, node_pubkey: nodePubkey }, 16_000),
       [['t', DECISION_TAG], ['d', offer.campaignId], ['e', offer.eventId], ['p', offer.advertiserPubkey]]);
       const record = { campaign_id: offer.campaignId, offer_event_id: offer.eventId, advertiser_pubkey: offer.advertiserPubkey,
         terms_hash: offer.termsHash, title: offer.title, body: offer.body, link: offer.link,
@@ -185,12 +186,12 @@ export function createCampaignEngine(options) {
   async function publishPending(record) {
     if (!record.campaign_event) {
       const campaignD = `property-sponsored-v2:${record.campaign_id}`;
-      record.campaign_event = await sign(CAMPAIGN_KIND, JSON.stringify({
+      record.campaign_event = await sign(CAMPAIGN_KIND, canonicalJson({
         schema: 'property-sponsored-v2', title: record.title, body: record.body, link: record.link,
         currency: record.currency, amount_atomic: record.amount_atomic, expires_at: record.expires_at,
         offer_event_id: record.offer_event_id, acceptance_event_id: record.decision_event.id,
         payment_tx_id: record.payment.txid, node_pubkey: nodePubkey
-      }), [['t', 'property-sponsored-v2'], ['d', campaignD]], Math.min(nowSeconds(), record.expires_at - 1));
+      }, 16_000), [['t', 'property-sponsored-v2'], ['d', campaignD]], Math.min(nowSeconds(), record.expires_at - 1));
       record.status = 'publish_pending';
       await save();
     }
@@ -285,7 +286,7 @@ export function createCampaignEngine(options) {
       }
       if (record.refund) return { status: 'refunded', refund: structuredClone(record.refund), record: summary(record) };
       let payload;
-      try { payload = JSON.parse(refundRequestEvent.content); } catch { throw new Error('Pedido de reembolso inválido.'); }
+      try { payload = parseVersionedJson(refundRequestEvent.content, 'campaign_sponsorship', { versionField: 'schema', maxBytes: 16_000 }); } catch { throw new Error('Pedido de reembolso inválido.'); }
       if (payload?.schema !== 'property-campaign-refund-v1' || payload.campaign_id !== campaignId ||
           payload.offer_event_id !== record.offer_event_id || payload.payment_tx_id !== record.payment.txid ||
           typeof payload.refund_address !== 'string' || !payload.refund_address.trim() || payload.refund_address.length > 256 ||

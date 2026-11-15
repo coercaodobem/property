@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const context = { console, crypto: webcrypto, TextEncoder, TextDecoder, URL, setTimeout, clearTimeout };
 context.window = context;
 vm.createContext(context);
-for (const file of ['vendor/nostr-tools-2.25.2.bundle.js', 'nano.js', 'money.js', 'marketplace.js']) {
+for (const file of ['vendor/nostr-tools-2.25.2.bundle.js', 'protocol-contract.js', 'nano.js', 'money.js', 'marketplace.js']) {
   vm.runInContext(await readFile(new URL(`../web/${file}`, import.meta.url), 'utf8'), context, { timeout: 5000 });
 }
 const { PropertyNanoUnits: nano, PropertyMarketplace: market } = context;
@@ -47,7 +47,7 @@ const other = N.generateSecretKey();
 const d = 'product-123e4567-e89b-42d3-a456-426614174000';
 const now = Math.floor(Date.now() / 1000);
 function product(createdAt, name, id = d, author = sellerPub, secret = seller) {
-  return sign({ kind: 30018, pubkey: author, created_at: createdAt, tags: [['d', d]], content: JSON.stringify({
+  return sign({ kind: 30018, pubkey: author, created_at: createdAt, tags: [['d', d]], content: context.PropertyProtocol.canonicalJson({
     id, stall_id: 'stall-1', name, description: '', images: [], currency: 'XNO', price: 0.25,
     price_raw: '250000000000000000000000000000', quantity: null, specs: [], shipping: []
   }) }, secret);

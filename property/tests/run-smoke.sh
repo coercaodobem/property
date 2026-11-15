@@ -14,6 +14,7 @@ for test_file in \
   campaigns-smoke.mjs \
   campaign-engine-smoke.mjs \
   ledger-rpc-smoke.mjs \
+  protocol-contract-g1.mjs \
   protocol-smoke.mjs \
   message-edits-smoke.mjs \
   message-deletions-smoke.mjs \

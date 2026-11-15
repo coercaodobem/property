@@ -33,6 +33,7 @@
           !Number.isSafeInteger(event.created_at) || event.created_at > nowSeconds + 300 || !Array.isArray(event.tags) ||
           typeof event.content !== 'string' || event.content.length > MAX_CONTENT_CHARS ||
           typeof verifyEvent !== 'function' || !verifyEvent(event)) return null;
+      window.PropertyProtocol.validateEventFamily(event, 'campaign_sponsorship', verifyEvent, nowSeconds);
       const markers = (event.tags || []).filter(tag => Array.isArray(tag) && tag[0] === 't');
       if (markers.length !== 1 || !TAGS.includes(markers[0][1])) return null;
       const campaignId = singleTag(event, 'd');
@@ -40,6 +41,9 @@
 
       const payload = JSON.parse(event.content);
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+      const legacy = markers[0][1] === 'liberdade-sponsored-v1';
+      if (!legacy && payload.schema !== TAG) return null;
+      if (legacy && payload.schema !== undefined && payload.schema !== 'liberdade-sponsored-v1') return null;
       const title = typeof payload.title === 'string' ? payload.title.trim() : '';
       const body = typeof payload.body === 'string' ? payload.body.trim() : '';
       if (!title || title.length > 120 || body.length > 800) return null;
@@ -49,7 +53,6 @@
       if (link.protocol !== 'https:' || link.username || link.password || !link.hostname ||
           link.hostname === 'localhost' || link.hostname.endsWith('.localhost') || link.hostname.endsWith('.local') ||
           /^\d+(?:\.\d+){3}$/.test(link.hostname) || link.hostname.startsWith('[')) return null;
-      const legacy = markers[0][1] === 'liberdade-sponsored-v1';
       const currency = legacy ? 'XNO' : payload.currency;
       if (legacy && payload.currency !== undefined && payload.currency !== 'XNO') return null;
       const amountAtomic = legacy ? payload.amount_raw : payload.amount_atomic;

@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const context = { console, crypto: webcrypto, TextEncoder, TextDecoder, URL, setTimeout, clearTimeout };
 context.window = context;
 vm.createContext(context);
-for (const file of ['../web/vendor/nostr-tools-2.25.2.bundle.js', '../web/money.js', '../web/campaigns.js']) {
+for (const file of ['../web/vendor/nostr-tools-2.25.2.bundle.js', '../web/protocol-contract.js', '../web/money.js', '../web/campaigns.js']) {
   vm.runInContext(await readFile(new URL(file, import.meta.url), 'utf8'), context, { timeout: 5000 });
 }
 const N = context.NostrTools;
@@ -19,7 +19,7 @@ const ids = { offer_event_id: 'a'.repeat(64), acceptance_event_id: 'b'.repeat(64
 
 function campaign(overrides = {}, tags = [['t', C.TAG], ['d', 'property-sponsored-v2:123e4567-e89b-42d3-a456-426614174000']]) {
   const payload = {
-    title: 'Node da comunidade', body: 'Suporte local e relays estáveis.', link: 'https://example.org/campanha',
+    schema: C.TAG, title: 'Node da comunidade', body: 'Suporte local e relays estáveis.', link: 'https://example.org/campanha',
     image_data: '', currency: 'XNO', amount_atomic: raw, expires_at: now + 30 * 24 * 60 * 60, ...ids, ...overrides
   };
   context.campaignTemplateJson = JSON.stringify({ kind: C.KIND, created_at: now, pubkey: node, tags, content: JSON.stringify(payload) });
@@ -32,6 +32,8 @@ const parsed = C.parseSponsoredCampaign(valid, N.verifyEvent, now);
 assert.equal(parsed.nodePubkey, node);
 assert.equal(parsed.amountAtomic, raw, 'raw XNO is preserved as an exact integer string');
 assert.equal(parsed.link, 'https://example.org/campanha');
+assert.equal(C.parseSponsoredCampaign(campaign({ schema: 'property-sponsored-v3' }), N.verifyEvent, now), null, 'unknown sponsorship schemas are rejected');
+assert.equal(C.parseSponsoredCampaign(campaign({ schema: undefined }), N.verifyEvent, now), null, 'v2 sponsorship events require an explicit schema');
 const inlineImage = C.parseSponsoredCampaign(campaign({ image_data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==' }), N.verifyEvent, now);
 assert.equal(inlineImage.imageData, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==', 'bounded inline PNG data is accepted');
 const tampered = JSON.parse(JSON.stringify(valid));
@@ -66,7 +68,7 @@ assert.equal(monero.currency, 'XMR');
 assert.equal(C.parseSponsoredCampaign(campaign({ currency: 'XMR', amount_atomic: (1n << 64n).toString() }), N.verifyEvent, now), null);
 assert.equal(C.parseSponsoredCampaign(campaign({ currency: 'USD' }), N.verifyEvent, now), null);
 assert.equal(C.parseSponsoredCampaign(campaign({ amount_raw: raw }), N.verifyEvent, now), null, 'v2 rejects mixed units');
-const legacy = campaign({ currency: undefined, amount_atomic: undefined, amount_raw: raw, payment_tx_id: undefined, payment_block_hash: 'c'.repeat(64) }, [['t', 'liberdade-sponsored-v1'], ['d', 'liberdade-sponsored-v1:123e4567-e89b-42d3-a456-426614174000']]);
+const legacy = campaign({ schema: 'liberdade-sponsored-v1', currency: undefined, amount_atomic: undefined, amount_raw: raw, payment_tx_id: undefined, payment_block_hash: 'c'.repeat(64) }, [['t', 'liberdade-sponsored-v1'], ['d', 'liberdade-sponsored-v1:123e4567-e89b-42d3-a456-426614174000']]);
 assert.equal(C.parseSponsoredCampaign(legacy, N.verifyEvent, now).currency, 'XNO');
 const ambiguousLegacy = campaign({ currency: 'XMR', amount_raw: raw, payment_block_hash: 'c'.repeat(64) }, legacy.tags);
 assert.equal(C.parseSponsoredCampaign(ambiguousLegacy, N.verifyEvent, now), null);

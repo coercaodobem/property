@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { parseStrictJson } from './ipc.mjs';
 import { exactObject, PUBKEY } from './core.mjs';
+import { canonicalJson, requireProtocolVersion } from './protocol-contract.mjs';
 import {
   attachNanoThresholdSignature, buildNanoThresholdSendBlock, calculateNanoThresholdBlockHash, decodeThresholdBytes,
   encodeThresholdBytes, nanoAccountFromPublicKey, nanoPublicKeyFromAccount, nanoThresholdFrost as frost, nanoThresholdIdentifier,
@@ -70,17 +71,14 @@ function validateContract(value, participants, createdAt) {
   return value;
 }
 
-function stable(value) {
-  if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
-  if (value && typeof value === 'object') return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stable(value[key])}`).join(',')}}`;
-  return JSON.stringify(value);
-}
+function stable(value) { return canonicalJson(encodeThresholdBytes(value), MAX_MESSAGE_BYTES); }
 function sha256(value) { return createHash('sha256').update(value, 'utf8').digest('hex'); }
 function same(left, right) { return stable(left) === stable(right); }
 function parseMessage(body) {
   let value;
   try { value = parseStrictJson(body, MAX_MESSAGE_BYTES); } catch { throw new Error('xno-threshold-message-invalid'); }
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('xno-threshold-message-invalid');
+  try { requireProtocolVersion('trade_state', value.protocol); } catch { throw new Error('xno-threshold-message-invalid'); }
   return value;
 }
 function encodeRound1(value) { return encodeThresholdBytes(value); }
@@ -143,7 +141,7 @@ const sessionFromManifest = (manifest, role, round1) => ({
   });
   const send = async (peer, message, replyTo = null) => {
     ensurePeer(peer);
-    const body = JSON.stringify(encodeThresholdBytes(message));
+    const body = canonicalJson(encodeThresholdBytes(message), MAX_MESSAGE_BYTES);
     if (Buffer.byteLength(body, 'utf8') > MAX_MESSAGE_BYTES) throw new Error('xno-threshold-message-too-large');
     const result = await transport.sendMessage(peer, body, replyTo, configRelays());
     if (!/^[0-9a-f]{32}$/.test(result?.message_id || '')) throw new Error('xno-threshold-send-failed');
