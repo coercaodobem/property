@@ -1,6 +1,6 @@
 # Property Roadmap
 
-Updated 2026-11-13. This roadmap guides contributions; it is not a schedule or a promise that a feature is complete. The working branch is `modelo-mvp`. Detailed criteria are in the [central plan](property/docs/plano-central.md) and [test plan](property/docs/plano-de-testes-central.md). [Português (Brasil)](ROADMAP.pt-BR.md)
+Updated 2026-11-13. This roadmap guides contributions; it is not a schedule or a promise that a feature is complete. The working branch is `modelo-mvp`. See the [product completion plan](property/docs/product-completion-plan.md) for sequential implementation gates restricted to offline automated checks on Ubuntu Linux x86_64. The [central plan](property/docs/plano-central.md) and [test plan](property/docs/plano-de-testes-central.md) provide additional criteria. Non-Ubuntu usage and human review remain outside that plan and pending for a future scope. [Português (Brasil)](ROADMAP.pt-BR.md)
 
 ## Available foundations to validate
 

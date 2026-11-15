@@ -2,7 +2,7 @@
 
 **Português (Brasil)** · [English](ROADMAP.md)
 
-Atualizado em 2026-11-13. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Os critérios detalhados estão no [plano central](property/docs/plano-central.pt-BR.md) e no [plano de testes](property/docs/plano-de-testes-central.pt-BR.md).
+Atualizado em 2026-11-13. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Consulte o [plano completo de implementação](property/docs/product-completion-plan.pt-BR.md) para os gates sequenciais restritos a testes automatizados offline no Ubuntu Linux x86_64. O [plano central](property/docs/plano-central.pt-BR.md) e o [plano de testes](property/docs/plano-de-testes-central.pt-BR.md) trazem critérios complementares. Uso em outros sistemas operacionais e revisão humana ficam fora daquele plano e pendentes para um escopo futuro.
 
 ## Base disponível para testar
 

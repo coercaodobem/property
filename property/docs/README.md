@@ -8,6 +8,7 @@ English is the default language for the project and these documents. Choose **Po
 - [Ghostly UX integration in the Property PWA](ghostly-integration.md) · [Português (Brasil)](ghostly-integration.pt-BR.md)
 - [Project identity and principles](identidade-do-projeto.md) · [Português (Brasil)](identidade-do-projeto.pt-BR.md)
 - [Central execution plan](plano-central.md) · [Português (Brasil)](plano-central.pt-BR.md)
+- [Product completion plan: implementation gates and deliverables](product-completion-plan.md) · [Português (Brasil)](product-completion-plan.pt-BR.md)
 - [Amethyst-to-Property data migration](migracao-property.md) · [Português (Brasil)](migracao-property.pt-BR.md)
 - [BTC/XMR/XNO payments](pagamentos.md) · [Português (Brasil)](pagamentos.pt-BR.md)
 - [Agent XNO trade protocol](agent-xno-trades.md) · [Português (Brasil)](agent-xno-trades.pt-BR.md)
