@@ -3,7 +3,7 @@
   "profile": "ubuntu-linux-x86_64",
   "build": {
     "node": "22.22.1",
-    "tar": "GNU tar 1.35",
+    "tar": "tar (GNU tar) 1.35",
     "gzip": "gzip 1.14",
     "network_access": "none",
     "javascript_dependencies": [],
