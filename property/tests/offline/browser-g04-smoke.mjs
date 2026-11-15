@@ -169,13 +169,29 @@ async function stopGeode(relay) {
   const result = await stopProcessGroup(relay.child, { graceMs: 6000, verifyMs: 1500 });
   if (!result.stopped) throw new Error(`Geode process group ${relay.child.pid} survived cleanup.`);
 }
+async function closeFalseAckRelay(fixture, watchdogMs = 5000) {
+  if (!fixture) return;
+  for (const socket of fixture.sockets) socket.destroy();
+  fixture.server.closeAllConnections?.();
+  if (!fixture.server.listening) return;
+  let timer;
+  try {
+    await Promise.race([
+      new Promise((resolve, reject) => fixture.server.close(error => error ? reject(error) : resolve())),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('False-ACK relay close watchdog expired.')), watchdogMs); })
+    ]);
+  } finally { clearTimeout(timer); }
+}
 
 function startFalseAckRelay() {
   const events = [];
   const eventWaiters = new Set();
+  const sockets = new Set();
   const diagnostics = { connections: 0, frames: { EVENT: 0, recipientEnvelope: 0, otherEventKind: 0, REQ: 0, CLOSE: 0, other: 0 }, protocolErrors: 0 };
   const server = http.createServer();
   server.on('upgrade', (request, socket) => {
+    sockets.add(socket);
+    socket.once('close', () => sockets.delete(socket));
     diagnostics.connections += 1;
     const key = request.headers['sec-websocket-key']; if (!key) return socket.destroy();
     const accept = createHash('sha1').update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest('base64');
@@ -226,7 +242,7 @@ function startFalseAckRelay() {
       wake();
     });
   };
-  return { server, events, diagnostics, waitForRecipientEnvelopeCount,
+  return { server, sockets, events, diagnostics, waitForRecipientEnvelopeCount,
     ready: new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); }) };
 }
 
@@ -661,7 +677,7 @@ async function localRecord(page, storeName, id) {
   }, { storeName, id });
 }
 async function localMessagePreview(page, peer, text) {
-  return page.evaluate(async ({ peer, text }) => {
+  return pageEvaluateWithWatchdog(page, async ({ peer, text }) => {
     const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
     const rows = await new Promise((resolve, reject) => {
       const request = db.transaction('messages').objectStore('messages').getAll();
@@ -669,7 +685,7 @@ async function localMessagePreview(page, peer, text) {
     });
     db.close();
     return rows.filter(row => row.peer === peer && row.text === text).sort((left, right) => right.createdAt - left.createdAt)[0]?.linkPreview || null;
-  }, { peer, text });
+  }, { peer, text }, 'G04 local message preview IndexedDB read');
 }
 async function localUnreadTotal(page) {
   return page.evaluate(async () => {
@@ -728,6 +744,32 @@ async function waitForMessageStatus(page, peer, text, status) {
   }, { peerKey: peer, messageText: text, expectedStatus: status }, { timeout: 12000 });
 }
 async function closeContext(context) { if (context) await context.close().catch(() => {}); }
+async function closeContextForGate(context, label, watchdogMs = 15000) {
+  if (!context) return;
+  let timer;
+  try {
+    await Promise.race([
+      context.close(),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`Browser context close watchdog expired: ${label}.`)), watchdogMs); })
+    ]);
+  } finally { clearTimeout(timer); }
+}
+async function pageEvaluateWithWatchdog(page, pageFunction, arg, label, watchdogMs = 15000) {
+  let timer;
+  try {
+    process.stdout.write(`[watchdog] ${label}: started\n`);
+    return await Promise.race([
+      page.evaluate(pageFunction, arg),
+      new Promise((_, reject) => { timer = setTimeout(() => {
+        process.stdout.write(`[watchdog] ${label}: expired\n`);
+        reject(new Error(`Browser evaluation watchdog expired: ${label}.`));
+      }, watchdogMs); })
+    ]);
+  } finally {
+    clearTimeout(timer);
+    process.stdout.write(`[watchdog] ${label}: settled\n`);
+  }
+}
 async function writeReport(output, report) { await mkdir(output, { recursive: true, mode: 0o700 }); await writeFile(path.join(output, 'browser-g04-report.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 }); }
 
 async function main() {
@@ -740,6 +782,7 @@ async function main() {
     Object.assign(report.cases.find(row => row.case === id), { status, reason });
     process.stdout.write(`${id} ${status}\n`);
   };
+  const trace = detail => process.stdout.write(`[${stage}] ${detail}\n`);
   try {
     options = parseArgs(process.argv.slice(2));
     const onlyTypingCase = options.case === 'G04-25';
@@ -1637,7 +1680,8 @@ async function main() {
     const peerRowAfterBadge = pageA.locator('.conversation-row').filter({ hasText: 'B privado' }).first();
     await pageA.evaluate(() => Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }));
     await peerRowAfterBadge.locator('.conversation-item').click();
-    await pageA.waitForFunction(async peer => {
+    await pageA.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    try { await pageA.waitForFunction(async peer => {
       const request = indexedDB.open('liberdade-local-v1');
       const db = await new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
       const conversation = await new Promise((resolve, reject) => {
@@ -1645,7 +1689,15 @@ async function main() {
         get.onsuccess = () => resolve(get.result); get.onerror = () => reject(get.error);
       });
       db.close(); return conversation?.unreadCount === 0;
-    }, b.pubkey);
+    }, b.pubkey, { timeout: 10000 }); }
+    catch (error) {
+      const conversation = await localRecord(pageA, 'conversations', b.pubkey);
+      const ui = await pageA.evaluate(() => ({ peer: document.querySelector('#messages')?.dataset.peer || '',
+        activeView: [...document.querySelectorAll('.nav-button.active')].map(button => button.dataset.view),
+        visibility: document.visibilityState, badge: window.__propertyBadgeProbe.calls.at(-1) || null }));
+      report.failure_checks.badge_read = { unread_count: conversation?.unreadCount ?? null, ...ui };
+      throw new Error(`${error.message}; badge-read state=${JSON.stringify(report.failure_checks.badge_read)}`);
+    }
     const unreadAfterOpeningChat = await localUnreadTotal(pageA);
     await pageA.waitForFunction(expected => {
       const last = window.__propertyBadgeProbe.calls.at(-1);
@@ -2037,7 +2089,9 @@ async function main() {
     await pageA.waitForFunction(() => document.querySelector('#link-preview-draft .link-preview-source')?.textContent.includes('fornecida por quem enviou'));
     await pageA.screenshot({ path: path.join(options.output, 'g04-link-preview-composer-mobile-pt-BR.png') });
     await pageA.locator('#language-picker').selectOption('en');
+    trace('querying baseline relay envelopes before sending the preview');
     const previewEnvelopeIdsBefore = new Set((await wsQuery(relay0.url, { kinds: [1059], limit: 1000 })).map(event => event.id));
+    trace('baseline relay query completed; sending the encrypted preview');
     await pageA.locator('#send-form button[type="submit"]').click();
     if (await pageA.locator('#secret-guard-dialog').isVisible()) await pageA.locator('#secret-guard-send-anyway').click();
     await pageA.locator('#messages .message-bubble').filter({ hasText: previewText }).waitFor({ state: 'visible', timeout: 10000 }).catch(async error => {
@@ -2052,14 +2106,17 @@ async function main() {
       report.failure_checks.link_preview_send = diagnostics;
       throw new Error(`Sender did not save the preview message: ${JSON.stringify(diagnostics)}; ${error.message}`);
     });
+    trace('sender rendered the preview message; waiting for the recipient');
     await pageC.locator('#messages .message-bubble').filter({ hasText: previewText }).waitFor({ state: 'visible', timeout: 15000 });
     await pageC.locator('#messages .link-preview-title').filter({ hasText: previewTitle }).waitFor({ state: 'visible', timeout: 5000 });
     await pageC.locator('#language-picker').selectOption('pt-BR');
     await pageC.waitForFunction(() => document.querySelector('#messages .link-preview-source')?.textContent.includes('fornecida por quem enviou'));
     assert.equal(await pageC.evaluate(() => window.__propertyPreviewReceiveFetches.length), 0, 'receiving and rendering the encrypted preview never fetches the destination');
     const expectedPreview = { v: 1, url: previewUrl, title: previewTitle, description: 'Fixture description', site: 'Fixture News' };
+    trace('reading the sender and recipient preview records from local IndexedDB');
     assert.deepEqual(await localMessagePreview(pageA, c.pubkey, previewText), expectedPreview, 'sender stored the confirmed preview with the local message');
     assert.deepEqual(await localMessagePreview(pageC, a.pubkey, previewText), expectedPreview, 'recipient recovered the preview metadata from the decrypted NIP-17 rumor');
+    trace('local preview records match; verifying relay envelope privacy');
     const encryptedPreviewEnvelopes = await wsQuery(relay0.url, { kinds: [1059], limit: 1000 });
     const previewEnvelopes = encryptedPreviewEnvelopes.filter(event => !previewEnvelopeIdsBefore.has(event.id)
       && Array.isArray(event.tags) && event.tags.some(tag => tag[0] === 'p' && tag[1] === c.pubkey));
@@ -2076,7 +2133,8 @@ async function main() {
 
     stage = 'G04-26: cached PWA shell with all relays offline';
     await pageA.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, { timeout: 10000 });
-    const shellCache = await pageA.evaluate(async () => {
+    trace('service worker controls the page; inspecting the cached PWA shell');
+    const shellCache = await pageEvaluateWithWatchdog(pageA, async () => {
       const controller = navigator.serviceWorker.controller;
       const names = await caches.keys();
       const shellName = names.find(name => /^property-shell-/.test(name));
@@ -2085,18 +2143,24 @@ async function main() {
       const keys = (await cache.keys()).map(request => new URL(request.url).pathname + new URL(request.url).search);
       return { controlled: Boolean(controller), shellName, index: keys.some(key => key.endsWith('/property/index.html')),
         app: keys.some(key => key.endsWith('/property/app.js?v=property-v114')) };
-    });
+    }, undefined, 'G04-26 service worker cache inventory');
+    trace(`cache inventory returned: ${JSON.stringify(shellCache)}`);
     assert.deepEqual(shellCache, { controlled: true, shellName: 'property-shell-v123', index: true, app: true },
       'the active service worker controls a complete locally cached app shell before the host is removed');
-    await closeContext(contextB); contextB = null;
-    await closeContext(contextC); contextC = null;
-    if (falseAck?.server?.listening) {
-      await new Promise(resolve => { falseAck.server.close(resolve); falseAck.server.closeAllConnections?.(); });
-    }
+    trace('closing context B before relay shutdown');
+    await closeContextForGate(contextB, 'G04-26 context B'); contextB = null;
+    trace('context B closed; closing context C');
+    await closeContextForGate(contextC, 'G04-26 context C'); contextC = null;
+    trace('context C closed; stopping the false-ack fixture');
+    await closeFalseAckRelay(falseAck);
+    trace('false-ack sockets closed; stopping relay one');
     const localRelayPort = relay0.port, localRelayBinary = relay0.binaryPath;
     await stopGeode(relay1); relay1 = null;
+    trace('relay one stopped; stopping relay zero');
     await stopGeode(relay0); relay0 = null;
+    trace('all relays stopped; closing the application HTTP host');
     await new Promise(resolve => { app.server.close(resolve); app.server.closeAllConnections?.(); });
+    trace('application HTTP host closed; beginning ten cached-shell opens');
     assert.equal(app.server.listening, false, 'the application HTTP host is stopped after the PWA shell has been cached');
     const offlineShellOpens = [];
     for (let repetition = 1; repetition <= 10; repetition++) {
@@ -2106,6 +2170,7 @@ async function main() {
         && document.querySelector('#connection-label')?.textContent.trim() === 'offline', null, { timeout: 10000 });
       offlineShellOpens.push({ repetition, shell_visible: true, app_host_listening: app.server.listening,
         connection_label: (await pageA.locator('#connection-label').textContent()).trim() });
+      trace(`offline cached-shell open ${repetition}/10 passed`);
     }
     assert.equal(offlineShellOpens.length, 10);
     assert.ok(offlineShellOpens.every(item => item.shell_visible && !item.app_host_listening && item.connection_label === 'offline'));
@@ -2121,7 +2186,7 @@ async function main() {
         await pageA.locator('#unlock-button').click();
       }
       await pageA.locator('#workspace').waitFor({ state: 'visible', timeout: 15000 });
-      await pageA.waitForFunction(() => document.querySelector('#connection-label')?.textContent.trim() === '1/1 relay', null, { timeout: 30000 });
+      await pageA.waitForFunction(() => document.querySelector('#connection-label')?.textContent.trim() === '1/2 relays', null, { timeout: 30000 });
     };
     const localRelayShellOpens = [];
     for (let repetition = 1; repetition <= 10; repetition++) {
@@ -2130,23 +2195,31 @@ async function main() {
       await pageA.waitForFunction(() => navigator.serviceWorker.controller?.state === 'activated');
       await connectAfterUnlock();
       localRelayShellOpens.push({ repetition, shell_visible: true, app_host_listening: app.server.listening,
-        connection_label: (await pageA.locator('#connection-label').textContent()).trim(), local_relay_only: true });
-      assert.ok((await pageA.locator('#connection-label').textContent()).trim() === '1/1 relay');
+        connection_label: (await pageA.locator('#connection-label').textContent()).trim(),
+        configured_relays: (await pageA.locator('#relay-count').textContent()).trim(), local_relay_only: true });
+      trace(`single-relay cached-shell open ${repetition}/10 passed`);
+      assert.ok((await pageA.locator('#connection-label').textContent()).trim() === '1/2 relays');
+      assert.equal((await pageA.locator('#relay-count').textContent()).trim(), '1 relay', 'the PWA retained one selected relay endpoint');
       assert.ok(report.websockets.every(url => /^ws:\/\/127\.0\.0\.1:/.test(url)));
     }
     assert.equal(localRelayShellOpens.length, 10);
-    report.local_relay_shell = { application_host_removed: true, available_relay_count: 1,
+    report.local_relay_shell = { application_host_removed: true, selected_relay_count: 1, effective_relay_count: 2,
+      connected_relay_count: 1, available_relay_count: 1,
       relay_endpoint: `ws://127.0.0.1:${localRelayPort}`, shell_opens: localRelayShellOpens,
       all_websocket_targets_loopback: report.websockets.every(url => /^ws:\/\/127\.0\.0\.1:/.test(url)) };
-    mark('G04-27', 'PASS', 'With the application host and the second relay still stopped, ten fixed shell opens loaded from the PWA cache, unlocked the local identity, and connected directly to the one available loopback relay.');
+    mark('G04-27', 'PASS', 'With the application host and every nonlocal relay stopped, ten fixed shell opens loaded from the PWA cache, unlocked the local identity, and reported one selected loopback relay connected while the second effective routing endpoint was unavailable.');
 
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
-    const browserRuntimeAttempts = proxy.attempts.filter(attempt => attempt.destination === 'aus5.mozilla.org:443');
-    const unexpectedProxyAttempts = proxy.attempts.filter(attempt => attempt.destination !== 'aus5.mozilla.org:443');
-    assert.deepEqual(unexpectedProxyAttempts, [], 'the proxy rejected every destination other than the blocked Firefox runtime endpoint');
+    const blockedBrowserRuntimeDestinations = options.engine === 'chromium'
+      ? new Set(['accounts.google.com:443', 'android.clients.google.com:443', 'http://clients2.google.com', 'update.googleapis.com:443', 'www.google.com:443'])
+      : new Set(['aus5.mozilla.org:443']);
+    const unexpectedProxyAttempts = proxy.attempts.filter(attempt => !blockedBrowserRuntimeDestinations.has(attempt.destination));
+    assert.deepEqual(unexpectedProxyAttempts, [], 'every browser-runtime network attempt was denied by the loopback-only offline proxy and matched the pinned engine allowlist');
     assert.deepEqual(report.page_errors, [], 'no page runtime errors');
     assert.ok(report.websockets.every(url => /^ws:\/\/127\.0\.0\.1:/.test(url)), 'browser WebSockets are loopback only');
-    report.browser_runtime_attempts_blocked = browserRuntimeAttempts;
+    report.browser_runtime_attempts_blocked = { count: proxy.attempts.length,
+      destinations: [...new Set(proxy.attempts.map(attempt => attempt.destination))].sort(),
+      proxy_response: '502 Offline denied' };
     report.result = report.cases.every(row => row.status === 'PASS') ? 'PASS' : 'FAIL';
     report.denied_proxy_attempts = [...proxy.attempts];
     await writeReport(path.resolve(options.output), report);
@@ -2169,7 +2242,8 @@ async function main() {
     await closeContext(contextG); await closeContext(contextF); await closeContext(contextE); await closeContext(contextD); await closeContext(contextC); await closeContext(contextB); await closeContext(contextA);
     await runtime?.browser?.close().catch(() => {});
     await stopGeode(relay1); await stopGeode(relay0);
-    for (const server of [falseAck?.server, app?.server, proxy?.server]) if (server?.listening) await new Promise(resolve => { server.close(() => resolve()); server.closeAllConnections?.(); });
+    await closeFalseAckRelay(falseAck).catch(() => {});
+    for (const server of [app?.server, proxy?.server]) if (server?.listening) await new Promise(resolve => { server.close(() => resolve()); server.closeAllConnections?.(); });
     await rm(temp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
 }
