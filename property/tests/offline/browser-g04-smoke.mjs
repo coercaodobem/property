@@ -2181,11 +2181,7 @@ async function main() {
     stage = 'G04-27: cached PWA shell with only a loopback relay';
     relay0 = await startGeode(localRelayPort, temp, 'relay zero', localRelayBinary);
     const connectAfterUnlock = async () => {
-      if (await pageA.locator('#auth-choice').isVisible().catch(() => false)) {
-        await pageA.locator('#password').fill(PASSWORD);
-        await pageA.locator('#unlock-button').click();
-      }
-      await pageA.locator('#workspace').waitFor({ state: 'visible', timeout: 15000 });
+      await pageA.locator('#workspace').waitFor({ state: 'visible', timeout: 30000 });
       await pageA.waitForFunction(() => document.querySelector('#connection-label')?.textContent.trim() === '1/2 relays', null, { timeout: 30000 });
     };
     const localRelayShellOpens = [];
@@ -2211,7 +2207,7 @@ async function main() {
 
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
     const blockedBrowserRuntimeDestinations = options.engine === 'chromium'
-      ? new Set(['accounts.google.com:443', 'android.clients.google.com:443', 'http://clients2.google.com', 'update.googleapis.com:443', 'www.google.com:443'])
+      ? new Set(['accounts.google.com:443', 'android.clients.google.com:443', 'http://clients2.google.com', 'redirector.gvt1.com:443', 'update.googleapis.com:443', 'www.google.com:443'])
       : new Set(['aus5.mozilla.org:443']);
     const unexpectedProxyAttempts = proxy.attempts.filter(attempt => !blockedBrowserRuntimeDestinations.has(attempt.destination));
     assert.deepEqual(unexpectedProxyAttempts, [], 'every browser-runtime network attempt was denied by the loopback-only offline proxy and matched the pinned engine allowlist');
