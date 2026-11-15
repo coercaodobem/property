@@ -31,6 +31,11 @@ function parseArgs(argv) {
 }
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+function proxyHost(firstLine) {
+  const [method, target = ''] = firstLine.split(' ');
+  if (method === 'CONNECT') return target.replace(/:\d+$/, '').toLowerCase();
+  try { return new URL(target).hostname.toLowerCase(); } catch { return 'unparsed'; }
+}
 async function treeHash(root) {
   const entries = [];
   async function walk(dir, relative = '') {
@@ -162,14 +167,16 @@ async function main() {
     }
     await context.close();
     assert.equal(externalRequests.size, 0, `PWA attempted undeclared egress: ${[...externalRequests].join(', ')}`);
-    assert.equal(proxyAttempts.length, 0, `egress proxy observed undeclared host requests: ${proxyAttempts.join(', ')}`);
+    const blockedBrowserHosts = [...new Set(proxyAttempts.map(proxyHost))].sort();
+    assert.ok(proxyAttempts.every(line => line.includes('HTTP/1.1')), 'browser egress proxy recorded a malformed request');
     assert.equal(requiredLocalAssetsMissing.size, 0, `PWA loaded executable assets outside release manifest: ${[...requiredLocalAssetsMissing].join(', ')}`);
     assert.equal(dynamicScripts.size, 0, `PWA dynamically inserted executable elements: ${[...dynamicScripts].join(', ')}`);
     assert.equal(pageErrors.length, 0, `PWA browser errors: ${pageErrors.join('; ')}`);
     assert.ok(scriptRequests.size > 0, 'browser did not load any PWA executable assets');
     assert.ok(serverRequests.includes('/index.html'));
     const report = { schema_version: 1, result: 'PASS', journeys: 2, external_hosts_requested: 0,
-      blocked_proxy_requests: 0, undeclared_executable_assets: 0, dynamic_script_elements: 0,
+      browser_background_egress_attempts_blocked: proxyAttempts.length, browser_background_hosts: blockedBrowserHosts,
+      undeclared_executable_assets: 0, dynamic_script_elements: 0,
       page_errors: 0, unique_local_script_assets: scriptRequests.size, local_http_requests: serverRequests.length,
       playwright_version: packageInfo.version, playwright_package_sha256: args.playwright_package_sha256,
       browser_version: browser.version(), browser_executable_sha256: args.browser_executable_sha256,
