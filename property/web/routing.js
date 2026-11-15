@@ -65,5 +65,46 @@
     if (seen.size !== expected.size) return { ready: false, deliveries: [], reason: 'missing-gift-wrap' };
     return { ready: true, deliveries, reason: '' };
   }
-  window.PropertyNostrRouting = Object.freeze({ inboxRelays, groupParticipants, groupConversationId, planGiftWraps, planGroupGiftWraps });
+  function createRelayResponseTracker(requestedRelayUrls, sentRelayUrls = requestedRelayUrls) {
+    const requested = [...new Set(Array.isArray(requestedRelayUrls) ? requestedRelayUrls : [])];
+    const sent = [...new Set(Array.isArray(sentRelayUrls) ? sentRelayUrls : [])].filter(url => requested.includes(url));
+    return { requestedRelayUrls: new Set(requested), sentRelayUrls: new Set(sent), responses: new Map() };
+  }
+  function recordRelayResponse(tracker, relayUrl, accepted) {
+    if (!tracker?.requestedRelayUrls?.has(relayUrl) || !tracker.sentRelayUrls?.has(relayUrl) ||
+        tracker.responses?.has(relayUrl) || typeof accepted !== 'boolean') return false;
+    tracker.responses.set(relayUrl, accepted);
+    return true;
+  }
+  function summarizeRelayResponses(tracker) {
+    const acceptedRelayUrls = [];
+    const rejectedRelayUrls = [];
+    for (const [url, accepted] of tracker?.responses || []) (accepted ? acceptedRelayUrls : rejectedRelayUrls).push(url);
+    const responded = new Set(tracker?.responses?.keys?.() || []);
+    return {
+      acceptedRelayUrls: acceptedRelayUrls.sort(),
+      rejectedRelayUrls: rejectedRelayUrls.sort(),
+      unansweredRelayUrls: [...(tracker?.requestedRelayUrls || [])].filter(url => !responded.has(url)).sort()
+    };
+  }
+  function messageDeliveryState(progress) {
+    const rows = Array.isArray(progress) ? progress : [];
+    if (!rows.length) return 'queued';
+    if (rows.every(item => Array.isArray(item.observedRelayUrls) && item.observedRelayUrls.length > 0)) return 'observed';
+    if (rows.some(item => Array.isArray(item.acceptedRelayUrls) && item.acceptedRelayUrls.length > 0)) return 'relay-accepted';
+    if (rows.every(item => Array.isArray(item.rejectedRelayUrls) && item.rejectedRelayUrls.length > 0 &&
+        Array.isArray(item.unansweredRelayUrls) && item.unansweredRelayUrls.length === 0)) return 'failed';
+    return 'queued';
+  }
+  function messageNeedsRetry(progress) {
+    return Array.isArray(progress) && progress.some(item => item?.rejectedRelayUrls?.length || item?.unansweredRelayUrls?.length);
+  }
+  function recipientBlocked(access) { return access?.status === 'blocked'; }
+  function retryIdentityMatches(senderPubkey, currentPubkey) {
+    const sender = typeof senderPubkey === 'string' ? senderPubkey.toLowerCase() : '';
+    const current = typeof currentPubkey === 'string' ? currentPubkey.toLowerCase() : '';
+    return /^[0-9a-f]{64}$/.test(sender) && sender === current;
+  }
+  window.PropertyNostrRouting = Object.freeze({ inboxRelays, groupParticipants, groupConversationId, planGiftWraps, planGroupGiftWraps,
+    createRelayResponseTracker, recordRelayResponse, summarizeRelayResponses, messageDeliveryState, messageNeedsRetry, recipientBlocked, retryIdentityMatches });
 })();

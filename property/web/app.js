@@ -3588,18 +3588,20 @@
     } else if (type === 'OK' && typeof id === 'string') {
       const pending = state.pendingAcks.get(id);
       if (pending) {
+        if (!Routing.recordRelayResponse(pending, url, value)) return;
         if (value === true) {
           pending.success = true;
-          clearTimeout(pending.timer);
-          pending.resolve(true);
-          state.pendingAcks.delete(id);
-        } else {
-          pending.remaining -= 1;
-          if (pending.remaining <= 0) {
+          if (!pending.collectResponses) {
             clearTimeout(pending.timer);
-            pending.resolve(false);
+            pending.resolve(true);
             state.pendingAcks.delete(id);
           }
+        }
+        pending.remaining -= 1;
+        if (pending.remaining <= 0) {
+          clearTimeout(pending.timer);
+          pending.resolve(pending.collectResponses ? pendingResponseSummary(pending) : pending.success);
+          state.pendingAcks.delete(id);
         }
       }
     } else if (type === 'NOTICE' && typeof id === 'string' && /error|blocked|invalid|rate-limited/i.test(id)) {
@@ -3899,7 +3901,7 @@
       if (priorMessages.some(item => item.peer === peer && item.deleted && item.senderPubkey === rumor.pubkey && MessageDeletions.messageEventIds(item).includes(edit.rootId))) return;
       const incoming = {
         id: `edit:${peer}:${edit.rootId}`, peer, text, ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey,
-        createdAt: rumor.created_at * 1000, direction: senderDirection, status: 'delivered',
+        createdAt: rumor.created_at * 1000, direction: senderDirection, status: 'delivered', deliveryState: 'decrypted',
         nostrEventId: eventId, edit, linkPreview: null,
         ...(forwardedHops ? { forwarded: forwardedHops } : {}),
         ...(replyTag ? { replyToId: replyTag[1] } : {})
@@ -3911,7 +3913,7 @@
     } else {
       const id = parsedAgentMessage ? `agent:${peer}:${parsedAgentMessage.messageId}` : eventId;
       if (await get('messages', id)) return;
-      const original = { id, peer, text, ...(voiceMessage ? { voiceMessage } : {}), ...(fileChunk ? { fileChunk } : {}), ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', nostrEventId: eventId, linkPreview, ...(forwardedHops ? { forwarded: forwardedHops } : {}), ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
+      const original = { id, peer, text, ...(voiceMessage ? { voiceMessage } : {}), ...(fileChunk ? { fileChunk } : {}), ...(mentionTokens.length ? { mentions: mentionTokens } : {}), senderPubkey: rumor.pubkey, createdAt: rumor.created_at * 1000, direction: senderDirection, status: senderDirection === 'sent' ? 'sent' : 'delivered', ...(senderDirection === 'received' ? { deliveryState: 'decrypted' } : {}), nostrEventId: eventId, linkPreview, ...(forwardedHops ? { forwarded: forwardedHops } : {}), ...(replyTag ? { replyToId: replyTag[1] } : {}), ...(fromAgent ? { fromAgent: true } : {}), ...(parsedAgentMessage ? { agentMessageId: parsedAgentMessage.messageId, inReplyTo: parsedAgentMessage.inReplyTo } : {}), ...(agentMessageError ? { agentMessageError } : {}) };
       const merged = MessageEdits.mergeOriginalBehindEdit(await all('messages'), original, state.pubkey);
       message = await applyPendingMessageDeletion(merged?.message || original, peer);
       await put('messages', message);
@@ -4008,7 +4010,10 @@
       }
     });
   }
-  async function publishToRelays(event, targetRelays = state.relays) {
+  function pendingResponseSummary(pending) {
+    return Routing.summarizeRelayResponses(pending);
+  }
+  async function publishToRelays(event, targetRelays = state.relays, { collectResponses = false } = {}) {
     const family = protocolFamilyByKind.get(event?.kind);
     if (family && !isProtocolEvent(event, family)) throw new Error('Evento inválido para o contrato de protocolo Property.');
     bridge?.markPublished(event);
@@ -4016,23 +4021,125 @@
     for (const url of allowed) connectRelay(url);
     await Promise.all([...allowed].map(url => waitForOpen(url)));
     const open = [...state.sockets.entries()].filter(([url, conn]) => allowed.has(url) && conn.socket.readyState === WebSocket.OPEN);
-    if (!open.length) return Promise.resolve(false);
+    if (!open.length) return collectResponses
+      ? { acceptedRelayUrls: [], rejectedRelayUrls: [], unansweredRelayUrls: [...allowed].sort() }
+      : Promise.resolve(false);
     return new Promise(resolve => {
-      const pending = { remaining: open.length, success: false, resolve, timer: 0 };
+      const pending = { remaining: open.length, success: false, resolve, timer: 0, collectResponses,
+        requestedRelayUrls: new Set(allowed), sentRelayUrls: new Set(), responses: new Map() };
       pending.timer = setTimeout(() => {
         state.pendingAcks.delete(event.id);
-        resolve(pending.success);
+        resolve(collectResponses ? pendingResponseSummary(pending) : pending.success);
       }, 8000);
       state.pendingAcks.set(event.id, pending);
-      let sentCount = 0;
-      for (const [url] of open) if (relayMessage(url, ['EVENT', event])) sentCount += 1;
-      pending.remaining = sentCount;
-      if (!sentCount) {
+      for (const [url] of open) if (relayMessage(url, ['EVENT', event])) pending.sentRelayUrls.add(url);
+      pending.remaining = pending.sentRelayUrls.size;
+      if (!pending.sentRelayUrls.size) {
         clearTimeout(pending.timer);
         state.pendingAcks.delete(event.id);
-        resolve(false);
+        resolve(collectResponses
+          ? { acceptedRelayUrls: [], rejectedRelayUrls: [], unansweredRelayUrls: [...allowed].sort() }
+          : false);
       }
     });
+  }
+  function messageRetryPlan(deliveries) {
+    return deliveries.map(delivery => ({
+      event: delivery.event,
+      recipient: delivery.recipient,
+      relayUrls: [...new Set(delivery.relays.map(url => normalizeRelay(url)))].sort()
+    }));
+  }
+  async function publishMessageRetryPlan(message, retryPlan) {
+    const progress = [];
+    let confirmedEnvelopeCount = 0;
+    for (const delivery of retryPlan) {
+      const response = await publishToRelays(delivery.event, delivery.relayUrls, { collectResponses: true });
+      if (response.acceptedRelayUrls.length) confirmedEnvelopeCount += 1;
+      if (delivery.recipient !== state.pubkey) {
+        progress.push({
+          recipient: delivery.recipient,
+          eventId: delivery.event.id,
+          acceptedRelayUrls: response.acceptedRelayUrls,
+          rejectedRelayUrls: response.rejectedRelayUrls,
+          unansweredRelayUrls: response.unansweredRelayUrls,
+          observedRelayUrls: []
+        });
+      }
+    }
+    message.deliveryProgress = progress;
+    message.deliveryState = Routing.messageDeliveryState(progress);
+    message.status = confirmedEnvelopeCount === retryPlan.length ? 'sent' : confirmedEnvelopeCount ? 'partial' : 'pending';
+    message.retryAttempts = (message.retryAttempts || 0) + 1;
+    message.lastRetryEventIds = retryPlan.map(item => item.event.id);
+    await put('messages', message);
+    return { confirmedEnvelopeCount, requiredEnvelopeCount: retryPlan.length, progress };
+  }
+  async function observeAcceptedMessageRelays(messageId, peer) {
+    const current = await get('messages', messageId);
+    if (!current || current.direction !== 'sent' || !Array.isArray(current.deliveryProgress)) return;
+    let changed = false;
+    for (const item of current.deliveryProgress) {
+      for (const url of item.acceptedRelayUrls) {
+        try {
+          const events = await fetchEvents({ ids: [item.eventId], limit: 1 }, 2000, [url]);
+          if (events.some(event => event.id === item.eventId && N.verifyEvent(event)) && !item.observedRelayUrls.includes(url)) {
+            item.observedRelayUrls.push(url);
+            changed = true;
+          }
+        } catch { /* A query failure is not an observation or a delivery receipt. */ }
+      }
+    }
+    if (!changed) return;
+    current.deliveryProgress = current.deliveryProgress.map(item => ({ ...item, observedRelayUrls: [...new Set(item.observedRelayUrls)].sort() }));
+    current.deliveryState = current.deliveryProgress.length > 0 && current.deliveryProgress.every(item => item.observedRelayUrls.length > 0)
+      ? 'observed' : 'relay-accepted';
+    await put('messages', current);
+    if (state.activePeer === peer) await renderMessages(peer);
+  }
+  async function retryPrivateMessage(peer, messageId) {
+    const message = await get('messages', messageId);
+    const conversation = await get('conversations', peer);
+    if (!message || message.peer !== peer || message.direction !== 'sent' || !Routing.retryIdentityMatches(message.senderPubkey, state.pubkey) ||
+        !conversation || !Array.isArray(message.retryPlan) || message.retryPlan.length < 2) {
+      throw new Error(localized('This message has no safe retry data on this identity.', 'Esta mensagem não tem dados seguros para repetição nesta identidade.'));
+    }
+    const recipients = conversation.group === true
+      ? [...new Set(conversation.members || [])].filter(member => member !== state.pubkey).sort()
+      : [peer];
+    const remotePlans = message.retryPlan.filter(item => item.recipient !== state.pubkey);
+    for (const recipient of recipients) {
+      if (Routing.recipientBlocked(await get('agentAccess', recipient))) {
+        throw new Error(localized('A recipient in this conversation is blocked on this device.', 'Um destinatário desta conversa está bloqueado neste aparelho.'));
+      }
+    }
+    const plannedRecipients = message.retryPlan.map(item => item.recipient);
+    if (message.retryPlan.length !== recipients.length + 1 || new Set(plannedRecipients).size !== plannedRecipients.length ||
+        !plannedRecipients.includes(state.pubkey) || remotePlans.length !== recipients.length || remotePlans.some(item => !recipients.includes(item.recipient))) {
+      throw new Error(localized('The saved recipient set no longer matches this conversation.', 'A lista de destinatários salva não corresponde mais a esta conversa.'));
+    }
+    for (const item of message.retryPlan) {
+      const taggedRecipients = (item.event?.tags || []).filter(tag => tag[0] === 'p').map(tag => tag[1]);
+      if (item.event?.kind !== 1059 || !N.verifyEvent(item.event) || taggedRecipients.length !== 1 || taggedRecipients[0] !== item.recipient ||
+          !Array.isArray(item.relayUrls) || !item.relayUrls.length || item.relayUrls.length > 3 || item.relayUrls.some(url => normalizeRelay(url) !== url)) {
+        throw new Error(localized('Saved retry data failed its event or relay validation.', 'Os dados salvos para repetição falharam na validação de evento ou relay.'));
+      }
+    }
+    state.retryingMessages ||= new Set();
+    if (state.retryingMessages.has(messageId)) throw new Error(localized('This message retry is already running.', 'A repetição desta mensagem já está em andamento.'));
+    state.retryingMessages.add(messageId);
+    try {
+      const retryPlan = message.retryPlan.map(item => ({ ...item, relayUrls: [...item.relayUrls] }));
+      message.deliveryState = 'queued';
+      await put('messages', message);
+      if (state.activePeer === peer) await renderMessages(peer);
+      const outcome = await publishMessageRetryPlan(message, retryPlan);
+      void observeAcceptedMessageRelays(message.id, peer).catch(() => {});
+      return outcome;
+    } finally {
+      state.retryingMessages.delete(messageId);
+      if (state.activePeer === peer) await renderMessages(peer);
+    }
   }
   function messagePinSettingId(peer) { return `message-pin:${state.pubkey}:${peer}`; }
   async function applyIncomingMessagePin(peer, pin) {
@@ -5064,8 +5171,17 @@
         }
         reactionSummary = summary;
       }
-      const delivery = message.status === 'pending' ? ' · aguardando relay' : message.status === 'partial' ? ' · entrega parcial' : '';
+      const deliveryState = message.deliveryState || (message.status === 'pending' ? 'queued' : message.direction === 'received' && message.status === 'delivered' ? 'decrypted' : ['sent', 'partial'].includes(message.status) ? 'relay-accepted' : '');
+      const deliveryLabels = {
+        queued: localized('Queued locally · no relay confirmation', 'Na fila local · nenhum relay confirmou'),
+        'relay-accepted': localized('Relay accepted · recipient device not confirmed', 'Relay aceitou · aparelho do destinatário não confirmado'),
+        observed: localized('Observed on recipient relay · device not confirmed', 'Observada no relay do destinatário · aparelho não confirmado'),
+        decrypted: localized('Decrypted on this device', 'Decifrada neste aparelho'),
+        failed: localized('Selected relays rejected · retry available', 'Relays selecionados rejeitaram · é possível tentar novamente')
+      };
+      const delivery = deliveryLabels[deliveryState] ? ` · ${deliveryLabels[deliveryState]}` : message.status === 'partial' ? ` · ${localized('partial relay acceptance', 'aceitação parcial dos relays')}` : '';
       const meta = document.createElement('span'); meta.className = 'message-meta'; meta.append(document.createTextNode(`${new Date(message.createdAt).toLocaleString(window.PropertyI18n?.locale() || undefined)}${delivery}`));
+      if (deliveryState) meta.dataset.deliveryState = deliveryState;
       if (message.editSeq > 0) { const edited = document.createElement('span'); edited.className = 'message-edited'; edited.textContent = localized('Edited', 'Editada'); meta.append(edited); }
       const readers = message.direction === 'sent' && eventId && !message.fromAgent && !message.agentMessageId
         ? [...(state.readReceipts.get(eventId.toLowerCase()) || [])] : [];
@@ -5079,6 +5195,23 @@
         meta.append(seen);
       }
       const actions = document.createElement('div'); actions.className = 'message-actions';
+      const retryProgress = Array.isArray(message.deliveryProgress) ? message.deliveryProgress : [];
+      const retryNeeded = Routing.messageNeedsRetry(retryProgress);
+      if (message.direction === 'sent' && message.senderPubkey?.toLowerCase() === state.pubkey && Array.isArray(message.retryPlan) &&
+          message.retryPlan.length >= 2 && retryNeeded && !state.retryingMessages?.has(message.id)) {
+        const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'message-delivery-retry';
+        retry.textContent = localized('Retry', 'Tentar novamente');
+        retry.setAttribute('aria-label', localized('Retry this encrypted message with the same event IDs', 'Tentar novamente esta mensagem criptografada com os mesmos IDs de evento'));
+        retry.addEventListener('click', async () => {
+          retry.disabled = true;
+          try {
+            const outcome = await retryPrivateMessage(peer, message.id);
+            if (!outcome.confirmedEnvelopeCount) showToast(localized('No selected relay confirmed the retry. The message remains queued locally.', 'Nenhum relay selecionado confirmou a repetição. A mensagem continua na fila local.'));
+          } catch (error) { showToast(error.message || localized('Could not retry this message.', 'Não foi possível repetir esta mensagem.')); }
+          finally { retry.disabled = false; }
+        });
+        actions.append(retry);
+      }
       const reply = document.createElement('button'); reply.type = 'button'; reply.className = 'message-reply'; reply.textContent = localized('Reply', 'Responder'); reply.disabled = !eventId || message.deleted; reply.title = message.deleted ? localized('Deleted messages cannot be replied to.', 'Não é possível responder a mensagens apagadas.') : eventId ? localized('Reply to this message', 'Responder a esta mensagem') : localized('This older message has no Nostr event reference', 'Esta mensagem antiga não tem referência de evento Nostr');
       reply.addEventListener('click', () => {
         if (!eventId) { showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Esta mensagem antiga não tem uma referência de evento Nostr.' : 'This older message has no Nostr event reference.'); return; }
@@ -5430,7 +5563,7 @@
       return sendPrivateGroupMessage(peer, text, replyTo, { quiet, secretConfirmed: true, linkPreview, mentionTokens, forwardedHops, voiceRecording, fileChunk, fileChunkTag, deferRender });
     }
     const agentAccess = await get('agentAccess', peer);
-    if (agentAccess?.status === 'blocked') throw new Error('Este contato está bloqueado neste aparelho.');
+    if (Routing.recipientBlocked(agentAccess)) throw new Error('Este contato está bloqueado neste aparelho.');
     if (!state.inboxRelays.length) {
       state.inboxRelays = await discoverInboxRelays(state.pubkey);
       if (!state.inboxRelays.length) throw new Error(localized('Open relay settings, review the suggested inbox relays, and publish your public kind 10050 list before sending.', 'Abra as configurações de relays, confira os relays de recebimento sugeridos e publique sua lista pública kind 10050 antes de enviar.'));
@@ -5481,20 +5614,17 @@
     if (!routePlan.ready) throw new Error('A mensagem NIP-17 não tem os dois envelopes válidos ou as listas de recebimento necessárias.');
     if (!Array.isArray(wraps) || wraps.length < 2 || wraps.some(event => event.kind !== 1059)) throw new Error('A biblioteca não gerou envelopes NIP-17 válidos.');
     const id = agentConversation ? `agent-out:${peer}:${agentMessageId}` : `${state.pubkey}:${crypto.randomUUID()}`;
-    const message = { id, peer, text: messageText, ...(isChessMessage ? { appId: 'property-chess', appPayload: chessPayload, hiddenFromChat: true } : {}), ...(voicePayload ? { voiceMessage: voicePayload } : {}), ...(fileChunk ? { fileChunk } : {}), createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
+    const retryPlan = messageRetryPlan(routePlan.deliveries);
+    const message = { id, peer, text: messageText, ...(isChessMessage ? { appId: 'property-chess', appPayload: chessPayload, hiddenFromChat: true } : {}), ...(voicePayload ? { voiceMessage: voicePayload } : {}), ...(fileChunk ? { fileChunk } : {}), createdAt: Date.now(), direction: 'sent', senderPubkey: state.pubkey, status: 'pending', deliveryState: 'queued', retryPlan, nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}), ...(agentConversation ? { agentMessageId, inReplyTo: replyTo ? (replyTo.agentMessageId || replyEventId) : null } : {}) };
     await put('messages', message);
     await put('conversations', { ...previous, ...(agentConversation ? { agent: true } : {}), lastMessage: isChessMessage ? localized('♟ Chess game', '♟ Partida de xadrez') : fileChunk ? `📎 ${fileChunk.name}` : text, lastAt: message.createdAt });
     if (!deferRender && state.activePeer === peer) await renderMessages(peer);
     if (!deferRender) await renderConversations();
-    let sent = 0;
-    const requiredEnvelopes = routePlan.deliveries.length;
-    for (const delivery of routePlan.deliveries) {
-      try { if (await publishToRelays(delivery.event, delivery.relays)) sent += 1; }
-      catch { /* Keep the encrypted local copy and attempt the remaining envelope. */ }
-    }
-    message.status = sent === requiredEnvelopes ? 'sent' : sent > 0 ? 'partial' : 'pending';
-    await put('messages', message);
+    const outcome = await publishMessageRetryPlan(message, retryPlan);
+    const sent = outcome.confirmedEnvelopeCount;
+    const requiredEnvelopes = outcome.requiredEnvelopeCount;
     if (!deferRender && state.activePeer === peer) await renderMessages(peer);
+    void observeAcceptedMessageRelays(message.id, peer).catch(() => {});
     if (!quiet && !sent) showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Mensagem cifrada salva neste aparelho; nenhum relay confirmou o envio.' : 'Encrypted message saved on this device; no relay confirmed it.');
     else if (!quiet && sent < requiredEnvelopes) showToast(window.PropertyI18n?.language === 'pt-BR' ? 'Entrega parcial: alguns envelopes NIP-17 não foram confirmados pelos relays.' : 'Partial delivery: some NIP-17 envelopes were not confirmed by relays.');
     return { savedLocally: true, confirmedEnvelopeCount: sent, requiredEnvelopeCount: requiredEnvelopes };
@@ -5504,6 +5634,11 @@
     const members = [...new Set(previous?.members || [])].sort();
     if (members.length < 3 || members.length > MAX_NIP17_GROUP_MEMBERS || !members.includes(state.pubkey) || members.some(member => !/^[0-9a-f]{64}$/i.test(member))) {
       throw new Error(window.PropertyI18n?.language === 'pt-BR' ? `O grupo NIP-17 aceita de 3 a ${MAX_NIP17_GROUP_MEMBERS} participantes, incluindo você.` : `NIP-17 group chats support 3–${MAX_NIP17_GROUP_MEMBERS} participants, including you.`);
+    }
+    for (const member of members) {
+      if (member !== state.pubkey && Routing.recipientBlocked(await get('agentAccess', member))) {
+        throw new Error(localized('A recipient in this group is blocked on this device.', 'Um destinatário deste grupo está bloqueado neste aparelho.'));
+      }
     }
     const relayLists = Object.create(null);
     for (const member of members) relayLists[member] = await resolveInboxRelaysFor(member);
@@ -5535,19 +5670,16 @@
     if (fileChunk && wraps.some(event => FileTransfers.relayEventBytes(event) > FileTransfers.MAX_RELAY_EVENT_BYTES)) throw new Error(localized('This file part exceeds the safe Nostr relay message size. Choose a smaller file.', 'Esta parte do arquivo excede o tamanho seguro para relays Nostr. Escolha um arquivo menor.'));
     const routePlan = Routing.planGroupGiftWraps(wraps, members, relayLists, N.verifyEvent);
     if (!routePlan.ready) throw new Error(window.PropertyI18n?.language === 'pt-BR' ? 'Não foi possível preparar os envelopes do grupo. Confira as listas de recebimento NIP-17.' : 'Could not prepare the group envelopes. Check each participant’s NIP-17 inbox list.');
-    const message = { id: `${state.pubkey}:${crypto.randomUUID()}`, peer, text: fileChunk ? (fileChunk.caption || '') : text, ...(voicePayload ? { voiceMessage: voicePayload } : {}), ...(fileChunk ? { fileChunk } : {}), ...(mentions.length ? { mentions } : {}), senderPubkey: state.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}) };
+    const retryPlan = messageRetryPlan(routePlan.deliveries);
+    const message = { id: `${state.pubkey}:${crypto.randomUUID()}`, peer, text: fileChunk ? (fileChunk.caption || '') : text, ...(voicePayload ? { voiceMessage: voicePayload } : {}), ...(fileChunk ? { fileChunk } : {}), ...(mentions.length ? { mentions } : {}), senderPubkey: state.pubkey, createdAt: Date.now(), direction: 'sent', status: 'pending', deliveryState: 'queued', retryPlan, nostrEventId: sentRumor.id, linkPreview: previewTag ? linkPreview : null, ...(forwardedHops !== null ? { forwarded: forwardedHops } : {}), ...(replyEventId ? { replyToId: replyEventId } : {}) };
     await put('messages', message);
     await put('conversations', { ...previous, group: true, members, lastMessage: fileChunk ? `📎 ${fileChunk.name}` : text, lastAt: message.createdAt });
     if (!deferRender && state.activePeer === peer) await renderMessages(peer);
     if (!deferRender) await renderConversations();
-    let sent = 0;
-    for (const delivery of routePlan.deliveries) {
-      try { if (await publishToRelays(delivery.event, delivery.relays)) sent += 1; }
-      catch { /* Keep local copy and try every other recipient envelope. */ }
-    }
-    message.status = sent === routePlan.deliveries.length ? 'sent' : sent > 0 ? 'partial' : 'pending';
-    await put('messages', message);
+    const outcome = await publishMessageRetryPlan(message, retryPlan);
+    const sent = outcome.confirmedEnvelopeCount;
     if (!deferRender && state.activePeer === peer) await renderMessages(peer);
+    void observeAcceptedMessageRelays(message.id, peer).catch(() => {});
     if (!quiet && !sent) showToast('Encrypted group message saved on this device; no relay confirmed sending.');
     else if (!quiet && sent < routePlan.deliveries.length) showToast('Partial delivery: some group inbox relays did not confirm their envelopes.');
     return { savedLocally: true, confirmedEnvelopeCount: sent, requiredEnvelopeCount: routePlan.deliveries.length };
@@ -6817,7 +6949,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v77', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v78', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }

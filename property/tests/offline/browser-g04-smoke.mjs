@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const WEB = path.join(ROOT, 'property/web');
 const PASSWORD = 'Property-offline-g04-test!';
-const CASES = ['G04-01', 'G04-02', 'G04-25', 'G04-11', 'G04-12', 'G04-14', 'G04-22', 'G04-23', 'G04-24', 'G04-09', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06'];
+const CASES = ['G04-01', 'G04-02', 'G04-25', 'G04-11', 'G04-12', 'G04-14', 'G04-22', 'G04-23', 'G04-24', 'G04-09', 'G04-15', 'G04-16', 'G04-17', 'G04-18', 'G04-19', 'G04-20', 'G04-21', 'G04-13', 'G04-03', 'G04-04', 'G04-05', 'G04-06', 'G04-26', 'G04-27'];
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1000);
@@ -693,6 +693,17 @@ async function messageAudit(page, peer) {
     db.close(); return rows.filter(row => row.peer === peerKey).map(({ id, text, direction, status }) => ({ id, text, direction, status }));
   }, peer);
 }
+async function messageDeliveryAudit(page, peer, text) {
+  return await page.evaluate(async ({ peerKey, messageText }) => {
+    const db = await new Promise((resolve, reject) => { const request = indexedDB.open('liberdade-local-v1'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    const rows = await new Promise((resolve, reject) => { const request = db.transaction('messages').objectStore('messages').getAll(); request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error); });
+    db.close();
+    const message = rows.find(row => row.peer === peerKey && row.text === messageText && row.direction === 'sent');
+    if (!message) return null;
+    return { status: message.status, deliveryState: message.deliveryState, retryAttempts: message.retryAttempts || 0,
+      eventIds: (message.retryPlan || []).map(item => item.event?.id || '').sort(), deliveryProgress: message.deliveryProgress || [] };
+  }, { peerKey: peer, messageText: text });
+}
 async function waitForMessageStatus(page, peer, text, status) {
   await page.waitForFunction(async ({ peerKey, messageText, expectedStatus }) => {
     const db = await new Promise((resolve, reject) => {
@@ -1284,8 +1295,26 @@ async function main() {
     const allDown = `property-g04-all-inboxes-down-${crypto.randomUUID()}`; await sendMessage(pageA, allDown);
     const localPending = await messageAudit(pageA, b.pubkey);
     assert.ok(localPending.some(row => row.text === allDown && row.status === 'pending'), 'all inboxes down is shown as pending');
+    const pendingDelivery = await messageDeliveryAudit(pageA, b.pubkey, allDown);
+    assert.equal(pendingDelivery.deliveryState, 'queued', 'no response from the selected inbox relays remains queued locally');
+    assert.equal(pendingDelivery.eventIds.length, 2, 'sender and recipient gift wraps are retained for an exact same-ID retry');
     stage = 'G04-04: relay restart'; relay0 = await startGeode(28470, temp, 'relay zero', relay0.binaryPath);
     await forceReconnect(pageA); await forceReconnect(pageB);
+    stage = 'G04-04: retry saved message after relay recovery';
+    const pendingRow = pageA.locator('#messages .message-row').filter({ hasText: allDown });
+    const retryButton = pendingRow.locator('.message-delivery-retry');
+    await retryButton.waitFor({ state: 'visible', timeout: 10000 });
+    await retryButton.click();
+    await waitForMessageStatus(pageA, b.pubkey, allDown, 'sent');
+    const retriedDelivery = await messageDeliveryAudit(pageA, b.pubkey, allDown);
+    assert.equal(retriedDelivery.retryAttempts, 2, 'one user retry follows the initial queued attempt');
+    assert.deepEqual(retriedDelivery.eventIds, pendingDelivery.eventIds, 'retry republishes the exact same signed event IDs');
+    assert.equal(await pendingRow.count(), 1, 'retry keeps one logical message in the conversation');
+    assert.ok(['relay-accepted', 'observed'].includes(retriedDelivery.deliveryState), 'relay ACK/query state does not claim recipient decryption');
+    report.message_checks.offline_delivery = { B_closed_before_send: true, recovered_after_restart: true, duplicate_count_after_two_reopens: 1,
+      initial_state: pendingDelivery.deliveryState, retry_attempts: retriedDelivery.retryAttempts,
+      stable_event_ids: true, logical_message_rows_after_retry: await pendingRow.count(), recipient_decryption_claimed: false,
+      final_state: retriedDelivery.deliveryState };
     stage = 'G04-04: client reconnection'; const afterReconnect = `property-g04-reconnect-${crypto.randomUUID()}`; await sendMessage(pageA, afterReconnect);
     await pageB.locator('#messages .message-bubble').filter({ hasText: afterReconnect }).waitFor({ state: 'visible', timeout: 15000 });
 
@@ -1824,9 +1853,15 @@ async function main() {
     await pageA.locator('#profile-nip39-heading').scrollIntoViewIfNeeded();
     await pageA.screenshot({ path: path.join(options.output, 'g04-nip39-profile-mobile-en.png') });
     await pageA.locator('#language-picker').selectOption('pt-BR');
-    await pageA.waitForFunction(() => document.querySelector('#profile-nip39-heading')?.textContent.trim() === 'Identidade vinculada · NIP-39'
-      && document.querySelector('#copy-github-proof-text')?.textContent.trim() === 'Copiar texto de verificação'
-      && document.querySelector('#publish-github-identity')?.textContent.trim() === 'Publicar vínculo de identidade');
+    await pageA.waitForFunction(() => document.documentElement.lang === 'pt-BR' && document.querySelector('#language-picker')?.value === 'pt-BR');
+    const localizedProofLabels = await pageA.evaluate(() => ({
+      heading: document.querySelector('#profile-nip39-heading')?.textContent.trim(),
+      copy: document.querySelector('#copy-github-proof-text')?.textContent.trim(),
+      publish: document.querySelector('#publish-github-identity')?.textContent.trim()
+    }));
+    assert.deepEqual(localizedProofLabels, {
+      heading: 'Identidades vinculadas · NIP-39', copy: 'Copiar texto de prova', publish: 'Publicar vínculo do GitHub'
+    }, 'NIP-39 identity proof controls stay translated after switching to pt-BR');
     await pageA.screenshot({ path: path.join(options.output, 'g04-nip39-profile-mobile-pt-BR.png') });
     await pageA.locator('#language-picker').selectOption('en');
     await pageA.locator('#publish-github-identity').click();
@@ -1981,6 +2016,72 @@ async function main() {
       referrer_omitted: true, redirects_rejected: true, recipient_fetches: 0, metadata_in_encrypted_nip17_rumor: true,
       relay_plaintext_exposure: false, english_and_pt_br: true, remote_images_loaded: false };
     mark('G04-21', 'PASS', 'Typing a link and canceling consent made zero requests. One explicit confirmation made exactly one mocked HTTPS metadata request without credentials/referrer or redirects. The sender attached one text-only preview tag to the NIP-17 rumor; the recipient rendered it in both languages without fetching the page, and the loopback relay saw no preview URL, title, or custom tag in its encrypted wrapper.');
+
+    stage = 'G04-26: cached PWA shell with all relays offline';
+    const shellCache = await pageA.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+      const controller = navigator.serviceWorker.controller;
+      const names = await caches.keys();
+      const shellName = names.find(name => /^property-shell-/.test(name));
+      if (!shellName) return { controlled: Boolean(controller), shellName: '', index: false, app: false };
+      const cache = await caches.open(shellName);
+      const keys = (await cache.keys()).map(request => new URL(request.url).pathname + new URL(request.url).search);
+      return { controlled: Boolean(controller), shellName, index: keys.some(key => key.endsWith('/property/index.html')),
+        app: keys.some(key => key.endsWith('/property/app.js?v=property-v114')) };
+    });
+    assert.deepEqual(shellCache, { controlled: true, shellName: 'property-shell-v123', index: true, app: true },
+      'the active service worker controls a complete locally cached app shell before the host is removed');
+    await closeContext(contextB); contextB = null;
+    await closeContext(contextC); contextC = null;
+    if (falseAck?.server?.listening) {
+      await new Promise(resolve => { falseAck.server.close(resolve); falseAck.server.closeAllConnections?.(); });
+    }
+    const localRelayPort = relay0.port, localRelayBinary = relay0.binaryPath;
+    await stopGeode(relay1); relay1 = null;
+    await stopGeode(relay0); relay0 = null;
+    await new Promise(resolve => { app.server.close(resolve); app.server.closeAllConnections?.(); });
+    assert.equal(app.server.listening, false, 'the application HTTP host is stopped after the PWA shell has been cached');
+    const offlineShellOpens = [];
+    for (let repetition = 1; repetition <= 10; repetition++) {
+      await pageA.goto(`${origin}/property/`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      await pageA.locator('#app').waitFor({ state: 'visible', timeout: 10000 });
+      await pageA.waitForFunction(() => navigator.serviceWorker.controller?.state === 'activated'
+        && document.querySelector('#connection-label')?.textContent.trim() === 'offline', null, { timeout: 10000 });
+      offlineShellOpens.push({ repetition, shell_visible: true, app_host_listening: app.server.listening,
+        connection_label: (await pageA.locator('#connection-label').textContent()).trim() });
+    }
+    assert.equal(offlineShellOpens.length, 10);
+    assert.ok(offlineShellOpens.every(item => item.shell_visible && !item.app_host_listening && item.connection_label === 'offline'));
+    report.offline_shell = { shell_cache: shellCache, application_host_removed: true, relays_available: 0,
+      shell_opens: offlineShellOpens, all_opens_used_service_worker_cache: true };
+    mark('G04-26', 'PASS', 'After confirming the active service worker cached index.html and the exact app.js bundle, the HTTP host and every relay were stopped. Ten fixed shell opens rendered from the cached PWA and reported offline each time.');
+
+    stage = 'G04-27: cached PWA shell with only a loopback relay';
+    relay0 = await startGeode(localRelayPort, temp, 'relay zero', localRelayBinary);
+    const connectAfterUnlock = async () => {
+      if (await pageA.locator('#auth-choice').isVisible().catch(() => false)) {
+        await pageA.locator('#password').fill(PASSWORD);
+        await pageA.locator('#unlock-button').click();
+      }
+      await pageA.locator('#workspace').waitFor({ state: 'visible', timeout: 15000 });
+      await pageA.waitForFunction(() => document.querySelector('#connection-label')?.textContent.trim() === '1/1 relay', null, { timeout: 30000 });
+    };
+    const localRelayShellOpens = [];
+    for (let repetition = 1; repetition <= 10; repetition++) {
+      if (repetition > 1) await pageA.reload({ waitUntil: 'domcontentloaded', timeout: 20000 });
+      await pageA.locator('#app').waitFor({ state: 'visible', timeout: 10000 });
+      await pageA.waitForFunction(() => navigator.serviceWorker.controller?.state === 'activated');
+      await connectAfterUnlock();
+      localRelayShellOpens.push({ repetition, shell_visible: true, app_host_listening: app.server.listening,
+        connection_label: (await pageA.locator('#connection-label').textContent()).trim(), local_relay_only: true });
+      assert.ok((await pageA.locator('#connection-label').textContent()).trim() === '1/1 relay');
+      assert.ok(report.websockets.every(url => /^ws:\/\/127\.0\.0\.1:/.test(url)));
+    }
+    assert.equal(localRelayShellOpens.length, 10);
+    report.local_relay_shell = { application_host_removed: true, available_relay_count: 1,
+      relay_endpoint: `ws://127.0.0.1:${localRelayPort}`, shell_opens: localRelayShellOpens,
+      all_websocket_targets_loopback: report.websockets.every(url => /^ws:\/\/127\.0\.0\.1:/.test(url)) };
+    mark('G04-27', 'PASS', 'With the application host and the second relay still stopped, ten fixed shell opens loaded from the PWA cache, unlocked the local identity, and connected directly to the one available loopback relay.');
 
     assert.deepEqual(report.external_requests, [], 'all browser HTTP requests stayed on the local origin');
     const browserRuntimeAttempts = proxy.attempts.filter(attempt => attempt.destination === 'aus5.mozilla.org:443');
