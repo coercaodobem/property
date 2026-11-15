@@ -388,7 +388,7 @@ async function main() {
     await copyOne(source, 'property/relay/dist-parts/PROVENANCE.pt-BR.md', stage, 'property/relay/PROVENANCE.pt-BR.md');
     await copyOne(source, 'property/relay/runtime-dependencies.json', stage);
     await copyTree(runtime.geodeRoot, path.join(stage, 'property/relay/dist/geode'));
-    await copyOne(source, 'LICENSE', stage);
+    await copyOne(source, 'LICENSE', stage, 'property/LICENSE');
     await copyTree(path.join(source, 'property/release/licenses'), path.join(stage, 'property/release/licenses'));
     for (const relative of [
       'property/release/toolchain-lock.json', 'property/release/build-offline-bundle.mjs',
