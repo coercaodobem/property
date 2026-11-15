@@ -427,7 +427,8 @@ async function main() {
     await scanSecrets(staged);
     const archiveName = 'property-ubuntu-x86_64.tar.gz';
     const rawTar = path.join(scratch, 'payload.tar');
-    run('tar', ['--create', '--file', rawTar, '--format=posix', '--sort=name', '--mtime=@0', '--owner=0', '--group=0', '--numeric-owner', '--directory', stage, '.']);
+    run('tar', ['--create', '--file', rawTar, '--format=posix', '--sort=name', '--mtime=@0', '--owner=0', '--group=0', '--numeric-owner',
+      '--pax-option=delete=atime,delete=ctime,delete=LIBARCHIVE.creationtime', '--directory', stage, '.']);
     await mkdir(options.output, { recursive: true, mode: 0o700 });
     const archivePath = path.join(options.output, archiveName);
     const fd = await open(archivePath, 'wx', 0o600);
