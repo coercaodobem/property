@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "gate": "G1",
+  "result": "PASS",
+  "cases": [
+    {
+      "id": "G1-01",
+      "requirement": "versioned contract covers all seven event families and interoperable Nostr kinds",
+      "result": "PASS",
+      "evidence": "protocol-contract-report.json"
+    },
+    {
+      "id": "G1-02",
+      "requirement": "100 valid/invalid signed vectors per family across browser and agent parsers",
+      "result": "PASS",
+      "evidence": "protocol-contract-report.json"
+    },
+    {
+      "id": "G1-03",
+      "requirement": "100 malformed inputs per family return typed rejection without mutation",
+      "result": "PASS",
+      "evidence": "protocol-contract-report.json"
+    },
+    {
+      "id": "G1-04",
+      "requirement": "50 duplicate and 50 reordered copies per family produce byte-identical state",
+      "result": "PASS",
+      "evidence": "protocol-contract-report.json"
+    },
+    {
+      "id": "G1-05",
+      "requirement": "BTC, XMR, and XNO atomic limits and ambiguity rejections",
+      "result": "PASS",
+      "evidence": "protocol-contract-report.json"
+    },
+    {
+      "id": "G1-06",
+      "requirement": "50 repeated XNO payment/receipt commands do not duplicate transfers; campaign offer/payment/refund repeats are idempotent",
+      "result": "PASS",
+      "evidence": "integration-summary.json"
+    },
+    {
+      "id": "G1-07",
+      "requirement": "full offline smoke suite passes on Ubuntu Linux x86_64",
+      "result": "PASS",
+      "evidence": "execution-report.json"
+    }
+  ]
+}

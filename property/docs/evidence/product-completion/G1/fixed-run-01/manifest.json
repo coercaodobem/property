@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "gate": "G1",
+  "result": "PASS",
+  "source_commit": "00d0bb76f8d4900673acf82c1d7a5b73f182a3d8",
+  "source_files": [
+    {
+      "path": "property/agent/protocol-contract.mjs",
+      "sha256": "3b0d1747a4ec0c69d76b72a067794e73472f1e6bd61904ea9ee5a561f27d4bdd",
+      "bytes": 11507
+    },
+    {
+      "path": "property/agent/manifest.json",
+      "sha256": "1482e251cc0d8831679f49a0439026fbf13daf4fc186d44f316170452bb6bb97",
+      "bytes": 1608
+    },
+    {
+      "path": "property/agent/relay.mjs",
+      "sha256": "6d966ac566b92c75e886fef1287800bde517f4b8c56b1c012f4adf2bb32ca540",
+      "bytes": 13177
+    },
+    {
+      "path": "property/agent/xno-trades.mjs",
+      "sha256": "0f59b9d410767e4e0ad2ce8b1fa68c6a1f6beebea76827573dacdee7cc3d18ff",
+      "bytes": 22683
+    },
+    {
+      "path": "property/agent/xno-threshold-protocol.mjs",
+      "sha256": "b7fae2c66a16e541dc5414a926b5a2b1a7318efd6e9ed0bce00a8303f72a761d",
+      "bytes": 54582
+    },
+    {
+      "path": "property/agent/xno-escrow.mjs",
+      "sha256": "d8ac932b980c59e4da02d847fcffb2ce365f22c721b64d3c7f0db0bfab173f2f",
+      "bytes": 41299
+    },
+    {
+      "path": "property/relay/campaign-engine.mjs",
+      "sha256": "8dfa3846c37c0ef633221c789cfe9ff6d65a46c33ec0a9b4558b81d1041f8f22",
+      "bytes": 19801
+    },
+    {
+      "path": "property/web/protocol-contract.js",
+      "sha256": "1cf6ae77b641e1e48690ef2a2272c5579c3b60f51d0a3a13259f00c35ba99e23",
+      "bytes": 5566
+    },
+    {
+      "path": "property/web/app.js",
+      "sha256": "d39fd7728a7039ffcfbf799ffcf75dcb88bf62fd9d4d96fe274acece4727c0ac",
+      "bytes": 504664
+    },
+    {
+      "path": "property/web/campaigns.js",
+      "sha256": "3f2840445bd0477501eba24ce6b0d2f090c1563d6d6bdf38f2831b4887496ca5",
+      "bytes": 7035
+    },
+    {
+      "path": "property/web/index.html",
+      "sha256": "1db8d34de1721087bd8788c0ee1051181df906a03d2c4a0ceab20477577ce4e1",
+      "bytes": 85555
+    },
+    {
+      "path": "property/web/marketplace.js",
+      "sha256": "a232ea144c302d08728727e8ed2d1b00981a70e3e928f094cb738fb814a9f56e",
+      "bytes": 6622
+    },
+    {
+      "path": "property/web/nip39.js",
+      "sha256": "bf9a080f2f0f27c0c00263a626cb393c2bf49598a973a9bbeba16395b1c926fa",
+      "bytes": 13607
+    },
+    {
+      "path": "property/web/routing.js",
+      "sha256": "aa0b9ab41ab3d9679a892d36d0652940bc0c1ee50e12125f255eee81fe535f00",
+      "bytes": 4552
+    },
+    {
+      "path": "property/web/sw.js",
+      "sha256": "cb8049f1e1968d61e686a17a79cab5dd880b01d0255a4998cff1b5ce6f8cf10d",
+      "bytes": 7765
+    },
+    {
+      "path": "property/docs/protocol-versions.json",
+      "sha256": "3ac247a98b430f44c74750974269bbbce35d6d54b125425c6b5e5747a393c440",
+      "bytes": 6714
+    },
+    {
+      "path": "property/docs/protocol-contract-v1.md",
+      "sha256": "98fb406af180409cd6002564fa28e565de7f75244cdec2505d4bcc845a4acc31",
+      "bytes": 6810
+    },
+    {
+      "path": "property/docs/protocol-contract-v1.pt-BR.md",
+      "sha256": "fc84c5bc6f09f32ccdb3193125b6c0dbc1613a0e9b74feac372a950506032fd7",
+      "bytes": 7396
+    },
+    {
+      "path": "property/tests/protocol-contract-g1.mjs",
+      "sha256": "9f0ebf39e60a4ca0b26f7eb499d2e141aa1c74b170ae8d0fb1f1b6ea20106ca6",
+      "bytes": 16388
+    },
+    {
+      "path": "property/tests/agent-xno-trades-smoke.mjs",
+      "sha256": "38665f551e4a3987f5910f8775d8239675839b0f7203e86d035026ddfc82a544",
+      "bytes": 16738
+    },
+    {
+      "path": "property/tests/campaign-engine-smoke.mjs",
+      "sha256": "63599ee5e39b5d5cbfac34dba9f7bbb503777eed3a7435cc53f9cdc2fff5fcf6",
+      "bytes": 11183
+    },
+    {
+      "path": "property/tests/campaigns-smoke.mjs",
+      "sha256": "edb6bcf51a6adb996f3db49d78c9f0f88607f8e1d0097a283df7958f02a7dbc0",
+      "bytes": 6956
+    },
+    {
+      "path": "property/tests/marketplace-smoke.mjs",
+      "sha256": "aa1a3291d0528fb91eaf5038d32a2d9b41c0050b96614c717331b82023434b38",
+      "bytes": 9656
+    },
+    {
+      "path": "property/tests/nip39-smoke.mjs",
+      "sha256": "9e82552276ec9a41771f39be7266c4bcf21adcb07afe7969da6974db34612704",
+      "bytes": 11000
+    },
+    {
+      "path": "property/tests/agent-xno-escrow-smoke.mjs",
+      "sha256": "a51424a44fa1715daf9998743d9c8db0d065d5251aaf39bb0b3ddcaef31bf52b",
+      "bytes": 17472
+    },
+    {
+      "path": "property/tests/protocol-smoke.mjs",
+      "sha256": "76df2279bfba03c42306bdbe3765895431313b72666277adf87b0db113dd9bc2",
+      "bytes": 11277
+    },
+    {
+      "path": "property/tests/app-contract-smoke.mjs",
+      "sha256": "98129b8042265f9f4f2e4e2e592075fb8c8ff4c5af353a234784be674c45f5c5",
+      "bytes": 78985
+    },
+    {
+      "path": "property/tests/agent-package-smoke.mjs",
+      "sha256": "5c843783870c1e38eb9f727b9047d079eeb9f30a3e3d292d5ed653ead2a6708b",
+      "bytes": 2320
+    },
+    {
+      "path": "property/tests/agent-package-smoke.sh",
+      "sha256": "6a80733e23cc6bf601d88dccb51230a2506f86f5365c87ea3a97dcdf6fa6f1a4",
+      "bytes": 2541
+    },
+    {
+      "path": "property/tests/offline/agent-security-g5.mjs",
+      "sha256": "aa50da520db959d4e216b0d536a58dc727569c5645beba84d7f01d2745eb904e",
+      "bytes": 27365
+    },
+    {
+      "path": "property/tests/product-completion-g1.mjs",
+      "sha256": "c83df5954b6845147a2517554fcdf53793803063421656fb428976a27ed741c4",
+      "bytes": 7821
+    },
+    {
+      "path": "property/tests/run-smoke.sh",
+      "sha256": "2022ab18ca996d618637b6a6b30865a26d6a86e4db189a7aaa75f66edc3b0eb6",
+      "bytes": 2516
+    }
+  ],
+  "evidence_files": [
+    {
+      "path": "protocol-contract-report.json",
+      "sha256": "3f1fe6431093d6414950cd205196729f0e0d7c3e66e2d5f1b9884667ee23e4d8",
+      "bytes": 197095
+    },
+    {
+      "path": "requirements.json",
+      "sha256": "97fabdc3cf1d91179f8c094dac18ace758e3517ebf86021a2b66fcbb8f996bc7",
+      "bytes": 1531
+    },
+    {
+      "path": "integration-summary.json",
+      "sha256": "bb581b40e256a67cfed40697e0a35fb25dea3a0e6d4d9b6eb1d1d19fdbb12f8e",
+      "bytes": 32995
+    },
+    {
+      "path": "execution-report.json",
+      "sha256": "379fdb84494c4cca42d344cfba4aa7757e63bf65a4ead24b152971eb6fcc1dc4",
+      "bytes": 43764
+    }
+  ]
+}
