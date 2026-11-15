@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "profile": "ubuntu-linux-x86_64",
+  "build": {
+    "node": "22.22.1",
+    "tar": "GNU tar 1.35",
+    "gzip": "gzip 1.14",
+    "network_access": "none",
+    "javascript_dependencies": [],
+    "pwa": "static file package; no transpiler or runtime dependency download",
+    "agent": "Node.js built-ins only; no external npm dependencies",
+    "relay": "pinned Geode/OpenJDK image extracted from repository segments; source rebuild is not asserted"
+  },
+  "relay_runtime": {
+    "geode": "1.20.0",
+    "java": "21.0.12.1",
+    "archive_sha256": "9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7",
+    "dependency_lock": "property/relay/runtime-dependencies.json"
+  },
+  "sbom": {
+    "format": "SPDX",
+    "version": "2.3",
+    "unknown_licenses": "fail"
+  }
+}

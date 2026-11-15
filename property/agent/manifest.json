@@ -39,6 +39,7 @@
     "nano-wallet.mjs",
     "xno-trades.mjs",
     "xno-journal.mjs",
+    "xno-escrow.mjs",
     "xno-threshold.mjs",
     "xno-threshold-store.mjs",
     "xno-threshold-protocol.mjs",
