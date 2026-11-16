@@ -1,0 +1,1875 @@
+{
+  "schema_version": 1,
+  "gate": "G4",
+  "result": "PASS",
+  "candidate_commit": "4e1b231ccd190af569dd2890022dd4e8d053fcc8",
+  "operating_system": "Ubuntu Linux x86_64",
+  "node_version": "v22.22.1",
+  "browser": {
+    "engine": "chromium",
+    "playwright_version": "1.62.1",
+    "browser_version": "153.0.8010.12",
+    "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "browser_executable_sha256": "8c599d43aec53f2460a31ae2f4af6bd863f8258b34ff519564bc5d4726bfaa1e"
+  },
+  "fixed_acceptance": {
+    "identities": 6,
+    "isolated_relays": 5,
+    "relay_groups": 3,
+    "private_messages_per_direction": 50,
+    "private_messages_total": 1500,
+    "public_events": 100,
+    "partitioned_transitions": 40,
+    "conflicting_profile_and_offer_updates": 20,
+    "restarts_per_relay": 2,
+    "retry_fixtures": 20,
+    "failure_fixtures_per_category": 10,
+    "pwa_opens_with_all_relays_offline": 10,
+    "pwa_opens_with_one_loopback_relay": 10
+  },
+  "steps": [
+    {
+      "step": "message-delivery",
+      "exit_code": 0,
+      "signal": null,
+      "stdout": "{\"result\":\"PASS\",\"cases\":5,\"report\":\"/home/<USER>/Liberdade/.property-completion-candidate/property/docs/evidence/product-completion/G4/fixed-run-10/message-delivery-report.json\"}\n",
+      "stderr": ""
+    },
+    {
+      "step": "isolated-relay-matrix",
+      "exit_code": 0,
+      "signal": null,
+      "stdout": "{\"result\":\"PASS\",\"cases\":[\"G04-PARTITION-40\",\"G04-PUBLIC-100\",\"G04-CONFLICT-20\",\"G04-PRIVATE-1500\",\"G04-FAILURES-10-EACH\",\"G04-RESTART-10-RETRY-20\"],\"failure\":null}\n",
+      "stderr": ""
+    },
+    {
+      "step": "browser-and-pwa",
+      "exit_code": 0,
+      "signal": null,
+      "stdout": "G04-01 PASS\nG04-02 PASS\nG04-25 PASS\nG04-11 PASS\nG04-12 PASS\nG04-14 PASS\nG04-22 PASS\nG04-23 PASS\nG04-24 PASS\nG04-13 PASS\nG04-03 PASS\nG04-04 PASS\nG04-05 PASS\nG04-06 PASS\nG04-09 PASS\nG04-15 PASS\nG04-16 PASS\nG04-17 PASS\nG04-18 PASS\nG04-19 PASS\nG04-20 PASS\n[G04-21: consented encrypted link preview] querying baseline relay envelopes before sending the preview\n[G04-21: consented encrypted link preview] baseline relay query completed; sending the encrypted preview\n[G04-21: consented encrypted link preview] sender rendered the preview message; waiting for the recipient\n[G04-21: consented encrypted link preview] reading the sender and recipient preview records from local IndexedDB\n[watchdog] G04 local message preview IndexedDB read: started\n[watchdog] G04 local message preview IndexedDB read: settled\n[watchdog] G04 local message preview IndexedDB read: started\n[watchdog] G04 local message preview IndexedDB read: settled\n[G04-21: consented encrypted link preview] local preview records match; verifying relay envelope privacy\nG04-21 PASS\n[G04-26: cached PWA shell with all relays offline] service worker controls the page; inspecting the cached PWA shell\n[watchdog] G04-26 service worker cache inventory: started\n[watchdog] G04-26 service worker cache inventory: settled\n[G04-26: cached PWA shell with all relays offline] cache inventory returned: {\"controlled\":true,\"shellName\":\"property-shell-v126\",\"index\":true,\"app\":true}\n[G04-26: cached PWA shell with all relays offline] closing context B before relay shutdown\n[G04-26: cached PWA shell with all relays offline] context B closed; closing context C\n[G04-26: cached PWA shell with all relays offline] context C closed; stopping the false-ack fixture\n[G04-26: cached PWA shell with all relays offline] false-ack sockets closed; stopping relay one\n[G04-26: cached PWA shell with all relays offline] relay one stopped; stopping relay zero\n[G04-26: cached PWA shell with all relays offline] all relays stopped; closing the application HTTP host\n[G04-26: cached PWA shell with all relays offline] application HTTP host closed; beginning ten cached-shell opens\n[G04-26: cached PWA shell with all relays offline] offline cached-shell open 1/10 passed\n[G04-26: cached PWA shell with all relays offline] offline cached-shell open 2/10 passed\n[G04-26: cached PWA shell with all relays offline] offline cached-shell open 3/10 passed\n[G04-26: cached PWA shell with all relays offline] offline cached-shell open 4/10 passed\n[G04-26: cached PWA shell with all relays offline] offline cached-shell open 5/10 passed\n[G04-26: cached PWA shell with all relays offline] offline cached-shell open 6/10 passed\n[G04-26: cached PWA shell with all relays offline] offline cached-shell open 7/10 passed\n[G04-26: cached PWA shell with all relays offline] offline cached-shell open 8/10 passed\n[G04-26: cached PWA shell with all relays offline] offline cached-shell open 9/10 passed\n[G04-26: cached PWA shell with all relays offline] offline cached-shell open 10/10 passed\nG04-26 PASS\n[G04-27: cached PWA shell with only a loopback relay] single-relay cached-shell open 1/10 passed\n[G04-27: cached PWA shell with only a loopback relay] single-relay cached-shell open 2/10 passed\n[G04-27: cached PWA shell with only a loopback relay] single-relay cached-shell open 3/10 passed\n[G04-27: cached PWA shell with only a loopback relay] single-relay cached-shell open 4/10 passed\n[G04-27: cached PWA shell with only a loopback relay] single-relay cached-shell open 5/10 passed\n[G04-27: cached PWA shell with only a loopback relay] single-relay cached-shell open 6/10 passed\n[G04-27: cached PWA shell with only a loopback relay] single-relay cached-shell open 7/10 passed\n[G04-27: cached PWA shell with only a loopback relay] single-relay cached-shell open 8/10 passed\n[G04-27: cached PWA shell with only a loopback relay] single-relay cached-shell open 9/10 passed\n[G04-27: cached PWA shell with only a loopback relay] single-relay cached-shell open 10/10 passed\nG04-27 PASS\n{\"result\":\"PASS\",\"cases\":[{\"case\":\"G04-01\",\"status\":\"PASS\",\"reason\":\"A, B and C published signed kind-10050 inbox lists through the UI; independent relay queries verified signatures and B’s two authorized inboxes.\"},{\"case\":\"G04-02\",\"status\":\"PASS\",\"reason\":\"A and B exchanged real NIP-17 messages through Geode; both UI contexts decrypted the intended text, C received none, and relay storage contained only valid encrypted gift wraps.\"},{\"case\":\"G04-25\",\"status\":\"PASS\",\"reason\":\"B’s typing status appeared in A’s active conversation in both languages and cleared on blur. A decrypted the signed kind-21059 start/stop signals. A separate text-free thinking state appeared in English and Portuguese and cleared on stop. The per-identity typing opt-out persisted; wrappers exposed only A’s route, contained no unsent draft, created no message, and were not retained by either isolated relay.\"},{\"case\":\"G04-11\",\"status\":\"PASS\",\"reason\":\"A fixed rightward touch swipe selected its exact reply target; ArrowUp edited the latest eligible own message only with an empty composer; cancel preserved the draft and neither shortcut published a relay event.\"},{\"case\":\"G04-12\",\"status\":\"PASS\",\"reason\":\"Valid npub/nprofile references rendered as bounded Property cards; duplicate, invalid, nsec-looking, code-span and URL references stayed literal. Local search highlighted a profile code without flattening its card; tapping a card prefilled the existing contact dialog and relay hints without creating a conversation or publishing an event.\"},{\"case\":\"G04-14\",\"status\":\"PASS\",\"reason\":\"Conversation-list search found older locally stored direct and group messages after newer nonmatching messages, identified each chat, and opened each exact match without a relay search event.\"},{\"case\":\"G04-22\",\"status\":\"PASS\",\"reason\":\"The group composer offered local member autocomplete, Enter inserted a bound @name, NIP-27 profile references were carried inside encrypted NIP-17 content, the recipient resolved the correct member, and the relay exposed no message text.\"},{\"case\":\"G04-23\",\"status\":\"PASS\",\"reason\":\"Both Property clients rendered a local location card from the encrypted NIP-17 message. No map image or external request was made; loopback relays saw no readable coordinates or place name. The map link is explicit, uses the parsed coordinates, and its privacy notice is localized.\"},{\"case\":\"G04-24\",\"status\":\"PASS\",\"reason\":\"The forwarded NIP-17 message kept its body unchanged and showed a private “Forwarded” label to sender and recipient. The relay stored one encrypted gift wrap with neither plaintext nor the inner hop marker.\"},{\"case\":\"G04-09\",\"status\":\"PASS\",\"reason\":\"Direct and group chats pin locally in the existing list, retain order after reload, remain unpinned in a clean profile with the same identity, and produce zero relay events.\"},{\"case\":\"G04-15\",\"status\":\"PASS\",\"reason\":\"Browser notification permission was requested only after a tap; a hidden-page notice contained no message or sender data; the visible chat produced no duplicate notice; a local 15-minute mute suppressed a third notice while unread counts remained, and settings published zero relay events.\"},{\"case\":\"G04-16\",\"status\":\"PASS\",\"reason\":\"The app icon badge remained inactive before opt-in, then reflected the local aggregate unread count. Opening the unread conversation updated the count, disabling cleared it, the preference stayed in this identity, and none of these actions requested browser notification permission or published a relay event.\"},{\"case\":\"G04-17\",\"status\":\"PASS\",\"reason\":\"The existing chat shows one sticky date heading for each fixed local day, uses Today/Yesterday or Hoje/Ontem in the selected language, includes a full date for older messages, and does not alter message storage or publish relay events.\"},{\"case\":\"G04-18\",\"status\":\"PASS\",\"reason\":\"When reading older messages, A keeps the visible anchor and counts two incoming messages in English and Portuguese. Returning to the bottom clears the count; a third incoming message stays at the bottom, and A’s own send returns to the bottom without being counted.\"},{\"case\":\"G04-19\",\"status\":\"PASS\",\"reason\":\"The signed-in empty state offers New conversation, Join with a contact link/code, and Share my contact in English and Portuguese. On mobile, the buttons fit the viewport. Sharing creates the existing public contact URL, nprofile, and local QR; joining focuses the public-key field and opens a local conversation. Neither action publishes a relay event.\"},{\"case\":\"G04-20\",\"status\":\"PASS\",\"reason\":\"A person copied the canonical verification text and explicitly published one signed kind 10011 GitHub claim. A contact loaded the signed claim without contacting GitHub; only tapping Verify made one mocked, credential-free request, rendered the matching proof as verified, and published no relay event.\"},{\"case\":\"G04-21\",\"status\":\"PASS\",\"reason\":\"Typing a link and canceling consent made zero requests. One explicit confirmation made exactly one mocked HTTPS metadata request without credentials/referrer or redirects. The sender attached one text-only preview tag to the NIP-17 rumor; the recipient rendered it in both languages without fetching the page, and the loopback relay saw no preview URL, title, or custom tag in its encrypted wrapper.\"},{\"case\":\"G04-13\",\"status\":\"PASS\",\"reason\":\"A fresh profile received two distinct bundled relay suggestions, saved them locally, and could create or import an identity without configuring relays. Settings remained optional and no relay connection started before identity activation.\"},{\"case\":\"G04-03\",\"status\":\"PASS\",\"reason\":\"B closed, A sent through the real relay, and B recovered the queued NIP-17 message after two browser restarts with one UI copy.\"},{\"case\":\"G04-04\",\"status\":\"PASS\",\"reason\":\"The live inbox carried messages when the second relay was down; all-inbox outage stayed pending; relay restart restored delivery; an intentional false ACK was caught by an independent query.\"},{\"case\":\"G04-05\",\"status\":\"PASS\",\"reason\":\"The UI refused to send without the sender’s kind-10050 inbox list, emitted no fallback, and a real relay rejected a post-signature envelope mutation without storing it.\"},{\"case\":\"G04-06\",\"status\":\"PASS\",\"reason\":\"The delivered corpus reconciled one-for-one in both browser databases and real relay storage; no plaintext, duplicate UI copy, third-party recipient or read receipt was observed.\"},{\"case\":\"G04-26\",\"status\":\"PASS\",\"reason\":\"After confirming the active service worker cached index.html and the exact app.js bundle, the HTTP host and every relay were stopped. Ten fixed shell opens rendered from the cached PWA and reported offline each time.\"},{\"case\":\"G04-27\",\"status\":\"PASS\",\"reason\":\"With the application host and every nonlocal relay stopped, ten fixed shell opens loaded from the PWA cache, unlocked the local identity, and reported one selected loopback relay connected while the second effective routing endpoint was unavailable.\"}],\"output\":\"/home/<USER>/Liberdade/.property-completion-candidate/property/docs/evidence/product-completion/G4/fixed-run-10\"}\n",
+      "stderr": ""
+    }
+  ],
+  "source_sha256": {
+    "property/web/app.js": "0bac59226e7edb16b3624515ad87c9dd5ef094c19346703a0e357d5d7e109f90",
+    "property/web/index.html": "56516e46d3d264a7e5ac3ab105266ddeff36cb4339642151a89b55f6562a8205",
+    "property/web/sw.js": "b9411ae870a2cf06d27ea380372bffdfdcc6e76ed6004ca73973c22e95e33d63",
+    "property/web/routing.js": "69b32d8d2566b5b4066bfafaff525c8a3caf6a220109a2ce380a2765ed9a808c",
+    "property/web/protocol-contract.js": "b245cbfd8dacae8dfc51c7ae46548b33aecad12c1dcce100c6cd357da06f17de",
+    "property/web/public-profile.js": "98f533f6a6cadb232f1f0cf9c2e643f2abad2ddd716090fee5d7facf49f1d86d",
+    "property/web/marketplace.js": "27b3c9c18dee507aebef5184296a4ee6ed10ab14a51b814229bb1a859939bd29",
+    "property/web/money.js": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268",
+    "property/tests/offline/browser-g04-smoke.mjs": "7fd8be1d924061b3756d170ffe656c850df661e80cda0205a310de0730f03f77",
+    "property/tests/offline/message-delivery-g4-smoke.mjs": "84d44ca7a51477047740cad61c75953e7f6b5c93d54998f6ac2001d6a5da20bd",
+    "property/tests/offline/product-completion-g4-relay-smoke.mjs": "3e785df48f93ca55bc96e51685f3466288e5b7adfef6b6bf9024227b8a69c185"
+  },
+  "relay_summary": {
+    "schema_version": 1,
+    "gate": "G4",
+    "suite": "isolated-five-relay-fixed-count",
+    "result": "PASS",
+    "operating_system": "Ubuntu Linux x86_64",
+    "runtime": {
+      "node": "v22.22.1",
+      "nostr_bundle": "bundled nostr-tools 2.25.2"
+    },
+    "predefined_variables": {
+      "synthetic_identities": 6,
+      "isolated_relays": 5,
+      "relay_groups": [
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          4
+        ]
+      ],
+      "private_messages_per_ordered_identity_pair": 50,
+      "public_events": 100,
+      "relay_rate_limits": {
+        "events_per_minute": 10000,
+        "event_burst": 10000,
+        "reqs_per_minute": 10000,
+        "req_burst": 10000
+      },
+      "partition_transitions": 40,
+      "conflicting_profile_offer_updates": 20,
+      "restarts_per_relay": 2,
+      "repeated_event_fixtures": 20,
+      "failure_fixtures_per_category": 10,
+      "fixed_event_epoch": 1794384000
+    },
+    "cases": [
+      {
+        "case": "G04-PARTITION-40",
+        "status": "PASS",
+        "transitions": 40,
+        "group_distribution": [
+          14,
+          13,
+          13
+        ],
+        "disconnected_groups_did_not_observe_other_group_events": true
+      },
+      {
+        "case": "G04-PUBLIC-100",
+        "status": "PASS",
+        "events": 100,
+        "relays": 5,
+        "signatures_and_ids_preserved": true,
+        "one_copy_per_id": true
+      },
+      {
+        "case": "G04-CONFLICT-20",
+        "status": "PASS",
+        "updates": 20,
+        "profile_updates": 10,
+        "offer_updates": 10,
+        "deterministic_latest_and_tie_break_convergence": true,
+        "same_result_on_all_relays": true
+      },
+      {
+        "case": "G04-PRIVATE-1500",
+        "status": "PASS",
+        "identity_count": 6,
+        "ordered_directions": 30,
+        "messages_per_direction": 50,
+        "total_messages": 1500,
+        "intended_decryptions": 3000,
+        "rejected_nonparticipant_decryptions": 6000,
+        "stable_signed_ids_after_storage_and_forwarding": true,
+        "plaintext_seen_by_relays": false
+      },
+      {
+        "case": "G04-FAILURES-10-EACH",
+        "status": "PASS",
+        "malformed_envelopes": 10,
+        "unavailable_relays": 10,
+        "oversized_events": 10,
+        "duplicate_ack_fixtures": 10,
+        "false_delivery_or_read_receipts": 0
+      },
+      {
+        "case": "G04-RESTART-10-RETRY-20",
+        "status": "PASS",
+        "relay_count": 5,
+        "restarts_per_relay": 2,
+        "retries": 20,
+        "one_stored_copy_per_event_id": true,
+        "only_observed_ack_frames_counted": true
+      }
+    ],
+    "relays": [
+      {
+        "relay": "R1",
+        "endpoint": "127.0.0.1",
+        "port": 37359,
+        "storage": "private isolated directory",
+        "group": 0
+      },
+      {
+        "relay": "R2",
+        "endpoint": "127.0.0.1",
+        "port": 40073,
+        "storage": "private isolated directory",
+        "group": 0
+      },
+      {
+        "relay": "R3",
+        "endpoint": "127.0.0.1",
+        "port": 45073,
+        "storage": "private isolated directory",
+        "group": 1
+      },
+      {
+        "relay": "R4",
+        "endpoint": "127.0.0.1",
+        "port": 39033,
+        "storage": "private isolated directory",
+        "group": 1
+      },
+      {
+        "relay": "R5",
+        "endpoint": "127.0.0.1",
+        "port": 42979,
+        "storage": "private isolated directory",
+        "group": 2
+      }
+    ],
+    "private_messages": {
+      "directed_identity_pairs": 30,
+      "messages_per_direction": 50,
+      "total_private_messages": 1500,
+      "wrapped_events": 3000,
+      "authorized_decryptions": 3000,
+      "unauthorized_decryption_attempts": 6000,
+      "unauthorized_decryptions": 0,
+      "stored_and_forwarded_signatures_and_ids_unchanged": true,
+      "message_plaintext_in_relays": false,
+      "event_ids_sha256": "791527b61141bbef51850ff5e47b03ab8bc23fde68ac74f9e9cd5dc1f1381fe0"
+    },
+    "public_events": {
+      "count": 100,
+      "unique_id_digest": "278c5dfcfef6f07c685743382268f543f91044b27317c92cff87851deb8ea7c9",
+      "all_five_relays_converged": true,
+      "stored_copies_per_relay": 100
+    },
+    "partition_recovery": {
+      "transitions": [
+        {
+          "ordinal": 1,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 2,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 3,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 4,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 5,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 6,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 7,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 8,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 9,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 10,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 11,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 12,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 13,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 14,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 15,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 16,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 17,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 18,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 19,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 20,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 21,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 22,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 23,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 24,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 25,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 26,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 27,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 28,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 29,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 30,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 31,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 32,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 33,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 34,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 35,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 36,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 37,
+          "group": 0,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 38,
+          "group": 1,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 39,
+          "group": 2,
+          "state": "partitioned"
+        },
+        {
+          "ordinal": 40,
+          "group": 0,
+          "state": "partitioned"
+        }
+      ],
+      "isolation_matrix_passed": true,
+      "transitions_completed": 40,
+      "partitioned_event_ids_sha256": "b8f8d2015beacc24fdb2eca15488c3d15a92fd3c447ebe243b67ad7a1f9f8fa6",
+      "reconnected_all_five_relays": true,
+      "public_event_convergence_count": 100
+    },
+    "conflicts": {
+      "conflicting_update_count": 20,
+      "profile_updates": 10,
+      "product_updates": 10,
+      "winner_rule": "greatest created_at; equal timestamps choose the lexicographically lower event ID",
+      "profile_winner_id": "254dbed5ddf909884cfe4c154a12e5f2407210b9ec4900c4ce08202d4d5e8f30",
+      "product_winner_ids": [
+        "0d3df50488193551de90dd723318c1623f068d42426202f27141e5ee86e6e70d",
+        "1056eca37940e6230f94cd3f659389808d8e0fd5066097a4f351181d27522f2c",
+        "24b9784e526cbf9b394612f80a356ccfb17727959d46448baef772a79ce5e649",
+        "43733772a02c6d03fa0357a4806862523d20fa94926ca4bce19ac252b444e2b7",
+        "a3869600a47e12647c82741e842215925548b73ecd8c182055402266dcc2b0fb"
+      ],
+      "same_winner_on_every_relay": true,
+      "conflicting_event_ids_sha256": "55d1fe6928b642a14103cff57284eca47cc9467f9558d1a424b74193afa7f8f6"
+    },
+    "restart_retry": {
+      "relays": 5,
+      "restarts_each": 2,
+      "total_restarts": 10,
+      "retry_fixtures": 20,
+      "acknowledgements_observed": 20,
+      "acknowledgements_fabricated": 0,
+      "unique_logical_messages_per_event_id": true,
+      "restart_persistence_checks": 10,
+      "retained_logical_event_ids_per_relay": [
+        2106,
+        1106,
+        1106,
+        1106,
+        1106
+      ],
+      "persistent_data_survived_restarts": true,
+      "duplicate_ids_sha256": "7647e5f23d38ac1a51b761b40e0744e661691e9fdc7c798bd32081b7e13982e2"
+    },
+    "failure_fixtures": {
+      "malformed_envelope": {
+        "count": 10,
+        "decrypted": 0
+      },
+      "unavailable_relay": {
+        "count": 10,
+        "fabricated_acknowledgements": 0
+      },
+      "oversized_event": {
+        "count": 10,
+        "accepted_by_property_contract": 0
+      },
+      "duplicate_relay_response": {
+        "count": 10,
+        "duplicate_or_unaddressed_acknowledgements_counted": 0
+      }
+    },
+    "egress": {
+      "external_targets": [],
+      "relay_targets_loopback_only": true
+    }
+  },
+  "browser_summary": {
+    "schema_version": 1,
+    "cases": [
+      {
+        "case": "G04-01",
+        "status": "PASS",
+        "reason": "A, B and C published signed kind-10050 inbox lists through the UI; independent relay queries verified signatures and B’s two authorized inboxes."
+      },
+      {
+        "case": "G04-02",
+        "status": "PASS",
+        "reason": "A and B exchanged real NIP-17 messages through Geode; both UI contexts decrypted the intended text, C received none, and relay storage contained only valid encrypted gift wraps."
+      },
+      {
+        "case": "G04-25",
+        "status": "PASS",
+        "reason": "B’s typing status appeared in A’s active conversation in both languages and cleared on blur. A decrypted the signed kind-21059 start/stop signals. A separate text-free thinking state appeared in English and Portuguese and cleared on stop. The per-identity typing opt-out persisted; wrappers exposed only A’s route, contained no unsent draft, created no message, and were not retained by either isolated relay."
+      },
+      {
+        "case": "G04-11",
+        "status": "PASS",
+        "reason": "A fixed rightward touch swipe selected its exact reply target; ArrowUp edited the latest eligible own message only with an empty composer; cancel preserved the draft and neither shortcut published a relay event."
+      },
+      {
+        "case": "G04-12",
+        "status": "PASS",
+        "reason": "Valid npub/nprofile references rendered as bounded Property cards; duplicate, invalid, nsec-looking, code-span and URL references stayed literal. Local search highlighted a profile code without flattening its card; tapping a card prefilled the existing contact dialog and relay hints without creating a conversation or publishing an event."
+      },
+      {
+        "case": "G04-14",
+        "status": "PASS",
+        "reason": "Conversation-list search found older locally stored direct and group messages after newer nonmatching messages, identified each chat, and opened each exact match without a relay search event."
+      },
+      {
+        "case": "G04-22",
+        "status": "PASS",
+        "reason": "The group composer offered local member autocomplete, Enter inserted a bound @name, NIP-27 profile references were carried inside encrypted NIP-17 content, the recipient resolved the correct member, and the relay exposed no message text."
+      },
+      {
+        "case": "G04-23",
+        "status": "PASS",
+        "reason": "Both Property clients rendered a local location card from the encrypted NIP-17 message. No map image or external request was made; loopback relays saw no readable coordinates or place name. The map link is explicit, uses the parsed coordinates, and its privacy notice is localized."
+      },
+      {
+        "case": "G04-24",
+        "status": "PASS",
+        "reason": "The forwarded NIP-17 message kept its body unchanged and showed a private “Forwarded” label to sender and recipient. The relay stored one encrypted gift wrap with neither plaintext nor the inner hop marker."
+      },
+      {
+        "case": "G04-09",
+        "status": "PASS",
+        "reason": "Direct and group chats pin locally in the existing list, retain order after reload, remain unpinned in a clean profile with the same identity, and produce zero relay events."
+      },
+      {
+        "case": "G04-15",
+        "status": "PASS",
+        "reason": "Browser notification permission was requested only after a tap; a hidden-page notice contained no message or sender data; the visible chat produced no duplicate notice; a local 15-minute mute suppressed a third notice while unread counts remained, and settings published zero relay events."
+      },
+      {
+        "case": "G04-16",
+        "status": "PASS",
+        "reason": "The app icon badge remained inactive before opt-in, then reflected the local aggregate unread count. Opening the unread conversation updated the count, disabling cleared it, the preference stayed in this identity, and none of these actions requested browser notification permission or published a relay event."
+      },
+      {
+        "case": "G04-17",
+        "status": "PASS",
+        "reason": "The existing chat shows one sticky date heading for each fixed local day, uses Today/Yesterday or Hoje/Ontem in the selected language, includes a full date for older messages, and does not alter message storage or publish relay events."
+      },
+      {
+        "case": "G04-18",
+        "status": "PASS",
+        "reason": "When reading older messages, A keeps the visible anchor and counts two incoming messages in English and Portuguese. Returning to the bottom clears the count; a third incoming message stays at the bottom, and A’s own send returns to the bottom without being counted."
+      },
+      {
+        "case": "G04-19",
+        "status": "PASS",
+        "reason": "The signed-in empty state offers New conversation, Join with a contact link/code, and Share my contact in English and Portuguese. On mobile, the buttons fit the viewport. Sharing creates the existing public contact URL, nprofile, and local QR; joining focuses the public-key field and opens a local conversation. Neither action publishes a relay event."
+      },
+      {
+        "case": "G04-20",
+        "status": "PASS",
+        "reason": "A person copied the canonical verification text and explicitly published one signed kind 10011 GitHub claim. A contact loaded the signed claim without contacting GitHub; only tapping Verify made one mocked, credential-free request, rendered the matching proof as verified, and published no relay event."
+      },
+      {
+        "case": "G04-21",
+        "status": "PASS",
+        "reason": "Typing a link and canceling consent made zero requests. One explicit confirmation made exactly one mocked HTTPS metadata request without credentials/referrer or redirects. The sender attached one text-only preview tag to the NIP-17 rumor; the recipient rendered it in both languages without fetching the page, and the loopback relay saw no preview URL, title, or custom tag in its encrypted wrapper."
+      },
+      {
+        "case": "G04-13",
+        "status": "PASS",
+        "reason": "A fresh profile received two distinct bundled relay suggestions, saved them locally, and could create or import an identity without configuring relays. Settings remained optional and no relay connection started before identity activation."
+      },
+      {
+        "case": "G04-03",
+        "status": "PASS",
+        "reason": "B closed, A sent through the real relay, and B recovered the queued NIP-17 message after two browser restarts with one UI copy."
+      },
+      {
+        "case": "G04-04",
+        "status": "PASS",
+        "reason": "The live inbox carried messages when the second relay was down; all-inbox outage stayed pending; relay restart restored delivery; an intentional false ACK was caught by an independent query."
+      },
+      {
+        "case": "G04-05",
+        "status": "PASS",
+        "reason": "The UI refused to send without the sender’s kind-10050 inbox list, emitted no fallback, and a real relay rejected a post-signature envelope mutation without storing it."
+      },
+      {
+        "case": "G04-06",
+        "status": "PASS",
+        "reason": "The delivered corpus reconciled one-for-one in both browser databases and real relay storage; no plaintext, duplicate UI copy, third-party recipient or read receipt was observed."
+      },
+      {
+        "case": "G04-26",
+        "status": "PASS",
+        "reason": "After confirming the active service worker cached index.html and the exact app.js bundle, the HTTP host and every relay were stopped. Ten fixed shell opens rendered from the cached PWA and reported offline each time."
+      },
+      {
+        "case": "G04-27",
+        "status": "PASS",
+        "reason": "With the application host and every nonlocal relay stopped, ten fixed shell opens loaded from the PWA cache, unlocked the local identity, and reported one selected loopback relay connected while the second effective routing endpoint was unavailable."
+      }
+    ],
+    "relays": [
+      {
+        "url": "ws://127.0.0.1:28470",
+        "process_id": 2347586,
+        "data_dir_mode": "temporary private directory"
+      },
+      {
+        "url": "ws://127.0.0.1:28471",
+        "process_id": 2348052,
+        "data_dir_mode": "temporary private directory"
+      }
+    ],
+    "external_requests": [],
+    "websockets": [
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28471/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/",
+      "ws://127.0.0.1:28470/",
+      "ws://127.0.0.1:33653/"
+    ],
+    "denied_proxy_attempts": [
+      {
+        "method": "GET",
+        "destination": "http://clients2.google.com"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "GET",
+        "destination": "http://clients2.google.com"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "GET",
+        "destination": "http://clients2.google.com"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "GET",
+        "destination": "http://clients2.google.com"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "android.clients.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "android.clients.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "android.clients.google.com:443"
+      },
+      {
+        "method": "GET",
+        "destination": "http://clients2.google.com"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "GET",
+        "destination": "http://clients2.google.com"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "GET",
+        "destination": "http://clients2.google.com"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "android.clients.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "android.clients.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "android.clients.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "android.clients.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "android.clients.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "android.clients.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "android.clients.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "update.googleapis.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      },
+      {
+        "method": "CONNECT",
+        "destination": "www.google.com:443"
+      }
+    ],
+    "page_errors": [],
+    "inbox_checks": {
+      "A": {
+        "signed": true,
+        "newest": true,
+        "relays": [
+          "ws://127.0.0.1:28470"
+        ]
+      },
+      "B": {
+        "signed": true,
+        "newest": true,
+        "relays": [
+          "ws://127.0.0.1:28470",
+          "ws://127.0.0.1:28471"
+        ]
+      },
+      "C": {
+        "signed": true,
+        "relays": [
+          "ws://127.0.0.1:28470"
+        ]
+      },
+      "invalid_or_ambiguous_destinations": "none used"
+    },
+    "message_checks": {
+      "first_a_to_b_visible": true,
+      "response_b_to_a_visible": true,
+      "relay_events_signature_valid": true,
+      "recipient_c_received_none": true,
+      "plaintext_absent_from_relay_envelopes": true,
+      "relay_addresses": [
+        "ws://127.0.0.1:28470",
+        "ws://127.0.0.1:28471"
+      ],
+      "offline_delivery": {
+        "B_closed_before_send": true,
+        "recovered_after_restart": true,
+        "duplicate_count_after_two_reopens": 1,
+        "initial_state": "queued",
+        "retry_attempts": 2,
+        "stable_event_ids": true,
+        "logical_message_rows_after_retry": 1,
+        "recipient_decryption_claimed": false,
+        "final_state": "observed"
+      },
+      "offline_pending": {
+        "matching_record_count": 1,
+        "retryable_record_count": 1,
+        "initial_attempt_count": 1,
+        "initial_state": "queued",
+        "candidate_states": [
+          {
+            "status": "pending",
+            "deliveryState": "queued",
+            "retryAttempts": 1,
+            "hasRetryPlan": true
+          }
+        ],
+        "outbox_writes": [
+          {
+            "retryAttempts": 0,
+            "status": "pending",
+            "deliveryState": "queued",
+            "progressRows": 0
+          },
+          {
+            "retryAttempts": 1,
+            "status": "pending",
+            "deliveryState": "queued",
+            "progressRows": 1
+          }
+        ]
+      },
+      "offline_retry": {
+        "initial_attempt_count": 1,
+        "observed_retry_count": 2,
+        "initial_state": "queued",
+        "final_state": "observed",
+        "retry_button_clicked": true,
+        "matching_record_count": 1,
+        "retryable_record_count": 1,
+        "candidate_states": [
+          {
+            "status": "sent",
+            "deliveryState": "observed",
+            "retryAttempts": 2,
+            "hasRetryPlan": true
+          }
+        ],
+        "stable_event_ids": true,
+        "one_logical_message": true,
+        "initial_relay_progress": [
+          {
+            "accepted": 0,
+            "unanswered": 2
+          }
+        ],
+        "final_relay_progress": [
+          {
+            "accepted": 1,
+            "unanswered": 1
+          }
+        ],
+        "outbox_writes": [
+          {
+            "retryAttempts": 0,
+            "status": "pending",
+            "deliveryState": "queued",
+            "progressRows": 0
+          },
+          {
+            "retryAttempts": 1,
+            "status": "pending",
+            "deliveryState": "queued",
+            "progressRows": 1
+          },
+          {
+            "retryAttempts": 1,
+            "status": "pending",
+            "deliveryState": "queued",
+            "progressRows": 1
+          },
+          {
+            "retryAttempts": 2,
+            "status": "sent",
+            "deliveryState": "relay-accepted",
+            "progressRows": 1
+          },
+          {
+            "retryAttempts": 2,
+            "status": "sent",
+            "deliveryState": "observed",
+            "progressRows": 1
+          }
+        ],
+        "retry_toast": "Encrypted message saved on this device; no relay confirmed it."
+      }
+    },
+    "failure_checks": {
+      "one_of_two_inboxes_down_delivered_over_remaining_relay": true,
+      "both_inboxes_down_marked_pending": true,
+      "recovered_after_relay_restart": true,
+      "false_ack_event_ids": [
+        "109b02cc7eec1627d5bb0d009253a4b54039071a023477a1e3431923c2d8ca2a"
+      ],
+      "false_ack_independent_query_count": 0,
+      "false_ack_client_status_after_ack": "sent",
+      "false_ack_detected_by_independent_query": true,
+      "false_ack_cache_clear": {
+        "deleted": true
+      },
+      "false_ack_fixture": {
+        "connections": 3,
+        "frames": {
+          "EVENT": 8,
+          "recipientEnvelope": 8,
+          "otherEventKind": 0,
+          "REQ": 5,
+          "CLOSE": 2,
+          "other": 0
+        },
+        "protocolErrors": 0,
+        "event_ids": [
+          "109b02cc7eec1627d5bb0d009253a4b54039071a023477a1e3431923c2d8ca2a"
+        ],
+        "websocket_url_observed": true
+      },
+      "no_kind10050": {
+        "send_refused": true,
+        "relay_event_count_unchanged": true,
+        "no_public_fallback": true
+      },
+      "tampered_signature": {
+        "relay_ack": {
+          "accepted": false,
+          "message": "invalid: bad signature or id"
+        },
+        "independent_query_count": 0,
+        "recipient_plaintext_received": false
+      },
+      "d_identity_pubkey": "1f4c3dbcaff9087576a0de305215b6324ec72ca806713e04831a64c0a1bd0df5"
+    },
+    "reconciliation": {
+      "message_texts": [
+        "property-g04-a-b-17cfd03c-a873-4ca9-a858-b89e5302c803",
+        "property-g04-b-a-1403cb91-4581-410e-a03e-51fb82deabfb",
+        "property-g04-offline-c150dd23-4cb1-494d-9dbe-ab959667a2be",
+        "property-g04-one-inbox-down-9434f97d-f29c-4b9e-a3e0-7909b242a94e",
+        "property-g04-reconnect-42b40ef7-893d-4ef9-b40b-ee6527dd08a6"
+      ],
+      "browser_database_counts": {
+        "property-g04-a-b-17cfd03c-a873-4ca9-a858-b89e5302c803": {
+          "A": 1,
+          "B": 1
+        },
+        "property-g04-b-a-1403cb91-4581-410e-a03e-51fb82deabfb": {
+          "A": 1,
+          "B": 1
+        },
+        "property-g04-offline-c150dd23-4cb1-494d-9dbe-ab959667a2be": {
+          "A": 1,
+          "B": 1
+        },
+        "property-g04-one-inbox-down-9434f97d-f29c-4b9e-a3e0-7909b242a94e": {
+          "A": 1,
+          "B": 1
+        },
+        "property-g04-reconnect-42b40ef7-893d-4ef9-b40b-ee6527dd08a6": {
+          "A": 1,
+          "B": 1
+        }
+      },
+      "retained_relay_event_count": 32,
+      "plaintext_found_in_relay": false,
+      "false_ack_message_delivered": false,
+      "read_receipt_protocol_present": false
+    },
+    "browser": {
+      "playwright_version": "1.62.1",
+      "playwright_package_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+      "browser_version": "153.0.8010.12",
+      "browser_executable_sha256": "8c599d43aec53f2460a31ae2f4af6bd863f8258b34ff519564bc5d4726bfaa1e"
+    },
+    "local_origin": "http://127.0.0.1:39729",
+    "typing_indicators": {
+      "locale_runs": [
+        {
+          "language": "en",
+          "signals": 2,
+          "localized": true,
+          "explicit_stop": true,
+          "screenshot": "g04-typing-indicator-mobile-en.png"
+        },
+        {
+          "language": "pt-BR",
+          "signals": 2,
+          "localized": true,
+          "explicit_stop": true,
+          "screenshot": "g04-typing-indicator-mobile-pt-BR.png"
+        }
+      ],
+      "agent_thinking": {
+        "localized_en": true,
+        "localized_pt_BR": true,
+        "decrypted_thinking_and_stop": true,
+        "no_custom_text": true,
+        "explicit_stop": true,
+        "screenshots": [
+          "g04-agent-thinking-mobile-en.png",
+          "g04-agent-thinking-mobile-pt-BR.png"
+        ]
+      },
+      "opt_out_persisted_per_identity": true,
+      "opt_out_blocks_human_typing": true,
+      "draft_sent": false,
+      "visible_message_delta": 0,
+      "outer_route_only": true,
+      "recipients_decrypted_start_and_stop": true,
+      "ephemeral_event_retained": false
+    },
+    "message_gestures": {
+      "reply_target": "property-g04-b-a-1403cb91-4581-410e-a03e-51fb82deabfb",
+      "right_swipe_px": 96,
+      "vertical_delta_px": 12,
+      "arrow_up_edit_text_matches_latest_own_message": true,
+      "nonempty_draft_preserved": true,
+      "cancel_restored_empty_draft": true,
+      "relay_event_delta": 0
+    },
+    "nostr_profile_cards": {
+      "valid_unique_cards": 3,
+      "duplicate_canonical_profile_deduplicated": true,
+      "invalid_code_literal": true,
+      "prefilled_public_identity": true,
+      "relay_hints_shown_for_review": true,
+      "search_kept_cards_interactive": true,
+      "search_highlighted_profile_code": true,
+      "closing_search_preserved_cards": true,
+      "conversation_created_before_confirmation": false,
+      "relay_event_delta": 0
+    },
+    "message_search": {
+      "searches_saved_direct_and_group_history": true,
+      "ignores_case_and_accents": true,
+      "previews_newest_matching_message_per_chat": true,
+      "cache_invalidated_on_new_message": true,
+      "opens_exact_message": true,
+      "sends_no_search_event": true
+    },
+    "group_mentions": {
+      "sender_label": "@B privado",
+      "mentioned_member_pubkey": "b06b8233a85c68d1e9b25b221c0558fc75a4d1c6ecec3555f09f78a82604db70",
+      "local_identity_binding": true,
+      "relay_plaintext_leak": false,
+      "mobile_screenshot": "g04-group-mention-picker-mobile-en.png",
+      "mobile_layout": {
+        "pickerBottom": 582,
+        "inputTop": 590
+      },
+      "message_text": "property-g04-group-mention-36398c67-5e29-4081-99f5-3eee327a71aa @B privado received"
+    },
+    "location_cards": {
+      "sender_coordinates": "38.69160, -9.21600",
+      "recipient_rendered": true,
+      "relay_plaintext_leak": false,
+      "external_requests_before_map_activation": 0,
+      "map_tiles_loaded": false,
+      "explicit_open_link": true,
+      "languages": [
+        "en",
+        "pt-BR"
+      ],
+      "mobile_layout": {
+        "card_top": 319,
+        "card_bottom": 454,
+        "composer_top": 517
+      },
+      "mobile_screenshot": "g04-location-card-mobile-pt-BR.png"
+    },
+    "forwarded_messages": {
+      "sender_and_recipient_show_marker": true,
+      "body_unchanged": true,
+      "recipient_hop_count": 1,
+      "original_author_not_exposed": true,
+      "relay_plaintext_leak": false,
+      "outer_forward_marker": false,
+      "languages": [
+        "en",
+        "pt-BR"
+      ],
+      "mobile_screenshots": [
+        "g04-forwarded-message-mobile-en.png",
+        "g04-forwarded-message-mobile-pt-BR.png"
+      ]
+    },
+    "first_use_relay_suggestions": {
+      "selected_count": 2,
+      "distinct": true,
+      "from_bundled_candidates": true,
+      "persisted_locally": true,
+      "identity_creation_available_without_settings": true,
+      "no_relay_connections_before_identity": true
+    },
+    "local_pins": {
+      "fixed_activity_order": {
+        "before": [
+          "G04 direct C",
+          "G04 private group",
+          "G04 direct B"
+        ],
+        "pinned": [
+          "G04 private group",
+          "G04 direct B",
+          "G04 direct C"
+        ],
+        "after_unpin": [
+          "G04 direct B",
+          "G04 direct C",
+          "G04 private group"
+        ]
+      },
+      "survived_one_reload": true,
+      "second_profile_same_identity": true,
+      "second_profile_pins_synced": false,
+      "relay_event_ids_before": [],
+      "relay_event_ids_after": [],
+      "relay_event_delta": 0
+    },
+    "notification_checks": {
+      "permission_requests_before_explicit_tap": 0,
+      "permission_requests_after_tap": 1,
+      "identity_scoped_opt_in_saved_locally": true,
+      "visible_notice_count": 0,
+      "hidden_generic_notice_count": 1,
+      "notice_contains_message_or_sender": false,
+      "per_chat_mute_choice": "15m",
+      "muted_notice_count": 1,
+      "hidden_inbound_unread_count": 2,
+      "relay_event_delta_from_global_opt_in": 0,
+      "relay_event_delta_from_chat_mute": 0
+    },
+    "badge_checks": {
+      "badge_calls_before_explicit_opt_in": 0,
+      "identity_scoped_opt_in_saved_locally": true,
+      "unread_before_enable": 2,
+      "unread_after_opening_chat": 0,
+      "badge_updated_after_read": true,
+      "disable_cleared_badge": true,
+      "notification_permission_requests": 1,
+      "relay_event_delta": 0
+    },
+    "message_day_checks": {
+      "fixed_local_days": 3,
+      "english_labels": [
+        "Tuesday, November 3",
+        "Yesterday",
+        "Today"
+      ],
+      "portuguese_labels": [
+        "terça-feira, 3 de novembro",
+        "Ontem",
+        "Hoje"
+      ],
+      "one_heading_per_day": true,
+      "relay_event_delta": 0,
+      "local_only": true
+    },
+    "message_scroll_checks": {
+      "fixed_old_history_rows": 20,
+      "fixed_inbound_messages_while_scrolled": 2,
+      "inbound_at_bottom": true,
+      "outgoing_message_returns_to_bottom": true,
+      "anchor_preserved": true,
+      "english_count_label": "2 new messages, scroll to bottom",
+      "portuguese_count_label": "2 mensagens novas, rolar para o fim",
+      "count_cleared_on_jump": true,
+      "relay_urls": [
+        "ws://127.0.0.1:28470"
+      ]
+    },
+    "ghostly_empty_state_actions": {
+      "fixed_actions": 3,
+      "english_and_pt_br": true,
+      "mobile_viewport": "390x844",
+      "contact_link_qr": true,
+      "contact_nprofile": true,
+      "join_dialog_focuses_public_key": true,
+      "relay_events_published": 0,
+      "relay_url": "ws://127.0.0.1:28470"
+    },
+    "nip39_identity_proof": {
+      "signed_kind_10011_published": true,
+      "proof_text_copied": true,
+      "contact_claim_loaded_without_github_request": true,
+      "explicit_verify_click_made_one_mocked_request": true,
+      "request_credentials_omitted": true,
+      "verified_result_rendered": true,
+      "relay_events_published_by_verification": 0,
+      "external_network_requests": 0
+    },
+    "link_preview": {
+      "fixed_count": 1,
+      "fetch_requires_explicit_consent": true,
+      "canceled_consent_requests": 0,
+      "request_credentials_omitted": true,
+      "referrer_omitted": true,
+      "redirects_rejected": true,
+      "recipient_fetches": 0,
+      "metadata_in_encrypted_nip17_rumor": true,
+      "relay_plaintext_exposure": false,
+      "english_and_pt_br": true,
+      "remote_images_loaded": false
+    },
+    "offline_shell": {
+      "shell_cache": {
+        "controlled": true,
+        "shellName": "property-shell-v126",
+        "index": true,
+        "app": true
+      },
+      "application_host_removed": true,
+      "relays_available": 0,
+      "shell_opens": [
+        {
+          "repetition": 1,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "offline"
+        },
+        {
+          "repetition": 2,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "offline"
+        },
+        {
+          "repetition": 3,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "offline"
+        },
+        {
+          "repetition": 4,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "offline"
+        },
+        {
+          "repetition": 5,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "offline"
+        },
+        {
+          "repetition": 6,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "offline"
+        },
+        {
+          "repetition": 7,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "offline"
+        },
+        {
+          "repetition": 8,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "offline"
+        },
+        {
+          "repetition": 9,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "offline"
+        },
+        {
+          "repetition": 10,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "offline"
+        }
+      ],
+      "all_opens_used_service_worker_cache": true
+    },
+    "local_relay_shell": {
+      "application_host_removed": true,
+      "selected_relay_count": 1,
+      "effective_relay_count": 2,
+      "connected_relay_count": 1,
+      "available_relay_count": 1,
+      "relay_endpoint": "ws://127.0.0.1:28470",
+      "shell_opens": [
+        {
+          "repetition": 1,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "1/2 relays",
+          "configured_relays": "1 relay",
+          "local_relay_only": true
+        },
+        {
+          "repetition": 2,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "1/2 relays",
+          "configured_relays": "1 relay",
+          "local_relay_only": true
+        },
+        {
+          "repetition": 3,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "1/2 relays",
+          "configured_relays": "1 relay",
+          "local_relay_only": true
+        },
+        {
+          "repetition": 4,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "1/2 relays",
+          "configured_relays": "1 relay",
+          "local_relay_only": true
+        },
+        {
+          "repetition": 5,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "1/2 relays",
+          "configured_relays": "1 relay",
+          "local_relay_only": true
+        },
+        {
+          "repetition": 6,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "1/2 relays",
+          "configured_relays": "1 relay",
+          "local_relay_only": true
+        },
+        {
+          "repetition": 7,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "1/2 relays",
+          "configured_relays": "1 relay",
+          "local_relay_only": true
+        },
+        {
+          "repetition": 8,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "1/2 relays",
+          "configured_relays": "1 relay",
+          "local_relay_only": true
+        },
+        {
+          "repetition": 9,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "1/2 relays",
+          "configured_relays": "1 relay",
+          "local_relay_only": true
+        },
+        {
+          "repetition": 10,
+          "shell_visible": true,
+          "app_host_listening": false,
+          "connection_label": "1/2 relays",
+          "configured_relays": "1 relay",
+          "local_relay_only": true
+        }
+      ],
+      "all_websocket_targets_loopback": true
+    },
+    "browser_runtime_attempts_blocked": {
+      "count": 120,
+      "destinations": [
+        "android.clients.google.com:443",
+        "http://clients2.google.com",
+        "update.googleapis.com:443",
+        "www.google.com:443"
+      ],
+      "proxy_response": "502 Offline denied"
+    },
+    "result": "PASS"
+  },
+  "message_delivery_summary": {
+    "gate": "G4",
+    "suite": "message-delivery-state",
+    "result": "PASS",
+    "cases": [
+      {
+        "case": "G04-ACK-01",
+        "status": "PASS",
+        "detail": "Only one response from a relay that received the event is recorded. A duplicate contradictory response and an ACK from an unaddressed relay do not alter the result."
+      },
+      {
+        "case": "G04-STATE-01",
+        "status": "PASS",
+        "detail": "Queued, relay-accepted, observed, and failed states require the corresponding local queue, actual ACK, successful query, or explicit negative ACK; no recipient read state is inferred."
+      },
+      {
+        "case": "G04-RETRY-01",
+        "status": "PASS",
+        "detail": "A local retry is available only while at least one recipient relay has rejected the envelope or has no recorded response."
+      },
+      {
+        "case": "G04-BLOCK-10",
+        "status": "PASS",
+        "detail": "Ten blocked synthetic recipients are denied by the shared pre-send guard; ten active states remain eligible. Group and direct send paths use this guard before publishing."
+      },
+      {
+        "case": "G04-ROTATION-10",
+        "status": "PASS",
+        "detail": "Ten identity-rotation fixtures reject retry from a replacement key while preserving retry for the original matching public key."
+      }
+    ]
+  },
+  "egress": {
+    "browser_external_requests": [],
+    "browser_websocket_targets_loopback_only": true,
+    "relay_targets_loopback_only": true,
+    "relay_external_targets": []
+  }
+}
