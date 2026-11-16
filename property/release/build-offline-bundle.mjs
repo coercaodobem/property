@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertCompleteProvenance, assertKnownLicense, KNOWN_LICENSES } from './metadata-policy.mjs';
+import { packageUrlReference } from './package-url.mjs';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.resolve(SCRIPT_DIR, '../..');
@@ -187,7 +188,8 @@ function licenseFor(relative, runtimeLock) {
   if (p === 'property/web/GHOSTLY-MIT-LICENSE.txt') return { component: 'ghostly-adapted-web', license: 'MIT', source: p };
   if (p === 'property/web/chess/vendor/chess.js' || p === 'property/web/chess/vendor/chess.d.ts' || p === 'property/web/chess/vendor/CHESSJS-BSD-2-CLAUSE.txt') return { component: 'chess-js-1.4.0', license: 'BSD-2-Clause', source: p };
   if (p.startsWith('property/web/chess/vendor/noble-hashes/')) return { component: 'noble-hashes-web-2.4.0', license: 'MIT', source: p };
-  if (p.startsWith('property/agent/vendor/node_modules/@noble/curves/') || p.startsWith('property/agent/vendor/node_modules/@noble/hashes/')) return { component: 'noble-agent-2.4.0', license: 'MIT', source: p };
+  if (p.startsWith('property/agent/vendor/node_modules/@noble/curves/')) return { component: 'noble-curves-agent-2.4.0', license: 'MIT', source: p };
+  if (p.startsWith('property/agent/vendor/node_modules/@noble/hashes/')) return { component: 'noble-hashes-agent-2.4.0', license: 'MIT', source: p };
   if (p.startsWith('property/relay/dist/geode/runtime/')) return {
     component: `openjdk-runtime-${runtimeLock.jre_component.version}`, license: 'GPL-2.0-only WITH Classpath-exception-2.0',
     source: `${runtimeLock.runtime_archive.source_provenance}#${runtimeLock.runtime_archive.sha256}`
@@ -255,19 +257,20 @@ async function makeSbom(root, rows, commit, commitTime, runtimeLock) {
   allRows.sort((a, b) => stableOrder(a.path, b.path));
   const componentInfo = new Map([
     ['property-first-party', { name: 'Property release payload', version: commit, license: 'MIT', source: `https://github.com/coercaodobem/property/tree/${commit}` }],
-    ['nostr-tools-web-2.25.2', { name: 'nostr-tools browser bundle', version: '2.25.2', license: 'Unlicense', source: 'property/web/vendor/README.md' }],
-    ['nostr-tools-agent-2.25.2', { name: 'nostr-tools agent bundle', version: '2.25.2', license: 'Unlicense', source: 'property/agent/manifest.json' }],
+    ['nostr-tools-web-2.25.2', { name: 'nostr-tools', version: '2.25.2', purl: 'pkg:npm/nostr-tools@2.25.2', license: 'Unlicense', source: 'property/web/vendor/README.md' }],
+    ['nostr-tools-agent-2.25.2', { name: 'nostr-tools', version: '2.25.2', purl: 'pkg:npm/nostr-tools@2.25.2', license: 'Unlicense', source: 'property/agent/manifest.json' }],
     ['qr-code-generator', { name: 'QR code generator', version: 'see property/web/vendor/README.md', license: 'MIT', source: 'property/web/vendor/README.md' }],
-    ['emoji-mart-data-1.2.1', { name: 'Emoji Mart data', version: '1.2.1 / Unicode 15', license: 'MIT', source: 'property/web/vendor/README.md' }],
+    ['emoji-mart-data-1.2.1', { name: '@emoji-mart/data', version: '1.2.1', purl: 'pkg:npm/%40emoji-mart/data@1.2.1', license: 'MIT', source: 'property/web/vendor/README.md' }],
     ['secret-guard-web-bundle', { name: 'Property local secret guard bundle', version: 'Property browser artifact', license: 'MIT AND BSD-3-Clause', source: 'property/web/vendor/licenses/secret-guard/README.md' }],
     ['scure-base-web', { name: '@scure/base web bundle', version: 'vendored source; version not recorded', license: 'MIT', source: 'property/web/vendor/licenses/secret-guard/SCURE-BASE-MIT.txt' }],
-    ['scure-bip39-web', { name: '@scure/bip39 web bundle', version: '2.4.0 per local source notice', license: 'MIT', source: 'property/web/vendor/licenses/secret-guard/SCURE-BIP39-MIT.txt' }],
+    ['scure-bip39-web', { name: '@scure/bip39', version: '2.4.0', purl: 'pkg:npm/%40scure/bip39@2.4.0', license: 'MIT', source: 'property/web/vendor/licenses/secret-guard/SCURE-BIP39-MIT.txt' }],
     ['monero-english-seed-words', { name: 'Monero English seed-word list', version: 'source copyright 2014-2024', license: 'BSD-3-Clause', source: 'property/web/vendor/licenses/secret-guard/MONERO-ENGLISH-BSD-3-CLAUSE.txt' }],
     ['monero-portuguese-seed-words', { name: 'Monero Portuguese seed-word list', version: 'adapted from v0.18.4.3', license: 'MIT', source: 'property/web/vendor/licenses/secret-guard/MONERO-PORTUGUESE-MIT-NOTICE.txt' }],
     ['ghostly-adapted-web', { name: 'Ghostly-adapted web interactions', version: 'repository snapshot', license: 'MIT', source: 'property/web/GHOSTLY-MIT-LICENSE.txt' }],
-    ['chess-js-1.4.0', { name: 'chess.js', version: '1.4.0', license: 'BSD-2-Clause', source: 'property/web/chess/NOTICE.md' }],
-    ['noble-hashes-web-2.4.0', { name: '@noble/hashes web component', version: '2.4.0', license: 'MIT', source: 'property/web/chess/NOTICE.md' }],
-    ['noble-agent-2.4.0', { name: '@noble/curves and @noble/hashes', version: '2.4.0', license: 'MIT', source: 'property/agent/vendor/NOTICE.md' }],
+    ['chess-js-1.4.0', { name: 'chess.js', version: '1.4.0', purl: 'pkg:npm/chess.js@1.4.0', license: 'BSD-2-Clause', source: 'property/web/chess/NOTICE.md' }],
+    ['noble-hashes-web-2.4.0', { name: '@noble/hashes', version: '2.4.0', purl: 'pkg:npm/%40noble/hashes@2.4.0', license: 'MIT', source: 'property/web/chess/NOTICE.md' }],
+    ['noble-curves-agent-2.4.0', { name: '@noble/curves', version: '2.4.0', purl: 'pkg:npm/%40noble/curves@2.4.0', license: 'MIT', source: 'property/agent/vendor/NOTICE.md' }],
+    ['noble-hashes-agent-2.4.0', { name: '@noble/hashes', version: '2.4.0', purl: 'pkg:npm/%40noble/hashes@2.4.0', license: 'MIT', source: 'property/agent/vendor/NOTICE.md' }],
     [`openjdk-runtime-${runtimeLock.jre_component.version}`, { name: 'OpenJDK runtime image', version: runtimeLock.jre_component.version, license: runtimeLock.jre_component.license, source: `bundled:${runtimeLock.runtime_archive.sha256}` }],
     ['geode-launcher-and-operator-config', { name: 'Geode launcher and operator configuration', version: '1.20.0', license: 'MIT', source: runtimeLock.runtime_archive.source_provenance }],
     ['Apache-2.0-license-text', { name: 'Apache License 2.0 text', version: '2.0', license: 'Apache-2.0', source: 'property/release/licenses/Apache-2.0.txt' }],
@@ -308,7 +311,8 @@ async function makeSbom(root, rows, commit, commitTime, runtimeLock) {
     const info = componentInfo.get(component);
     return { name: info.name, SPDXID: packageIds.get(component), versionInfo: info.version,
       downloadLocation: info.source, filesAnalyzed: false, licenseConcluded: info.license,
-      licenseDeclared: info.license, copyrightText: 'NOASSERTION', primaryPackagePurpose: 'APPLICATION' };
+      licenseDeclared: info.license, copyrightText: 'NOASSERTION', primaryPackagePurpose: 'APPLICATION',
+      externalRefs: [packageUrlReference(component, info)] };
   });
   const document = {
     spdxVersion: 'SPDX-2.3', dataLicense: 'CC0-1.0', SPDXID: 'SPDXRef-DOCUMENT',

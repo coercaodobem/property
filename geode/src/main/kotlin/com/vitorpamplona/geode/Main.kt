@@ -84,7 +84,7 @@ import java.util.concurrent.TimeUnit
  * Configuration precedence (highest to lowest):
  *   1. CLI flags (`--host`, `--port`, …)
  *   2. TOML file passed via `--config <path>`
- *   3. Built-in defaults (host=0.0.0.0, port=7447, in-memory db, …)
+ *   3. Built-in defaults (host=127.0.0.1, port=7447, in-memory db, …)
  *
  * Every section is enforced: `[info]` populates the NIP-11 doc,
  * `[network]` controls the bind, `[database]` chooses the SQLite path,
@@ -96,7 +96,7 @@ import java.util.concurrent.TimeUnit
  *
  * CLI flags:
  *   --config <file>    TOML config (see config.example.toml)
- *   --host <addr>      bind address (default from config or 0.0.0.0)
+ *   --host <addr>      bind address (default from config or 127.0.0.1)
  *   --port <n>         tcp port (default from config or 7447, 0 to autobind)
  *   --path <p>         ws path (default from config or /)
  *   --info <file>      NIP-11 doc file (overrides [info] section)
@@ -151,7 +151,7 @@ private fun printHelp() {
 
         Common flags:
           --config <file>    TOML config (see config.example.toml)
-          --host <addr>      bind address (default 0.0.0.0)
+          --host <addr>      bind address (default 127.0.0.1)
           --port <n>         tcp port (default 7447, 0 to autobind)
           --path <p>         websocket path (default /)
           --db <file>        sqlite db path (persistent storage)

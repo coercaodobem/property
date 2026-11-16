@@ -9,7 +9,7 @@
   const CONTENT_FIELDS = ['invitee', 'members', 'title', 'version'];
 
   function invalid() { throw new Error('Invalid group invitation.'); }
-  function isHex(value, length) { return typeof value === 'string' && new RegExp(`^[0-9a-f]{${length}}$`, 'i').test(value); }
+  function isHex(value, length) { return [64, 128].includes(length) && typeof value === 'string' && value.length === length && /^[0-9a-f]+$/i.test(value); }
   function cleanTitle(value) {
     if (typeof value !== 'string') invalid();
     const title = value.trim();

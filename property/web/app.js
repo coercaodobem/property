@@ -3218,7 +3218,12 @@
     return new Promise((resolve, reject) => {
       const tx = state.db.transaction(store, operation === 'get' || operation === 'getAll' ? 'readonly' : 'readwrite');
       const objectStore = tx.objectStore(store);
-      const request = operation === 'get' ? objectStore.get(value) : operation === 'getAll' ? objectStore.getAll() : objectStore[operation](value);
+      let request;
+      if (operation === 'get') request = objectStore.get(value);
+      else if (operation === 'getAll') request = objectStore.getAll();
+      else if (operation === 'put') request = objectStore.put(value);
+      else if (operation === 'delete') request = objectStore.delete(value);
+      else { reject(new Error('Operação de armazenamento local inválida.')); return; }
       request.onsuccess = () => {
         if (store === 'messages' && operation !== 'get' && operation !== 'getAll') {
           state.conversationMessageSearchCache = null;

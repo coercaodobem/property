@@ -13,26 +13,26 @@ function exactParams(value, required, optional = []) {
 }
 
 export function createCampaignOperator(engine) {
-  const methods = {
-    'campaign/inspect': async params => engine.inspect(exactParams(params, ['offer_event']).offer_event),
-    'campaign/accept': async params => {
+  const methods = new Map([
+    ['campaign/inspect', async params => engine.inspect(exactParams(params, ['offer_event']).offer_event)],
+    ['campaign/accept', async params => {
       const value = exactParams(params, ['offer_event'], ['publication_scope']);
       return engine.accept(value.offer_event, { publicationScope: value.publication_scope });
-    },
-    'campaign/reject': async params => engine.reject(exactParams(params, ['offer_event']).offer_event),
-    'campaign/list': async params => { exactParams(params, []); return engine.list(); },
-    'campaign/reconcile': async params => engine.reconcile(exactParams(params, ['campaign_id']).campaign_id),
-    'campaign/refund': async params => engine.refund(exactParams(params, ['refund_event']).refund_event),
-    'campaign/set-publication-scope': async params => {
+    }],
+    ['campaign/reject', async params => engine.reject(exactParams(params, ['offer_event']).offer_event)],
+    ['campaign/list', async params => { exactParams(params, []); return engine.list(); }],
+    ['campaign/reconcile', async params => engine.reconcile(exactParams(params, ['campaign_id']).campaign_id)],
+    ['campaign/refund', async params => engine.refund(exactParams(params, ['refund_event']).refund_event)],
+    ['campaign/set-publication-scope', async params => {
       const value = exactParams(params, ['campaign_id', 'scope']);
       return engine.setPublicationScope(value.campaign_id, value.scope);
-    },
-    'campaign/export-accounting': async params => { exactParams(params, []); return engine.exportAccounting(); },
-    'campaign/prune-terminal': async params => {
+    }],
+    ['campaign/export-accounting', async params => { exactParams(params, []); return engine.exportAccounting(); }],
+    ['campaign/prune-terminal', async params => {
       const value = exactParams(params, ['before_epoch_seconds']);
       return engine.pruneTerminal({ beforeEpochSeconds: value.before_epoch_seconds });
-    },
-  };
+    }],
+  ]);
 
   return Object.freeze({
     dispatch: async request => {
@@ -41,7 +41,7 @@ export function createCampaignOperator(engine) {
           (request.id !== undefined && !['string', 'number'].includes(typeof request.id))) {
         return { jsonrpc: '2.0', id, error: { code: -32600, message: 'invalid-request' } };
       }
-      const method = methods[request.method];
+      const method = methods.get(request.method);
       if (!method) return { jsonrpc: '2.0', id, error: { code: -32601, message: 'method-not-found' } };
       if (request.id === undefined) return { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'notifications-not-supported' } };
       try {
@@ -52,7 +52,7 @@ export function createCampaignOperator(engine) {
           message: invalid ? 'invalid-params' : 'campaign-operation-failed' } };
       }
     },
-    toolNames: Object.freeze(Object.keys(methods)),
+    toolNames: Object.freeze([...methods.keys()]),
   });
 }
 

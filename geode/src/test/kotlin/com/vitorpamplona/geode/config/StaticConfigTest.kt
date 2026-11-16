@@ -35,7 +35,8 @@ class StaticConfigTest {
     @Test
     fun emptyTomlYieldsAllDefaults() {
         val c = StaticConfig.fromToml("")
-        assertEquals("0.0.0.0", c.network.host)
+        assertEquals("127.0.0.1", c.network.host)
+        assertEquals("127.0.0.1", StaticConfig.fromToml(File("config.example.toml").readText()).network.host)
         assertEquals(7447, c.network.port)
         assertEquals("/", c.network.path)
         assertEquals(true, c.database.in_memory)

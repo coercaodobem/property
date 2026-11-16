@@ -84,8 +84,10 @@ The tarball bundles a jlink'd JRE plus `share/geode/config.example.toml` and
 
 ## Configure
 
-geode runs with zero config (binds `0.0.0.0:7447`, in-memory SQLite). For
-anything real, copy [`config.example.toml`](config.example.toml) and edit it —
+geode runs with zero config (binds `127.0.0.1:7447`, in-memory SQLite). For
+public access, keep Geode bound to loopback and terminate TLS at a reverse
+proxy that serves `wss://`; do not expose the plaintext listener directly.
+For anything real, copy [`config.example.toml`](config.example.toml) and edit it —
 the sections mirror nostr-rs-relay's `config.toml` so existing configs port
 almost verbatim. Precedence is **CLI flags > TOML > built-in defaults**.
 

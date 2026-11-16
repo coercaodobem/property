@@ -29,7 +29,7 @@ export function createEncryptedPayload(payload, pubkey, password, context) {
   if (!plaintext.length || plaintext.length > maxBytes) { plaintext.fill(0); throw new Error('Payload cifrado do agente excede o limite local.'); }
   const salt = randomBytes(16), iv = randomBytes(12), key = derive(password, salt);
   try {
-    const cipher = createCipheriv('aes-256-gcm', key, iv);
+    const cipher = createCipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
     cipher.setAAD(associatedData);
     const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
     return { format: ENCRYPTED_PAYLOAD_FORMAT, version: 1, pubkey, context, kdf: 'PBKDF2-HMAC-SHA-256', iterations: VAULT_ITERATIONS,
@@ -48,7 +48,7 @@ export function openEncryptedPayload(envelope, pubkey, password, context) {
   if (salt.length !== 16 || iv.length !== 12 || tag.length !== 16 || !ciphertext.length || ciphertext.length > maxBytes) throw new Error('Payload cifrado do agente inválido ou incompatível.');
   const key = derive(password, salt);
   try {
-    const decipher = createDecipheriv('aes-256-gcm', key, iv);
+    const decipher = createDecipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
     decipher.setAAD(associatedData);
     decipher.setAuthTag(tag);
     const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
@@ -66,7 +66,7 @@ export function createVault(secret, pubkey, password) {
   if (bytes.length !== 32 || !/^[0-9a-f]{64}$/.test(pubkey) || typeof password !== 'string' || Buffer.byteLength(password, 'utf8') < 12) throw new Error('Senha ou identidade local inválida.');
   const salt = randomBytes(16), iv = randomBytes(12), key = derive(password, salt);
   try {
-    const cipher = createCipheriv('aes-256-gcm', key, iv);
+    const cipher = createCipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
     cipher.setAAD(aad(VAULT_FORMAT, pubkey, 1));
     const encrypted = Buffer.concat([cipher.update(bytes), cipher.final()]);
     return { format: VAULT_FORMAT, version: 1, pubkey, kdf: 'PBKDF2-HMAC-SHA-256', iterations: VAULT_ITERATIONS, salt: salt.toString('base64'), cipher: 'AES-256-GCM', iv: iv.toString('base64'), ciphertext: encrypted.toString('base64'), auth_tag: cipher.getAuthTag().toString('base64') };
@@ -79,7 +79,7 @@ export function unlockVault(vault, password, nostr, context) {
   if (salt.length !== 16 || iv.length !== 12 || tag.length !== 16 || encrypted.length !== 32) throw new Error('Cofre Property Agent inválido ou incompatível.');
   const key = derive(password, salt);
   try {
-    const decipher = createDecipheriv('aes-256-gcm', key, iv);
+    const decipher = createDecipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
     decipher.setAAD(aad(vault.format, vault.pubkey, vault.version));
     decipher.setAuthTag(tag);
     const secret = Buffer.concat([decipher.update(encrypted), decipher.final()]);

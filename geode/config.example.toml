@@ -23,7 +23,9 @@ contact = "admin@example.com"
 # supported_nips = [1, 9, 11, 40, 42, 45, 50, 62, "FE"]
 
 [network]
-host = "0.0.0.0"
+# Keep the plaintext Geode listener on loopback. For public access, terminate
+# TLS at a reverse proxy and publish its canonical wss:// URL in [info].
+host = "127.0.0.1"
 port = 7447
 path = "/"
 # Ktor CIO event-loop pool sizing. Leave commented-out for sensible

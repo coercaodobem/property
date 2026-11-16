@@ -10,6 +10,15 @@ const profile = profileName(process.env.PROPERTY_AGENT_PROFILE || 'default');
 const runtimeDir = process.env.XDG_RUNTIME_DIR || `/run/user/${typeof process.getuid === 'function' ? process.getuid() : 'unknown'}`;
 const socketPath = `${runtimeDir}/property-agent/${profile}.sock`;
 const OUTPUT_LIMIT = 64 * 1024;
+const SAFE_SCHEMA_PATTERNS = new Map([
+  ['^[0-9]+(?:[.,][0-9]+)?$', /^[0-9]+(?:[.,][0-9]+)?$/],
+  ['^[0-9a-fA-F]{64}$', /^[0-9a-fA-F]{64}$/],
+  ['^[0-9a-f]{32}$', /^[0-9a-f]{32}$/],
+  ['^[0-9a-f]{64}$', /^[0-9a-f]{64}$/],
+  ['^[1-9][0-9]{0,38}$', /^[1-9][0-9]{0,38}$/],
+  ['^[a-zA-Z0-9_-]{1,64}$', /^[a-zA-Z0-9_-]{1,64}$/],
+  ['^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$', /^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/],
+]);
 
 async function* boundedLines(stream) {
   let buffer = Buffer.alloc(0);
@@ -324,7 +333,10 @@ function matchesSchema(schema, value) {
   if (schema.type === 'string') {
     if (typeof value !== 'string' || (schema.minLength !== undefined && value.length < schema.minLength) ||
         (schema.maxLength !== undefined && value.length > schema.maxLength)) return false;
-    if (schema.pattern !== undefined) { try { if (!new RegExp(schema.pattern).test(value)) return false; } catch { return false; } }
+    if (schema.pattern !== undefined) {
+      const pattern = SAFE_SCHEMA_PATTERNS.get(schema.pattern);
+      if (!pattern || !pattern.test(value)) return false;
+    }
     return true;
   }
   if (schema.type === 'integer') return Number.isSafeInteger(value) &&

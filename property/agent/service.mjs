@@ -104,17 +104,47 @@ export class AgentService {
 
   async xnoCall(method, params) {
     if (!this.xnoTrades) throw new Error('xno-wallet-not-configured');
-    return this.xnoTrades[method](params);
+    switch (method) {
+      case 'createOffer': return this.xnoTrades.createOffer(params);
+      case 'payOffer': return this.xnoTrades.payOffer(params);
+      case 'tradeStatus': return this.xnoTrades.tradeStatus(params);
+      case 'verifyReceipt': return this.xnoTrades.verifyReceipt(params);
+      case 'dispute': return this.xnoTrades.dispute(params);
+      default: throw new Error('tool-not-allowed');
+    }
   }
 
   async xnoEscrowCall(method, params) {
     if (!this.xnoEscrow) throw new Error('xno-escrow-not-configured');
-    return this.xnoEscrow[method](params);
+    switch (method) {
+      case 'offer': return this.xnoEscrow.offer(params);
+      case 'open': return this.xnoEscrow.open(params);
+      case 'accept': return this.xnoEscrow.accept(params);
+      case 'fund': return this.xnoEscrow.fund(params);
+      case 'approve': return this.xnoEscrow.approve(params);
+      case 'dispute': return this.xnoEscrow.dispute(params);
+      case 'sync': return this.xnoEscrow.sync(params);
+      case 'resolve': return this.xnoEscrow.resolve(params);
+      case 'status': return this.xnoEscrow.status(params);
+      default: throw new Error('tool-not-allowed');
+    }
   }
 
   async xnoThresholdCall(method, params) {
     if (!this.xnoThreshold) throw new Error('xno-threshold-not-configured');
-    return this.xnoThreshold[method](params);
+    switch (method) {
+      case 'create': return this.xnoThreshold.create(params);
+      case 'accept': return this.xnoThreshold.accept(params);
+      case 'sync': return this.xnoThreshold.sync(params);
+      case 'status': return this.xnoThreshold.status(params);
+      case 'proposeSettlement': return this.xnoThreshold.proposeSettlement(params);
+      case 'approveSettlement': return this.xnoThreshold.approveSettlement(params);
+      case 'beginSettlementSigning': return this.xnoThreshold.beginSettlementSigning(params);
+      case 'prepareSettlementSignature': return this.xnoThreshold.prepareSettlementSignature(params);
+      case 'signSettlement': return this.xnoThreshold.signSettlement(params);
+      case 'publishSettlement': return this.xnoThreshold.publishSettlement(params);
+      default: throw new Error('tool-not-allowed');
+    }
   }
 
   async tradeCall(method, params) {
@@ -124,7 +154,18 @@ export class AgentService {
       throw new Error('trade-test-network-node-not-configured');
     }
     if (method === 'policy' && !exactObject(params, [])) throw new Error('invalid-arguments');
-    return this.tradeConversations[method](params);
+    switch (method) {
+      case 'policy': return this.tradeConversations.policy(params);
+      case 'offer': return this.tradeConversations.offer(params);
+      case 'accept': return this.tradeConversations.accept(params);
+      case 'sync': return this.tradeConversations.sync(params);
+      case 'requestPayment': return this.tradeConversations.requestPayment(params);
+      case 'reconcile': return this.tradeConversations.reconcile(params);
+      case 'status': return this.tradeConversations.status(params);
+      case 'dispute': return this.tradeConversations.dispute(params);
+      case 'cancel': return this.tradeConversations.cancel(params);
+      default: throw new Error('tool-not-allowed');
+    }
   }
 
   async list(params) {

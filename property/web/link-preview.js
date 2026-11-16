@@ -61,6 +61,20 @@
     return values;
   }
 
+  function stripHtmlComments(source) {
+    const chunks = [];
+    let cursor = 0;
+    while (cursor < source.length) {
+      const start = source.indexOf('<' + '!' + '--', cursor);
+      if (start < 0) { chunks.push(source.slice(cursor)); break; }
+      const end = source.indexOf('--' + '>', start + 4);
+      if (end < 0) { chunks.push(source.slice(cursor)); break; }
+      chunks.push(source.slice(cursor, start));
+      cursor = end + 3;
+    }
+    return chunks.join('');
+  }
+
   function parsePage(html, pageUrl) {
     if (typeof html !== 'string' || encoder.encode(html).byteLength > MAX_HTML_BYTES) return null;
     const canonical = publicHttpsUrl(pageUrl);
@@ -68,7 +82,11 @@
     let head = html.slice(0, MAX_HTML_BYTES);
     const end = head.search(/<\/head\s*>|<body[\s>]/iu);
     if (end >= 0) head = head.slice(0, end);
-    head = head.replace(/<!--[\s\S]*?-->/gu, '').replace(/<(script|style|noscript|template)\b[\s\S]*?<\/\1\s*>/giu, '');
+    head = stripHtmlComments(head);
+    head = head.replace(/<script\b[\s\S]*?<\/script\s*>/giu, '');
+    head = head.replace(/<style\b[\s\S]*?<\/style\s*>/giu, '');
+    head = head.replace(/<noscript\b[\s\S]*?<\/noscript\s*>/giu, '');
+    head = head.replace(/<template\b[\s\S]*?<\/template\s*>/giu, '');
     const meta = new Map();
     for (const match of head.matchAll(/<meta\b([^>]*)>/giu)) {
       const attrs = parseAttributes(match[1]);

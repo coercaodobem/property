@@ -106,7 +106,7 @@ data class StaticConfig(
      * deployments targeting 10k+ concurrent connections.
      */
     data class NetworkSection(
-        val host: String = "0.0.0.0",
+        val host: String = "127.0.0.1",
         val port: Int = 7447,
         val path: String = "/",
         val connection_group_size: Int? = null,
@@ -489,14 +489,12 @@ data class StaticConfig(
 
         /**
          * URL the relay advertises in NIP-11 and NIP-42 challenges:
-         * `info.relay_url` if set, else built from `network.host:port/path`
-         * with `0.0.0.0` rewritten to `127.0.0.1`.
+         * `info.relay_url` if set, else built from the configured loopback
+         * `network.host:port/path`. Public deployments should terminate TLS at
+         * a reverse proxy and keep the Geode listener bound to loopback.
          */
         fun advertisedUrl(config: StaticConfig): NormalizedRelayUrl = (config.info.relay_url ?: defaultUrl(config.network)).normalizeRelayUrl()
 
-        private fun defaultUrl(net: NetworkSection): String {
-            val host = if (net.host == "0.0.0.0") "127.0.0.1" else net.host
-            return "ws://$host:${net.port}${net.path}"
-        }
+        private fun defaultUrl(net: NetworkSection): String = "ws://${net.host}:${net.port}${net.path}"
     }
 }

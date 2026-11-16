@@ -48,6 +48,7 @@ try {
   assert.deepEqual(openEncryptedPayload(envelope, owner, password, 'trade-node-config'), config);
   assert.throws(() => openEncryptedPayload(envelope, owner, 'wrong synthetic password', 'trade-node-config'));
   assert.throws(() => openEncryptedPayload(envelope, 'c'.repeat(64), password, 'trade-node-config'));
+  assert.throws(() => openEncryptedPayload({ ...envelope, auth_tag: Buffer.alloc(8).toString('base64') }, owner, password, 'trade-node-config'));
 
   const signer = createTradeEvidenceSigner(secret);
   const payload = canonicalJson({ action: 'fixed-config-smoke', sequence: 1 });
@@ -69,7 +70,7 @@ try {
 
   process.stdout.write(`${JSON.stringify({ gate: 'G7-trade-config-store', result: 'PASS', fixed_count: {
     test_network_adapters_validated: 3, unsafe_network_or_endpoint_configs_rejected: rejected.length,
-    encrypted_config_round_trips: 1, wrong_password_or_identity_rejections: 2, evidence_signatures_verified: 1,
+    encrypted_config_round_trips: 1, wrong_password_or_identity_rejections: 2, truncated_auth_tag_rejections: 1, evidence_signatures_verified: 1,
     encrypted_journal_round_trips: 1, journal_permissions_0600: true, mainnet_enabled: false,
   }, external_endpoints: 0 })}\n`);
 } finally {

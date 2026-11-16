@@ -72,6 +72,7 @@ for test_file in \
   app-contract-smoke.mjs \
   relay-migration-smoke.mjs \
   portable-packages-smoke.mjs \
+  release-sbom-purl-smoke.mjs \
   relay-package-smoke.mjs \
   agent-messaging-g0-smoke.mjs \
   agent-service-smoke.mjs \
@@ -80,6 +81,7 @@ for test_file in \
   agent-trade-state-smoke.mjs \
   agent-trade-conversation-smoke.mjs \
   agent-trade-config-store-smoke.mjs \
+  agent-vault-gcm-tag-smoke.mjs \
   agent-xno-escrow-smoke.mjs \
   agent-xno-threshold-smoke.mjs \
   agent-xno-threshold-store-smoke.mjs \

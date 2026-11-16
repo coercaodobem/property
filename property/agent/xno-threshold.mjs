@@ -51,7 +51,7 @@ function fromHex(value) {
 }
 
 function strictHex(value, name, length) {
-  if (typeof value !== 'string' || !new RegExp(`^[0-9a-f]{${length * 2}}$`, 'i').test(value)) throw new Error(`${name}-invalid`);
+  if (![32, 64].includes(length) || typeof value !== 'string' || value.length !== length * 2 || !/^[0-9a-f]+$/i.test(value)) throw new Error(`${name}-invalid`);
   return fromHex(value);
 }
 
