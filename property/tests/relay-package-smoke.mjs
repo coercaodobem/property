@@ -7,10 +7,11 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'relay', 'dist-parts');
 const manifestText = await readFile(join(root, 'manifest.txt'), 'utf8');
 const manifest = Object.fromEntries(manifestText.trim().split(/\r?\n/).map(line => line.split('=')));
+const runtimeLock = JSON.parse(await readFile(join(root, '..', 'runtime-dependencies.json'), 'utf8'));
 assert.equal(manifest.format, '1');
-assert.equal(manifest.parts, '129');
+assert.equal(manifest.parts, String(runtimeLock.runtime_archive.part_count));
 assert.equal(manifest.chunk_size, '524288');
-assert.equal(manifest.sha256, 'b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a');
+assert.equal(manifest.sha256, runtimeLock.runtime_archive.sha256);
 
 const checksumsText = await readFile(join(root, 'SHA256SUMS'), 'utf8');
 const checksums = new Map(checksumsText.trim().split(/\r?\n/).map(line => {
@@ -31,6 +32,6 @@ for (let index = 0; index < Number(manifest.parts); index++) {
   totalBytes += part.length;
   hash.update(part);
 }
-assert.equal(totalBytes, 67366437);
+assert.equal(totalBytes, runtimeLock.runtime_archive.size_bytes);
 assert.equal(hash.digest('hex'), manifest.sha256, 'ordered parts reconstruct the pinned Geode runtime');
 console.log(`PASS: ${manifest.parts} relay segments reconstruct ${totalBytes} bytes with the pinned SHA-256`);

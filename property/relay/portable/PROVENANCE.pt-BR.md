@@ -4,7 +4,7 @@
 
 ## Origem
 
-Os 48 JARs dos pacotes Windows e macOS vêm do pacote Linux Geode 1.20.0 anterior, fixado pelo SHA-256 `9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7`. O pacote Linux agora inclui a atualização de retenção e tem SHA-256 `b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a`; os pacotes Windows e macOS não foram recompilados com essa alteração e seguem pendentes de seus gates de plataforma. Cada manifesto registra hashes individuais das bibliotecas; os dois pacotes multiplataforma têm o mesmo inventário entre si, mas não o mesmo inventário da imagem Linux atualizada.
+Os 48 JARs dos pacotes Windows e macOS vêm do pacote Linux Geode 1.20.0 anterior, fixado pelo SHA-256 `9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7`. O pacote Linux agora inclui a atualização de retenção, bind padrão em loopback e hardening G9 e tem SHA-256 `f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd`; os pacotes Windows e macOS não foram recompilados com essas alterações Linux e seguem pendentes de seus gates de plataforma. Cada manifesto registra hashes individuais das bibliotecas; os dois pacotes multiplataforma têm o mesmo inventário entre si, mas não o mesmo inventário da imagem Linux atualizada.
 
 Os runtimes são Eclipse Temurin 21.0.13+9, da [release oficial Adoptium](https://github.com/adoptium/temurin21-binaries/releases/tag/jdk-21.0.13%2B9):
 

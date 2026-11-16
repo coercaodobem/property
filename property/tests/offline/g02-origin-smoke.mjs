@@ -8,7 +8,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const upstreamCommit = '948135f7dbbae81d79a0b985282ce673397a7618';
-const geodeSha256 = 'b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a';
+const runtimeLock = JSON.parse(await readFile(path.join(root, 'property/relay/runtime-dependencies.json'), 'utf8'));
+const geodeSha256 = runtimeLock.runtime_archive.sha256;
 const portableBaseGeodeSha256 = '9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7';
 const hash = value => createHash('sha256').update(value).digest('hex');
 const args = process.argv.slice(2);
@@ -103,7 +104,7 @@ const linuxManifest = Object.fromEntries(text('property/relay/dist-parts/manifes
   return [line.slice(0, separator), line.slice(separator + 1)];
 }));
 assert.equal(linuxManifest.sha256, geodeSha256, 'Linux Geode package digest matches the documented origin');
-assert.equal(linuxManifest.parts, '129');
+assert.equal(linuxManifest.parts, String(runtimeLock.runtime_archive.part_count));
 const windows = JSON.parse(text('property/relay/portable/windows-x64/manifest.json'));
 const macos = JSON.parse(text('property/relay/portable/macos-arm64/manifest.json'));
 for (const [platform, manifest] of [['windows-x64', windows], ['macos-arm64', macos]]) {

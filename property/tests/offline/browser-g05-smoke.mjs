@@ -129,9 +129,14 @@ async function loadRuntime(options, proxyPort) {
     evidence: { playwright_version: packageInfo.version, playwright_package_sha256: options.playwright_package_sha256, browser_version: browser.version(), browser_executable_sha256: options.browser_executable_sha256 } };
 }
 
-async function startGeode(port, base, label) {
-  const data = path.join(base, `${label} data`), config = path.join(base, `${label} config`);
-  const env = { ...process.env, PROPERTY_RELAY_HOST: '127.0.0.1', PROPERTY_RELAY_PORT: String(port), PROPERTY_RELAY_DATA_DIR: data, PROPERTY_RELAY_CONFIG_DIR: config, PROPERTY_RELAY_CONFIG: path.join(config, 'relay.toml') };
+async function startGeode(port, base, label, configText = null) {
+  const data = path.join(base, `${label} data`), configDir = path.join(base, `${label} config`);
+  const configPath = path.join(configDir, 'relay.toml');
+  if (configText !== null) {
+    await mkdir(configDir, { recursive: true, mode: 0o700 });
+    await writeFile(configPath, configText, { mode: 0o600, flag: 'wx' });
+  }
+  const env = { ...process.env, PROPERTY_RELAY_HOST: '127.0.0.1', PROPERTY_RELAY_PORT: String(port), PROPERTY_RELAY_DATA_DIR: data, PROPERTY_RELAY_CONFIG_DIR: configDir, PROPERTY_RELAY_CONFIG: configPath };
   for (const key of PROXY_KEYS) delete env[key];
   const child = spawn('bash', [path.join(ROOT, 'property/relay/start.sh')], { cwd: ROOT, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
   registerProcessGroup(child);
@@ -140,7 +145,7 @@ async function startGeode(port, base, label) {
     for (let i = 0; i < 120; i++) {
       if (child.exitCode !== null) throw new Error(`Geode ${label} exited ${child.exitCode}: ${safeText(diagnostic)}`);
       const ready = await new Promise(resolve => { const socket = net.connect(port, '127.0.0.1'); socket.setTimeout(300); socket.once('connect', () => { socket.destroy(); resolve(true); }); socket.once('error', () => { socket.destroy(); resolve(false); }); socket.once('timeout', () => { socket.destroy(); resolve(false); }); });
-      if (ready) return { child, port, url: `ws://127.0.0.1:${port}`, data, config, diagnostic: () => diagnostic };
+      if (ready) return { child, port, url: `ws://127.0.0.1:${port}`, data, config: configDir, configPath, diagnostic: () => diagnostic };
       await sleep(250);
     }
     throw new Error(`Geode ${label} did not become ready: ${safeText(diagnostic)}`);

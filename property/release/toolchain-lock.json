@@ -14,7 +14,7 @@
   "relay_runtime": {
     "geode": "1.20.0",
     "java": "21.0.13",
-    "archive_sha256": "b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a",
+    "archive_sha256": "f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd",
     "dependency_lock": "property/relay/runtime-dependencies.json"
   },
   "sbom": {

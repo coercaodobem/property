@@ -1,27 +1,28 @@
 {
   "schema_version": 1,
-  "source_commit": "948135f7dbbae81d79a0b985282ce673397a7618",
+  "source_commit": "305f4fb9234a5abbb2020739a5316e24af0e6a68",
   "runtime_archive": {
     "name": "Geode 1.20.0 Linux x86_64 + OpenJDK 21.0.13 image",
-    "sha256": "b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a",
-    "size_bytes": 67366437,
+    "sha256": "f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd",
+    "size_bytes": 67366883,
     "part_count": 129,
     "source_provenance": "property/relay/dist-parts/PROVENANCE.md",
-    "rebuild_status": "offline-source-build-completed; bit-for-bit reproducibility not asserted",
+    "rebuild_status": "offline-source-build-completed; archive metadata normalized; bit-for-bit Geode/JRE build reproducibility not asserted",
     "chunk_size_bytes": 524288,
     "source_build": {
       "status": "PASS",
-      "command": "gradle :geode:geodeImage --offline --no-daemon --console=plain",
+      "command": "gradle :geode:geodeImage --offline --rerun-tasks --no-daemon --console=plain",
       "gradle": "9.8.2",
       "jdk": "21.0.13+9",
       "network_access": "none",
-      "reproducibility": "not asserted; generated archive hash is pinned",
+      "reproducibility": "archive metadata normalized; Geode/JRE build reproducibility not asserted",
       "modified_source_sha256": {
         "geode/src/main/kotlin/com/vitorpamplona/geode/RelayRetention.kt": "1c217d036ef2f55de5098e14442e383b24f1b5084d91f9f5ccb1385a2cd2da8e",
-        "geode/src/main/kotlin/com/vitorpamplona/geode/Main.kt": "05d6668db9e1f45642783d03ea05cfa20b9fb143afdd15647a3cc9d41a599f8a",
-        "geode/src/main/kotlin/com/vitorpamplona/geode/config/StaticConfig.kt": "96be31def8c2c144ff8f9bcc7d3a296e8dac1450163ac85e24cfd6d35e5fa448",
-        "geode/config.example.toml": "04eece420a9c58c1f1f1306cf5ed335f41044be91c6c14ef0e1e673e75b1dcd8"
-      }
+        "geode/src/main/kotlin/com/vitorpamplona/geode/Main.kt": "d66540eca1f3fac76e1c98e4e0fc9620c9a3b642c4e85a51e857f64796bb82ff",
+        "geode/src/main/kotlin/com/vitorpamplona/geode/config/StaticConfig.kt": "5198a400590fb2633987534ea559a2ea503b6ac6fab3a702355e13ead49390d3",
+        "geode/config.example.toml": "2b82b3942b87b1acffe2d9c776564a164fb4d41b3d2fe48a60f23a68feaaf57a"
+      },
+      "source_commit": "305f4fb9234a5abbb2020739a5316e24af0e6a68"
     }
   },
   "jre_component": {
@@ -108,10 +109,10 @@
       "name": "Geode standalone relay",
       "coordinate": "org.amethyst-geode:geode:1.20.0",
       "version": "1.20.0",
-      "sha256": "b041d81177e27623adb1d2a3a17bd93ca0f98f6a5ae131682955f3b10a4b0201",
+      "sha256": "f06589a1443b0f5acab7ec697ebe4d83fa549788c013d1d7a3826b20f3d3d593",
       "license": "MIT",
       "license_evidence": "repository LICENSE and pinned source tree",
-      "source": "https://github.com/vitorpamplona/amethyst/tree/948135f7dbbae81d79a0b985282ce673397a7618"
+      "source": "https://github.com/coercaodobem/property/tree/305f4fb9234a5abbb2020739a5316e24af0e6a68"
     },
     {
       "path": "jspecify-1.0.0.jar",

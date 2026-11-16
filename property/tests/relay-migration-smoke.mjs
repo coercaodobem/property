@@ -9,6 +9,7 @@ try {
   const launcher = join(root, 'relay/start.sh');
   await mkdir(join(root, 'relay/dist/geode/bin'), { recursive: true });
   await copyFile(new URL('../relay/start.sh', import.meta.url), launcher);
+  await copyFile(new URL('../relay/resource-limits.sh', import.meta.url), join(root, 'relay/resource-limits.sh'));
   // A fixture executable isolates configuration selection; real Geode runs in integration.
   await writeFile(join(root, 'relay/dist/geode/bin/geode'), '#!/bin/sh\nexit 0\n', { mode: 0o700 });
   const data = join(root, 'data');
@@ -28,7 +29,10 @@ try {
   assert.equal(legacy.status, 0, legacy.stderr);
   assert.ok(legacy.stdout.includes(oldData));
   assert.equal(await readFile(join(oldData, 'events.db'), 'utf8'), 'existing-fixture-events');
-  assert.equal(await readFile(join(oldConfig, 'geode.toml'), 'utf8'), 'existing-fixture-config');
+  const migratedToml = await readFile(join(oldConfig, 'geode.toml'), 'utf8');
+  assert.ok(migratedToml.startsWith('existing-fixture-config'), 'legacy operator config remains intact');
+  assert.ok(migratedToml.includes('[rate_limits]'), 'legacy config receives bounded rate defaults');
+  assert.ok(migratedToml.includes('max_event_age_seconds = 31536000'), 'legacy config receives the local retention default');
   const preferred = join(root, 'chosen-data');
   const chosenConfig = join(root, 'chosen-config');
   const configured = run({ PROPERTY_RELAY_DATA_DIR: preferred, PROPERTY_RELAY_CONFIG_DIR: chosenConfig,
