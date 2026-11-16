@@ -4,7 +4,7 @@ The release bundle contains the static Property PWA, the Ubuntu x86_64 Geode rel
 
 ## Verify and install
 
-Use a clean Ubuntu/Linux x86_64 checkout and keep the private signing key outside the repository. The trusted Ed25519 public key is versioned at `property/release/trusted-signing-public.pem`; obtain it from the exact trusted source tag, not from the downloaded bundle. Its SHA-256 fingerprint is `60025655e12c534e41003d8d87c3080c33b3e72f86bb19dbcda14182684f670c`.
+Use a clean Ubuntu/Linux x86_64 checkout and keep the private signing key outside the repository. The trusted Ed25519 public key is versioned at `property/release/trusted-signing-public.pem`; obtain it from the exact trusted source tag, not from the downloaded bundle. Its SHA-256 fingerprint is `000dd5016afb1f8eced1ba3de80d93a187f6079ae71398063229626a33bcbe36`. The public `v0.1.0` release remains signed with the previous fingerprint `60025655e12c534e41003d8d87c3080c33b3e72f86bb19dbcda14182684f670c`. Because the previous private signing key is unavailable, no old-key-signed transition can be provided; upgrading from `v0.1.0` to a release using this new key requires manually verifying the exact source tag and fingerprint before installing. Do not accept a replacement key merely because it is included in a downloaded bundle.
 
 ```bash
 node property/release/verify-offline-bundle.mjs \
