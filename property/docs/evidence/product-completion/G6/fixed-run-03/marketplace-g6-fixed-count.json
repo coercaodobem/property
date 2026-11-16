@@ -1,0 +1,69 @@
+{
+  "gate": "G6",
+  "suite": "marketplace-g6-fixed-count",
+  "result": "PASS",
+  "network": "signed synthetic fixtures; local reducer; no relay, wallet, or public network access",
+  "amount_vectors": {
+    "BTC": {
+      "total": 100,
+      "valid_round_trips": 50,
+      "rejected_atomic_values": 50,
+      "maximum": "2100000000000000",
+      "zero_supported_as_free_offer": true
+    },
+    "XMR": {
+      "total": 100,
+      "valid_round_trips": 50,
+      "rejected_atomic_values": 50,
+      "maximum": "18446744073709551615",
+      "zero_supported_as_free_offer": true
+    },
+    "XNO": {
+      "total": 100,
+      "valid_round_trips": 50,
+      "rejected_atomic_values": 50,
+      "maximum": "340282366920938463463374607431768211455",
+      "zero_supported_as_free_offer": true
+    }
+  },
+  "local_search": {
+    "signed_offers": 5,
+    "assertions": 8,
+    "accent_folding": true,
+    "price_ordering": "integer atomic amounts; only one selected currency",
+    "network_access": false
+  },
+  "lifecycle": {
+    "per_currency": {
+      "BTC": {
+        "created": 20,
+        "edited": 10,
+        "withdrawn": 10,
+        "expiring": 10
+      },
+      "XMR": {
+        "created": 20,
+        "edited": 10,
+        "withdrawn": 10,
+        "expiring": 10
+      },
+      "XNO": {
+        "created": 20,
+        "edited": 10,
+        "withdrawn": 10,
+        "expiring": 10
+      }
+    },
+    "synthetic_offer_events": 121,
+    "relays_simulated": 5,
+    "active_before_expiry": 31,
+    "active_after_expiry": 1,
+    "unrelated_offer_preserved": true,
+    "all_five_states_converged": true
+  },
+  "conflicts": {
+    "same_author_equal_time": 20,
+    "cross_relay_out_of_order": 20,
+    "deterministic_rule": "newer created_at; on tie lexicographically lowest event id"
+  }
+}

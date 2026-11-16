@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "gate": "G6",
+  "result": "PASS_AUTOMATED_OFFLINE",
+  "candidate_commit": "456f1603e55d45d7b55d487b9eeb6099b74a4244",
+  "runtime_inventory_sha256": "b7ba15fbb2dfb8ff494a2378752859c4d750e81aef3a73ec047edd9402ae001f",
+  "environment": {
+    "platform": "Ubuntu Linux x86_64",
+    "node": "v22.22.1",
+    "playwright": "1.62.1",
+    "chromium": "153.0.8010.12",
+    "network_isolation": "unshared-netns",
+    "external_requests": 0,
+    "relays": 5,
+    "public_relays": false,
+    "wallets_or_payments": false
+  },
+  "counts": {
+    "browser_cases": 9,
+    "browser_cases_passed": 9,
+    "marketplace_journeys": 50,
+    "journeys_en": 25,
+    "journeys_pt_BR": 25,
+    "filter_journeys": 50,
+    "filter_queries_to_relays": 0,
+    "amount_vectors_per_currency": 100,
+    "lifecycle_offers_per_currency": 20,
+    "edits_per_currency": 10,
+    "withdrawals_per_currency": 10,
+    "expiring_offers_per_currency": 10,
+    "same_author_conflicts": 20,
+    "out_of_order_updates": 20
+  },
+  "browser_tool_hashes": {
+    "playwright_package_tree_sha256": "f04a718e7b82280e95f0dbe60a25fa53ab1304d9ce38735555b31e2d09a6ed30",
+    "chromium_sha256": "ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e"
+  },
+  "source_sha256": {
+    "property/tests/offline/browser-g06-smoke.mjs": "6f1638432f20b7c1e9735be25ffc9e86c95685a22bfedeac8cea2691e1db0eac",
+    "property/tests/offline/marketplace-g6-fixed-count.mjs": "e66c12eeabc64b017701ff17023854a0461010692e9a09d03562675dd5a23724",
+    "property/web/app.js": "0bac59226e7edb16b3624515ad87c9dd5ef094c19346703a0e357d5d7e109f90",
+    "property/web/index.html": "56516e46d3d264a7e5ac3ab105266ddeff36cb4339642151a89b55f6562a8205",
+    "property/web/marketplace.js": "27b3c9c18dee507aebef5184296a4ee6ed10ab14a51b814229bb1a859939bd29",
+    "property/web/styles.css": "6854e8a5808a89170e49cc21dbecc5208a7b73c35d55dc5c66976e47d4c511cd",
+    "property/web/sw.js": "b9411ae870a2cf06d27ea380372bffdfdcc6e76ed6004ca73973c22e95e33d63",
+    "property/agent/vendor/marketplace.js": "27b3c9c18dee507aebef5184296a4ee6ed10ab14a51b814229bb1a859939bd29",
+    "property/release/trusted-signing-public.pem": "ae7d7f07ca289e7df301004e0e01bf9ea956c5000cc5f90a05dfbe5a7e5f73c9"
+  },
+  "evidence_sha256": {
+    "browser-g06-report.json": "bd50d637508a3eb47cd0f7a3c8b68fa9ece6fe7bc364082fec4111a492ba4b48",
+    "marketplace-g6-fixed-count.json": "488dc9549bdd7ee1c87e84406429648359d7ba9e7590af2bd6e7ee79671cc9d8"
+  },
+  "limitations": [
+    "Synthetic identities and local Geode relays only.",
+    "No public relay, real participant, wallet, or payment.",
+    "Other operating systems and physical mobile devices remain outside this execution."
+  ]
+}

@@ -1,0 +1,693 @@
+{
+  "schema_version": 1,
+  "network_isolation": {
+    "mode": "unshared-netns"
+  },
+  "cases": [
+    {
+      "case": "G06-01",
+      "status": "PASS",
+      "reason": "A signed public kind-1 post traversed five actual Geode relays through the PWA bridge. Buyer B saw the author, and the contact action selected that author in private-message navigation while the post remained public; an empty-feed state was also checked."
+    },
+    {
+      "case": "G06-02",
+      "status": "PASS",
+      "reason": "The browser published, discovered, and edited one satoshi, one piconero, and one raw through an actual five-relay Geode bridge. Exact atomic strings, event authorship, stable d tags, signatures, and rendered prices survived each round-trip; currency maxima and overflow were checked."
+    },
+    {
+      "case": "G06-03",
+      "status": "PASS",
+      "reason": "Seller withdrawal hid the offer even after the older signed event was replayed to R5. Geode rejected reinsertion under its deletion tombstone. Another author could not remove an offer; the client reducer ignored an older deletion timestamp without sending that fixture to the relay."
+    },
+    {
+      "case": "G06-04",
+      "status": "PASS",
+      "reason": "Expired and future-timestamp, unknown-currency, malformed, and ambiguous-address listings were filtered. The browser blocked excess precision, overflow, and unsupported-currency submissions; unsafe image URLs were not linked or fetched, and injected markup remained literal text."
+    },
+    {
+      "case": "G06-05",
+      "status": "PASS",
+      "reason": "Contact from the marketplace opened the correct seller conversation target without changing the displayed offer, publishing any payment/checkout/private-message event, or exposing a checkout control. The UI identifies NIP-15 as draft and states that payments/custody are not handled."
+    },
+    {
+      "case": "G06-06",
+      "status": "PASS",
+      "reason": "Published 20 synthetic offers per currency, edited 10, withdrew 10 and expired 10 per currency. Each of five local Geode relays served the same current replaceable heads, all 30 signed withdrawal tombstones, and identical active state before and after the logical expiry boundary. Superseded/deleted payloads were not incorrectly required to remain queryable. Bridge coverage passed earlier; this larger fixed-count batch bypassed its explicit forwarding quota."
+    },
+    {
+      "case": "G06-07",
+      "status": "PASS",
+      "reason": "Completed 50 PWA Hangout journeys against signed authors. Duplicate copies from five relays rendered once; the buyer changed from R5 to R4, direct-contact navigation selected the post author without sending a message, and malformed local fixtures failed closed. English and pt-BR each covered 25 journeys."
+    },
+    {
+      "case": "G06-08",
+      "status": "PASS",
+      "reason": "Completed 50 real PWA marketplace journeys (25 English, 25 Brazilian Portuguese) across BTC/XMR/XNO. Each published the versioned offer, browsed it from the other identity, checked public/private and no-paid labeling, opened the seller conversation, and withdrew the offer with a signed NIP-09 request."
+    },
+    {
+      "case": "G06-09",
+      "status": "PASS",
+      "reason": "Completed 50 local-only filter journeys (25 English, 25 Brazilian Portuguese): text/currency/type, empty results, newest/price controls with exact units, and zero additional relay query frames during filtering."
+    }
+  ],
+  "nodes": [
+    {
+      "label": "G06 seller A",
+      "pubkey": "c90331b528264603508e170ac445c9dfc7a620588756551eb909dc1b3d4a970b",
+      "general_relays": [
+        "ws://127.0.0.1:28480"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": false
+    },
+    {
+      "label": "G06 buyer B",
+      "pubkey": "836761be6c3f6dae1dc14ea01aee1895dc7320454b5bb779609969687cb73771",
+      "general_relays": [
+        "ws://127.0.0.1:28484"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": false
+    },
+    {
+      "label": "G06 public relay bridge",
+      "pubkey": "354723c9dadb4a823e2af44f1f85cc9b4145e8a6189ca74487026a15a8151780",
+      "general_relays": [
+        "ws://127.0.0.1:28480",
+        "ws://127.0.0.1:28481",
+        "ws://127.0.0.1:28482",
+        "ws://127.0.0.1:28483",
+        "ws://127.0.0.1:28484"
+      ],
+      "inbox_relays": [],
+      "mobile_viewport_emulation": false,
+      "browser_bridge_enabled": true
+    }
+  ],
+  "relays": [
+    {
+      "url": "ws://127.0.0.1:28480",
+      "process_id": 2576068,
+      "data_dir_mode": "temporary private directory",
+      "rate_limits": {
+        "events_per_minute": 2000,
+        "event_burst": 2000,
+        "reqs_per_minute": 5000,
+        "req_burst": 2000
+      }
+    },
+    {
+      "url": "ws://127.0.0.1:28481",
+      "process_id": 2576616,
+      "data_dir_mode": "temporary private directory",
+      "rate_limits": {
+        "events_per_minute": 2000,
+        "event_burst": 2000,
+        "reqs_per_minute": 5000,
+        "req_burst": 2000
+      }
+    },
+    {
+      "url": "ws://127.0.0.1:28482",
+      "process_id": 2577158,
+      "data_dir_mode": "temporary private directory",
+      "rate_limits": {
+        "events_per_minute": 2000,
+        "event_burst": 2000,
+        "reqs_per_minute": 5000,
+        "req_burst": 2000
+      }
+    },
+    {
+      "url": "ws://127.0.0.1:28483",
+      "process_id": 2577679,
+      "data_dir_mode": "temporary private directory",
+      "rate_limits": {
+        "events_per_minute": 2000,
+        "event_burst": 2000,
+        "reqs_per_minute": 5000,
+        "req_burst": 2000
+      }
+    },
+    {
+      "url": "ws://127.0.0.1:28484",
+      "process_id": 2578180,
+      "data_dir_mode": "temporary private directory",
+      "rate_limits": {
+        "events_per_minute": 2000,
+        "event_burst": 2000,
+        "reqs_per_minute": 5000,
+        "req_burst": 2000
+      }
+    }
+  ],
+  "external_requests": [],
+  "websockets": [
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28484/",
+    "ws://127.0.0.1:28484/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28482/",
+    "ws://127.0.0.1:28483/",
+    "ws://127.0.0.1:28484/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28482/",
+    "ws://127.0.0.1:28483/",
+    "ws://127.0.0.1:28484/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28482/",
+    "ws://127.0.0.1:28483/",
+    "ws://127.0.0.1:28484/",
+    "ws://127.0.0.1:28483/",
+    "ws://127.0.0.1:28480/",
+    "ws://127.0.0.1:28481/",
+    "ws://127.0.0.1:28482/",
+    "ws://127.0.0.1:28483/",
+    "ws://127.0.0.1:28484/"
+  ],
+  "denied_proxy_attempts": [],
+  "page_errors": [],
+  "hangout": {
+    "empty_feed_state": true,
+    "event_id": "20bb3fb03d4ad4de67f499ce73fd7a8c7ac323cc76345f35f5d01f942969cf81",
+    "author": "c90331b528264603508e170ac445c9dfc7a620588756551eb909dc1b3d4a970b",
+    "R1_signature_valid": true,
+    "R5_copy_same_id": true,
+    "public_feed_label_visible": true,
+    "contact_target_npub": "npub1eypnrdfgyerqx5ywzu9vg3wfmlr6vgzcsat9284ep8wpk022ju9shustmy",
+    "private_room_created": false,
+    "fixed_journeys": 50,
+    "language_journeys": {
+      "en": 25,
+      "pt-BR": 25
+    },
+    "verified_authors": 50,
+    "unique_events_after_five_relay_dedupe": 50,
+    "relay_change": {
+      "from": "ws://127.0.0.1:28484",
+      "to": "ws://127.0.0.1:28483"
+    },
+    "direct_message_targets_selected": 50,
+    "messages_sent": 0,
+    "empty_feed_state_checked": true,
+    "hostile_markup_rendered_as_text": true,
+    "malformed_signature_size_and_timestamp_fixtures_rejected": true,
+    "five_relays_converged": true
+  },
+  "marketplace": {
+    "offers": [
+      {
+        "currency": "BTC",
+        "unit": "satoshi",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "d060ba09-99fd-4b4c-a9c9-ef34a5f40679",
+        "initial_event_id": "42fa93274406d624959e6cb0784dfd6e965a42490aecb20c4f1047e809b40009",
+        "updated_event_id": "f36b68a01d7565ad31ce335d7385497c0f29a14bb702a9895a23c45778efc2db",
+        "seller_signature_valid": true,
+        "R5_copy": true,
+        "initial_ui_price": "0.00000001 BTC",
+        "updated_ui_price": "0.00000002 BTC"
+      },
+      {
+        "currency": "XMR",
+        "unit": "piconero",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "f19f86f8-79f9-4667-bff9-8e10f65dda3c",
+        "initial_event_id": "89ecc74d1b80491bac61d0eb3ab6f83fb92deda4b0b371603e795321557d68df",
+        "updated_event_id": "a0802d967d6768f7c00567d7d84ef12f09f16184e767839cbdaa3631007e0c37",
+        "seller_signature_valid": true,
+        "R5_copy": true,
+        "initial_ui_price": "0.000000000001 XMR",
+        "updated_ui_price": "0.000000000002 XMR"
+      },
+      {
+        "currency": "XNO",
+        "unit": "raw",
+        "initial_atomic": "1",
+        "updated_atomic": "2",
+        "product_d": "dd585031-2c66-4a40-93b9-b637c66536cb",
+        "initial_event_id": "338b9df019f973e77a9a94268b4fa25f01195fdcfa0e214583c1c583fee1adef",
+        "updated_event_id": "464a2599715a5721c9065699b32b95b00bae56dd5a9dded090e2fcc732da6243",
+        "seller_signature_valid": true,
+        "R5_copy": true,
+        "initial_ui_price": "0.000000000000000000000000000001 XNO",
+        "updated_ui_price": "0.000000000000000000000000000002 XNO"
+      }
+    ],
+    "currency_atomic_bounds": {
+      "BTC": {
+        "max_accepted": "2100000000000000",
+        "over_max_rejected": true
+      },
+      "XNO": {
+        "max_accepted": "340282366920938463463374607431768211455",
+        "over_max_rejected": true
+      },
+      "XMR": {
+        "max_accepted": "18446744073709551615",
+        "over_max_rejected": true
+      }
+    },
+    "amount_representation": "decimal integer strings; no float used for atomic values",
+    "five_relay_lifecycle": {
+      "created": 60,
+      "edited": 30,
+      "withdrawn": 30,
+      "expired": 30,
+      "offers_by_currency": {
+        "BTC": {
+          "created": 20,
+          "edited": 10,
+          "withdrawn": 10,
+          "expired": 10
+        },
+        "XMR": {
+          "created": 20,
+          "edited": 10,
+          "withdrawn": 10,
+          "expired": 10
+        },
+        "XNO": {
+          "created": 20,
+          "edited": 10,
+          "withdrawn": 10,
+          "expired": 10
+        }
+      },
+      "event_ids": [
+        "4fbcae24330e31b3339f64a4eb83c7c79856d4f8cd04f834e95c667af2142357",
+        "16bd0114128199704fa1b7a19a290e40aeb50e5cc51d94a50809d6b078a81687",
+        "16c4592284ad7bde73f16fc52f9e5502c4b94cd83a96b4c82abce6292110ab30",
+        "14d4e0dc70436228971c5a73819a81ac436c6e7e61209ffecfc604290acbff9b",
+        "13116464b8ba1295ef2d6ee4461eafaaee9d4f6257dcf0856fa63b2238c9d595",
+        "c88ad64a4314c3345673575ec0017e79afd5a0d54105a6788c4cc2eb9328b0fc",
+        "543176a9020df543b9ae81d26a84e8d5b81da6ed8d5958a0f55f2baec7d23b46",
+        "4700699cefa0300b2f3aef4f6396e2297e0a511b82071e352b9983db3f38acce",
+        "bf238944b00cdbd2169656003b0693bdd5f2fbd2a7786c05abde017d3df0fdd4",
+        "e794720bf326ce98ee09636b7093b0f3f21216eacc5b0c62f1e98ff1bbcef0e8",
+        "1e0800b5840a13b4480e0d618ede73835f2256f766d7609d963759f5645915a1",
+        "2a34d8859bc98496028c3cd2932d4841e4df17f9dfed8e895cc827bb014f3a10",
+        "4ef68bf8eea60d4726c54f95783b98ab9e01a26764174f5f84daf539e382754d",
+        "2414c87ceca785017a291fa2c756591efebc583be15779516d99a086780fdd49",
+        "5386821c2e72648565765ca12d122e30c1989f2f385e1652f96cd4b35bbf89b0",
+        "c0976f1511ac3fb9b72da252ef867852eba33b708c86ccdfbf08974a9374db00",
+        "77ba6288fbec58888221ba9b5c82115e3c5440d7f2473e835f07d080efa6d25f",
+        "4ff169baa07a268738f42afc28338bc2a926fb0d7e5826aff3f56072c0e58585",
+        "bc6bdb7e6c2f59df595c908132e555a32f573f043e0ec2caa8e896078da6ce6f",
+        "cb42d98d6abebe672f73c46a4e6c0da7aff2574e8b5ec90b6e4525a7d4f9ed9c",
+        "9ad309c62ca85dcebbdef0d68132a3a0b1378403ae586fcce8340fb58c81fc4d",
+        "89d3a8f73fac82bf1f68f02bbdee68269c1f64e2627594d08951c331996491a1",
+        "a372f812632d90215bf9b8412e617c5d8525403005385827182cbe45e59ee0c3",
+        "2f731ed914c76947df5d7aea0fc69f05022c46b45d249261361b7e74642cc6b2",
+        "b9e20720ae2819da2896eea8b1e39e1befde04040ae5c7d81e92ef74e1502d6d",
+        "0eafcd449f12121c126819aecdbf909ffcea029f8a648a105a8bd9e667b8c90c",
+        "da293a9e599c46701eaaa4fdb57d468723dea03ccb1c4872c903205d991802ff",
+        "d73c6b48976ad853ef01b789388dbc15d8fa72dcc24626b4ca1428d0acbfffc3",
+        "2f7eea1d46cff0e8a6d6fc07621939583021114851c3cf244d798ba33d0e4b69",
+        "0c30ef297eeb490dfa6c20ca969e252735979bb784b52c8181da76fb22025c0a",
+        "4febe77238086f5d6bed5ac6e5d323e6419d271779558971c1220dc591818235",
+        "42532d66a9d9df9f42c8430eacc9f49b9f9b8e7c24e188518f3223eb76c60282",
+        "bfc1e4cbacabaffd459153c2ab415d29ad2e1a6d710f56fe68474dd7b68144c3",
+        "63c6d470d39872e640879875e6b665ca8b1673fd5da911578e2ae8759ce6f496",
+        "91924c58f99145c956d8f430042978f727fb0e97a61b8f0689cf7be176e55d2d",
+        "701e62bc3193dc41d939da2848d9a7d2cf34af79159ce76d80b0e1b6c11ea82c",
+        "2ea20c517536595a0ac3bdfe2b476efe6ca497ffa6ffa44ccb0a703e530e9465",
+        "457ec11a4b7fc32da64118983aa000e69839d554796133b1dd98a892c26f614e",
+        "50f215c5d3c0c2bbcbe330bcb3f091c6d7af5dfbdf217a6f92bfe7dd35a20a37",
+        "04e195e8a338d76c817c77581f8aa1e0718bfb2ad0541a2224dd86c36cd621da",
+        "77f6b633ecf5f81f775cc7b8c26e70023b018d0b955ca42e66eadf22eb5a9721",
+        "a7ae68712175a16d82ad996e4757f040e2f3ef644c72d10a4aad10593e2d0f81",
+        "4e1bcbc1588c73684181006e14d316c6f097618665b49944e9caa5c05f547a26",
+        "d65f93f7b55d81e99ad8617891c033e089b44d3712675be28d81b4efd3bf6bbc",
+        "6ef3b9e4edb53732105e1d1f73fdcdca39ca51cfde6254385e6585da6a5bfe16",
+        "bc6c4f70f9cfeb68c91de01ab23ceae1f4b96e337fa0243194d5bbfdfd410183",
+        "7a88596719ca8d8c2845c74f32e5b6712f38b3926effc58df18e5097439a48c7",
+        "c05e9843c80b59528018f790f9fb96816eb785bcacf39cece9239aaa9487f588",
+        "b9dcad227a70ad1a5a5a9b1f6e5428ecddc87d4a706c9058735a317083bdb51d",
+        "e8b025e0ab02c099cf143e697e2b43eb41bf871f321c2d5d13dc486861146407",
+        "91761abe25ae456cee744529aa40c678ef0f436ca8352bbcfb97d222d072e304",
+        "40e42ce9b0e053614b5a31026997197f8edf2ec396137396b62ef33db9515ec9",
+        "42e70f17fd47679705ba014c9267d81139a3450c913bf269cfe9f7a4db4326c7",
+        "3a79e0a78c1d3ab6ae42ea173e0606568cdbb5ecd3bbd35bcab8e61174e2f529",
+        "49a4722d37f3efa262daffb182d2a0944935dea9726f098aa61380f742034d96",
+        "1d84f90f64de68fc21fbb3a96e8968a9bde15d6f6997c69fa78edf2208c8057f",
+        "0b01f303186a0729690b4046b525032910f22319026a1d3aca23ca79edb8aa81",
+        "8ccd1df1f43be058f5e3f0950a8f5f2b8ab20b44dd70b937061cdc823a29e7c6",
+        "a6f8d5460474bd01d3742a136adb479322021c5ae7c7fb296680f4ad3603238a",
+        "8d254ffb936cc9ba3e386cb2da6491337f247beadac2e22e0ad34a20638efe1e",
+        "53d38ab566f1537005a8156d53436ae36bb2202b9fd344f7bd37a6a0f7aeb0da",
+        "8c101ac04b8bea0f221d49d24515b07d0c97e9e22dd8367657d8fe26e6fd03d0",
+        "9290073554cdf80deeee7f984633d5228ea8b966b1b5faa982a35af5f2f3ed59",
+        "89a2f71035f5d8334a2693e4ebba2d25cce46d6a11edaf0c4b9e58da6bd7f3aa",
+        "5b8464bad652822aff7a74d78cf4eed62f91fa772619e585477cedd7b7ad54fb",
+        "0213be1f846584affa881a288d1b47946aca1955e619a86da8df32b76b013fed",
+        "1571f7527f84df5efe60078a0c4b2e89bd2aea1fa42aeaf1892970f5cf04814e",
+        "d2cc46c39cfada2ac48663de2f8ae946fcdaff3158f82d5f89505edccda014d3",
+        "b8f37a5d5f9383d76e265482baf714bbd9fed8e688118dca42983ed72734d1ac",
+        "f5373eb1f16d8f767467bf68a932bce9d551c90797c524bf4f36861a3869794b",
+        "5d84fef0c80704333f84676df548a5f4ebf1af28076016309cd51b4b7e7a6b4a",
+        "3dbe8bc8ea1fd677e244c2d8e4ba47f38ebc40a471f2c5ef2d02fcfe878921e5",
+        "0fc676626be0d468fb0b012dec8056cf3c9fff5deadd1fc47a3ada27e5e749d1",
+        "801dc7f70523969aa58d2850af10f4413033bd3f5d9bb697730d59fcff8acc0f",
+        "1417ab2759a7ebae454caf629404f3239aa5329d0f018b7d4de7a741dc7decca",
+        "0d40620fc6df19421a1e66a92d9f5baf795939db9c9b12e53e78156ceb3abd7a",
+        "5e4715af8931c49b8d815929e76e5cb60574ae046a4214a3337a56031a7ae21b",
+        "a4d99708515abecc1f06ebe6535fa4af32464310d7d8ed0b75dd89a6fda55f51",
+        "22044e20589c3666690cd8e7676768a4f05afb74ee8a1fe182c042cbd011c12a",
+        "4eec6995998e90b7fc952b33fb070ae7c3b60ab4faebf55e2a33864100e23283",
+        "1fe1dc927263bc2608f638f3751922520f9286c5202cbcf2ca8c1b3e933fd7ec",
+        "0ce6c38afed457e31b828d26e47591c0bb672ce87cf8af2decae1fd0212a80ca",
+        "ac861600463503b7aa409e2b15c37a93ba976b3a3b6111d6643d85ef410573a7",
+        "5e23d898431bdf32bc43503152d99d8b3ad4798865198b33ffdfc9a09554735b",
+        "25dc017cc6c50a901c0003fea089db77a14f15858826891bd83f5dec2705bfd8",
+        "e616a2524ab3079fcaf5ef4e4f7fbfcdeb5ede7b38bdd156dc83a7a5ef5028c8",
+        "d42b8575ec76c5486df7c7a2c3029c427df2822da38d518a820353da54547938",
+        "d8cfac2bf9c9cfc5081fa93388637dad1ae86227f6c52f2cc8bd1846cd5bd59c",
+        "98fc71dc5c15ef431b2a6447e70645578f853155b07cfb9220d093b7f8daacdb",
+        "c9b7d9a8f06ec92eda49c7b233d8b1a4e1d784d625106d155db1c0b9201c6b05",
+        "300c6de1acbc74b37fdc741e111b2dadccda698053c92f9649efd4ba4bc60201",
+        "e4adee4a96636616d356a94814f62feb10116042b5a8b159f5b6c395e88373e5",
+        "f6ec0208fcfc0a2323a644acf038e0d30938921ba3df8fb1d4a1a57b1a3b85d3",
+        "277389a19fa68ea78c13805748fb1698cb9fe83d960de7f797fd952e86e88ce5",
+        "e9770b865b38fb7f82bc09b341340f869c55eea99c907eea7e10c746f95ec026",
+        "a5fb54a1fa277c2e07c599c7c787da5d58b2e63633a9aa94b70eebbf4ea1d130",
+        "37b6332781e6a7f2ae5f22d5e21abe8c4aae21ff2ffd50b39def42f53a109fed",
+        "345f0c2bc2a71898107fa4bb43402de6404a2aa9dc22b90385d0dd3a72af96a8",
+        "4725a149b965ae111b2739ca46ff3682368e63f9bf2cfd1a06c63f9c2ed03c8e",
+        "72537a0bd43b5e322064e4058cb54938132e6e0eab8714c52b30093d9eb3fa2c",
+        "e504ca02ab99f6bfe5a10300192123717ded70db1e2f4448ca1969d45bd66aa0",
+        "bb4e1c106f67f64c672bbd41f0b63cec6c0af06999077c3b4d147d3eedb49d4d",
+        "8f835888e987122a5afc5986f7899819c90f264a80650016662e1f4b3c7ece3b",
+        "4ecb87856a07a119bc39e91693d842f68749df7767d5e92786a6622b123220ab",
+        "47fdf895a71003c144e56275f3290f966fc44ee36eabcc3483ec9c1de2b1e3ed",
+        "42b95906d3204e71e67f0ce1a29e395f0c14ba833a0a6e443badc4842b0f901c",
+        "102e7e89d54f2dee1ed3339fa6a39eb181cd05ea6610d17c316dc1fdf1335f57",
+        "bc96fe7f42664eaaf5091a31e45086a5e787600bcf167aa28cd79b84c6fd1ca9",
+        "3c24ce0e80788a94e89657ba17c8f737e661268a8f3be3b8a4595950ddb5ad8f",
+        "df3e9d714f7432a4d87fc386fa9e09d69dc11945c33216ac6da5961a93578e4b",
+        "105cc013ac66c070b3536724ad6de4ede7bf9126e1cc20c58c1aa16b9c4d42bd",
+        "a92fa02fcacb9a5e9c19e73e72958681324c3cb6b6275d26d3fa1a1a89ffdac3",
+        "06e3ad26547cdd1200c2af3fc97f62c4dc04c7cef48e29f37b82879bb76c89d9",
+        "fc80ff1b1c2f011b81d7f2b4bdcc6ac4c83cf146c6c8a9b94a0b8c817598880a",
+        "e4e57f48848c49230479dbc120709dcc670ab9fbbe7b6e9f126dc555d6d67f0b",
+        "d84d4a45e6af932ea32190a1b544db6d98e93ac10e4be9cb8a6a82b2e1d6aa93",
+        "89f0dacbc24a67692dfc88681743dd5cc453d8cb4bb3f0a9042ca8b05aee74d5",
+        "db88a6fa26f2b9cc9f7b0de9844ae791ef2b2e55ccee86527b93ba6a1cd5e79a",
+        "3e7ac6bc7f2359c6a04b70e8e916cfd1b9092d1b5bb904b2d0ff1fabc8504418",
+        "e5801c28c4711e3f9e8b898c18e6fbf77e39f7cbb4964f2b26f3aabaf0c0741e",
+        "257d4bda6fe1552cc687997a287acb089bbd70c70fe025e04bc86f9186370fdf"
+      ],
+      "deletion_ids_by_offer": {
+        "g6-lifecycle-BTC-00": {
+          "deletion_id": "300c6de1acbc74b37fdc741e111b2dadccda698053c92f9649efd4ba4bc60201",
+          "edited_event_id": "53d38ab566f1537005a8156d53436ae36bb2202b9fd344f7bd37a6a0f7aeb0da"
+        },
+        "g6-lifecycle-BTC-01": {
+          "deletion_id": "e4adee4a96636616d356a94814f62feb10116042b5a8b159f5b6c395e88373e5",
+          "edited_event_id": "8c101ac04b8bea0f221d49d24515b07d0c97e9e22dd8367657d8fe26e6fd03d0"
+        },
+        "g6-lifecycle-BTC-02": {
+          "deletion_id": "f6ec0208fcfc0a2323a644acf038e0d30938921ba3df8fb1d4a1a57b1a3b85d3",
+          "edited_event_id": "9290073554cdf80deeee7f984633d5228ea8b966b1b5faa982a35af5f2f3ed59"
+        },
+        "g6-lifecycle-BTC-03": {
+          "deletion_id": "277389a19fa68ea78c13805748fb1698cb9fe83d960de7f797fd952e86e88ce5",
+          "edited_event_id": "89a2f71035f5d8334a2693e4ebba2d25cce46d6a11edaf0c4b9e58da6bd7f3aa"
+        },
+        "g6-lifecycle-BTC-04": {
+          "deletion_id": "e9770b865b38fb7f82bc09b341340f869c55eea99c907eea7e10c746f95ec026",
+          "edited_event_id": "5b8464bad652822aff7a74d78cf4eed62f91fa772619e585477cedd7b7ad54fb"
+        },
+        "g6-lifecycle-BTC-05": {
+          "deletion_id": "a5fb54a1fa277c2e07c599c7c787da5d58b2e63633a9aa94b70eebbf4ea1d130",
+          "edited_event_id": "0213be1f846584affa881a288d1b47946aca1955e619a86da8df32b76b013fed"
+        },
+        "g6-lifecycle-BTC-06": {
+          "deletion_id": "37b6332781e6a7f2ae5f22d5e21abe8c4aae21ff2ffd50b39def42f53a109fed",
+          "edited_event_id": "1571f7527f84df5efe60078a0c4b2e89bd2aea1fa42aeaf1892970f5cf04814e"
+        },
+        "g6-lifecycle-BTC-07": {
+          "deletion_id": "345f0c2bc2a71898107fa4bb43402de6404a2aa9dc22b90385d0dd3a72af96a8",
+          "edited_event_id": "d2cc46c39cfada2ac48663de2f8ae946fcdaff3158f82d5f89505edccda014d3"
+        },
+        "g6-lifecycle-BTC-08": {
+          "deletion_id": "4725a149b965ae111b2739ca46ff3682368e63f9bf2cfd1a06c63f9c2ed03c8e",
+          "edited_event_id": "b8f37a5d5f9383d76e265482baf714bbd9fed8e688118dca42983ed72734d1ac"
+        },
+        "g6-lifecycle-BTC-09": {
+          "deletion_id": "72537a0bd43b5e322064e4058cb54938132e6e0eab8714c52b30093d9eb3fa2c",
+          "edited_event_id": "f5373eb1f16d8f767467bf68a932bce9d551c90797c524bf4f36861a3869794b"
+        },
+        "g6-lifecycle-XMR-00": {
+          "deletion_id": "e504ca02ab99f6bfe5a10300192123717ded70db1e2f4448ca1969d45bd66aa0",
+          "edited_event_id": "5d84fef0c80704333f84676df548a5f4ebf1af28076016309cd51b4b7e7a6b4a"
+        },
+        "g6-lifecycle-XMR-01": {
+          "deletion_id": "bb4e1c106f67f64c672bbd41f0b63cec6c0af06999077c3b4d147d3eedb49d4d",
+          "edited_event_id": "3dbe8bc8ea1fd677e244c2d8e4ba47f38ebc40a471f2c5ef2d02fcfe878921e5"
+        },
+        "g6-lifecycle-XMR-02": {
+          "deletion_id": "8f835888e987122a5afc5986f7899819c90f264a80650016662e1f4b3c7ece3b",
+          "edited_event_id": "0fc676626be0d468fb0b012dec8056cf3c9fff5deadd1fc47a3ada27e5e749d1"
+        },
+        "g6-lifecycle-XMR-03": {
+          "deletion_id": "4ecb87856a07a119bc39e91693d842f68749df7767d5e92786a6622b123220ab",
+          "edited_event_id": "801dc7f70523969aa58d2850af10f4413033bd3f5d9bb697730d59fcff8acc0f"
+        },
+        "g6-lifecycle-XMR-04": {
+          "deletion_id": "47fdf895a71003c144e56275f3290f966fc44ee36eabcc3483ec9c1de2b1e3ed",
+          "edited_event_id": "1417ab2759a7ebae454caf629404f3239aa5329d0f018b7d4de7a741dc7decca"
+        },
+        "g6-lifecycle-XMR-05": {
+          "deletion_id": "42b95906d3204e71e67f0ce1a29e395f0c14ba833a0a6e443badc4842b0f901c",
+          "edited_event_id": "0d40620fc6df19421a1e66a92d9f5baf795939db9c9b12e53e78156ceb3abd7a"
+        },
+        "g6-lifecycle-XMR-06": {
+          "deletion_id": "102e7e89d54f2dee1ed3339fa6a39eb181cd05ea6610d17c316dc1fdf1335f57",
+          "edited_event_id": "5e4715af8931c49b8d815929e76e5cb60574ae046a4214a3337a56031a7ae21b"
+        },
+        "g6-lifecycle-XMR-07": {
+          "deletion_id": "bc96fe7f42664eaaf5091a31e45086a5e787600bcf167aa28cd79b84c6fd1ca9",
+          "edited_event_id": "a4d99708515abecc1f06ebe6535fa4af32464310d7d8ed0b75dd89a6fda55f51"
+        },
+        "g6-lifecycle-XMR-08": {
+          "deletion_id": "3c24ce0e80788a94e89657ba17c8f737e661268a8f3be3b8a4595950ddb5ad8f",
+          "edited_event_id": "22044e20589c3666690cd8e7676768a4f05afb74ee8a1fe182c042cbd011c12a"
+        },
+        "g6-lifecycle-XMR-09": {
+          "deletion_id": "df3e9d714f7432a4d87fc386fa9e09d69dc11945c33216ac6da5961a93578e4b",
+          "edited_event_id": "4eec6995998e90b7fc952b33fb070ae7c3b60ab4faebf55e2a33864100e23283"
+        },
+        "g6-lifecycle-XNO-00": {
+          "deletion_id": "105cc013ac66c070b3536724ad6de4ede7bf9126e1cc20c58c1aa16b9c4d42bd",
+          "edited_event_id": "1fe1dc927263bc2608f638f3751922520f9286c5202cbcf2ca8c1b3e933fd7ec"
+        },
+        "g6-lifecycle-XNO-01": {
+          "deletion_id": "a92fa02fcacb9a5e9c19e73e72958681324c3cb6b6275d26d3fa1a1a89ffdac3",
+          "edited_event_id": "0ce6c38afed457e31b828d26e47591c0bb672ce87cf8af2decae1fd0212a80ca"
+        },
+        "g6-lifecycle-XNO-02": {
+          "deletion_id": "06e3ad26547cdd1200c2af3fc97f62c4dc04c7cef48e29f37b82879bb76c89d9",
+          "edited_event_id": "ac861600463503b7aa409e2b15c37a93ba976b3a3b6111d6643d85ef410573a7"
+        },
+        "g6-lifecycle-XNO-03": {
+          "deletion_id": "fc80ff1b1c2f011b81d7f2b4bdcc6ac4c83cf146c6c8a9b94a0b8c817598880a",
+          "edited_event_id": "5e23d898431bdf32bc43503152d99d8b3ad4798865198b33ffdfc9a09554735b"
+        },
+        "g6-lifecycle-XNO-04": {
+          "deletion_id": "e4e57f48848c49230479dbc120709dcc670ab9fbbe7b6e9f126dc555d6d67f0b",
+          "edited_event_id": "25dc017cc6c50a901c0003fea089db77a14f15858826891bd83f5dec2705bfd8"
+        },
+        "g6-lifecycle-XNO-05": {
+          "deletion_id": "d84d4a45e6af932ea32190a1b544db6d98e93ac10e4be9cb8a6a82b2e1d6aa93",
+          "edited_event_id": "e616a2524ab3079fcaf5ef4e4f7fbfcdeb5ede7b38bdd156dc83a7a5ef5028c8"
+        },
+        "g6-lifecycle-XNO-06": {
+          "deletion_id": "89f0dacbc24a67692dfc88681743dd5cc453d8cb4bb3f0a9042ca8b05aee74d5",
+          "edited_event_id": "d42b8575ec76c5486df7c7a2c3029c427df2822da38d518a820353da54547938"
+        },
+        "g6-lifecycle-XNO-07": {
+          "deletion_id": "db88a6fa26f2b9cc9f7b0de9844ae791ef2b2e55ccee86527b93ba6a1cd5e79a",
+          "edited_event_id": "d8cfac2bf9c9cfc5081fa93388637dad1ae86227f6c52f2cc8bd1846cd5bd59c"
+        },
+        "g6-lifecycle-XNO-08": {
+          "deletion_id": "3e7ac6bc7f2359c6a04b70e8e916cfd1b9092d1b5bb904b2d0ff1fabc8504418",
+          "edited_event_id": "98fc71dc5c15ef431b2a6447e70645578f853155b07cfb9220d093b7f8daacdb"
+        },
+        "g6-lifecycle-XNO-09": {
+          "deletion_id": "e5801c28c4711e3f9e8b898c18e6fbf77e39f7cbb4964f2b26f3aabaf0c0741e",
+          "edited_event_id": "c9b7d9a8f06ec92eda49c7b233d8b1a4e1d784d625106d155db1c0b9201c6b05"
+        }
+      },
+      "relay_1": {
+        "queried_current_events": 69,
+        "deletion_tombstones": 31,
+        "signed_withdrawals_verified": 30,
+        "active_before_expiry": 31,
+        "active_after_expiry": 1,
+        "current_heads_and_tombstones_agree": true,
+        "signature_checked_by_client_reducer": true
+      },
+      "relay_2": {
+        "queried_current_events": 69,
+        "deletion_tombstones": 31,
+        "signed_withdrawals_verified": 30,
+        "active_before_expiry": 31,
+        "active_after_expiry": 1,
+        "current_heads_and_tombstones_agree": true,
+        "signature_checked_by_client_reducer": true
+      },
+      "relay_3": {
+        "queried_current_events": 69,
+        "deletion_tombstones": 31,
+        "signed_withdrawals_verified": 30,
+        "active_before_expiry": 31,
+        "active_after_expiry": 1,
+        "current_heads_and_tombstones_agree": true,
+        "signature_checked_by_client_reducer": true
+      },
+      "relay_4": {
+        "queried_current_events": 69,
+        "deletion_tombstones": 31,
+        "signed_withdrawals_verified": 30,
+        "active_before_expiry": 31,
+        "active_after_expiry": 1,
+        "current_heads_and_tombstones_agree": true,
+        "signature_checked_by_client_reducer": true
+      },
+      "relay_5": {
+        "queried_current_events": 70,
+        "deletion_tombstones": 31,
+        "signed_withdrawals_verified": 30,
+        "active_before_expiry": 31,
+        "active_after_expiry": 1,
+        "current_heads_and_tombstones_agree": true,
+        "signature_checked_by_client_reducer": true
+      }
+    },
+    "amounts_per_currency": {
+      "BTC": {
+        "created": 20,
+        "edited": 10,
+        "withdrawn": 10,
+        "expired": 10
+      },
+      "XMR": {
+        "created": 20,
+        "edited": 10,
+        "withdrawn": 10,
+        "expired": 10
+      },
+      "XNO": {
+        "created": 20,
+        "edited": 10,
+        "withdrawn": 10,
+        "expired": 10
+      }
+    },
+    "multilingual_browser_journeys": [
+      {
+        "sequence": 1,
+        "language": "en",
+        "currency": "BTC",
+        "offer_id": "a9d812b5-dfd8-43d0-8a97-666fa586d947",
+        "title": "G06 en browse contact withdraw 00 4715ef54-b214-4537-916c-5872e6e2f8c0",
+        "event_id": "aa9199b2f6090412584f3ccc1fea2ebcc58a5f637c5ef947274fedc9dfd40002",
+        "withdrawal_id": "7cdc36f85a66604204dad3fac507c427ac3253b5bcd69c0a1a0c5ace6c7e0bb8",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1eypnrdfgyerqx5ywzu9vg3wfmlr6vgzcsat9284ep8wpk022ju9shustmy",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 2,
+        "language": "en",
+        "currency": "XMR",
+        "offer_id": "e3b95995-d410-444b-a698-65438ad86816",
+        "title": "G06 en browse contact withdraw 01 be37b5d8-4964-4118-aaf0-8b5aa01165ea",
+        "event_id": "716e072579946a9290b6ccae2f76c9110551e7591ca82aa4d24677605b58a3cb",
+        "withdrawal_id": "96f36176fc51b4cc943a99fd34af789ba1cc5d25aeb0b197a7e9d92f74bfc394",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1eypnrdfgyerqx5ywzu9vg3wfmlr6vgzcsat9284ep8wpk022ju9shustmy",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 3,
+        "language": "en",
+        "currency": "XNO",
+        "offer_id": "3044e2d0-3dc1-499f-9dc2-ed82948c74c3",
+        "title": "G06 en browse contact withdraw 02 c5c898a5-6480-4ea7-9d94-b1d1cc23bfd6",
+        "event_id": "8fdcc076847428b918a93ffb3db119c7727ef95dfc4616beb0be7c2c404af388",
+        "withdrawal_id": "db16d19cae242003f2cd743c4edb19385650e5f3ccebe9653514e057557cd9cc",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1eypnrdfgyerqx5ywzu9vg3wfmlr6vgzcsat9284ep8wpk022ju9shustmy",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 4,
+        "language": "en",
+        "currency": "BTC",
+        "offer_id": "316907a6-5753-43e8-bce2-bc80602604a5",
+        "title": "G06 en browse contact withdraw 03 84544831-84ec-4ba7-b972-139e0a38ef50",
+        "event_id": "ef3590e197fe7c2bb07bbd718dc110a208ac47b808daa75252e96c92e1611632",
+        "withdrawal_id": "9026a1e512c764865beb0fe1c70de8dfd135deef435c9f6ae25f2b3cd9cb8829",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1eypnrdfgyerqx5ywzu9vg3wfmlr6vgzcsat9284ep8wpk022ju9shustmy",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 5,
+        "language": "en",
+        "currency": "XMR",
+        "offer_id": "1643263c-8c6e-46e6-b893-3dc5a22d7734",
+        "title": "G06 en browse contact withdraw 04 2bb229fa-4651-49e6-abb9-8dbe83eb3985",
+        "event_id": "6b835c591cf6c6b163ce5f318d9a014e830c7bab5e49b850dd6a156543431925",
+        "withdrawal_id": "fa2b594d569e44b4b8d1d197998c75000a55c0c6ec29b12bd8e4fe0e59339997",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1eypnrdfgyerqx5ywzu9vg3wfmlr6vgzcsat9284ep8wpk022ju9shustmy",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 6,
+        "language": "en",
+        "currency": "XNO",
+        "offer_id": "37c58b5d-bd46-4fdc-81c0-024f69ef8d2b",
+        "title": "G06 en browse contact withdraw 05 bb0bac82-7a2e-406d-b99d-13d3a2fcef77",
+        "event_id": "1a5d0174ff4c29ef2a5f354d27f16e0cead05c70f38d6cb1cbb3033e2e49529c",
+        "withdrawal_id": "e49cf5f33ec5e4ca627e183eaad7db25663d331c0a35f0a447e3aa8d8e54b1b0",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_target": "npub1eypnrdfgyerqx5ywzu9vg3wfmlr6vgzcsat9284ep8wpk022ju9shustmy",
+        "private_message_sent": false,
+        "paid_claim": false
+      },
+      {
+        "sequence": 7,
+        "language": "en",
+        "currency": "BTC",
+        "offer_id": "9b9cd317-574e-4e1c-8a1f-0155cd4fca02",
+        "title": "G06 en browse contact withdraw 06 412ff96d-642f-40a1-9cef-ad1fe18b87b6",
+        "event_id": "cb50ae304efb8cd1dcd283a3073b30732ed41832537e6c9c8ca8efe06b7faf3d",
+        "withdrawal_id": "0d580428be72864d7968a6c1b799c411a4998387cec0e1405a7f8d35daac63fe",
+        "author_binding": true,
+        "exact_amount": true,
+        "contact_targewû{⁄⁄$z{-ÆÈ‹j◊ù∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄàÕôÑ–ŸÑÂò‹’Ñ›å‡–Õî–»‹‰¿»¿‹·å‹»ƒ≈å…åÕà¿‡—êÿ‡’ÖïÖïÑ›ïëâôïçî’ïÑ‰Ã»·òà∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ–∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄà»‰ƒ’êŸê‡µÖî·ò¥–Ÿò¿¥·ëê‰µò‘—ôê‰‰¿‹–ƒ‰à∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹ÄÃÃÄŸåƒ≈ò––ƒµê‡»¿¥–≈ïîµÖÑ‰‘µò≈î‹Õïà––Õò–à∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄàÿ‡–…ëÖå‰ƒÿ‡≈êÿƒ»Ã…ò’ïàÃ¿¿—Ñ›Ñ»‹≈âî¿·Ñ‹‹Ã¿ƒ¿ŸêŸïÖëå¿·åÕëÑ¿ÿ—çïâå»à∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄà–Ã¡å·å…î‡ÿ›çâôê—ò≈çòÕçâî‡‰¿¡çê—ôåÿ‰Ã—ò–‘‡’ê‘–»ÃƒÃ·âÑ¡à‡‹»»‘ÿ…ê‡¿à∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ‘∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄà‹…ôåÂîÃ–¥‡‹¿‹¥––‹ƒµàƒ‘–µà‡‹»Ÿò‡‹Ã‰Ãƒà∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹ÄÃ–Ä‘¿»»Ã»ÿ‡µÖïëà¥—Ñ—àµÖî’àµê›ôÑ—ôàÿ‹ÃŸêà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄàÿŸçôòƒƒƒÿÿ‘–ÂàƒÃ‹Õå»¿ƒ‡ÂÑÂå»‘…ò»›êÂà‡–Ÿî·à–‰‹¿‘Âåÿ¡å–…ê‰–¡çàÂò‹–à∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄâïÑ¡Öçî‘ƒ¿Ÿôê––›âëÖôâçâåÿ’åÕêÿÿÃÕôàÃ‡ƒÿ‹Ãƒ–¿…ôòÿ‘’ê–ÃƒÂâà‹—ê…ê…ôòà∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃÿ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄà‘Ã‹‰Ÿïçå¥Ÿå»‘¥–‘ƒ–µàƒÿ»µôÑŸîÃ–¡òÃ»Õòà∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹ÄÃ‘Åôëê’êÿ»‹µåÂÑ¿¥–—å–¥·âê‡µå¡ê≈î¿’çôëçÑà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄâà»ƒ‘¡Ñ––ÿ‹’å–‹‹»»Ã¿ÂÑ…Öò‰—ò¿·Öî‰ƒÕåÃ›ëçòÂåŸâÖê·ê‡‡Õà»ÿ»––ŸôôÑ¡Ñ¿à∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄà¿Âî…Öî¡âåÂî¿‘‡‰–Õçò–ÂÖÑ≈î‰‹ƒ¿»ŸôçàÃÿ’å›ÑŸÖîŸî‘Ã‘ÂÖî»¡à»ƒ–ÿ‡ƒ–¿»¿à∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ‹∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄâà‹¿ƒ—åÿ–¥Ã‡Ãÿ¥–Ã¿»µÑ»…îµôïê‘’ê¿‘‘»¡åà∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹ÄÃÿÄÂà‘»Õà‘–¥—ê‹–¥—ê‰‹µÖëåÃµò≈ò…âÖà…ò≈òÿà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄà‘—Ñ‘»Õî—ÖâêƒŸå‰ÂÑ–’ê‰»¡ôçÑ‘–»»Ÿà‹ÿ¡ÖôàÃ‰–»≈âå–‹Ã…å›Ñ≈àŸê‰ÿ¿Õà‹‰‹à∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄà–—òÿ·îÕôÖÖòÂà¿…ê‡–¿‰ƒ–¡ïÖîÿ‘Ÿôå‡·ïê‘ƒ›êÕÖîÃ‰‘Ÿâïâî·êƒÿ—îÕôà»ƒ≈Ñ‹à∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ‡∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄâîŸà≈îŸî¿¥ƒ‘ƒÃ¥–‘¿ÿ¥‰Ââê¥¿–ÿÃ‹ƒÕà¿‘–‡à∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹ÄÃ‹ÄÃŸà‰‹’ëàµÑÿ≈Ñ¥–›ôò¥‰‘»¿µôçÑÃÃÕå–ŸàŸÑà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄà‰ÿ·Öå…Ñƒ≈ÑÃ›Öà»’îÕëò‡’êÂê‘ÿ–ÿŸôî‡Ââàƒ»»»‡ŸâÑ»ÃŸå·à‹·å‰ƒ‘Âëî’çÑ‡»à∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄâÖôå‰ƒ–ÂâëòÂëê‘ƒ‡≈ê»ƒ‘‰‘¿‹¡ëëà‰Ÿôåƒ’Ñ–»»’êŸò‹‰›ÖïôîÃ‘≈ïêÕå…î–›Ñ—åà∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ‰∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄà‰ƒÃ‰ƒ…î‹µââî¿¥–Ã»ƒµÖî—åµê–‰·Ñ¿‡ÂïçÖàà∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹ÄÃ‡Ä≈ëîŸêÃ‡‰µâàƒ‡¥—ôïò¥‡‰≈ò¥¿‡—ïâå»Ã¡ê‹Ãà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄâëî‹Ã‹·å‰·çïçëî–’ÑÃ›å·Öî‹¿¿ÿÃ≈Öâå‡‡¿¿–·ê—åÃ¿¿»¡ò≈î‰›âò¡Ñ–‹‘ÿÂâò‡–à∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄâëòÿ‡‹‹¿Âî‡ƒ‘‘»ŸîÃ»·âê‘¡çî·ôå¡ê·âê‘‘—à›îƒÿ‹ÃÂàŸà‰Âççà·îƒ…î‹›ÖåÃ‘ÿà∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–¿∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄâÑ‘‘‘‡‹Ã‘µëîŸà¥—Öà‘¥‰Ã¡ò¥–‹¿…Ñ‘–ÃÕò‹»à∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹ÄÃ‰Ä—çåÿ’å…à¥‡‡…å¥–‘…å¥Âçôòµå‡‹’ôåƒÿ‘‹≈åà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄà‡Âëê›ò’ÑÿŸå›ÖÑ≈ëî¿·Ñ’ê–ÿ»‘Ÿê‹Ã—ëê‹ÿÃ–Õå–¡âÑÃ·å‹–—àÂà–‘Ã…ôïî‘‡·êƒà∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄà»‡·ê—î—ëòÂôòÃ·çëÑ¿Ÿïïå‘¿‰‡»‹‘¡êŸà‘ƒŸò¿‰Ã‹»¿¿‘»Ÿëà‘‹ÿ≈ôëå¿ÿ‘Ãÿ—àƒà∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–ƒ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄâêÿ¿–Ÿò»Ã¥ÿ…ïå¥—àƒ‰µà≈çà¥‡¿¿»‰…Öçî≈çòà∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹Ä–¿Ä»›åÿÕà»»¥‰»Ãÿ¥–¡ê–¥Âò—êµëòÂê¿ƒÕò—ÑÃ–à∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄà»–ÿ¡Öå¿ÂÑŸôê‘Ÿâê…à¡ÑŸïÑ¡êƒƒ‘Âò›êƒƒ‹–¿ÕåÕå¡å¡àÕòÿ›à¡î–‡ÿ‰ŸâÑ‰‡¿Ãÿà∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄà»Âê—Öà‰≈âëÑÂåÿ–‰¡âÖà‘ÿ‘‘‡¡ò›Öò»‹·à–»»‰‡ÿ¿¡à»ƒ–ƒƒ¿»ŸïëÖÖçê≈ïîÂàÕîà∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–»∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄà–ÿÕÑÕÖîƒ¥–ÂÑ‰¥—î›òµà»—åµà‘‡ƒ¿‘–¡çîÂòà∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹Ä–ƒÄ—å¿ƒ¿‘Ãÿ¥—à—å¥—âôê¥Âå‘ƒ¥‹Âòÿ¿—ò≈ÖåÃ¿à∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄâåÃ¿‘ÿ…çÑÕò’ôîÃ‹‰ÿ¿≈ò––ƒ¿Ÿò‘¿Ÿïê–—Ñ≈ëê¿…ê≈åÂïôïê»ƒ–Ã»ÿÂå¡ëò›Öåÿ¿¿à∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄâÖôà‰›î‰¿Ã–‰—òÂëò–ƒ‡‡Õê¡ëà…î›ê¡î¿ÃÂå¿‘‡¿»Ã‘‹…Öòƒ¡à‹—ò¡ÑÕçò¡ÑÃ—î–ƒà∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–Ã∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄâî‡—å¿‰»‰¥—ïëÑ¥–ŸçÑ¥·ò·à¥–»ÿ‘»–’å»ƒÿ‰à∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹Ä–»Åçò…çàŸëÑ¥¿¿Âî¥—çïòµÖòÕå¥¡êƒ‰‡Ã…Ñ¡à‡‰à∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄââò¿‡Ã›å≈Ñ—âÖò»ŸÑ›î»›å‹‰¿≈ò»’ê–‘‹»’ò‹—î≈àÿ—å·î‡»¿‰¡à»Ã‹‹‘–—à…î‹–‹à∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄà»‹‰‹ÿƒ»ƒ‹‹…Ñ‹»ÿƒ‰–ƒ‡ƒ‹ƒÂò’çêÿ‘‰ÿÃŸàƒ‰’åÿƒÂåÃ›çò‹›ëî–»Âî‹¡åƒ–»‡»‰à∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ––∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄâà‘ÿ‘¡ê≈ê¥·î‡‘¥–Ã≈åµâêƒ¿µê’åÃ¿ÿŸçëêÕîà∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹Ä–ÃÅê‘‰Âî›êÿ¥—ëîÿ¥–ƒ¿ÿµà—ò¿µò‡‹ÿ‘—çêÃ‰’àà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄàÿ‹ÿÃ‡‘Õà›ôÑ’Öêƒÿ¿’ïî¡ïå·Öâàƒ¿Ãÿ’Öêƒ‹‰»»‘·å¡åŸàƒ›îƒ‰¡ê›âÑƒÃ¿·Ñ¿≈îà∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄà·ôî¡ê≈çôà‘Ã≈åÂòÂïîÂÖââôôÑ’ôà·å‘Ã¿ÿÕôêÃ‘¿–ƒÃŸò‰›ò‡–’Ñ›çå‹¿ÃÂò–¿Ã‰à∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–‘∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄâÖïàÃ‡≈ïê¥»‹¿¿¥—à‡»¥‰ÃŸîµÑ‰Ã‰…ïÖà¡å¿¿à∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹Ä––Åî—àƒÂÑ›à¥»‹‰‘¥–·Ñ‹¥‡¿Ãÿµïê‘ÂâÑ‹≈ëïòÿà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄâÖçî›î›î–—ê·à‹Ã‡Õò‡≈ïàÿ‹¿‡Ÿçà‘‰›ò¿»ƒÿ»…ê‘Ÿôò—âïò¿‰—Öà‘¡ÖïïòÿƒƒÕïàà∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄà›ò≈ïà≈åÂÖÑ—å¿–Âò›çëÖÑ–Õà»»‹ƒƒ…ò»‘¡âëÑ·âïïÑƒƒ·Ñ›êƒŸïëÖò’îŸî‘ÿ¿—ëÑà∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–ÿ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄâÑ‘›î–‡…ò¥‰‹·à¥—ê‰‰µÑ·ôàµò·êÿÿ›êÃÿÃŸåà∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹Ä–‘Ä»‘‰Ã‘Âîÿµò‡…î¥–»≈î¥·ôâåµëëçêÿÂÑ»‰…ëêà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄâëÖåƒÿ‹≈ôàÃ·à¿–ŸÖëçî›îÕççëôò»‹ŸîÂÖââïÖò¡ôôôçò‹–‘Ÿå‹’îÂò—Ñ»ÿ’ê»’çåà∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄà»‘–‰ƒ¿–≈ò‘¿»ÿ‰Ã‘‘ÿÃÿ›ò›îÕâàƒ¿ÿ¿»‘¿Ãƒ‘‘Ã»‹…âçôÑŸïà‘Âî›ïå·âëÑ—à¿ƒÿà∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–‹∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄà¡ÑÃ»‹ÕÑ»¥Õëê‹¥—çà¿µâÖâåµïêÃ—çâïÑƒ’Öåà∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹Ä–ÿÄ·î»›ê…Öò¥‰¿ÿÃ¥—ïàƒ¥‡ÿŸò¥ÿ‡ÂîÕåÕçåƒÂòà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄà≈å¡àƒ‰Âê–ŸåÂÖâå‘Õôê‡¿»…ÖëëêÂê‡‡…î‘›Ñ›à‹·ïôò’çî–ÿÂå≈ÖàÂçÖà—òŸÖòƒ‡à∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄâôçëîÃ‡¿≈î‰Âå‹‘Ÿå¡ê–‹’ôÖôÖÖî‰¡âà¡Öââò¿»ÃÃ—Ñ‹¡å»ÿ…âê‡‡ÿŸÑ‘‹ƒƒƒ»—îƒà∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–‡∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄà–‡Ÿâê‰ÿ‡¥›å‡‹¥–…à¿¥‰‡Ã‹¥Õïå’îƒÿ‘–‡‘»à∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹Ä–‹Åî·Öê¿›åÿ¥Ã‘¿‹¥–‰‰‹µÑ‡ƒ¿¥…ëê»·åŸà‰Ã’àà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄàÃÃ≈î‘Õî≈ïëò…ò»’åÂïê’ôâôòÃ‹ƒ‘›î–‹¿ƒ—ÖîÕî‹ŸëÖà≈àŸò‰ƒ‹ÿ…î»Ÿïî‹‡’ïê‡à∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄâêÕà¿–ƒÃƒ≈ÖÑÃ‘—î…àÿ‰¿≈çàÂà›à–‡Ã›Ñÿ’ò‹¡îƒŸôê‰ƒ—ê‡¡ïê¿»¿Âå¡ôâïå·Ñ‘‘à∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–‰∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄà‡‹‘‘≈å‘–¥ÿ’à¿¥–Ã·ÑµâêÃƒµò›à‹≈à¿—ïò—òà∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹Ä–‡ÅÑ…Ñ≈ïâåÃ¥›ôî‹¥–‘¿»¥Âî·Ñ¥Ã¿Âî‹–ÕÑ¡ïÖÑà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄà–ƒ¡ôÖïà–ƒ‰‡·ê›ò·ëëÑÃ›Ñ·êƒ‹‰‡‡ÕçââåÃ‡Ã¿¿‘·Ñ‹¿≈Öî≈çåÕÑ¿–·çê≈à›å’îÃà∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄà‡ƒÂò»…ê—î–‘…ôôâÑ…àÿ‰–—âàƒÿ‹‹‡‰ÿ‡‰·Öçïà‹≈à’âà¿¿‰–‰–‘…Ñ–ƒ¡êÃ‘ŸëÑÃƒà∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ‘¿∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâΩôôï…}•êàËÄâà–≈Öà‰ÃÃ¥–—î–¥—Ñ—à¥‡ÿ¡å¥ÿÂÖåÕà¿Ã’ÑŸàà∞(ÄÄÄÄÄÄÄÄâ—•—±îàËÄâ¿ÿÅ¡–µ	HÅâ…Ω›ÕîÅçΩπ—Öç–Å›•—°ë…Ö‹Ä–‰Åà‡≈ÑŸÑ‘Ãµê»Õà¥–ÿÃ»µÑƒ…îµê‘¿ÿ–‡‹’à¿Ãƒà∞(ÄÄÄÄÄÄÄÄâïŸïπ—}•êàËÄâî»Âà·ïò¿Õå¡î’Ñ…àÂà‡»‹¡çëâî¡ê¿‘Ÿò‹ÿŸôòÂò›Ñ‡›ôå≈î≈êÂî·ôÖê–‘‘≈å’âê»à∞(ÄÄÄÄÄÄÄÄâ›•—°ë…Ö›Ö±}•êàËÄâåÃ›âò–‡Õïò‘¿—åŸêÿŸêƒ¿‰ÿÿÂïê¡êÃ—å¿‰Ã…ò¿–ÿ‘‡‡‹ÿ–‘Âëà‹‹ÕåÃ‡ƒ…òÿ≈ê—îà∞(ÄÄÄÄÄÄÄÄâÖ’—°Ω…}â•πë•πúàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâï·Öç—}ÖµΩ’π–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâçΩπ—Öç—}—Ö…ùï–àËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄÄÄÄÄâ¡Ö•ë}ç±Ö•¥àËÅôÖ±Õî(ÄÄÄÄÄÅÙ(ÄÄÄÅt∞(ÄÄÄÄâ±ΩçÖ±}ô•±—ï…}©Ω’…πïÂÃàËÅl(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄƒ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄƒ‡Ã∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄƒ‡Ã(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ»∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄƒ‡‘∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄƒ‡‘(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄƒ‡‹∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄƒ‡‹(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄƒ‡‰∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄƒ‡‰(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ‘∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄƒ‰ƒ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄƒ‰ƒ(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÿ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄƒ‰Ã∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄƒ‰Ã(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ‹∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄƒ‰‘∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄƒ‰‘(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ‡∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄƒ‰‹∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄƒ‰‹(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ‰∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄƒ‰‰∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄƒ‰‰(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄƒ¿∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»¿ƒ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»¿ƒ(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄƒƒ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»¿Ã∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»¿Ã(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄƒ»∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»¿‘∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»¿‘(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄƒÃ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»¿‹∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»¿‹(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄƒ–∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»¿‰∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»¿‰(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄƒ‘∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»ƒƒ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»ƒƒ(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄƒÿ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»ƒÃ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»ƒÃ(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄƒ‹∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»ƒ‘∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»ƒ‘(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄƒ‡∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»ƒ‹∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»ƒ‹(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄƒ‰∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»ƒ‰∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»ƒ‰(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ»¿∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»»ƒ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»»ƒ(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ»ƒ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»»Ã∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»»Ã(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ»»∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»»‘∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»»‘(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ»Ã∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»»‹∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»»‹(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ»–∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»»‰∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»»‰(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ»‘∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâï∏à∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»Ãƒ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»Ãƒ(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ»ÿ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»ÃÃ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»ÃÃ(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ»‹∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»Ã‘∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»Ã‘(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ»‡∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»Ã‹∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»Ã‹(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ»‰∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»Ã‰∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»Ã‰(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ¿∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»–ƒ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»–ƒ(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃƒ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»–Ã∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»–Ã(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ»∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»–‘∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»–‘(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃÃ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»–‹∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»–‹(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ–∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»–‰∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»–‰(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ‘∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»‘ƒ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»‘ƒ(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃÿ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»‘Ã∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»‘Ã(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ‹∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»‘‘∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»‘‘(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ‡∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»‘‹∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»‘‹(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄÃ‰∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»‘‰∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»‘‰(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–¿∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»ÿƒ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»ÿƒ(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–ƒ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»ÿÃ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»ÿÃ(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–»∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»ÿ‘∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»ÿ‘(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–Ã∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»ÿ‹∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»ÿ‹(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ––∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»ÿ‰∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»ÿ‰(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–‘∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»‹ƒ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»‹ƒ(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–ÿ∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»‹Ã∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»‹Ã(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–‹∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»‹‘∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»‹‘(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–‡∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa5Hà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»‹‹∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»‹‹(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ–‰∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâa9<à∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâ•—ï¥à∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»‹‰∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»‹‰(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâÕï≈’ïπçîàËÄ‘¿∞(ÄÄÄÄÄÄÄÄâ±Öπù’ÖùîàËÄâ¡–µ	Hà∞(ÄÄÄÄÄÄÄÄâç’……ïπç‰àËÄâ	Qà∞(ÄÄÄÄÄÄÄÄâ—Â¡îàËÄâÕï…Ÿ•çîà∞(ÄÄÄÄÄÄÄÄâÕïÖ…ç°}°•–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—Â¡ï}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâïµ¡—Â}—ï·—}…ïÕ’±–àËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ¡…•çï}ÕΩ…—}ç’……ïπçÂ}ÕçΩ¡ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}âïôΩ…îàËÄ»‡ƒ∞(ÄÄÄÄÄÄÄÄâ…ï±ÖÂ}≈’ï…•ïÕ}Öô—ï»àËÄ»‡ƒ(ÄÄÄÄÄÅÙ(ÄÄÄÅt∞(ÄÄÄÄâ±ΩçÖ±}ô•±—ï…}©Ω’…πïÂ}çΩ’π–àËÄ‘¿∞(ÄÄÄÄâ±ΩçÖ±}ô•±—ï…}±Öπù’ÖùïÃàËÅÏ(ÄÄÄÄÄÄâï∏àËÄ»‘∞(ÄÄÄÄÄÄâ¡–µ	HàËÄ»‘(ÄÄÄÅÙ∞(ÄÄÄÄâ±ΩçÖ±}ô•±—ï…}…ï±ÖÂ}≈’ï…•ïÃàËÄ¿∞(ÄÄÄÄââ…Ω›Õï…}©Ω’…πïÂ}çΩ’π–àËÄ‘¿∞(ÄÄÄÄâ±Öπù’ÖùïÃàËÅÏ(ÄÄÄÄÄÄâï∏àËÄ»‘∞(ÄÄÄÄÄÄâ¡–µ	HàËÄ»‘(ÄÄÄÅÙ∞(ÄÄÄÄâ¡’â±•ç}¡…•ŸÖ—ï}±Öâï±Õ}ç±ïÖ»àËÅ—…’î∞(ÄÄÄÄâçΩπ—Öç—}ë•ë}πΩ—}¡’â±•Õ°}µïÕÕÖùîàËÅ—…’î∞(ÄÄÄÄâ›•—°ë…Ö›Ö±}ïŸïπ—Õ}Õ•ùπïêàËÄ‘¿∞(ÄÄÄÄâôÖ±Õï}¡Ö•ë}•πë•çÖ—Ω…ÃàËÄ¿(ÄÅÙ∞(ÄÄâëï±ï—•Ω∏àËÅÏ(ÄÄÄÄâÕï±±ï…}Õ•ùπïë}›•—°ë…Ö›Ö±}•êàËÄàÿ‡–‡Õâê‰—âò‰ƒ‘≈îÂî¿¡âïåÕê·ê–‡‰Ã—ïàÂå¿‘…òÕî‹Ã›Öôâò–ŸÑ‡‡›âà‹Ã¡Ñ·Ñ‘à∞(ÄÄÄÄâÕï±±ï…}›•—°ë…Ö›Ö±}Õ•ùπÖ—’…ï}ŸÖ±•êàËÅ—…’î∞(ÄÄÄÄâΩ±ë}çΩ¡Â}…ï¡±ÖÂïë}—Ω}H’}Öô—ï…}—ΩµâÕ—ΩπîàËÅ—…’î∞(ÄÄÄÄâ—ΩµâÕ—Ωπï}…ïµΩŸïë}¡…•Ω…}çΩ¡‰àËÅ—…’î∞(ÄÄÄÄâ…ï¡±ÖÂ}Öç¨àËÅÏ(ÄÄÄÄÄÄâÖççï¡—ïêàËÅôÖ±Õî∞(ÄÄÄÄÄÄâµïÕÕÖùîàËÄâ……Ω»ÅçΩëîËÄƒ‡ƒƒ∞ÅµïÕÕÖùîËÅâ±Ωç≠ïêËÅÑÅëï±ï—•Ω∏ÅïŸïπ–Åï·•Õ—Ãà(ÄÄÄÅÙ∞(ÄÄÄÄâ…ï±ÖÂ}¡…Ωë’ç—}çΩ¡•ïÕ}Öô—ï…}›•—°ë…Ö›Ö∞àËÅl(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâ•êàËÄà–ÿ—Ñ»‘‰‰‹ƒ’Ñ‘‹»≈å‰¿ÿ‘ÿ‰ÂàÃ…à‰’à¿¡âÖî‘Ÿëê’ÑÂëëïê¿‰¡î…ôçå‹Ã…ëÑÿ»–Ãà∞(ÄÄÄÄÄÄÄÄâêàËÄâëê‘‡‘¿Ãƒ¥…åÿÿ¥—Ñ–¿¥‰Õà‰µàÿÃ›åÿÿ‘ÃŸçàà∞(ÄÄÄÄÄÄÄÄâπÖµîàËÄâ¿ÿÅΩπîÅ…Ö‹Ä‘‡Ã—Öî…à¥—Ñÿ‘¥–…Ñ‰¥·Öòÿµî≈çî‡·ôà‘›ê¿à(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâ•êàËÄâÑ¿‡¿…ê‰ÿ›êÿ‹ÿ·ò›å¿¿‘ÿ›ê›ê‡—ïòƒ…ò¿Âòƒÿƒ‡—î‹ÿ‹‡ÃÂçâëÖÑÃÿÃƒ¿¿›î¡åÃ‹à∞(ÄÄÄÄÄÄÄÄâêàËÄâòƒÂò‡Ÿò‡¥‹Âò‰¥–ÿÿ‹µâôò‰¥·îƒ¡òÿ’ëëÑÕåà∞(ÄÄÄÄÄÄÄÄâπÖµîàËÄâ¿ÿÅΩπîÅ¡•çΩπï…ºÄ≈òƒ·î‘≈ò¥—î’Ñ¥–›Ñ‰µÑƒ≈ò¥Ÿê’åÂëçëÖïÖåà(ÄÄÄÄÄÅÙ(ÄÄÄÅt∞(ÄÄÄÄâÖç—•Ÿï}πÖµïÕ}Öô—ï…}›•—°ë…Ö›Ö∞àËÅl(ÄÄÄÄÄÄâ¿ÿÅΩπîÅ…Ö‹Ä‘‡Ã—Öî…à¥—Ñÿ‘¥–…Ñ‰¥·Öòÿµî≈çî‡·ôà‘›ê¿à∞(ÄÄÄÄÄÄâ¿ÿÅΩπîÅ¡•çΩπï…ºÄ≈òƒ·î‘≈ò¥—î’Ñ¥–›Ñ‰µÑƒ≈ò¥Ÿê’åÂëçëÖïÖåà(ÄÄÄÅt∞(ÄÄÄÄâΩ±ë}çΩ¡Â}ë•ë}πΩ—}…ïÕ’……ïç–àËÅ—…’î∞(ÄÄÄÄâ’πÖ’—°Ω…•Èïë}ëï±ï—•Ωπ}•êàËÄâôò›ò‡–ÂòÃ¡ïò‘·ïÖà—âÑÿ–Ÿçå’ÖåÕê’à≈ââîÂëôî»¿Ã·ê¿‰»—à¿—à‹¿Ã¡à·âê‰‡–à∞(ÄÄÄÄâ’πÖ’—°Ω…•Èïë}Ö’—°Ω…}çΩ’±ë}πΩ—}›•—°ë…Ö‹àËÅ—…’î∞(ÄÄÄÄâïÖ…±•ï…}—•µïÕ—Öµ¡}ëï±ï—•Ωπ}ô•·—’…ï}•êàËÄàŸÖëîÃ›çÖëëî’åƒ¿¿—çò»Ã‘ƒ‰Ã¿‘›åÕê‰…âêÕå¡ÖçåÃÂëÖòƒ¡îƒ¿‘‹ÃÂÑƒ›àƒŸÑ›Ñà∞(ÄÄÄÄâç±•ïπ—}•ùπΩ…ïë}Ω±ëï…}ëï±ï—•Ωπ}—•µïÕ—Öµ¿àËÅ—…’î∞(ÄÄÄÄâ…ï±ÖÂ}’πµΩë•ô•ïë}âÂ}Ω±ëï…}ëï±ï—•Ωπ}ô•·—’…îàËÅ—…’î(ÄÅÙ∞(ÄÄâÕïç’…•—‰àËÅÏ(ÄÄÄÄâ—•µï}ô•·—’…ï}…ï±ÖÂ}Öç≠ÃàËÅl(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâ•êàËÄà‹ƒ‡ÿ‹‡‹…å‰¿»»–‡¿–ŸïôôêÃ—Ñ›à‰›à¿¡î’ïî’àÃÃ‰ƒŸâê‰¿—âïåÂïåÃ‘ÃÃ’îÕÖôêà∞(ÄÄÄÄÄÄÄÄâÖççï¡—ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâµïÕÕÖùîàËÄàà(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâ•êàËÄâÑ‘–‡Ÿå»Ÿà‹»Õê¿‹ƒ‘Ã‡≈àÿ≈î‡ƒ·òÂà»»‰Ÿò≈ê‰‘‘ƒƒ‹¿‘Õëê‰»»ÿÿÃ»»Âò‰¡Ñ»≈òà∞(ÄÄÄÄÄÄÄÄâÖççï¡—ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâµïÕÕÖùîàËÄàà(ÄÄÄÄÄÅÙ(ÄÄÄÅt∞(ÄÄÄÄâô•·—’…ï}…ï±ÖÂ}Öç≠ÃàËÅl(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâ•êàËÄàƒÃ›à›ê–‘¡ê¿›å‹—à‹›î—î…ëå‡ƒ¿ÿ…î‹›ÖàÂÑ‹ÃÂçàƒ¿ƒ…ëê¡ò›à»¡ôò‘¿¡ëà‡¿»»à∞(ÄÄÄÄÄÄÄÄâÖççï¡—ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâµïÕÕÖùîàËÄàà(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâ•êàËÄâå‹‡ÿ—Ñ‰‹Ã‡ƒ‹Ÿî›àƒƒ—ê‘ƒ»ŸïïÖò›å‹–Âïî—ê¡çÖëÑ‘≈ò‹–Ã‡‘…âêƒƒ»ƒ›êŸâêÂàà∞(ÄÄÄÄÄÄÄÄâÖççï¡—ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâµïÕÕÖùîàËÄàà(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâ•êàËÄâî‰ÿ‘‘¿Âê‡¡Öçî¡àƒ¿Ã…å≈ò‡ƒÃƒÂòÿ‰»»ƒ…ê≈Ñ—å‡¿‹ÿÿ…à‹Ã‘¿‰»»‘Ã‹‡‹—îÿÿ‹‡à∞(ÄÄÄÄÄÄÄÄâÖççï¡—ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâµïÕÕÖùîàËÄàà(ÄÄÄÄÄÅÙ∞(ÄÄÄÄÄÅÏ(ÄÄÄÄÄÄÄÄâ•êàËÄàÂçêƒ‘Ã»…ôÖòÃ—ò¿’ôê¡çà‘–‡’å»‘»—Ñ—àÂå‘‰·ÖïÑ‡‰›âçå‘–—îÕïà»ƒÃ·î¿¡å—îà∞(ÄÄÄÄÄÄÄÄâÖççï¡—ïêàËÅ—…’î∞(ÄÄÄÄÄÄÄÄâµïÕÕÖùîàËÄàà(ÄÄÄÄÄÅÙ(ÄÄÄÅt∞(ÄÄÄÄâï·¡•…ïë}ïŸïπ—}…ï©ïç—ïë}âÂ}ï·¡•…Ö—•Ωπ}—ÖúàËÅ—…’î∞(ÄÄÄÄâô’—’…ï}—•µïÕ—Öµ¡}°•ëëï∏àËÅ—…’î∞(ÄÄÄÄâ’π≠πΩ›π}ç’……ïπçÂ}°•ëëï∏àËÅ—…’î∞(ÄÄÄÄâµÖ±ôΩ…µïë}çΩπ—ïπ—}°•ëëï∏àËÅ—…’î∞(ÄÄÄÄâë’¡±•çÖ—ï}Öëë…ïÕÕ}—Öù}°•ëëï∏àËÅ—…’î∞(ÄÄÄÄâ’πÕÖôï}°——¡}•µÖùï}πΩ—}±•π≠ïë}Ω…}±ΩÖëïêàËÅ—…’î∞(ÄÄÄÄâ•π©ïç—ïë}°—µ±}…ïπëï…ïë}ÖÕ}—ï·–àËÅ—…’î∞(ÄÄÄÄâÕç…•¡—}ï·ïç’—•Ω∏àËÅôÖ±Õî∞(ÄÄÄÄâ’πÕ’¡¡Ω…—ïë}ç’……ïπçÂ}Õ’âµ•ÕÕ•Ωπ}â±Ωç≠ïêàËÅ—…’î∞(ÄÄÄÄâï·çïÕÕ}¡…ïç•Õ•Ωπ}Õ’âµ•ÕÕ•Ωπ}â±Ωç≠ïêàËÅ—…’î∞(ÄÄÄÄâΩŸï…ô±Ω›}Õ’âµ•ÕÕ•Ωπ}â±Ωç≠ïêàËÅ—…’î∞(ÄÄÄÄâ•πŸÖ±•ë}Õ’âµ•ÕÕ•ΩπÕ}¡’â±•Õ°ïêàËÅôÖ±Õî(ÄÅÙ∞(ÄÄâçΩπ—Öç–àËÅÏ(ÄÄÄÄâ—Ö…ùï—}¡’â≠ï‰àËÄâå‰¿ÃÃ≈à‘»‡»ÿ–ÿ¿Ã‘¿·îƒ‹¡Öå––’åÂëôå›Ñÿ»¿‘‡‡‹‘ÿ‘‘≈ïà‰¿Âëå≈àÕê—Ñ‰‹¡àà∞(ÄÄÄÄâ—Ö…ùï—}π¡’ààËÄâπ¡’à≈ïÂ¡π…ëôùÂï…≈‡’Â›È‘ÂŸúÕ›ôµ±»ŸŸùÈçÕÖ–‰»‡—ï¿·›¡¨¿»…©‘ÂÕ°’Õ—µ‰à∞(ÄÄÄÄâΩôôï…}¡…•çï}¡…ïÕï…ŸïêàËÅ—…’î∞(ÄÄÄÄâïŸïπ—}•ëÕ}âïôΩ…ï}Öπë}Öô—ï…}ï≈’Ö∞àËÅ—…’î∞(ÄÄÄÄâç°ïç≠Ω’—}Ω…}¡ÖÂµïπ—}ïŸïπ—}ç…ïÖ—ïêàËÅôÖ±Õî∞(ÄÄÄÄâ¡…•ŸÖ—ï}µïÕÕÖùï}Õïπ–àËÅôÖ±Õî∞(ÄÄÄÄâπ•¿ƒ’}ë…Öô—}πΩ—•çîàËÄâ9%@¥ƒ‘Å•ÃÅÑÅë…Öô–Å¡…Ω—ΩçΩ∞ÅµÖ…≠ïêÅÖÃÅπΩ–Å…ïçΩµµïπëïê∏ÅQ°îÅ5Y@Å±ï—ÃÅÂΩ‘Å¡’â±•Õ†∞Åïë•–∞ÅÖπêÅ…ï≈’ïÕ–Å…ïµΩŸÖ∞ÅΩòÅΩôôï…ÃÏÅ•–ÅëΩïÃÅπΩ–Å¡…ΩçïÕÃÅ¡ÖÂµïπ—ÃÅΩ»Å¡…ΩŸ•ëîÅç’Õ—Ωë‰∏ÅQ°îÅ¡ÖÂµïπ–Å…Ö•∞Å•ÃÅÑÅÕï±±ï»Åëïç±Ö…Ö—•Ω∏∞ÅπΩ–ÅŸï…•ô•ïêÅ›Ö±±ï–ÅΩ›πï…Õ°•¿ÅΩ»Å¡…ΩΩòÅΩòÅ¡ÖÂµïπ–∏à(ÄÅÙ∞(ÄÄââ…Ω›Õï»àËÅÏ(ÄÄÄÄâ¡±ÖÂ›…•ù°—}Ÿï…Õ•Ω∏àËÄàƒ∏ÿ»∏ƒà∞(ÄÄÄÄâ¡±ÖÂ›…•ù°—}¡Öç≠Öùï}Õ°Ñ»‘ÿàËÄâò¿—Ñ‹ƒ·î›à‡»»‡¡î‰’ò¡ëâîÿ¡Ñ»’ôÑ‘ÕÖàƒÃ¿—êÂçîÃ‡‹Ã‘‘‘’àÃ≈î…ê¿ÂÑŸïêÃ¿à∞(ÄÄÄÄââ…Ω›Õï…}Ÿï…Õ•Ω∏àËÄàƒ‘Ã∏¿∏‡¿ƒ¿∏ƒ»à∞(ÄÄÄÄââ…Ω›Õï…}ï·ïç’—Öâ±ï}Õ°Ñ»‘ÿàËÄâëïê‰ÕÑÂåÂÑ‘ÕÑ≈Öî¿–¡ò¿‡ƒ»—âÖëççÑ‰’å‰Ã·îÂê‘¿ƒ’ôòÃ–¡åÕà‘‘Ã·å–≈âòÃÂîà(ÄÅÙ∞(ÄÄâ±ΩçÖ±}Ω…•ù•∏àËÄâ°——¿Ëººƒ»‹∏¿∏¿∏ƒËÃ‡ÿ»Ãà∞(ÄÄâ•ëïπ—•—•ïÃàËÅÏ(ÄÄÄÄâÕï±±ï…}¡’â≠ï‰àËÄâå‰¿ÃÃ≈à‘»‡»ÿ–ÿ¿Ã‘¿·îƒ‹¡Öå––’åÂëôå›Ñÿ»¿‘‡‡‹‘ÿ‘‘≈ïà‰¿Âëå≈àÕê—Ñ‰‹¡àà∞(ÄÄÄÄââ’Âï…}¡’â≠ï‰àËÄà‡Ãÿ‹ÿ≈âîŸåÕòŸëÖî≈ëåƒ—ïÑ¿≈Öïîƒ‡‰’ëå‹Ã»¿–‘—à’âà‹‹‰ÿ¿‰‰ÿ‰ÿ‡›çà‹Ã‹‹ƒà∞(ÄÄÄÄââ…•ëùï}¡’â≠ï‰àËÄàÃ‘–‹»ÕåÂëÖëà—Ñ‡»Õî…Öò–—ò≈ò‡’çåÂà–ƒ–’î·Ñÿƒ‡ÂçÑ‹––‡‹¿»ŸÑƒ’Ñ‡ƒ‘ƒ‹‡¿à(ÄÅÙ∞(ÄÄâ…ïÕ’±–àËÄâAMLà)Ù(
