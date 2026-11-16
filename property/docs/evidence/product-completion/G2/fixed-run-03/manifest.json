@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "gate": "G2",
+  "result": "PASS",
+  "source_commit": "4e1b231ccd190af569dd2890022dd4e8d053fcc8",
+  "operating_system": "Ubuntu Linux x86_64",
+  "criteria": {
+    "two_clean_worktree_builds": "PASS",
+    "artifact_hashes_identical": "PASS",
+    "local_browser_egress_and_executable_loads": "PASS",
+    "missing_bundle_member_rejected_before_install": "PASS",
+    "altered_checksum_rejected_before_install": "PASS",
+    "sbom_license_provenance_coverage": "PASS",
+    "fail_closed_metadata_policy": "PASS",
+    "offline_install_update_cli_and_uninstall": "PASS",
+    "secret_and_generated_file_scan": "PASS"
+  },
+  "artifact_hashes": [
+    {
+      "name": "property-ubuntu-x86_64.tar.gz",
+      "bytes": 68546245,
+      "sha256": "2d51240a76ed902101b3284454f76c0a6a8aad6070916f29f446005283923c70"
+    },
+    {
+      "name": "release-archive.sha256",
+      "bytes": 96,
+      "sha256": "201ff5930cc94485144ecaf752fcc6259c830ace08e27fb3f8c86e65e8a64b5c"
+    },
+    {
+      "name": "release-manifest.json",
+      "bytes": 146570,
+      "sha256": "f5626dc23063a97011b2c5f4d25e6c0d63578644bb4a9843b174bd0139762b01"
+    },
+    {
+      "name": "release-manifest.sha256",
+      "bytes": 88,
+      "sha256": "bd19cedd9234cd83a128428533eaf69273864c44cb9590c18ba9af8b6d05d18d"
+    },
+    {
+      "name": "release-manifest.sig",
+      "bytes": 89,
+      "sha256": "9adf6707b783a8858cc526f4f878aeb1876b0ed0e8fa839584a9a2627899da4d"
+    },
+    {
+      "name": "release-signing-public.pem",
+      "bytes": 113,
+      "sha256": "ae7d7f07ca289e7df301004e0e01bf9ea956c5000cc5f90a05dfbe5a7e5f73c9"
+    }
+  ],
+  "evidence_files": [
+    "reproducible-builds.json",
+    "browser-egress-report.json",
+    "offline-package-report.json",
+    "metadata-policy-report.json"
+  ]
+}
