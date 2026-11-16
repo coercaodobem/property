@@ -9,8 +9,8 @@
       "observed": {
         "branch": "modelo-mvp",
         "remote_url": "https://github.com/coercaodobem/property.git",
-        "source_commit": "a2ac830e2c06715bb0f50e377b8dd12b4f889ca4",
-        "remote_tracking_commit": "a2ac830e2c06715bb0f50e377b8dd12b4f889ca4",
+        "source_commit": "4e1b231ccd190af569dd2890022dd4e8d053fcc8",
+        "remote_tracking_commit": "4e1b231ccd190af569dd2890022dd4e8d053fcc8",
         "tracked_worktree_clean": true,
         "environment": {
           "os": "Ubuntu 26.04 LTS",
