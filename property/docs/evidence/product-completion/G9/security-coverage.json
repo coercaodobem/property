@@ -18,13 +18,15 @@
     }
   },
   "static_analysis": {
-    "result": "BLOCKED_FOR_DEPENDENCY_SECURITY_COVERAGE",
-    "available_local_checks": [
+    "result": "PARTIAL",
+    "automated_checks_passed": [
       "offline Geode source compilation",
-      "full fixed-count functional smoke suite",
-      "package and metadata policy checks"
+      "Node.js syntax checks",
+      "shell syntax checks",
+      "85-file fixed-count offline regression suite"
     ],
-    "missing_scanners": [
+    "security_static_scan": "BLOCKED: no local static security scanner is installed; no clean result is claimed.",
+    "unavailable_tools": [
       "gitleaks",
       "osv-scanner",
       "trivy",
@@ -47,18 +49,40 @@
     "limitations": "Four limited high-confidence patterns; not a comprehensive repository scan and binary contents are not scanned."
   },
   "license_and_provenance": {
-    "result": "PASS_LIMITED_POLICY_CASES",
-    "cases": 7,
-    "evidence": "fixed-run-02/license-metadata-policy-report.json",
-    "scope": "Policy fixtures only; the existing dependency/license inventory remains recorded in G0 and is not a vulnerability scan."
+    "result": "PASS_FOR_TEMPORARY_G9_CANDIDATE_BUNDLE",
+    "policy_fixture_cases": 7,
+    "sbom_coverage": "SPDX-2.3; 414/414 payload files have records and license/provenance metadata; 413/413 non-self files have verified SHA-256 checks.",
+    "evidence": [
+      "fixed-run-02/license-metadata-policy-report.json",
+      "fixed-run-02/sbom-coverage-report.json",
+      "fixed-run-02/SBOM.spdx.json"
+    ],
+    "limitation": "The temporary bundle is G9 audit evidence, not a published or final G10 release."
   },
   "current_release_sbom": {
-    "result": "PENDING_G10",
-    "note": "G10 has not started because G9 is incomplete."
+    "result": "PASS_FOR_G9_CANDIDATE",
+    "evidence": "fixed-run-02/SBOM.spdx.json"
   },
   "geode_jvm_test_suite": {
     "result": "BLOCKED",
     "evidence": "jvm-test-report.json"
   },
-  "overall_limitation": "G9 cannot pass until the exact Linux relay JAR/JRE dependency set receives vulnerability coverage with an available scanner/database and the offline JVM test dependencies are available."
+  "overall_limitation": "G9 cannot pass until the exact Geode JAR/JRE dependency set receives vulnerability coverage with an available offline scanner/database and the offline JVM test dependencies are available.",
+  "candidate_spdx_sbom": {
+    "result": "PASS",
+    "format": "SPDX-2.3",
+    "source_commit": "67507a33dc7c1ede266d204a3d85aeb0749064af",
+    "payload_files": 414,
+    "spdx_file_records": 414,
+    "individual_sha256_checks": 413,
+    "license_and_provenance_records": 414,
+    "manifest_signature_verified": true,
+    "archive_sha256": "363e7c7f44e3333659af164b0d25f07be637fd8f52ddd764892e27a91793d084",
+    "evidence": "fixed-run-02/sbom-coverage-report.json and fixed-run-02/SBOM.spdx.json",
+    "scope": "Built and verified offline in a temporary bundle using an ephemeral local key; not published."
+  },
+  "g10_published_release_sbom": {
+    "result": "PENDING_G10",
+    "note": "No release publication or G10 install/update test was performed."
+  }
 }

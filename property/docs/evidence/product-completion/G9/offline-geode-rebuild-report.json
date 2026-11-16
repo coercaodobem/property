@@ -1,7 +1,6 @@
 {
   "schema_version": 2,
   "gate": "G9",
-  "candidate_parent": "bfb1850f667a504bf944cfa1898d1fa009eb44a7",
   "profile": "Ubuntu Linux x86_64; offline build and local fixtures",
   "network_access": "disabled; no dependencies downloaded",
   "toolchain": {
@@ -48,5 +47,6 @@
     ],
     "network_fetch_attempted": false,
     "report": "jvm-test-report.json"
-  }
+  },
+  "source_revision_basis": "Geode source changes and rebuilt Linux runtime correspond to 8b372e79295acb682b24287dcd5398ba32c5b3c9; current candidate 67507a33dc7c1ede266d204a3d85aeb0749064af adds only the first-party release SBOM mapping fix."
 }

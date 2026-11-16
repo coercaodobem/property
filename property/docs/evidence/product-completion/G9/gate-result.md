@@ -2,7 +2,7 @@
 
 **Result:** `BLOCKED` — the implemented checks below passed, but G9 is incomplete. G10 remains `NOT RUN`, as required by the gate order.
 
-**Candidate base:** `bfb1850f667a504bf944cfa1898d1fa009eb44a7`, plus this milestone's source, package, test, and evidence changes. All relay fixtures used loopback; no public relay, mainnet funds, or secrets were used.
+**Candidate:** `67507a33dc7c1ede266d204a3d85aeb0749064af` on `modelo-mvp`. All relay fixtures used loopback; no public relay, mainnet funds, or secrets were used.
 
 ## Completed checks
 
@@ -19,13 +19,14 @@
 | Integrated local suite | `PASS`: 85 test files completed and emitted the final success marker. [`full-suite-summary.json`](full-suite-summary.json) |
 | Offline npm advisory check | No known advisories in the local npm cache for the JavaScript lockfile (1,170 dependencies reported). The cache may be stale and this does not cover relay JARs/JRE. [`npm-audit-report.json`](fixed-run-02/npm-audit-report.json) |
 | Limited secret-pattern scan | `PASS`: 263 text files scanned, zero matches for four recorded patterns in `property/web`, `property/agent`, and `property/relay`. This is not a complete secret scan. [`secret-pattern-scan-report.json`](fixed-run-02/secret-pattern-scan-report.json) |
-| License/provenance policy fixtures | `PASS`: 7 checks accept known metadata and reject unknown license, missing source, or missing component metadata. This is a policy fixture, not a complete release SBOM. [`license-metadata-policy-report.json`](fixed-run-02/license-metadata-policy-report.json) |
+| Candidate SPDX SBOM | `PASS`: SPDX 2.3 covers all 414 payload files with 414 records; 413 non-self records have SHA-256 checks, and all 414 have license/provenance metadata. The temporary bundle signature verified with a disposable local key; it was not published. [`sbom-coverage-report.json`](fixed-run-02/sbom-coverage-report.json), [`SBOM.spdx.json`](fixed-run-02/SBOM.spdx.json) |
+| License/provenance policy fixtures | `PASS`: 7 checks accept known metadata and reject unknown license, missing source, or missing component metadata. [`license-metadata-policy-report.json`](fixed-run-02/license-metadata-policy-report.json) |
 
 ## Items preventing approval
 
 - **Geode JVM tests (`BLOCKED`):** `:geode:test --offline` cannot resolve uncached `junit:junit:4.13.2` and `kotlinx-serialization-core:1.11.0`. The `RelayRetentionTest` is present but the Gradle test suite did not execute; no pass is claimed. [`jvm-test-report.json`](jvm-test-report.json)
-- **Dependency vulnerability coverage (`BLOCKED`):** no vulnerability scanner or offline vulnerability database is available for the exact Geode JARs and bundled JRE. `gitleaks`, `osv-scanner`, `trivy`, `syft`, `grype`, `semgrep`, and OWASP Dependency-Check are absent. The offline npm audit is limited to the JS lockfile and its local advisory cache. [`security-coverage.json`](security-coverage.json)
-- **Release SBOM (`PENDING`):** the final G10 bundle has not been built; G10 must not begin until G9 passes.
+- **Automated security scans (`BLOCKED`):** no static security scanner is installed, and no offline vulnerability scanner/database is available for the exact Geode JARs and bundled JRE. `gitleaks`, `osv-scanner`, `trivy`, `syft`, `grype`, `semgrep`, and OWASP Dependency-Check are absent. Compilation, syntax checks, and functional regressions passed, but no JAR/JRE vulnerability coverage is claimed. Offline npm audit covers only the JS lockfile and local advisory cache. [`security-coverage.json`](security-coverage.json)
+- **Published release and G10 onboarding (`PENDING`):** only a temporary local bundle was created to verify the G9 SBOM. No public release, installation, update, downgrade, or Pages deployment was performed; G10 has not started.
 
 Windows, macOS, Android, iOS, and iPadOS remain `PENDING`; no build or test on those systems was started. Human review was not an acceptance criterion.
 

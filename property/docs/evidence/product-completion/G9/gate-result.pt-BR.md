@@ -2,7 +2,7 @@
 
 **Resultado:** `BLOCKED` — as verificações concluídas abaixo passaram, mas G9 está incompleto. G10 permanece `NOT RUN`, conforme a ordem dos gates.
 
-**Base do candidato:** `bfb1850f667a504bf944cfa1898d1fa009eb44a7`, mais as alterações de fonte, pacote, testes e evidências deste marco. Todos os relays de teste usaram loopback; não foram usados relays públicos, fundos de mainnet ou segredos.
+**Candidato:** `67507a33dc7c1ede266d204a3d85aeb0749064af` em `modelo-mvp`. Todos os relays de teste usaram loopback; não foram usados relays públicos, fundos de mainnet ou segredos.
 
 ## Verificações concluídas
 
@@ -19,13 +19,14 @@
 | Suíte local integrada | `PASS`: 85 arquivos de teste concluíram e emitiram o marcador final de sucesso. [`full-suite-summary.json`](full-suite-summary.json) |
 | Auditoria npm offline | Nenhuma vulnerabilidade conhecida no cache local do npm para o lockfile JavaScript (1.170 dependências reportadas). O cache pode estar desatualizado e não cobre JAR/JRE do relay. [`npm-audit-report.json`](fixed-run-02/npm-audit-report.json) |
 | Busca limitada por padrões de segredo | `PASS`: 263 arquivos textuais analisados, sem correspondências para quatro padrões em `property/web`, `property/agent` e `property/relay`. Não é um scan completo de segredos. [`secret-pattern-scan-report.json`](fixed-run-02/secret-pattern-scan-report.json) |
-| Fixtures da política de licença/proveniência | `PASS`: 7 verificações aceitam metadados conhecidos e rejeitam licença desconhecida, fonte ausente ou componente sem metadados. É uma fixture de política, não um SBOM completo do release. [`license-metadata-policy-report.json`](fixed-run-02/license-metadata-policy-report.json) |
+| SBOM SPDX do candidato | `PASS`: SPDX 2.3 cobre os 414 arquivos do pacote com 414 registros; os 413 registros sem autorreferência têm SHA-256 verificado e todos os 414 têm metadados de licença/proveniência. A assinatura do bundle temporário foi verificada com chave descartável local; ele não foi publicado. [`sbom-coverage-report.json`](fixed-run-02/sbom-coverage-report.json), [`SBOM.spdx.json`](fixed-run-02/SBOM.spdx.json) |
+| Fixtures da política de licença/proveniência | `PASS`: 7 verificações aceitam metadados conhecidos e rejeitam licença desconhecida, fonte ausente ou componente sem metadados. [`license-metadata-policy-report.json`](fixed-run-02/license-metadata-policy-report.json) |
 
 ## Itens que impedem aprovação
 
 - **Testes JVM do Geode (`BLOCKED`):** `:geode:test --offline` não encontra no cache `junit:junit:4.13.2` e `kotlinx-serialization-core:1.11.0`. `RelayRetentionTest` foi adicionada, mas a suíte Gradle não executou; não alegamos aprovação. [`jvm-test-report.json`](jvm-test-report.json)
-- **Cobertura de vulnerabilidade das dependências (`BLOCKED`):** não há scanner de vulnerabilidade ou base offline para os JARs Geode e JRE incluídos. `gitleaks`, `osv-scanner`, `trivy`, `syft`, `grype`, `semgrep` e OWASP Dependency-Check não estão disponíveis. A auditoria npm offline cobre apenas o lockfile JS e seu cache local de advisories. [`security-coverage.json`](security-coverage.json)
-- **SBOM do release (`PENDING`):** o bundle final do G10 ainda não foi criado; G10 não pode começar antes de G9 passar.
+- **Scans de segurança automatizados (`BLOCKED`):** não há scanner estático de segurança instalado nem scanner/base offline de vulnerabilidades para os JARs Geode e o JRE incluído. `gitleaks`, `osv-scanner`, `trivy`, `syft`, `grype`, `semgrep` e OWASP Dependency-Check não estão disponíveis. Compilação, verificações de sintaxe e regressões funcionais passaram, mas não alegamos cobertura de vulnerabilidades do JAR/JRE. A auditoria npm offline cobre apenas o lockfile JS e seu cache local de advisories. [`security-coverage.json`](security-coverage.json)
+- **Release publicado e onboarding G10 (`PENDING`):** foi criado apenas um bundle local temporário para verificar o SBOM do G9. Não houve release público, testes de instalação/atualização/downgrade nem publicação no Pages; G10 não começou.
 
 Windows, macOS, Android, iOS e iPadOS permanecem `PENDING`; nenhum build ou teste nesses sistemas foi iniciado. Revisão humana não foi usada como critério de aprovação.
 

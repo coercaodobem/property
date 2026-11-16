@@ -92,11 +92,11 @@
     "agent-package-smoke.sh"
   ],
   "final_marker_present": true,
-  "run_id": "fixed-run-02",
-  "candidate_parent": "bfb1850f667a504bf944cfa1898d1fa009eb44a7",
+  "run_id": "fixed-run-02-final",
   "exit_code": 0,
   "test_headings_observed": 85,
   "success_marker_observed": true,
   "relay_runtime_archive_sha256": "b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a",
-  "execution_scope": "Offline Ubuntu Linux x86_64 fixtures; local relays bound to loopback; no public network test traffic."
+  "execution_scope": "Offline Ubuntu Linux x86_64 fixtures; local relays bound to loopback; no public network test traffic.",
+  "candidate_commit": "67507a33dc7c1ede266d204a3d85aeb0749064af"
 }

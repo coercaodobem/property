@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "gate": "G9",
+  "case": "SBOM-current-candidate-coverage",
+  "result": "PASS",
+  "source_commit": "67507a33dc7c1ede266d204a3d85aeb0749064af",
+  "profile": "Ubuntu Linux x86_64; local offline temporary bundle; no publication",
+  "format": "SPDX-2.3",
+  "archive_sha256": "363e7c7f44e3333659af164b0d25f07be637fd8f52ddd764892e27a91793d084",
+  "sbom_sha256": "e7463e7fc35cc271d10501893a0308baac57e7a4dd0e4028c2c34fc62de831b2",
+  "manifest_signature_verified": true,
+  "release_payload_files": 414,
+  "spdx_file_records": 414,
+  "files_with_verified_sha256": 413,
+  "files_with_license_and_provenance": 414,
+  "runtime_jars": 48,
+  "runtime_archive_files": 142,
+  "signing_key": "ephemeral Ed25519 key used for local self-consistency verification and deleted by the harness; not a project release key",
+  "network_access": "none",
+  "published": false,
+  "evidence": "SBOM.spdx.json is extracted from the temporary bundle. G10 publication and install/update tests remain unrun."
+}
