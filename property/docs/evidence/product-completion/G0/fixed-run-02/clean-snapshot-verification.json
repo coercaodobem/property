@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "gate": "G0",
+  "case_id": "G0-01/G0-06",
+  "result": "PASS",
+  "candidate_source_commit": "a2ac830e2c06715bb0f50e377b8dd12b4f889ca4",
+  "branch": "modelo-mvp",
+  "remote_head_before_run": "a2ac830e2c06715bb0f50e377b8dd12b4f889ca4",
+  "tracked_worktree_clean_before_evidence_write": true,
+  "runtime_file_count": 566,
+  "runtime_bytes": 249496372,
+  "runtime_tree_sha256": "b7ba15fbb2dfb8ff494a2378752859c4d750e81aef3a73ec047edd9402ae001f"
+}

@@ -9,13 +9,13 @@
       "observed": {
         "branch": "modelo-mvp",
         "remote_url": "https://github.com/coercaodobem/property.git",
-        "source_commit": "a6dd70907b9855f4de8132df37a6e6b3d7fee7c9",
-        "remote_tracking_commit": "a6dd70907b9855f4de8132df37a6e6b3d7fee7c9",
+        "source_commit": "a2ac830e2c06715bb0f50e377b8dd12b4f889ca4",
+        "remote_tracking_commit": "a2ac830e2c06715bb0f50e377b8dd12b4f889ca4",
         "tracked_worktree_clean": true,
         "environment": {
           "os": "Ubuntu 26.04 LTS",
           "os_id": "ubuntu",
-          "kernel": "7.0.0-42-generic",
+          "kernel": "7.0.0-43-generic",
           "architecture": "x86_64",
           "node": "v22.22.1",
           "python": "3.13.13",
@@ -44,7 +44,7 @@
       "result": "PASS",
       "assertion": "Runtime network destinations, initiators, triggers, exposure, and offline substitution rules are inventoried; external executable loads are rejected.",
       "observed": {
-        "destination_classes": 14
+        "destination_classes": 15
       }
     },
     {
@@ -60,9 +60,9 @@
       "result": "PASS",
       "assertion": "Every tracked file under web/agent/relay matches its recorded SHA-256 and the runtime tree contains no untracked files or symlinks.",
       "observed": {
-        "runtime_files": 552,
-        "runtime_bytes": 249632803,
-        "tree_sha256": "7067b852c4dd4252e06829bbb10dd3233dda79bf7b94d044ed37aec36e556854"
+        "runtime_files": 566,
+        "runtime_bytes": 249496372,
+        "tree_sha256": "b7ba15fbb2dfb8ff494a2378752859c4d750e81aef3a73ec047edd9402ae001f"
       }
     },
     {
