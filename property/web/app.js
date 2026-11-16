@@ -2579,8 +2579,8 @@
     if (conversation.group === true) {
       const count = conversation.members?.length || 0;
       $('chat-group-details').textContent = localized(
-        `Private NIP-17 group · ${count} members. Group membership and removal controls are not available in this app.`,
-        `Grupo privado NIP-17 · ${count} participantes. Este app não oferece controles de associação ou remoção de membros.`
+        `Private NIP-17 group · ${count} members. Groups have no administrator or reliable member removal; membership changes require a new group.`,
+        `Grupo privado NIP-17 · ${count} participantes. Grupos não têm administrador nem remoção confiável de membros; mudanças de participantes exigem um novo grupo.`
       );
       renderPeerIdentityProofs(null);
     } else {
@@ -5081,6 +5081,16 @@
     state.readReceiptCandidates.clear();
     const allEntries = (await all('messages')).filter(message => message.peer === peer && !message.hiddenFromChat).sort((a, b) => a.createdAt - b.createdAt);
     const conversation = await get('conversations', peer);
+    const groupSenderNames = new Map();
+    if (conversation?.group === true) {
+      const senders = [...new Set(allEntries.filter(message => message.direction !== 'sent' && /^[0-9a-f]{64}$/i.test(message.senderPubkey || '')).map(message => message.senderPubkey.toLowerCase()))];
+      for (const sender of senders) {
+        const local = await get('conversations', sender).catch(() => null);
+        const profile = state.peerProfiles.get(sender);
+        const name = local?.title || profile?.displayName || profile?.name || '';
+        if (name) groupSenderNames.set(sender, name);
+      }
+    }
     const moderation = window.PropertyLocalModeration;
     const blockedPeers = state.pubkey && moderation
       ? new Set(moderation.blockedPeers(await all('settings'), state.pubkey))
@@ -5185,7 +5195,11 @@
       }
       row.dataset.eventIds = [...new Set([...MessageEdits.eventIds(message), ...MessageDeletions.messageEventIds(message)])].join(',');
       if (message.fromAgent) { const author = document.createElement('span'); author.className = 'agent-message-author'; author.textContent = message.agentMessageError ? 'Protocolo de agente · mensagem não reconhecida' : 'Protocolo de agente · identidade Nostr'; row.append(author); }
-      if (conversation?.group && message.direction !== 'sent') { const author = document.createElement('span'); author.className = 'group-message-author'; author.textContent = displayName(message.senderPubkey || '', ''); row.append(author); }
+      if (conversation?.group && message.direction !== 'sent') {
+        const author = document.createElement('span'); author.className = 'group-message-author';
+        const sender = String(message.senderPubkey || '').toLowerCase();
+        author.textContent = displayName(sender, groupSenderNames.get(sender) || ''); row.append(author);
+      }
       if (message.replyToId) {
         const parent = byEventId.get(message.replyToId);
         const quote = document.createElement('button'); quote.className = 'reply-reference'; quote.type = 'button';

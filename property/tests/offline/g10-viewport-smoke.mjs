@@ -14,8 +14,8 @@ assert.ok(config, 'pinned browser configuration is required');
 const output = path.resolve(outputArg); await mkdir(output, { recursive: true, mode: 0o700 });
 const report = { schema_version: 1, viewport_case: 'G10-05', pwa_fallback_case: 'G12-06', result: 'FAIL',
   viewports: [], unnamed_controls: [], focus: null, install_fallback: null, browser: null, external_requests: [], evidence: [],
-  visual_review: { status: 'PENDING_HUMAN_REVIEW', required_screenshots: 8, captured_screenshots: 0,
-    note: 'Captures document the automated journey; they do not simulate human review.' } };
+  visual_review: { status: 'NOT_REQUIRED_BY_SCOPE', required_screenshots: 8, captured_screenshots: 0,
+    note: 'Screenshots are machine-captured layout evidence; this plan excludes human review.' }, language: null };
 const app = startAppServer(), proxy = startProxy();
 let runtime, context, page;
 try {
@@ -30,8 +30,19 @@ try {
   context.on('request', request => { if (new URL(request.url()).origin !== origin) report.external_requests.push(new URL(request.url()).origin); });
   await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort('blockedbyclient'));
   page = await openApp(context, origin);
+  assert.equal(await page.locator('#language-picker').inputValue(), 'en', 'English is the default application language');
   await createAccount(page);
   assert.equal(await page.locator('#workspace').isVisible(), true, 'interactive app workspace is usable');
+  await page.locator('#profile-button').click();
+  await page.locator('#profile-name').fill('G10 Human Content');
+  await page.locator('#language-picker').selectOption('pt-BR');
+  await page.waitForFunction(() => document.querySelector('#empty-new-chat')?.textContent.trim() === 'Nova conversa');
+  assert.equal(await page.locator('#profile-name').inputValue(), 'G10 Human Content', 'changing interface language leaves user-written profile text unchanged');
+  await page.locator('#profile-dialog [aria-label="Fechar"], #profile-dialog [aria-label="Close"]').click();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.locator('#workspace').waitFor({ state: 'visible', timeout: 20000 });
+  assert.equal(await page.locator('#language-picker').inputValue(), 'pt-BR', 'Portuguese selection persists after reload');
+  report.language = { default: 'en', selected: 'pt-BR', persists_after_reload: true, user_content_unchanged: true };
   const screenshotDir = path.join(output, 'screenshots');
   await mkdir(screenshotDir, { recursive: true, mode: 0o700 });
   const captureScreenshot = async name => {
@@ -104,7 +115,18 @@ try {
     install_instructions_visible: [...document.querySelectorAll('body *')].some(element => /instale este app|adicione.*tela inicial/i.test(element.textContent||''))
   }));
   assert.equal(installFallback.workspace_usable, true);
-  assert.equal(installFallback.custom_install_controls, 0, 'unsupported browser receives no fake install control');
+  assert.ok(installFallback.custom_install_controls >= 1, 'install help remains available when the browser has no native prompt');
+  await page.locator('#profile-button').click();
+  const installButton = page.locator('[data-install-property]:visible').first();
+  await installButton.click();
+  await page.locator('#install-app-dialog').waitFor({ state: 'visible' });
+  const fallbackCopy = (await page.locator('#install-app-dialog').innerText()).replace(/\s+/g, ' ');
+  assert.match(fallbackCopy, /Caso contrário, continue usando o Property no navegador\./, 'fallback tells the person they can keep using the site');
+  installFallback.install_instructions_visible = true;
+  await page.locator('#install-app-dialog button').filter({ hasText: 'Concluído' }).click();
+  await page.locator('#install-app-dialog').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('#workspace').isVisible(), true, 'the site stays usable after dismissing install help');
+  installFallback.instructions_copy = fallbackCopy;
   report.install_fallback = installFallback;
   report.pwa_fallback_case_result = 'PASS';
   report.visual_review.captured_screenshots = report.evidence.length;

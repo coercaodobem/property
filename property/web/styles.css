@@ -102,6 +102,25 @@
 
 .message-read-receipt{display:inline-block;margin-left:8px;padding:1px 6px;border:1px solid #59663d;border-radius:999px;background:#28321f;color:var(--accent);font-weight:650;line-height:1.35}
 
+/* Preserve every navigation target when 200% zoom reduces the viewport to a very narrow CSS width. */
+@media(max-width:200px){
+  .app-shell,.workspace,.topbar,.sidebar,.main-nav,.content-view{min-width:0;max-width:100vw}
+  .topbar{width:100%;gap:2px;overflow:hidden}
+  .brand{font-size:0;gap:0;margin-right:0;flex:0 0 auto}
+  .brand-mark{font-size:14px}
+  .language-picker{width:52px;min-width:52px;max-width:52px;flex:0 0 52px;padding-inline:1px;font-size:8px}
+  .sidebar{width:100%}
+  .main-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:2px;overflow:hidden}
+  .nav-button{width:100%;min-width:0;flex:none;gap:0;padding:1px;font-size:8px;line-height:1;text-align:center}
+  .nav-button>span:first-child{width:auto;font-size:12px;line-height:1}
+  .nav-button>span:last-child{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1}
+}
+
+@media(max-width:430px){
+  .composer-format-tools{min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}
+  .composer-format-tools>.format-button{flex:0 0 40px}
+}
+
 .call-launch-button{font-size:16px!important;color:var(--accent)!important}
 .incoming-call-dialog,.call-session-dialog{width:min(560px,calc(100% - 28px))}
 .incoming-call-dialog[open],.call-session-dialog[open]{max-height:min(90dvh,780px);overflow:auto}

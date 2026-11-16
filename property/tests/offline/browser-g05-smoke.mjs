@@ -15,7 +15,7 @@ import { installProcessGroupSignalCleanup, registerProcessGroup, stopProcessGrou
 installProcessGroupSignalCleanup();
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const WEB = path.join(ROOT, 'property/web');
+const WEB = path.resolve(process.env.PROPERTY_WEB_ROOT || path.join(ROOT, 'property/web'));
 const PASSWORD = 'Property-offline-g05-test!';
 const ABSENCE_QUERY_REPETITIONS = 3;
 const NEGATIVE_BOUNDARY_REPETITIONS = 3;
