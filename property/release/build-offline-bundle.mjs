@@ -172,6 +172,8 @@ function licenseFor(relative, runtimeLock) {
   if (/property\/release\/licenses\/dependencies\/(4koma|konbini)-MIT\.txt$/.test(p)) return { component: 'MIT-third-party-license-text', license: 'MIT', source: p };
   if (p === 'property/web/vendor/nostr-tools-2.25.2.bundle.js' || p === 'property/web/vendor/nostr-tools-LICENSE.txt' || p === 'property/web/vendor/nostr-tools-LICENSE') return { component: 'nostr-tools-web-2.25.2', license: 'Unlicense', source: p };
   if (p === 'property/agent/vendor/nostr-tools-2.25.2.bundle.js' || p === 'property/agent/vendor/nostr-tools-LICENSE.txt' || p === 'property/agent/vendor/nostr-tools-LICENSE') return { component: 'nostr-tools-agent-2.25.2', license: 'Unlicense', source: p };
+  if (['property/agent/vendor/protocol-contract.js', 'property/agent/vendor/money.js',
+    'property/agent/vendor/marketplace.js'].includes(p)) return firstParty('property-first-party');
   if (p === 'property/web/vendor/qr-code-generator.js' || p === 'property/web/vendor/QR-CODE-GENERATOR-LICENSE.txt') return { component: 'qr-code-generator', license: 'MIT', source: p };
   if (p === 'property/web/vendor/emoji-data-15.json') return { component: 'emoji-mart-data-1.2.1', license: 'MIT', source: p };
   if (p === 'property/web/vendor/licenses/emoji-mart-data-MIT.txt') return { component: 'emoji-mart-data-1.2.1', license: 'MIT', source: p };
