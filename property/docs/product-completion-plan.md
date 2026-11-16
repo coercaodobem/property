@@ -124,7 +124,7 @@ The historical [central test plan](plano-de-testes-central.md) remains the autho
 
 ### G6 — Hangout and decentralized marketplace discovery
 
-**Build:** Complete browse, search, open, publish, edit, and withdraw flows for public Hangout notes and offers. Define a versioned offer schema for service/item, terms, seller identity, currency, amount in integer atomic units, payment rail, expiry, relay hints, and contact event. Keep the exact value in strings/integers; floating-point display values never drive payment. Resolve NIP-15 compatibility through a documented adapter/version; do not silently reinterpret fields from draft or legacy clients. Show sponsored items distinctly and disclose that public events are public.
+**Build:** Complete browse, search, open, publish, edit, and withdraw flows for public Hangout notes and offers. Define a versioned offer schema for service/item, terms, seller identity, currency, amount in integer atomic units, payment rail, expiry, relay hints, and contact event. Keep the exact value in strings/integers; floating-point display values never drive payment. Resolve NIP-15 compatibility through a documented adapter/version; do not silently reinterpret fields from draft or legacy clients. Show sponsored items distinctly and disclose that public events are public. Text, type, and currency search runs locally over offers already loaded; changing a filter sends no new queries. Price sorting is available only after selecting one currency so incomparable units are never ranked together.
 
 **Automated acceptance:**
 
@@ -132,6 +132,7 @@ The historical [central test plan](plano-de-testes-central.md) remains the autho
 - Round-trip 100 boundary amount vectors per currency, including zero, maximum supported representation, over-limit, fractional, and malformed values; reject all unsafe values and never round silently.
 - Run 50 Hangout journeys covering author verification, dedupe, relay changes, direct-message entry, empty results, and malformed posts.
 - Run 25 browser journeys per language through browse-to-contact and publish-to-withdraw flows; assert accessible names, clear public/private labeling, and absence of a false paid indicator.
+- Run 25 filter journeys per language. Cover text, currency, type, newest/price sorting within one currency, empty results, and prove filtering sends no relay requests; the notice must distinguish local filtering from refreshing selected relays.
 - Replay 20 same-author offer conflicts and 20 cross-relay out-of-order updates; apply the G1 rule deterministically.
 
 **Deliverables:** Offer/event schema, the [NIP-15 adapter decision](nip15-property-adapter.md), complete human PWA marketplace and Hangout journeys, and both-language automated evidence. `marketplace-g6-fixed-count.mjs` owns the exact amount/lifecycle/conflict counts; the browser gate checks five local Geode relays and the fixed-language UI journeys. The executed result is recorded in the [G6 gate evidence](evidence/product-completion/G6/gate-result.md).

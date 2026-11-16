@@ -72,6 +72,31 @@ assert.equal(dataFor({ id: 'g6-max-xno-raw', currency: 'XNO', atomic: money.CURR
   money.CURRENCIES.XNO.max, 'XNO maximum raw remains exact even though its NIP-15 number is only a display compatibility projection');
 const validVersioned = product({ id: 'g6-valid-schema', currency: 'BTC', atomic: '1', createdAt: baseTime + 1 });
 assert.equal(active([validVersioned], baseTime + 2).length, 1, 'versioned Property offer is accepted');
+const searchableOffers = [
+  product({ id: 'g6-filter-btc-expensive', currency: 'BTC', atomic: '200000000', createdAt: baseTime + 3, name: 'Café lamp' }),
+  product({ id: 'g6-filter-btc-cheap-service', currency: 'BTC', atomic: '1', createdAt: baseTime + 2, name: 'Garden lamp service' }),
+  product({ id: 'g6-filter-xmr', currency: 'XMR', atomic: '1000000000000', createdAt: baseTime + 4, name: 'Tea set' }),
+  product({ id: 'g6-filter-xno-service', currency: 'XNO', atomic: '1', createdAt: baseTime + 5, name: 'Lamp repair' }),
+  product({ id: 'g6-filter-xmr-service', currency: 'XMR', atomic: '2', createdAt: baseTime + 1, name: 'Garden repair service' })
+];
+const searchable = active(searchableOffers, baseTime + 10);
+assert.equal(searchable.length, 5, 'signed search fixtures are accepted as public offers');
+const filteredIds = options => JSON.parse(JSON.stringify(market.filterProducts(searchable, options).map(row => row.data.id)));
+assert.deepEqual(filteredIds({ query: 'cafe' }),
+  ['g6-filter-btc-expensive'], 'text search folds accents and searches locally');
+assert.deepEqual(filteredIds({ currency: 'BTC' }),
+  ['g6-filter-btc-expensive', 'g6-filter-btc-cheap-service'], 'currency filter keeps only the selected currency');
+assert.deepEqual(filteredIds({ offerType: 'service' }),
+  ['g6-filter-xno-service', 'g6-filter-btc-cheap-service', 'g6-filter-xmr-service'], 'type filter returns only services');
+assert.deepEqual(filteredIds({ currency: 'BTC', sort: 'price-asc' }),
+  ['g6-filter-btc-cheap-service', 'g6-filter-btc-expensive'], 'price sort uses exact integer atomic amounts');
+assert.deepEqual(filteredIds({ currency: 'BTC', sort: 'price-desc' }),
+  ['g6-filter-btc-expensive', 'g6-filter-btc-cheap-service'], 'descending price sort reverses exact atomic order');
+assert.deepEqual(filteredIds({ currency: 'all', sort: 'price-asc' }),
+  JSON.parse(JSON.stringify(searchable.map(row => row.data.id))), 'price sort falls back to newest when currency units are mixed');
+assert.equal(market.filterProducts(searchable, { query: 'not present' }).length, 0, 'empty local result is represented by an empty list');
+assert.equal(market.filterProducts(searchable, { currency: 'invalid', offerType: 'invalid' }).length, 5,
+  'unknown filter values do not hide valid offers');
 const unknownSchemaData = { ...JSON.parse(validVersioned.content), schema: 'property-marketplace-offer/v999' };
 const unknownSchema = sign(30018, protocol.canonicalJson(unknownSchemaData), baseTime + 1, [['d', 'g6-valid-schema']], secrets[0]);
 assert.equal(active([unknownSchema], baseTime + 2).length, 0, 'unknown offer schema is rejected');
@@ -160,6 +185,8 @@ const report = {
   gate: 'G6', suite: 'marketplace-g6-fixed-count', result: 'PASS',
   network: 'signed synthetic fixtures; local reducer; no relay, wallet, or public network access',
   amount_vectors: amountCounts,
+  local_search: { signed_offers: searchableOffers.length, assertions: 8, accent_folding: true,
+    price_ordering: 'integer atomic amounts; only one selected currency', network_access: false },
   lifecycle: { per_currency: lifecycleCounts, synthetic_offer_events: lifecycleEvents.length,
     relays_simulated: relayStores.length, active_before_expiry: beforeExpiryStates[0].length,
     active_after_expiry: afterExpiryStates[0].length, unrelated_offer_preserved: true,

@@ -124,7 +124,7 @@ O [plano central de testes](plano-de-testes-central.pt-BR.md) continua sendo a r
 
 ### G6 — Hangout e descoberta descentralizada do marketplace
 
-**Implementar:** Concluir fluxos de navegar, buscar, abrir, publicar, editar e retirar notas públicas do Hangout e ofertas. Definir schema de oferta versionado para produto/serviço, termos, identidade do vendedor, moeda, valor em unidade atômica inteira, meio de pagamento, expiração, dicas de relay e evento de contato. Manter valor exato como string/inteiro; números de ponto flutuante para exibição nunca comandam pagamento. Resolver compatibilidade NIP-15 com adapter/versão documentado; não reinterpretar silenciosamente campos de clientes draft/legados. Destacar itens patrocinados e informar que eventos públicos são públicos.
+**Implementar:** Concluir fluxos de navegar, buscar, abrir, publicar, editar e retirar notas públicas do Hangout e ofertas. Definir schema de oferta versionado para produto/serviço, termos, identidade do vendedor, moeda, valor em unidade atômica inteira, meio de pagamento, expiração, dicas de relay e evento de contato. Manter valor exato como string/inteiro; números de ponto flutuante para exibição nunca comandam pagamento. Resolver compatibilidade NIP-15 com adapter/versão documentado; não reinterpretar silenciosamente campos de clientes draft/legados. Destacar itens patrocinados e informar que eventos públicos são públicos. A busca por texto, tipo e moeda atua localmente sobre as ofertas já carregadas; mudança de filtro não emite novas consultas. Só comparar preço depois de escolher uma moeda, preservando a semântica das unidades.
 
 **Critérios automatizados:**
 
@@ -132,6 +132,7 @@ O [plano central de testes](plano-de-testes-central.pt-BR.md) continua sendo a r
 - Fazer round-trip de 100 vetores de valor de fronteira por moeda, incluindo zero, máximo da representação, acima do limite, fracionário e malformado; rejeitar todos os valores inseguros sem arredondamento silencioso.
 - Executar 50 jornadas de Hangout cobrindo verificação de autor, deduplicação, troca de relay, início de mensagem direta, resultados vazios e posts malformados.
 - Executar 25 jornadas por idioma no navegador nos fluxos de navegação→contato e publicação→retirada; verificar nomes acessíveis, marcação clara de público/privado e ausência de indicador falso de pagamento.
+- Executar 25 jornadas de filtro em cada idioma. Cobrir texto, moeda, tipo, ordenação recente/preço na mesma moeda, resultado vazio e prova de que filtrar não envia requisições a relays; a nota deve distinguir filtros locais da atualização que consulta os relays selecionados.
 - Reproduzir 20 conflitos de oferta do mesmo autor e 20 atualizações fora de ordem entre relays; aplicar a regra do G1 de forma determinística.
 
 **Entregas:** Schema de oferta/evento, [decisão do adaptador NIP-15](nip15-property-adapter.pt-BR.md), jornadas completas do marketplace e Hangout na PWA humana e evidência automatizada nos dois idiomas. `marketplace-g6-fixed-count.mjs` contém as contagens exatas de valores/lifecycle/conflitos; o gate de navegador confere cinco relays Geode locais e percursos fixos da interface nos dois idiomas. O resultado executado está registrado na [evidência G6](evidence/product-completion/G6/gate-result.md).

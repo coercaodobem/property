@@ -11,10 +11,12 @@ import {
 } from './browser-g05-smoke.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const CASES = ['G06-01', 'G06-02', 'G06-03', 'G06-04', 'G06-05', 'G06-06', 'G06-07', 'G06-08'];
+const CASES = ['G06-01', 'G06-02', 'G06-03', 'G06-04', 'G06-05', 'G06-06', 'G06-07', 'G06-08', 'G06-09'];
 const NOW_EPOCH_SECONDS = 1_800_000_000;
 const LOGICAL_CLOCK_STEP_MS = 1_000;
 const IDLE_TIMEOUT_MS = 1_800_000;
+// The isolated fixed-count G06 workload is larger than the relay's production default burst.
+const G06_RELAY_RATE_LIMITS = '\n[rate_limits]\nevents_per_minute = 2000\nevent_burst = 2000\nreqs_per_minute = 5000\nreq_burst = 2000\n';
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const safeText = value => String(value).replace(/(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})/g, '[REDACTED_TOKEN]')
   .replace(/\/home\/[^/\s]+/g, '/home/<USER>').slice(0, 1200);
@@ -104,8 +106,9 @@ async function main() {
     }
   }
   async function publishToFiveRelays(event) {
-    const acknowledgements = await Promise.all(allRelayUrls.map(url => publishEvent(url, event)));
-    assert.ok(acknowledgements.every(ack => ack.accepted), `signed event ${event.id} is accepted by each local relay`);
+    const acknowledgements = await Promise.all(allRelayUrls.map(async url => ({ url, ...(await publishEvent(url, event)) })));
+    const rejected = acknowledgements.filter(ack => !ack.accepted);
+    assert.equal(rejected.length, 0, `signed event ${event.id} rejected by local relay(s): ${rejected.map(ack => `${ack.url}: ${ack.message || 'no reason returned'}`).join('; ')}`);
     return acknowledgements;
   }
   async function setGeneralRelays(node, urls) {
@@ -127,9 +130,11 @@ async function main() {
     report.browser = runtime.evidence;
     report.local_origin = origin;
     for (let i = 0; i < 5; i++) {
-      const relay = await startGeode(28480 + i, temp, `G06 relay ${i + 1}`);
+      const port = 28480 + i;
+      const relayConfig = `[info]\nname = "Property G06 relay ${i + 1}"\ndescription = "Isolated fixed-count marketplace test relay"\n\n[network]\nhost = "127.0.0.1"\nport = ${port}\npath = "/"\n\n[database]\nin_memory = true\n\n[options]\nverify_signatures = true\nrequire_auth = false\n${G06_RELAY_RATE_LIMITS}`;
+      const relay = await startGeode(port, temp, `G06 relay ${i + 1}`, relayConfig);
       relays.push(relay);
-      report.relays.push({ url: relay.url, process_id: relay.child.pid, data_dir_mode: 'temporary private directory' });
+      report.relays.push({ url: relay.url, process_id: relay.child.pid, data_dir_mode: 'temporary private directory', rate_limits: { events_per_minute: 2000, event_burst: 2000, reqs_per_minute: 5000, req_burst: 2000 } });
     }
     const r1 = relays[0].url;
     const r2 = relays[4].url;
@@ -585,6 +590,7 @@ async function main() {
     activeStep = '50 marketplace browser journeys across both languages';
     await setGeneralRelays(seller, allRelayUrls);
     const marketplaceJourneys = [];
+    const localFilterJourneys = [];
     const amountByCurrency = { BTC: '0.00000001', XMR: '0.000000000001', XNO: `0.${'0'.repeat(29)}1` };
     const currencyCycle = ['BTC', 'XMR', 'XNO'];
     for (let index = 0; index < 50; index++) {
@@ -618,6 +624,42 @@ async function main() {
       assert.match(publicEyebrow, /PUBLIC|PÚBLIC/i, 'the marketplace view is visibly public');
       assert.ok((await card.locator('.product-price').textContent()).trim().includes(currency));
       assert.doesNotMatch(await card.textContent(), /\bpaid\b|\bpago\b|\bpaga\b/i, 'a listing never appears paid');
+      activeCase = 'G06-09';
+      activeStep = `local-only marketplace filters ${index + 1}/50 (${locale})`;
+      const queryCountBeforeFilters = buyer.relayQueries.length;
+      const filterNote = (await buyer.page.locator('#marketplace-filter-note').textContent()).trim();
+      assert.match(filterNote, locale === 'en' ? /Filters run only on public offers already loaded/i : /filtros atuam apenas nas ofertas públicas já carregadas/i,
+        'filter notice explains that searches stay local to already loaded offers');
+      assert.equal(await buyer.page.locator('#marketplace-price-asc').evaluate(option => option.disabled), true,
+        'price ordering is disabled while mixed currencies are selected');
+      await buyer.page.locator('#marketplace-search').fill(title);
+      await buyer.page.locator('#marketplace-currency').selectOption(currency);
+      await buyer.page.locator('#marketplace-offer-type-filter').selectOption(published.data.offer_type);
+      await buyer.page.locator('#marketplace-sort').selectOption('price-asc');
+      assert.equal(await buyer.page.locator('#marketplace-price-asc').evaluate(option => option.disabled), false,
+        'price ordering is enabled after choosing one currency');
+      assert.equal(await buyer.page.locator('#marketplace-list .product-card').count(), 1,
+        'text, currency, and offer type filters retain the matching signed listing');
+      await buyer.page.locator('#marketplace-offer-type-filter').selectOption(published.data.offer_type === 'item' ? 'service' : 'item');
+      assert.equal(await buyer.page.locator('#marketplace-list .product-card').count(), 0,
+        'offer type filter can produce an empty result');
+      await buyer.page.locator('#marketplace-offer-type-filter').selectOption('all');
+      await buyer.page.locator('#marketplace-search').fill('no match ' + crypto.randomUUID());
+      assert.equal(await buyer.page.locator('#marketplace-list .product-card').count(), 0,
+        'a search with no match shows no offer cards');
+      await buyer.page.locator('#marketplace-search').fill(title);
+      assert.equal(await buyer.page.locator('#marketplace-list .product-card').count(), 1,
+        'the local search can restore its matching result');
+      await buyer.page.locator('#marketplace-currency').selectOption('all');
+      await buyer.page.locator('#marketplace-search').fill('');
+      assert.equal(await buyer.page.locator('#marketplace-price-asc').evaluate(option => option.disabled), true);
+      assert.equal(buyer.relayQueries.length, queryCountBeforeFilters,
+        'changing local search, currency, type, and sort emits no relay REQ frames');
+      localFilterJourneys.push({ sequence: index + 1, language: locale, currency, type: published.data.offer_type,
+        search_hit: true, empty_type_result: true, empty_text_result: true, price_sort_currency_scoped: true,
+        relay_queries_before: queryCountBeforeFilters, relay_queries_after: buyer.relayQueries.length });
+      activeCase = 'G06-08';
+      activeStep = `50 marketplace browser journeys across both languages (${index + 1}/50)`;
       const contactName = locale === 'en' ? /Contact(?: the)? seller/i : /Falar com vendedor/i;
       await card.getByRole('button', { name: contactName }).click();
       await buyer.page.waitForFunction(expected => document.querySelector('#chat-subtitle')?.textContent.trim() === expected,
@@ -648,9 +690,13 @@ async function main() {
         `withdrawn offer ${journey.sequence} is absent from the buyer view`);
     }
     report.marketplace = { ...report.marketplace, multilingual_browser_journeys: marketplaceJourneys,
+      local_filter_journeys: localFilterJourneys, local_filter_journey_count: localFilterJourneys.length,
+      local_filter_languages: { en: 25, 'pt-BR': 25 }, local_filter_relay_queries: 0,
       browser_journey_count: 50, languages: { en: 25, 'pt-BR': 25 }, public_private_labels_clear: true,
       contact_did_not_publish_message: true, withdrawal_events_signed: 50, false_paid_indicators: 0 };
     mark('G06-08', 'PASS', 'Completed 50 real PWA marketplace journeys (25 English, 25 Brazilian Portuguese) across BTC/XMR/XNO. Each published the versioned offer, browsed it from the other identity, checked public/private and no-paid labeling, opened the seller conversation, and withdrew the offer with a signed NIP-09 request.');
+    activeCase = 'G06-09';
+    mark('G06-09', 'PASS', 'Completed 50 local-only filter journeys (25 English, 25 Brazilian Portuguese): text/currency/type, empty results, newest/price controls with exact units, and zero additional relay query frames during filtering.');
 
     report.denied_proxy_attempts = proxy.attempts;
     await assertNoExternal(report);

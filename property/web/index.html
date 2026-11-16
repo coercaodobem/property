@@ -11,7 +11,7 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v34">
-  <link rel="stylesheet" href="./styles.css?v=property-v73">
+  <link rel="stylesheet" href="./styles.css?v=property-v74">
   <link rel="stylesheet" href="./audio-playback.css?v=property-v1">
   <link rel="stylesheet" href="./call-window.css?v=property-v2">
   <link rel="stylesheet" href="./payment-card.css?v=property-v5">
@@ -37,7 +37,7 @@
   <script defer src="./money.js?v=property-v26"></script>
   <script defer src="./payment-card.js?v=property-v1"></script>
   <script defer src="./payment-uris.js?v=property-v3"></script>
-  <script defer src="./marketplace.js?v=property-v26"></script>
+  <script defer src="./marketplace.js?v=property-v27"></script>
   <script defer src="./campaigns.js?v=property-v26"></script>
   <script defer src="./contact.js?v=property-v26"></script>
   <script defer src="./agent-messaging.js?v=property-v26"></script>
@@ -82,7 +82,7 @@
   <script defer src="./app-directory.js?v=property-v1"></script>
   <script defer src="./identity-marks.js?v=property-v3"></script>
   <script defer src="./protocol-contract.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v117"></script>
+  <script defer src="./app.js?v=property-v118"></script>
 </head>
 <body>
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -337,6 +337,16 @@
 
       <section id="marketplace-view" class="content-view feature-view hidden">
         <div class="feature-header"><p class="eyebrow">PUBLIC NOSTR LISTINGS · NIP-15</p><h1>Marketplace</h1><p>Discover and publish offers. Negotiation and payment happen directly between people.</p><button id="publish-product-button" class="button primary">Publish offer</button><button id="refresh-marketplace" class="button secondary">Refresh offers</button></div>
+        <div class="marketplace-filter-panel">
+          <div class="marketplace-filter-grid" role="search" aria-label="Filter loaded marketplace offers">
+            <label class="field" for="marketplace-search"><span id="marketplace-search-label">Search loaded offers</span><input id="marketplace-search" type="search" maxlength="120" autocomplete="off" placeholder="Name or offer terms"></label>
+            <label class="field" for="marketplace-currency"><span id="marketplace-currency-label">Currency</span><select id="marketplace-currency"><option value="all">Any currency</option><option value="BTC">BTC · Bitcoin</option><option value="XMR">XMR · Monero</option><option value="XNO">XNO · Nano</option></select></label>
+            <label class="field" for="marketplace-offer-type-filter"><span id="marketplace-type-label">Offer type</span><select id="marketplace-offer-type-filter"><option value="all">Any type</option><option value="item">Item</option><option value="service">Service</option></select></label>
+            <label class="field" for="marketplace-sort"><span id="marketplace-sort-label">Sort</span><select id="marketplace-sort"><option value="newest">Newest</option><option id="marketplace-price-asc" value="price-asc">Price: lowest first</option><option id="marketplace-price-desc" value="price-desc">Price: highest first</option></select></label>
+          </div>
+          <p id="marketplace-filter-note" class="fine-print marketplace-filter-note"></p>
+          <p id="marketplace-results-count" class="marketplace-results-count" role="status" aria-live="polite"></p>
+        </div>
         <div id="marketplace-list" class="product-grid"><div class="empty-state compact"><div class="empty-symbol">◇</div><h2>No offers loaded</h2><p>Search configured relays for offers.</p></div></div>
       </section>
 

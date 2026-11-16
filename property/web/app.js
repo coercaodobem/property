@@ -98,6 +98,8 @@
     voiceRecorder: null, voiceRecorderPeer: '', voiceRecorderStartedAt: 0, voiceActivitySession: null, voiceTimer: 0, voiceStopping: false, voiceSequence: 0,
     voiceDrafts: new Map(), voiceObjectUrls: new Map(), fileObjectUrls: new Map(), fileDraftObjectUrls: new Map(), fileDraftTransferIds: new Map(), fileDraftFiles: [], fileSendBusy: false, fileTransferSeen: new Set(), activeConversationAgent: false, activeConversationBlocked: false
   };
+  const marketplaceFilter = { query: '', currency: 'all', offerType: 'all', sort: 'newest' };
+  let marketplaceProducts = [];
   const callWindow = CallWindow.create({ element: $('call-mini-window'), handle: $('call-mini-drag-handle') });
   const persistentAudio = document.createElement('audio');
   persistentAudio.preload = 'none';
@@ -6655,12 +6657,72 @@
     showToast('Pedido de retirada assinado; relays podem manter cópias antigas.');
     await refreshMarketplace();
   }
-  async function refreshMarketplace() {
-    $('marketplace-list').replaceChildren();
-    const events = await fetchEvents({ kinds: [30018, 5], limit: 200 });
-    const ordered = Marketplace.selectActiveProducts(events, N.verifyEvent);
-    if (!ordered.length) { $('marketplace-list').append(makeEmpty('Nenhuma oferta encontrada', 'Publique uma oferta ou conecte-se a relays que tenham eventos NIP-15.')); return; }
-    for (const product of ordered) {
+  function updateMarketplaceFilterLanguage() {
+    const portuguese = window.PropertyI18n?.language === 'pt-BR';
+    $('marketplace-search-label').textContent = localized('Search loaded offers', 'Buscar nas ofertas carregadas');
+    $('marketplace-search').placeholder = localized('Name or offer terms', 'Nome ou termos da oferta');
+    $('marketplace-search').setAttribute('aria-label', localized('Search loaded offers', 'Buscar nas ofertas carregadas'));
+    $('marketplace-currency-label').textContent = localized('Currency', 'Moeda');
+    $('marketplace-type-label').textContent = localized('Offer type', 'Tipo de oferta');
+    $('marketplace-sort-label').textContent = localized('Sort', 'Ordenar');
+    $('marketplace-currency').options[0].textContent = localized('Any currency', 'Todas as moedas');
+    $('marketplace-offer-type-filter').options[0].textContent = localized('Any type', 'Todos os tipos');
+    $('marketplace-offer-type-filter').options[1].textContent = localized('Item', 'Produto');
+    $('marketplace-offer-type-filter').options[2].textContent = localized('Service', 'Serviço');
+    $('marketplace-sort').options[0].textContent = localized('Newest', 'Mais recentes');
+    $('marketplace-price-asc').textContent = localized('Price: lowest first', 'Preço: menor primeiro');
+    $('marketplace-price-desc').textContent = localized('Price: highest first', 'Preço: maior primeiro');
+    $('marketplace-filter-note').textContent = portuguese
+      ? 'Os filtros atuam apenas nas ofertas públicas já carregadas e ficam neste aparelho. Alterar filtros não envia consultas; atualizar busca ofertas públicas nos relays selecionados. Para ordenar por preço, selecione uma moeda.'
+      : 'Filters run only on public offers already loaded and stay on this device. Changing filters sends no queries; refreshing fetches public offers from your selected relays. Select one currency to sort by price.';
+    $('marketplace-currency').setAttribute('aria-label', localized('Filter offers by currency', 'Filtrar ofertas por moeda'));
+    $('marketplace-offer-type-filter').setAttribute('aria-label', localized('Filter offers by type', 'Filtrar ofertas por tipo'));
+    $('marketplace-sort').setAttribute('aria-label', localized('Sort loaded offers', 'Ordenar ofertas carregadas'));
+  }
+  function updateMarketplaceFilterControls() {
+    marketplaceFilter.query = $('marketplace-search').value;
+    marketplaceFilter.currency = $('marketplace-currency').value;
+    marketplaceFilter.offerType = $('marketplace-offer-type-filter').value;
+    if (marketplaceFilter.currency === 'all') {
+      $('marketplace-price-asc').disabled = true;
+      $('marketplace-price-desc').disabled = true;
+      if (marketplaceFilter.sort !== 'newest') {
+        marketplaceFilter.sort = 'newest';
+        $('marketplace-sort').value = 'newest';
+      }
+    } else {
+      $('marketplace-price-asc').disabled = false;
+      $('marketplace-price-desc').disabled = false;
+      marketplaceFilter.sort = $('marketplace-sort').value;
+    }
+  }
+  function initializeMarketplaceFilters() {
+    $('marketplace-search').addEventListener('input', () => { updateMarketplaceFilterControls(); renderMarketplaceProducts(); });
+    $('marketplace-currency').addEventListener('change', () => { updateMarketplaceFilterControls(); renderMarketplaceProducts(); });
+    $('marketplace-offer-type-filter').addEventListener('change', () => { updateMarketplaceFilterControls(); renderMarketplaceProducts(); });
+    $('marketplace-sort').addEventListener('change', () => { updateMarketplaceFilterControls(); renderMarketplaceProducts(); });
+    updateMarketplaceFilterLanguage();
+    updateMarketplaceFilterControls();
+  }
+  function renderMarketplaceProducts() {
+    const list = $('marketplace-list');
+    if (!list) return;
+    const filtered = Marketplace.filterProducts(marketplaceProducts, marketplaceFilter);
+    $('marketplace-results-count').textContent = window.PropertyI18n?.language === 'pt-BR'
+      ? `${filtered.length} de ${marketplaceProducts.length} ofertas carregadas`
+      : `${filtered.length} of ${marketplaceProducts.length} loaded offers`;
+    list.replaceChildren();
+    if (!marketplaceProducts.length) {
+      list.append(makeEmpty(localized('No offers loaded', 'Nenhuma oferta carregada'),
+        localized('Publish an offer or refresh listings from your selected relays.', 'Publique uma oferta ou atualize as ofertas dos relays selecionados.')));
+      return;
+    }
+    if (!filtered.length) {
+      list.append(makeEmpty(localized('No matching offers', 'Nenhuma oferta corresponde'),
+        localized('Change the local filters or search text. No relay query is sent by filtering.', 'Altere os filtros locais ou o texto buscado. Filtrar não envia consultas aos relays.')));
+      return;
+    }
+    for (const product of filtered) {
       const card = document.createElement('article'); card.className = 'product-card';
       const { data } = product;
       const imageUrl = Array.isArray(data.images) ? Marketplace.safeExternalImageUrl(data.images[0]) : '';
@@ -6669,20 +6731,27 @@
       const price = document.createElement('p'); price.className = 'product-price';
       price.textContent = Marketplace.displayPrice(data, Nano);
       const body = document.createElement('p'); body.dataset.userContent = ''; body.textContent = data.description || '';
-      const seller = document.createElement('p'); seller.className = 'hangout-meta'; seller.textContent = `Vendedor: npub…${N.nip19.npubEncode(product.pubkey).slice(-8)}`;
-      const button = document.createElement('button'); button.className = 'button secondary'; button.textContent = 'Falar com vendedor'; button.addEventListener('click', () => addConversation(product.pubkey, '').catch(error => showToast(error.message)));
+      const seller = document.createElement('p'); seller.className = 'hangout-meta'; seller.textContent = `${localized('Seller', 'Vendedor')}: npub…${N.nip19.npubEncode(product.pubkey).slice(-8)}`;
+      const button = document.createElement('button'); button.className = 'button secondary'; button.textContent = localized('Contact seller', 'Falar com vendedor'); button.addEventListener('click', () => addConversation(product.pubkey, '').catch(error => showToast(error.message)));
       card.append(title, price, body, seller, button); $('marketplace-list').append(card);
       if (product.pubkey === state.pubkey) {
-        const edit = document.createElement('button'); edit.className = 'button text'; edit.textContent = 'Editar'; edit.addEventListener('click', () => openProductEditor(product)); card.append(edit);
-        const withdraw = document.createElement('button'); withdraw.className = 'button text'; withdraw.textContent = 'Retirar oferta';
+        const edit = document.createElement('button'); edit.className = 'button text'; edit.textContent = localized('Edit', 'Editar'); edit.addEventListener('click', () => openProductEditor(product)); card.append(edit);
+        const withdraw = document.createElement('button'); withdraw.className = 'button text'; withdraw.textContent = localized('Withdraw offer', 'Retirar oferta');
         withdraw.addEventListener('click', () => {
           state.deletingProduct = product;
-          $('delete-product-label').textContent = `Você vai assinar um pedido NIP-09 para retirar “${data.name}”. Relays e terceiros podem continuar com cópias.`;
+          $('delete-product-label').textContent = localized(`You will sign a NIP-09 request to withdraw “${data.name}”. Relays and others may keep old copies.`, `Você vai assinar um pedido NIP-09 para retirar “${data.name}”. Relays e terceiros podem continuar com cópias.`);
           showError('delete-product-error'); $('delete-product-dialog').showModal();
         });
         card.append(withdraw);
       }
     }
+  }
+  async function refreshMarketplace() {
+    $('marketplace-list').replaceChildren();
+    const events = await fetchEvents({ kinds: [30018, 5], limit: 200 });
+    marketplaceProducts = Marketplace.selectActiveProducts(events, N.verifyEvent);
+    updateMarketplaceFilterControls();
+    renderMarketplaceProducts();
   }
 
   function downloadBackup(backup = null) {
@@ -7514,6 +7583,8 @@
     $('language-picker').addEventListener('change', () => {
       renderChatDetailsForCurrentLanguage();
       renderIceSettings();
+      updateMarketplaceFilterLanguage();
+      renderMarketplaceProducts();
     });
     $('create-folder-button').addEventListener('click', () => openFolderEditor());
     $('folder-save').addEventListener('click', () => saveFolderEditor());
@@ -7866,6 +7937,7 @@
       } catch (error) { event.target.checked = false; showToast(error.message || 'Não foi possível salvar a preferência local.'); }
     });
     $('publish-hangout').addEventListener('click', () => publishHangoutPost().catch(error => showToast(error.message || 'Falha ao publicar.')));
+    initializeMarketplaceFilters();
     $('publish-product-button').addEventListener('click', () => openProductEditor());
     $('product-currency').addEventListener('change', () => {
       $('product-payment-rail').value = Marketplace.PAYMENT_RAILS[$('product-currency').value];

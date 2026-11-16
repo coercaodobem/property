@@ -294,7 +294,7 @@ async function startNode(runtime, origin, report, label, generalRelays, options 
       });
     }, options.logicalClock);
   }
-  const node = { label, context, page: null, id: null, subscriptions: [], eoses: [], received: [], forwarded: [], errors: [], sockets: [] };
+  const node = { label, context, page: null, id: null, subscriptions: [], relayQueries: [], eoses: [], received: [], forwarded: [], errors: [], sockets: [] };
   context.on('page', page => {
     page.on('pageerror', error => { const message = safeText(error.message); node.errors.push(message); report.page_errors.push(`${label}: ${message}`); });
     page.on('websocket', socket => {
@@ -304,6 +304,7 @@ async function startNode(runtime, origin, report, label, generalRelays, options 
       socket.on('framesent', item => {
         const frame = parseFrame(item.payload); if (!frame) return;
         const relayUrl = socket.url().replace(/\/$/, '');
+        if (frame[0] === 'REQ' && Array.isArray(frame[2]?.kinds)) node.relayQueries.push({ relay: relayUrl, kinds: [...frame[2].kinds] });
         if (frame[0] === 'REQ' && String(frame[1]).startsWith('bridge-') && Array.isArray(frame[2]?.kinds)) node.subscriptions.push({ relay: relayUrl, id: frame[1], kinds: frame[2].kinds });
         if (frame[0] === 'EVENT' && frame[1]?.id) node.forwarded.push({ relay: relayUrl, id: frame[1].id, kind: frame[1].kind });
       });
