@@ -1,3 +1,6 @@
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync, randomBytes, randomUUID, sign as edSign, verify as edVerify, webcrypto } from 'node:crypto';
@@ -50,6 +53,7 @@ function argsOf(argv) {
     'monero_wallet_rpc', 'monero_wallet_rpc_sha256', 'nano_node', 'nano_node_sha256', 'output']) {
     if (!values[name]) throw new Error(`Missing --${name.replaceAll('_', '-')}.`);
   }
+  if (values.scope && !['full', 'g7-only'].includes(values.scope)) throw new Error('Expected --scope full or g7-only.');
   return values;
 }
 
@@ -241,6 +245,7 @@ async function startNanoAuthGateway(upstreamPort, username, password) {
 
 async function main() {
   const options = argsOf(process.argv.slice(2));
+  const g7Only = options.scope === 'g7-only';
   const toolHashes = {
     bitcoind: await sha256File(options.bitcoind), bitcoin_cli: await sha256File(options.bitcoin_cli),
     monerod: await sha256File(options.monerod), monero_wallet_rpc: await sha256File(options.monero_wallet_rpc),
@@ -252,10 +257,11 @@ async function main() {
   nostrBundleCache = await readFile(path.join(WEB, 'vendor/nostr-tools-2.25.2.bundle.js'), 'utf8');
   const runtime = runtimeFromBundle();
   const outputDir = path.resolve(options.output);
-  const reportPath = path.join(outputDir, 'ledger-g08-report.json');
+  const reportPath = path.join(outputDir, g7Only ? 'g7-private-ledger-run.json' : 'ledger-g08-report.json');
   const temp = await mkdtemp(path.join(os.tmpdir(), 'property-g08-'));
   await mkdir(outputDir, { recursive: true, mode: 0o700 });
-  const report = { schema_version: 1, result: 'RUNNING', cases: IDS.map(id => ({ case: id, status: 'NOT_RUN', reason: 'Case has not started.' })),
+  const report = { schema_version: 1, scope: g7Only ? 'G7_PRIVATE_LEDGER_ONLY' : 'G7_AND_G8_FULL', result: 'RUNNING',
+    cases: g7Only ? [] : IDS.map(id => ({ case: id, status: 'NOT_RUN', reason: 'Case has not started.' })),
     ledger_networks: {}, payments: [], refunds: [], accounting: [], auth_checks: [], relay_publications: [],
     external_endpoints: [], credential_scan: null, binary_sha256: toolHashes,
     g7_trade_integration: { result: 'NOT_RUN', currency_counts: {}, external_endpoints: [] } };
@@ -264,7 +270,7 @@ async function main() {
   const processes = [];
   const servers = [];
   let relay = null;
-  let active = IDS[0], stage = 'initialize test-only private ledgers';
+  let active = g7Only ? 'G7-PRIVATE-LEDGER' : IDS[0], stage = 'initialize test-only private ledgers';
   try {
     const baseRpcUser = `g08-${randomUUID().slice(0, 8)}`;
     const baseRpcPass = randomBytes(24).toString('hex');
@@ -396,6 +402,7 @@ async function main() {
     report.ledger_networks.XNO = { network: nanoVersion.network, network_identifier: nanoVersion.network_identifier,
       rpc_bind: '::1', authenticated_gateway: true, peers_configured: 0 };
 
+    if (!g7Only) {
     stage = 'start local Geode relay and test real campaign signing';
     relay = await startGeode(await freePort('127.0.0.1'), temp, 'G08-local-Geode');
     const clock = { now: NOW_EPOCH_SECONDS };
@@ -664,6 +671,7 @@ async function main() {
       mismatched_refund_rejected_before_broadcast: true, no_unconfirmed_campaign_success: true,
       fees_by_currency: Object.fromEntries(refundEvidence.map(row => [row.currency, row.fee_atomic])) });
     await mark('G08-06', 'PASS', 'Observed payment and refund amounts remained integer atomic values on BTC/XMR and raw on Nano. Campaigns stayed unpublished while settlement was pending, mismatched refund amounts were rejected before any broadcast, and fee amounts were recorded separately for reconciliation.');
+    }
 
     stage = 'run G7 trade state against ten private-chain invoices per currency with lost-response recovery';
     const g7Report = { schema_version: 1, gate: 'G7-private-trade-ledger-integration', result: 'RUNNING',
@@ -847,6 +855,14 @@ async function main() {
     g7Report.result = 'PASS';
     await writeFile(path.join(outputDir, 'g7-trade-integration-report.json'), `${JSON.stringify(g7Report, null, 2)}\n`, { mode: 0o600 });
     report.g7_trade_integration = g7Report;
+
+    if (g7Only) {
+      report.result = g7Report.result === 'PASS' ? 'PASS_G7_PRIVATE_ONLY' : 'FAIL';
+      report.g8_cases = 'NOT_RUN_BY_SCOPE';
+      await checkpoint();
+      process.stdout.write(`${JSON.stringify({ result: report.result, scope: report.scope, g7_trade_integration: g7Report, output: outputDir })}\n`);
+      return report.result === 'PASS_G7_PRIVATE_ONLY' ? 0 : 1;
+    }
 
     active = 'G08-07'; stage = 'verify loopback RPC authentication, mainnet rejection, and secret non-disclosure';
     await assert.rejects(() => createJsonRpcClient(btcBaseUrl, { auth: { type: 'basic', username: 'wrong', password: 'wrong' } })('getblockchaininfo'));
