@@ -1,12 +1,11 @@
 # Product completion evidence
 
-The previous candidate `a2ac830e2c06715bb0f50e377b8dd12b4f889ca4` passed G0 and G1. The unpublished release-signing trust anchor has since been rotated because its matching private key was not available locally. **G0–G10 are being rerun in order on the new candidate; no old gate pass is carried forward.**
+The selected candidate is `a2ac830e2c06715bb0f50e377b8dd12b4f889ca4`. G0 and G1 have now passed on that exact source commit under Ubuntu Linux x86_64 with isolated local networks, synthetic identities and fixed counts. The runtime source tree fingerprint is `b7ba15fbb2dfb8ff494a2378752859c4d750e81aef3a73ec047edd9402ae001f`.
 
-The local Ed25519 signing key is kept outside the repository with owner-only permissions. Only its public key is committed. Its fingerprint and preflight details are in [the G0 preflight record](G0/fixed-run-03/signing-key-rotation-preflight.json).
+| Gate | Current candidate status | Evidence |
+|---|---|---|
+| G0 | `PASS` | [G0 result](G0/gate-result.md), [manifest](G0/manifest.json) |
+| G1 | `PASS` | [G1 result](G1/gate-result.md), [fixed run 03](G1/fixed-run-03/manifest.json) |
+| G2–G10 | `NOT RUN` on the selected candidate | Earlier reports are historical; run each gate in order before advancing. |
 
-| Gate | Current candidate status |
-|---|---|
-| G0 | In progress |
-| G1–G10 | Not run on the new candidate |
-
-Tests remain offline and isolated to Ubuntu Linux x86_64. Other operating systems, public relays, human review and mainnet funds remain out of scope. The overall plan stays incomplete until every gate passes on the same candidate and G10 publication checks pass. [Português (Brasil)](README.pt-BR.md)
+The plan remains incomplete until G2–G10 pass on this candidate and G10's release publication, exact-tag CI and public digest checks pass. Other operating systems, public relays and mainnet funds remain excluded from this execution. [Português (Brasil)](README.pt-BR.md)
