@@ -1,0 +1,118 @@
+{
+  "gate": "G5",
+  "status": "PASS_AUTOMATED_OFFLINE",
+  "candidate_commit": "654f539e986a6804e2aa4d673e52d0a96ba26fb7",
+  "candidate_tree": "1c198df259ebd08010450e56312acb242a929ffa",
+  "runtime_inventory_sha256": "b7ba15fbb2dfb8ff494a2378752859c4d750e81aef3a73ec047edd9402ae001f",
+  "environment": {
+    "os": "Ubuntu Linux x86_64",
+    "node": "v22.22.1",
+    "external_connections": 0,
+    "external_models": 0,
+    "real_participants": 0,
+    "real_funds": false,
+    "public_relays": false
+  },
+  "candidate_note": "The G5 source-candidate change since the G0-G4 candidate only pins and validates the already vendored Geode fixture. Product runtime inventory SHA-256 is unchanged; G0-G4 were not rerun.",
+  "geode_fixture": {
+    "sha256": "f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd",
+    "segments": 129,
+    "segment_bytes": 524288,
+    "archive_bytes": 67366883
+  },
+  "acceptance": {
+    "mcp_stdio_contract": {
+      "result": "PASS",
+      "synthetic_clients": 3,
+      "protocol": "2026-07-28",
+      "schema_rejections": 144,
+      "unknown_tool_rejections": 3,
+      "stateless": true
+    },
+    "tool_boundary": {
+      "result": "PASS",
+      "tools": 48,
+      "dispatches": 48,
+      "annotations": 48,
+      "fail_closed": 43,
+      "write_side_effects": 0
+    },
+    "hostile_content": {
+      "result": "PASS",
+      "hostile_fixtures": 100,
+      "duplicate_replays": 100,
+      "unpaired_cases": 25,
+      "over_quota_attempts": 50,
+      "block_unblock_cycles": 20,
+      "assertions": 342
+    },
+    "package_lifecycle": {
+      "result": "PASS",
+      "cycles": 30,
+      "vault_mode": "0600",
+      "data_directory_mode": "0700",
+      "unix_socket_mode": "0600",
+      "tcp_listeners": 0,
+      "foreign_launcher_rollback": true
+    },
+    "agent_relay_exchange": {
+      "result": "PASS",
+      "relays": 3,
+      "exchanges": 50,
+      "third_party_decryption_attempts": 50,
+      "recipients_decrypted_once": true,
+      "ciphertext_contains_plaintext": false
+    },
+    "human_pwa_agent_exchange": {
+      "result": "PASS",
+      "round_trips": 25,
+      "human_to_agent": 25,
+      "agent_to_human": 25,
+      "approval_record": false,
+      "external_http_requests": 0,
+      "background_attempts_blocked": 10,
+      "websockets_loopback_only": true
+    }
+  },
+  "evidence_sha256": {
+    "agent-mcp-contract.json": "94aecf8abd40b252aee739ebf7f9c835bcd355e7cd545d3f6d51ee015a77b6c8",
+    "agent-mcp-tool-boundaries.json": "b95273ef70861136c8f96486c8c1fe4d3d3c18f7c0239b64f5542a1f23aacec2",
+    "agent-package-lifecycle.json": "f31488f270ade30e8c8d730b66dceb674ac3ca038a4667d015182349d4713ef0",
+    "agent-relay-exchanges.json": "febf25881304a5fb6736b77857c90ef47639420d0215c311012a80de51e726bc",
+    "hostile-content-report.json": "61ae0e75aea387bf78138f388836ae642821a32cb9fd10310ea448f41208df1b",
+    "hostile-corpus-manifest.json": "f43bbfc708d9bba75fa241eb0f2e9e47ed1c7915c23560fd7b38ca214c614dfe",
+    "pwa-agent-exchanges.json": "4a8f4581eb17773a18f6e302c4d31aad95617d7640eb1cf8c5455551505ab407",
+    "pwa-agent-exchanges.png": "60f8c15e122c5f0615dbcbc18c39e24d27097ee608e4e5fd1d05062c760bb91b"
+  },
+  "source_sha256": {
+    "property/agent/core.mjs": "4a22124ea1e8b773608566e72cef9aad95dc95f4783548fafa346b2e8929a1c0",
+    "property/agent/daemon.mjs": "36fdcb3d32832dc6e17237bb7ad536891c3aa8add06c666b97eb8803ec8a25af",
+    "property/agent/install.sh": "ef4da022d5e710c4aaf0eafdd11c946658d99415045652a3bfed23bb9e17f27d",
+    "property/agent/manifest.json": "42b6f510d1a765e2259e05ce0c9efc19eec6fa1092acf44177c2cb44140e74e3",
+    "property/agent/mcp-server.mjs": "f1c26aed646eefd653a1c4b152814d25a13ba087339a38ff4ff0586856df5ed2",
+    "property/agent/relay.mjs": "4b6d318b730cdb6ec6e0b6ac22160089f3fb2e25401e97a68f4498a702770198",
+    "property/agent/service.mjs": "f31154c313278eca3984bac16dbbe512848d99b9c1c7c375fec20a00ec6c4d52",
+    "property/agent/tools.manifest.json": "352318f31107656d043c92e526034cdb07ac56ff58e2fef492e1355ad8e35dbe",
+    "property/agent/vault.mjs": "6ea0dcbf096c1b079c22bde4ba0c64bfe63abd96b0605187f80d78fba05d4e3a",
+    "property/relay/dist-parts/manifest.txt": "aba5b494f4be07d0544eb7b2320cace414d47bb42bed79ea86b6caaea4a76b92",
+    "property/relay/dist-parts/SHA256SUMS": "1dd8f1963ae6a82a5ee791c7bbdfd13ef5a6cbf10159ea239ebeae93d16864d6",
+    "property/tests/offline/agent-mcp-contract-g5.mjs": "9b06f2d0f24d147e2d9ba63fa16d0a74fe20ee0026ebe14a5b1afe0c38d47ca3",
+    "property/tests/offline/agent-mcp-tool-boundaries-g5.mjs": "373c89f909cc9f41d1d4ec6cf10492ef9c45d9bb0292c5ef46659d5a00f5fc6b",
+    "property/tests/offline/agent-package-lifecycle-g5.mjs": "e24db64504c7dae12b76a548653a6221ddecd6867423f9ca616d84edfc930e4b",
+    "property/tests/offline/agent-package-daemon-cycle-g5.mjs": "aee8a5ad7751a72636b494663125e657837e83ac1d9a16c755f3a75e9a813cfd",
+    "property/tests/offline/agent-relay-exchanges-g5.mjs": "953ee26c738c3769299bac8b6057533a44c33d5aa79b5dff3ac199dfa6007759",
+    "property/tests/offline/browser-agent-exchanges-g5.mjs": "abf9c74c60646dec50e3142776cadab6aff6784cd3654bc11f01668bb45dff3e",
+    "property/tests/offline/agent-security-g5.mjs": "185e981153e790cf10dc6fc7312dec9382eecb2cd65f5804a4ad26d0b843e0c8",
+    "property/tests/offline/geode-fixture-g5.mjs": "0a050782e511c5380935c038710329ecd8064235522b6f556637a6cad9af5be2",
+    "property/web/app.js": "0bac59226e7edb16b3624515ad87c9dd5ef094c19346703a0e357d5d7e109f90",
+    "property/web/index.html": "56516e46d3d264a7e5ac3ab105266ddeff36cb4339642151a89b55f6562a8205",
+    "property/web/campaigns.js": "3f2840445bd0477501eba24ce6b0d2f090c1563d6d6bdf38f2831b4887496ca5",
+    "property/web/marketplace.js": "27b3c9c18dee507aebef5184296a4ee6ed10ab14a51b814229bb1a859939bd29"
+  },
+  "limitations": [
+    "No commercial/external MCP host or model was used.",
+    "No public relays, real participants, real funds, or mainnet were used.",
+    "No human review or non-Ubuntu operating system was tested.",
+    "Automated offline evidence does not establish production relay or payment safety."
+  ]
+}

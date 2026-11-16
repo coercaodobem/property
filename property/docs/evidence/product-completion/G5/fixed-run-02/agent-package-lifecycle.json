@@ -1,0 +1,324 @@
+{
+  "result": "PASS",
+  "operating_system": "linux/x64",
+  "package_version": "0.8.0",
+  "fixed_cycles": 30,
+  "install_cycles": 30,
+  "update_cycles": 30,
+  "daemon_restarts": 30,
+  "uninstall_cycles": 30,
+  "preserved_vault_sha256": "fa808c8ab0319e52b4fb8f8d933d1577560e94f728f67025dbf89be37d70e032",
+  "preserved_config_sha256": "65af7f37d57e24f16b59865adde6b0eaaaf881a2791e05e8ad4b3cc8d5fec841",
+  "vault_mode": "0600",
+  "data_directory_mode": "0700",
+  "unix_socket_mode": "0600",
+  "tcp_listeners": 0,
+  "rollback_on_foreign_launcher": true,
+  "mcp_stdio_discover_and_list_per_cycle": 30,
+  "cases": [
+    {
+      "id": "foreign-launcher-update-rollback",
+      "result": "PASS"
+    },
+    {
+      "id": "lifecycle-01",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-02",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-03",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-04",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-05",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-06",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-07",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-08",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-09",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-10",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-11",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-12",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-13",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-14",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-15",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-16",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-17",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-18",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-19",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-20",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-21",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-22",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-23",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-24",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-25",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-26",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-27",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-28",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-29",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    },
+    {
+      "id": "lifecycle-30",
+      "result": "PASS",
+      "install": true,
+      "update": true,
+      "restart": true,
+      "uninstall": true,
+      "vault_preserved": true,
+      "tcp_listener": false
+    }
+  ]
+}
