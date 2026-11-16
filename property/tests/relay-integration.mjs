@@ -11,6 +11,7 @@ context.window = context;
 vm.createContext(context); vm.runInContext(bundle, context, { timeout: 5000 });
 vm.runInContext(await readFile(new URL('../web/money.js', import.meta.url), 'utf8'), context, { timeout: 5000 });
 vm.runInContext(await readFile(new URL('../web/marketplace.js', import.meta.url), 'utf8'), context, { timeout: 5000 });
+vm.runInContext(await readFile(new URL('../web/protocol-contract.js', import.meta.url), 'utf8'), context, { timeout: 5000 });
 const N = context.NostrTools;
 const Marketplace = context.PropertyMarketplace;
 const alice = N.generateSecretKey();
