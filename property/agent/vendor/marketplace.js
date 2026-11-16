@@ -1,3 +1,6 @@
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
 'use strict';
 /* global BigInt */
 (() => {
@@ -171,6 +174,32 @@
     }).sort((a, b) => b.created_at - a.created_at);
   }
 
+  function foldSearchText(value) {
+    return String(value || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('en-US');
+  }
+
+  function filterProducts(products, options = {}) {
+    const query = foldSearchText(options.query).trim();
+    const currency = ['BTC', 'XMR', 'XNO'].includes(options.currency) ? options.currency : 'all';
+    const offerType = ['item', 'service'].includes(options.offerType) ? options.offerType : 'all';
+    const sort = ['price-asc', 'price-desc'].includes(options.sort) && currency !== 'all' ? options.sort : 'newest';
+    const matches = (Array.isArray(products) ? products : []).filter(product => {
+      const data = product?.data;
+      if (!data || (currency !== 'all' && data.currency !== currency) ||
+          (offerType !== 'all' && data.offer_type !== offerType)) return false;
+      if (!query) return true;
+      return foldSearchText([data.name, data.description, data.terms].join(' ')).includes(query);
+    });
+    const newestFirst = (a, b) => (b.created_at || 0) - (a.created_at || 0) || String(a.id).localeCompare(String(b.id));
+    if (sort === 'newest') return matches.sort(newestFirst);
+    return matches.sort((a, b) => {
+      const left = BigInt(a.data.price_atomic ?? a.data.price_raw);
+      const right = BigInt(b.data.price_atomic ?? b.data.price_raw);
+      const priceOrder = left === right ? 0 : left < right ? -1 : 1;
+      return (sort === 'price-desc' ? -priceOrder : priceOrder) || newestFirst(a, b);
+    });
+  }
+
   window.PropertyMarketplace = Object.freeze({ OFFER_SCHEMA, PAYMENT_RAILS, parsePrice, displayPrice, safeExternalImageUrl,
-    makeOfferData, productAddress, makeProductDeletion, selectActiveProducts });
+    makeOfferData, productAddress, makeProductDeletion, selectActiveProducts, filterProducts });
 })();
