@@ -7,7 +7,7 @@
   "update_cycles": 30,
   "daemon_restarts": 30,
   "uninstall_cycles": 30,
-  "preserved_vault_sha256": "1a3d3ae63a4ac7a31ef9169d4b9701e97b20e854edc70a6b4c473855be6f1070",
+  "preserved_vault_sha256": "7750d51195156fe490c5caf29841081dbf04c05384e1972461bf85243f894255",
   "preserved_config_sha256": "65af7f37d57e24f16b59865adde6b0eaaaf881a2791e05e8ad4b3cc8d5fec841",
   "vault_mode": "0600",
   "data_directory_mode": "0700",

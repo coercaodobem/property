@@ -150,7 +150,7 @@ BTC and XMR settlement/escrow must use only mechanisms their actual protocol and
 - Run 30 independent identity-binding fixtures. The UI must display unverified wallet/account ownership as a claim and must not infer it from a Nostr signature.
 - Tamper with transaction ID, amount, destination, network, offer hash, and journal in 10 fixtures each; fail closed with no second payment attempt.
 
-**Deliverables:** Per-currency adapter contracts, trade state machine, private-network evidence, settlement wording, and a matrix that labels each mechanism as direct, custodial, threshold/cooperative, or protocol-enforced. Any mechanism not meeting its stated security model remains disabled or explicitly experimental.
+**Deliverables:** Per-currency adapter contracts, trade state machine, private-network evidence, settlement wording, and a matrix that labels each mechanism as direct, custodial, threshold/cooperative, or protocol-enforced. Any mechanism not meeting its stated security model remains disabled or explicitly experimental. The executed result is recorded in the [G7 gate evidence](evidence/product-completion/G7/gate-result.md), with reports and checksums in `evidence/product-completion/G7/fixed-run-01/`.
 
 ### G8 — Relay campaigns, voluntary sponsorship, and operator economics
 

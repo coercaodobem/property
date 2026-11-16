@@ -95,6 +95,51 @@ const tools = [
     method: 'xno.dispute',
   },
   {
+    name: 'property_trade_policy', title: 'Read local trade-node policy', description: 'List configured local Bitcoin regtest, Monero fakechain, and Nano dev adapters. Mainnet is disabled. This tool reads policy and never sends funds.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    method: 'trade.policy',
+  },
+  {
+    name: 'property_trade_offer', title: 'Send a private test-network trade offer', description: 'Create a unique invoice through the configured local test-network node and send the versioned offer by encrypted NIP-17. This direct-payment workflow is not escrow; paying through an external wallet is a separate action. Mainnet is disabled.',
+    inputSchema: { type: 'object', properties: { recipient_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, currency: { type: 'string', enum: ['BTC', 'XMR', 'XNO'] }, amount_atomic: { type: 'string', pattern: '^[1-9][0-9]{0,38}$' }, terms: { type: 'string', minLength: 1, maxLength: 4096 }, expires_in_seconds: { type: 'integer', minimum: 60, maximum: 604800 }, trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['recipient_pubkey', 'currency', 'amount_atomic', 'terms', 'expires_in_seconds'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    method: 'trade.offer',
+  },
+  {
+    name: 'property_trade_accept', title: 'Accept an authenticated trade offer', description: 'Accept the exact offer received from this peer over the selected NIP-17 relays. Acceptance sends no payment; verify the network, amount, destination, terms, and expiry before paying externally.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, offer_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['conversation_pubkey', 'offer_message_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    method: 'trade.accept',
+  },
+  {
+    name: 'property_trade_sync', title: 'Sync authenticated trade messages', description: 'Apply authenticated peer acceptance, payment-request, dispute, and cancellation messages to the local trade journal. A peer settlement notice remains an unverified claim until checked against a local node.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['conversation_pubkey', 'trade_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    method: 'trade.sync',
+  },
+  {
+    name: 'property_trade_request_payment', title: 'Request the agreed direct payment', description: 'After syncing the buyer’s authenticated acceptance, send the exact network, amount, and unique destination. It does not move funds or guarantee delivery.',
+    inputSchema: { type: 'object', properties: { trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['trade_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    method: 'trade.request_payment',
+  },
+  {
+    name: 'property_trade_reconcile', title: 'Check a trade against the local ledger', description: 'Reconcile the seller’s exact payment destination, amount, network, transaction, and confirmation policy using the configured local test-network node. The buyer receives only a seller-reported notice; no escrow or delivery guarantee is provided.',
+    inputSchema: { type: 'object', properties: { trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['trade_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    method: 'trade.reconcile',
+  },
+  {
+    name: 'property_trade_status', title: 'Read local trade status', description: 'Read this agent’s signed local trade journal. It does not independently verify a peer’s settlement claims or prove delivery.',
+    inputSchema: { type: 'object', properties: { trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['trade_id'], additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    method: 'trade.status',
+  },
+  {
+    name: 'property_trade_dispute', title: 'Record and send a direct-trade dispute', description: 'Send an encrypted dispute note and record it locally. This direct-payment workflow has no funds freeze, refund, or arbitration mechanism.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, summary: { type: 'string', minLength: 1, maxLength: 2048 } }, required: ['conversation_pubkey', 'trade_id', 'summary'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    method: 'trade.dispute',
+  },
+  {
+    name: 'property_trade_cancel', title: 'Cancel a pre-payment direct trade', description: 'Cancel an offer or accepted trade before the payment request. It does not cancel or reverse an on-chain payment.',
+    inputSchema: { type: 'object', properties: { trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['trade_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    method: 'trade.cancel',
+  },
+  {
     name: 'property_xno_threshold_create', title: 'Start an experimental 2-of-3 Nano threshold key session', description: 'Create a dev-network-only distributed-key-generation session for exactly three Nostr identities mapped to buyer, seller, and arbiter roles. The invite binds Nano accounts, amount, terms hash, and expiry. It creates no escrow, sends no XNO, and does not enforce spending rules on Nano itself.',
     inputSchema: { type: 'object', properties: { participants: { type: 'array', items: { type: 'string', pattern: '^[0-9a-f]{64}$' }, minItems: 3, maxItems: 3 }, trade_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, contract: { type: 'object', properties: { buyer_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, buyer_account: { type: 'string', pattern: '^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$' }, seller_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, seller_account: { type: 'string', pattern: '^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$' }, arbiter_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, amount_raw: { type: 'string', pattern: '^[1-9][0-9]{0,38}$' }, terms_sha256: { type: 'string', pattern: '^[0-9a-f]{64}$' }, expires_at: { type: 'integer', minimum: 0 } }, required: ['buyer_pubkey', 'buyer_account', 'seller_pubkey', 'seller_account', 'arbiter_pubkey', 'amount_raw', 'terms_sha256', 'expires_at'], additionalProperties: false }, network: { type: 'string', enum: ['dev'] } }, required: ['participants', 'trade_id', 'contract', 'network'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     method: 'xno.threshold.create',
@@ -236,7 +281,7 @@ const tools = [
   },
 ].map(({ method, ...tool }) => ({ ...tool, _propertyMethod: method }));
 
-export const MCP_TOOLS_VERSION = '1.0.0';
+export const MCP_TOOLS_VERSION = '1.1.0';
 export const MCP_TOOLS = Object.freeze(tools.map(({ _propertyMethod, ...tool }) => tool));
 export const MCP_TOOL_METHODS = Object.freeze(tools.map(({ name, _propertyMethod }) => Object.freeze({ name, method: _propertyMethod })));
 
@@ -324,7 +369,7 @@ export async function dispatch(request) {
   return { jsonrpc: '2.0', id, error: mcpError(-32601, 'Método MCP não implementado.') };
 }
 
-async function runStdio() {
+export async function runStdio() {
   for await (const line of boundedLines(process.stdin)) {
     if (line === null) { send({ jsonrpc: '2.0', id: null, error: mcpError(-32700, 'Mensagem MCP excede o limite local.') }); continue; }
     try {

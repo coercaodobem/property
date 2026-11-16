@@ -19,6 +19,7 @@ export const PROTOCOL_VERSIONS = Object.freeze({
   public_note: Object.freeze(['nostr-nip01-kind-1/v1']),
   marketplace_offer: Object.freeze(['nostr-nip15-kind-30018/v1', 'property-marketplace-offer/v1']),
   trade_state: Object.freeze([
+    'property-trade-state/v1',
     'property-xno-trade/v1',
     'property-xno-escrow/v1',
     'property-xno-threshold/v2',

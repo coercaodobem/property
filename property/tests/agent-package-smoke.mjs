@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -7,7 +8,7 @@ import { MCP_TOOLS, MCP_TOOLS_VERSION } from '../agent/mcp-server.mjs';
 
 const PROPERTY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(await readFile(path.join(PROPERTY_ROOT, 'agent/manifest.json'), 'utf8'));
-const packageFiles = ['property-agent.mjs', 'bin/property-agent', 'mcp-server.mjs', 'daemon.mjs', 'core.mjs', 'service.mjs', 'relay.mjs', 'ipc.mjs', 'protocol-contract.mjs', 'store.mjs', 'vault.mjs', 'nano-wallet.mjs', 'xno-trades.mjs', 'xno-journal.mjs', 'xno-escrow.mjs', 'xno-threshold.mjs', 'xno-threshold-store.mjs', 'xno-threshold-protocol.mjs', 'agent-messaging.js', 'typing-signals.js', 'vendor/nostr-tools-2.25.2.bundle.js', 'vendor/nostr-tools-LICENSE', 'vendor/node_modules/@noble/curves', 'vendor/node_modules/@noble/hashes', 'vendor/NOTICE.md', 'tools.manifest.json', 'vendor/protocol-contract.js', 'vendor/money.js', 'vendor/marketplace.js'];
+const packageFiles = ['property-agent.mjs', 'bin/property-agent', 'mcp-server.mjs', 'daemon.mjs', 'core.mjs', 'service.mjs', 'relay.mjs', 'ipc.mjs', 'protocol-contract.mjs', 'store.mjs', 'vault.mjs', 'nano-wallet.mjs', 'trade-state.mjs', 'trade-conversation.mjs', 'trade-node-config.mjs', 'trade-state-store.mjs', 'ledger-rpc.mjs', 'xno-trades.mjs', 'xno-journal.mjs', 'xno-escrow.mjs', 'xno-threshold.mjs', 'xno-threshold-store.mjs', 'xno-threshold-protocol.mjs', 'agent-messaging.js', 'typing-signals.js', 'vendor/nostr-tools-2.25.2.bundle.js', 'vendor/nostr-tools-LICENSE', 'vendor/node_modules/@noble/curves', 'vendor/node_modules/@noble/hashes', 'vendor/NOTICE.md', 'tools.manifest.json', 'vendor/protocol-contract.js', 'vendor/money.js', 'vendor/marketplace.js'];
 assert.equal(manifest.name, 'property-agent-local');
 assert.equal(manifest.version, '0.8.0');
 assert.equal(manifest.mcpProtocol, '2026-07-28');
@@ -34,11 +35,25 @@ assert.equal(manifest.nanoThresholdCrypto.nobleCurvesVersion, '2.4.0');
 assert.equal(manifest.nanoThresholdCrypto.nobleHashesVersion, '2.4.0');
 assert.deepEqual(manifest.platformsImplemented, ['linux-x64']);
 assert.deepEqual(manifest.platformsPending, ['windows', 'macos', 'android', 'ios']);
+const mcpMeta = { 'io.modelcontextprotocol/protocolVersion': manifest.mcpProtocol,
+  'io.modelcontextprotocol/clientCapabilities': {} };
+const cliMcp = spawnSync(process.execPath, [path.join(PROPERTY_ROOT, 'agent/property-agent.mjs'), 'mcp'], {
+  cwd: PROPERTY_ROOT, input: `${JSON.stringify({ jsonrpc: '2.0', id: 'entrypoint', method: 'server/discover', params: { _meta: mcpMeta } })}\n`,
+  encoding: 'utf8', env: { ...process.env, XDG_RUNTIME_DIR: `/tmp/pam-${process.pid}` },
+});
+assert.equal(cliMcp.error, undefined, `Property Agent MCP entrypoint launches: ${cliMcp.error?.message}`);
+assert.equal(cliMcp.status, 0, `Property Agent MCP entrypoint exits cleanly: ${cliMcp.stderr}`);
+assert.equal(cliMcp.stderr, '');
+const cliResponse = JSON.parse(cliMcp.stdout.trim());
+assert.equal(cliResponse.id, 'entrypoint');
+assert.deepEqual(cliResponse.result.supportedVersions, [manifest.mcpProtocol]);
 const bundle = await readFile(path.join(PROPERTY_ROOT, 'web/vendor/nostr-tools-2.25.2.bundle.js'));
 assert.equal(createHash('sha256').update(bundle).digest('hex'), manifest.nostrTools.sha256);
 const installer = await readFile(path.join(PROPERTY_ROOT, 'agent/install.sh'), 'utf8');
 const uninstaller = await readFile(path.join(PROPERTY_ROOT, 'agent/uninstall.sh'), 'utf8');
 const cli = await readFile(path.join(PROPERTY_ROOT, 'agent/property-agent.mjs'), 'utf8');
+assert.deepEqual(await readFile(path.join(PROPERTY_ROOT, 'agent/ledger-rpc.mjs')),
+  await readFile(path.join(PROPERTY_ROOT, 'relay/ledger-rpc.mjs')), 'installed first-party trade adapter matches the relay copy byte-for-byte');
 for (const file of ['protocol-contract.js', 'money.js', 'marketplace.js']) {
   const vendored = await readFile(path.join(PROPERTY_ROOT, 'agent/vendor', file));
   const web = await readFile(path.join(PROPERTY_ROOT, 'web', file));

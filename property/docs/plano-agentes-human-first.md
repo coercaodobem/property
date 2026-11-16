@@ -25,7 +25,7 @@ Selecting the protocol does not give the agent the human key, other conversation
 
 ### Agent flow
 
-The MCP host uses an independent Nostr identity, configures inbox relays, and calls the fixed tool set in [`../agent/tools.manifest.json`](../agent/tools.manifest.json), version `1.0.0`. The manifest has 39 tools: five messaging/activity, six direct-XNO, ten threshold-signing, nine custodial-escrow, and nine profile/relay/Hangout/marketplace tools. Direct XNO payments remain irreversible. The optional escrow flow uses a dedicated custodian wallet and a separately selected Nostr arbiter; it is custodial or experimental and does not make Nano transfers reversible or trustless. The local daemon uses a Unix socket; MCP uses stdio.
+The MCP host uses an independent Nostr identity, configures inbox relays, and calls the fixed tool set in [`../agent/tools.manifest.json`](../agent/tools.manifest.json), version `1.1.0`. The manifest has 48 tools: five messaging/activity, six direct-XNO, nine direct trade-coordination tools restricted to BTC regtest, XMR fakechain, and XNO dev, ten threshold-signing, nine custodial-escrow, and nine profile/relay/Hangout/marketplace tools. Mainnet stays disabled for direct trade coordination. Direct XNO payments remain irreversible. The optional escrow flow uses a dedicated custodian wallet and a separately selected Nostr arbiter; it is custodial or experimental and does not make Nano transfers reversible or trustless. The local daemon uses a Unix socket; MCP uses stdio.
 
 ## 2. Architecture and limits
 
@@ -34,7 +34,7 @@ The MCP host uses an independent Nostr identity, configures inbox relays, and ca
 - **Envelope:** `property-agent-message/v1` with strict fields for version, conversation, message, correlation, and text body. Body up to 8 KiB; envelope up to 16 KiB.
 - **Quota:** at most 30 sends per agent per fixed logical 60-second window. Trials advance logical time and counts; they do not wait in real time.
 - **Blocking:** local to the device/daemon. It is not approval or required registration; it blocks future local reads/sends and is reversible. It cannot remove prior copies from relays or hosts.
-- **MCP:** 39 fixed tools described by [`../agent/tools.manifest.json`](../agent/tools.manifest.json), including messaging/activity, direct-XNO, experimental threshold-signing, custodial escrow, profile, relay, Hangout, and marketplace tools. Activity accepts only `thinking` or `stop`; it has no free-text status. No approval, permission expansion, shell, filesystem, browser, or arbitrary Nostr-signing tool. Wallet tools require one-time local setup and arming.
+- **MCP:** 48 fixed tools described by [`../agent/tools.manifest.json`](../agent/tools.manifest.json), including messaging/activity, direct-XNO, test-network-only BTC/XMR/XNO trade coordination, experimental threshold-signing, custodial escrow, profile, relay, Hangout, and marketplace tools. Activity accepts only `thinking` or `stop`; it has no free-text status. No approval, permission expansion, shell, filesystem, browser, or arbitrary Nostr-signing tool. Wallet tools require one-time local setup and arming.
 - **Privacy:** the human key never reaches the bridge. Relays can observe protocol metadata. An AI host may retain text it has read.
 - **Platforms:** Ubuntu/Linux results do not prove Windows, macOS, Android, or iOS. Untested systems remain `PENDING`.
 
@@ -83,7 +83,7 @@ Run gates in order with complete evidence, fixed counts, and negative cases. Do 
 
 ### G4 — Local MCP
 
-**Offline setup:** two agent processes, two MCP fixture clients, and one loopback Geode relay. The tool inventory is now fixed at 39; see the versioned manifest for category assignments and schemas.
+**Offline setup:** two agent processes, two MCP fixture clients, and one loopback Geode relay. The current tool inventory has 48 entries; the versioned manifest defines each tool's category and schema.
 
 **Counts:** per agent, 25 reads and 25 sends; 12 thinking/stop activity events (five start/stop pairs plus one thinking state cleared by daemon lock); 10 reads without prior registration; at least one send to a valid, unsaved identity; two simultaneous calls; 10 calls to nonexistent tools; 10 stdio restart cycles; 10 relay-unavailable errors; block/unblock followed by read/send checks.
 

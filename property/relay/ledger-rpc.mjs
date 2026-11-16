@@ -240,6 +240,7 @@ export function createBitcoinCoreLedger(options = {}) {
   }
   return Object.freeze({
     currency: 'BTC',
+    async assertNetwork() { await assertNetwork(); return expectedChain; },
     async createAddress({ campaignId }) {
       await assertNetwork();
       return rpc('getnewaddress', [`Property campaign ${requireKey(campaignId, 'campaignId')}`, 'bech32']);
@@ -356,6 +357,7 @@ export function createMoneroWalletLedger(options = {}) {
   }
   return Object.freeze({
     currency: 'XMR',
+    async assertNetwork() { await assertNetwork(); return expectedNetwork; },
     async createAddress({ campaignId }) {
       await assertNetwork();
       const result = await walletRpc('create_address', { account_index: 0, label: `Property campaign ${requireKey(campaignId, 'campaignId')}` });
@@ -579,6 +581,7 @@ export function createNanoNodeLedger(options = {}) {
 
   return Object.freeze({
     currency: 'XNO',
+    async assertNetwork() { await assertNetwork(); return expectedNetwork; },
     async createAddress({ campaignId }) {
       await assertNetwork();
       const created = await rpc('account_create', { wallet, work: true });

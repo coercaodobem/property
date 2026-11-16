@@ -19,7 +19,7 @@
     "geodeSha256": "9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7"
   },
   "counts": {
-    "mcpTools": 20,
+    "mcpTools": 48,
     "readsPerAgent": 25,
     "sendsPerAgent": 25,
     "activityTransitionsPerAgent": 12,
@@ -99,7 +99,7 @@
       "result": "PASS"
     },
     {
-      "id": "host-a-xno-spending-disabled-until-owner-configures-local-policy",
+      "id": "host-a-xno-and-test-network-trade-spending-disabled-until-local-owner-configuration",
       "result": "PASS"
     },
     {
@@ -107,7 +107,7 @@
       "result": "PASS"
     },
     {
-      "id": "host-b-xno-spending-disabled-until-owner-configures-local-policy",
+      "id": "host-b-xno-and-test-network-trade-spending-disabled-until-local-owner-configuration",
       "result": "PASS"
     },
     {

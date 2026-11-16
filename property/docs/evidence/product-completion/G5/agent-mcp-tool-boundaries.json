@@ -1,10 +1,10 @@
 {
   "result": "PASS",
   "operating_system": "linux/x64",
-  "tool_count": 39,
-  "unique_service_dispatches": 39,
-  "read_only_annotations_checked": 39,
-  "fail_closed_cases": 35,
+  "tool_count": 48,
+  "unique_service_dispatches": 48,
+  "read_only_annotations_checked": 48,
+  "fail_closed_cases": 43,
   "write_side_effects": 0,
   "read_queries": 1,
   "cases": [
@@ -84,6 +84,69 @@
       "read_only": false,
       "outcome": "xno-wallet-not-configured",
       "failure_case": "xno-wallet-not-configured"
+    },
+    {
+      "name": "property_trade_policy",
+      "method": "trade.policy",
+      "read_only": true,
+      "outcome": "read-only result",
+      "failure_case": null
+    },
+    {
+      "name": "property_trade_offer",
+      "method": "trade.offer",
+      "read_only": false,
+      "outcome": "trade-test-network-node-not-configured",
+      "failure_case": "trade-test-network-node-not-configured"
+    },
+    {
+      "name": "property_trade_accept",
+      "method": "trade.accept",
+      "read_only": false,
+      "outcome": "trade-test-network-node-not-configured",
+      "failure_case": "trade-test-network-node-not-configured"
+    },
+    {
+      "name": "property_trade_sync",
+      "method": "trade.sync",
+      "read_only": false,
+      "outcome": "trade-test-network-node-not-configured",
+      "failure_case": "trade-test-network-node-not-configured"
+    },
+    {
+      "name": "property_trade_request_payment",
+      "method": "trade.request_payment",
+      "read_only": false,
+      "outcome": "trade-test-network-node-not-configured",
+      "failure_case": "trade-test-network-node-not-configured"
+    },
+    {
+      "name": "property_trade_reconcile",
+      "method": "trade.reconcile",
+      "read_only": false,
+      "outcome": "trade-test-network-node-not-configured",
+      "failure_case": "trade-test-network-node-not-configured"
+    },
+    {
+      "name": "property_trade_status",
+      "method": "trade.status",
+      "read_only": true,
+      "outcome": "trade-test-network-node-not-configured",
+      "failure_case": "trade-test-network-node-not-configured"
+    },
+    {
+      "name": "property_trade_dispute",
+      "method": "trade.dispute",
+      "read_only": false,
+      "outcome": "trade-test-network-node-not-configured",
+      "failure_case": "trade-test-network-node-not-configured"
+    },
+    {
+      "name": "property_trade_cancel",
+      "method": "trade.cancel",
+      "read_only": false,
+      "outcome": "trade-test-network-node-not-configured",
+      "failure_case": "trade-test-network-node-not-configured"
     },
     {
       "name": "property_xno_threshold_create",

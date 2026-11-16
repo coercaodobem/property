@@ -13,6 +13,7 @@ English is the default language for the project and these documents. Choose **Po
 - [Amethyst-to-Property data migration](migracao-property.md) · [Português (Brasil)](migracao-property.pt-BR.md)
 - [BTC/XMR/XNO payments](pagamentos.md) · [Português (Brasil)](pagamentos.pt-BR.md)
 - [Agent XNO trade protocol](agent-xno-trades.md) · [Português (Brasil)](agent-xno-trades.pt-BR.md)
+- [Agent direct trades on local test networks](agent-test-network-trades.md) · [Português (Brasil)](agent-test-network-trades.pt-BR.md)
 - [Experimental Nano threshold-signature core](agent-xno-threshold.md) · [Português (Brasil)](agent-xno-threshold.pt-BR.md)
 - [Agent messaging with human-first UX](plano-agentes-human-first.md) · [Português (Brasil)](plano-agentes-human-first.pt-BR.md)
 - [G0 decision: direct agent messaging](agent-messaging-g0.md) · [Português (Brasil)](agent-messaging-g0.pt-BR.md)

@@ -13,6 +13,11 @@ import { createXnoEscrowService } from './xno-escrow.mjs';
 import { createEncryptedXnoJournalStore } from './xno-journal.mjs';
 import { createEncryptedXnoThresholdStore } from './xno-threshold-store.mjs';
 import { createXnoThresholdProtocol } from './xno-threshold-protocol.mjs';
+import { createBitcoinCoreLedger, createMoneroWalletLedger, createNanoNodeLedger } from './ledger-rpc.mjs';
+import { createTradeStateMachine } from './trade-state.mjs';
+import { createTradeConversationService } from './trade-conversation.mjs';
+import { createTradeEvidenceSigner, createEncryptedTradeJournalStore } from './trade-state-store.mjs';
+import { validateTradeNodeConfig } from './trade-node-config.mjs';
 
 const AGENT_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PROPERTY_ROOT = path.resolve(AGENT_ROOT, '..');
@@ -57,6 +62,7 @@ export async function runDaemon({ password, profile = 'default', env = process.e
   let xnoTrades = null;
   let xnoEscrow = null;
   let xnoThreshold = null;
+  let tradeConversations = null;
   try {
     try {
       const envelope = await readJson(paths.xnoVaultPath);
@@ -86,6 +92,49 @@ export async function runDaemon({ password, profile = 'default', env = process.e
       blockedPubkeys: () => configSnapshot.blocked_pubkeys, relays: () => configSnapshot.inbox_relays, ...journalOptions });
     xnoEscrow = createXnoEscrowService({ pubkey, wallet: xnoWallet, escrowWallet: xnoEscrowWallet, transport,
       blockedPubkeys: () => configSnapshot.blocked_pubkeys, relays: () => configSnapshot.inbox_relays, ...journalOptions });
+    try {
+      const envelope = await readJson(paths.tradeNodeVaultPath, { maxBytes: 64 * 1024 });
+      const tradeConfig = validateTradeNodeConfig(openEncryptedPayload(envelope, pubkey, password, 'trade-node-config'));
+      const adapters = {};
+      await ensurePrivateDirectory(paths.tradeLedgerStateDir);
+      if (tradeConfig.adapters.BTC) {
+        const item = tradeConfig.adapters.BTC;
+        const ledger = createBitcoinCoreLedger({ rpcUrl: item.rpc_url, username: item.username, password: item.password,
+          walletName: item.wallet_name, expectedChain: 'regtest', minConfirmations: item.min_confirmations });
+        adapters.BTC = { ledger, network: 'regtest', minConfirmations: item.min_confirmations };
+      }
+      if (tradeConfig.adapters.XMR) {
+        const item = tradeConfig.adapters.XMR;
+        const ledger = createMoneroWalletLedger({ walletRpcUrl: item.wallet_rpc_url, daemonRpcUrl: item.daemon_rpc_url,
+          username: item.username, password: item.password, daemonUsername: item.daemon_username, daemonPassword: item.daemon_password,
+          stateDir: path.join(paths.tradeLedgerStateDir, 'xmr'), expectedNetwork: 'fakechain', minConfirmations: item.min_confirmations });
+        adapters.XMR = { ledger, network: 'fakechain', minConfirmations: item.min_confirmations };
+      }
+      if (tradeConfig.adapters.XNO) {
+        const item = tradeConfig.adapters.XNO;
+        const ledger = createNanoNodeLedger({ rpcUrl: item.rpc_url, username: item.username, password: item.password,
+          wallet: item.wallet, stateDir: path.join(paths.tradeLedgerStateDir, 'xno'), expectedNetwork: 'dev', minConfirmations: item.min_confirmations });
+        adapters.XNO = { ledger, network: 'dev', minConfirmations: item.min_confirmations };
+      }
+      const evidence = createTradeEvidenceSigner(tradeConfig.signing_seed);
+      tradeConfig.signing_seed = '';
+      for (const adapter of Object.values(tradeConfig.adapters)) {
+        for (const field of ['password', 'daemon_password']) adapter[field] = '';
+        for (const field of ['username', 'daemon_username']) adapter[field] = '';
+      }
+      tradeConfig.adapters = {};
+      const store = createEncryptedTradeJournalStore({ file: paths.tradeJournalPath, pubkey, password });
+      const machine = createTradeStateMachine({ adapters, localIdentityPubkey: pubkey, signer: evidence,
+        verifyEvidence: evidence.verify,
+        authorize: async ({ trade, actor_pubkey, authorization }) => {
+          if (actor_pubkey === pubkey) return authorization?.local === true;
+          return [trade.seller_pubkey, trade.buyer_pubkey].includes(actor_pubkey) && authorization?.transport_authenticated === true &&
+            /^[0-9a-f]{32}$/.test(authorization?.message_id || '');
+        }, loadJournal: () => store.load(), saveJournal: value => store.save(value), now });
+      await machine.verifyJournal();
+      tradeConversations = createTradeConversationService({ pubkey, machine, transport,
+        blockedPubkeys: () => configSnapshot.blocked_pubkeys, relays: () => configSnapshot.inbox_relays, now });
+    } catch (error) { if (error.code !== 'ENOENT') throw error; }
   } catch (error) {
     try { await xnoWallet?.lock(); } catch {}
     try { await xnoEscrowWallet?.lock(); } catch {}
@@ -97,7 +146,7 @@ export async function runDaemon({ password, profile = 'default', env = process.e
   const service = new AgentService({
     pubkey, loadConfig,
     saveConfig: async config => { configSnapshot = validateConfig(config); await writePrivateJson(paths.configPath, configSnapshot); },
-    transport, xnoTrades, xnoEscrow, xnoThreshold, now,
+    transport, xnoTrades, xnoEscrow, xnoThreshold, tradeConversations, now,
   });
   let shutdown;
   const stop = await startUnixJsonServer(paths.socketPath, async (method, params) => {

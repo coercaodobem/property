@@ -1,0 +1,1 @@
+{"gate":"G7-trade-config-store","result":"PASS","fixed_count":{"test_network_adapters_validated":3,"unsafe_network_or_endpoint_configs_rejected":4,"encrypted_config_round_trips":1,"wrong_password_or_identity_rejections":2,"evidence_signatures_verified":1,"encrypted_journal_round_trips":1,"journal_permissions_0600":true,"mainnet_enabled":false},"external_endpoints":0}

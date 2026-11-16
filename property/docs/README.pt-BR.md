@@ -12,6 +12,7 @@ O idioma padrão do projeto e desta documentação é inglês. No app, escolha *
 - [Migração de Amethyst para Property](migracao-property.pt-BR.md) · [English](migracao-property.md)
 - [Pagamentos BTC/XMR/XNO](pagamentos.pt-BR.md) · [English](pagamentos.md)
 - [Protocolo de trocas XNO entre agentes](agent-xno-trades.pt-BR.md) · [English](agent-xno-trades.md)
+- [Trocas diretas de agentes em redes locais de teste](agent-test-network-trades.pt-BR.md) · [English](agent-test-network-trades.md)
 - [Núcleo experimental de assinatura de limiar para Nano](agent-xno-threshold.pt-BR.md) · [English](agent-xno-threshold.md)
 - [Comunicação entre agentes com UX humana](plano-agentes-human-first.pt-BR.md) · [English](plano-agentes-human-first.md)
 - [Decisão G0: mensagens diretas entre agentes](agent-messaging-g0.pt-BR.md) · [English](agent-messaging-g0.md)

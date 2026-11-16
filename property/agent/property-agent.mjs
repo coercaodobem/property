@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { open, rm } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AGENT_VERSION, loadNostr, normalizeRelay, profileName } from './core.mjs';
@@ -8,6 +9,8 @@ import { callUnixJson } from './ipc.mjs';
 import { ensurePrivateDirectory, readJson, resolvePaths, writePrivateJson } from './store.mjs';
 import { createEncryptedPayload, createVault, openEncryptedPayload, unlockVault } from './vault.mjs';
 import { createNanoAgentWallet, validateXnoWalletConfig } from './nano-wallet.mjs';
+import { createBitcoinCoreLedger, createMoneroWalletLedger, createNanoNodeLedger } from './ledger-rpc.mjs';
+import { emptyTradeNodeConfig, validateTradeNodeConfig } from './trade-node-config.mjs';
 
 const AGENT_ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PROPERTY_ROOT = path.resolve(AGENT_ROOT, '..');
@@ -27,6 +30,8 @@ function usage() {
     '  property-agent backup <arquivo-destino-absoluto> [--profile default]',
     '  property-agent xno configure|status|disable [--profile default]',
     '  property-agent xno escrow configure|status|disable [--profile default]',
+    '  property-agent trade configure BTC|XMR|XNO [--profile default]',
+    '  property-agent trade status|disable [--profile default]',
     '', 'Senha é lida somente de um TTY local e nunca aceita por argumento ou variável de ambiente.', '',
   ].join('\n');
 }
@@ -238,6 +243,94 @@ async function xnoCommand(args, paths) {
   process.stdout.write('Política XNO removida; o histórico local foi preservado.\n');
 }
 
+async function configureTradeAdapter(currency, paths) {
+  const vault = await readJson(paths.vaultPath);
+  let masterPassword = await promptHidden('Senha do cofre Property Agent (entrada oculta): ');
+  let rpcPassword = '', daemonPassword = '', config = null;
+  try {
+    const { context, nostr } = await loadNostr(PROPERTY_ROOT);
+    const unlocked = unlockVault(vault, masterPassword, nostr, context);
+    unlocked.secretHex = ''; context.propertyAgentSecretHex = '';
+    try {
+      const envelope = await readJson(paths.tradeNodeVaultPath, { maxBytes: 64 * 1024 });
+      config = validateTradeNodeConfig(openEncryptedPayload(envelope, vault.pubkey, masterPassword, 'trade-node-config'));
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      config = emptyTradeNodeConfig(randomBytes(32).toString('hex'));
+    }
+    if (currency === 'BTC') {
+      const rpc_url = await promptLine('Bitcoin Core RPC local (somente regtest; ex.: http://127.0.0.1:18443/): ');
+      const username = await promptLine('Usuário RPC: ');
+      rpcPassword = await promptHidden('Senha RPC (entrada oculta): ');
+      const wallet_name = await promptLine('Nome da carteira carregada no Bitcoin Core: ');
+      const answer = await promptLine('Confirmações exigidas (padrão 1): ');
+      config.adapters.BTC = { rpc_url, username, password: rpcPassword, wallet_name, network: 'regtest', min_confirmations: answer ? Number(answer) : 1 };
+      config = validateTradeNodeConfig(config);
+      const ledger = createBitcoinCoreLedger({ rpcUrl: rpc_url, username, password: rpcPassword, walletName: wallet_name,
+        expectedChain: 'regtest', minConfirmations: config.adapters.BTC.min_confirmations });
+      await ledger.assertNetwork();
+    } else if (currency === 'XMR') {
+      const wallet_rpc_url = await promptLine('Monero Wallet RPC local (fakechain): ');
+      const daemon_rpc_url = await promptLine('Monero daemon RPC local (fakechain): ');
+      const username = await promptLine('Usuário Wallet RPC: ');
+      rpcPassword = await promptHidden('Senha Wallet RPC (entrada oculta): ');
+      const daemon_username = await promptLine('Usuário daemon RPC: ');
+      daemonPassword = await promptHidden('Senha daemon RPC (entrada oculta): ');
+      const answer = await promptLine('Confirmações mínimas, nunca abaixo de 10 (padrão 10): ');
+      config.adapters.XMR = { wallet_rpc_url, daemon_rpc_url, username, password: rpcPassword, daemon_username,
+        daemon_password: daemonPassword, network: 'fakechain', min_confirmations: answer ? Number(answer) : 10 };
+      config = validateTradeNodeConfig(config);
+      const ledger = createMoneroWalletLedger({ walletRpcUrl: wallet_rpc_url, daemonRpcUrl: daemon_rpc_url,
+        username, password: rpcPassword, daemonUsername: daemon_username, daemonPassword,
+        stateDir: paths.tradeLedgerStateDir, expectedNetwork: 'fakechain', minConfirmations: config.adapters.XMR.min_confirmations });
+      await ledger.assertNetwork();
+    } else {
+      const rpc_url = await promptLine('Nano RPC autenticado local (somente dev; ex.: http://127.0.0.1:7449/): ');
+      const username = await promptLine('Usuário do gateway: ');
+      rpcPassword = await promptHidden('Senha do gateway (entrada oculta): ');
+      const wallet = await promptLine('ID hex da carteira Nano de teste (64 caracteres): ');
+      config.adapters.XNO = { rpc_url, username, password: rpcPassword, wallet, network: 'dev', min_confirmations: 1 };
+      config = validateTradeNodeConfig(config);
+      const ledger = createNanoNodeLedger({ rpcUrl: rpc_url, username, password: rpcPassword, wallet,
+        stateDir: paths.tradeLedgerStateDir, expectedNetwork: 'dev', minConfirmations: 1 });
+      await ledger.assertNetwork();
+    }
+    await confirmHuman(`Armar somente o adapter ${currency} em rede local privada de teste. Mainnet está desabilitada; esta configuração observa recebimentos e cria invoices locais, mas não envia pagamentos.`, 'CONFIGURAR');
+    try { await callUnixJson(paths.socketPath, 'daemon.lock', {}); } catch (error) { if (error.message !== 'agent-daemon-unavailable') throw error; }
+    await writePrivateJson(paths.tradeNodeVaultPath, createEncryptedPayload(config, vault.pubkey, masterPassword, 'trade-node-config'));
+    process.stdout.write(`Adapter ${currency} (${config.adapters[currency].network}) armazenado cifrado. Bloqueie e desbloqueie o agente para carregá-lo; nenhuma transação foi enviada.\n`);
+    context.propertyAgentSecretHex = '';
+  } finally { masterPassword = ''; rpcPassword = ''; daemonPassword = ''; config = null; }
+}
+
+async function tradeCommand(args, paths) {
+  if (args.length === 2 && args[0] === 'configure' && ['BTC', 'XMR', 'XNO'].includes(args[1])) {
+    await configureTradeAdapter(args[1], paths); return;
+  }
+  if (args.length !== 1 || !['status', 'disable'].includes(args[0])) throw new Error('Uso: property-agent trade configure BTC|XMR|XNO|status|disable.');
+  if (args[0] === 'status') {
+    const state = await callAgentDaemon(paths, 'trade.policy', {});
+    const configured = state.configured || [];
+    process.stdout.write(`Adapters locais de troca: ${configured.length ? configured.join(', ') : 'nenhum'}\nRedes permitidas: BTC regtest, XMR fakechain, XNO dev\nMainnet: desabilitada\n`);
+    return;
+  }
+  const vault = await readJson(paths.vaultPath);
+  let masterPassword = await promptHidden('Senha do cofre Property Agent (entrada oculta): ');
+  try {
+    const { context, nostr } = await loadNostr(PROPERTY_ROOT);
+    const unlocked = unlockVault(vault, masterPassword, nostr, context);
+    unlocked.secretHex = ''; context.propertyAgentSecretHex = '';
+    const envelope = await readJson(paths.tradeNodeVaultPath, { maxBytes: 64 * 1024 });
+    const config = validateTradeNodeConfig(openEncryptedPayload(envelope, vault.pubkey, masterPassword, 'trade-node-config'));
+    await confirmHuman('Desativar os adapters locais de troca. O journal cifrado será preservado e nenhuma transação será enviada.', 'DESATIVAR');
+    config.adapters = {};
+    try { await callUnixJson(paths.socketPath, 'daemon.lock', {}); } catch (error) { if (error.message !== 'agent-daemon-unavailable') throw error; }
+    await writePrivateJson(paths.tradeNodeVaultPath, createEncryptedPayload(config, vault.pubkey, masterPassword, 'trade-node-config'));
+    process.stdout.write('Adapters desativados; journal cifrado e chave de evidência preservados.\n');
+    context.propertyAgentSecretHex = '';
+  } finally { masterPassword = ''; }
+}
+
 async function run() {
   const [command = 'help', ...rawArgs] = process.argv.slice(2);
   if (command === 'help' || command === '--help' || command === '-h') { process.stdout.write(usage()); return; }
@@ -251,7 +344,13 @@ async function run() {
     finally { password = ''; /* strings JavaScript não podem ser apagadas fisicamente; a senha não é persistida nem repassada a processo filho */ }
     return;
   }
-  if (command === 'mcp') { if (args.length) throw new Error('mcp não aceita argumentos adicionais.'); process.env.PROPERTY_AGENT_PROFILE = profile; await import('./mcp-server.mjs'); return; }
+  if (command === 'mcp') {
+    if (args.length) throw new Error('mcp não aceita argumentos adicionais.');
+    process.env.PROPERTY_AGENT_PROFILE = profile;
+    const { runStdio } = await import('./mcp-server.mjs');
+    await runStdio();
+    return;
+  }
   if (command === 'status') {
     if (args.length) throw new Error('status não aceita parâmetros adicionais.');
     const { nostr } = await loadNostr(PROPERTY_ROOT);
@@ -267,6 +366,7 @@ async function run() {
   }
   if (command === 'block' || command === 'unblock') { await changeBlockedAgent(args, profile, command === 'block'); return; }
   if (command === 'xno') { await xnoCommand(args, paths); return; }
+  if (command === 'trade') { await tradeCommand(args, paths); return; }
   if (command === 'backup') {
     if (args.length !== 1 || !path.isAbsolute(args[0])) throw new Error('Informe um caminho absoluto para o backup cifrado.');
     const backup = await readJson(paths.vaultPath);

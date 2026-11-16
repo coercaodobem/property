@@ -44,6 +44,11 @@
     "store.mjs",
     "vault.mjs",
     "nano-wallet.mjs",
+    "trade-state.mjs",
+    "trade-conversation.mjs",
+    "trade-node-config.mjs",
+    "trade-state-store.mjs",
+    "ledger-rpc.mjs",
     "xno-trades.mjs",
     "xno-journal.mjs",
     "xno-escrow.mjs",
@@ -63,6 +68,6 @@
     "vendor/marketplace.js"
   ],
   "mcpToolsManifest": "tools.manifest.json",
-  "mcpToolsVersion": "1.0.0",
-  "mcpToolCount": 39
+  "mcpToolsVersion": "1.1.0",
+  "mcpToolCount": 48
 }

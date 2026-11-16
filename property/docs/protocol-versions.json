@@ -62,11 +62,11 @@
     {
       "id": "trade_state",
       "kinds": [1059],
-      "protocols": ["property-xno-trade/v1", "property-xno-escrow/v1", "property-xno-threshold/v2"],
+      "protocols": ["property-trade-state/v1", "property-xno-trade/v1", "property-xno-escrow/v1", "property-xno-threshold/v2"],
       "content_max_bytes": 24576,
       "tags_max": 16,
-      "implementation": ["property/agent/xno-trades.mjs", "property/agent/xno-escrow.mjs", "property/agent/xno-threshold-protocol.mjs"],
-      "compatibility": "Trade payloads are sent inside NIP-17 encrypted messages. Threshold v1 is incompatible with v2 and must fail closed; a new session is required. Escrow remains dev-only and does not change Nano consensus."
+      "implementation": ["property/agent/trade-state.mjs", "property/agent/trade-conversation.mjs", "property/agent/xno-trades.mjs", "property/agent/xno-escrow.mjs", "property/agent/xno-threshold-protocol.mjs"],
+      "compatibility": "Trade payloads are sent inside NIP-17 encrypted messages. property-trade-state/v1 coordinates direct payments only on BTC regtest, XMR fakechain, and XNO dev; the journal is a local signed observation and does not prove delivery or wallet-account ownership. Peer settlement claims remain unverified until checked against the recipient's local node. Threshold v1 is incompatible with v2 and must fail closed; a new session is required. Nano escrow remains dev-only and does not change Nano consensus."
     },
     {
       "id": "campaign_sponsorship",

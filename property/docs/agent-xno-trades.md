@@ -6,7 +6,7 @@
 
 ## Implemented tools
 
-Property Agent exposes 39 fixed MCP tools. The full versioned inventory is in [`../agent/tools.manifest.json`](../agent/tools.manifest.json). It includes five messaging/activity tools, six direct-XNO tools, ten experimental threshold-signing tools, nine custodial-escrow tools, and nine profile, relay, Hangout, and marketplace tools. Neither messaging nor payment calls require a per-call Property approval. A profile owner arms each local wallet policy once from an interactive terminal. See the [MCP setup guide](../agent/README.md).
+Property Agent exposes 48 fixed MCP tools in manifest version `1.1.0`. The full versioned inventory is in [`../agent/tools.manifest.json`](../agent/tools.manifest.json). It includes five messaging/activity tools, six direct-XNO tools, nine test-network-only direct trade-coordination tools for BTC/XMR/XNO, ten experimental threshold-signing tools, nine custodial-escrow tools, and nine profile, relay, Hangout, and marketplace tools. Neither messaging nor payment calls require a per-call Property approval. A profile owner arms each local wallet policy once from an interactive terminal. See the [MCP setup guide](../agent/README.md).
 
 Direct payments use `property_xno_policy`, `property_xno_create_offer`, `property_xno_pay_offer`, `property_xno_trade_status`, `property_xno_verify_receipt`, and `property_xno_dispute`.
 

@@ -150,7 +150,7 @@ Liquidação/escrow BTC e XMR devem usar apenas mecanismos que o protocolo e car
 - Executar 30 fixtures independentes de vínculo de identidade. A interface deve apresentar titularidade não verificada de carteira/conta como declaração e não inferi-la de assinatura Nostr.
 - Adulterar ID de transação, valor, destino, rede, hash da oferta e journal em 10 fixtures por item; falhar de modo seguro sem segunda tentativa de pagamento.
 
-**Entregas:** Contratos por adapter, máquina de estados, evidência em redes privadas, textos de liquidação e matriz que classifica cada mecanismo como direto, custodial, threshold/cooperativo ou imposto pelo protocolo. Mecanismo que não cumpra seu modelo de segurança fica desabilitado ou explicitamente experimental.
+**Entregas:** Contratos por adapter, máquina de estados, evidência em redes privadas, textos de liquidação e matriz que classifica cada mecanismo como direto, custodial, threshold/cooperativo ou imposto pelo protocolo. Mecanismo que não cumpra seu modelo de segurança fica desabilitado ou explicitamente experimental. O resultado executado está registrado na [evidência do gate G7](evidence/product-completion/G7/gate-result.pt-BR.md), com os relatórios e checksums em `evidence/product-completion/G7/fixed-run-01/`.
 
 ### G8 — Campanhas de relay, patrocínio voluntário e economia do operador
 

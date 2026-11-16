@@ -13,9 +13,10 @@ const SELF = 'a'.repeat(64);
 const READ_ONLY = new Set([
   'property_status', 'property_list_conversations', 'property_read_messages', 'property_xno_policy',
   'property_xno_trade_status', 'property_xno_threshold_status', 'property_xno_escrow_status',
-  'property_profile_lookup', 'property_list_relays', 'property_hangout_read', 'property_marketplace_search',
+  'property_trade_policy', 'property_trade_status', 'property_profile_lookup', 'property_list_relays',
+  'property_hangout_read', 'property_marketplace_search',
 ]);
-const READ_ONLY_EMPTY_ARGUMENTS = new Set(['property_status', 'property_list_conversations', 'property_xno_policy', 'property_list_relays']);
+const READ_ONLY_EMPTY_ARGUMENTS = new Set(['property_status', 'property_list_conversations', 'property_xno_policy', 'property_trade_policy', 'property_list_relays']);
 const EXPECTED_FAILURE = new Map([
   ['read', 'invalid-arguments'], ['send', 'invalid-arguments'], ['activity', 'invalid-arguments'],
   ['xno.offer', 'xno-wallet-not-configured'], ['xno.pay', 'xno-wallet-not-configured'],
@@ -26,6 +27,10 @@ const EXPECTED_FAILURE = new Map([
   ['xno.threshold.propose', 'xno-threshold-not-configured'], ['xno.threshold.approve', 'xno-threshold-not-configured'],
   ['xno.threshold.begin_signing', 'xno-threshold-not-configured'], ['xno.threshold.prepare_signature', 'xno-threshold-not-configured'],
   ['xno.threshold.sign', 'xno-threshold-not-configured'], ['xno.threshold.publish', 'xno-threshold-not-configured'],
+  ['trade.offer', 'trade-test-network-node-not-configured'], ['trade.accept', 'trade-test-network-node-not-configured'],
+  ['trade.sync', 'trade-test-network-node-not-configured'], ['trade.request_payment', 'trade-test-network-node-not-configured'],
+  ['trade.reconcile', 'trade-test-network-node-not-configured'], ['trade.status', 'trade-test-network-node-not-configured'],
+  ['trade.dispute', 'trade-test-network-node-not-configured'], ['trade.cancel', 'trade-test-network-node-not-configured'],
   ['xno.escrow.offer', 'xno-escrow-not-configured'], ['xno.escrow.open', 'xno-escrow-not-configured'],
   ['xno.escrow.accept', 'xno-escrow-not-configured'], ['xno.escrow.fund', 'xno-escrow-not-configured'],
   ['xno.escrow.approve', 'xno-escrow-not-configured'], ['xno.escrow.dispute', 'xno-escrow-not-configured'],
@@ -36,7 +41,7 @@ const EXPECTED_FAILURE = new Map([
   ['marketplace.search', 'invalid-arguments'], ['marketplace.publish', 'invalid-arguments'], ['marketplace.withdraw', 'invalid-arguments'],
 ]);
 
-assert.equal(MCP_TOOLS.length, 39);
+assert.equal(MCP_TOOLS.length, 48);
 assert.equal(MCP_TOOL_METHODS.length, MCP_TOOLS.length);
 assert.deepEqual(new Set(MCP_TOOL_METHODS.map(item => item.name)), new Set(MCP_TOOLS.map(item => item.name)));
 assert.equal(new Set(MCP_TOOL_METHODS.map(item => item.method)).size, MCP_TOOL_METHODS.length, 'every MCP tool maps to one unique local service method');

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { createHash, randomBytes, randomUUID, webcrypto } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomBytes, randomUUID, sign as edSign, verify as edVerify, webcrypto } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createServer, request as httpRequest } from 'node:http';
 import { connect } from 'node:net';
@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { createCampaignEngine, OFFER_KIND, OFFER_TAG, REFUND_REQUEST_KIND } from '../../relay/campaign-engine.mjs';
 import { createBitcoinCoreLedger, createJsonRpcClient, createMoneroWalletLedger,
   createNanoNodeLedger, createDigestHttpJsonClient, combineCampaignLedgers } from '../../relay/ledger-rpc.mjs';
+import { createTradeStateMachine, emptyTradeJournal } from '../../agent/trade-state.mjs';
 import { startGeode, stopGeode, publishEvent, waitStored, wsQuery } from './browser-g05-smoke.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -20,6 +21,21 @@ const IDS = ['G08-01', 'G08-02', 'G08-03', 'G08-04', 'G08-05', 'G08-06', 'G08-07
 const NANO_DEV_GENESIS_KEY = '34F0A37AAD20F4A260F0A5B3CB3D7FB50673212263E58A380BC10474BB039CE4';
 const NOW_EPOCH_SECONDS = 1_800_000_000;
 const PROXY_KEYS = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'FTP_PROXY', 'SOCKS_PROXY', 'WS_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'ftp_proxy', 'socks_proxy', 'ws_proxy'];
+const tradeEvidenceKeys = new Map();
+
+function createTradeEvidenceSigner() {
+  const pair = generateKeyPairSync('ed25519');
+  const pubkey = createHash('sha256').update(pair.publicKey.export({ type: 'spki', format: 'der' })).digest('hex');
+  tradeEvidenceKeys.set(pubkey, pair.publicKey);
+  return { pubkey, sign: async value => edSign(null, Buffer.from(value, 'utf8'), pair.privateKey).toString('base64') };
+}
+
+async function verifyTradeEvidence(pubkey, value, signature) {
+  const key = tradeEvidenceKeys.get(pubkey);
+  if (!key || typeof signature !== 'string') return false;
+  try { return edVerify(null, Buffer.from(value, 'utf8'), key, Buffer.from(signature, 'base64')); }
+  catch { return false; }
+}
 
 function argsOf(argv) {
   const values = {};
@@ -241,7 +257,8 @@ async function main() {
   await mkdir(outputDir, { recursive: true, mode: 0o700 });
   const report = { schema_version: 1, result: 'RUNNING', cases: IDS.map(id => ({ case: id, status: 'NOT_RUN', reason: 'Case has not started.' })),
     ledger_networks: {}, payments: [], refunds: [], accounting: [], auth_checks: [], relay_publications: [],
-    external_endpoints: [], credential_scan: null, binary_sha256: toolHashes };
+    external_endpoints: [], credential_scan: null, binary_sha256: toolHashes,
+    g7_trade_integration: { result: 'NOT_RUN', currency_counts: {}, external_endpoints: [] } };
   const checkpoint = () => writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
   const mark = async (id, status, reason) => { Object.assign(report.cases.find(row => row.case === id), { status, reason }); await checkpoint(); };
   const processes = [];
@@ -582,6 +599,189 @@ async function main() {
       fees_by_currency: Object.fromEntries(refundEvidence.map(row => [row.currency, row.fee_atomic])) });
     await mark('G08-06', 'PASS', 'Observed payment and refund amounts remained integer atomic values on BTC/XMR and raw on Nano. Campaigns stayed unpublished while settlement was pending, mismatched refund amounts were rejected before any broadcast, and fee amounts were recorded separately for reconciliation.');
 
+    stage = 'run G7 trade state against ten private-chain invoices per currency with lost-response recovery';
+    const g7Report = { schema_version: 1, gate: 'G7-private-trade-ledger-integration', result: 'RUNNING',
+      fixed_count: { invoices_per_currency: 10, valid_receipts_per_currency: 10, lost_responses_per_currency: 10,
+        engine_restarts_per_currency: 10, duplicate_reconciliations_per_currency: 10 },
+      ledger_networks: { BTC: { name: 'regtest', p2p_outbound: false }, XMR: { name: 'fakechain', offline: true }, XNO: { name: 'dev', peers: 0 } },
+      currencies: {}, external_endpoints: [], wallet_identity_binding: 'unverified-claim', mainnet_enabled: false };
+    report.g7_trade_integration = g7Report;
+    const g7Store = { value: emptyTradeJournal() };
+    const g7Seller = runtime.identity(), g7Buyer = runtime.identity(), g7Signer = createTradeEvidenceSigner();
+    await mkdir(path.join(xmrRoot, 'g7-state'), { recursive: true, mode: 0o700 });
+    await mkdir(path.join(nanoRoot, 'g7-state'), { recursive: true, mode: 0o700 });
+    const g7LedgerFor = currency => {
+      if (currency === 'BTC') return createBitcoinCoreLedger({ rpcUrl: btcBaseUrl, walletName: 'property-node',
+        username: baseRpcUser, password: baseRpcPass, expectedChain: 'regtest', minConfirmations: 1 });
+      if (currency === 'XMR') return createMoneroWalletLedger({ walletRpcUrl: xmrNodeWallet.url, daemonRpcUrl: xmrDaemonUrl,
+        username: xmrNodeUser, password: xmrNodePass, daemonUsername: xmrDaemonUser, daemonPassword: xmrDaemonPass,
+        stateDir: path.join(xmrRoot, 'g7-state'), expectedNetwork: 'fakechain', minConfirmations: 10 });
+      return createNanoNodeLedger({ rpcUrl: nanoGateway.url, username: nanoAuthUser, password: nanoAuthPass,
+        wallet: nanoCampaignWallet, stateDir: path.join(nanoRoot, 'g7-state'), expectedNetwork: 'dev', minConfirmations: 1 });
+    };
+    const g7MachineFor = (currency, ledger) => createTradeStateMachine({
+      adapters: { [currency]: { ledger, network: currency === 'BTC' ? 'regtest' : currency === 'XMR' ? 'fakechain' : 'dev',
+        minConfirmations: currency === 'XMR' ? 10 : 1 } },
+      localIdentityPubkey: g7Seller.pubkey, signer: g7Signer, verifyEvidence: verifyTradeEvidence,
+      authorize: async ({ actor_pubkey, trade }) => actor_pubkey === trade.seller_pubkey || actor_pubkey === trade.buyer_pubkey,
+      loadJournal: async () => structuredClone(g7Store.value), saveJournal: async value => { g7Store.value = structuredClone(value); },
+      now: () => NOW_EPOCH_SECONDS
+    });
+    const g7Adapters = {};
+    for (const currency of ['BTC', 'XMR', 'XNO']) {
+      stage = `G7 ${currency}: create ten offers and local invoices`;
+      const baseLedger = g7LedgerFor(currency);
+      const firstSeen = new Set();
+      let lostResponseMode = false;
+      g7Adapters[currency] = {
+        assertNetwork: (...args) => baseLedger.assertNetwork(...args),
+        createAddress: (...args) => baseLedger.createAddress(...args),
+        lookupPayment: async request => {
+          const observed = await baseLedger.lookupPayment(request);
+          if (lostResponseMode && !firstSeen.has(request.address)) {
+            firstSeen.add(request.address);
+            throw new Error('g7-synthetic-response-lost-after-local-observation');
+          }
+          return observed;
+        }
+      };
+      const machine = g7MachineFor(currency, g7Adapters[currency]);
+      const atomicAmount = currency === 'BTC' ? '1000' : currency === 'XMR' ? '10000000' : '1';
+      const invoices = [];
+      const paymentTxids = [];
+      for (let index = 0; index < 10; index++) {
+        const tradeId = createHash('sha256').update(`property-g7-private/${currency}/${index}`).digest('hex').slice(0, 32);
+        const offer = await machine.createOffer({ trade_id: tradeId, currency, amount_atomic: atomicAmount,
+          seller_pubkey: g7Seller.pubkey, buyer_pubkey: g7Buyer.pubkey,
+          terms: `Private chain trade fixture ${currency} ${index}`, expires_at: NOW_EPOCH_SECONDS + 3600 });
+        await machine.accept({ trade_id: tradeId, actor_pubkey: g7Buyer.pubkey, authorization: 'private-network-fixture' });
+        await machine.requestPayment({ trade_id: tradeId, actor_pubkey: g7Seller.pubkey, authorization: 'private-network-fixture' });
+        invoices.push(offer);
+      }
+
+      if (currency === 'BTC') {
+        stage = 'G7 BTC: send ten regtest payments and confirm each in a separate block';
+        const minerAddress = await btcAdvertiser('getnewaddress', ['G7 trade regtest miner', 'bech32']);
+        for (const invoice of invoices) {
+          const txid = await btcAdvertiser('sendtoaddress', [invoice.destination, 0.00001]);
+          paymentTxids.push(txid);
+          await btcMineTo(minerAddress, 1);
+        }
+      } else if (currency === 'XMR') {
+        stage = 'G7 XMR: send ten fakechain payments and test confirmation/unlock threshold';
+        for (const invoice of invoices) {
+          const sent = await xmrAdvertiser.call('transfer', { destinations: [{ address: invoice.destination, amount: 10_000_000n }],
+            account_index: 0, priority: 1, get_tx_key: false });
+          paymentTxids.push(sent.tx_hash);
+        }
+        await xmrDaemonCall('generateblocks', { amount_of_blocks: 9, wallet_address: xmrAdvertiserAddress, reserve_size: 0 });
+        await xmrNodeWallet.call('refresh', {});
+        const beforeUnlock = await machine.reconcile({ trade_id: invoices[0].trade_id });
+        assert.equal(beforeUnlock.state, 'payment-observed', 'Monero receipts below the configured confirmation/unlock policy remain observed, not settled');
+        assert.ok(beforeUnlock.payment.confirmations < 10);
+        await xmrDaemonCall('generateblocks', { amount_of_blocks: 3, wallet_address: xmrAdvertiserAddress, reserve_size: 0 });
+        await xmrNodeWallet.call('refresh', {});
+      } else {
+        stage = 'G7 XNO: send ten raw-unit dev payments and confirm source blocks';
+        for (const invoice of invoices) {
+          const sent = await nanoAuthClient('send', { wallet: nanoAdvertiserWallet, source: nanoAdvertiserAccount,
+            destination: invoice.destination, amount: '1', id: `property-g7-${invoice.trade_id}` });
+          paymentTxids.push(sent.block);
+        }
+        let sourcesConfirmed = false;
+        for (let attempt = 0; attempt < 100; attempt++) {
+          const confirmations = await Promise.all(paymentTxids.map(hash => nanoAuthClient('block_info', { hash })));
+          sourcesConfirmed = confirmations.every(info => info.confirmed === true || info.confirmed === 'true');
+          if (sourcesConfirmed) break;
+          await nap(25);
+        }
+        assert.equal(sourcesConfirmed, true, 'all ten Nano dev send blocks must be cemented before the receive retry cases');
+      }
+
+      lostResponseMode = true;
+      stage = `G7 ${currency}: lose ten observer responses, restart and deduplicate reconciliation`;
+      let settledCount = 0, replayCount = 0;
+      for (let index = 0; index < invoices.length; index++) {
+        const invoice = invoices[index];
+        let latest = await machine.reconcile({ trade_id: invoice.trade_id });
+        if (currency === 'XMR' && index === 0) {
+          assert.equal(latest.state, 'payment-observed');
+          assert.equal(latest.rpc_uncertain, true);
+        } else {
+          assert.equal(latest.state, 'payment-requested');
+          assert.equal(latest.rpc_uncertain, true);
+        }
+        const restartedLedger = g7LedgerFor(currency);
+        const restartedMachine = g7MachineFor(currency, restartedLedger);
+        for (let attempt = 0; attempt < 100; attempt++) {
+          latest = await restartedMachine.reconcile({ trade_id: invoice.trade_id });
+          if (latest.state === 'settled') break;
+          await nap(25);
+        }
+        assert.equal(latest.state, 'settled', `${currency} trade ${index} settles from the local chain after an observer restart`);
+        assert.equal(latest.payment.amount_atomic, atomicAmount);
+        assert.equal(latest.payment.txid, paymentTxids[index].toLowerCase());
+        assert.equal(latest.payment.address, invoice.destination);
+        settledCount++;
+        const eventsBeforeReplay = latest.events.length;
+        const replay = await restartedMachine.reconcile({ trade_id: invoice.trade_id });
+        assert.equal(replay.state, 'settled');
+        assert.equal(replay.duplicated, true);
+        assert.equal(replay.events.length, eventsBeforeReplay);
+        replayCount++;
+      }
+      assert.equal(new Set(paymentTxids).size, 10, `${currency} uses ten distinct private test payments`);
+      assert.equal(settledCount, 10);
+      assert.equal(replayCount, 10);
+      const currencyEvidence = { network: currency === 'BTC' ? 'regtest' : currency === 'XMR' ? 'fakechain' : 'dev',
+        invoice_count: invoices.length, valid_receipts: settledCount, lost_responses: firstSeen.size,
+        observer_restarts: 10, duplicate_reconciliations: replayCount, distinct_payment_txids: new Set(paymentTxids).size,
+        exact_atomic_amounts: true, signed_local_journal_verified: (await g7MachineFor(currency, g7LedgerFor(currency)).verifyJournal()).valid };
+      assert.equal(currencyEvidence.lost_responses, 10);
+      assert.equal(currencyEvidence.signed_local_journal_verified, true);
+      g7Report.currencies[currency] = currencyEvidence;
+    }
+
+    const g7BtcTrades = Object.values(g7Store.value.trades).filter(trade => trade.currency === 'BTC');
+    stage = 'G7 BTC: invalidate one confirmed invoice block and verify reopening';
+    const reorgTrade = g7BtcTrades.at(-1);
+    const reorgTx = await btcAdvertiser('gettransaction', [reorgTrade.payment.txid, true]);
+    assert.ok(reorgTx.blockhash);
+    await btc('invalidateblock', [reorgTx.blockhash]);
+    const reorgMachine = g7MachineFor('BTC', g7LedgerFor('BTC'));
+    const afterReorg = await reorgMachine.reconcile({ trade_id: reorgTrade.trade_id });
+    assert.ok(['payment-observed', 'payment-reorged'].includes(afterReorg.state), `BTC reorg reopens or marks the trade, got ${afterReorg.state}`);
+    await btc('reconsiderblock', [reorgTx.blockhash]);
+    await btcMineTo(await btcAdvertiser('getnewaddress', ['G7 BTC reconfirm', 'bech32']), 1);
+    let reconfirmed = afterReorg;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      reconfirmed = await reorgMachine.reconcile({ trade_id: reorgTrade.trade_id });
+      if (reconfirmed.state === 'settled') break;
+      await nap(25);
+    }
+    assert.equal(reconfirmed.state, 'settled');
+    g7Report.btc_reorg = { invalidated_one_of_ten: true, state_after_invalidation: afterReorg.state,
+      state_after_reconfirmation: reconfirmed.state, settled_while_invalidated: false };
+
+    const nanoG7Journal = JSON.parse(await readFile(path.join(nanoRoot, 'g7-state', 'nano-refunds.json'), 'utf8'));
+    const nanoTrades = Object.values(g7Store.value.trades).filter(trade => trade.currency === 'XNO');
+    assert.equal(nanoTrades.length, 10);
+    for (const trade of nanoTrades) {
+      const receipt = nanoG7Journal.receipts[trade.destination];
+      assert.ok(receipt?.source_txid && receipt?.receive_txid);
+      assert.equal(receipt.amount_atomic, '1');
+      assert.equal(receipt.source_txid.toLowerCase(), trade.payment.txid);
+      const source = await nanoAuthClient('block_info', { hash: receipt.source_txid });
+      const receive = await nanoAuthClient('block_info', { hash: receipt.receive_txid });
+      assert.ok(source.confirmed === true || source.confirmed === 'true');
+      assert.ok(receive.confirmed === true || receive.confirmed === 'true');
+    }
+    g7Report.currencies.XNO.account_source_raw_block_hash_checked = true;
+    g7Report.currencies.XMR.confirmation_unlock_policy_checked = true;
+    g7Report.result = 'PASS';
+    await writeFile(path.join(outputDir, 'g7-trade-integration-report.json'), `${JSON.stringify(g7Report, null, 2)}\n`, { mode: 0o600 });
+    report.g7_trade_integration = g7Report;
+
     active = 'G08-07'; stage = 'verify loopback RPC authentication, mainnet rejection, and secret non-disclosure';
     await assert.rejects(() => createJsonRpcClient(btcBaseUrl, { auth: { type: 'basic', username: 'wrong', password: 'wrong' } })('getblockchaininfo'));
     const wrongNano = await fetch(nanoGateway.url, { method: 'POST', headers: { 'content-type': 'application/json', authorization: basicHeader('wrong', 'wrong') }, body: '{"action":"version"}' });
@@ -611,7 +811,8 @@ async function main() {
     for (const later of report.cases) if (later.status === 'NOT_RUN') Object.assign(later, {
       status: 'BLOCKED', reason: `Prerequisite failed in ${active}; case not started.`
     });
-    report.result = 'FAIL'; report.failure = { case: active, stage, message: String(error.message || error).slice(0, 1200) };
+    report.result = 'FAIL'; report.failure = { case: active, stage, message: String(error.message || error).slice(0, 1200),
+      stack: String(error.stack || '').slice(0, 4000) };
     await checkpoint();
     process.stderr.write(`${JSON.stringify({ result: report.result, case: active, stage, error: String(error.message || error).slice(0, 1200), output: outputDir })}\n`);
     return 1;

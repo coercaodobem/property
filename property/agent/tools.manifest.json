@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "name": "property-agent-mcp-tools",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "protocol": "2026-07-28",
-  "toolCount": 39,
+  "toolCount": 48,
   "tools": [
     {
       "name": "property_status",
@@ -300,6 +300,263 @@
           "conversation_pubkey",
           "trade_id",
           "summary"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_trade_policy",
+      "title": "Read local trade-node policy",
+      "description": "List configured local Bitcoin regtest, Monero fakechain, and Nano dev adapters. Mainnet is disabled. This tool reads policy and never sends funds.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "property_trade_offer",
+      "title": "Send a private test-network trade offer",
+      "description": "Create a unique invoice through the configured local test-network node and send the versioned offer by encrypted NIP-17. This direct-payment workflow is not escrow; paying through an external wallet is a separate action. Mainnet is disabled.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "recipient_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "BTC",
+              "XMR",
+              "XNO"
+            ]
+          },
+          "amount_atomic": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,38}$"
+          },
+          "terms": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "expires_in_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 604800
+          },
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "recipient_pubkey",
+          "currency",
+          "amount_atomic",
+          "terms",
+          "expires_in_seconds"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_trade_accept",
+      "title": "Accept an authenticated trade offer",
+      "description": "Accept the exact offer received from this peer over the selected NIP-17 relays. Acceptance sends no payment; verify the network, amount, destination, terms, and expiry before paying externally.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "conversation_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "offer_message_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "conversation_pubkey",
+          "offer_message_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_trade_sync",
+      "title": "Sync authenticated trade messages",
+      "description": "Apply authenticated peer acceptance, payment-request, dispute, and cancellation messages to the local trade journal. A peer settlement notice remains an unverified claim until checked against a local node.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "conversation_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "conversation_pubkey",
+          "trade_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_trade_request_payment",
+      "title": "Request the agreed direct payment",
+      "description": "After syncing the buyer’s authenticated acceptance, send the exact network, amount, and unique destination. It does not move funds or guarantee delivery.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "trade_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_trade_reconcile",
+      "title": "Check a trade against the local ledger",
+      "description": "Reconcile the seller’s exact payment destination, amount, network, transaction, and confirmation policy using the configured local test-network node. The buyer receives only a seller-reported notice; no escrow or delivery guarantee is provided.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "trade_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "property_trade_status",
+      "title": "Read local trade status",
+      "description": "Read this agent’s signed local trade journal. It does not independently verify a peer’s settlement claims or prove delivery.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "trade_id"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "property_trade_dispute",
+      "title": "Record and send a direct-trade dispute",
+      "description": "Send an encrypted dispute note and record it locally. This direct-payment workflow has no funds freeze, refund, or arbitration mechanism.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "conversation_pubkey": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "conversation_pubkey",
+          "trade_id",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "property_trade_cancel",
+      "title": "Cancel a pre-payment direct trade",
+      "description": "Cancel an offer or accepted trade before the payment request. It does not cancel or reverse an on-chain payment.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trade_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "required": [
+          "trade_id"
         ],
         "additionalProperties": false
       },

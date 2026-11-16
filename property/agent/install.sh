@@ -40,6 +40,14 @@ cleanup() { rm -rf -- "$stage" "$next"; }
 trap cleanup EXIT
 cp -a -- "$script_dir/." "$stage/"
 mkdir -p -- "$stage/vendor"
+if [[ -f "$script_dir/../relay/ledger-rpc.mjs" ]]; then
+  cp -- "$script_dir/../relay/ledger-rpc.mjs" "$stage/ledger-rpc.mjs"
+elif [[ -f "$script_dir/ledger-rpc.mjs" ]]; then
+  cp -- "$script_dir/ledger-rpc.mjs" "$stage/ledger-rpc.mjs"
+else
+  printf 'O adapter de ledger local necessário para trocas está ausente.\n' >&2
+  exit 1
+fi
 cp -- "$nostr_bundle" "$stage/vendor/nostr-tools-2.25.2.bundle.js"
 cp -- "$nostr_license" "$stage/vendor/nostr-tools-LICENSE"
 cp -- "$agent_messages" "$stage/agent-messaging.js"

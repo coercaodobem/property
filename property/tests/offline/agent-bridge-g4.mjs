@@ -281,7 +281,7 @@ async function main() {
     const listed = await host.tool('property_list_conversations');
     assert.equal(listed.isError, false); assert.equal(listed.value.conversations.length, 0);
     const inventory = await host.call('tools/list');
-    assert.equal(inventory.result.tools.length, 39);
+    assert.equal(inventory.result.tools.length, 48);
     assert.deepEqual(inventory.result.tools.map(tool => tool.name), expectedTools);
     const sendTool = inventory.result.tools.find(tool => tool.name === 'property_send_message');
     assert.deepEqual(sendTool.annotations, { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true });
@@ -290,7 +290,14 @@ async function main() {
     assert.deepEqual(paymentPolicy.value, { configured: false, escrow: false, reason: 'xno-wallet-not-configured' });
     const unsafePay = await host.tool('property_xno_pay_offer', { conversation_pubkey: alphaPub, offer_message_id: '1'.repeat(32) });
     assert.equal(unsafePay.isError, true); assert.equal(unsafePay.value.error, 'xno-wallet-not-configured');
-    record(`${host.name}-xno-spending-disabled-until-owner-configures-local-policy`);
+    const tradePolicy = await host.tool('property_trade_policy');
+    assert.deepEqual(tradePolicy.value, { configured: false, enabled_test_networks: [], mainnet_enabled: false,
+      reason: 'local-test-network-node-not-configured' });
+    const tradeUnavailable = await host.tool('property_trade_offer', { recipient_pubkey: host === hostA ? betaPub : alphaPub,
+      currency: 'BTC', amount_atomic: '1', terms: 'fixed unconfigured-node fixture', expires_in_seconds: 60, trade_id: 'e'.repeat(32) });
+    assert.equal(tradeUnavailable.isError, true);
+    assert.equal(tradeUnavailable.value.error, 'trade-test-network-node-not-configured');
+    record(`${host.name}-xno-and-test-network-trade-spending-disabled-until-local-owner-configuration`);
   }
 
   const betaSignalSecret = secretBytesInContext(context, unlockVault(JSON.parse(await readFile(beta.paths.vaultPath, 'utf8')), PASSWORD, nostr, context).secretHex);
@@ -449,7 +456,7 @@ async function main() {
   const report = {
     gate: 'G4', status: 'PASS_TECHNICAL_OFFLINE', seed: SEED, logicalNow: FIXED_NOW,
     environment: { os: 'linux/x64', node: process.version, mcpProtocol: '2026-07-28', externalConnections: 0, externalModels: 0, realParticipants: 0, agents: 2, mcpHostFixtures: ['host-a', 'host-b'], isolatedGeodeRelays: 1, geodeSha256: GEODE_SHA256 },
-    counts: { mcpTools: 39, readsPerAgent: 25, sendsPerAgent: 25, activityTransitionsPerAgent: 12, daemonLockActivityStopsPerAgent: 1, unpairedDirectReads: 10, unpairedDirectSends: 1, localBlockDenials: 2, nonexistentTools: 10, stdioShutdownRestarts: 10, relayDisconnectedErrors: 10, permissionRequestTools: 0, concurrentSends: 2, cases: cases.length },
+    counts: { mcpTools: 48, readsPerAgent: 25, sendsPerAgent: 25, activityTransitionsPerAgent: 12, daemonLockActivityStopsPerAgent: 1, unpairedDirectReads: 10, unpairedDirectSends: 1, localBlockDenials: 2, nonexistentTools: 10, stdioShutdownRestarts: 10, relayDisconnectedErrors: 10, permissionRequestTools: 0, concurrentSends: 2, cases: cases.length },
     evidence: { encryptedVaultWith600000Iterations: true, vaultMode0600: true, dataDirectoriesMode0700: true, unixSocketsMode0600: true, noTcpListener: true, directReadSendWithoutPairing: true, arbitraryUnpairedConversationAllowed: true, localBlocklistEnforced: true, permissionRequestToolAndQueueRemoved: true, propertyDoesNotRequestPerCallApproval: true, sendToolAnnotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }, privateThinkingSignalEncrypted: true, thinkingSignalContainsNoStatusText: true, thinkingSignalExpiresLocally: true, thinkingSignalStopsOnDaemonLock: true, ephemeralThinkingSignalNotRetained: true, noSecretReturnedByTools: true, relayAcknowledgementMeansOnlyLocalRelayAcceptance: true, allMcpStdoutIsJsonRpc: true, externalTraffic: false },
     cases,
   };

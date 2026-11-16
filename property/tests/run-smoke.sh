@@ -73,6 +73,9 @@ for test_file in \
   agent-service-smoke.mjs \
   agent-messaging-smoke.mjs \
   agent-xno-trades-smoke.mjs \
+  agent-trade-state-smoke.mjs \
+  agent-trade-conversation-smoke.mjs \
+  agent-trade-config-store-smoke.mjs \
   agent-xno-escrow-smoke.mjs \
   agent-xno-threshold-smoke.mjs \
   agent-xno-threshold-store-smoke.mjs \

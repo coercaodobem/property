@@ -1,0 +1,68 @@
+{
+  "gate": "G7-trade-state-machine",
+  "result": "PASS",
+  "fixture_seed": "property-g7-fixed-v1",
+  "state_fixtures_total": 150,
+  "state_fixtures_per_currency": {
+    "BTC": {
+      "settled": 5,
+      "observed": 5,
+      "underpaid": 5,
+      "overpaid": 5,
+      "wrong-network": 5,
+      "malformed": 5,
+      "rpc-uncertain": 5,
+      "duplicate": 5,
+      "late-payment": 5,
+      "cancelled": 5
+    },
+    "XMR": {
+      "settled": 5,
+      "observed": 5,
+      "underpaid": 5,
+      "overpaid": 5,
+      "wrong-network": 5,
+      "malformed": 5,
+      "rpc-uncertain": 5,
+      "duplicate": 5,
+      "late-payment": 5,
+      "cancelled": 5
+    },
+    "XNO": {
+      "settled": 5,
+      "observed": 5,
+      "underpaid": 5,
+      "overpaid": 5,
+      "wrong-network": 5,
+      "malformed": 5,
+      "rpc-uncertain": 5,
+      "duplicate": 5,
+      "late-payment": 5,
+      "cancelled": 5
+    }
+  },
+  "invalid_fixtures_settled": 0,
+  "identity_binding": {
+    "cases": 30,
+    "ownership_claims_verified": 0,
+    "unverified_label_cases": 30
+  },
+  "tampering": {
+    "txid": 10,
+    "amount": 10,
+    "destination": 10,
+    "network": 10,
+    "offer_hash": 10,
+    "journal": 10,
+    "total": 60,
+    "rejected": 60
+  },
+  "additional_checks": {
+    "btc_reorg_rolls_back": true,
+    "wallet_address_cannot_be_reused_for_another_offer": true,
+    "rejected_participant_auth_does_not_advance": true,
+    "mainnet_enabled": false,
+    "external_endpoints": 0
+  },
+  "signature_material": "not-recorded"
+}

@@ -7,7 +7,7 @@ const ACTIVITY_WINDOW_SECONDS = 60;
 const ACTIVITY_TTL_SECONDS = 60;
 
 export class AgentService {
-  constructor({ pubkey, loadConfig, saveConfig, transport, xnoTrades = null, xnoEscrow = null, xnoThreshold = null, now = () => Math.floor(Date.now() / 1000) }) {
+  constructor({ pubkey, loadConfig, saveConfig, transport, xnoTrades = null, xnoEscrow = null, xnoThreshold = null, tradeConversations = null, now = () => Math.floor(Date.now() / 1000) }) {
     if (!PUBKEY.test(pubkey) || typeof loadConfig !== 'function' || typeof saveConfig !== 'function' || !transport) throw new Error('Dependências da bridge local incompletas.');
     this.pubkey = pubkey;
     this.loadConfig = loadConfig;
@@ -16,6 +16,7 @@ export class AgentService {
     this.xnoTrades = xnoTrades;
     this.xnoEscrow = xnoEscrow;
     this.xnoThreshold = xnoThreshold;
+    this.tradeConversations = tradeConversations;
     this.now = now;
     this.mutationQueue = Promise.resolve();
     this.activeThinking = new Map();
@@ -68,6 +69,15 @@ export class AgentService {
       case 'xno.threshold.prepare_signature': return this.xnoThresholdCall('prepareSettlementSignature', params);
       case 'xno.threshold.sign': return this.xnoThresholdCall('signSettlement', params);
       case 'xno.threshold.publish': return this.xnoThresholdCall('publishSettlement', params);
+      case 'trade.policy': return this.tradeCall('policy', params);
+      case 'trade.offer': return this.tradeCall('offer', params);
+      case 'trade.accept': return this.tradeCall('accept', params);
+      case 'trade.sync': return this.tradeCall('sync', params);
+      case 'trade.request_payment': return this.tradeCall('requestPayment', params);
+      case 'trade.reconcile': return this.tradeCall('reconcile', params);
+      case 'trade.status': return this.tradeCall('status', params);
+      case 'trade.dispute': return this.tradeCall('dispute', params);
+      case 'trade.cancel': return this.tradeCall('cancel', params);
       case 'relay.add': return this.addInboxRelay(params);
       case 'agent.block': return this.changeBlockedAgent(params, true);
       case 'agent.unblock': return this.changeBlockedAgent(params, false);
@@ -105,6 +115,16 @@ export class AgentService {
   async xnoThresholdCall(method, params) {
     if (!this.xnoThreshold) throw new Error('xno-threshold-not-configured');
     return this.xnoThreshold[method](params);
+  }
+
+  async tradeCall(method, params) {
+    if (!this.tradeConversations) {
+      if (method === 'policy' && exactObject(params, [])) return { configured: false, enabled_test_networks: [], mainnet_enabled: false,
+        reason: 'local-test-network-node-not-configured' };
+      throw new Error('trade-test-network-node-not-configured');
+    }
+    if (method === 'policy' && !exactObject(params, [])) throw new Error('invalid-arguments');
+    return this.tradeConversations[method](params);
   }
 
   async list(params) {
