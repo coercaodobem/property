@@ -1,3 +1,6 @@
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
+Failed to create stream fd: Operation not permitted
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -32,7 +35,8 @@ async function collectFiles(relativeRoot) {
   return files;
 }
 
-const candidateCommit = execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+const candidateCommit = process.env.PROPERTY_CANDIDATE_COMMIT ||
+  execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 assert.match(candidateCommit, /^[0-9a-f]{40}$/);
 const files = (await Promise.all(['property/web', 'property/agent', 'property/relay'].map(collectFiles))).flat();
 let scanned = 0, skippedBinaryOrInvalidUtf8 = 0;
