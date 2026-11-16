@@ -62,4 +62,157 @@ The historical [central test plan](plano-de-testes-central.md) remains the autho
 - Run 100 deterministic valid/invalid vectors per event family against parser, serializer, signature verification, size bounds, and version negotiation.
 - Run 100 seeded malformed-input cases per public parser; every case returns a typed rejection without crash, unbounded allocation, secret leakage, or partial state mutation.
 - Replay 50 duplicate and 50 reordered copies of each state-changing fixture; final state is byte-for-byte deterministic and no payment action repeats.
-- Reject unknown critical versions/tags and ambiguous currency/atomic-unit combinations; preserve unknown noncritical fields only where the contract explicitly permits thﬂæ<∂âûÀk∫wµÁFñÊrFÚˆ∆ñ7í‚Ñ’#¢fW&ñgí6ˆÊfñwW&VB6ˆÊfó&÷Fñˆ‚˜VÊ∆ˆ6≤7FFW2vñÁ7BFÜR∆ˆ6¬v∆∆WB%2‚ÊÊÛ¢fW&ñgíWÜ7B66˜VÁB¬6˜W&6R¬÷˜VÁBñ‚&r¬ÊB&∆ˆ6≤Ü6ÇvñÁ7B∆ˆ6¬ÊˆFR7FFR‡¢“'V‚3ñÊFWVÊFVÁBñFVÁFóGí÷&ñÊFñÊrfóáGW&W2‚FÜRTí◊W7BFó7∆íVÁfW&ñfñVBv∆∆WBˆ66˜VÁB˜vÊW'6Üó26∆ñ“ÊB◊W7BÊ˜BñÊfW"óBg&ˆ“Ê˜7G"6ñvÊGW&R‡¢“F◊W"vóFÇG&Á67Fñˆ‚îB¬÷˜VÁB¬FW7FñÊFñˆ‚¬ÊWGv˜&≤¬ˆffW"Ü6Ç¬ÊB¶˜W&Ê¬ñ‚fóáGW&W2V6É≤fñ¬6∆˜6VBvóFÇÊÚ6V6ˆÊBñ÷VÁBGFV◊B‡†¢¢§FV∆ófW&&∆W3¢¢¢W"÷7W'&VÊ7íFFW"6ˆÁG&7G2¬G&FR7FFR÷6ÜñÊR¬&ófFR÷ÊWGv˜&≤WfñFVÊ6R¬6WGF∆V÷VÁBv˜&FñÊr¬ÊB÷G&óÇFÜB∆&V«2V6Ç÷V6ÜÊó6“2Fó&V7B¬7W7FˆFñ¬¬Fá&W6Üˆ∆Bˆ6ˆ˜W&FófR¬˜"&˜Fˆ6ˆ¬÷VÊf˜&6VB‚Áí÷V6ÜÊó6“Ê˜B÷VWFñÊróG27FFVB6V7W&óGí÷ˆFV¬&V÷ñÁ2Fó6&∆VB˜"Wá∆ñ6óF«íWáW&ñ÷VÁF¬‚FÜRWÜV7WFVB&W7V«Bó2&V6˜&FVBñ‚FÜR¥srvFRWfñFVÊ6U“ÜWfñFVÊ6R˜&ˆGV7B÷6ˆ◊∆WFñˆ‚ÙsrˆvFR◊&W7V«BÊ÷Bí¬vóFÇ&W˜'G2ÊB6ÜV6∑7V◊2ñ‚WfñFVÊ6R˜&ˆGV7B÷6ˆ◊∆WFñˆ‚ÙsrˆfóÜVB◊'V‚”ˆ‡†¢222sÇ(	B&V∆í6◊ñvÁ2¬fˆ«VÁF'í7ˆÁ6˜'6Üó¬ÊB˜W&F˜"V6ˆÊˆ÷ñ70†¢¢§'Vñ∆C¢¢¢FB&V∆í÷˜W&F˜"Fˆˆ«2FÚñÁ7V7B6◊ñv‚&˜˜6¬¬66WB˜"&V¶V7BóB¬6WBV&∆ñ6Fñˆ‚66˜R¬ÊB&V6VófRFÜRFV6∆&VB7W˜'FVBñ÷VÁB‚&V¶V7Fñˆ‚&VÜfñ˜"◊W7Bfˆ∆∆˜rFÜR6◊ñvÓ(	ó2FV6∆&VB7W'&VÊ7í˜&ñ¬ÊBWÜ7BFˆ÷ñ2÷˜VÁC≤FÚÊ˜B&ˆ÷ó6RWFˆ÷Fñ2&VgVÊG2VÊ∆W72FÜR∆ñ6&∆RFFW"6ˆÊfó&◊2FÜV“‚∆&V¬7ˆÁ6˜&VB6ˆÁFVÁB¬&W6W'fR6ñvÊVB&˜fVÊÊ6R¬ÊBfˆñBW6W"÷∆WfV¬6∆ñ6≤˜fñWrG&6∂ñÊr‚Wá˜6R∆ˆ6¬˜W&F˜"66˜VÁFñÊrÊB&WFVÁFñˆ‚6ˆÁG&ˆ«2‚6◊ñv‚66WFÊ6Ró2˜FñˆÊ¬ÊB∆ˆ6¬FÚV6Ç&V∆í‡†¢¢§WFˆ÷FVB66WFÊ6S¢¢††¢“'V‚#6◊ñv‚∆ñfV7ñ6∆RfóáGW&W2W"7W'&VÊ7ì¢7V&÷óB¬66WB¬&V¶V7B¬V&∆ó6Ç¬&W∆6R¬Wáó&R¬GW∆ñ6FR¬ÊBñÁf∆ñB6ñvÊGW&R‚fW&ñgíWÜ7F«íˆÊRˆ∆ñ7íFV6ó6ñˆ‚ÊB6˜'&V7B7ˆÁ6˜&VB∆&V∆ñÊr‡¢“ˆ‚&ófFR∆ˆ6¬v∆∆WBÊWGv˜&∑2¬fW&ñgí66WFVB%D2¬Ñ’"¬ÊBÑ‰Úñ÷VÁB÷ˆ'6W'fFñˆ‚66W3≤fW&ñgí&V¶V7Fñˆ‚˜&WGW&‚66W2W"7W'&VÊ7íˆÊ«ívÜW&RFÜR&ñ¬Ü2‚ñ◊∆V÷VÁFVBÊB6ˆÊfó&÷&∆R&WGW&‚FÇ‚˜FÜW'vó6R&V6˜&BTÂ5Uı%DTEı$UEU$ÊÊBFÚÊ˜BGfW'Fó6R&VgVÊG2‡¢“76W'BRˆb6◊ñv‚&V6˜&G2&V6ˆÊ6ñ∆RˆffW"îB¬66WFÊ6RîB¬÷˜VÁB¬7W'&VÊ7í¬G&Á67Fñˆ‚&VfW&VÊ6R¬6ñvÊW"¬ÊB7FGW3≤÷&ñwV˜W2˜"VÊ6ˆÊfó&÷VBñ÷VÁG2ÊWfW"VÊ∆ˆ6≤V&∆ñ6Fñˆ‚‡¢“ñÁ7V7BWfW'í6∆ñVÁBÊB&V∆ífóáGW&Rf˜"6∆ñ6≤˜fñWr6˜VÁFW'2¬FÜó&B◊'GíÊ«óFñ72¬ÊBVÊFó66∆˜6VBW6W"G&6∂ñÊs≤Áí7V6ÇFÇfñ«2FÜRvFR‡†¢¢§FV∆ófW&&∆W3¢¢¢∆ˆ6¬•4Ù‚’%27FFñÚ˜W&F˜"ñÁFW&f6RvóFÇÊñÊR6◊ñv‚Fˆˆ«2¬6◊ñv‚7FFR÷6ÜñÊR¬W"÷7W'&VÊ7í&VgVÊB˜&WGW&‚∆ñ÷óG2¬6ñvÊVB&V6VóG2¬∆ˆ6¬∆VFvW"Wá˜'B¬ÊBÊÚ◊G&6∂ñÊrWfñFVÊ6R‚FÜRñÁFW&f6Ró2V÷&VFFVB'íÜ˜7BFÜB7W∆ñW2FÜR6ñvÊW"¬∆VFvW"FFW'2¬ÊBV&∆ó6ÜW#≤FÜR∆ñ‚vVˆFR∆VÊ6ÜW"FˆW2Ê˜B7F'BóB‚FÜRWFˆ÷FVB&W7V«Bó2&V6˜&FVBñ‚FÜR¥sÇvFRWfñFVÊ6U“ÜWfñFVÊ6R˜&ˆGV7B÷6ˆ◊∆WFñˆ‚ÙsÇˆvFR◊&W7V«BÊ÷Bí‡†¢222sí(	B'W6R&W6ó7FÊ6R¬FF÷ñÊñ÷ó¶Fñˆ‚¬ÊBWFˆ÷FVB6V7W&óGí6ÜV6∑0†¢¢§'Vñ∆C¢¢¢6ˆ◊∆WFR∆ˆ6¬◊WFRˆ&∆ˆ6≤˜&W˜'B&VÜfñ˜"¬&V∆í÷∆WfV¬&FR˜6ó¶R˜&WFVÁFñˆ‚∆ñ÷óG2¬÷∆f˜&÷VB÷WfVÁBÜÊF∆ñÊr¬ÊBWá∆ñÊ&∆R÷ˆFW&Fñˆ‚&˜VÊF&ñW2‚÷∂R6∆V"FÜB∆ˆ6¬&∆ˆ6∑2FÚÊ˜Bv∆ˆ&∆«íW&6RWfVÁG2ÊBFÜBV&∆ñ2&V∆íFó66˜fW'í6ÊÊ˜B&˜fRv∆ˆ&¬&WWFFñˆ‚˜"FVfVB7ñ&ñ¬ñFVÁFóFñW2‚FBÊÚ÷6VÁG&¬◊&Vvó7G'í&V∆íFó66˜fW'ívóFÇ'VÊF∆VB6ñvÊVBFVfV«G2¬W6W"˜fW'&ñFR¬ÊBWá∆ñ6óBÜÊF∆ñÊrvÜV‚FVfV«G2&R7F∆R˜VÁ&V6Ü&∆R‚÷ñÊñ÷ó¶R÷WFFFÊBFˆ7V÷VÁB&V÷ñÊñÊrï˜&V∆ífó6ñ&ñ∆óGí‡†¢¢§WFˆ÷FVB66WFÊ6S¢¢††¢“'V‚#÷∆f˜&÷VB¬˜fW'6ó¶VB¬GW∆ñ6FR¬&W∆ñVB¬ÊBñÁf∆ñB◊6ñvÊGW&RWfVÁB66W2Fá&˜VvÇWfW'íV&∆ñ2'6W#≤ÊÚ7&6Ç¬6V7&WB∆V∂vR¬˜"7FFR◊WFFñˆ‚‡¢“'V‚S∆ˆ6¬&∆ˆ6≤ˆ◊WFR66W27&˜72R7ñÁFÜWFñ2ñFVÁFóFñW2ÊBR&V∆ó2‚fW&ñgí∆ˆ6¬fñWw27W&W72&∆ˆ6∂VB6ˆÁFVÁBvÜñ∆R&V∆í&V6˜&G2ÊB˜FÜW"6∆ñVÁG2&RÊ˜Bf«6V«í&W˜'FVB2FV∆WFVB‡¢“FW7B&FRÊB7F˜&vR∆ñ÷óG2B∆ñ÷óN(â#¬∆ñ÷óB¬ÊB∆ñ÷óB≥f˜"#6ˆÊfñwW&VB∆ñ÷óG3≤fW&ñgí&˜VÊFVB7FFRÊBFWFW&÷ñÊó7Fñ2W'&˜'2‡¢“'V‚6ñvÊVB&V∆í÷∆ó7B66W3¢f∆ñB¬Wáó&VB¬&Wfˆ∂VB¬GW∆ñ6FR¬w&ˆÊr∂Wí¬VÊ∂Ê˜v‚7&óFñ6¬fW'6ñˆ‚¬ÊB÷∆ñ6ñ˜W2U$√≤ñÁf∆ñBVÁG&ñW2ÊWfW"6W6R‚VÊFV6∆&VB'VÁFñ÷R6ˆFRfWF6Ç˜"∆V≤&ófFR∂Wí‡¢“'V‚7FFñ2Ê«ó6ó2¬FWVÊFVÊ7ígV∆ÊW&&ñ∆óGíˆ∆ñ6VÁ6R66‚¬6V7&WB66‚¬4$Ù“fW&ñfñ6Fñˆ‚¬ÊB6V7W&óGí÷fˆ7W6VB&Vw&W76ñˆ‚7VóFW2ˆ‚FÜRWÜ7B&V∆V6R6ÊFñFFR‚VÁ&W6ˆ«fVB7&óFñ6¬ˆÜñvÇfñÊFñÊw2&∆ˆ6≤&V∆V6S≤&W˜'BFˆˆ¬6˜fW&vRÊB∂Ê˜v‚&∆ñÊB7˜G2‡†¢¢§FV∆ófW&&∆W3¢¢¢'W6R6ˆÁG&ˆ«2¬&V∆íFó66˜fW'íf˜&÷B¬WFˆ÷FVB6V7W&óGí&W˜'B¬÷WFFF˜&óf7í7FFV÷VÁB¬ÊBWá∆ñ6óB&W6ñGV¬◊&ó6≤&Vvó7FW"‚76ñÊrWFˆ÷Fñˆ‚ó2Ê˜B&W&W6VÁFVB2áV÷‚6V7W&óGíVFóB‡†¢222s(	BV&∆ñ2&V∆V6R¬V'VÁGR˜W&F˜"6∂vR¬ÊB6ˆÁG&ñ'WF˜"ˆÊ&ˆ&FñÊp†¢¢§'Vñ∆C¢¢¢6∂vRˆÊRfW'6ñˆÊVB&V∆V6R6ˆÁFñÊñÊrFÜR7FFñ2t¬V'VÁGRÙ∆ñÁWÇÉÉeÛcB&V∆í4ƒí¬V'VÁGRvVÁBÙ‘5ñÁ7F∆∆W"¬ˆff∆ñÊRFWVÊFVÊ7í÷ÊñfW7G2¬6ÜV6∑7V◊2˜6ñvÊGW&R¬4$Ù“¬∆ñ6VÁ6W2¬Ww&FR˜VÊñÁ7F∆¬ñÁ7G'V7FñˆÁ2¬ÊB÷6ÜñÊR◊&VF&∆R6ˆ◊Fñ&ñ∆óGíFV6∆&FñˆÁ2‚V&∆ó6Çg&ˆ“FÜRV&∆ñ2&˜W'Gí&W˜6óF˜'íFá&˜VvÇóG26ˆÊfñwW&VBvW2˜&V∆V6Rv˜&∂f∆˜rgFW"ˆff∆ñÊRvFW272‚÷∂RvóDáV"FÜR6ÊˆÊñ6¬6˜W&6RÊBFˆ7V÷VÁBñÊFWVÊFVÁF«ífW&ñfñ&∆R6˜W&6R◊FÚ÷'Fñf7BÜ6ÜW2‚FBÊWv6ˆ÷W"ñÁ7G'V7FñˆÁ2¬í÷vVÁB6ˆÁG&ñ'WFñˆ‚ñÁ7G'V7FñˆÁ2¬ó77VRFV◊∆FW2¬6ˆFRˆb6ˆÊGV7B¬ÊB&VGí◊FÚ◊6Ü&R∆VÊ6Ç∂óBf˜"Çı&VFFóBˆ6ˆ÷◊VÊóGíf˜'V◊2vóFÇ6ˆÁG&ñ'WFñˆ‚∆ñÊ∑2‚FÚÊ˜B6∆ñ“6ˆ÷◊VÊóGíF˜Fñˆ‚g&ˆ“V&∆ñ6Fñˆ‚˜"&W˜6óF˜'í÷WG&ñ72‡†¢¢§WFˆ÷FVB66WFÊ6S¢¢††¢“7F'FñÊrg&ˆ“6∆V‚V'VÁGRÉÉeÛcB÷6ÜñÊRñ÷vR¬ñÁ7F∆¬t7FFñ2fñ∆W2∆ˆ6∆«í¬&V∆í4ƒí¬ÊB‘56∂vRg&ˆ“FÜR&V∆V6R'VÊF∆RvóFÇÊWGv˜&≤Fó6&∆VC≤fW&ñgí∆¬FV6∆&VB6÷ˆ∂R¶˜W&ÊWó2ÊB6∆V‚VÊñÁ7F∆¬‡¢“'Vñ∆B¬6∂vR¬ñÁ7F∆¬¬Ww&FR¬F˜vÊw&FR˜&ˆ∆∆&6≤¬ÊBfW&ñgí6ÜV6∑7V◊2ñ‚6∆V‚◊&ˆfñ∆R7ñ6∆W3≤&W6W'fRW6W"FFÊB&V¶V7B6˜''WFVB'Fñf7G2‡¢“'V‚4íg&ˆ“FÜRWÜ7B&V∆V6RFs≤&WVó&Rs(	4síWfñFVÊ6R÷ÊñfW7G2¬∆ñ6VÁ6Rı4$Ù“˜6V7W&óGí6ÜV6∑2¬ÊB∆¬fóÜVB÷6˜VÁB7VóFW2‚6∂óVB7VóFRó2Ê˜B72‡¢“vóFÇVw&W72&∆ˆ6∂VB¬6W'fRFÜRWÜ7B&V∆V6Rt'VÊF∆R∆ˆ6∆«íÊB'V‚#R67&óFVB'&˜w6W"¶˜W&ÊWó3≤6ˆ◊&RóG26ˆÁFVÁBÜ6ÜW2vóFÇFÜR&V∆V6R÷ÊñfW7B‚gVÊ7FñˆÊ¬66WFÊ6R7Fó2ˆff∆ñÊR‚FW∆˜ñ÷VÁB÷WFFFÊB'Fñf7BFñvW7G2g&ˆ“FÜRvW2˜&V∆V6Rv˜&∂f∆˜r&R&V6˜&FVB6W&FV«ígFW"V&∆ñ6Fñˆ‚ÊBFÚÊ˜B&W∆6R˜"«FW"vFR&W7V«G2‡¢“fW&ñgíVÊv∆ó6ÇÊB'&¶ñ∆ñ‚˜'GVwVW6RFˆ7V÷VÁFFñˆ‚∆ñÊ∑2¬ÊfñvFñˆ‚¬ñÁ7F∆∆Fñˆ‚6ˆ÷÷ÊG2¬ÊB&V∆V6R÷WFFF≤ÊÚ'&ˆ∂V‚ñ‚◊&W˜6óF˜'í∆ñÊ≤ó2∆∆˜vVB‡¢“f∆ñFFRFÜR∆VÊ6Ç∂óB÷V6ÜÊñ6∆«ì¢∆¬&W˜6óF˜'íˆ6ˆ÷◊VÊóGí∆ñÊ∑2&W6ˆ«fRvóFÜñ‚FÜR∆ˆ6¬6ÜV6∂˜WB¬V6Ç˜7BfóG2FÜRFV6∆&VB∆Ff˜&“6Ü&7FW"∆ñ÷óB¬ÊBWfW'í6∆¬FÚ7Fñˆ‚ˆñÁG2FÚFÜR6ˆÁG&ñ'WFñˆ‚wVñFR˜"V&∆ñ2&W˜6óF˜'í‡†¢¢§FV∆ófW&&∆W3¢¢¢V&∆ñ2fW'6ñˆÊVBU$¬¬fW&ñfñVB&V∆V6R'VÊF∆R¬fñÊ¬WfñFVÊ6RñÊFWÇ¬WFFVB$TD‘Rı$ÙD‘ˆFˆ72ñÊFWÇ¬V'VÁGR˜W&F˜"ÊBvVÁBVñ6≤7F'G2¬∆Ff˜&“◊&VGí∆VÊ6Ç∂óB¬ÊBWá∆ñ6óBVÊFñÊr◊∆Ff˜&“FV6∆&Fñˆ‚‡†¢22R‚˜fW&∆¬6ˆ◊∆WFñˆ‚'V∆P†•FÜRñ◊∆V÷VÁFFñˆ‚∆‚ó26ˆ◊∆WFRˆÊ«ívÜV‚s(	4s&R56ˆ‚ˆÊR&V∆V6R6ÊFñFFRW6ñÊrˆff∆ñÊRgVÊ7FñˆÊ¬6ÜV6∑2¬FÜRV&∆ó6ÜVB'Fñf7BFñvW7G2÷F6ÇFÜVó"6ñvÊVBˆ6ÜV6∑7V÷÷VB÷ÊñfW7B¬ÊBWfW'ífñÊÊ6ñ¬˜6V7W&óGí∆ñ÷óFFñˆ‚ó2fó6ñ&∆Rñ‚FÜR&V∆WfÁB&ˆGV7BÊB˜W&F˜"Fˆ7V÷VÁFFñˆ‚‚T‰Dî‰v¬$ƒÙ4¥TF¬ˆ÷óGFVBWfñFVÊ6R¬‚VÁFW7FVB7W'&VÊ7í¬˜"‚WáW&ñ÷VÁF¬W67&˜r&W6VÁFVB2wV&ÁFVVB÷VÁ2FÜR˜fW&∆¬&W7V«Bó2Ê˜B6ˆ◊∆WFR‚V&∆ñ6Fñˆ‚fñ∆&ñ∆óGíó2&W˜'FVBg&ˆ“FÜR&V∆V6Rv˜&∂f∆˜s≤óBó2Ê˜B7V'7FóGWFRf˜"ˆff∆ñÊR66WFÊ6R‡†¢22b‚Wá∆ñ6óF«íWÜ6«VFVBg&ˆ“FÜó2WÜV7WFñˆ‚∆‡†¢“áV÷‚&WfñWr¬W6W"7GVFñW2¬'Fñ6óÁB÷˜W&FVBFW7G2¬÷ÁV¬fó7V¬&˜f¬¬˜"÷ÁV¬6V7W&óGí6ñv‚÷ˆfb‡¢“'VÊÊñÊr¬ñÁ7F∆∆ñÊr¬'Vñ∆FñÊr¬˜"6∆ñ÷ñÊr7W˜'BfW&ñfñ6Fñˆ‚ˆ‚vñÊF˜w2¬÷4ı2¬ÊG&ˆñB¬îı2¬˜"Áíı2˜FÜW"FÜ‚V'VÁGR∆ñÁWÇÉÉeÛcB‡¢“&ˆ÷ó6RFÜB'&˜w6W"ıt7Fó2v∂R˜"&V∆ó26ˆÁFñÁV˜W6«íñ‚ÜˆÊR&6∂w&˜VÊB‡¢“'6ˆ«WFR6VÁ6˜'6Üóñ÷◊VÊóGí¬v∆ˆ&¬ÜÊF∆RVÊóVVÊW72vóFÜ˜WB‚WFÜ˜&óGíˆ6ˆÁ6VÁ7W2÷V6ÜÊó6“¬7ñ&ñ¬◊&ˆˆbv∆ˆ&¬&WWFFñˆ‚¬˜"FV∆ófW'í˜&VBwV&ÁFVW2&V∆í6ÊÊ˜B&˜fñFR‡¢“V&∆ñ2◊&V∆íFW7BG&ffñ2¬÷ñÊÊWBFW7BgVÊG2¬˜"6∆ñ◊2ˆbG'W7F∆W72ÊÊÚW67&˜r‡†•FÜW6RWÜ6«W6ñˆÁ2FÚÊ˜B&WfVÁBWFˆ÷FVBñ◊∆V÷VÁFFñˆ‚˜"6˜W&6R÷∆WfV¬v˜&≤f˜"˜'F&∆R6ˆFS≤FÜWí∆ñ÷óBvÜBFÜó2∆‚÷íWÜV7WFR˜"6∆ñ“2fW&ñfñVB‡†¢22r‚&VfW&VÊ6W0†¢“µ&˜W'Gí6VÁG&¬FW7B∆Â“á∆ÊÚ÷FR◊FW7FW2÷6VÁG&¬Ê÷Bê¢“µ&˜W'Gíñ÷VÁG2ÊB7W'&VÁB6WGF∆V÷VÁB&˜VÊF&ñW5“áv÷VÁF˜2Ê÷Bê¢“¥vVÁB÷W76vñÊr∆Â“á∆ÊÚ÷vVÁFW2÷áV÷‚÷fó'7BÊ÷Bê¢“¥‰ï”s¢&ófFRFó&V7B÷W76vW5“ÜáGG3¢ÚˆvóFáV"Ê6ˆ“ˆÊ˜7G"◊&˜Fˆ6ˆ¬ˆÊó2ˆ&∆ˆ"ˆ÷7FW"ÛrÊ÷Bê¢“¥‰ï”S¢÷&∂WG∆6W5“ÜáGG3¢ÚˆvóFáV"Ê6ˆ“ˆÊ˜7G"◊&˜Fˆ6ˆ¬ˆÊó2ˆ&∆ˆ"ˆ÷7FW"ÛRÊ÷Bê¢“¥‘5G&Á7˜'G5“ÜáGG3¢Úˆ÷ˆFV∆6ˆÁFWáG&˜Fˆ6ˆ¬ÊñÚ˜7V6ñfñ6Fñˆ‚Û##R””#Rˆ&6ñ2˜G&Á7˜'G2ê
+- Reject unknown critical versions/tags and ambiguous currency/atomic-unit combinations; preserve unknown noncritical fields only where the contract explicitly permits them.
+
+**Deliverables:** Protocol spec, version matrix, vectors, fuzz seeds, migration rules, and truthful security/privacy claims in both languages.
+
+### G2 ‚Äî Self-contained build and release provenance
+
+**Build:** Make the shipped web, agent, and Ubuntu relay artifacts resolve dependencies from the repository or a content-addressed release bundle. Remove runtime CDN and remotely loaded executable dependencies. Pin toolchains and package inputs; preserve upstream licenses; document how to reproduce the browser bundle and relay/agent packages offline. Generate an SBOM, artifact checksums, and a signed release manifest. If a complete local toolchain or upstream binary cannot be rebuilt, mark that artifact as bundled with its provenance and do not call the build reproducible.
+
+**Automated acceptance:**
+
+- Build the production PWA, agent package, relay CLI, and installer twice from clean worktrees with network access disabled; compare all reproducible artifact hashes.
+- Serve the PWA locally with egress blocked. A network recorder sees zero requests to undeclared hosts and zero dynamic executable loads.
+- Remove one required bundle file and alter one checksum in separate fixtures; the verifier rejects both before installation.
+- Verify SBOM/license inventory covers 100% of files in each release archive; unknown license or source provenance fails closed.
+- Scan release archives for private-key fixtures, credentials, and unapproved generated artifacts; all findings must be resolved or the release is blocked.
+
+**Deliverables:** Reproducible build scripts, lockfiles, SBOM, license/provenance manifest, signed/checksummed release bundle, and an offline install procedure.
+
+### G3 ‚Äî Human PWA identity, local recovery, and first-use path
+
+**Build:** Complete first-use, unlock, lock, export/backup, restore, key rotation, and recovery flows in the existing Property PWA. Use a random Nostr key protected at rest by a strong password-derived encryption key; the password is not itself a Nostr private key. Keep a human-readable handle as a signed profile/display claim, not as a globally unique cryptographic identifier: without a central registry, handle collisions must be represented and resolved locally. Clearly distinguish an `npub`/public key from a local handle. Keep secrets local and make backup loss consequences explicit.
+
+**Automated acceptance:**
+
+- Run 30 seeded create/unlock/lock cycles and confirm the same public identity is recovered each time; wrong passwords and modified vaults fail closed in 30/30 cases.
+- Run 20 backup/restore cycles into clean profiles; restored public key, relay preferences, and opted-in local records match expected hashes, while secrets never appear in logs or export metadata.
+- Run 20 concurrent signed handle-claim collision fixtures; no client presents a colliding local claim as cryptographically unique or overwrites another identity.
+- Run 25 browser journeys covering fresh install, returning session, lock, restore, corrupt vault, no relays, and browser storage denial. Each journey asserts visible state, accessible labels, and that no delivery is claimed while disconnected.
+- Check English/Portuguese UI-key parity and keyboard access for every identity/recovery control.
+
+**Deliverables:** PWA identity journeys, versioned local vault format, safe recovery/migration, handle collision behavior, and automated browser evidence.
+
+### G4 ‚Äî Direct communication, relay selection, and partition recovery
+
+**Build:** Complete direct and group encrypted messaging and public Hangout delivery on selected Nostr relays. Model `queued`, `published/relay-accepted`, `observed`, `decrypted`, and `failed` states distinctly; relay acceptance is not proof that a recipient received or read a message. Add stable event IDs, retry without duplicate UI items, query/dedupe, recipient relay hints, and user-controlled relay changes. Relay bridges forward only while running and never imply that a suspended browser is a background node.
+
+**Automated acceptance:**
+
+- Use 6 synthetic identities, 5 isolated relays, and 3 relay groups. Send 50 private messages per direction and 100 public events; verify only intended identities decrypt private bodies and signatures/IDs survive storage and forwarding.
+- Partition the relay groups for 40 scripted event transitions, make 20 conflicting profile/offer updates, then reconnect. Verify the documented deterministic conflict rule, event retention, deduplication, and absence of fabricated delivery/read receipts.
+- Restart each relay twice and repeat 20 retry fixtures. Exactly one logical message appears per event ID, and acknowledgements reflect only observed relay responses.
+- Remove the application host after caching. Run 10 shell-open cases with relays offline and 10 with only local relays available; the shell communicates directly with relays and reports offline state correctly.
+- Exercise blocked recipient, malformed envelope, unavailable relay, oversized event, duplicate relay response, and key-rotation cases in 10 fixtures each.
+
+**Deliverables:** Messaging/relay state machine, partition/recovery implementation, privacy disclosure, and complete fixed-count evidence.
+
+### G5 ‚Äî Agent/MCP as a first-class client
+
+**Build:** Publish a stable, versioned MCP tool manifest and a supported Ubuntu/Linux x86_64 installer/package. Provide tools for status, profile discovery, relay management, direct encrypted send/receive, public Hangout read/post, marketplace search/publish/withdraw, offer discussion, and payment status. Treat all remote content as untrusted data; never execute messages, URLs, or shell commands from peers. Give agents a distinct local Nostr identity by default, with an explicit local linking/delegation format if a human chooses to associate profiles; never share the human private key. Preserve direct unsolicited agent messaging without per-message human approval. Payment budgets and signing policy remain explicit local configuration, not a prompt injection path.
+
+**Automated acceptance:**
+
+- Run MCP stdio contract tests against 3 local synthetic MCP clients; validate `server/discover`, capabilities, every tool schema, structured errors, and per-request negotiation of version `2026-07-28`. This version is stateless and does not use the legacy `initialize` handshake.
+- Run 50 end-to-end agent-to-agent exchanges across 3 isolated relays and 25 human-PWA-to-agent exchanges using synthetic identities; assert NIP-17 ciphertext and identity boundaries.
+- Run 100 prompt-injection/content corpus cases. No input triggers process execution, key access, wallet action, relay reconfiguration, or out-of-scope tool invocation.
+- Run 30 installer/uninstaller/upgrade/restart cycles in isolated Ubuntu homes. Preserve vault permissions, identity, rollback behavior, and socket restrictions; no TCP listener is opened.
+- Verify each documented tool has a schema test, permission boundary, and failure case. Unknown tool requests fail closed.
+
+**Deliverables:** Versioned MCP manifest, Ubuntu package/installer, tool reference, example client configuration, threat model, and synthetic integration evidence. Other MCP hosts remain unsupported until their automated protocol compatibility is represented in CI; no human host setup is a gate. The executed offline result is recorded in the [G5 gate evidence](evidence/product-completion/G5/gate-result.md).
+
+### G6 ‚Äî Hangout and decentralized marketplace discovery
+
+**Build:** Complete browse, search, open, publish, edit, and withdraw flows for public Hangout notes and offers. Define a versioned offer schema for service/item, terms, seller identity, currency, amount in integer atomic units, payment rail, expiry, relay hints, and contact event. Keep the exact value in strings/integers; floating-point display values never drive payment. Resolve NIP-15 compatibility through a documented adapter/version; do not silently reinterpret fields from draft or legacy clients. Show sponsored items distinctly and disclose that public events are public.
+
+**Automated acceptance:**
+
+- Publish 20 synthetic offers in each of BTC/XMR/XNO, edit 10, withdraw 10, expire 10 using a logical clock, and query through 5 relays; every client converges to the documented state without deleting unrelated events.
+- Round-trip 100 boundary amount vectors per currency, including zero, maximum supported representation, over-limit, fractional, and malformed values; reject all unsafe values and never round silently.
+- Run 50 Hangout journeys covering author verification, dedupe, relay changes, direct-message entry, empty results, and malformed posts.
+- Run 25 browser journeys per language through browse-to-contact and publish-to-withdraw flows; assert accessible names, clear public/private labeling, and absence of a false paid indicator.
+- Replay 20 same-author offer conflicts and 20 cross-relay out-of-order updates; apply the G1 rule deterministically.
+
+**Deliverables:** Offer/event schema, the [NIP-15 adapter decision](nip15-property-adapter.md), complete human PWA marketplace and Hangout journeys, and both-language automated evidence. `marketplace-g6-fixed-count.mjs` owns the exact amount/lifecycle/conflict counts; the browser gate checks five local Geode relays and the fixed-language UI journeys. The executed result is recorded in the [G6 gate evidence](evidence/product-completion/G6/gate-result.md).
+
+### G7 ‚Äî Trade state, payment verification, and honest settlement limits
+
+**Build:** Connect an offer conversation to a versioned trade state machine and per-currency local wallet/node adapters. Make `offer`, `accepted`, `payment-requested`, `payment-observed`, `settled`, `expired`, `disputed`, and `cancelled` explicit; only the configured local node/wallet may advance a chain-confirmed state. Add idempotency, atomic-unit accounting, expiry, reorg/rollback handling where applicable, and signed local evidence. BTC/XMR/XNO are separate adapters with separate policies; never claim that a single generic escrow abstraction has the same guarantees on all three.
+
+BTC and XMR settlement/escrow must use only mechanisms their actual protocol and chosen wallet can verify in local private test networks. For Nano, implement direct voluntary transfer verification and keep any cooperative threshold/custodial settlement clearly experimental: Nano does not enforce Property release/refund rules, and threshold participants may use other software. No user-interface wording may call this trustless escrow or guarantee delivery of goods. Mainnet settlement remains disabled unless an implementation change and its protocol-specific gates explicitly authorize it.
+
+**Automated acceptance:**
+
+- Run 50 trade-state fixtures per currency through valid, expired, duplicate, malformed, wrong-network, underpaid, overpaid, and uncertain-RPC transitions; no invalid fixture reaches `settled`.
+- Use private Bitcoin regtest, private Monero test network, and Nano dev node only. For each adapter, create 10 synthetic invoices/offers, observe 10 valid receipts, and execute 10 duplicate/lost-response/restart cases without double credit or double spend.
+- BTC: invalidate one of 10 confirmed test fixtures and verify state reopens or marks reorg according to policy. XMR: verify configured confirmation/unlock states against the local wallet RPC. Nano: verify exact account, source, amount in raw, and block hash against local node state.
+- Run 30 independent identity-binding fixtures. The UI must display unverified wallet/account ownership as a claim and must not infer it from a Nostr signature.
+- Tamper with transaction ID, amount, destination, network, offer hash, and journal in 10 fixtures each; fail closed with no second payment attempt.
+
+**Deliverables:** Per-currency adapter contracts, trade state machine, private-network evidence, settlement wording, and a matrix that labels each mechanism as direct, custodial, threshold/cooperative, or protocol-enforced. Any mechanism not meeting its stated security model remains disabled or explicitly experimental. The executed result is recorded in the [G7 gate evidence](evidence/product-completion/G7/gate-result.md), with reports and checksums in `evidence/product-completion/G7/fixed-run-01/`.
+
+### G8 ‚Äî Relay campaigns, voluntary sponsorship, and operator economics
+
+**Build:** Add relay-operator tools to inspect a campaign proposal, accept or reject it, set publication scope, and receive the declared supported payment. Rejection behavior must follow the campaign‚Äôs declared currency/rail and exact atomic amount; do not promise automatic refunds unless the applicable adapter confirms them. Label sponsored content, preserve signed provenance, and avoid user-level click/view tracking. Expose local operator accounting and retention controls. Campaign acceptance is optional and local to each relay.
+
+**Automated acceptance:**
+
+- Run 20 campaign lifecycle fixtures per currency: submit, accept, reject, publish, replace, expire, duplicate, and invalid signature. Verify exactly one policy decision and correct sponsored labeling.
+- On private local wallet networks, verify 10 accepted BTC, 10 XMR, and 10 XNO payment-observation cases; verify 10 rejection/return cases per currency only where the rail has an implemented and confirmable return path. Otherwise record `UNSUPPORTED_RETURN` and do not advertise refunds.
+- Assert 100% of campaign records reconcile offer ID, acceptance ID, amount, currency, transaction reference, signer, and status; ambiguous or unconfirmed payments never unlock publication.
+- Inspect every client and relay fixture for click/view counters, third-party analytics, and undisclosed user tracking; any such path fails the gate.
+
+**Deliverables:** Local JSON-RPC stdio operator interface with nine campaign tools, campaign state machine, per-currency refund/return limits, signed receipts, local ledger export, and no-tracking evidence. The interface is embedded by a host that supplies the signer, ledger adapters, and publisher; the plain Geode launcher does not start it. The automated result is recorded in the [G8 gate evidence](evidence/product-completion/G8/gate-result.md).
+
+### G9 ‚Äî Abuse resistance, data minimization, and automated security checks
+
+**Build:** Complete local mute/block/report behavior, relay-level rate/size/retention limits, malformed-event handling, and explainable moderation boundaries. Make clear that local blocks do not globally erase events and that public relay discovery cannot prove a global reputation or defeat Sybil identities. Add no-central-registry relay discovery with bundled signed defaults, user override, and explicit handling when defaults are stale/unreachable. Minimize metadata and document remaining IP/relay visibility.
+
+**Automated acceptance:**
+
+- Run 200 malformed, oversized, duplicate, replayed, and invalid-signature event cases through every public parser; no crash, secret leakage, or state mutation.
+- Run 50 local block/mute cases across 5 synthetic identities and 5 relays. Verify local views suppress blocked content while relay records and other clients are not falsely reported as deleted.
+- Test rate and storage limits at limit‚àí1, limit, and limit+1 for 20 configured limits; verify bounded state and deterministic errors.
+- Run 100 signed relay-list cases: valid, expired, revoked, duplicate, wrong key, unknown critical version, and malicious URL; invalid entries never cause an undeclared runtime code fetch or leak a private key.
+- Run static analysis, dependency vulnerability/license scan, secret scan, SBOM verification, and security-focused regression suites on the exact release candidate. Unresolved critical/high findings block release; report tool coverage and known blind spots.
+
+**Deliverables:** Abuse controls, relay discovery format, automated security report, metadata/privacy statement, and explicit residual-risk register. Passing automation is not represented as a human security audit.
+
+### G10 ‚Äî Public release, Ubuntu operator package, and contributor onboarding
+
+**Build:** Package one versioned release containing the static PWA, Ubuntu/Linux x86_64 relay CLI, Ubuntu agent/MCP installer, offline dependency manifests, checksums/signature, SBOM, licenses, upgrade/uninstall instructions, and machine-readable compatibility declarations. Publish from the public Property repository through its configured Pages/release workflow after offline gates pass. Make GitHub the canonical source and document independently verifiable source-to-artifact hashes. Add newcomer instructions, AI-agent contribution instructions, issue templates, a code of conduct, and a ready-to-share launch kit for X/Reddit/community forums with contribution links. Do not claim community adoption from publication or repository metrics.
+
+**Automated acceptance:**
+
+- Starting from a clean Ubuntu x86_64 machine image, install PWA static files locally, relay CLI, and MCP package from the release bundle with network disabled; verify all declared smoke journeys and clean uninstall.
+- Build, package, install, upgrade, downgrade/rollback, and verify checksums in 10 clean-profile cycles; preserve user data and reject corrupted artifacts.
+- Run CI from the exact release tag; require G0‚ÄìG9 evidence manifests, license/SBOM/security checks, and all fixed-count suites. A skipped suite is not a pass.
+- With egress blocked, serve the exact release PWA bundle locally and run 25 scripted browser journeys; compare its content hashes with the release manifest. Functional acceptance stays offline. Deployment metadata and artifact digests from the Pages/release workflow are recorded separately after publication and do not replace or alter gate results.
+- Verify English and Brazilian Portuguese documentation links, navigation, installation commands, and release metadata; no broken in-repository link is allowed.
+- Validate the launch kit mechanically: all repository/community links resolve within the local checkout, each post fits the declared platform character limit, and every call to action points to the contribution guide or public repository.
+
+**Deliverables:** Public versioned URL, verified release bundle, final evidence index, updated README/ROADMAP/docs index, Ubuntu operator and agent quick starts, platform-ready launch kit, and explicit pending-platform declaration.
+
+## 5. Overall completion rule
+
+The implementation plan is complete only when G0‚ÄìG10 are `PASS` on one release candidate using offline functional checks, the published artifact digests match their signed/checksummed manifest, and every financial/security limitation is visible in the relevant product and operator documentation. `PENDING`, `BLOCKED`, omitted evidence, an untested currency, or an experimental escrow presented as guaranteed means the overall result is not complete. Publication availability is reported from the release workflow; it is not a substitute for offline acceptance.
+
+## 6. Explicitly excluded from this execution plan
+
+- Human review, user studies, participant-operated tests, manual visual approval, or manual security sign-off.
+- Running, installing, building, or claiming support verification on Windows, macOS, Android, iOS, or any OS other than Ubuntu Linux x86_64.
+- A promise that a browser/PWA stays awake or relays continuously in a phone background.
+- Absolute censorship immunity, global handle uniqueness without an authority/consensus mechanism, Sybil-proof global reputation, or delivery/read guarantees a relay cannot provide.
+- Public-relay test traffic, mainnet test funds, or claims of trustless Nano escrow.
+
+These exclusions do not prevent automated implementation or source-level work for portable code; they limit what this plan may execute or claim as verified.
+
+## 7. References
+
+- [Property central test plan](plano-de-testes-central.md)
+- [Property payments and current settlement boundaries](pagamentos.md)
+- [Agent messaging plan](plano-agentes-human-first.md)
+- [NIP-17: private direct messages](https://github.com/nostr-protocol/nips/blob/master/17.md)
+- [NIP-15: marketplaces](https://github.com/nostr-protocol/nips/blob/master/15.md)
+- [MCP transports](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)
