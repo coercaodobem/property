@@ -1,6 +1,3 @@
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
-Failed to create stream fd: Operation not permitted
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync, randomBytes, randomUUID, sign as edSign, verify as edVerify, webcrypto } from 'node:crypto';
