@@ -11,11 +11,24 @@ import { fileURLToPath } from 'node:url';
 const PROPERTY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const REPO_ROOT = path.resolve(PROPERTY_ROOT, '..');
 const PARTS_ROOT = path.join(PROPERTY_ROOT, 'relay/dist-parts');
-export const GEODE_SHA256 = '9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7';
-const ARCHIVE_BYTES = 67_845_545;
+export const GEODE_SHA256 = 'f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd';
+const GEODE_PART_COUNT = 129;
+const GEODE_CHUNK_BYTES = 524_288;
+const ARCHIVE_BYTES = 67_366_883;
 
 export async function prepareGeodeRuntime(baseDir) {
-  const parts = await Promise.all(Array.from({ length: 130 }, (_, index) =>
+  const manifestText = await readFile(path.join(PARTS_ROOT, 'manifest.txt'), 'utf8');
+  const manifest = Object.fromEntries(manifestText.trim().split(/\r?\n/).map(line => {
+    const separator = line.indexOf('=');
+    assert.ok(separator > 0, 'the local Geode manifest uses key=value records');
+    return [line.slice(0, separator), line.slice(separator + 1)];
+  }));
+  assert.equal(manifest.format, '1');
+  assert.equal(manifest.filename, 'geode-1.20.0-linux-x64.tar.gz');
+  assert.equal(manifest.parts, String(GEODE_PART_COUNT));
+  assert.equal(manifest.chunk_size, String(GEODE_CHUNK_BYTES));
+  assert.equal(manifest.sha256, GEODE_SHA256, 'the fixture pin matches the vendored Geode manifest');
+  const parts = await Promise.all(Array.from({ length: GEODE_PART_COUNT }, (_, index) =>
     readFile(path.join(PARTS_ROOT, `part-${String(index).padStart(3, '0')}`))));
   const archive = Buffer.concat(parts);
   assert.equal(archive.length, ARCHIVE_BYTES, 'the locally bundled Geode archive has the declared byte length');
