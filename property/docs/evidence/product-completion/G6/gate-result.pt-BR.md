@@ -14,6 +14,6 @@ O navegador rodou no Ubuntu Linux x86_64 em namespace de rede separado. Cinco re
 | Ordenação de conflitos | 20 conflitos de timestamp do mesmo autor e 20 atualizações fora de ordem entre relays resolvidos deterministicamente. |
 | Casos de navegador | Todos os nove casos fixos G06 passaram. |
 
-Relatórios legíveis por máquina e hashes de ferramentas/fontes estão em [`fixed-run-03`](fixed-run-03/). Confira todos os digests dos relatórios e do manifesto com `sha256sum -c SHA256SUMS` nesse diretório.
+Relatórios legíveis por máquina e hashes de ferramentas/fontes estão em [`fixed-run-03`](fixed-run-03/) (o relatório completo do navegador está comprimido como `browser-g06-report.json.gz`; o arquivo JSON ao lado resume os nove casos). Confira todos os digests dos relatórios e do manifesto com `sha256sum -c SHA256SUMS` nesse diretório.
 
 Não houve revisão humana, teste em outro sistema operacional, dispositivo físico, relay público, carteira real ou pagamento.

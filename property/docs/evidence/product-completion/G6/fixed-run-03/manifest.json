@@ -47,8 +47,10 @@
     "property/release/trusted-signing-public.pem": "ae7d7f07ca289e7df301004e0e01bf9ea956c5000cc5f90a05dfbe5a7e5f73c9"
   },
   "evidence_sha256": {
-    "browser-g06-report.json": "bd50d637508a3eb47cd0f7a3c8b68fa9ece6fe7bc364082fec4111a492ba4b48",
-    "marketplace-g6-fixed-count.json": "488dc9549bdd7ee1c87e84406429648359d7ba9e7590af2bd6e7ee79671cc9d8"
+    "browser-g06-report.json": "5ce255a61a11f4d09fb83de15bcefd55307924990e594a43c477d1e9dc86d416",
+    "browser-g06-report.json.gz": "a9525fa6ec5b80e50a33016c44962e999999337078819669dad376d158a3a70f",
+    "marketplace-g6-fixed-count.json": "488dc9549bdd7ee1c87e84406429648359d7ba9e7590af2bd6e7ee79671cc9d8",
+    "uncompressed_browser_report_sha256": "bd50d637508a3eb47cd0f7a3c8b68fa9ece6fe7bc364082fec4111a492ba4b48"
   },
   "limitations": [
     "Synthetic identities and local Geode relays only.",

@@ -14,6 +14,6 @@ The browser ran on Ubuntu Linux x86_64 in an unshared network namespace. Five sy
 | Conflict ordering | 20 same-author timestamp conflicts and 20 cross-relay out-of-order updates resolved deterministically. |
 | Browser cases | All nine fixed G06 cases passed. |
 
-Machine-readable reports, tool hashes, and source hashes are in [`fixed-run-03`](fixed-run-03/). Check all report and manifest digests with `sha256sum -c SHA256SUMS` from that directory.
+Machine-readable reports, tool hashes, and source hashes are in [`fixed-run-03`](fixed-run-03/). The full browser report is compressed as `browser-g06-report.json.gz`; the adjacent JSON summarizes all nine cases. Check all report and manifest digests with `sha256sum -c SHA256SUMS` from that directory.
 
 No human review, non-Ubuntu OS, physical device, public relay, real wallet, or payment was used.
