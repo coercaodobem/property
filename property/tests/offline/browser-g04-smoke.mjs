@@ -2134,7 +2134,12 @@ async function main() {
     stage = 'G04-26: cached PWA shell with all relays offline';
     await pageA.waitForFunction(() => Boolean(navigator.serviceWorker?.controller), null, { timeout: 10000 });
     trace('service worker controls the page; inspecting the cached PWA shell');
-    const shellCache = await pageEvaluateWithWatchdog(pageA, async () => {
+    const serviceWorkerSource = await readFile(path.join(WEB, 'sw.js'), 'utf8');
+    const shellCacheName = serviceWorkerSource.match(/^const CACHE = ['"]([^'"]+)['"];?$/m)?.[1];
+    const appAsset = serviceWorkerSource.match(/['"](\.\/app\.js\?v=[^'"]+)['"]/ )?.[1];
+    assert.ok(shellCacheName && appAsset, 'the service worker declares its cache and versioned app bundle');
+    const expectedAppPath = new URL(appAsset, origin);
+    const shellCache = await pageEvaluateWithWatchdog(pageA, async expected => {
       const controller = navigator.serviceWorker.controller;
       const names = await caches.keys();
       const shellName = names.find(name => /^property-shell-/.test(name));
@@ -2142,10 +2147,10 @@ async function main() {
       const cache = await caches.open(shellName);
       const keys = (await cache.keys()).map(request => new URL(request.url).pathname + new URL(request.url).search);
       return { controlled: Boolean(controller), shellName, index: keys.some(key => key.endsWith('/property/index.html')),
-        app: keys.some(key => key.endsWith('/property/app.js?v=property-v114')) };
-    }, undefined, 'G04-26 service worker cache inventory');
+        app: keys.some(key => key.endsWith(expected)) };
+    }, expectedAppPath.pathname + expectedAppPath.search, 'G04-26 service worker cache inventory');
     trace(`cache inventory returned: ${JSON.stringify(shellCache)}`);
-    assert.deepEqual(shellCache, { controlled: true, shellName: 'property-shell-v123', index: true, app: true },
+    assert.deepEqual(shellCache, { controlled: true, shellName: shellCacheName, index: true, app: true },
       'the active service worker controls a complete locally cached app shell before the host is removed');
     trace('closing context B before relay shutdown');
     await closeContextForGate(contextB, 'G04-26 context B'); contextB = null;

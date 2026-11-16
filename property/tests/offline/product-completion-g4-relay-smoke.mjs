@@ -135,8 +135,9 @@ class RelayClient {
 }
 
 function groupForRelay(relayIndex) { return GROUPS.findIndex(group => group.includes(relayIndex)); }
-function relayRateConfig(port) {
-  return `[network]\nhost = "127.0.0.1"\nport = ${port}\npath = "/"\n\n[rate_limits]\nevents_per_minute = 10000\nevent_burst = 10000\nreqs_per_minute = 10000\nreq_burst = 10000\n`;
+function relayRateConfig(port, dataDirectory) {
+  const databaseFile = JSON.stringify(path.join(dataDirectory, 'events.db'));
+  return `[network]\nhost = "127.0.0.1"\nport = ${port}\npath = "/"\n\n[database]\nin_memory = false\nfile = ${databaseFile}\n\n[rate_limits]\nevents_per_minute = 10000\nevent_burst = 10000\nreqs_per_minute = 10000\nreq_burst = 10000\n`;
 }
 function digestIds(events) { return createHash('sha256').update(events.map(event => event.id).sort().join('\n')).digest('hex'); }
 function signedEventFields(event) {
@@ -200,7 +201,7 @@ async function main() {
       activeCase = `G04-setup-relay-${index + 1}`;
       const port = await reserveLoopbackPort();
       const label = `G4 isolated relay ${index + 1}`;
-      const relay = await startGeode(port, temp, label, relayRateConfig(port));
+      const relay = await startGeode(port, temp, label, relayRateConfig(port, path.join(temp, `${label} data`)));
       relay.g4Port = port; relay.g4Label = label; relays.push(relay);
       clients.push(new RelayClient(relay.url));
     }
