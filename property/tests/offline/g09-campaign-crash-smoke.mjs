@@ -102,7 +102,7 @@ try {
   const report = { schema_version: 1, result: 'PASS', case: 'G09-01', abrupt_campaign_crashes: 2,
     state_after_first_crash: acceptedResult.status, state_after_second_crash: finalResult.status,
     publication_calls_after_recovery: finalResult.publication_calls, relay_campaign_copies: copies.length,
-    campaign_event_id: campaignEventId, relay_url: relay.url, temp_state_private: true };
+    relay_url: relay.url, temp_state_private: true };
   await writeFile(path.join(output, 'g09-campaign-crash-report.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
   process.stdout.write(JSON.stringify(report) + '\n');
 } catch (error) {

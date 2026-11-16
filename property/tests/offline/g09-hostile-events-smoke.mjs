@@ -92,7 +92,7 @@ try {
     hostile_input_counts: hostileCounts, rejected_input_state_mutations: 0, bridge_deduplication_entries_from_valid_duplicate_fixtures: 20,
     relay_duplicate_copies: duplicateCopies.length,
     invalid_signature_rejected: true, oversized_event_forwarded: false, bridge_events_accepted_before_quota: acceptedByBridge,
-    corpus_recovered_after_hostile_input: true, persisted_event_ids: [normal.id, recovery.id] };
+    corpus_recovered_after_hostile_input: true };
   await writeFile(path.join(output, 'g09-hostile-report.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
   process.stdout.write(JSON.stringify(report) + '\n');
 } catch (error) {
