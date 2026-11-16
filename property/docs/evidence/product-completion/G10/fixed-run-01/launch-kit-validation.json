@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "result": "PASS",
+  "branch": "modelo-mvp",
+  "repository_url": "https://github.com/coercaodobem/property",
+  "contribution_guide_exists": true,
+  "platform_budgets_are_project_defined": true,
+  "validated_posts": 10,
+  "posts": [
+    {
+      "platform": "x_post",
+      "locale": "en",
+      "characters": 229,
+      "maximum": 280,
+      "links": 1,
+      "result": "PASS"
+    },
+    {
+      "platform": "reddit_title",
+      "locale": "en",
+      "characters": 59,
+      "maximum": 300,
+      "links": 0,
+      "result": "PASS"
+    },
+    {
+      "platform": "reddit_body",
+      "locale": "en",
+      "characters": 757,
+      "maximum": 2000,
+      "links": 2,
+      "result": "PASS"
+    },
+    {
+      "platform": "community_title",
+      "locale": "en",
+      "characters": 29,
+      "maximum": 180,
+      "links": 0,
+      "result": "PASS"
+    },
+    {
+      "platform": "community_body",
+      "locale": "en",
+      "characters": 724,
+      "maximum": 2000,
+      "links": 2,
+      "result": "PASS"
+    },
+    {
+      "platform": "x_post",
+      "locale": "pt-BR",
+      "characters": 250,
+      "maximum": 280,
+      "links": 1,
+      "result": "PASS"
+    },
+    {
+      "platform": "reddit_title",
+      "locale": "pt-BR",
+      "characters": 55,
+      "maximum": 300,
+      "links": 0,
+      "result": "PASS"
+    },
+    {
+      "platform": "reddit_body",
+      "locale": "pt-BR",
+      "characters": 816,
+      "maximum": 2000,
+      "links": 2,
+      "result": "PASS"
+    },
+    {
+      "platform": "community_title",
+      "locale": "pt-BR",
+      "characters": 39,
+      "maximum": 180,
+      "links": 0,
+      "result": "PASS"
+    },
+    {
+      "platform": "community_body",
+      "locale": "pt-BR",
+      "characters": 768,
+      "maximum": 2000,
+      "links": 2,
+      "result": "PASS"
+    }
+  ]
+}

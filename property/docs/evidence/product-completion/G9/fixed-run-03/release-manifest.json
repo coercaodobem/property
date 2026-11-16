@@ -1,0 +1,3361 @@
+{
+  "schema_version": 1,
+  "product": "Property",
+  "profile": "ubuntu-linux-x86_64",
+  "source_commit": "111926e34fd9e654cf4d0fe550c8ba5c267542ba",
+  "source_commit_time_utc": "2026-11-16T17:52:50.000Z",
+  "build_tools": {
+    "node": "v22.22.1",
+    "tar": "tar (GNU tar) 1.35",
+    "gzip": "gzip 1.14",
+    "network_access": "none"
+  },
+  "runtime_provenance": {
+    "geode_version": "1.20.0",
+    "java_version": "21.0.13",
+    "archive_sha256": "f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd",
+    "archive_bytes": 67366883,
+    "source_rebuild": "offline-source-build-completed; archive metadata normalized; bit-for-bit Geode/JRE build reproducibility not asserted"
+  },
+  "signer": {
+    "algorithm": "Ed25519",
+    "public_key_sha256": "60025655e12c534e41003d8d87c3080c33b3e72f86bb19dbcda14182684f670c"
+  },
+  "artifacts": [
+    {
+      "name": "property-ubuntu-x86_64.tar.gz",
+      "bytes": 68543468,
+      "sha256": "2384fd4ec8e1c00dc05d2539ecf745a8cddc5d0ccd1384b0231bdef70c94e4fb",
+      "media_type": "application/gzip"
+    },
+    {
+      "name": "SBOM.spdx.json",
+      "bytes": 387669,
+      "sha256": "eb472441ac4c5676ff825458a391ac53fb420863b010e505a09a2b6832acee27",
+      "media_type": "application/spdx+json"
+    }
+  ],
+  "file_count": 415,
+  "files": [
+    {
+      "path": "property/LICENSE",
+      "bytes": 1071,
+      "sha256": "54da46a2d7fc0dc69a01c725fe75ffb3b947da1396fc8bb26823769161108024",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/LICENSE"
+    },
+    {
+      "path": "property/agent/README.md",
+      "bytes": 12761,
+      "sha256": "69c3f9910069f1aee3196ce8743f7f6d4c0a761c97267dbf7bb7e803039b5a2e",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/README.md"
+    },
+    {
+      "path": "property/agent/bin/property-agent",
+      "bytes": 176,
+      "sha256": "5fcc93a0f224497dc69b3508c667ecbb4fbf639d8a9b6206b71fcfbbc78a939c",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/bin/property-agent"
+    },
+    {
+      "path": "property/agent/core.mjs",
+      "bytes": 9381,
+      "sha256": "4a22124ea1e8b773608566e72cef9aad95dc95f4783548fafa346b2e8929a1c0",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/core.mjs"
+    },
+    {
+      "path": "property/agent/daemon.mjs",
+      "bytes": 10587,
+      "sha256": "36fdcb3d32832dc6e17237bb7ad536891c3aa8add06c666b97eb8803ec8a25af",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/daemon.mjs"
+    },
+    {
+      "path": "property/agent/install.sh",
+      "bytes": 3409,
+      "sha256": "ef4da022d5e710c4aaf0eafdd11c946658d99415045652a3bfed23bb9e17f27d",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/install.sh"
+    },
+    {
+      "path": "property/agent/ipc.mjs",
+      "bytes": 6220,
+      "sha256": "e60b9300c75915812b8dbfb2764f7f62b87b3afdc1cc21d3c471e0d20360249b",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/ipc.mjs"
+    },
+    {
+      "path": "property/agent/ledger-rpc.mjs",
+      "bytes": 36707,
+      "sha256": "2466c0e6d2ceeb375e6417fb4ac4ff67689f489991b1d5aa420f745541cb5844",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/ledger-rpc.mjs"
+    },
+    {
+      "path": "property/agent/manifest.json",
+      "bytes": 2002,
+      "sha256": "42b6f510d1a765e2259e05ce0c9efc19eec6fa1092acf44177c2cb44140e74e3",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/manifest.json"
+    },
+    {
+      "path": "property/agent/mcp-server.mjs",
+      "bytes": 44162,
+      "sha256": "f1c26aed646eefd653a1c4b152814d25a13ba087339a38ff4ff0586856df5ed2",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/mcp-server.mjs"
+    },
+    {
+      "path": "property/agent/nano-wallet.mjs",
+      "bytes": 19001,
+      "sha256": "6399877241e8acaacabf2e38f37865840b74c121e7e487b05e4252e12a8d4280",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/nano-wallet.mjs"
+    },
+    {
+      "path": "property/agent/property-agent.mjs",
+      "bytes": 25446,
+      "sha256": "a612fbf138c1175190c0121faf0a955ef95e29a8ab935b27ffecada74ed95861",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/property-agent.mjs"
+    },
+    {
+      "path": "property/agent/protocol-contract.mjs",
+      "bytes": 11703,
+      "sha256": "41814d59388cfdfefdaa2462a57d97c4be6ebb41e8bc1e5c4430476d73f6d95d",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/protocol-contract.mjs"
+    },
+    {
+      "path": "property/agent/relay.mjs",
+      "bytes": 20844,
+      "sha256": "4b6d318b730cdb6ec6e0b6ac22160089f3fb2e25401e97a68f4498a702770198",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/relay.mjs"
+    },
+    {
+      "path": "property/agent/service.mjs",
+      "bytes": 23494,
+      "sha256": "f31154c313278eca3984bac16dbbe512848d99b9c1c7c375fec20a00ec6c4d52",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/service.mjs"
+    },
+    {
+      "path": "property/agent/store.mjs",
+      "bytes": 4024,
+      "sha256": "fda2e1811fce4317f84406431a5d1305ed87b27229d703caae2728b8430e2deb",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/store.mjs"
+    },
+    {
+      "path": "property/agent/tools.manifest.json",
+      "bytes": 47473,
+      "sha256": "352318f31107656d043c92e526034cdb07ac56ff58e2fef492e1355ad8e35dbe",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/tools.manifest.json"
+    },
+    {
+      "path": "property/agent/trade-conversation.mjs",
+      "bytes": 16809,
+      "sha256": "9562890d07bc23d1f388141859c5f1875b01a391d193b2428957d10370613831",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/trade-conversation.mjs"
+    },
+    {
+      "path": "property/agent/trade-node-config.mjs",
+      "bytes": 3282,
+      "sha256": "c97537fb36154cb8e5e5c98fb2f79133c41c9ec17ddf9676f81d6146d3ae2ae2",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/trade-node-config.mjs"
+    },
+    {
+      "path": "property/agent/trade-state-store.mjs",
+      "bytes": 2593,
+      "sha256": "3ea8e3071d9da78210584f7554e552bc4b458d469a7a7337627a0ff8741b565c",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/trade-state-store.mjs"
+    },
+    {
+      "path": "property/agent/trade-state.mjs",
+      "bytes": 26934,
+      "sha256": "9027cafc825afee75699e8dd6fb915efaade4016303883dea07313aa6727b6aa",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/trade-state.mjs"
+    },
+    {
+      "path": "property/agent/uninstall.sh",
+      "bytes": 1332,
+      "sha256": "a8cdb478d5e7c83bb4ab833dcf9da845fdd70605af49bd3945eae5b2e717b8ef",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/uninstall.sh"
+    },
+    {
+      "path": "property/agent/vault.mjs",
+      "bytes": 6667,
+      "sha256": "6ea0dcbf096c1b079c22bde4ba0c64bfe63abd96b0605187f80d78fba05d4e3a",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/vault.mjs"
+    },
+    {
+      "path": "property/agent/vendor/NOTICE.md",
+      "bytes": 847,
+      "sha256": "e5c23fb60f3369e881af88c3eedfcee67d11608bf1846b59e7e888a8490b4ed3",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/vendor/NOTICE.md"
+    },
+    {
+      "path": "property/agent/vendor/marketplace.js",
+      "bytes": 12143,
+      "sha256": "27b3c9c18dee507aebef5184296a4ee6ed10ab14a51b814229bb1a859939bd29",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/vendor/marketplace.js"
+    },
+    {
+      "path": "property/agent/vendor/money.js",
+      "bytes": 1868,
+      "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/vendor/money.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/LICENSE",
+      "bytes": 1109,
+      "sha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/LICENSE"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/README.md",
+      "bytes": 38129,
+      "sha256": "5d7a7d4811d1e09a6fc7c1b7e3716453875fc214d2c132a8ee5fcca1fb928a1d",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/README.md"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/bls.d.ts",
+      "bytes": 18375,
+      "sha256": "6793f0e4fa33c028a109ebf71d69548235551a8686ac881fd5afce07ca8968f3",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/bls.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/bls.js",
+      "bytes": 26684,
+      "sha256": "9bc37d55fbf294ef99d944950eb58ab5b0330e27aa9dacf73f557a7b88e8930f",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/bls.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/curve.d.ts",
+      "bytes": 22798,
+      "sha256": "933792b8c0e73b795ec3a97c69a7f8a506fd37f9fecc54135bbb1a796b9a8aff",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/curve.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/curve.js",
+      "bytes": 35711,
+      "sha256": "dbaeee3b41ff47efb76b78e14170fe4dda7c7ecdc387c402f16c5118e0bac356",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/curve.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/der.d.ts",
+      "bytes": 3099,
+      "sha256": "aeb2852ac61843a00031867fcb9d4932c4b70f77d9fbafaaa4e6d19d2aa6f8b2",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/der.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/der.js",
+      "bytes": 7401,
+      "sha256": "7f80d698611b131368ecf732b8740bb97f72cd42fef77c4b0bb923e2e2d44159",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/der.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/edwards.d.ts",
+      "bytes": 14053,
+      "sha256": "217506fe30ac0b6995cbb92d50da92d3e31a54f2eaba2f7c76d2d54bbda5aa40",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/edwards.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/edwards.js",
+      "bytes": 32323,
+      "sha256": "f24a9c221a549a8fff259eb8f245ab0dc17679b13c532c3970d91acc4df9fffd",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/edwards.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/fft.d.ts",
+      "bytes": 16856,
+      "sha256": "6a16cb899142d2cb3ac866075a70c0edb28286b30e47ed6e4c35ecf54e668e86",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/fft.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/fft.js",
+      "bytes": 26024,
+      "sha256": "a4b2ff7ca33f4acc85d61f0e83ec3303c3f6b38ecc19b20d0f6462d820e518cf",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/fft.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/frost.d.ts",
+      "bytes": 19687,
+      "sha256": "1633a15d2aea0a21395f08e1f5c5bffb4ae54c3bb01129d50a5ce582b7e0a550",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/frost.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/frost.js",
+      "bytes": 45399,
+      "sha256": "9a95f1fdf7e17b9d93a16049db675ee2967ed2a04cf59b1bd981d4662acbedf5",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/frost.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/hash-to-curve.d.ts",
+      "bytes": 11922,
+      "sha256": "7359426621285a51c071954edf1e090ecfa7de975c7fa7a8835f246b2f4abda5",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/hash-to-curve.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/hash-to-curve.js",
+      "bytes": 26273,
+      "sha256": "e3c97e7d0827b728b14e3311ed11d8e386d8a70d8fc77e0b9fd2a3090f19d955",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/hash-to-curve.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/modular.d.ts",
+      "bytes": 22192,
+      "sha256": "e8203a44185131417db537c76874dd5284874ece85905360e7ffb5d37553ec8c",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/modular.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/modular.js",
+      "bytes": 39844,
+      "sha256": "9ced3aa10598277a735e54f7b61d88e929d565da884ba5385f9006ebb3b6aab2",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/modular.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/montgomery.d.ts",
+      "bytes": 8384,
+      "sha256": "35218eb55a0bc7b20c0ff79122079f08ca76673336535b6f86e694a93abdf882",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/montgomery.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/montgomery.js",
+      "bytes": 14721,
+      "sha256": "cdafa8816dad5a24475ec51952c5f71fdd5d1b46880ab982694c4f8ff605fc46",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/montgomery.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/oprf.d.ts",
+      "bytes": 18243,
+      "sha256": "8db613317b8a340a7e427d23e6daf90848ad4c4e1444e9c62ad261348096f0b8",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/oprf.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/oprf.js",
+      "bytes": 18336,
+      "sha256": "2ca36b3e4930092db1f91559410e86975816c036e248067bc65a8055aa1c504c",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/oprf.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/poseidon.d.ts",
+      "bytes": 7561,
+      "sha256": "c14cd1a7a75b7021af495fc0aa5e13b45b988223088e86e7c5fae1d54103a851",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/poseidon.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/poseidon.js",
+      "bytes": 19582,
+      "sha256": "ef05eaf0372d4441abfdcacd31b9a7bea801656b55819cdf0ff0995aa0c885fb",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/poseidon.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/tower.d.ts",
+      "bytes": 7717,
+      "sha256": "5b003308d621557fbb698fca6dbeda3b8cc937305ffb62ddf59ad6b5bf5a6615",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/tower.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/tower.js",
+      "bytes": 36373,
+      "sha256": "c5020cbd4678be607951b10ae87d09337024bd5b9354beb3079ebacce7cc5a39",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/tower.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/weierstrass.d.ts",
+      "bytes": 19902,
+      "sha256": "7556bbf494d8a79a28ab453d0d8abb19fdcd9c3460034bb8c66af1448320e5e4",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/weierstrass.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/abstract/weierstrass.js",
+      "bytes": 53654,
+      "sha256": "d007e949c0d5b912e8c54132983219c8ff8f69bda058a70563b5cc7a8783331c",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/abstract/weierstrass.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/bls12-381.d.ts",
+      "bytes": 839,
+      "sha256": "e2d19f92a28d68004eeba82ff5b9f30ee208ecff110e23f32587e0328b45f442",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/bls12-381.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/bls12-381.js",
+      "bytes": 35614,
+      "sha256": "eab0e80c31087656d0a0c2024906418e59ab6e2f02c9e5395406602c25351276",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/bls12-381.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/bn254.d.ts",
+      "bytes": 3148,
+      "sha256": "7d377b3ecf3844477bbc4417dd827dca754f92f93358917b772afb9297af28bc",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/bn254.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/bn254.js",
+      "bytes": 11989,
+      "sha256": "d49bd6594b30d11c949eff8a3de54a46e2ca3ae93c964b576c6c0b51c80a6785",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/bn254.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/ed25519.d.ts",
+      "bytes": 8506,
+      "sha256": "32ec9ba9353005bc601af7acc62b87a304d356f835306d905fbec4440da39afb",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/ed25519.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/ed25519.js",
+      "bytes": 30053,
+      "sha256": "7bca3e7a8a30c850137d582dd31661512f153eaaeffe6940becbc1f44f3eb498",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/ed25519.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/ed448.d.ts",
+      "bytes": 7174,
+      "sha256": "20a8d03b2d0be13f399cbbc7bf56bba571418a7fb47bfe3f11ac1d7b5bcdb136",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/ed448.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/ed448.js",
+      "bytes": 30261,
+      "sha256": "448744d7564871d0fe00a9be7be79075e92c4b7f5e4a9b85332b71b054995d15",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/ed448.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/index.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/index.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/index.js",
+      "bytes": 1434,
+      "sha256": "522bba9559e747647426316ac2b9df593243c4d54cd6852c54206f4124a8f7b9",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/index.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/misc.d.ts",
+      "bytes": 4410,
+      "sha256": "0b25724c5cd37368b400811194ba4af73f588cbeadf4604769aef1b29858d0dd",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/misc.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/misc.js",
+      "bytes": 10788,
+      "sha256": "2db54e6ade644c4c1371903b7c88e2b77093fd3b1012d42b0a18258d1c09096d",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/misc.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/nist.d.ts",
+      "bytes": 4944,
+      "sha256": "2ccdb34a144602991c78920a5a3e8c33b73e3ec3a3bec710a95082ba15deadec",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/nist.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/nist.js",
+      "bytes": 11530,
+      "sha256": "0a692b98e22c56c0354f78eb1759cfbf6aec89eafc78cd2984a4f2e8428081e6",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/nist.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/package.json",
+      "bytes": 2722,
+      "sha256": "63d976a6ee72f2dcdc81e6c8bf907edff54eb20e8423218578fbfaf29cff96e6",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/package.json"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/secp256k1.d.ts",
+      "bytes": 6757,
+      "sha256": "b38629ceef71dff29b10613ecf7e256992b50bb5240f9045281a9f85eaaa1376",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/secp256k1.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/secp256k1.js",
+      "bytes": 20700,
+      "sha256": "b4e7383e0de5064cd200d22f21890bc8730ddaf987b1e989e5e24bbfaae5cf1f",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/secp256k1.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/utils.d.ts",
+      "bytes": 21809,
+      "sha256": "7c6a14fb7160cb98f63c928ac39dc544a33be6e0bf51d31fe443f4c2a4d92598",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/utils.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/utils.js",
+      "bytes": 23221,
+      "sha256": "be9ff86aef76419376e4d66cf01a134f3117f1f8dd62d81f1b79100145503367",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/utils.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/webcrypto.d.ts",
+      "bytes": 9972,
+      "sha256": "2ed5ce94d185be6027cb758c61d30b753fa008e42cb6e2f73a6a09397852816a",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/webcrypto.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/curves/webcrypto.js",
+      "bytes": 20215,
+      "sha256": "715197e17767f7f448eb4131151205e18ee0a261d76340cf4863805e15737f0e",
+      "license": "MIT",
+      "component": "noble-curves-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/curves/webcrypto.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/LICENSE",
+      "bytes": 1109,
+      "sha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/LICENSE"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/README.md",
+      "bytes": 19021,
+      "sha256": "668a613b90e2d867df4f8d610566e4a874d6e33f799d9770714a26702c6d7dd0",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/README.md"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/_blake.d.ts",
+      "bytes": 740,
+      "sha256": "c32b86abfcd4514e98a2f27b4f67672cb1446ac081d2e715d0dca60e96e8120a",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/_blake.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/_blake.js",
+      "bytes": 2841,
+      "sha256": "cabbff61d1f373bac45594ad758df7c42e176464ddbb94b44f5533fa977a4f56",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/_blake.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/_md.d.ts",
+      "bytes": 4306,
+      "sha256": "f5ffc0d52997445b4531a0e1e67ee0f6f376e0ed5c66f978e80288973d50cd06",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/_md.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/_md.js",
+      "bytes": 9175,
+      "sha256": "60cf3010fda89e3e4d3f0e7ff1ce249e9c467f34b4fd41b6fd6101d9f69be763",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/_md.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/_u64.d.ts",
+      "bytes": 1994,
+      "sha256": "78744410de5b7594879963d315b7a339a06ecafa73b0a0ddf63fdabdb926dd25",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/_u64.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/_u64.js",
+      "bytes": 4794,
+      "sha256": "b09da8c07fe8187c07649494cdb7cd0bcf13df90b506a9473d19e4d5f8c2e102",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/_u64.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/argon2.d.ts",
+      "bytes": 5719,
+      "sha256": "a455841ea6f034d54790094ac67afc9311a78a39abb967009a605c37122c03d9",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/argon2.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/argon2.js",
+      "bytes": 25707,
+      "sha256": "f39753324bdf2f484150731d24b1d71236f26bf10bedd594f7d190fcdfdefdc9",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/argon2.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/blake1.d.ts",
+      "bytes": 5143,
+      "sha256": "f1cc242d614865d7277362ba8a90b58f755aae260881be79e0119ce85a1f6017",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/blake1.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/blake1.js",
+      "bytes": 25201,
+      "sha256": "da1d08b4d0702ad4f185a796df8fce3fec2855de53b02190eba3bd8555677b5c",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/blake1.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/blake2.d.ts",
+      "bytes": 6526,
+      "sha256": "e60ec6813a51e31751919e471daedaab9510d7a88dc0ef6b4dc05c7de502736e",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/blake2.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/blake2.js",
+      "bytes": 22819,
+      "sha256": "03f00237bcc0b4d822a80f7c0ac22e42632c48e246c3b6da584e6452186e32f0",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/blake2.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/blake3.d.ts",
+      "bytes": 2529,
+      "sha256": "b9a9fdcc7b04f07674c609fa40b0fdf1252c3ccf024968038fff06e6da00c627",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/blake3.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/blake3.js",
+      "bytes": 12503,
+      "sha256": "bc25a8f6c50acabf3781c44ec55cb364b00f6f3f4349d841813a1057a8af2f20",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/blake3.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/eskdf.d.ts",
+      "bytes": 3729,
+      "sha256": "d5f8b356eb63754539034e40c22ef45e58af9eb51e121ed7ef1c757eb47f7fe7",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/eskdf.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/eskdf.js",
+      "bytes": 9911,
+      "sha256": "7ded32d320b0d1d71c59a4a3b493722a13c9c6a66de83f19f8a382b29af7a2f6",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/eskdf.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/hkdf.d.ts",
+      "bytes": 3557,
+      "sha256": "b31b80e958e55dcff73eebfed1061ab4a49ef5cadc2fca1cf0999e1dd06f2786",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/hkdf.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/hkdf.js",
+      "bytes": 7019,
+      "sha256": "ccb942a8008f974018965eeb1e33b8f4739bf767c6f95f2ceb06f5873a302f67",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/hkdf.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/hmac.d.ts",
+      "bytes": 1662,
+      "sha256": "e98501df98e30aadc27a2fac0c725b7755bb297ed8f722b4d9edbad0a52eabce",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/hmac.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/hmac.js",
+      "bytes": 3118,
+      "sha256": "fec9f8f3aeda785ea2de91cc4c059d54ef98196261c026c43f48341007ae52c9",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/hmac.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/index.d.ts",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/index.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/index.js",
+      "bytes": 1133,
+      "sha256": "b0d908a44e09a1b7c27a43d7b9036a6147a7a32db758bb64d9a668ea5c72d1af",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/index.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/legacy.d.ts",
+      "bytes": 3661,
+      "sha256": "efea3066bab29b907291bb209c8e0ebf33aa7c7de7e284debdf70800ef0c7cfa",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/legacy.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/legacy.js",
+      "bytes": 12613,
+      "sha256": "690553a41af2fdd1e32ff6b534ba8508e95f1861c09c2d62fe762b6b501e09be",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/legacy.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/package.json",
+      "bytes": 2583,
+      "sha256": "3e361734f5269de162fa362483d7f45dee7efb533ec217157945338f7591baaf",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/package.json"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/pbkdf2.d.ts",
+      "bytes": 3062,
+      "sha256": "5e992532a48c56c72d23a01491702f259637fe7d14bb13cea7ce731d74aea9d2",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/pbkdf2.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/pbkdf2.js",
+      "bytes": 7644,
+      "sha256": "62b75b5465a89af052a80bdebe7e0383ba01648b12f64877ce285a2e9896c713",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/pbkdf2.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/scrypt.d.ts",
+      "bytes": 3852,
+      "sha256": "f3b2a890f8b6564a0f4c8fd3dc80f443501cdd8f4dd18760d472773923329902",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/scrypt.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/scrypt.js",
+      "bytes": 13621,
+      "sha256": "a38a020620776fa5c57c00f151bdc1033c192827c9d841996daaf29122ea82c1",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/scrypt.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/sha2.d.ts",
+      "bytes": 5974,
+      "sha256": "5b1c09cb23f0c1e7018d31d28f4eec2b18eec6454f07c0f69ff2eb3c8decdb21",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/sha2.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/sha2.js",
+      "bytes": 18991,
+      "sha256": "c07a30c2b7a1343b2788028415079ae3b4085ffd505440d82ca16a3f0490164c",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/sha2.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/sha3-addons.d.ts",
+      "bytes": 19527,
+      "sha256": "2d838c7d9eaa1e89d8cc45e894ef92cdf7db60bf9bd2eb04b89e2570510fcf47",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/sha3-addons.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/sha3-addons.js",
+      "bytes": 38267,
+      "sha256": "d9789e03b751ddf87e8c3dd6ab4f8491b6a9fc6c2c88f80f7cb3e0f6f0690e72",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/sha3-addons.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/sha3.d.ts",
+      "bytes": 6466,
+      "sha256": "6f8d601930e11339441fffbaec65a66c76d62c5c62b91c49230d64e75fa6457a",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/sha3.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/sha3.js",
+      "bytes": 17461,
+      "sha256": "3f42fcf037fe1a9061da60972dc36714195b1a3fc6c57cbe71d853f2b1f2982e",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/sha3.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/utils.d.ts",
+      "bytes": 22567,
+      "sha256": "cfccade8c719b698bd8b0313ff996941f5d5a384654ec2886d9141224f6db439",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/utils.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/utils.js",
+      "bytes": 26034,
+      "sha256": "88beee7490eb4e48d556ee7dd6f6d2f16a76399731d52678625d0a0b7ea85251",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/utils.js"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/webcrypto.d.ts",
+      "bytes": 5243,
+      "sha256": "e56b2ea68f6b6b21e14ed99b2520bc754ac900c178d23fe7d6d451ae2a7d12c8",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/webcrypto.d.ts"
+    },
+    {
+      "path": "property/agent/vendor/node_modules/@noble/hashes/webcrypto.js",
+      "bytes": 9633,
+      "sha256": "83f476a634233b999ce6e6cd67dc03e64f07b8d5a826e67ad4a50c940d9ce7ee",
+      "license": "MIT",
+      "component": "noble-hashes-agent-2.4.0",
+      "source": "property/agent/vendor/node_modules/@noble/hashes/webcrypto.js"
+    },
+    {
+      "path": "property/agent/vendor/protocol-contract.js",
+      "bytes": 5647,
+      "sha256": "b245cbfd8dacae8dfc51c7ae46548b33aecad12c1dcce100c6cd357da06f17de",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/vendor/protocol-contract.js"
+    },
+    {
+      "path": "property/agent/xno-escrow.mjs",
+      "bytes": 41299,
+      "sha256": "d8ac932b980c59e4da02d847fcffb2ce365f22c721b64d3c7f0db0bfab173f2f",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/xno-escrow.mjs"
+    },
+    {
+      "path": "property/agent/xno-journal.mjs",
+      "bytes": 1203,
+      "sha256": "6114dd3c63121d8a8108fd467e8d36723d34fbb4c6e5175e5840adfd2c1c5540",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/xno-journal.mjs"
+    },
+    {
+      "path": "property/agent/xno-threshold-protocol.mjs",
+      "bytes": 54582,
+      "sha256": "b7fae2c66a16e541dc5414a926b5a2b1a7318efd6e9ed0bce00a8303f72a761d",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/xno-threshold-protocol.mjs"
+    },
+    {
+      "path": "property/agent/xno-threshold-store.mjs",
+      "bytes": 2605,
+      "sha256": "43dd00069b00da510167e5a0d475e67a06ed61a76ffb4bb0b238ddcc49e06ce2",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/xno-threshold-store.mjs"
+    },
+    {
+      "path": "property/agent/xno-threshold.mjs",
+      "bytes": 12046,
+      "sha256": "9e302de254770631aa56bad48c916738df8c53f47ccc56e06b9e7c6d5c06207c",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/xno-threshold.mjs"
+    },
+    {
+      "path": "property/agent/xno-trades.mjs",
+      "bytes": 22683,
+      "sha256": "0f59b9d410767e4e0ad2ce8b1fa68c6a1f6beebea76827573dacdee7cc3d18ff",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/agent/xno-trades.mjs"
+    },
+    {
+      "path": "property/relay/PROVENANCE.md",
+      "bytes": 1832,
+      "sha256": "1c1b1647e322d0439391dc4e429e7a8260350df91e2577423413c15ae9249718",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/relay/PROVENANCE.md"
+    },
+    {
+      "path": "property/relay/PROVENANCE.pt-BR.md",
+      "bytes": 1938,
+      "sha256": "5bca18d25d1a6355925e77c21f72d47e491e3c9f8b39b46a194109e9f019e126",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/relay/PROVENANCE.pt-BR.md"
+    },
+    {
+      "path": "property/relay/README.md",
+      "bytes": 6831,
+      "sha256": "98a98a864c1e7638209b3c2109085323bad140a3ac7e74a58343c4da8cdec69b",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/relay/README.md"
+    },
+    {
+      "path": "property/relay/README.pt-BR.md",
+      "bytes": 7196,
+      "sha256": "d043c367a4511116393c4631623721432ac7c74c96796019cf8130ce20a2c1b9",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/relay/README.pt-BR.md"
+    },
+    {
+      "path": "property/relay/dist/geode/bin/geode",
+      "bytes": 213,
+      "sha256": "ec6d8ae1deb229c15f4890d7e8da74124f3da05fc0703df4047466118b17ac0e",
+      "license": "MIT",
+      "component": "geode-launcher-and-operator-config",
+      "source": "property/relay/dist/geode/bin/geode"
+    },
+    {
+      "path": "property/relay/dist/geode/bin/geode.bat",
+      "bytes": 163,
+      "sha256": "eda1a4bde6f23bd671621feab8ff6cf9999afb7af614d50300bf78488a336417",
+      "license": "MIT",
+      "component": "geode-launcher-and-operator-config",
+      "source": "property/relay/dist/geode/bin/geode.bat"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/4koma-1.2.0.jar",
+      "bytes": 437378,
+      "sha256": "1b68f3e53bfcb2f04c209016c684557886095f16e14d165edc3738293a962df0",
+      "license": "MIT",
+      "component": "cc.ekblad:4koma:1.2.0",
+      "source": "git://github.com/valderman/4koma.git; artifact_sha256=1b68f3e53bfcb2f04c209016c684557886095f16e14d165edc3738293a962df0"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/annotation-jvm-1.9.1.jar",
+      "bytes": 60577,
+      "sha256": "1e343917ebf27ba96fe4dc52b1cad7fd32b738fbc6355bb6cd5b3b305d7212d0",
+      "license": "Apache-2.0",
+      "component": "androidx.annotation:annotation-jvm:1.9.1",
+      "source": "https://cs.android.com/androidx/platform/frameworks/support; artifact_sha256=1e343917ebf27ba96fe4dc52b1cad7fd32b738fbc6355bb6cd5b3b305d7212d0"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/annotations-23.0.0.jar",
+      "bytes": 29371,
+      "sha256": "7b0f19724082cbfcbc66e5abea2b9bc92cf08a1ea11e191933ed43801eb3cd05",
+      "license": "Apache-2.0",
+      "component": "org.jetbrains:annotations:23.0.0",
+      "source": "https://github.com/JetBrains/java-annotations; artifact_sha256=7b0f19724082cbfcbc66e5abea2b9bc92cf08a1ea11e191933ed43801eb3cd05"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/collection-jvm-1.7.0.jar",
+      "bytes": 935553,
+      "sha256": "3f53cacff8421a11cd659a0ca5e914ae605cafe6ad72970633b986a152476649",
+      "license": "Apache-2.0",
+      "component": "androidx.collection:collection-jvm:1.7.0",
+      "source": "https://cs.android.com/androidx/platform/frameworks/support; artifact_sha256=3f53cacff8421a11cd659a0ca5e914ae605cafe6ad72970633b986a152476649"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/config-1.4.9.jar",
+      "bytes": 297970,
+      "sha256": "47d13e3196c84f2a8ccd014ae563738c3da5b7406b38e03505ec0601a2f4fc37",
+      "license": "Apache-2.0",
+      "component": "com.typesafe:config:1.4.9",
+      "source": "https://github.com/lightbend/config; artifact_sha256=47d13e3196c84f2a8ccd014ae563738c3da5b7406b38e03505ec0601a2f4fc37"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/crypto-jvm.jar",
+      "bytes": 219786,
+      "sha256": "c455877c16a82f9494ed38d48836390a14ec161d15cab4969fdfbd092e21822b",
+      "license": "MIT",
+      "component": "com.vitorpamplona.crypto:crypto-jvm:2.1.0",
+      "source": "https://github.com/vitorpamplona/crypto-kmp; artifact_sha256=c455877c16a82f9494ed38d48836390a14ec161d15cab4969fdfbd092e21822b"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/geode-1.20.0.jar",
+      "bytes": 321937,
+      "sha256": "f06589a1443b0f5acab7ec697ebe4d83fa549788c013d1d7a3826b20f3d3d593",
+      "license": "MIT",
+      "component": "org.amethyst-geode:geode:1.20.0",
+      "source": "https://github.com/coercaodobem/property/tree/305f4fb9234a5abbb2020739a5316e24af0e6a68; artifact_sha256=f06589a1443b0f5acab7ec697ebe4d83fa549788c013d1d7a3826b20f3d3d593"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/jspecify-1.0.0.jar",
+      "bytes": 3819,
+      "sha256": "1fad6e6be7557781e4d33729d49ae1cdc8fdda6fe477bb0cc68ce351eafdfbab",
+      "license": "Apache-2.0",
+      "component": "org.jspecify:jspecify:1.0.0",
+      "source": "https://github.com/jspecify/jspecify/; artifact_sha256=1fad6e6be7557781e4d33729d49ae1cdc8fdda6fe477bb0cc68ce351eafdfbab"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/konbini-jvm-0.1.3.jar",
+      "bytes": 64410,
+      "sha256": "3332ba0be9f8cec87894836ffb850ede9b2601f1f06f987fd981502f272831aa",
+      "license": "MIT",
+      "component": "cc.ekblad.konbini:konbini-jvm:0.1.3",
+      "source": "https://github.com/valderman/konbini/blob/a7032711c983312e62ef27f3a4930b045a3752e2/LICENSE; artifact_sha256=3332ba0be9f8cec87894836ffb850ede9b2601f1f06f987fd981502f272831aa"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/kotlin-reflect-2.3.21.jar",
+      "bytes": 3633922,
+      "sha256": "33e37d9dfa86c7a29ab34e975b5f4a1287b458878611051f3485652220c1a2cb",
+      "license": "Apache-2.0",
+      "component": "org.jetbrains.kotlin:kotlin-reflect:2.3.21",
+      "source": "https://github.com/JetBrains/kotlin; artifact_sha256=33e37d9dfa86c7a29ab34e975b5f4a1287b458878611051f3485652220c1a2cb"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/kotlin-stdlib-2.4.21.jar",
+      "bytes": 1853315,
+      "sha256": "bd8250210584cb659847dce9cda660f8e9906e5def7fbebcea93dc6dcb6a88a3",
+      "license": "Apache-2.0",
+      "component": "org.jetbrains.kotlin:kotlin-stdlib:2.4.21",
+      "source": "https://github.com/JetBrains/kotlin; artifact_sha256=bd8250210584cb659847dce9cda660f8e9906e5def7fbebcea93dc6dcb6a88a3"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/kotlin-stdlib-jdk7-1.8.10.jar",
+      "bytes": 963,
+      "sha256": "a843aae0b7232448afc6af05747cd4de416b9c2b76e100a1b07b1f788337b2ed",
+      "license": "Apache-2.0",
+      "component": "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.10",
+      "source": "https://github.com/JetBrains/kotlin; artifact_sha256=a843aae0b7232448afc6af05747cd4de416b9c2b76e100a1b07b1f788337b2ed"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/kotlin-stdlib-jdk8-1.8.10.jar",
+      "bytes": 969,
+      "sha256": "9622f67cbe41e88ad257c1b8018054dd021a6044162474a78b1becd44f15a169",
+      "license": "Apache-2.0",
+      "component": "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.10",
+      "source": "https://github.com/JetBrains/kotlin; artifact_sha256=9622f67cbe41e88ad257c1b8018054dd021a6044162474a78b1becd44f15a169"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/kotlinx-collections-immutable-jvm-0.5.2.jar",
+      "bytes": 240598,
+      "sha256": "6d7f84d544644fa857bba83292820cdb1e0dae408fa41d2dced903d290286463",
+      "license": "Apache-2.0",
+      "component": "org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:0.5.2",
+      "source": "https://github.com/Kotlin/kotlinx.collections.immutable; artifact_sha256=6d7f84d544644fa857bba83292820cdb1e0dae408fa41d2dced903d290286463"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/kotlinx-coroutines-core-jvm-1.11.0.jar",
+      "bytes": 1577052,
+      "sha256": "d1d75aa01dffbb4d1c520e67e4c4e7f5f6174718e7cb4632412503f2f0e604fa",
+      "license": "Apache-2.0",
+      "component": "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.11.0",
+      "source": "https://github.com/Kotlin/kotlinx.coroutines; artifact_sha256=d1d75aa01dffbb4d1c520e67e4c4e7f5f6174718e7cb4632412503f2f0e604fa"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/kotlinx-io-bytestring-jvm-0.9.1.jar",
+      "bytes": 22776,
+      "sha256": "8589de0b7c476bfdd02a24641685f609ade72f5e595cf2909c168acdba7e6ba4",
+      "license": "Apache-2.0",
+      "component": "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm:0.9.1",
+      "source": "https://github.com/Kotlin/kotlinx-io; artifact_sha256=8589de0b7c476bfdd02a24641685f609ade72f5e595cf2909c168acdba7e6ba4"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/kotlinx-io-core-jvm-0.9.1.jar",
+      "bytes": 153576,
+      "sha256": "765d8851d8ca694706931331b92386844800867e041b720f1f193dbda874d370",
+      "license": "Apache-2.0",
+      "component": "org.jetbrains.kotlinx:kotlinx-io-core-jvm:0.9.1",
+      "source": "https://github.com/Kotlin/kotlinx-io; artifact_sha256=765d8851d8ca694706931331b92386844800867e041b720f1f193dbda874d370"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/kotlinx-serialization-cbor-jvm-1.12.0.jar",
+      "bytes": 75901,
+      "sha256": "8892e8a5bcaec488b75c2a3aa4674995c08d616f8ca0028c0bce57d27ef4c573",
+      "license": "Apache-2.0",
+      "component": "org.jetbrains.kotlinx:kotlinx-serialization-cbor-jvm:1.12.0",
+      "source": "https://github.com/Kotlin/kotlinx.serialization; artifact_sha256=8892e8a5bcaec488b75c2a3aa4674995c08d616f8ca0028c0bce57d27ef4c573"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/kotlinx-serialization-core-jvm-1.12.0.jar",
+      "bytes": 416396,
+      "sha256": "bcfddcac76159058ba0953af05938c17111d238cd41be7191874656454d62f1a",
+      "license": "Apache-2.0",
+      "component": "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.12.0",
+      "source": "https://github.com/Kotlin/kotlinx.serialization; artifact_sha256=bcfddcac76159058ba0953af05938c17111d238cd41be7191874656454d62f1a"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/kotlinx-serialization-json-jvm-1.12.0.jar",
+      "bytes": 306230,
+      "sha256": "879eb73e46cb63253ab0fa7cca4448f5c96bca1a16ff377abcb71ebab60e0631",
+      "license": "Apache-2.0",
+      "component": "org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.12.0",
+      "source": "https://github.com/Kotlin/kotlinx.serialization; artifact_sha256=879eb73e46cb63253ab0fa7cca4448f5c96bca1a16ff377abcb71ebab60e0631"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/ktor-events-jvm-3.6.0.jar",
+      "bytes": 6397,
+      "sha256": "d3962f4a4244102d1ef8b84b21429ffc26be3512b5f1f96c607265ca1cec5c0b",
+      "license": "Apache-2.0",
+      "component": "io.ktor:ktor-events-jvm:3.6.0",
+      "source": "https://github.com/ktorio/ktor.git; artifact_sha256=d3962f4a4244102d1ef8b84b21429ffc26be3512b5f1f96c607265ca1cec5c0b"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/ktor-http-cio-jvm-3.6.0.jar",
+      "bytes": 134494,
+      "sha256": "4cabe83cb367e0a807f849f2d4313b9de563cffcec0d262844a783d51a47738d",
+      "license": "Apache-2.0",
+      "component": "io.ktor:ktor-http-cio-jvm:3.6.0",
+      "source": "https://github.com/ktorio/ktor.git; artifact_sha256=4cabe83cb367e0a807f849f2d4313b9de563cffcec0d262844a783d51a47738d"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/ktor-http-jvm-3.6.0.jar",
+      "bytes": 458908,
+      "sha256": "2a14cb160436b134c10793727aeed3055ae7014ff170c79ffbcd90b26dd90de2",
+      "license": "Apache-2.0",
+      "component": "io.ktor:ktor-http-jvm:3.6.0",
+      "source": "https://github.com/ktorio/ktor.git; artifact_sha256=2a14cb160436b134c10793727aeed3055ae7014ff170c79ffbcd90b26dd90de2"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/ktor-io-jvm-3.6.0.jar",
+      "bytes": 303591,
+      "sha256": "7426ad1759833460507ee7065f17085410dc7b32081a1daee8c91cf6f40e257c",
+      "license": "Apache-2.0",
+      "component": "io.ktor:ktor-io-jvm:3.6.0",
+      "source": "https://github.com/ktorio/ktor.git; artifact_sha256=7426ad1759833460507ee7065f17085410dc7b32081a1daee8c91cf6f40e257c"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/ktor-network-jvm-3.6.0.jar",
+      "bytes": 202163,
+      "sha256": "746a751146d61865f51d6dd56b18e3e0fa68b36587561ee123ff7ce730d8c590",
+      "license": "Apache-2.0",
+      "component": "io.ktor:ktor-network-jvm:3.6.0",
+      "source": "https://github.com/ktorio/ktor.git; artifact_sha256=746a751146d61865f51d6dd56b18e3e0fa68b36587561ee123ff7ce730d8c590"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/ktor-serialization-jvm-3.6.0.jar",
+      "bytes": 23007,
+      "sha256": "d67f46cf64f8c97a2e14d4d5c0c1a4be315c8bc128bcc58370c0716363c258db",
+      "license": "Apache-2.0",
+      "component": "io.ktor:ktor-serialization-jvm:3.6.0",
+      "source": "https://github.com/ktorio/ktor.git; artifact_sha256=d67f46cf64f8c97a2e14d4d5c0c1a4be315c8bc128bcc58370c0716363c258db"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/ktor-server-cio-jvm-3.6.0.jar",
+      "bytes": 121973,
+      "sha256": "319e4a03717e39ab9a5be8cb5a7b7d5327627ad3d55ff43270935372d7c13d16",
+      "license": "Apache-2.0",
+      "component": "io.ktor:ktor-server-cio-jvm:3.6.0",
+      "source": "https://github.com/ktorio/ktor.git; artifact_sha256=319e4a03717e39ab9a5be8cb5a7b7d5327627ad3d55ff43270935372d7c13d16"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/ktor-server-core-jvm-3.6.0.jar",
+      "bytes": 1014279,
+      "sha256": "2838b5d739cb659947ab11b0b220581ad077da8adf62a0248e30c0cdbb93192e",
+      "license": "Apache-2.0",
+      "component": "io.ktor:ktor-server-core-jvm:3.6.0",
+      "source": "https://github.com/ktorio/ktor.git; artifact_sha256=2838b5d739cb659947ab11b0b220581ad077da8adf62a0248e30c0cdbb93192e"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/ktor-server-websockets-jvm-3.6.0.jar",
+      "bytes": 53853,
+      "sha256": "228336824cde03f02374b0a2d23a243470051d58d11cf9d235ebdcf126ef22d9",
+      "license": "Apache-2.0",
+      "component": "io.ktor:ktor-server-websockets-jvm:3.6.0",
+      "source": "https://github.com/ktorio/ktor.git; artifact_sha256=228336824cde03f02374b0a2d23a243470051d58d11cf9d235ebdcf126ef22d9"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/ktor-utils-jvm-3.6.0.jar",
+      "bytes": 397498,
+      "sha256": "05698e23c0539c7042676a98557e3358e77e19efa9fa4fc2145f20ad8721aefc",
+      "license": "Apache-2.0",
+      "component": "io.ktor:ktor-utils-jvm:3.6.0",
+      "source": "https://github.com/ktorio/ktor.git; artifact_sha256=05698e23c0539c7042676a98557e3358e77e19efa9fa4fc2145f20ad8721aefc"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/ktor-websocket-serialization-jvm-3.6.0.jar",
+      "bytes": 7268,
+      "sha256": "c87fe370c17868dc8c101947452bf8a8622363cf4d83a342334666bb46fe627b",
+      "license": "Apache-2.0",
+      "component": "io.ktor:ktor-websocket-serialization-jvm:3.6.0",
+      "source": "https://github.com/ktorio/ktor.git; artifact_sha256=c87fe370c17868dc8c101947452bf8a8622363cf4d83a342334666bb46fe627b"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/ktor-websockets-jvm-3.6.0.jar",
+      "bytes": 192926,
+      "sha256": "3ef8b5d544dc7f9bd041a245bb8c2ff6647d0fd1e111a65b7be54977476a5464",
+      "license": "Apache-2.0",
+      "component": "io.ktor:ktor-websockets-jvm:3.6.0",
+      "source": "https://github.com/ktorio/ktor.git; artifact_sha256=3ef8b5d544dc7f9bd041a245bb8c2ff6647d0fd1e111a65b7be54977476a5464"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/negentropy-jvm.jar",
+      "bytes": 65754,
+      "sha256": "15eeec6c6e349c710e9a6303ff2ab003861c47ef4db8a22e02da5c8ca1588ef1",
+      "license": "MIT",
+      "component": "com.vitorpamplona.negentropy:kmp-negentropy-jvm:v1.2.0",
+      "source": "https://github.com/vitorpamplona/kmp-negentropy; artifact_sha256=15eeec6c6e349c710e9a6303ff2ab003861c47ef4db8a22e02da5c8ca1588ef1"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/okhttp-coroutines-5.5.1.jar",
+      "bytes": 7051,
+      "sha256": "efa0b33d0673d8327732ffe4edfed57807ade51d21e90547aab1569759d89005",
+      "license": "Apache-2.0",
+      "component": "com.squareup.okhttp3:okhttp-coroutines:5.5.1",
+      "source": "https://github.com/lysine-dev/okhttp; artifact_sha256=efa0b33d0673d8327732ffe4edfed57807ade51d21e90547aab1569759d89005"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/okhttp-jvm-5.5.1.jar",
+      "bytes": 963622,
+      "sha256": "4039527bd1f2e40b66e20b0e52c689cf56074b938ea02678141495f5160f1047",
+      "license": "Apache-2.0",
+      "component": "com.squareup.okhttp3:okhttp-jvm:5.5.1",
+      "source": "https://github.com/lysine-dev/okhttp; artifact_sha256=4039527bd1f2e40b66e20b0e52c689cf56074b938ea02678141495f5160f1047"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/okio-jvm-3.18.1.jar",
+      "bytes": 392463,
+      "sha256": "b97b640557a650d15411f2be29aef558c4e422a83653cb18ba494311dbed18be",
+      "license": "Apache-2.0",
+      "component": "com.squareup.okio:okio-jvm:3.18.1",
+      "source": "https://github.com/lysine-dev/okio/; artifact_sha256=b97b640557a650d15411f2be29aef558c4e422a83653cb18ba494311dbed18be"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/quartz-jvm.jar",
+      "bytes": 15110244,
+      "sha256": "4e8c9b09ad6fe41e3ce71616e0570cc526fc9c28e937ef72bf7618974f59a9f3",
+      "license": "MIT",
+      "component": "com.vitorpamplona.quartz:quartz-jvm:2.4.0",
+      "source": "https://github.com/vitorpamplona/quartz/; artifact_sha256=4e8c9b09ad6fe41e3ce71616e0570cc526fc9c28e937ef72bf7618974f59a9f3"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/runtime-annotation-jvm-1.12.1.jar",
+      "bytes": 9379,
+      "sha256": "e291a6ae01ab71a7f48a568ec9744c6bf9b3f46ef72fbcdeb28c3407ae531c5e",
+      "license": "Apache-2.0",
+      "component": "androidx.compose.runtime:runtime-annotation-jvm:1.12.1",
+      "source": "https://cs.android.com/androidx/platform/frameworks/support; artifact_sha256=e291a6ae01ab71a7f48a568ec9744c6bf9b3f46ef72fbcdeb28c3407ae531c5e"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/secp256k1-kmp-jni-common-0.24.0.jar",
+      "bytes": 10488,
+      "sha256": "1bbb5bf58ecfa5a2ff499f621721387ef9b1df62b0786f5c3799c3d90410feba",
+      "license": "Apache-2.0",
+      "component": "fr.acinq.secp256k1:secp256k1-kmp-jni-common:0.24.0",
+      "source": "https://github.com/ACINQ/secp256k1-kmp; artifact_sha256=1bbb5bf58ecfa5a2ff499f621721387ef9b1df62b0786f5c3799c3d90410feba"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/secp256k1-kmp-jni-jvm-0.24.0.jar",
+      "bytes": 261,
+      "sha256": "de9c8516d15af01b61a32f8723425624d3a4cfee846b36468e2aaa5072966a2d",
+      "license": "Apache-2.0",
+      "component": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm:0.24.0",
+      "source": "https://github.com/ACINQ/secp256k1-kmp; artifact_sha256=de9c8516d15af01b61a32f8723425624d3a4cfee846b36468e2aaa5072966a2d"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/secp256k1-kmp-jni-jvm-darwin-0.24.0.jar",
+      "bytes": 2604664,
+      "sha256": "3e713e1bea1eaf826a9d5e944ac5dbc6b2011b8b23b33ce92c5b43d65898ba1b",
+      "license": "Apache-2.0",
+      "component": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm-darwin:0.24.0",
+      "source": "https://github.com/ACINQ/secp256k1-kmp; artifact_sha256=3e713e1bea1eaf826a9d5e944ac5dbc6b2011b8b23b33ce92c5b43d65898ba1b"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/secp256k1-kmp-jni-jvm-extract-0.24.0.jar",
+      "bytes": 10288,
+      "sha256": "18e22f7ba93d26e2bb3d0330932f1744fb8f6464be8a2842603b72ae0acaa4a8",
+      "license": "Apache-2.0",
+      "component": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm-extract:0.24.0",
+      "source": "https://github.com/ACINQ/secp256k1-kmp; artifact_sha256=18e22f7ba93d26e2bb3d0330932f1744fb8f6464be8a2842603b72ae0acaa4a8"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/secp256k1-kmp-jni-jvm-linux-0.24.0.jar",
+      "bytes": 4045366,
+      "sha256": "fbca9d4982332452107c9d0423d9305e11bd864cb244a52c2203b66662e82cd6",
+      "license": "Apache-2.0",
+      "component": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm-linux:0.24.0",
+      "source": "https://github.com/ACINQ/secp256k1-kmp; artifact_sha256=fbca9d4982332452107c9d0423d9305e11bd864cb244a52c2203b66662e82cd6"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/secp256k1-kmp-jni-jvm-mingw-0.24.0.jar",
+      "bytes": 2135443,
+      "sha256": "461ca569f19be6d93974690bd8e05973517c642b8d00c50407890e3b2d7174bb",
+      "license": "Apache-2.0",
+      "component": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm-mingw:0.24.0",
+      "source": "https://github.com/ACINQ/secp256k1-kmp; artifact_sha256=461ca569f19be6d93974690bd8e05973517c642b8d00c50407890e3b2d7174bb"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/secp256k1-kmp-jvm-0.24.0.jar",
+      "bytes": 13744,
+      "sha256": "7422220226231cdf1676702661fe50b7615393fce842411813732f6bf67330bd",
+      "license": "Apache-2.0",
+      "component": "fr.acinq.secp256k1:secp256k1-kmp-jvm:0.24.0",
+      "source": "https://github.com/ACINQ/secp256k1-kmp; artifact_sha256=7422220226231cdf1676702661fe50b7615393fce842411813732f6bf67330bd"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/slf4j-api-2.0.19.jar",
+      "bytes": 70246,
+      "sha256": "e91ff6d720609e7a194ffe758c3ed5c84e798617ae07b0a0f6a4fe229741b4bb",
+      "license": "MIT",
+      "component": "org.slf4j:slf4j-api:2.0.19",
+      "source": "https://github.com/qos-ch/slf4j; artifact_sha256=e91ff6d720609e7a194ffe758c3ed5c84e798617ae07b0a0f6a4fe229741b4bb"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/sqlite-bundled-jvm-2.7.1.jar",
+      "bytes": 3781360,
+      "sha256": "ced6f3d8433a7091745c294f1e4bd7f17434986d81dfd2145147cd571b167251",
+      "license": "Apache-2.0",
+      "component": "androidx.sqlite:sqlite-bundled-jvm:2.7.1",
+      "source": "https://cs.android.com/androidx/platform/frameworks/support; artifact_sha256=ced6f3d8433a7091745c294f1e4bd7f17434986d81dfd2145147cd571b167251"
+    },
+    {
+      "path": "property/relay/dist/geode/lib/sqlite-jvm-2.7.1.jar",
+      "bytes": 14307,
+      "sha256": "7a6d8db5ae363d96a4f65c9b6f6b3361b178c41e15a4f06bb2cd59403807474f",
+      "license": "Apache-2.0",
+      "component": "androidx.sqlite:sqlite-jvm:2.7.1",
+      "source": "https://cs.android.com/androidx/platform/frameworks/support; artifact_sha256=7a6d8db5ae363d96a4f65c9b6f6b3361b178c41e15a4f06bb2cd59403807474f"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/bin/java",
+      "bytes": 12328,
+      "sha256": "9cad3f2620d3ef2ed10b26f922af7e773d54fdaa05f615d6d6df014f3fec4155",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/bin/keytool",
+      "bytes": 12392,
+      "sha256": "e0e1db441b22bcc85e3402a6640a099dd56de2b38eb52b255107e5eebdd88d5e",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/conf/jaxp.properties",
+      "bytes": 7302,
+      "sha256": "7d95c49465d0c836d608d02856d3b097934dfb5dc4bd2279affaf337d045b708",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/conf/logging.properties",
+      "bytes": 2732,
+      "sha256": "b62d2733ab99556b108a1951d894c5a8d76b1ac7a00c02c388f9eb9be046c56f",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/conf/net.properties",
+      "bytes": 7441,
+      "sha256": "2e070ed1d97052f0ce8771ed2ef74a38d7c260a45fde7a3682c8844e5fdf58a4",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/conf/sdp/sdp.conf.template",
+      "bytes": 1455,
+      "sha256": "e9441e51f0d29e25313d33a9005640f11ad93c27f01bc46a34bf02f2a98ffd6b",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/conf/security/java.policy",
+      "bytes": 2294,
+      "sha256": "d51bcab7ed301caeff3779a5e777e6019864cecee5e2abc102ef991b0de77af2",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/conf/security/java.security",
+      "bytes": 72023,
+      "sha256": "819f635801f1e89bc4c6d319e7649e516a9eac18f7b821c9ffb5e5e7764f8083",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/conf/security/policy/README.txt",
+      "bytes": 2390,
+      "sha256": "6da0747334b0fea7592fd92614b2bbc8b126535e129b1fee483774d914e98eb5",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/conf/security/policy/limited/default_US_export.policy",
+      "bytes": 146,
+      "sha256": "758b930a526fc670ab7537f8c26321527050a31f5f42149a2dda623c56a0a1a9",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/conf/security/policy/limited/default_local.policy",
+      "bytes": 647,
+      "sha256": "2b2627548e61316150d47ffc3e6cad465ca05b3cccd4785eb7d21aa7baa0f441",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/conf/security/policy/limited/exempt_local.policy",
+      "bytes": 566,
+      "sha256": "8c3d7648abcd95a272ce12db870082937f4d7f6878d730d83cb7fbb31eb8b2c9",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/conf/security/policy/unlimited/default_US_export.policy",
+      "bytes": 146,
+      "sha256": "758b930a526fc670ab7537f8c26321527050a31f5f42149a2dda623c56a0a1a9",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/conf/security/policy/unlimited/default_local.policy",
+      "bytes": 193,
+      "sha256": "8d8a318e6d90dfd7e26612d2b6385aa704f686ca6134c551f8928418d92b851a",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/ADDITIONAL_LICENSE_INFO",
+      "bytes": 2114,
+      "sha256": "a69bce275ba7a3570af6579cb0f55682cd75fedfcd49e0e8e9022270c447c916",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/ASSEMBLY_EXCEPTION",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/LICENSE",
+      "bytes": 19274,
+      "sha256": "4b9abebc4338048a7c2dc184e9f800deb349366bdf28eb23c2677a77b4c87726",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/aes.md",
+      "bytes": 1444,
+      "sha256": "45c6d4da48325edfbff3dcf71c704e504c057904435ed23c6d57046d551eb69d",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/asm.md",
+      "bytes": 1582,
+      "sha256": "683be15695bd248272d60f5b7fbe5e126a935ea6bf231a624a9aa164733e1d1d",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/c-libutl.md",
+      "bytes": 1556,
+      "sha256": "bef40679922d6fdfb7e4ddb223ad6722300f6054ba737bbf6188d60fcec517f9",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/cldr.md",
+      "bytes": 9601,
+      "sha256": "19515e14a240e022640e95b61b5095127fa9690755950b4a2b0a02e783e08163",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/gcc.md",
+      "bytes": 128099,
+      "sha256": "589e34f142cdf7d1430daa573e61c2e3dd0330c9eb5a2c00d4a98b3a4450810b",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/icu.md",
+      "bytes": 30197,
+      "sha256": "1bf28459c6e0af9f3429f4f8becd1668d6544055f8df240277456bc4b3d8a752",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/public_suffix.md",
+      "bytes": 17783,
+      "sha256": "861de1e4992a7d28f1de25c73cd50d26a94779ebd749c0643fecfa56442c3429",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/siphash.md",
+      "bytes": 8256,
+      "sha256": "5a792b5a74ad2a5f3d6a7ad8b7a841116e58a772c18bc6e392320a365b222c76",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/unicode.md",
+      "bytes": 9078,
+      "sha256": "6f72f10d166b2c2e8a395e03e734c5afc852b59aeca73ced124f6b9c96268d53",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.base/zlib.md",
+      "bytes": 1010,
+      "sha256": "c9c70c36a1f0325e8788771906202d42ba6ab4205caca44ec0f665707e83226b",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.logging/ADDITIONAL_LICENSE_INFO",
+      "bytes": 2114,
+      "sha256": "a69bce275ba7a3570af6579cb0f55682cd75fedfcd49e0e8e9022270c447c916",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.logging/ASSEMBLY_EXCEPTION",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.logging/LICENSE",
+      "bytes": 19274,
+      "sha256": "4b9abebc4338048a7c2dc184e9f800deb349366bdf28eb23c2677a77b4c87726",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.management/ADDITIONAL_LICENSE_INFO",
+      "bytes": 2114,
+      "sha256": "a69bce275ba7a3570af6579cb0f55682cd75fedfcd49e0e8e9022270c447c916",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.management/ASSEMBLY_EXCEPTION",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.management/LICENSE",
+      "bytes": 19274,
+      "sha256": "4b9abebc4338048a7c2dc184e9f800deb349366bdf28eb23c2677a77b4c87726",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.naming/ADDITIONAL_LICENSE_INFO",
+      "bytes": 2114,
+      "sha256": "a69bce275ba7a3570af6579cb0f55682cd75fedfcd49e0e8e9022270c447c916",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.naming/ASSEMBLY_EXCEPTION",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.naming/LICENSE",
+      "bytes": 19274,
+      "sha256": "4b9abebc4338048a7c2dc184e9f800deb349366bdf28eb23c2677a77b4c87726",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.net.http/ADDITIONAL_LICENSE_INFO",
+      "bytes": 2114,
+      "sha256": "a69bce275ba7a3570af6579cb0f55682cd75fedfcd49e0e8e9022270c447c916",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.net.http/ASSEMBLY_EXCEPTION",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.net.http/LICENSE",
+      "bytes": 19274,
+      "sha256": "4b9abebc4338048a7c2dc184e9f800deb349366bdf28eb23c2677a77b4c87726",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.security.jgss/ADDITIONAL_LICENSE_INFO",
+      "bytes": 2114,
+      "sha256": "a69bce275ba7a3570af6579cb0f55682cd75fedfcd49e0e8e9022270c447c916",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.security.jgss/ASSEMBLY_EXCEPTION",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.security.jgss/LICENSE",
+      "bytes": 19274,
+      "sha256": "4b9abebc4338048a7c2dc184e9f800deb349366bdf28eb23c2677a77b4c87726",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.security.sasl/ADDITIONAL_LICENSE_INFO",
+      "bytes": 2114,
+      "sha256": "a69bce275ba7a3570af6579cb0f55682cd75fedfcd49e0e8e9022270c447c916",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.security.sasl/ASSEMBLY_EXCEPTION",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.security.sasl/LICENSE",
+      "bytes": 19274,
+      "sha256": "4b9abebc4338048a7c2dc184e9f800deb349366bdf28eb23c2677a77b4c87726",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.sql/ADDITIONAL_LICENSE_INFO",
+      "bytes": 2114,
+      "sha256": "a69bce275ba7a3570af6579cb0f55682cd75fedfcd49e0e8e9022270c447c916",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.sql/ASSEMBLY_EXCEPTION",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.sql/LICENSE",
+      "bytes": 19274,
+      "sha256": "4b9abebc4338048a7c2dc184e9f800deb349366bdf28eb23c2677a77b4c87726",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.transaction.xa/ADDITIONAL_LICENSE_INFO",
+      "bytes": 2114,
+      "sha256": "a69bce275ba7a3570af6579cb0f55682cd75fedfcd49e0e8e9022270c447c916",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.transaction.xa/ASSEMBLY_EXCEPTION",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.transaction.xa/LICENSE",
+      "bytes": 19274,
+      "sha256": "4b9abebc4338048a7c2dc184e9f800deb349366bdf28eb23c2677a77b4c87726",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.xml/ADDITIONAL_LICENSE_INFO",
+      "bytes": 2114,
+      "sha256": "a69bce275ba7a3570af6579cb0f55682cd75fedfcd49e0e8e9022270c447c916",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.xml/ASSEMBLY_EXCEPTION",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.xml/LICENSE",
+      "bytes": 19274,
+      "sha256": "4b9abebc4338048a7c2dc184e9f800deb349366bdf28eb23c2677a77b4c87726",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.xml/bcel.md",
+      "bytes": 11196,
+      "sha256": "cd578186ad93de46cca29ec8ace2b11f9da751987f3f140e6095c528596cc8c1",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.xml/dom.md",
+      "bytes": 3761,
+      "sha256": "6686e8877667584a3a7c07344baadca1a03e29f677162d87c3c0811e990d1148",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.xml/jcup.md",
+      "bytes": 1448,
+      "sha256": "8d5dcfdf50455a3c34c753a98f21e953248af200415a9084e3f102cb6c43b8bf",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.xml/xalan.md",
+      "bytes": 13477,
+      "sha256": "c27eb875da4be683d4d7422be986e5e30f636ede31958ff1d39f9cd6109e7a00",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/java.xml/xerces.md",
+      "bytes": 11848,
+      "sha256": "4a6bf6b367193ee68681cb2d9fed30ffc5d62dd2d477bd62e0271707d71b3244",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/jdk.crypto.ec/ADDITIONAL_LICENSE_INFO",
+      "bytes": 2114,
+      "sha256": "a69bce275ba7a3570af6579cb0f55682cd75fedfcd49e0e8e9022270c447c916",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/jdk.crypto.ec/ASSEMBLY_EXCEPTION",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/jdk.crypto.ec/LICENSE",
+      "bytes": 19274,
+      "sha256": "4b9abebc4338048a7c2dc184e9f800deb349366bdf28eb23c2677a77b4c87726",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/jdk.unsupported/ADDITIONAL_LICENSE_INFO",
+      "bytes": 2114,
+      "sha256": "a69bce275ba7a3570af6579cb0f55682cd75fedfcd49e0e8e9022270c447c916",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/jdk.unsupported/ASSEMBLY_EXCEPTION",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/legal/jdk.unsupported/LICENSE",
+      "bytes": 19274,
+      "sha256": "4b9abebc4338048a7c2dc184e9f800deb349366bdf28eb23c2677a77b4c87726",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/classlist",
+      "bytes": 77098,
+      "sha256": "e5ef97a1545ec5d99da80d2216620b71e0d43022f2333b36242121d05f61b6b1",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/jexec",
+      "bytes": 12488,
+      "sha256": "67690e6a5fd09cf1e3958df770cd11b0f63683480e101f2a1a52e444b9b573ce",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/jrt-fs.jar",
+      "bytes": 110123,
+      "sha256": "b3b49dbb3ce6e67eec8a5f9ca7a44667161af1dff0f31afc8c8143681d126ffa",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/jspawnhelper",
+      "bytes": 17888,
+      "sha256": "a01ad6eeea570c32bdaa567f6e2609f0f1d274a9535be5d4fcd8f149bbf16e55",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/jvm.cfg",
+      "bytes": 29,
+      "sha256": "aa9efb969444c1484e29adecab55a122458090616e766b2f1230ef05bc3867e0",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/libj2gss.so",
+      "bytes": 47080,
+      "sha256": "274e0e6d5b911ab6f3a8ffc62986a947e476447d5ffbde97935838d0f9edd269",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/libjava.so",
+      "bytes": 178256,
+      "sha256": "424cd3c925897c3f4c285e2220b48482e00af95baf6e8d934375503b596eb540",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/libjimage.so",
+      "bytes": 145536,
+      "sha256": "b9ea2b93651469ede268071aefbb70d81a9e88ace15adf3a1f9339b2661322a8",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/libjli.so",
+      "bytes": 115744,
+      "sha256": "97ba6c831c598e9fec7c44092f9f6f633caeac6c9d47c64d03753db0b5d0466a",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/libjsig.so",
+      "bytes": 12728,
+      "sha256": "677fa55d7355d5d08862572d98e497e6f7e595abc191c4fc50eaea662fe97978",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/libmanagement.so",
+      "bytes": 25432,
+      "sha256": "cb61e0e3853a6bac10490add7e2a226e5454d050bab4ac086bce72fd34f8ee77",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/libnet.so",
+      "bytes": 61344,
+      "sha256": "134396b9b991de4176f17d4b328545371739eba25dd8517744ccd87ab9243018",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/libnio.so",
+      "bytes": 104776,
+      "sha256": "1b1bd068e77d86d3b6fe5833d5a2c3f7e7cbab941599f71bb3860b2c3375aa57",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/libsyslookup.so",
+      "bytes": 7472,
+      "sha256": "84108f2487b041dfee509ab748ad0dc39fbca7df4b0e7ff7c1c54b6b09ad1adf",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/libverify.so",
+      "bytes": 64008,
+      "sha256": "520af89f0f42610d6c35096a101be9a2daf3ae0d7283043660722609c0336cdb",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/libzip.so",
+      "bytes": 124456,
+      "sha256": "ee142b8280889ba75de90c61e178158fec203ea68ff538f3463ba9fdac605343",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/modules",
+      "bytes": 18554234,
+      "sha256": "eaf70c197f67a3aa19c1088d73070d4d840b8a9323b5970d89f65ba27dc38f1b",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/security/blocked.certs",
+      "bytes": 2488,
+      "sha256": "96572f243f31c2ef81a6e627542e596f6a9295cff3c7ae095c1b595cb1457ded",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/security/cacerts",
+      "bytes": 154503,
+      "sha256": "628b436e6698c364c5498a32c5bff91806bea7a9b501f75e2289ddc60b4ca7ef",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/security/default.policy",
+      "bytes": 10742,
+      "sha256": "9b77a722ab832082b8f9312f72da1528989a3ca1b9fa4f9bf32767dfd5ebe099",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/security/public_suffix_list.dat",
+      "bytes": 227396,
+      "sha256": "16b42002aa6f83a7763c4cdbd399ecf738460377d447e362884495545afd60a3",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/server/libjsig.so",
+      "bytes": 12728,
+      "sha256": "677fa55d7355d5d08862572d98e497e6f7e595abc191c4fc50eaea662fe97978",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/server/libjvm.so",
+      "bytes": 27056488,
+      "sha256": "b1a6a98962406718a491922ea6a3f8d898ea7c4a9ebe814a7963defc61ce62b2",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/lib/tzdb.dat",
+      "bytes": 103876,
+      "sha256": "a02e3a23d67255782b11ab81070902235ab564080f0f65ffe2a989cdaa86fe89",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/runtime/release",
+      "bytes": 204,
+      "sha256": "0422686c78c0a9cb0ceeceb9020c48fa61a95a31ef5dbad536e962555d9dbcb0",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "openjdk-runtime-21.0.13",
+      "source": "property/relay/dist-parts/PROVENANCE.md#f4df2638e6893291e2ef31ee69e2f0fd9791a7d3c5d13688a27f6a61b96843cd"
+    },
+    {
+      "path": "property/relay/dist/geode/share/geode/config.example.toml",
+      "bytes": 13075,
+      "sha256": "2b82b3942b87b1acffe2d9c776564a164fb4d41b3d2fe48a60f23a68feaaf57a",
+      "license": "MIT",
+      "component": "geode-launcher-and-operator-config",
+      "source": "property/relay/dist/geode/share/geode/config.example.toml"
+    },
+    {
+      "path": "property/relay/dist/geode/share/geode/geode.service",
+      "bytes": 1706,
+      "sha256": "e3b9ae62492a8b2071b7b17e7a5e47eb6f3292aad4fcaafa711e918738b1bde5",
+      "license": "MIT",
+      "component": "geode-launcher-and-operator-config",
+      "source": "property/relay/dist/geode/share/geode/geode.service"
+    },
+    {
+      "path": "property/relay/resource-limits.sh",
+      "bytes": 3272,
+      "sha256": "acba1d13bacfec7a398446fd17e4c62ba31068578965c9cbc348ba815cc20c3a",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/relay/resource-limits.sh"
+    },
+    {
+      "path": "property/relay/runtime-dependencies.json",
+      "bytes": 27815,
+      "sha256": "a9ec74fc558cedc4ef696b82634f064902c40df49299031c060848abf6fae577",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/relay/runtime-dependencies.json"
+    },
+    {
+      "path": "property/relay/start.sh",
+      "bytes": 6085,
+      "sha256": "001919278ce59f1856c0b542ed4c8d76f6c7951e151ad88560ae361ffc058483",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/relay/start.sh"
+    },
+    {
+      "path": "property/release/INSTALL.md",
+      "bytes": 3192,
+      "sha256": "15b7213f1f56318ca013673a5f372bf5e26361f32d48a92157f3dd51761413e0",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/release/INSTALL.md"
+    },
+    {
+      "path": "property/release/INSTALL.pt-BR.md",
+      "bytes": 3264,
+      "sha256": "0566ae66f701d04a3a9b63d7a4199ded639d393d27ca60d52b02be5d13188f04",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/release/INSTALL.pt-BR.md"
+    },
+    {
+      "path": "property/release/SBOM.spdx.json",
+      "bytes": 387669,
+      "sha256": "eb472441ac4c5676ff825458a391ac53fb420863b010e505a09a2b6832acee27",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/release/SBOM.spdx.json"
+    },
+    {
+      "path": "property/release/THIRD-PARTY-NOTICES.md",
+      "bytes": 9971,
+      "sha256": "e4a6f4d86abe496928d3e2ba9e6ec25e412fc70baf6703afa07f29396f7ede80",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/release/THIRD-PARTY-NOTICES.md"
+    },
+    {
+      "path": "property/release/build-offline-bundle.mjs",
+      "bytes": 36807,
+      "sha256": "e25f6d8aec009da9ca10f4e0a6d10207a122f955c671b74203be3ddd1f2d698d",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/release/build-offline-bundle.mjs"
+    },
+    {
+      "path": "property/release/install-offline.sh",
+      "bytes": 4059,
+      "sha256": "36f04a386b87822c83b51b8a77c1c5e980e86f396275008c1ea3ef321021b492",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/release/install-offline.sh"
+    },
+    {
+      "path": "property/release/licenses/Apache-2.0.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "license": "Apache-2.0",
+      "component": "Apache-2.0-license-text",
+      "source": "property/release/licenses/Apache-2.0.txt"
+    },
+    {
+      "path": "property/release/licenses/GPL-2.0.txt",
+      "bytes": 17984,
+      "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
+      "license": "GPL-2.0-only",
+      "component": "OpenJDK-runtime-license",
+      "source": "property/release/licenses/GPL-2.0.txt"
+    },
+    {
+      "path": "property/release/licenses/OpenJDK-Classpath-exception.txt",
+      "bytes": 1514,
+      "sha256": "75292f03bf23d3db7c985aecc191029b93883200721ed23ed34a2e601463df33",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "component": "OpenJDK-runtime-license",
+      "source": "property/release/licenses/OpenJDK-Classpath-exception.txt"
+    },
+    {
+      "path": "property/release/licenses/dependencies/4koma-MIT.txt",
+      "bytes": 1069,
+      "sha256": "cc862e111aea84f240553f5757a5170f1d4cedd45721c5de5249ee74e9fea616",
+      "license": "MIT",
+      "component": "MIT-third-party-license-text",
+      "source": "property/release/licenses/dependencies/4koma-MIT.txt"
+    },
+    {
+      "path": "property/release/licenses/dependencies/konbini-MIT.txt",
+      "bytes": 1069,
+      "sha256": "55dc753537ea13a266bb26e2c7eb61774817080f246405defd02dddf73024e94",
+      "license": "MIT",
+      "component": "MIT-third-party-license-text",
+      "source": "property/release/licenses/dependencies/konbini-MIT.txt"
+    },
+    {
+      "path": "property/release/metadata-policy.mjs",
+      "bytes": 824,
+      "sha256": "aeb0a65e408267a7a541c641d17490e75a43b34f74d4daae6cf8487876dfc739",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/release/metadata-policy.mjs"
+    },
+    {
+      "path": "property/release/toolchain-lock.json",
+      "bytes": 856,
+      "sha256": "025dec81c323c4ccb4f3f85831df540ff6045775ce206db228943f7b09160b76",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/release/toolchain-lock.json"
+    },
+    {
+      "path": "property/release/trusted-signing-public.pem",
+      "bytes": 113,
+      "sha256": "020082f569048f596312d7acf91cbaeb9349d62d5248558f2be61aa2564fc255",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/release/trusted-signing-public.pem"
+    },
+    {
+      "path": "property/release/uninstall-offline.sh",
+      "bytes": 1211,
+      "sha256": "69a3972d9d89bad285bc51aee0aabedd7522a8c9e4e319ce25d36f72cb593c2b",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/release/uninstall-offline.sh"
+    },
+    {
+      "path": "property/release/verify-offline-bundle.mjs",
+      "bytes": 8899,
+      "sha256": "9c3823b1ce38965e66293cf19896f68d7e3df03581c5dbc7c62fd4519c60abdb",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/release/verify-offline-bundle.mjs"
+    },
+    {
+      "path": "property/web/GHOSTLY-MIT-LICENSE.txt",
+      "bytes": 1072,
+      "sha256": "9631b3f14c7e0ac19f708021d33b253ca55885d843e4f770cd483963b4af3a5d",
+      "license": "MIT",
+      "component": "ghostly-adapted-web",
+      "source": "property/web/GHOSTLY-MIT-LICENSE.txt"
+    },
+    {
+      "path": "property/web/about.html",
+      "bytes": 17105,
+      "sha256": "f138e0021b6ae29ff71797446c7c3d88583f17b67bb753d7bb39470d8dfd51d8",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/about.html"
+    },
+    {
+      "path": "property/web/about.pt-BR.html",
+      "bytes": 18199,
+      "sha256": "2ced9d6372f3db58a5df4dc5f48ccf1e190e2d554fefccd29a6e2b37bfbae990",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/about.pt-BR.html"
+    },
+    {
+      "path": "property/web/agent-messaging.js",
+      "bytes": 7568,
+      "sha256": "da67cc6e1c50f9827007750c69b3ceb2fc7d14be0b12494faa261f4693254e03",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/agent-messaging.js"
+    },
+    {
+      "path": "property/web/app-badge.js",
+      "bytes": 1287,
+      "sha256": "3425fb31fafe63f90b914bd175531c7d36eae55ac63d195f410f696d86fc9362",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/app-badge.js"
+    },
+    {
+      "path": "property/web/app-directory.js",
+      "bytes": 1066,
+      "sha256": "2a6b07ef87deb47f8f6697e6217e6772e3b26b3ea0888df61d3592c9bf54659a",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/app-directory.js"
+    },
+    {
+      "path": "property/web/app.js",
+      "bytes": 538543,
+      "sha256": "0bac59226e7edb16b3624515ad87c9dd5ef094c19346703a0e357d5d7e109f90",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/app.js"
+    },
+    {
+      "path": "property/web/assets/icon.svg",
+      "bytes": 442,
+      "sha256": "c9871f86edded918b72d1419815c84ce239730c958ef7e5fa1abb243f0658479",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/assets/icon.svg"
+    },
+    {
+      "path": "property/web/assets/property-brand.png",
+      "bytes": 38402,
+      "sha256": "eaf0c0e7b36ede4ffb62324c372df8882880c96fb170e102e4798b773b23c077",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/assets/property-brand.png"
+    },
+    {
+      "path": "property/web/assets/property-icon-180.png",
+      "bytes": 4969,
+      "sha256": "dba2c794aae1a12203c19ecd06887bdedc0c94c06e2e98f497567cad49cd2dfa",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/assets/property-icon-180.png"
+    },
+    {
+      "path": "property/web/assets/property-icon-192.png",
+      "bytes": 5427,
+      "sha256": "fb83fd1b9a05b0449ca88fad8098165f3c739670b7d99dec96f89022c0f01678",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/assets/property-icon-192.png"
+    },
+    {
+      "path": "property/web/assets/property-icon-512.png",
+      "bytes": 14322,
+      "sha256": "1e86b511517ce5f9295a637f657657bb685a5ee742536b9ce97c9d5cd18cc7df",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/assets/property-icon-512.png"
+    },
+    {
+      "path": "property/web/audio-playback.css",
+      "bytes": 2995,
+      "sha256": "9eeeac6ffcf401b3b1d5a8e4cb3a6766ad45f5b87fff0d1fdce0ff4e5fdc701d",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/audio-playback.css"
+    },
+    {
+      "path": "property/web/audio-playback.js",
+      "bytes": 9640,
+      "sha256": "1b173bb0a6301308595315bbffb0fb0c8818063c02c8f4a69667812d2e876894",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/audio-playback.js"
+    },
+    {
+      "path": "property/web/call-controller.js",
+      "bytes": 36069,
+      "sha256": "017166cf8597e989f12f7762b7bd156ee51067a54d068068a7363eed0408c7ec",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/call-controller.js"
+    },
+    {
+      "path": "property/web/call-window.css",
+      "bytes": 3975,
+      "sha256": "fb4e069290315ab2f086c064623bf0111cc81f681a4f7f9200d2babbb0059a36",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/call-window.css"
+    },
+    {
+      "path": "property/web/call-window.js",
+      "bytes": 3639,
+      "sha256": "70f5d0447069eb0bd35b542801045ff1d294efa3bc085d71e43c594fbbf42281",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/call-window.js"
+    },
+    {
+      "path": "property/web/campaigns.js",
+      "bytes": 7035,
+      "sha256": "3f2840445bd0477501eba24ce6b0d2f090c1563d6d6bdf38f2831b4887496ca5",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/campaigns.js"
+    },
+    {
+      "path": "property/web/chat-drafts.js",
+      "bytes": 2522,
+      "sha256": "53e4ac737a9e39a5b707e0b287f9fa48153c2da933300c82e334183a8a7417cd",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chat-drafts.js"
+    },
+    {
+      "path": "property/web/chat-gestures.js",
+      "bytes": 1051,
+      "sha256": "383e1c74739f82411800fe342ad71e1c3eeef3f098ba2539c73429c741a437e1",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chat-gestures.js"
+    },
+    {
+      "path": "property/web/chat-search.js",
+      "bytes": 4021,
+      "sha256": "69ae030322bafe90bce00c2ba21c6b87e2b723563ec8d5d8c70b60f2a8332ba0",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chat-search.js"
+    },
+    {
+      "path": "property/web/chess/NOTICE.md",
+      "bytes": 896,
+      "sha256": "689eb0d40588387f228b9841a97dc0ce074ca98d4ec8d7033dc1f86cfc97e051",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/NOTICE.md"
+    },
+    {
+      "path": "property/web/chess/build/game.js",
+      "bytes": 22652,
+      "sha256": "70449c26ff7987386af8ca46f50a29745b8e4ed11804fb6a123cf890cbe14c97",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/build/game.js"
+    },
+    {
+      "path": "property/web/chess/build/languages.js",
+      "bytes": 2346,
+      "sha256": "27dd04525cbe958049e7022a62fb9f4bcb905692e345b816423fca8a1669938a",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/build/languages.js"
+    },
+    {
+      "path": "property/web/chess/build/property-api.js",
+      "bytes": 11,
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/build/property-api.js"
+    },
+    {
+      "path": "property/web/chess/build/protocol.js",
+      "bytes": 4685,
+      "sha256": "e5307de8445b7b005f917f97d6c947ff256df75342efd71c9701c7ffdca80584",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/build/protocol.js"
+    },
+    {
+      "path": "property/web/chess/build/runtime.js",
+      "bytes": 507,
+      "sha256": "e4699b5c77ae3123a6183a47f07f3269b0b6a7a6810d9158eaafbd6975c4effe",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/build/runtime.js"
+    },
+    {
+      "path": "property/web/chess/build/strings.js",
+      "bytes": 3008,
+      "sha256": "2d2472094ccce46e3d5a8026089a54de8510d38e47b4c52c64d81dc77e2f4aff",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/build/strings.js"
+    },
+    {
+      "path": "property/web/chess/build/toss.js",
+      "bytes": 2617,
+      "sha256": "cc319d6c9ea1d484dd065f905727f7090eb0bf0eabf428fec94f2ae7be835263",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/build/toss.js"
+    },
+    {
+      "path": "property/web/chess/build/ui.js",
+      "bytes": 11287,
+      "sha256": "55ebe067bd8e3de5f53239b1f2abc89990371fc47d1b237ea534933a3ad284f8",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/build/ui.js"
+    },
+    {
+      "path": "property/web/chess/chess.css",
+      "bytes": 4085,
+      "sha256": "ee6525d4db405a109f08ed17e8e44a8a37764faf12561b4afd1f8fd3b7962066",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/chess.css"
+    },
+    {
+      "path": "property/web/chess/src/game.ts",
+      "bytes": 24036,
+      "sha256": "a9a1fe4e8f1fa3513edbba49605702dfb328eef07fcd544d85c3b1841591c1ce",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/src/game.ts"
+    },
+    {
+      "path": "property/web/chess/src/languages.ts",
+      "bytes": 2365,
+      "sha256": "db79049359c02491e97948b631bf1c7f76dfd358dad3c61eea2bab22a47642da",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/src/languages.ts"
+    },
+    {
+      "path": "property/web/chess/src/property-api.ts",
+      "bytes": 701,
+      "sha256": "e68483fd58f225701a4f18f1b1e7780f3313a07653e8377d48b6f30c3cf500d7",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/src/property-api.ts"
+    },
+    {
+      "path": "property/web/chess/src/protocol.ts",
+      "bytes": 6047,
+      "sha256": "862fafaee43f93f744fe7433caab33569368922867036ff8b8af2e84838089ed",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/src/protocol.ts"
+    },
+    {
+      "path": "property/web/chess/src/runtime.ts",
+      "bytes": 624,
+      "sha256": "a038b8322741b52efdbd59b0ecf0bf38c3cb1b42d083e1c3ab4749d36bb3c87a",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/src/runtime.ts"
+    },
+    {
+      "path": "property/web/chess/src/strings.ts",
+      "bytes": 3184,
+      "sha256": "3b8567a8d9f6f7d9987dc13472d5b8cfb22cc12da961f664dac1dab7709a16c8",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/src/strings.ts"
+    },
+    {
+      "path": "property/web/chess/src/toss.ts",
+      "bytes": 2775,
+      "sha256": "0c84f6625823bbbb5586539cac63c8c7fff14c97bffead6a934f353a2b567c59",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/src/toss.ts"
+    },
+    {
+      "path": "property/web/chess/src/ui.ts",
+      "bytes": 11113,
+      "sha256": "1b76bfd70ec4f6a38cd914c190a28e048513f03bd0afe3048e38c78771b66fad",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/src/ui.ts"
+    },
+    {
+      "path": "property/web/chess/tsconfig.json",
+      "bytes": 350,
+      "sha256": "b52749ec3eb34c44fc8f12b932bed9a5d1f13d60515aa42076a44ddfc037e50c",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/chess/tsconfig.json"
+    },
+    {
+      "path": "property/web/chess/vendor/CHESSJS-BSD-2-CLAUSE.txt",
+      "bytes": 1315,
+      "sha256": "0b3a3c2b4432a26bb18f9d06f5bba4de015bcc980306b7db28b06025495e2186",
+      "license": "BSD-2-Clause",
+      "component": "chess-js-1.4.0",
+      "source": "property/web/chess/vendor/CHESSJS-BSD-2-CLAUSE.txt"
+    },
+    {
+      "path": "property/web/chess/vendor/chess.d.ts",
+      "bytes": 9163,
+      "sha256": "29f09463bf7aedb31c93b4f692b9001eb5529b9dcc52829a1c0d5895e2f2e8f8",
+      "license": "BSD-2-Clause",
+      "component": "chess-js-1.4.0",
+      "source": "property/web/chess/vendor/chess.d.ts"
+    },
+    {
+      "path": "property/web/chess/vendor/chess.js",
+      "bytes": 106976,
+      "sha256": "5bb6a5f7060f5f086381f655694bda6cfdea09107c73863a6b767e0c7ee40a1a",
+      "license": "BSD-2-Clause",
+      "component": "chess-js-1.4.0",
+      "source": "property/web/chess/vendor/chess.js"
+    },
+    {
+      "path": "property/web/chess/vendor/noble-hashes/LICENSE",
+      "bytes": 1109,
+      "sha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec",
+      "license": "MIT",
+      "component": "noble-hashes-web-2.4.0",
+      "source": "property/web/chess/vendor/noble-hashes/LICENSE"
+    },
+    {
+      "path": "property/web/chess/vendor/noble-hashes/MIT-LICENSE.txt",
+      "bytes": 1109,
+      "sha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec",
+      "license": "MIT",
+      "component": "noble-hashes-web-2.4.0",
+      "source": "property/web/chess/vendor/noble-hashes/MIT-LICENSE.txt"
+    },
+    {
+      "path": "property/web/chess/vendor/noble-hashes/_md.d.ts",
+      "bytes": 4306,
+      "sha256": "f5ffc0d52997445b4531a0e1e67ee0f6f376e0ed5c66f978e80288973d50cd06",
+      "license": "MIT",
+      "component": "noble-hashes-web-2.4.0",
+      "source": "property/web/chess/vendor/noble-hashes/_md.d.ts"
+    },
+    {
+      "path": "property/web/chess/vendor/noble-hashes/_md.js",
+      "bytes": 9175,
+      "sha256": "60cf3010fda89e3e4d3f0e7ff1ce249e9c467f34b4fd41b6fd6101d9f69be763",
+      "license": "MIT",
+      "component": "noble-hashes-web-2.4.0",
+      "source": "property/web/chess/vendor/noble-hashes/_md.js"
+    },
+    {
+      "path": "property/web/chess/vendor/noble-hashes/_u64.d.ts",
+      "bytes": 1994,
+      "sha256": "78744410de5b7594879963d315b7a339a06ecafa73b0a0ddf63fdabdb926dd25",
+      "license": "MIT",
+      "component": "noble-hashes-web-2.4.0",
+      "source": "property/web/chess/vendor/noble-hashes/_u64.d.ts"
+    },
+    {
+      "path": "property/web/chess/vendor/noble-hashes/_u64.js",
+      "bytes": 4794,
+      "sha256": "b09da8c07fe8187c07649494cdb7cd0bcf13df90b506a9473d19e4d5f8c2e102",
+      "license": "MIT",
+      "component": "noble-hashes-web-2.4.0",
+      "source": "property/web/chess/vendor/noble-hashes/_u64.js"
+    },
+    {
+      "path": "property/web/chess/vendor/noble-hashes/sha2.d.ts",
+      "bytes": 5974,
+      "sha256": "5b1c09cb23f0c1e7018d31d28f4eec2b18eec6454f07c0f69ff2eb3c8decdb21",
+      "license": "MIT",
+      "component": "noble-hashes-web-2.4.0",
+      "source": "property/web/chess/vendor/noble-hashes/sha2.d.ts"
+    },
+    {
+      "path": "property/web/chess/vendor/noble-hashes/sha2.js",
+      "bytes": 18991,
+      "sha256": "c07a30c2b7a1343b2788028415079ae3b4085ffd505440d82ca16a3f0490164c",
+      "license": "MIT",
+      "component": "noble-hashes-web-2.4.0",
+      "source": "property/web/chess/vendor/noble-hashes/sha2.js"
+    },
+    {
+      "path": "property/web/chess/vendor/noble-hashes/utils.d.ts",
+      "bytes": 22567,
+      "sha256": "cfccade8c719b698bd8b0313ff996941f5d5a384654ec2886d9141224f6db439",
+      "license": "MIT",
+      "component": "noble-hashes-web-2.4.0",
+      "source": "property/web/chess/vendor/noble-hashes/utils.d.ts"
+    },
+    {
+      "path": "property/web/chess/vendor/noble-hashes/utils.js",
+      "bytes": 26034,
+      "sha256": "88beee7490eb4e48d556ee7dd6f6d2f16a76399731d52678625d0a0b7ea85251",
+      "license": "MIT",
+      "component": "noble-hashes-web-2.4.0",
+      "source": "property/web/chess/vendor/noble-hashes/utils.js"
+    },
+    {
+      "path": "property/web/community-groups.js",
+      "bytes": 13201,
+      "sha256": "54aa4b7f318318f799758ca6033c16e36372bd864095a2fb10d08ef6b023757f",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/community-groups.js"
+    },
+    {
+      "path": "property/web/contact.js",
+      "bytes": 5074,
+      "sha256": "098b72f70a9093f43e2b28b1b18cd5480429c8cfba77b24b703a3b5635c341ea",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/contact.js"
+    },
+    {
+      "path": "property/web/conversation-folders.js",
+      "bytes": 6330,
+      "sha256": "d7e909baf637708d80cbce0c7135179c41411b3deb0105fa6bb3d8945c8d6026",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/conversation-folders.js"
+    },
+    {
+      "path": "property/web/direct-file-chunks.js",
+      "bytes": 8799,
+      "sha256": "23fb1a282bc165549c09566b715d82241a224f7dc8f7ae78a1e8c222e94b8020",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/direct-file-chunks.js"
+    },
+    {
+      "path": "property/web/direct-file-envelope.js",
+      "bytes": 4745,
+      "sha256": "4b0b219d50b6ebac9b923c2ff129f851ccc89c09bc66b1946d521d19336e41b8",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/direct-file-envelope.js"
+    },
+    {
+      "path": "property/web/direct-file-storage.js",
+      "bytes": 16072,
+      "sha256": "1c6a14ebfc7fad746747c48084d900cc753dd86240c514992efc1651ec21dd88",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/direct-file-storage.js"
+    },
+    {
+      "path": "property/web/direct-transfer-controller.js",
+      "bytes": 32997,
+      "sha256": "7f7aa29aefa37e755d34524f8f6aed06dc5f376d99d5b33b4d1e2c8c74c36810",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/direct-transfer-controller.js"
+    },
+    {
+      "path": "property/web/emoji-picker.js",
+      "bytes": 22134,
+      "sha256": "eed8fa68df2c7a7dfd79fe71cc999d45103d5218f50b058239940447d5e571df",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/emoji-picker.js"
+    },
+    {
+      "path": "property/web/file-transfers.js",
+      "bytes": 11450,
+      "sha256": "5366849a95952e6aca33ca56bd69cae09c8e5e5828dcde0502790685947ae65f",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/file-transfers.js"
+    },
+    {
+      "path": "property/web/forwarding.js",
+      "bytes": 3703,
+      "sha256": "377029d5059a82f2ba5a261cf5a615cfe41531ddf6fa479c7e2d83c3333027ad",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/forwarding.js"
+    },
+    {
+      "path": "property/web/group-invites.css",
+      "bytes": 847,
+      "sha256": "72f76794fdc84a963ef28e4a764ed2b731a1cf3412a19d5d390df5dc505a6db6",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/group-invites.css"
+    },
+    {
+      "path": "property/web/group-invites.js",
+      "bytes": 6236,
+      "sha256": "c67ee537a760b57d75d811728edf31eec837704faca97215b8573e95cb7622f7",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/group-invites.js"
+    },
+    {
+      "path": "property/web/group-mentions.css",
+      "bytes": 936,
+      "sha256": "c41cc23e68df8eabb53bd5e66a5f5b8923ea71267f25a38b04967bc364e8e502",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/group-mentions.css"
+    },
+    {
+      "path": "property/web/group-mentions.js",
+      "bytes": 12482,
+      "sha256": "b25cf187e116e6d118ef0117ccd786881257b0a9aec01ae0fb516939ad85cdc8",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/group-mentions.js"
+    },
+    {
+      "path": "property/web/i18n.js",
+      "bytes": 112921,
+      "sha256": "4d57a0839aa6124577f7d2f9c1d518a30fd260cd095a9409dacfefe1b7eac265",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/i18n.js"
+    },
+    {
+      "path": "property/web/ice-servers.js",
+      "bytes": 6653,
+      "sha256": "1ba2985a1b4a969d984d3d616951c2243fa4a6bd2c862b292f2c3a0bd6c51b4a",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/ice-servers.js"
+    },
+    {
+      "path": "property/web/identity-marks.css",
+      "bytes": 253,
+      "sha256": "5798e0491ac7677d7b45ab69c0a951317a94168b70cebf787f19639e4ded9a19",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/identity-marks.css"
+    },
+    {
+      "path": "property/web/identity-marks.js",
+      "bytes": 1823,
+      "sha256": "28ecbc14692b69a02c0ee298c7b29b8cf6d2ce6fe4c6b94688e235a19a538d3f",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/identity-marks.js"
+    },
+    {
+      "path": "property/web/image-viewer.js",
+      "bytes": 10170,
+      "sha256": "d7a6a8a9c1dd2f479120cae6dfe441e2cf012694c080f06aa0a00e1c48c7f599",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/image-viewer.js"
+    },
+    {
+      "path": "property/web/index.html",
+      "bytes": 91909,
+      "sha256": "56516e46d3d264a7e5ac3ab105266ddeff36cb4339642151a89b55f6562a8205",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/index.html"
+    },
+    {
+      "path": "property/web/link-preview.css",
+      "bytes": 1629,
+      "sha256": "83f5f97a5400be958276832e0dd1275cdc9ca6b490c213f8ec406a9c8cdf334f",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/link-preview.css"
+    },
+    {
+      "path": "property/web/link-preview.js",
+      "bytes": 8682,
+      "sha256": "3574ffd2e5b26343d1ab0ed78d841db61ee784ea43c22ce7d6d8f7b191edcdf1",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/link-preview.js"
+    },
+    {
+      "path": "property/web/local-moderation.js",
+      "bytes": 3991,
+      "sha256": "581556f5d7e5b66a0475004a9835a67778a13ef22829a508317c33cdfdbe4ebf",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/local-moderation.js"
+    },
+    {
+      "path": "property/web/location-cards.css",
+      "bytes": 909,
+      "sha256": "4293213bf8e69aff76e560e4d50ef40286fbb25ddba834a7b0379bc55fb8eab7",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/location-cards.css"
+    },
+    {
+      "path": "property/web/location-cards.js",
+      "bytes": 7069,
+      "sha256": "98f294ea80ce85fc834dbd63a044faa3f6af2c02eb9413729929561f89ef5a59",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/location-cards.js"
+    },
+    {
+      "path": "property/web/manifest.webmanifest",
+      "bytes": 1721,
+      "sha256": "f996bea8388f0bd9155cda52bc159623fc0c50a0a69603dac2e7cf42d181e160",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/manifest.webmanifest"
+    },
+    {
+      "path": "property/web/marketplace.js",
+      "bytes": 12143,
+      "sha256": "27b3c9c18dee507aebef5184296a4ee6ed10ab14a51b814229bb1a859939bd29",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/marketplace.js"
+    },
+    {
+      "path": "property/web/message-days.js",
+      "bytes": 1656,
+      "sha256": "b1138c264ab3daf23e9dbf741f119f6eaa863fad090f5b8dbd9c7418f389d074",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/message-days.js"
+    },
+    {
+      "path": "property/web/message-deletions.js",
+      "bytes": 9368,
+      "sha256": "69be6d5b378119d1b321791f3341e8a519fc8df70546c00ef65b5adfdb86fd68",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/message-deletions.js"
+    },
+    {
+      "path": "property/web/message-edits.js",
+      "bytes": 6863,
+      "sha256": "a6c03cbe744d9a92d0dbd12193481d9831aeb98d9467b70ff60836726e791f21",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/message-edits.js"
+    },
+    {
+      "path": "property/web/message-forwards.css",
+      "bytes": 117,
+      "sha256": "21316a26790885957a61674e41fb9c2fe0ef3fdfcbe57bb89b4d3963afcf6fed",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/message-forwards.css"
+    },
+    {
+      "path": "property/web/message-forwards.js",
+      "bytes": 1250,
+      "sha256": "303a8dba59941fd7b2efb5dc449fe2a292ac5e7770aec5fa59bae65e13a06fe0",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/message-forwards.js"
+    },
+    {
+      "path": "property/web/message-pins.css",
+      "bytes": 758,
+      "sha256": "930120620245090067cf17f7866e12f8f906ac052074559c7665dca39d175f69",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/message-pins.css"
+    },
+    {
+      "path": "property/web/message-pins.js",
+      "bytes": 4360,
+      "sha256": "e3474f91e087525468494949655faac74dd58e3d6b36cde41bf1065f0d7282ca",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/message-pins.js"
+    },
+    {
+      "path": "property/web/message-scroll.css",
+      "bytes": 876,
+      "sha256": "e26baa6c14faa3612b27f5aac7a795b5580526ff1727be729d6b6e11590847c0",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/message-scroll.css"
+    },
+    {
+      "path": "property/web/message-scroll.js",
+      "bytes": 2078,
+      "sha256": "25a4dd213d9c3cafa5c9973dc1731a0d3fa00e0d0d8a9610a6d1cd51148ef8ee",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/message-scroll.js"
+    },
+    {
+      "path": "property/web/money.js",
+      "bytes": 1868,
+      "sha256": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/money.js"
+    },
+    {
+      "path": "property/web/nano.js",
+      "bytes": 1207,
+      "sha256": "e13b04e9c0839c07ed200eebe9dbeee4e25a267e2fa94b6c8eee79ee88528d7c",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/nano.js"
+    },
+    {
+      "path": "property/web/nip05.js",
+      "bytes": 5372,
+      "sha256": "089dea24158d11fe78bd7ecc7918bf8a52cda47410412a0a543df4aa05633964",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/nip05.js"
+    },
+    {
+      "path": "property/web/nip39.js",
+      "bytes": 13607,
+      "sha256": "bf9a080f2f0f27c0c00263a626cb393c2bf49598a973a9bbeba16395b1c926fa",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/nip39.js"
+    },
+    {
+      "path": "property/web/nostr-entities.js",
+      "bytes": 1998,
+      "sha256": "464dbdbf7987ca22bf4a80a1fdddde9169739cb2c1236519c2e977a0454a7b46",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/nostr-entities.js"
+    },
+    {
+      "path": "property/web/notification-preferences.js",
+      "bytes": 1767,
+      "sha256": "5add774b5f25172548b430e80448638109b249837ea1ed7bda57ee15a187c662",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/notification-preferences.js"
+    },
+    {
+      "path": "property/web/payment-card.css",
+      "bytes": 4900,
+      "sha256": "ea4ad9906640e6043c115967a5cd2b5f98607b9cb0d137619c58bebcaaa59596",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/payment-card.css"
+    },
+    {
+      "path": "property/web/payment-card.js",
+      "bytes": 3487,
+      "sha256": "e092fd7a3906e17feb2f96402891588bd313edf2cdbb99fe7cb16eaf9dbd8580",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/payment-card.js"
+    },
+    {
+      "path": "property/web/payment-uris.js",
+      "bytes": 8381,
+      "sha256": "46c037670ee972654d259af79c4c734870524c21399984cfd2e530e652703c22",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/payment-uris.js"
+    },
+    {
+      "path": "property/web/project-story.css",
+      "bytes": 10182,
+      "sha256": "ed1f6701d4e9812478ed2143257118b1ca85151f47564d12f8f46140c19d65f9",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/project-story.css"
+    },
+    {
+      "path": "property/web/property-apps.css",
+      "bytes": 1362,
+      "sha256": "84d5536c88a0a84fa9a6071b9a2d10733856288d14fdb3a3bd3d2b658e19a561",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/property-apps.css"
+    },
+    {
+      "path": "property/web/protocol-contract.js",
+      "bytes": 5647,
+      "sha256": "b245cbfd8dacae8dfc51c7ae46548b33aecad12c1dcce100c6cd357da06f17de",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/protocol-contract.js"
+    },
+    {
+      "path": "property/web/public-profile.js",
+      "bytes": 3911,
+      "sha256": "98f533f6a6cadb232f1f0cf9c2e643f2abad2ddd716090fee5d7facf49f1d86d",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/public-profile.js"
+    },
+    {
+      "path": "property/web/pwa.js",
+      "bytes": 3864,
+      "sha256": "473e093b23dec4d82bf96181ec92f99e6c8af3702ee70fcc3ec2532c4cf730b2",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/pwa.js"
+    },
+    {
+      "path": "property/web/relay-defaults.js",
+      "bytes": 8780,
+      "sha256": "5430c00eeb07559cb3aec0204170d0a9e85fed41c17b0a869acdea042b03183a",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/relay-defaults.js"
+    },
+    {
+      "path": "property/web/rich-text.js",
+      "bytes": 20776,
+      "sha256": "1bfd41595d946b562fca3e7af0341818406ac19ed89b9ddc525010659b0a7ec4",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/rich-text.js"
+    },
+    {
+      "path": "property/web/routing.js",
+      "bytes": 7181,
+      "sha256": "69b32d8d2566b5b4066bfafaff525c8a3caf6a220109a2ce380a2765ed9a808c",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/routing.js"
+    },
+    {
+      "path": "property/web/secret-guard.js",
+      "bytes": 129567,
+      "sha256": "033cc40314eca7543aed3b3d0fa0ae6100a0006d06c18200951018adc56ebbd5",
+      "license": "MIT AND BSD-3-Clause",
+      "component": "secret-guard-web-bundle",
+      "source": "property/web/vendor/licenses/secret-guard/README.md"
+    },
+    {
+      "path": "property/web/share-inbox.js",
+      "bytes": 8306,
+      "sha256": "fba21ce1cce81ae9f59acf7f2a22593470633a0f9dbb99b534935a7e67078e8c",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/share-inbox.js"
+    },
+    {
+      "path": "property/web/styles.css",
+      "bytes": 58412,
+      "sha256": "6854e8a5808a89170e49cc21dbecc5208a7b73c35d55dc5c66976e47d4c511cd",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/styles.css"
+    },
+    {
+      "path": "property/web/sw.js",
+      "bytes": 7804,
+      "sha256": "b9411ae870a2cf06d27ea380372bffdfdcc6e76ed6004ca73973c22e95e33d63",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/sw.js"
+    },
+    {
+      "path": "property/web/typing-signals.css",
+      "bytes": 271,
+      "sha256": "fd99513e8d1b3408f7e9625bb149fe8ec848a083a6d2c2e5a959431e8a98c74a",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/typing-signals.css"
+    },
+    {
+      "path": "property/web/typing-signals.js",
+      "bytes": 20586,
+      "sha256": "19471447c4ce2edee6d6bbfe305397976dc4a6a88d11195ca53f178842c1e18e",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/typing-signals.js"
+    },
+    {
+      "path": "property/web/vault.js",
+      "bytes": 8175,
+      "sha256": "2d0a09b72099008de0d34d4810eedd7c7432059777e8bfaed72979b84da5811e",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/vault.js"
+    },
+    {
+      "path": "property/web/vendor/QR-CODE-GENERATOR-LICENSE.txt",
+      "bytes": 1062,
+      "sha256": "6a21b13e65de1b36f634c6edc621a189ae4c09a5d60c1c9e354aa3b3eda82432",
+      "license": "MIT",
+      "component": "qr-code-generator",
+      "source": "property/web/vendor/QR-CODE-GENERATOR-LICENSE.txt"
+    },
+    {
+      "path": "property/web/vendor/README.md",
+      "bytes": 1551,
+      "sha256": "ee9010d3d13b1690093d15977a8020761a628421f19c81d204cf264923d0b541",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/vendor/README.md"
+    },
+    {
+      "path": "property/web/vendor/emoji-data-15.json",
+      "bytes": 432733,
+      "sha256": "e1e7d657dba21af5904ffecf043f313852f5495833fc7bff6b1f0c5c4906d148",
+      "license": "MIT",
+      "component": "emoji-mart-data-1.2.1",
+      "source": "property/web/vendor/emoji-data-15.json"
+    },
+    {
+      "path": "property/web/vendor/licenses/emoji-mart-data-MIT.txt",
+      "bytes": 1060,
+      "sha256": "9acd87e46fa3c7fb66a4b4e472711fc5ed80e18f537a3ee2937f93f6e0dd968a",
+      "license": "MIT",
+      "component": "emoji-mart-data-1.2.1",
+      "source": "property/web/vendor/licenses/emoji-mart-data-MIT.txt"
+    },
+    {
+      "path": "property/web/vendor/licenses/secret-guard/MONERO-ENGLISH-BSD-3-CLAUSE.txt",
+      "bytes": 1621,
+      "sha256": "7cf86860f914d81658ddf2fc319e61032eca79a0cf248641311597ff567b38cd",
+      "license": "BSD-3-Clause",
+      "component": "monero-english-seed-words",
+      "source": "property/web/vendor/licenses/secret-guard/MONERO-ENGLISH-BSD-3-CLAUSE.txt"
+    },
+    {
+      "path": "property/web/vendor/licenses/secret-guard/MONERO-PORTUGUESE-MIT-NOTICE.txt",
+      "bytes": 1353,
+      "sha256": "b65d8e6bee83b2bae541ce5ca42c0399beea7d740f3e289703bafd0a9a861e7f",
+      "license": "MIT",
+      "component": "monero-portuguese-seed-words",
+      "source": "property/web/vendor/licenses/secret-guard/MONERO-PORTUGUESE-MIT-NOTICE.txt"
+    },
+    {
+      "path": "property/web/vendor/licenses/secret-guard/NOBLE-HASHES-MIT.txt",
+      "bytes": 1109,
+      "sha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec",
+      "license": "MIT",
+      "component": "noble-hashes-web-2.4.0",
+      "source": "property/web/vendor/licenses/secret-guard/NOBLE-HASHES-MIT.txt"
+    },
+    {
+      "path": "property/web/vendor/licenses/secret-guard/README.md",
+      "bytes": 810,
+      "sha256": "fe8510a23d1ec2a309d026ebe9ec3356523afafda71d2ecb32119c97a38e0a93",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/vendor/licenses/secret-guard/README.md"
+    },
+    {
+      "path": "property/web/vendor/licenses/secret-guard/SCURE-BASE-MIT.txt",
+      "bytes": 1110,
+      "sha256": "3239e134eb6e6d64538ca76498c7fcb08a395249dd9d4af9927bf6d0169ee429",
+      "license": "MIT",
+      "component": "scure-base-web",
+      "source": "property/web/vendor/licenses/secret-guard/SCURE-BASE-MIT.txt"
+    },
+    {
+      "path": "property/web/vendor/licenses/secret-guard/SCURE-BIP39-MIT.txt",
+      "bytes": 1122,
+      "sha256": "1565efd0ec4580bfaa96c7eeaaa9af3791baa1cc562c3bde62d0a055910b9ec7",
+      "license": "MIT",
+      "component": "scure-bip39-web",
+      "source": "property/web/vendor/licenses/secret-guard/SCURE-BIP39-MIT.txt"
+    },
+    {
+      "path": "property/web/vendor/nostr-tools-2.25.2.bundle.js",
+      "bytes": 251980,
+      "sha256": "a7c4846fde84a0d6ce7596f3fcfc88435d29fdcd616887205ab97f9a16bc6407",
+      "license": "Unlicense",
+      "component": "nostr-tools-web-2.25.2",
+      "source": "property/web/vendor/nostr-tools-2.25.2.bundle.js"
+    },
+    {
+      "path": "property/web/vendor/nostr-tools-LICENSE",
+      "bytes": 1210,
+      "sha256": "f0510d3b9d1223c45e8fdd2b49270ec8734fff491c7f7d1b948ee70162e1ceff",
+      "license": "Unlicense",
+      "component": "nostr-tools-web-2.25.2",
+      "source": "property/web/vendor/nostr-tools-LICENSE"
+    },
+    {
+      "path": "property/web/vendor/qr-code-generator.js",
+      "bytes": 34840,
+      "sha256": "d4d14086837adae6b0603ab333443d80208205548ed5aa7ec9ec66e08fdabcf2",
+      "license": "MIT",
+      "component": "qr-code-generator",
+      "source": "property/web/vendor/qr-code-generator.js"
+    },
+    {
+      "path": "property/web/voice-messages.js",
+      "bytes": 9204,
+      "sha256": "982dbd19fd17646f23798ee42deea7bc6427b570c1166d78fd364883df466eef",
+      "license": "MIT",
+      "component": "property-first-party",
+      "source": "property/web/voice-messages.js"
+    }
+  ]
+}

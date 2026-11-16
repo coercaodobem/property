@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "gate": "G10",
+  "case": "release-install-upgrade-downgrade-rollback",
+  "result": "PASS",
+  "cycles_required": 10,
+  "cycles": [
+    {
+      "cycle": 1,
+      "profile_started_empty": true,
+      "install_older_verified": true,
+      "upgrade_newer_verified": true,
+      "downgrade_rollback_verified": true,
+      "agent_relay_data_and_config_preserved": true,
+      "corrupted_package_rejected_before_write": true,
+      "clean_uninstall": true
+    },
+    {
+      "cycle": 2,
+      "profile_started_empty": true,
+      "install_older_verified": true,
+      "upgrade_newer_verified": true,
+      "downgrade_rollback_verified": true,
+      "agent_relay_data_and_config_preserved": true,
+      "corrupted_package_rejected_before_write": true,
+      "clean_uninstall": true
+    },
+    {
+      "cycle": 3,
+      "profile_started_empty": true,
+      "install_older_verified": true,
+      "upgrade_newer_verified": true,
+      "downgrade_rollback_verified": true,
+      "agent_relay_data_and_config_preserved": true,
+      "corrupted_package_rejected_before_write": true,
+      "clean_uninstall": true
+    },
+    {
+      "cycle": 4,
+      "profile_started_empty": true,
+      "install_older_verified": true,
+      "upgrade_newer_verified": true,
+      "downgrade_rollback_verified": true,
+      "agent_relay_data_and_config_preserved": true,
+      "corrupted_package_rejected_before_write": true,
+      "clean_uninstall": true
+    },
+    {
+      "cycle": 5,
+      "profile_started_empty": true,
+      "install_older_verified": true,
+      "upgrade_newer_verified": true,
+      "downgrade_rollback_verified": true,
+      "agent_relay_data_and_config_preserved": true,
+      "corrupted_package_rejected_before_write": true,
+      "clean_uninstall": true
+    },
+    {
+      "cycle": 6,
+      "profile_started_empty": true,
+      "install_older_verified": true,
+      "upgrade_newer_verified": true,
+      "downgrade_rollback_verified": true,
+      "agent_relay_data_and_config_preserved": true,
+      "corrupted_package_rejected_before_write": true,
+      "clean_uninstall": true
+    },
+    {
+      "cycle": 7,
+      "profile_started_empty": true,
+      "install_older_verified": true,
+      "upgrade_newer_verified": true,
+      "downgrade_rollback_verified": true,
+      "agent_relay_data_and_config_preserved": true,
+      "corrupted_package_rejected_before_write": true,
+      "clean_uninstall": true
+    },
+    {
+      "cycle": 8,
+      "profile_started_empty": true,
+      "install_older_verified": true,
+      "upgrade_newer_verified": true,
+      "downgrade_rollback_verified": true,
+      "agent_relay_data_and_config_preserved": true,
+      "corrupted_package_rejected_before_write": true,
+      "clean_uninstall": true
+    },
+    {
+      "cycle": 9,
+      "profile_started_empty": true,
+      "install_older_verified": true,
+      "upgrade_newer_verified": true,
+      "downgrade_rollback_verified": true,
+      "agent_relay_data_and_config_preserved": true,
+      "corrupted_package_rejected_before_write": true,
+      "clean_uninstall": true
+    },
+    {
+      "cycle": 10,
+      "profile_started_empty": true,
+      "install_older_verified": true,
+      "upgrade_newer_verified": true,
+      "downgrade_rollback_verified": true,
+      "agent_relay_data_and_config_preserved": true,
+      "corrupted_package_rejected_before_write": true,
+      "clean_uninstall": true
+    }
+  ],
+  "older_source_commit": "5a4bc8b42a80be9d4b4d1ef62398822b4353a17f",
+  "newer_source_commit": "111926e34fd9e654cf4d0fe550c8ba5c267542ba",
+  "older_archive_sha256": "81794ff5c6efa884a5695f9170f9af44827888e274cd5deb9c8974ff73d1a028",
+  "newer_archive_sha256": "2384fd4ec8e1c00dc05d2539ecf745a8cddc5d0ccd1384b0231bdef70c94e4fb",
+  "corrupted_bundle_rejected": 10,
+  "older_app_js_sha256": "d39fd7728a7039ffcfbf799ffcf75dcb88bf62fd9d4d96fe274acece4727c0ac",
+  "newer_app_js_sha256": "0bac59226e7edb16b3624515ad87c9dd5ef094c19346703a0e357d5d7e109f90"
+}

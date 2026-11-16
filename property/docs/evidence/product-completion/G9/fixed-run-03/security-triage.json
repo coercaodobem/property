@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "gate": "G9",
+  "candidate_commit": "111926e34fd9e654cf4d0fe550c8ba5c267542ba",
+  "scanner": "Semgrep OSS 1.185.0",
+  "total_findings": 19,
+  "scanner_errors": 0,
+  "groups": [
+    {
+      "rule": "javascript.lang.security.detect-insecure-websocket",
+      "count": 18,
+      "severity_reported": "ERROR",
+      "disposition": "context-reviewed; see explicit operational residual below",
+      "locations": {
+        "geode source": 7,
+        "property/web/app.js": 2,
+        "property/web/i18n.js": 9
+      },
+      "basis": [
+        "Geode network.host defaults to 127.0.0.1.",
+        "The PWA only accepts ws:// for localhost/loopback; remote relays require wss://.",
+        "The app.js relay setup also includes a local-only ws://127.0.0.1:7447 shortcut with a local-computer notice.",
+        "The i18n matches are help/error strings and local relay examples.",
+        "Geode operator docs require loopback binding and a TLS-terminating reverse proxy for public access."
+      ],
+      "residual": "An operator who overrides the bind host and exposes the plain WebSocket port can expose relay traffic without TLS. The supported public setup is loopback plus a TLS proxy; this risk is documented in the English and PT-BR relay instructions."
+    },
+    {
+      "rule": "javascript.lang.security.html-in-template-string",
+      "count": 1,
+      "severity_reported": "WARNING",
+      "location": "property/agent/property-agent.mjs:133",
+      "disposition": "false positive",
+      "basis": "The interpolated template literal is a CLI usage message written to stdout; it is not HTML and is not inserted into a browser DOM."
+    }
+  ],
+  "outcome": "No untriaged Semgrep match remains. These contextual dispositions do not claim a human review."
+}

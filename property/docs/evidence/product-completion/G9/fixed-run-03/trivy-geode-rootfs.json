@@ -1,0 +1,425 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.76.2"
+  },
+  "ReportID": "01a1e58c-6d2d-738c-b0d1-b8f9e600e9e4",
+  "CreatedAt": "2026-11-16T15:09:07.885233649-03:00",
+  "ArtifactName": "/home/guilherme/Liberdade/.property-release-g10/candidate-payload/property/relay/dist/geode",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "Java",
+      "Class": "lang-pkgs",
+      "Type": "jar",
+      "Packages": [
+        {
+          "Name": "com.squareup.okhttp3:okhttp-coroutines",
+          "Identifier": {
+            "PURL": "pkg:maven/com.squareup.okhttp3/okhttp-coroutines@5.5.1",
+            "UID": "b2683d617e984c8a"
+          },
+          "Version": "5.5.1",
+          "FilePath": "lib/okhttp-coroutines-5.5.1.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "com.squareup.okhttp3:okhttp-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/com.squareup.okhttp3/okhttp-jvm@5.5.1",
+            "UID": "72c8b3def48afda1"
+          },
+          "Version": "5.5.1",
+          "FilePath": "lib/okhttp-jvm-5.5.1.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "com.squareup.okio:okio-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/com.squareup.okio/okio-jvm@3.18.1",
+            "UID": "1e423a6aa4f4013"
+          },
+          "Version": "3.18.1",
+          "FilePath": "lib/okio-jvm-3.18.1.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "com.typesafe:config",
+          "Identifier": {
+            "PURL": "pkg:maven/com.typesafe/config@1.4.9",
+            "UID": "d3ff6d189b01c34f"
+          },
+          "Version": "1.4.9",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "FilePath": "lib/config-1.4.9.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "com.vitorpamplona.crypto:crypto-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/com.vitorpamplona.crypto/crypto-jvm@2.1.0",
+            "UID": "92a8a9a5b045b3b6"
+          },
+          "Version": "2.1.0",
+          "FilePath": "lib/crypto-jvm.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "com.vitorpamplona.negentropy:kmp-negentropy-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/com.vitorpamplona.negentropy/kmp-negentropy-jvm@v1.2.0",
+            "UID": "41df1714fda2ec6a"
+          },
+          "Version": "v1.2.0",
+          "FilePath": "lib/negentropy-jvm.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "com.vitorpamplona.quartz:quartz-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/com.vitorpamplona.quartz/quartz-jvm@2.4.0",
+            "UID": "bd19418c3a025c40"
+          },
+          "Version": "2.4.0",
+          "FilePath": "lib/quartz-jvm.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "fr.acinq.secp256k1:secp256k1-kmp-jni-common",
+          "Identifier": {
+            "PURL": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jni-common@0.24.0",
+            "UID": "faf5320ddc27a07d"
+          },
+          "Version": "0.24.0",
+          "FilePath": "lib/secp256k1-kmp-jni-common-0.24.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jni-jvm@0.24.0",
+            "UID": "57365e4c8cd8f82b"
+          },
+          "Version": "0.24.0",
+          "FilePath": "lib/secp256k1-kmp-jni-jvm-0.24.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm-darwin",
+          "Identifier": {
+            "PURL": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jni-jvm-darwin@0.24.0",
+            "UID": "1d389b8ab2e8b090"
+          },
+          "Version": "0.24.0",
+          "FilePath": "lib/secp256k1-kmp-jni-jvm-darwin-0.24.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm-extract",
+          "Identifier": {
+            "PURL": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jni-jvm-extract@0.24.0",
+            "UID": "2479e7041c7926d2"
+          },
+          "Version": "0.24.0",
+          "FilePath": "lib/secp256k1-kmp-jni-jvm-extract-0.24.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm-linux",
+          "Identifier": {
+            "PURL": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jni-jvm-linux@0.24.0",
+            "UID": "a1d21c2daf19f34a"
+          },
+          "Version": "0.24.0",
+          "FilePath": "lib/secp256k1-kmp-jni-jvm-linux-0.24.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm-mingw",
+          "Identifier": {
+            "PURL": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jni-jvm-mingw@0.24.0",
+            "UID": "4a1dc706c355ce5c"
+          },
+          "Version": "0.24.0",
+          "FilePath": "lib/secp256k1-kmp-jni-jvm-mingw-0.24.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "fr.acinq.secp256k1:secp256k1-kmp-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jvm@0.24.0",
+            "UID": "feece6cc45b967e6"
+          },
+          "Version": "0.24.0",
+          "FilePath": "lib/secp256k1-kmp-jvm-0.24.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "io.ktor:ktor-events-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/io.ktor/ktor-events-jvm@3.6.0",
+            "UID": "769c3a3717d64646"
+          },
+          "Version": "3.6.0",
+          "FilePath": "lib/ktor-events-jvm-3.6.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "io.ktor:ktor-http-cio-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/io.ktor/ktor-http-cio-jvm@3.6.0",
+            "UID": "f8f943b8aeba1037"
+          },
+          "Version": "3.6.0",
+          "FilePath": "lib/ktor-http-cio-jvm-3.6.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "io.ktor:ktor-http-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/io.ktor/ktor-http-jvm@3.6.0",
+            "UID": "a979056840a4a8b3"
+          },
+          "Version": "3.6.0",
+          "FilePath": "lib/ktor-http-jvm-3.6.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "io.ktor:ktor-io-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/io.ktor/ktor-io-jvm@3.6.0",
+            "UID": "f42334cd6c362797"
+          },
+          "Version": "3.6.0",
+          "FilePath": "lib/ktor-io-jvm-3.6.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "io.ktor:ktor-network-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/io.ktor/ktor-network-jvm@3.6.0",
+            "UID": "50dc5d0d0d6e42b6"
+          },
+          "Version": "3.6.0",
+          "FilePath": "lib/ktor-network-jvm-3.6.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "io.ktor:ktor-serialization-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/io.ktor/ktor-serialization-jvm@3.6.0",
+            "UID": "38d6d628e9baa072"
+          },
+          "Version": "3.6.0",
+          "FilePath": "lib/ktor-serialization-jvm-3.6.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "io.ktor:ktor-server-cio-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/io.ktor/ktor-server-cio-jvm@3.6.0",
+            "UID": "604d6bdc4716ef11"
+          },
+          "Version": "3.6.0",
+          "FilePath": "lib/ktor-server-cio-jvm-3.6.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "io.ktor:ktor-server-core-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/io.ktor/ktor-server-core-jvm@3.6.0",
+            "UID": "7c99cb82493ae74b"
+          },
+          "Version": "3.6.0",
+          "FilePath": "lib/ktor-server-core-jvm-3.6.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "io.ktor:ktor-server-websockets-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/io.ktor/ktor-server-websockets-jvm@3.6.0",
+            "UID": "ce09f79457cd25a0"
+          },
+          "Version": "3.6.0",
+          "FilePath": "lib/ktor-server-websockets-jvm-3.6.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "io.ktor:ktor-utils-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/io.ktor/ktor-utils-jvm@3.6.0",
+            "UID": "d6b7b18b765affb9"
+          },
+          "Version": "3.6.0",
+          "FilePath": "lib/ktor-utils-jvm-3.6.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "io.ktor:ktor-websocket-serialization-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/io.ktor/ktor-websocket-serialization-jvm@3.6.0",
+            "UID": "6af72d37507445c0"
+          },
+          "Version": "3.6.0",
+          "FilePath": "lib/ktor-websocket-serialization-jvm-3.6.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "io.ktor:ktor-websockets-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/io.ktor/ktor-websockets-jvm@3.6.0",
+            "UID": "26517743f454e472"
+          },
+          "Version": "3.6.0",
+          "FilePath": "lib/ktor-websockets-jvm-3.6.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jetbrains.kotlin:kotlin-reflect",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains.kotlin/kotlin-reflect@2.3.21",
+            "UID": "acecf2de2376c283"
+          },
+          "Version": "2.3.21",
+          "FilePath": "lib/kotlin-reflect-2.3.21.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jetbrains.kotlin:kotlin-stdlib",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21",
+            "UID": "ce8939687383ea2"
+          },
+          "Version": "2.4.21",
+          "FilePath": "lib/kotlin-stdlib-2.4.21.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jetbrains.kotlin:kotlin-stdlib-jdk7",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib-jdk7@1.8.10",
+            "UID": "4fe87d7cbe854c14"
+          },
+          "Version": "1.8.10",
+          "FilePath": "lib/kotlin-stdlib-jdk7-1.8.10.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jetbrains.kotlin:kotlin-stdlib-jdk8",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib-jdk8@1.8.10",
+            "UID": "d762a7db0f4dd328"
+          },
+          "Version": "1.8.10",
+          "FilePath": "lib/kotlin-stdlib-jdk8-1.8.10.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains.kotlinx/kotlinx-collections-immutable-jvm@0.5.2",
+            "UID": "feb8a334e69d8913"
+          },
+          "Version": "0.5.2",
+          "FilePath": "lib/kotlinx-collections-immutable-jvm-0.5.2.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm@1.11.0",
+            "UID": "6287bb38577d9926"
+          },
+          "Version": "1.11.0",
+          "FilePath": "lib/kotlinx-coroutines-core-jvm-1.11.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jetbrains.kotlinx:kotlinx-io-bytestring-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains.kotlinx/kotlinx-io-bytestring-jvm@0.9.1",
+            "UID": "faef68c4cb67e1fb"
+          },
+          "Version": "0.9.1",
+          "FilePath": "lib/kotlinx-io-bytestring-jvm-0.9.1.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jetbrains.kotlinx:kotlinx-io-core-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains.kotlinx/kotlinx-io-core-jvm@0.9.1",
+            "UID": "1b813bce64c94d7d"
+          },
+          "Version": "0.9.1",
+          "FilePath": "lib/kotlinx-io-core-jvm-0.9.1.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jetbrains.kotlinx:kotlinx-serialization-cbor-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-cbor-jvm@1.12.0",
+            "UID": "62e4900405cd2e65"
+          },
+          "Version": "1.12.0",
+          "FilePath": "lib/kotlinx-serialization-cbor-jvm-1.12.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-core-jvm@1.12.0",
+            "UID": "6a53e534f5465d1b"
+          },
+          "Version": "1.12.0",
+          "FilePath": "lib/kotlinx-serialization-core-jvm-1.12.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jetbrains.kotlinx:kotlinx-serialization-json-jvm",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm@1.12.0",
+            "UID": "695a2ec76a9a2cce"
+          },
+          "Version": "1.12.0",
+          "FilePath": "lib/kotlinx-serialization-json-jvm-1.12.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jetbrains:annotations",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains/annotations@23.0.0",
+            "UID": "9835c6a9ba5444c6"
+          },
+          "Version": "23.0.0",
+          "FilePath": "lib/annotations-23.0.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.jspecify:jspecify",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jspecify/jspecify@1.0.0",
+            "UID": "3a7541ccffda5f97"
+          },
+          "Version": "1.0.0",
+          "FilePath": "lib/jspecify-1.0.0.jar",
+          "AnalyzedBy": "jar"
+        },
+        {
+          "Name": "org.slf4j:slf4j-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.slf4j/slf4j-api@2.0.19",
+            "UID": "66e3cee923abced8"
+          },
+          "Version": "2.0.19",
+          "Licenses": [
+            "MIT"
+          ],
+          "FilePath": "lib/slf4j-api-2.0.19.jar",
+          "AnalyzedBy": "jar"
+        }
+      ]
+    }
+  ]
+}

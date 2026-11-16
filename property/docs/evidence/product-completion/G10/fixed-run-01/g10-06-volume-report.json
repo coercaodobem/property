@@ -1,0 +1,77 @@
+{
+  "schema_version": 2,
+  "case": "G10-06",
+  "result": "PASS",
+  "predefined_variables": {
+    "directMessageCount": 50,
+    "publicNoteCount": 100,
+    "bridgeCount": 3,
+    "notesPerLogicalRateWindow": 50,
+    "logicalClockStepMs": 60000,
+    "fixedEpochSeconds": 1800000000
+  },
+  "test_relay_rate_limits": {
+    "event_burst": 151,
+    "req_burst": 632
+  },
+  "initial_bundle_bytes": 1600762,
+  "dm_count": 50,
+  "public_note_count": 100,
+  "relay_count": 4,
+  "bridge_count": 3,
+  "events_forwarded_per_bridge": [
+    100,
+    100,
+    100
+  ],
+  "resource_checkpoints": [
+    {
+      "checkpoint": "after-50-direct-messages",
+      "child_rss_bytes": 193114112,
+      "relay_rss_bytes": [
+        105140224,
+        103780352,
+        104845312,
+        166195200
+      ],
+      "relay_disk_bytes": [
+        158059908,
+        158059908,
+        158059908,
+        158059908
+      ]
+    },
+    {
+      "checkpoint": "after-50-public-notes",
+      "child_rss_bytes": 196259840,
+      "relay_rss_bytes": [
+        155144192,
+        156098560,
+        156512256,
+        169734144
+      ],
+      "relay_disk_bytes": [
+        158059908,
+        158059908,
+        158059908,
+        158059908
+      ]
+    },
+    {
+      "checkpoint": "after-100-public-notes",
+      "child_rss_bytes": 196653056,
+      "relay_rss_bytes": [
+        160477184,
+        159141888,
+        159514624,
+        171790336
+      ],
+      "relay_disk_bytes": [
+        158059908,
+        158059908,
+        158059908,
+        158059908
+      ]
+    }
+  ]
+}

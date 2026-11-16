@@ -39,6 +39,8 @@ O objetivo de plataforma inclui Windows, macOS, Linux/Ubuntu, Android e iOS. A i
 
 A publicação do app não significa que todo o plano foi concluído. O perfil offline Ubuntu registrou 70 casos PASS; os quatro casos nativos de Windows, macOS, Android e iOS/iPadOS estão PENDING. Consulte o [relatório e plano de testes](property/docs/plano-de-testes-central.pt-BR.md) para resultados e limitações. O marketplace não faz checkout; campanhas de node ainda não têm fluxo de operação/ativação em produção.
 
+A PWA pública está no ar. O bundle Ubuntu e os testes G10 offline foram preparados, mas ainda faltam a release pública versionada, o CI da tag exata e a verificação dos digests após upload. Veja o [índice de evidências de conclusão](property/docs/evidence/product-completion/README.pt-BR.md) e o [kit de divulgação](property/docs/launch-kit.pt-BR.md).
+
 ## Começar em poucos minutos
 
 A branch padrão e de desenvolvimento é **`modelo-mvp`**. Para contribuir, faça primeiro um fork; os comandos completos estão no [guia de contribuição](CONTRIBUTING.md).
@@ -87,6 +89,8 @@ Esses testes não dependem de pagamentos ou publicação de mensagens em relays 
 | [`property/tests/`](property/tests/) | Validações do produto Property |
 | [`property/docs/`](property/docs/) | Identidade, decisões, execução e plano de testes |
 | [`property/docs/ghostly-integration.pt-BR.md`](property/docs/ghostly-integration.pt-BR.md) | Interações de conversa inspiradas no Ghostly dentro da PWA Property existente |
+| [`property/docs/evidence/product-completion/README.pt-BR.md`](property/docs/evidence/product-completion/README.pt-BR.md) | Evidências G0–G10 e estado da release |
+| [`property/docs/launch-kit.pt-BR.md`](property/docs/launch-kit.pt-BR.md) | Posts em português para X, Reddit e fóruns comunitários |
 | [`geode/`](geode/) | Código do relay reaproveitado do Amethyst |
 | `amethyst/`, `commons/`, `commonsUI/`, `desktopApp/`, `cli/` | Base upstream preservada; presença do código não significa que todos os alvos sejam produtos Property publicados |
 

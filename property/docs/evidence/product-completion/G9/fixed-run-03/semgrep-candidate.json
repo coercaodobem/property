@@ -1,0 +1,2376 @@
+{
+  "version": "1.185.0",
+  "results": [
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "geode/src/main/kotlin/com/vitorpamplona/geode/InProcessRelays.kt",
+      "start": {
+        "line": 44,
+        "col": 33,
+        "offset": 2249
+      },
+      "end": {
+        "line": 44,
+        "col": 38,
+        "offset": 2254
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "geode/src/main/kotlin/com/vitorpamplona/geode/KtorRelay.kt",
+      "start": {
+        "line": 50,
+        "col": 39,
+        "offset": 2444
+      },
+      "end": {
+        "line": 50,
+        "col": 44,
+        "offset": 2449
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "geode/src/main/kotlin/com/vitorpamplona/geode/KtorRelay.kt",
+      "start": {
+        "line": 177,
+        "col": 10,
+        "offset": 7956
+      },
+      "end": {
+        "line": 177,
+        "col": 15,
+        "offset": 7961
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "geode/src/main/kotlin/com/vitorpamplona/geode/KtorRelay.kt",
+      "start": {
+        "line": 181,
+        "col": 21,
+        "offset": 8129
+      },
+      "end": {
+        "line": 181,
+        "col": 26,
+        "offset": 8134
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "geode/src/main/kotlin/com/vitorpamplona/geode/Main.kt",
+      "start": {
+        "line": 295,
+        "col": 36,
+        "offset": 14334
+      },
+      "end": {
+        "line": 295,
+        "col": 41,
+        "offset": 14339
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "geode/src/main/kotlin/com/vitorpamplona/geode/Main.kt",
+      "start": {
+        "line": 438,
+        "col": 52,
+        "offset": 20952
+      },
+      "end": {
+        "line": 438,
+        "col": 57,
+        "offset": 20957
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "geode/src/main/kotlin/com/vitorpamplona/geode/config/StaticConfig.kt",
+      "start": {
+        "line": 498,
+        "col": 64,
+        "offset": 24689
+      },
+      "end": {
+        "line": 498,
+        "col": 69,
+        "offset": 24694
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.html-in-template-string",
+      "path": "property/agent/property-agent.mjs",
+      "start": {
+        "line": 133,
+        "col": 42,
+        "offset": 7073
+      },
+      "end": {
+        "line": 133,
+        "col": 105,
+        "offset": 7136
+      },
+      "extra": {
+        "message": "This template literal looks like HTML and has interpolated variables. These variables are not HTML-encoded by default. If the variables contain HTML tags, these may be interpreted by the browser, resulting in cross-site scripting (XSS).",
+        "metadata": {
+          "cwe": [
+            "CWE-116: Improper Encoding or Escaping of Output"
+          ],
+          "owasp": [
+            "A03:2021 - Injection",
+            "A05:2025 - Injection"
+          ],
+          "category": "security",
+          "technology": [
+            "javascript"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A03_2021-Injection"
+          ]
+        },
+        "severity": "WARNING",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "property/web/app.js",
+      "start": {
+        "line": 3535,
+        "col": 121,
+        "offset": 217285
+      },
+      "end": {
+        "line": 3535,
+        "col": 126,
+        "offset": 217290
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "property/web/app.js",
+      "start": {
+        "line": 7655,
+        "col": 104,
+        "offset": 505681
+      },
+      "end": {
+        "line": 7655,
+        "col": 109,
+        "offset": 505686
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "property/web/i18n.js",
+      "start": {
+        "line": 200,
+        "col": 1168,
+        "offset": 63380
+      },
+      "end": {
+        "line": 200,
+        "col": 1173,
+        "offset": 63385
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "property/web/i18n.js",
+      "start": {
+        "line": 200,
+        "col": 1275,
+        "offset": 63487
+      },
+      "end": {
+        "line": 200,
+        "col": 1280,
+        "offset": 63492
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "property/web/i18n.js",
+      "start": {
+        "line": 206,
+        "col": 89,
+        "offset": 69813
+      },
+      "end": {
+        "line": 206,
+        "col": 94,
+        "offset": 69818
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "property/web/i18n.js",
+      "start": {
+        "line": 206,
+        "col": 111,
+        "offset": 69835
+      },
+      "end": {
+        "line": 206,
+        "col": 116,
+        "offset": 69840
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "property/web/i18n.js",
+      "start": {
+        "line": 207,
+        "col": 19,
+        "offset": 69923
+      },
+      "end": {
+        "line": 207,
+        "col": 24,
+        "offset": 69928
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "property/web/i18n.js",
+      "start": {
+        "line": 207,
+        "col": 71,
+        "offset": 69975
+      },
+      "end": {
+        "line": 207,
+        "col": 76,
+        "offset": 69980
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "property/web/i18n.js",
+      "start": {
+        "line": 255,
+        "col": 56,
+        "offset": 83667
+      },
+      "end": {
+        "line": 255,
+        "col": 61,
+        "offset": 83672
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "property/web/i18n.js",
+      "start": {
+        "line": 255,
+        "col": 161,
+        "offset": 83772
+      },
+      "end": {
+        "line": 255,
+        "col": 166,
+        "offset": 83777
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    },
+    {
+      "check_id": "javascript.lang.security.detect-insecure-websocket",
+      "path": "property/web/i18n.js",
+      "start": {
+        "line": 277,
+        "col": 223,
+        "offset": 89444
+      },
+      "end": {
+        "line": 277,
+        "col": 228,
+        "offset": 89449
+      },
+      "extra": {
+        "message": "Insecure WebSocket Detected. WebSocket Secure (wss) should be used for all WebSocket connections.",
+        "metadata": {
+          "cwe": [
+            "CWE-319: Cleartext Transmission of Sensitive Information"
+          ],
+          "asvs": {
+            "control_id": "13.5.1 Insecure WebSocket",
+            "control_url": "https://github.com/OWASP/ASVS/blob/master/4.0/en/0x21-V13-API.md#v135-websocket-security-requirements",
+            "section": "V13: API and Web Service Verification Requirements",
+            "version": "4"
+          },
+          "category": "security",
+          "technology": [
+            "regex"
+          ],
+          "owasp": [
+            "A03:2017 - Sensitive Data Exposure",
+            "A02:2021 - Cryptographic Failures",
+            "A04:2025 - Cryptographic Failures"
+          ],
+          "subcategory": [
+            "audit"
+          ],
+          "likelihood": "LOW",
+          "impact": "MEDIUM",
+          "confidence": "LOW",
+          "references": [
+            "https://owasp.org/Top10/A02_2021-Cryptographic_Failures"
+          ]
+        },
+        "severity": "ERROR",
+        "fingerprint": "requires login",
+        "lines": "requires login",
+        "validation_state": "NO_VALIDATOR",
+        "engine_kind": "OSS"
+      }
+    }
+  ],
+  "errors": [],
+  "paths": {
+    "scanned": [
+      "geode/src/main/kotlin/com/vitorpamplona/geode/InProcessRelays.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/KtorRelay.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/Main.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/RelayEngine.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/RelayIndexingStrategy.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/RelayInfo.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/RelayRetention.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/SignInPolicies.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/StoreFactory.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/config/MirrorFilterValidator.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/config/RateLimits.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/config/RelayIdentity.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/config/RuntimeConfig.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/config/StaticConfig.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/mirror/MirrorWorker.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/mirror/SyncCoverageFile.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/server/BoundedBody.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/server/ClientAddresses.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/server/GzipLines.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/server/HttpAdmission.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/server/HttpCommandSettings.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/server/Nip11HttpRoute.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/server/Nip86HttpRoute.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/server/NipFEHttpRoute.kt",
+      "geode/src/main/kotlin/com/vitorpamplona/geode/server/WebSocketSessionPump.kt",
+      "property/agent/README.md",
+      "property/agent/bin/property-agent",
+      "property/agent/core.mjs",
+      "property/agent/daemon.mjs",
+      "property/agent/install.sh",
+      "property/agent/ipc.mjs",
+      "property/agent/ledger-rpc.mjs",
+      "property/agent/manifest.json",
+      "property/agent/mcp-server.mjs",
+      "property/agent/nano-wallet.mjs",
+      "property/agent/property-agent.mjs",
+      "property/agent/protocol-contract.mjs",
+      "property/agent/relay.mjs",
+      "property/agent/service.mjs",
+      "property/agent/store.mjs",
+      "property/agent/tools.manifest.json",
+      "property/agent/trade-conversation.mjs",
+      "property/agent/trade-node-config.mjs",
+      "property/agent/trade-state-store.mjs",
+      "property/agent/trade-state.mjs",
+      "property/agent/uninstall.sh",
+      "property/agent/vault.mjs",
+      "property/agent/xno-escrow.mjs",
+      "property/agent/xno-journal.mjs",
+      "property/agent/xno-threshold-protocol.mjs",
+      "property/agent/xno-threshold-store.mjs",
+      "property/agent/xno-threshold.mjs",
+      "property/agent/xno-trades.mjs",
+      "property/relay/README.md",
+      "property/relay/README.pt-BR.md",
+      "property/relay/campaign-engine.mjs",
+      "property/relay/campaign-operator.mjs",
+      "property/relay/dist-parts/PROVENANCE.md",
+      "property/relay/dist-parts/PROVENANCE.pt-BR.md",
+      "property/relay/dist-parts/SHA256SUMS",
+      "property/relay/dist-parts/manifest.txt",
+      "property/relay/dist-parts/part-001",
+      "property/relay/dist-parts/part-002",
+      "property/relay/dist-parts/part-003",
+      "property/relay/dist-parts/part-004",
+      "property/relay/dist-parts/part-005",
+      "property/relay/dist-parts/part-006",
+      "property/relay/dist-parts/part-007",
+      "property/relay/dist-parts/part-008",
+      "property/relay/dist-parts/part-009",
+      "property/relay/dist-parts/part-010",
+      "property/relay/dist-parts/part-011",
+      "property/relay/dist-parts/part-012",
+      "property/relay/dist-parts/part-013",
+      "property/relay/dist-parts/part-014",
+      "property/relay/dist-parts/part-015",
+      "property/relay/dist-parts/part-016",
+      "property/relay/dist-parts/part-017",
+      "property/relay/dist-parts/part-018",
+      "property/relay/dist-parts/part-019",
+      "property/relay/dist-parts/part-020",
+      "property/relay/dist-parts/part-021",
+      "property/relay/dist-parts/part-022",
+      "property/relay/dist-parts/part-023",
+      "property/relay/dist-parts/part-024",
+      "property/relay/dist-parts/part-025",
+      "property/relay/dist-parts/part-026",
+      "property/relay/dist-parts/part-027",
+      "property/relay/dist-parts/part-028",
+      "property/relay/dist-parts/part-029",
+      "property/relay/dist-parts/part-030",
+      "property/relay/dist-parts/part-031",
+      "property/relay/dist-parts/part-032",
+      "property/relay/dist-parts/part-033",
+      "property/relay/dist-parts/part-034",
+      "property/relay/dist-parts/part-035",
+      "property/relay/dist-parts/part-036",
+      "property/relay/dist-parts/part-037",
+      "property/relay/dist-parts/part-038",
+      "property/relay/dist-parts/part-039",
+      "property/relay/dist-parts/part-040",
+      "property/relay/dist-parts/part-041",
+      "property/relay/dist-parts/part-042",
+      "property/relay/dist-parts/part-043",
+      "property/relay/dist-parts/part-044",
+      "property/relay/dist-parts/part-045",
+      "property/relay/dist-parts/part-046",
+      "property/relay/dist-parts/part-047",
+      "property/relay/dist-parts/part-048",
+      "property/relay/dist-parts/part-049",
+      "property/relay/dist-parts/part-050",
+      "property/relay/dist-parts/part-051",
+      "property/relay/dist-parts/part-052",
+      "property/relay/dist-parts/part-053",
+      "property/relay/dist-parts/part-054",
+      "property/relay/dist-parts/part-055",
+      "property/relay/dist-parts/part-056",
+      "property/relay/dist-parts/part-057",
+      "property/relay/dist-parts/part-058",
+      "property/relay/dist-parts/part-059",
+      "property/relay/dist-parts/part-060",
+      "property/relay/dist-parts/part-061",
+      "property/relay/dist-parts/part-062",
+      "property/relay/dist-parts/part-063",
+      "property/relay/dist-parts/part-064",
+      "property/relay/dist-parts/part-065",
+      "property/relay/dist-parts/part-066",
+      "property/relay/dist-parts/part-067",
+      "property/relay/dist-parts/part-068",
+      "property/relay/dist-parts/part-069",
+      "property/relay/dist-parts/part-070",
+      "property/relay/dist-parts/part-071",
+      "property/relay/dist-parts/part-072",
+      "property/relay/dist-parts/part-073",
+      "property/relay/dist-parts/part-074",
+      "property/relay/dist-parts/part-075",
+      "property/relay/dist-parts/part-076",
+      "property/relay/dist-parts/part-077",
+      "property/relay/dist-parts/part-078",
+      "property/relay/dist-parts/part-079",
+      "property/relay/dist-parts/part-080",
+      "property/relay/dist-parts/part-081",
+      "property/relay/dist-parts/part-082",
+      "property/relay/dist-parts/part-083",
+      "property/relay/dist-parts/part-084",
+      "property/relay/dist-parts/part-085",
+      "property/relay/dist-parts/part-086",
+      "property/relay/dist-parts/part-087",
+      "property/relay/dist-parts/part-088",
+      "property/relay/dist-parts/part-089",
+      "property/relay/dist-parts/part-090",
+      "property/relay/dist-parts/part-091",
+      "property/relay/dist-parts/part-092",
+      "property/relay/dist-parts/part-093",
+      "property/relay/dist-parts/part-094",
+      "property/relay/dist-parts/part-095",
+      "property/relay/dist-parts/part-096",
+      "property/relay/dist-parts/part-097",
+      "property/relay/dist-parts/part-098",
+      "property/relay/dist-parts/part-099",
+      "property/relay/dist-parts/part-100",
+      "property/relay/dist-parts/part-101",
+      "property/relay/dist-parts/part-102",
+      "property/relay/dist-parts/part-103",
+      "property/relay/dist-parts/part-104",
+      "property/relay/dist-parts/part-105",
+      "property/relay/dist-parts/part-106",
+      "property/relay/dist-parts/part-107",
+      "property/relay/dist-parts/part-108",
+      "property/relay/dist-parts/part-109",
+      "property/relay/dist-parts/part-110",
+      "property/relay/dist-parts/part-111",
+      "property/relay/dist-parts/part-112",
+      "property/relay/dist-parts/part-113",
+      "property/relay/dist-parts/part-114",
+      "property/relay/dist-parts/part-115",
+      "property/relay/dist-parts/part-116",
+      "property/relay/dist-parts/part-117",
+      "property/relay/dist-parts/part-118",
+      "property/relay/dist-parts/part-119",
+      "property/relay/dist-parts/part-120",
+      "property/relay/dist-parts/part-121",
+      "property/relay/dist-parts/part-122",
+      "property/relay/dist-parts/part-123",
+      "property/relay/dist-parts/part-124",
+      "property/relay/dist-parts/part-125",
+      "property/relay/dist-parts/part-126",
+      "property/relay/dist-parts/part-127",
+      "property/relay/dist-parts/part-128",
+      "property/relay/ledger-rpc.mjs",
+      "property/relay/portable/PROVENANCE.md",
+      "property/relay/portable/PROVENANCE.pt-BR.md",
+      "property/relay/portable/macos-arm64/manifest.json",
+      "property/relay/portable/macos-arm64/part-084",
+      "property/relay/portable/windows-x64/manifest.json",
+      "property/relay/portable/windows-x64/part-084",
+      "property/relay/resource-limits.sh",
+      "property/relay/runtime-dependencies.json",
+      "property/relay/start-macos.sh",
+      "property/relay/start.ps1",
+      "property/relay/start.sh",
+      "property/web/GHOSTLY-MIT-LICENSE.txt",
+      "property/web/about.html",
+      "property/web/about.pt-BR.html",
+      "property/web/agent-messaging.js",
+      "property/web/app-badge.js",
+      "property/web/app-directory.js",
+      "property/web/app.js",
+      "property/web/assets/icon.svg",
+      "property/web/audio-playback.css",
+      "property/web/audio-playback.js",
+      "property/web/call-controller.js",
+      "property/web/call-window.css",
+      "property/web/call-window.js",
+      "property/web/campaigns.js",
+      "property/web/chat-drafts.js",
+      "property/web/chat-gestures.js",
+      "property/web/chat-search.js",
+      "property/web/chess/NOTICE.md",
+      "property/web/chess/chess.css",
+      "property/web/chess/src/game.ts",
+      "property/web/chess/src/languages.ts",
+      "property/web/chess/src/property-api.ts",
+      "property/web/chess/src/protocol.ts",
+      "property/web/chess/src/runtime.ts",
+      "property/web/chess/src/strings.ts",
+      "property/web/chess/src/toss.ts",
+      "property/web/chess/src/ui.ts",
+      "property/web/chess/tsconfig.json",
+      "property/web/community-groups.js",
+      "property/web/contact.js",
+      "property/web/conversation-folders.js",
+      "property/web/direct-file-chunks.js",
+      "property/web/direct-file-envelope.js",
+      "property/web/direct-file-storage.js",
+      "property/web/direct-transfer-controller.js",
+      "property/web/emoji-picker.js",
+      "property/web/file-transfers.js",
+      "property/web/forwarding.js",
+      "property/web/group-invites.css",
+      "property/web/group-invites.js",
+      "property/web/group-mentions.css",
+      "property/web/group-mentions.js",
+      "property/web/i18n.js",
+      "property/web/ice-servers.js",
+      "property/web/identity-marks.css",
+      "property/web/identity-marks.js",
+      "property/web/image-viewer.js",
+      "property/web/index.html",
+      "property/web/link-preview.css",
+      "property/web/link-preview.js",
+      "property/web/local-moderation.js",
+      "property/web/location-cards.css",
+      "property/web/location-cards.js",
+      "property/web/manifest.webmanifest",
+      "property/web/marketplace.js",
+      "property/web/message-days.js",
+      "property/web/message-deletions.js",
+      "property/web/message-edits.js",
+      "property/web/message-forwards.css",
+      "property/web/message-forwards.js",
+      "property/web/message-pins.css",
+      "property/web/message-pins.js",
+      "property/web/message-scroll.css",
+      "property/web/message-scroll.js",
+      "property/web/money.js",
+      "property/web/nano.js",
+      "property/web/nip05.js",
+      "property/web/nip39.js",
+      "property/web/nostr-entities.js",
+      "property/web/notification-preferences.js",
+      "property/web/payment-card.css",
+      "property/web/payment-card.js",
+      "property/web/payment-uris.js",
+      "property/web/project-story.css",
+      "property/web/property-apps.css",
+      "property/web/protocol-contract.js",
+      "property/web/public-profile.js",
+      "property/web/pwa.js",
+      "property/web/relay-defaults.js",
+      "property/web/rich-text.js",
+      "property/web/routing.js",
+      "property/web/secret-guard.js",
+      "property/web/share-inbox.js",
+      "property/web/styles.css",
+      "property/web/sw.js",
+      "property/web/typing-signals.css",
+      "property/web/typing-signals.js",
+      "property/web/vault.js",
+      "property/web/voice-messages.js"
+    ]
+  },
+  "time": {
+    "rules": [],
+    "rules_parse_time": 0.04649782180786133,
+    "profiling_times": {
+      "config_time": 1.1748697757720947,
+      "core_time": 26.16240620613098,
+      "ignores_time": 0.00017762184143066406,
+      "total_time": 27.353997707366943
+    },
+    "parsing_time": {
+      "total_time": 18.802743434906006,
+      "per_file_time": {
+        "mean": 0.026151242607657874,
+        "std_dev": 0.05219826283274298
+      },
+      "very_slow_stats": {
+        "time_ratio": 0.580988699822082,
+        "count_ratio": 0.016689847009735744
+      },
+      "very_slow_files": [
+        {
+          "fpath": "property/agent/xno-trades.mjs",
+          "ftime": 0.33302879333496094
+        },
+        {
+          "fpath": "property/web/call-controller.js",
+          "ftime": 0.3488900661468506
+        },
+        {
+          "fpath": "property/agent/ledger-rpc.mjs",
+          "ftime": 0.3597860336303711
+        },
+        {
+          "fpath": "property/agent/xno-escrow.mjs",
+          "ftime": 0.38266491889953613
+        },
+        {
+          "fpath": "property/relay/ledger-rpc.mjs",
+          "ftime": 0.3874938488006592
+        },
+        {
+          "fpath": "property/agent/trade-state.mjs",
+          "ftime": 0.44757699966430664
+        },
+        {
+          "fpath": "property/web/emoji-picker.js",
+          "ftime": 0.4750649929046631
+        },
+        {
+          "fpath": "property/web/secret-guard.js",
+          "ftime": 0.8090229034423828
+        },
+        {
+          "fpath": "property/agent/xno-threshold-protocol.mjs",
+          "ftime": 0.8948700428009033
+        },
+        {
+          "fpath": "property/web/app.js",
+          "ftime": 5.8365638256073
+        }
+      ]
+    },
+    "scanning_time": {
+      "total_time": 100.5761559009552,
+      "per_file_time": {
+        "mean": 0.2483361874097662,
+        "std_dev": 1.8078598250750477
+      },
+      "very_slow_stats": {
+        "time_ratio": 0.6681672858655312,
+        "count_ratio": 0.03950617283950617
+      },
+      "very_slow_files": [
+        {
+          "fpath": "property/web/i18n.js",
+          "ftime": 2.3094069957733154
+        },
+        {
+          "fpath": "property/web/rich-text.js",
+          "ftime": 2.4860281944274902
+        },
+        {
+          "fpath": "property/agent/xno-threshold-protocol.mjs",
+          "ftime": 2.6848180294036865
+        },
+        {
+          "fpath": "property/agent/ledger-rpc.mjs",
+          "ftime": 2.8965389728546143
+        },
+        {
+          "fpath": "property/web/direct-transfer-controller.js",
+          "ftime": 3.232835054397583
+        },
+        {
+          "fpath": "property/agent/trade-state.mjs",
+          "ftime": 3.524937152862549
+        },
+        {
+          "fpath": "property/relay/ledger-rpc.mjs",
+          "ftime": 3.6678309440612793
+        },
+        {
+          "fpath": "property/web/emoji-picker.js",
+          "ftime": 4.797802925109863
+        },
+        {
+          "fpath": "property/web/secret-guard.js",
+          "ftime": 5.997713804244995
+        },
+        {
+          "fpath": "property/web/app.js",
+          "ftime": 24.258007049560547
+        }
+      ]
+    },
+    "matching_time": {
+      "total_time": 39.09662985801697,
+      "per_file_and_rule_time": {
+        "mean": 0.05437639757721413,
+        "std_dev": 0.028969441182069754
+      },
+      "very_slow_stats": {
+        "time_ratio": 0.7109820874218962,
+        "count_ratio": 0.11126564673157163
+      },
+      "very_slow_rules_on_files": [
+        {
+          "fpath": "property/web/typing-signals.js",
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename",
+          "time": 0.6239991188049316
+        },
+        {
+          "fpath": "property/web/direct-transfer-controller.js",
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename",
+          "time": 0.7634501457214355
+        },
+        {
+          "fpath": "property/web/emoji-picker.js",
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename",
+          "time": 0.815187931060791
+        },
+        {
+          "fpath": "property/agent/trade-state.mjs",
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename",
+          "time": 0.8414430618286133
+        },
+        {
+          "fpath": "property/relay/ledger-rpc.mjs",
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename",
+          "time": 0.9077169895172119
+        },
+        {
+          "fpath": "property/relay/campaign-engine.mjs",
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename",
+          "time": 0.950753927230835
+        },
+        {
+          "fpath": "property/agent/ledger-rpc.mjs",
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename",
+          "time": 1.3463630676269531
+        },
+        {
+          "fpath": "property/web/secret-guard.js",
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename",
+          "time": 1.6481897830963135
+        },
+        {
+          "fpath": "property/web/app.js",
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.unknown-value-with-script-tag",
+          "time": 2.1055290699005127
+        },
+        {
+          "fpath": "property/web/app.js",
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename",
+          "time": 2.1880860328674316
+        }
+      ]
+    },
+    "tainting_time": {
+      "total_time": 37.24782943725586,
+      "per_def_and_rule_time": {
+        "mean": 0.007349611175464851,
+        "std_dev": 0.002112567870984834
+      },
+      "very_slow_stats": {
+        "time_ratio": 0.6191780230933212,
+        "count_ratio": 0.021902131018153116
+      },
+      "very_slow_rules_on_defs": [
+        {
+          "fpath": "property/web/emoji-picker.js",
+          "fline": 152,
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require",
+          "time": 0.4996960163116455
+        },
+        {
+          "fpath": "property/web/app.js",
+          "fline": 1,
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.sqli.node-postgres-sqli",
+          "time": 0.5069570541381836
+        },
+        {
+          "fpath": "property/web/i18n.js",
+          "fline": 1,
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require",
+          "time": 0.537632942199707
+        },
+        {
+          "fpath": "property/web/i18n.js",
+          "fline": 1,
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.path-traversal.path-join-resolve-traversal",
+          "time": 0.8002688884735107
+        },
+        {
+          "fpath": "property/web/emoji-picker.js",
+          "fline": 1,
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename",
+          "time": 0.8046259880065918
+        },
+        {
+          "fpath": "property/web/emoji-picker.js",
+          "fline": 1,
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require",
+          "time": 0.808952808380127
+        },
+        {
+          "fpath": "property/web/app.js",
+          "fline": 1,
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.path-traversal.path-join-resolve-traversal",
+          "time": 0.8301479816436768
+        },
+        {
+          "fpath": "property/web/app.js",
+          "fline": 1,
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename",
+          "time": 0.8506560325622559
+        },
+        {
+          "fpath": "property/web/app.js",
+          "fline": 1,
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require",
+          "time": 0.9776530265808105
+        },
+        {
+          "fpath": "property/web/rich-text.js",
+          "fline": 1,
+          "rule_id": "tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require",
+          "time": 1.5946409702301025
+        }
+      ]
+    },
+    "fixpoint_timeouts": [
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/core.mjs:38:16 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/core.mjs",
+          "start": {
+            "line": 38,
+            "col": 17,
+            "offset": 1619
+          },
+          "end": {
+            "line": 38,
+            "col": 31,
+            "offset": 1633
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/daemon.mjs:31:22 [rules: 3, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/daemon.mjs",
+          "start": {
+            "line": 31,
+            "col": 23,
+            "offset": 1867
+          },
+          "end": {
+            "line": 31,
+            "col": 32,
+            "offset": 1876
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/ledger-rpc.mjs:482:16 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/ledger-rpc.mjs",
+          "start": {
+            "line": 482,
+            "col": 17,
+            "offset": 25926
+          },
+          "end": {
+            "line": 482,
+            "col": 37,
+            "offset": 25946
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/nano-wallet.mjs:185:17 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/nano-wallet.mjs",
+          "start": {
+            "line": 185,
+            "col": 18,
+            "offset": 11538
+          },
+          "end": {
+            "line": 185,
+            "col": 34,
+            "offset": 11554
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/nano-wallet.mjs:83:16 [rules: 2, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/nano-wallet.mjs",
+          "start": {
+            "line": 83,
+            "col": 17,
+            "offset": 4663
+          },
+          "end": {
+            "line": 83,
+            "col": 38,
+            "offset": 4684
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/trade-conversation.mjs:14:9 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/trade-conversation.mjs",
+          "start": {
+            "line": 14,
+            "col": 10,
+            "offset": 631
+          },
+          "end": {
+            "line": 14,
+            "col": 25,
+            "offset": 646
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/trade-conversation.mjs:66:16 [rules: 2, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/trade-conversation.mjs",
+          "start": {
+            "line": 66,
+            "col": 17,
+            "offset": 4820
+          },
+          "end": {
+            "line": 66,
+            "col": 47,
+            "offset": 4850
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/trade-state.mjs:61:16 [rules: 6, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/trade-state.mjs",
+          "start": {
+            "line": 61,
+            "col": 17,
+            "offset": 3119
+          },
+          "end": {
+            "line": 61,
+            "col": 40,
+            "offset": 3142
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/trade-state.mjs:92:17 [rules: 2, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename]",
+        "location": {
+          "path": "property/agent/trade-state.mjs",
+          "start": {
+            "line": 92,
+            "col": 18,
+            "offset": 5003
+          },
+          "end": {
+            "line": 92,
+            "col": 31,
+            "offset": 5016
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/xno-escrow.mjs:103:16 [rules: 2, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/xno-escrow.mjs",
+          "start": {
+            "line": 103,
+            "col": 17,
+            "offset": 7865
+          },
+          "end": {
+            "line": 103,
+            "col": 39,
+            "offset": 7887
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/xno-threshold-protocol.mjs:109:16 [rules: 4, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/xno-threshold-protocol.mjs",
+          "start": {
+            "line": 109,
+            "col": 17,
+            "offset": 8269
+          },
+          "end": {
+            "line": 109,
+            "col": 43,
+            "offset": 8295
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/xno-threshold-protocol.mjs:299:17 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/xno-threshold-protocol.mjs",
+          "start": {
+            "line": 299,
+            "col": 18,
+            "offset": 20619
+          },
+          "end": {
+            "line": 299,
+            "col": 24,
+            "offset": 20625
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/xno-threshold-protocol.mjs:35:9 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/xno-threshold-protocol.mjs",
+          "start": {
+            "line": 35,
+            "col": 10,
+            "offset": 1989
+          },
+          "end": {
+            "line": 35,
+            "col": 32,
+            "offset": 2011
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/xno-trades.mjs:122:16 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/xno-trades.mjs",
+          "start": {
+            "line": 122,
+            "col": 17,
+            "offset": 9412
+          },
+          "end": {
+            "line": 122,
+            "col": 38,
+            "offset": 9433
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/agent/xno-trades.mjs:62:16 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/agent/xno-trades.mjs",
+          "start": {
+            "line": 62,
+            "col": 17,
+            "offset": 3792
+          },
+          "end": {
+            "line": 62,
+            "col": 35,
+            "offset": 3810
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/relay/campaign-engine.mjs:118:16 [rules: 3, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/relay/campaign-engine.mjs",
+          "start": {
+            "line": 118,
+            "col": 17,
+            "offset": 6855
+          },
+          "end": {
+            "line": 118,
+            "col": 37,
+            "offset": 6875
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/relay/ledger-rpc.mjs:299:16 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp]",
+        "location": {
+          "path": "property/relay/ledger-rpc.mjs",
+          "start": {
+            "line": 299,
+            "col": 17,
+            "offset": 15721
+          },
+          "end": {
+            "line": 299,
+            "col": 41,
+            "offset": 15745
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/relay/ledger-rpc.mjs:34:9 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp]",
+        "location": {
+          "path": "property/relay/ledger-rpc.mjs",
+          "start": {
+            "line": 34,
+            "col": 10,
+            "offset": 1467
+          },
+          "end": {
+            "line": 34,
+            "col": 29,
+            "offset": 1486
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/relay/ledger-rpc.mjs:482:16 [rules: 5, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/relay/ledger-rpc.mjs",
+          "start": {
+            "line": 482,
+            "col": 17,
+            "offset": 25926
+          },
+          "end": {
+            "line": 482,
+            "col": 37,
+            "offset": 25946
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/app.js:1:0 [rules: 9, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/app.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/audio-playback.js:1:0 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/audio-playback.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/audio-playback.js:6:11 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/audio-playback.js",
+          "start": {
+            "line": 6,
+            "col": 12,
+            "offset": 116
+          },
+          "end": {
+            "line": 6,
+            "col": 18,
+            "offset": 122
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/call-controller.js:1:0 [rules: 2, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/call-controller.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/call-controller.js:21:11 [rules: 2, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/call-controller.js",
+          "start": {
+            "line": 21,
+            "col": 12,
+            "offset": 850
+          },
+          "end": {
+            "line": 21,
+            "col": 18,
+            "offset": 856
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/campaigns.js:1:0 [rules: 3, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/campaigns.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/chess/src/ui.ts:34:16 [rules: 4, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/chess/src/ui.ts",
+          "start": {
+            "line": 34,
+            "col": 17,
+            "offset": 1505
+          },
+          "end": {
+            "line": 34,
+            "col": 27,
+            "offset": 1515
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/direct-file-envelope.js:1:0 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/direct-file-envelope.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/direct-file-envelope.js:41:17 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/direct-file-envelope.js",
+          "start": {
+            "line": 41,
+            "col": 18,
+            "offset": 2430
+          },
+          "end": {
+            "line": 41,
+            "col": 26,
+            "offset": 2438
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/direct-file-storage.js:14:11 [rules: 10, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/direct-file-storage.js",
+          "start": {
+            "line": 14,
+            "col": 12,
+            "offset": 482
+          },
+          "end": {
+            "line": 14,
+            "col": 18,
+            "offset": 488
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/direct-file-storage.js:178:19 [rules: 2, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/direct-file-storage.js",
+          "start": {
+            "line": 178,
+            "col": 20,
+            "offset": 9665
+          },
+          "end": {
+            "line": 178,
+            "col": 41,
+            "offset": 9686
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/direct-file-storage.js:1:0 [rules: 10, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/direct-file-storage.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/direct-transfer-controller.js:1:0 [rules: 6, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/direct-transfer-controller.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/direct-transfer-controller.js:24:11 [rules: 7, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/direct-transfer-controller.js",
+          "start": {
+            "line": 24,
+            "col": 12,
+            "offset": 939
+          },
+          "end": {
+            "line": 24,
+            "col": 18,
+            "offset": 945
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/file-transfers.js:1:0 [rules: 3, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/file-transfers.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/group-invites.js:1:0 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/group-invites.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/i18n.js:1:0 [rules: 11, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/i18n.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/location-cards.js:1:0 [rules: 6, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/location-cards.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/marketplace.js:1:0 [rules: 2, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/marketplace.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/message-deletions.js:49:11 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/message-deletions.js",
+          "start": {
+            "line": 49,
+            "col": 12,
+            "offset": 2603
+          },
+          "end": {
+            "line": 49,
+            "col": 22,
+            "offset": 2613
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/nip39.js:1:0 [rules: 5, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/nip39.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/payment-uris.js:1:0 [rules: 2, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/payment-uris.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/relay-defaults.js:1:0 [rules: 4, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/relay-defaults.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/rich-text.js:1:0 [rules: 40, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/rich-text.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/rich-text.js:203:11 [rules: 1, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/rich-text.js",
+          "start": {
+            "line": 203,
+            "col": 12,
+            "offset": 8183
+          },
+          "end": {
+            "line": 203,
+            "col": 24,
+            "offset": 8195
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/secret-guard.js:1:0 [rules: 5, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/secret-guard.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/typing-signals.js:1:0 [rules: 4, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/typing-signals.js",
+          "start": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          },
+          "end": {
+            "line": 1,
+            "col": 1,
+            "offset": 0
+          }
+        }
+      },
+      {
+        "error_type": "Fixpoint timeout",
+        "severity": "warn",
+        "message": "Fixpoint timeout while performing taint analysis at property/web/typing-signals.js:233:11 [rules: 2, first: tmp.property-g9-semgrep-rules.javascript.lang.security.audit.detect-non-literal-require]",
+        "location": {
+          "path": "property/web/typing-signals.js",
+          "start": {
+            "line": 233,
+            "col": 12,
+            "offset": 13728
+          },
+          "end": {
+            "line": 233,
+            "col": 18,
+            "offset": 13734
+          }
+        }
+      }
+    ],
+    "prefiltering": {
+      "project_level_time": 0.0,
+      "file_level_time": 0.0,
+      "rules_with_project_prefilters_ratio": 0.0,
+      "rules_with_file_prefilters_ratio": 0.8325581395348837,
+      "rules_selected_ratio": 0.22573643410852715,
+      "rules_matched_ratio": 0.22573643410852715
+    },
+    "targets": [],
+    "total_bytes": 0,
+    "max_memory_bytes": 1754041472
+  },
+  "engine_requested": "OSS",
+  "skipped_rules": [],
+  "profiling_results": []
+}

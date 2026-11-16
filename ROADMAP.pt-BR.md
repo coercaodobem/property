@@ -2,7 +2,7 @@
 
 **Português (Brasil)** · [English](ROADMAP.md)
 
-Atualizado em 2026-11-13. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Consulte o [plano completo de implementação](property/docs/product-completion-plan.pt-BR.md) para os gates sequenciais restritos a testes automatizados offline no Ubuntu Linux x86_64. O [plano central](property/docs/plano-central.pt-BR.md) e o [plano de testes](property/docs/plano-de-testes-central.pt-BR.md) trazem critérios complementares. Uso em outros sistemas operacionais e revisão humana ficam fora daquele plano e pendentes para um escopo futuro.
+Atualizado em 2026-11-16. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Consulte o [plano completo de implementação](property/docs/product-completion-plan.pt-BR.md) para os gates sequenciais restritos a testes automatizados offline no Ubuntu Linux x86_64. O [plano central](property/docs/plano-central.pt-BR.md) e o [plano de testes](property/docs/plano-de-testes-central.pt-BR.md) trazem critérios complementares. Os testes automatizados G9 passaram com limites de cobertura documentados; a parte offline do G10 passou, mas a release pública versionada, o CI da tag exata e a verificação dos digests enviados continuam pendentes. Uso em outros sistemas operacionais e revisão humana ficam fora desta execução. Consulte o [índice de evidências](property/docs/evidence/product-completion/README.pt-BR.md).
 
 ## Base disponível para testar
 

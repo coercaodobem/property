@@ -1,0 +1,108 @@
+{
+  "schema_version": 2,
+  "gate": "G9",
+  "result": "PASS",
+  "candidate_commit": "111926e34fd9e654cf4d0fe550c8ba5c267542ba",
+  "profile": "Ubuntu Linux x86_64; offline security and regression checks",
+  "candidate": {
+    "archive_sha256": "2384fd4ec8e1c00dc05d2539ecf745a8cddc5d0ccd1384b0231bdef70c94e4fb",
+    "archive_bytes": 68543468,
+    "manifest_sha256": "247a22cbd4cde66329194f2bd471bb7c623be877c3ce45975a96c637cac777b5",
+    "sbom_sha256": "eb472441ac4c5676ff825458a391ac53fb420863b010e505a09a2b6832acee27",
+    "signature_key_fingerprint_sha256": "60025655e12c534e41003d8d87c3080c33b3e72f86bb19dbcda14182684f670c"
+  },
+  "dependency_scans": {
+    "osv_offline": {
+      "result": "PASS",
+      "scanner": "OSV-Scanner 2.7.1",
+      "input": "fixed-run-03/SBOM.spdx.json",
+      "sbom_packages_seen": 67,
+      "scannable_maven_packages": 48,
+      "scannable_npm_packages": 6,
+      "scannable_packages_total": 54,
+      "unsupported_or_non_ecosystem_packages": 12,
+      "known_vulnerabilities": 0,
+      "network_during_scan": false,
+      "maven_database_sha256": "c7adfd1da096969751bf014817a5948d59241487937119413107037fc94e4ddf",
+      "npm_database_sha256": "a6b0201971a867ed3877b7260fb2f3673ed4360fff6532228f91dc6b55806763",
+      "npm_database_downloaded_at_local": "2026-11-16 15:21 -03:00",
+      "report": "fixed-run-03/osv-candidate-all.json"
+    },
+    "trivy_java": {
+      "result": "PASS",
+      "scanner": "Trivy 0.76.2",
+      "profile": "rootfs; local cached vulnerability and Java databases; offline scan",
+      "java_packages_detected": 40,
+      "known_vulnerabilities": 0,
+      "vulnerability_database_updated_at_utc": "2026-11-16T13:03:44Z",
+      "java_database_updated_at_utc": "2026-11-16T00:57:00Z",
+      "report": "fixed-run-03/trivy-geode-rootfs.json"
+    },
+    "npm_audit_lockfile": {
+      "result": "PASS_WITH_LOCAL_CACHE_FRESHNESS_LIMITATION",
+      "dependencies_reported": 1170,
+      "known_advisories_in_local_cache": 0,
+      "cache_freshness": "unknown",
+      "report": "fixed-run-03/npm-audit-candidate.json"
+    },
+    "temurin_runtime": {
+      "version": "21.0.13+9",
+      "vendor_release_date": "2026-10-30",
+      "source": "https://adoptium.net/news/2026/10/eclipse-temurin-17021-21013-2505-available",
+      "direct_binary_cve_scanner_coverage": "NOT_PROVIDED_BY_OSV_OR_TRIVY_RESULTS",
+      "disposition": "Exact runtime is included in the signed candidate SBOM/manifest and corresponds to the current Temurin 21 security release as of 2026-11-16; this is not a separate binary CVE scan."
+    }
+  },
+  "static_analysis": {
+    "result": "PASS_WITH_TRIAGED_MATCHES",
+    "scanner": "Semgrep OSS 1.185.0",
+    "local_rules": 43,
+    "tracked_files_scanned": 290,
+    "parsed_lines_percent": 100,
+    "scanner_errors": 0,
+    "findings": 19,
+    "triaged_findings": 19,
+    "remaining_untriaged_findings": 0,
+    "report": "fixed-run-03/semgrep-candidate.json",
+    "triage": "fixed-run-03/security-triage.json"
+  },
+  "secret_scan": {
+    "result": "PASS_LIMITED_PATTERNS",
+    "text_files_scanned": 263,
+    "binary_or_invalid_utf8_files_skipped": 303,
+    "patterns": 4,
+    "matches": 0,
+    "report": "fixed-run-03/secret-pattern-scan-candidate.json",
+    "limitation": "Four high-confidence credential/key patterns only; no binary scan or human audit."
+  },
+  "sbom_and_signature": {
+    "result": "PASS",
+    "format": "SPDX-2.3",
+    "archive_file_count": 415,
+    "sbom_file_records": 414,
+    "nonself_file_sha256_checks": 413,
+    "license_and_provenance_records": 414,
+    "sbom_sha256": "eb472441ac4c5676ff825458a391ac53fb420863b010e505a09a2b6832acee27",
+    "signature_verification": "PASS in exact-candidate offline package smoke; no private signing material included",
+    "report": "fixed-run-03/SBOM.spdx.json"
+  },
+  "fixed_count_security_regressions": {
+    "result": "PASS",
+    "hostile_inputs": 200,
+    "local_moderation_cases": 50,
+    "configured_rate_and_storage_limits": 20,
+    "signed_relay_discovery_cases": 100,
+    "integrated_smoke_files": 85,
+    "source_ci_run": "https://github.com/coercaodobem/property/actions/runs/43922994219"
+  },
+  "supplemental_checks": {
+    "geode_gradle_test_suite": "PENDING_SUPPLEMENTAL",
+    "reason": "Offline Gradle cache lacks junit:junit:4.13.2 and kotlinx-serialization-core:1.11.0. This suite is not one of the explicit G9 fixed-count criteria; no pass is claimed.",
+    "report": "jvm-test-report.json"
+  },
+  "residual_risks": [
+    "The bundled JRE was matched to the current Temurin security release, but the available offline vulnerability scanners did not provide direct JRE binary CVE coverage.",
+    "Geode uses plaintext WebSocket on its loopback listener by design; public deployments must keep that listener on loopback and terminate TLS at a reverse proxy. Manual non-loopback plaintext exposure remains an operator misconfiguration risk.",
+    "Automated checks are not a human security audit."
+  ]
+}

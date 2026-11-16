@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "candidate_commit": "111926e34fd9e654cf4d0fe550c8ba5c267542ba",
+  "branch": "modelo-mvp",
+  "repository": "coercaodobem/property",
+  "validate_property": {
+    "run_id": 43922994219,
+    "conclusion": "success",
+    "url": "https://github.com/coercaodobem/property/actions/runs/43922994219",
+    "jobs": {
+      "smoke": "success",
+      "native_relay_ubuntu": "success",
+      "native_relay_matrix": "skipped"
+    }
+  },
+  "native_offline_platform_matrix": {
+    "run_id": 43922994290,
+    "conclusion": "skipped",
+    "url": "https://github.com/coercaodobem/property/actions/runs/43922994290",
+    "reason": "Other operating systems are explicitly out of scope for this execution."
+  },
+  "release_tag_ci": {
+    "result": "PENDING",
+    "reason": "No versioned release tag exists yet; the GitHub release page redirected to sign-in."
+  }
+}

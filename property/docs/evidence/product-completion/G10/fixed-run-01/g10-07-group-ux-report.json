@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "case": "G10-07",
+  "result": "PASS",
+  "participants": 3,
+  "invalid_membership_checks": 1,
+  "predefined_variables": {
+    "fixed_epoch_seconds": 1794846720
+  },
+  "language_checks": [
+    {
+      "locale": "en",
+      "copy": "Add 2–9 other people. Each member needs a public NIP-17 inbox list (kind 10050) discoverable through your configured relays. Property encrypts a separate envelope for each participant. NIP-17 groups have no administrator, membership approval, or reliable leave/removal control; create rooms with people who have agreed to participate."
+    },
+    {
+      "locale": "pt-BR",
+      "copy": "Adicione de 2 a 9 pessoas. Cada membro precisa publicar uma lista de recebimento NIP-17 (kind 10050), acessível pelos relays que você configurou. O Property criptografa um envelope separado para cada participante. Grupos NIP-17 não têm administrador, aprovação de entrada nem controle confiável para sair ou remover membros; crie salas com pessoas que concordaram em participar."
+    },
+    {
+      "locale": "pt-BR",
+      "active_language": "pt-BR"
+    },
+    {
+      "locale": "pt-BR",
+      "creation_copy": "validated",
+      "reopened_details": "Grupo privado NIP-17 · 3 participantes. Grupos não têm administrador nem remoção confiável de membros; mudanças de participantes exigem um novo grupo."
+    }
+  ],
+  "viewports": [
+    {
+      "width": 390,
+      "height": 844,
+      "viewport": [
+        390,
+        844
+      ],
+      "document": [
+        390,
+        390
+      ],
+      "body": 390,
+      "title": "G10 shared room",
+      "groupDetails": "Grupo privado NIP-17 · 3 participantes. Grupos não têm administrador nem remoção confiável de membros; mudanças de participantes exigem um novo grupo.",
+      "overflow": [
+        {
+          "tag": "BUTTON",
+          "id": "voice-record-button",
+          "class": "format-button voice-record-button",
+          "left": 390,
+          "right": 430
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "viewport": [
+        1440,
+        900
+      ],
+      "document": [
+        1440,
+        1440
+      ],
+      "body": 1440,
+      "title": "G10 shared room",
+      "groupDetails": "Grupo privado NIP-17 · 3 participantes. Grupos não têm administrador nem remoção confiável de membros; mudanças de participantes exigem um novo grupo.",
+      "overflow": []
+    }
+  ],
+  "relay_event_count": 3,
+  "plaintext_observed_at_relay": false,
+  "screenshots": [
+    "group-390x844.png",
+    "group-1440x900.png"
+  ],
+  "external_requests": [],
+  "mobile_toolbar": {
+    "client_width": 330,
+    "scroll_width": 400,
+    "scroll_left": 70,
+    "button_visible": true
+  }
+}

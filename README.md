@@ -39,6 +39,8 @@ The platform goal includes Windows, macOS, Linux/Ubuntu, Android, and iOS. The c
 
 Publishing the app does not mean the full plan is complete. The Ubuntu offline profile recorded 70 PASS cases; the four native Windows, macOS, Android, and iOS/iPadOS cases remain PENDING. See the [test report and plan](property/docs/plano-de-testes-central.md) for results and limits. Marketplace checkout is unavailable, and node campaigns do not yet have a production operator/activation flow.
 
+The public PWA is live. The Ubuntu release bundle and offline G10 checks are prepared, but the versioned public release, its exact-tag CI run, and post-upload digest verification are still pending. See the [completion evidence index](property/docs/evidence/product-completion/README.md) and the [shareable launch kit](property/docs/launch-kit.md).
+
 ## Get started
 
 The default development branch is **`modelo-mvp`**. Fork the repository before contributing. See the [contribution guide](CONTRIBUTING.md) and the [AI contributor guide](CONTRIBUTING-WITH-AI.md).
@@ -87,6 +89,8 @@ These tests do not make payments or publish messages to public relays. Local int
 | [`property/tests/`](property/tests/) | Property product validations |
 | [`property/docs/`](property/docs/) | Product identity, decisions, execution notes, and test plan |
 | [`property/docs/ghostly-integration.md`](property/docs/ghostly-integration.md) | Ghostly-inspired chat interactions inside the existing Property PWA |
+| [`property/docs/evidence/product-completion/README.md`](property/docs/evidence/product-completion/README.md) | Current G0–G10 evidence and release status |
+| [`property/docs/launch-kit.md`](property/docs/launch-kit.md) | English posts for X, Reddit, and community forums |
 | [`geode/`](geode/) | Reused relay code |
 | `amethyst/`, `commons/`, `commonsUI/`, `desktopApp/`, `cli/` | Preserved upstream base; their presence does not mean every target is shipped as a Property product |
 

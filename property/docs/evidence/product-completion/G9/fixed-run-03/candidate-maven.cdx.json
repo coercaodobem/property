@@ -1,0 +1,295 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "components": [
+    {
+      "type": "library",
+      "name": "annotation-jvm",
+      "version": "1.9.1",
+      "purl": "pkg:maven/androidx.annotation/annotation-jvm@1.9.1"
+    },
+    {
+      "type": "library",
+      "name": "collection-jvm",
+      "version": "1.7.0",
+      "purl": "pkg:maven/androidx.collection/collection-jvm@1.7.0"
+    },
+    {
+      "type": "library",
+      "name": "runtime-annotation-jvm",
+      "version": "1.12.1",
+      "purl": "pkg:maven/androidx.compose.runtime/runtime-annotation-jvm@1.12.1"
+    },
+    {
+      "type": "library",
+      "name": "sqlite-bundled-jvm",
+      "version": "2.7.1",
+      "purl": "pkg:maven/androidx.sqlite/sqlite-bundled-jvm@2.7.1"
+    },
+    {
+      "type": "library",
+      "name": "sqlite-jvm",
+      "version": "2.7.1",
+      "purl": "pkg:maven/androidx.sqlite/sqlite-jvm@2.7.1"
+    },
+    {
+      "type": "library",
+      "name": "konbini-jvm",
+      "version": "0.1.3",
+      "purl": "pkg:maven/cc.ekblad.konbini/konbini-jvm@0.1.3"
+    },
+    {
+      "type": "library",
+      "name": "4koma",
+      "version": "1.2.0",
+      "purl": "pkg:maven/cc.ekblad/4koma@1.2.0"
+    },
+    {
+      "type": "library",
+      "name": "okhttp-coroutines",
+      "version": "5.5.1",
+      "purl": "pkg:maven/com.squareup.okhttp3/okhttp-coroutines@5.5.1"
+    },
+    {
+      "type": "library",
+      "name": "okhttp-jvm",
+      "version": "5.5.1",
+      "purl": "pkg:maven/com.squareup.okhttp3/okhttp-jvm@5.5.1"
+    },
+    {
+      "type": "library",
+      "name": "okio-jvm",
+      "version": "3.18.1",
+      "purl": "pkg:maven/com.squareup.okio/okio-jvm@3.18.1"
+    },
+    {
+      "type": "library",
+      "name": "config",
+      "version": "1.4.9",
+      "purl": "pkg:maven/com.typesafe/config@1.4.9"
+    },
+    {
+      "type": "library",
+      "name": "crypto-jvm",
+      "version": "2.1.0",
+      "purl": "pkg:maven/com.vitorpamplona.crypto/crypto-jvm@2.1.0"
+    },
+    {
+      "type": "library",
+      "name": "kmp-negentropy-jvm",
+      "version": "v1.2.0",
+      "purl": "pkg:maven/com.vitorpamplona.negentropy/kmp-negentropy-jvm@v1.2.0"
+    },
+    {
+      "type": "library",
+      "name": "quartz-jvm",
+      "version": "2.4.0",
+      "purl": "pkg:maven/com.vitorpamplona.quartz/quartz-jvm@2.4.0"
+    },
+    {
+      "type": "library",
+      "name": "secp256k1-kmp-jni-common",
+      "version": "0.24.0",
+      "purl": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jni-common@0.24.0"
+    },
+    {
+      "type": "library",
+      "name": "secp256k1-kmp-jni-jvm-darwin",
+      "version": "0.24.0",
+      "purl": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jni-jvm-darwin@0.24.0"
+    },
+    {
+      "type": "library",
+      "name": "secp256k1-kmp-jni-jvm-extract",
+      "version": "0.24.0",
+      "purl": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jni-jvm-extract@0.24.0"
+    },
+    {
+      "type": "library",
+      "name": "secp256k1-kmp-jni-jvm-linux",
+      "version": "0.24.0",
+      "purl": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jni-jvm-linux@0.24.0"
+    },
+    {
+      "type": "library",
+      "name": "secp256k1-kmp-jni-jvm-mingw",
+      "version": "0.24.0",
+      "purl": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jni-jvm-mingw@0.24.0"
+    },
+    {
+      "type": "library",
+      "name": "secp256k1-kmp-jni-jvm",
+      "version": "0.24.0",
+      "purl": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jni-jvm@0.24.0"
+    },
+    {
+      "type": "library",
+      "name": "secp256k1-kmp-jvm",
+      "version": "0.24.0",
+      "purl": "pkg:maven/fr.acinq.secp256k1/secp256k1-kmp-jvm@0.24.0"
+    },
+    {
+      "type": "library",
+      "name": "ktor-events-jvm",
+      "version": "3.6.0",
+      "purl": "pkg:maven/io.ktor/ktor-events-jvm@3.6.0"
+    },
+    {
+      "type": "library",
+      "name": "ktor-http-cio-jvm",
+      "version": "3.6.0",
+      "purl": "pkg:maven/io.ktor/ktor-http-cio-jvm@3.6.0"
+    },
+    {
+      "type": "library",
+      "name": "ktor-http-jvm",
+      "version": "3.6.0",
+      "purl": "pkg:maven/io.ktor/ktor-http-jvm@3.6.0"
+    },
+    {
+      "type": "library",
+      "name": "ktor-io-jvm",
+      "version": "3.6.0",
+      "purl": "pkg:maven/io.ktor/ktor-io-jvm@3.6.0"
+    },
+    {
+      "type": "library",
+      "name": "ktor-network-jvm",
+      "version": "3.6.0",
+      "purl": "pkg:maven/io.ktor/ktor-network-jvm@3.6.0"
+    },
+    {
+      "type": "library",
+      "name": "ktor-serialization-jvm",
+      "version": "3.6.0",
+      "purl": "pkg:maven/io.ktor/ktor-serialization-jvm@3.6.0"
+    },
+    {
+      "type": "library",
+      "name": "ktor-server-cio-jvm",
+      "version": "3.6.0",
+      "purl": "pkg:maven/io.ktor/ktor-server-cio-jvm@3.6.0"
+    },
+    {
+      "type": "library",
+      "name": "ktor-server-core-jvm",
+      "version": "3.6.0",
+      "purl": "pkg:maven/io.ktor/ktor-server-core-jvm@3.6.0"
+    },
+    {
+      "type": "library",
+      "name": "ktor-server-websockets-jvm",
+      "version": "3.6.0",
+      "purl": "pkg:maven/io.ktor/ktor-server-websockets-jvm@3.6.0"
+    },
+    {
+      "type": "library",
+      "name": "ktor-utils-jvm",
+      "version": "3.6.0",
+      "purl": "pkg:maven/io.ktor/ktor-utils-jvm@3.6.0"
+    },
+    {
+      "type": "library",
+      "name": "ktor-websocket-serialization-jvm",
+      "version": "3.6.0",
+      "purl": "pkg:maven/io.ktor/ktor-websocket-serialization-jvm@3.6.0"
+    },
+    {
+      "type": "library",
+      "name": "ktor-websockets-jvm",
+      "version": "3.6.0",
+      "purl": "pkg:maven/io.ktor/ktor-websockets-jvm@3.6.0"
+    },
+    {
+      "type": "library",
+      "name": "geode",
+      "version": "1.20.0",
+      "purl": "pkg:maven/org.amethyst-geode/geode@1.20.0"
+    },
+    {
+      "type": "library",
+      "name": "kotlin-reflect",
+      "version": "2.3.21",
+      "purl": "pkg:maven/org.jetbrains.kotlin/kotlin-reflect@2.3.21"
+    },
+    {
+      "type": "library",
+      "name": "kotlin-stdlib-jdk7",
+      "version": "1.8.10",
+      "purl": "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib-jdk7@1.8.10"
+    },
+    {
+      "type": "library",
+      "name": "kotlin-stdlib-jdk8",
+      "version": "1.8.10",
+      "purl": "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib-jdk8@1.8.10"
+    },
+    {
+      "type": "library",
+      "name": "kotlin-stdlib",
+      "version": "2.4.21",
+      "purl": "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21"
+    },
+    {
+      "type": "library",
+      "name": "kotlinx-collections-immutable-jvm",
+      "version": "0.5.2",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-collections-immutable-jvm@0.5.2"
+    },
+    {
+      "type": "library",
+      "name": "kotlinx-coroutines-core-jvm",
+      "version": "1.11.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-core-jvm@1.11.0"
+    },
+    {
+      "type": "library",
+      "name": "kotlinx-io-bytestring-jvm",
+      "version": "0.9.1",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-io-bytestring-jvm@0.9.1"
+    },
+    {
+      "type": "library",
+      "name": "kotlinx-io-core-jvm",
+      "version": "0.9.1",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-io-core-jvm@0.9.1"
+    },
+    {
+      "type": "library",
+      "name": "kotlinx-serialization-cbor-jvm",
+      "version": "1.12.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-cbor-jvm@1.12.0"
+    },
+    {
+      "type": "library",
+      "name": "kotlinx-serialization-core-jvm",
+      "version": "1.12.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-core-jvm@1.12.0"
+    },
+    {
+      "type": "library",
+      "name": "kotlinx-serialization-json-jvm",
+      "version": "1.12.0",
+      "purl": "pkg:maven/org.jetbrains.kotlinx/kotlinx-serialization-json-jvm@1.12.0"
+    },
+    {
+      "type": "library",
+      "name": "annotations",
+      "version": "23.0.0",
+      "purl": "pkg:maven/org.jetbrains/annotations@23.0.0"
+    },
+    {
+      "type": "library",
+      "name": "jspecify",
+      "version": "1.0.0",
+      "purl": "pkg:maven/org.jspecify/jspecify@1.0.0"
+    },
+    {
+      "type": "library",
+      "name": "slf4j-api",
+      "version": "2.0.19",
+      "purl": "pkg:maven/org.slf4j/slf4j-api@2.0.19"
+    }
+  ]
+}

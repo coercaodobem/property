@@ -1,33 +1,19 @@
-# Evidência do gate G9 — Ubuntu Linux x86_64
+# Resultado do gate G9 — segurança automatizada e resistência a abuso
 
-**Resultado:** `BLOCKED` — as verificações concluídas abaixo passaram, mas G9 está incompleto. G10 permanece `NOT RUN`, conforme a ordem dos gates.
+**Resultado: PASS — automatizado/offline no Ubuntu Linux x86_64, com limites de cobertura registrados.** Candidato: `111926e34fd9e654cf4d0fe550c8ba5c267542ba`. Não foram usados relays públicos, fundos de teste na mainnet ou segredos.
 
-**Candidato:** `67507a33dc7c1ede266d204a3d85aeb0749064af` em `modelo-mvp`. Todos os relays de teste usaram loopback; não foram usados relays públicos, fundos de mainnet ou segredos.
+## Aceite por contagens fixas
 
-## Verificações concluídas
+- Passaram 200 entradas de eventos hostis, 50 casos de moderação local entre cinco identidades sintéticas e cinco fixtures de relay, 20 limites configurados de taxa/armazenamento em suas fronteiras e 100 casos de descoberta assinada de relays. A suíte smoke integrada passou nos 85 arquivos de teste; o CI do candidato passou os jobs smoke e relay Ubuntu.
+- O bundle Ubuntu exato e sua SBOM SPDX 2.3 foram verificados. O arquivo tem 68.543.468 bytes, SHA-256 `2384fd4ec8e1c00dc05d2539ecf745a8cddc5d0ccd1384b0231bdef70c94e4fb`; o SHA-256 do manifesto é `247a22cbd4cde66329194f2bd471bb7c623be877c3ce45975a96c637cac777b5`. A impressão digital SHA-256 da chave pública é `60025655e12c534e41003d8d87c3080c33b3e72f86bb19dbcda14182684f670c`; nenhum material privado de assinatura foi incluído.
+- O OSV-Scanner verificou 48 pacotes Maven e 6 npm usando bases offline; não encontrou vulnerabilidades conhecidas. Doze componentes da SBOM não foram reconhecidos pelos scanners de ecossistema. O Trivy detectou 40 pacotes Java e não reportou vulnerabilidades conhecidas. O `npm audit` cobriu 1.170 dependências, mas a atualidade do cache local é desconhecida.
+- O Semgrep OSS executou 43 regras locais em 290 arquivos rastreados, interpretou 100% da entrada e não teve erros de scan. As 19 correspondências foram triadas: 18 usos de WebSocket em loopback/documentação e um falso positivo em texto do CLI. Não há achado sem triagem.
+- O scan limitado de segredos examinou 263 arquivos textuais com quatro padrões e não encontrou correspondências; 303 arquivos binários ou com UTF-8 inválido foram ignorados.
 
-| Verificação | Resultado e evidência |
-|---|---|
-| Build da fonte Geode e imagem Linux | `PASS`: Geode 1.20.0 foi compilado e empacotado offline com Temurin JDK 21.0.13+9 e Gradle 9.8.2. Arquivo: 67.366.437 bytes, SHA-256 `b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a`, 129 segmentos. Não alegamos reprodutibilidade bit a bit. [`offline-geode-rebuild-report.json`](offline-geode-rebuild-report.json) |
-| Retenção local automática | `PASS`: o binário reconstruído removeu na inicialização o evento sintético antigo e manteve o recente (2 registros antes, 1 depois). [`retention-binary-report.json`](fixed-run-02/retention-binary-report.json) |
-| Crash e recuperação de campanha | `PASS`: 2 casos fixos de encerramento abrupto; o relay recuperado continha exatamente 1 cópia da campanha. [`relatório de crash`](fixed-run-02/campaign-crash/g09-campaign-crash-report.json) |
-| Silenciar/bloquear/relatar localmente | `PASS`: 50 casos, 5 identidades sintéticas e 5 fixtures de relay; os históricos dos relays permaneceram inalterados. [`local-moderation-report.txt`](fixed-run-02/local-moderation-report.txt) |
-| Limites de taxa e armazenamento | `PASS`: 20 limites configurados em 5 rajadas EVENT, 5 rajadas REQ e 10 limites de arquivo; 60 verificações abaixo/no/acima do limite e 6 valores inválidos de arquivo rejeitados. [`relatório de taxa`](fixed-run-02/rate-boundary/g09-rate-boundary-report.json), [`limites de arquivo`](fixed-run-02/resource-limits-report.json) |
-| Eventos hostis | `PASS`: 200 entradas (40 de cada tipo: malformadas, grandes, duplicadas/repetidas, antigas e com assinatura inválida); entradas rejeitadas não causaram mutação de estado. [`g09-hostile-report.json`](fixed-run-02/hostile-events/g09-hostile-report.json) |
-| Descoberta de relay assinada | `PASS`: 100 casos de validação/descoberta, incluindo expiração, revogação, chave errada e URL insegura. [`relay-defaults-report.txt`](fixed-run-02/relay-defaults-report.txt) |
-| Falha de armazenamento e integridade do pacote | `PASS`: casos de lock/config/limite de disco falharam de forma segura; manifesto adulterado e segmento ausente foram recusados antes da execução. [`armazenamento`](fixed-run-02/storage/g09-storage-report.json), [`pacote`](fixed-run-02/package-hardening/g09-package-report.json) |
-| Suíte local integrada | `PASS`: 85 arquivos de teste concluíram e emitiram o marcador final de sucesso. [`full-suite-summary.json`](full-suite-summary.json) |
-| Auditoria npm offline | Nenhuma vulnerabilidade conhecida no cache local do npm para o lockfile JavaScript (1.170 dependências reportadas). O cache pode estar desatualizado e não cobre JAR/JRE do relay. [`npm-audit-report.json`](fixed-run-02/npm-audit-report.json) |
-| Busca limitada por padrões de segredo | `PASS`: 263 arquivos textuais analisados, sem correspondências para quatro padrões em `property/web`, `property/agent` e `property/relay`. Não é um scan completo de segredos. [`secret-pattern-scan-report.json`](fixed-run-02/secret-pattern-scan-report.json) |
-| SBOM SPDX do candidato | `PASS`: SPDX 2.3 cobre os 414 arquivos do pacote com 414 registros; os 413 registros sem autorreferência têm SHA-256 verificado e todos os 414 têm metadados de licença/proveniência. A assinatura do bundle temporário foi verificada com chave descartável local; ele não foi publicado. [`sbom-coverage-report.json`](fixed-run-02/sbom-coverage-report.json), [`SBOM.spdx.json`](fixed-run-02/SBOM.spdx.json) |
-| Fixtures da política de licença/proveniência | `PASS`: 7 verificações aceitam metadados conhecidos e rejeitam licença desconhecida, fonte ausente ou componente sem metadados. [`license-metadata-policy-report.json`](fixed-run-02/license-metadata-policy-report.json) |
+## Limites e riscos residuais
 
-## Itens que impedem aprovação
+O JRE Temurin incluído é 21.0.13+9, mas estes scans não oferecem cobertura direta de CVEs dos binários do JRE. Os testes Gradle offline do Geode seguem `PENDING_SUPPLEMENTAL` porque duas dependências não estão no cache local; essa suíte não é um critério explícito de aceite G9 por contagens fixas, portanto não alegamos aprovação. O WebSocket plaintext do Geode escuta em loopback por padrão; o operador deve usar um proxy reverso com TLS para acesso público. Expor manualmente a porta plaintext continua sendo um risco de configuração. Testes automatizados não equivalem a auditoria humana de segurança.
 
-- **Testes JVM do Geode (`BLOCKED`):** `:geode:test --offline` não encontra no cache `junit:junit:4.13.2` e `kotlinx-serialization-core:1.11.0`. `RelayRetentionTest` foi adicionada, mas a suíte Gradle não executou; não alegamos aprovação. [`jvm-test-report.json`](jvm-test-report.json)
-- **Scans de segurança automatizados (`BLOCKED`):** não há scanner estático de segurança instalado nem scanner/base offline de vulnerabilidades para os JARs Geode e o JRE incluído. `gitleaks`, `osv-scanner`, `trivy`, `syft`, `grype`, `semgrep` e OWASP Dependency-Check não estão disponíveis. Compilação, verificações de sintaxe e regressões funcionais passaram, mas não alegamos cobertura de vulnerabilidades do JAR/JRE. A auditoria npm offline cobre apenas o lockfile JS e seu cache local de advisories. [`security-coverage.json`](security-coverage.json)
-- **Release publicado e onboarding G10 (`PENDING`):** foi criado apenas um bundle local temporário para verificar o SBOM do G9. Não houve release público, testes de instalação/atualização/downgrade nem publicação no Pages; G10 não começou.
+Cobertura e triagem completas: [`security-coverage.json`](fixed-run-03/security-coverage.json), [`security-triage.json`](fixed-run-03/security-triage.json), [relatório OSV](fixed-run-03/osv-candidate-all.json), [relatório Trivy](fixed-run-03/trivy-geode-rootfs.json), [relatório Semgrep](fixed-run-03/semgrep-candidate.json), [relatório de padrões de segredo](fixed-run-03/secret-pattern-scan-candidate.json) e [SBOM](fixed-run-03/SBOM.spdx.json). O CI foi o [run 43922994219](https://github.com/coercaodobem/property/actions/runs/43922994219).
 
-Windows, macOS, Android, iOS e iPadOS permanecem `PENDING`; nenhum build ou teste nesses sistemas foi iniciado. Revisão humana não foi usada como critério de aprovação.
-
-A publicação no Pages fica reservada ao G10. O marcador `[property-release]` não foi usado.
+Este resultado registra as novas verificações G9 no candidato acima. Os relatórios G0–G8 preservam seus identificadores de candidato originais; eles não foram repetidos nesta atualização de segurança.

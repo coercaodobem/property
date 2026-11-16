@@ -1,0 +1,485 @@
+{
+  "schema_version": 1,
+  "case": "G10-08",
+  "result": "PASS",
+  "fixed_cycles_per_state": 3,
+  "identity_states": [
+    "before_identity",
+    "after_identity"
+  ],
+  "install_states": [
+    "accepted",
+    "dismissed",
+    "no_prompt",
+    "already_installed"
+  ],
+  "install_cycles": [
+    {
+      "identity_state": "before_identity",
+      "state": "accepted",
+      "repetition": 1,
+      "prompt_before_click": 0,
+      "prompt_after_click": 1,
+      "controls_hidden": true,
+      "app_usable": true,
+      "fallback_copy_checked": false
+    },
+    {
+      "identity_state": "before_identity",
+      "state": "accepted",
+      "repetition": 2,
+      "prompt_before_click": 0,
+      "prompt_after_click": 1,
+      "controls_hidden": true,
+      "app_usable": true,
+      "fallback_copy_checked": false
+    },
+    {
+      "identity_state": "before_identity",
+      "state": "accepted",
+      "repetition": 3,
+      "prompt_before_click": 0,
+      "prompt_after_click": 1,
+      "controls_hidden": true,
+      "app_usable": true,
+      "fallback_copy_checked": false
+    },
+    {
+      "identity_state": "before_identity",
+      "state": "dismissed",
+      "repetition": 1,
+      "prompt_before_click": 0,
+      "prompt_after_click": 1,
+      "controls_hidden": false,
+      "app_usable": true,
+      "fallback_copy_checked": true
+    },
+    {
+      "identity_state": "before_identity",
+      "state": "dismissed",
+      "repetition": 2,
+      "prompt_before_click": 0,
+      "prompt_after_click": 1,
+      "controls_hidden": false,
+      "app_usable": true,
+      "fallback_copy_checked": true
+    },
+    {
+      "identity_state": "before_identity",
+      "state": "dismissed",
+      "repetition": 3,
+      "prompt_before_click": 0,
+      "prompt_after_click": 1,
+      "controls_hidden": false,
+      "app_usable": true,
+      "fallback_copy_checked": true
+    },
+    {
+      "identity_state": "before_identity",
+      "state": "no_prompt",
+      "repetition": 1,
+      "prompt_before_click": 0,
+      "prompt_after_click": 0,
+      "controls_hidden": false,
+      "app_usable": true,
+      "fallback_copy_checked": true
+    },
+    {
+      "identity_state": "before_identity",
+      "state": "no_prompt",
+      "repetition": 2,
+      "prompt_before_click": 0,
+      "prompt_after_click": 0,
+      "controls_hidden": false,
+      "app_usable": true,
+      "fallback_copy_checked": true
+    },
+    {
+      "identity_state": "before_identity",
+      "state": "no_prompt",
+      "repetition": 3,
+      "prompt_before_click": 0,
+      "prompt_after_click": 0,
+      "controls_hidden": false,
+      "app_usable": true,
+      "fallback_copy_checked": true
+    },
+    {
+      "identity_state": "before_identity",
+      "state": "already_installed",
+      "repetition": 1,
+      "prompt_before_click": 0,
+      "prompt_after": 0,
+      "controls_hidden": true,
+      "app_usable": true
+    },
+    {
+      "identity_state": "before_identity",
+      "state": "already_installed",
+      "repetition": 2,
+      "prompt_before_click": 0,
+      "prompt_after": 0,
+      "controls_hidden": true,
+      "app_usable": true
+    },
+    {
+      "identity_state": "before_identity",
+      "state": "already_installed",
+      "repetition": 3,
+      "prompt_before_click": 0,
+      "prompt_after": 0,
+      "controls_hidden": true,
+      "app_usable": true
+    },
+    {
+      "identity_state": "after_identity",
+      "state": "accepted",
+      "repetition": 1,
+      "prompt_before_click": 0,
+      "prompt_after_click": 1,
+      "controls_hidden": true,
+      "app_usable": true,
+      "fallback_copy_checked": false
+    },
+    {
+      "identity_state": "after_identity",
+      "state": "accepted",
+      "repetition": 2,
+      "prompt_before_click": 0,
+      "prompt_after_click": 1,
+      "controls_hidden": true,
+      "app_usable": true,
+      "fallback_copy_checked": false
+    },
+    {
+      "identity_state": "after_identity",
+      "state": "accepted",
+      "repetition": 3,
+      "prompt_before_click": 0,
+      "prompt_after_click": 1,
+      "controls_hidden": true,
+      "app_usable": true,
+      "fallback_copy_checked": false
+    },
+    {
+      "identity_state": "after_identity",
+      "state": "dismissed",
+      "repetition": 1,
+      "prompt_before_click": 0,
+      "prompt_after_click": 1,
+      "controls_hidden": false,
+      "app_usable": true,
+      "fallback_copy_checked": true
+    },
+    {
+      "identity_state": "after_identity",
+      "state": "dismissed",
+      "repetition": 2,
+      "prompt_before_click": 0,
+      "prompt_after_click": 1,
+      "controls_hidden": false,
+      "app_usable": true,
+      "fallback_copy_checked": true
+    },
+    {
+      "identity_state": "after_identity",
+      "state": "dismissed",
+      "repetition": 3,
+      "prompt_before_click": 0,
+      "prompt_after_click": 1,
+      "controls_hidden": false,
+      "app_usable": true,
+      "fallback_copy_checked": true
+    },
+    {
+      "identity_state": "after_identity",
+      "state": "no_prompt",
+      "repetition": 1,
+      "prompt_before_click": 0,
+      "prompt_after_click": 0,
+      "controls_hidden": false,
+      "app_usable": true,
+      "fallback_copy_checked": true
+    },
+    {
+      "identity_state": "after_identity",
+      "state": "no_prompt",
+      "repetition": 2,
+      "prompt_before_click": 0,
+      "prompt_after_click": 0,
+      "controls_hidden": false,
+      "app_usable": true,
+      "fallback_copy_checked": true
+    },
+    {
+      "identity_state": "after_identity",
+      "state": "no_prompt",
+      "repetition": 3,
+      "prompt_before_click": 0,
+      "prompt_after_click": 0,
+      "controls_hidden": false,
+      "app_usable": true,
+      "fallback_copy_checked": true
+    },
+    {
+      "identity_state": "after_identity",
+      "state": "already_installed",
+      "repetition": 1,
+      "prompt_before_click": 0,
+      "prompt_after": 0,
+      "controls_hidden": true,
+      "app_usable": true
+    },
+    {
+      "identity_state": "after_identity",
+      "state": "already_installed",
+      "repetition": 2,
+      "prompt_before_click": 0,
+      "prompt_after": 0,
+      "controls_hidden": true,
+      "app_usable": true
+    },
+    {
+      "identity_state": "after_identity",
+      "state": "already_installed",
+      "repetition": 3,
+      "prompt_before_click": 0,
+      "prompt_after": 0,
+      "controls_hidden": true,
+      "app_usable": true
+    }
+  ],
+  "launch_actions": [
+    {
+      "action": "new-chat",
+      "repetition": 1,
+      "opens_after_identity": true,
+      "external_requests_allowed": false
+    },
+    {
+      "action": "new-chat",
+      "repetition": 2,
+      "opens_after_identity": true,
+      "external_requests_allowed": false
+    },
+    {
+      "action": "new-chat",
+      "repetition": 3,
+      "opens_after_identity": true,
+      "external_requests_allowed": false
+    },
+    {
+      "action": "hangout",
+      "repetition": 1,
+      "opens_after_identity": true,
+      "external_requests_allowed": false
+    },
+    {
+      "action": "hangout",
+      "repetition": 2,
+      "opens_after_identity": true,
+      "external_requests_allowed": false
+    },
+    {
+      "action": "hangout",
+      "repetition": 3,
+      "opens_after_identity": true,
+      "external_requests_allowed": false
+    },
+    {
+      "action": "marketplace",
+      "repetition": 1,
+      "opens_after_identity": true,
+      "external_requests_allowed": false
+    },
+    {
+      "action": "marketplace",
+      "repetition": 2,
+      "opens_after_identity": true,
+      "external_requests_allowed": false
+    },
+    {
+      "action": "marketplace",
+      "repetition": 3,
+      "opens_after_identity": true,
+      "external_requests_allowed": false
+    }
+  ],
+  "unknown_action": {
+    "action": "delete-everything",
+    "opened_default_view": true,
+    "dialog_opened": false,
+    "query_unchanged": true
+  },
+  "language_copy": [
+    {
+      "state": "dismissed",
+      "identity_state": "before_identity",
+      "repetition": 1,
+      "locale": "en",
+      "copy": "PROPERTY PWA Install Property × Install Property to your home screen or desktop. If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed. Done"
+    },
+    {
+      "state": "dismissed",
+      "identity_state": "before_identity",
+      "repetition": 1,
+      "locale": "pt-BR",
+      "copy": "PROPERTY PWA Instalar o Property × Instale o Property na tela inicial ou no computador. Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador. No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos. Concluído"
+    },
+    {
+      "state": "dismissed",
+      "identity_state": "before_identity",
+      "repetition": 2,
+      "locale": "en",
+      "copy": "PROPERTY PWA Install Property × Install Property to your home screen or desktop. If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed. Done"
+    },
+    {
+      "state": "dismissed",
+      "identity_state": "before_identity",
+      "repetition": 2,
+      "locale": "pt-BR",
+      "copy": "PROPERTY PWA Instalar o Property × Instale o Property na tela inicial ou no computador. Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador. No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos. Concluído"
+    },
+    {
+      "state": "dismissed",
+      "identity_state": "before_identity",
+      "repetition": 3,
+      "locale": "en",
+      "copy": "PROPERTY PWA Install Property × Install Property to your home screen or desktop. If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed. Done"
+    },
+    {
+      "state": "dismissed",
+      "identity_state": "before_identity",
+      "repetition": 3,
+      "locale": "pt-BR",
+      "copy": "PROPERTY PWA Instalar o Property × Instale o Property na tela inicial ou no computador. Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador. No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos. Concluído"
+    },
+    {
+      "state": "no_prompt",
+      "identity_state": "before_identity",
+      "repetition": 1,
+      "locale": "en",
+      "copy": "PROPERTY PWA Install Property × Install Property to your home screen or desktop. If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed. Done"
+    },
+    {
+      "state": "no_prompt",
+      "identity_state": "before_identity",
+      "repetition": 1,
+      "locale": "pt-BR",
+      "copy": "PROPERTY PWA Instalar o Property × Instale o Property na tela inicial ou no computador. Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador. No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos. Concluído"
+    },
+    {
+      "state": "no_prompt",
+      "identity_state": "before_identity",
+      "repetition": 2,
+      "locale": "en",
+      "copy": "PROPERTY PWA Install Property × Install Property to your home screen or desktop. If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed. Done"
+    },
+    {
+      "state": "no_prompt",
+      "identity_state": "before_identity",
+      "repetition": 2,
+      "locale": "pt-BR",
+      "copy": "PROPERTY PWA Instalar o Property × Instale o Property na tela inicial ou no computador. Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador. No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos. Concluído"
+    },
+    {
+      "state": "no_prompt",
+      "identity_state": "before_identity",
+      "repetition": 3,
+      "locale": "en",
+      "copy": "PROPERTY PWA Install Property × Install Property to your home screen or desktop. If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed. Done"
+    },
+    {
+      "state": "no_prompt",
+      "identity_state": "before_identity",
+      "repetition": 3,
+      "locale": "pt-BR",
+      "copy": "PROPERTY PWA Instalar o Property × Instale o Property na tela inicial ou no computador. Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador. No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos. Concluído"
+    },
+    {
+      "state": "dismissed",
+      "identity_state": "after_identity",
+      "repetition": 1,
+      "locale": "en",
+      "copy": "PROPERTY PWA Install Property × Install Property to your home screen or desktop. If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed. Done"
+    },
+    {
+      "state": "dismissed",
+      "identity_state": "after_identity",
+      "repetition": 1,
+      "locale": "pt-BR",
+      "copy": "PROPERTY PWA Instalar o Property × Instale o Property na tela inicial ou no computador. Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador. No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos. Concluído"
+    },
+    {
+      "state": "dismissed",
+      "identity_state": "after_identity",
+      "repetition": 2,
+      "locale": "en",
+      "copy": "PROPERTY PWA Install Property × Install Property to your home screen or desktop. If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed. Done"
+    },
+    {
+      "state": "dismissed",
+      "identity_state": "after_identity",
+      "repetition": 2,
+      "locale": "pt-BR",
+      "copy": "PROPERTY PWA Instalar o Property × Instale o Property na tela inicial ou no computador. Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador. No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos. Concluído"
+    },
+    {
+      "state": "dismissed",
+      "identity_state": "after_identity",
+      "repetition": 3,
+      "locale": "en",
+      "copy": "PROPERTY PWA Install Property × Install Property to your home screen or desktop. If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed. Done"
+    },
+    {
+      "state": "dismissed",
+      "identity_state": "after_identity",
+      "repetition": 3,
+      "locale": "pt-BR",
+      "copy": "PROPERTY PWA Instalar o Property × Instale o Property na tela inicial ou no computador. Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador. No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos. Concluído"
+    },
+    {
+      "state": "no_prompt",
+      "identity_state": "after_identity",
+      "repetition": 1,
+      "locale": "en",
+      "copy": "PROPERTY PWA Install Property × Install Property to your home screen or desktop. If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed. Done"
+    },
+    {
+      "state": "no_prompt",
+      "identity_state": "after_identity",
+      "repetition": 1,
+      "locale": "pt-BR",
+      "copy": "PROPERTY PWA Instalar o Property × Instale o Property na tela inicial ou no computador. Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador. No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos. Concluído"
+    },
+    {
+      "state": "no_prompt",
+      "identity_state": "after_identity",
+      "repetition": 2,
+      "locale": "en",
+      "copy": "PROPERTY PWA Install Property × Install Property to your home screen or desktop. If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed. Done"
+    },
+    {
+      "state": "no_prompt",
+      "identity_state": "after_identity",
+      "repetition": 2,
+      "locale": "pt-BR",
+      "copy": "PROPERTY PWA Instalar o Property × Instale o Property na tela inicial ou no computador. Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador. No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos. Concluído"
+    },
+    {
+      "state": "no_prompt",
+      "identity_state": "after_identity",
+      "repetition": 3,
+      "locale": "en",
+      "copy": "PROPERTY PWA Install Property × Install Property to your home screen or desktop. If this browser offers Install app or Add to Home Screen, choose it from the browser menu. Otherwise, keep using Property in this browser. On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen. Property stays the same app and uses this device’s local identity and saved relays. No app-store listing is needed. Done"
+    },
+    {
+      "state": "no_prompt",
+      "identity_state": "after_identity",
+      "repetition": 3,
+      "locale": "pt-BR",
+      "copy": "PROPERTY PWA Instalar o Property × Instale o Property na tela inicial ou no computador. Se este navegador oferecer Instalar app ou Adicionar à Tela de Início, escolha essa opção no menu. Caso contrário, continue usando o Property no navegador. No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. O Property continua sendo o mesmo app e usa a identidade local e os relays salvos neste aparelho. Não precisa estar em uma loja de aplicativos. Concluído"
+    }
+  ],
+  "total_prompt_invocations": 12
+}

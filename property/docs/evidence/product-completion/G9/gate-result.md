@@ -1,33 +1,19 @@
-# G9 gate evidence — Ubuntu Linux x86_64
+# G9 gate result — automated security and abuse resistance
 
-**Result:** `BLOCKED` — the implemented checks below passed, but G9 is incomplete. G10 remains `NOT RUN`, as required by the gate order.
+**Result: PASS — automated/offline on Ubuntu Linux x86_64, with reported coverage limits.** Candidate: `111926e34fd9e654cf4d0fe550c8ba5c267542ba`. No public relays, mainnet test funds, or secret material were used.
 
-**Candidate:** `67507a33dc7c1ede266d204a3d85aeb0749064af` on `modelo-mvp`. All relay fixtures used loopback; no public relay, mainnet funds, or secrets were used.
+## Fixed-count acceptance
 
-## Completed checks
+- 200 hostile event inputs, 50 local moderation cases across five synthetic identities and five relay fixtures, 20 configured rate/storage limits at their boundaries, and 100 signed relay-discovery cases passed. The integrated Property smoke suite passed all 85 test files; the candidate CI run passed the smoke and Ubuntu relay jobs.
+- The exact Ubuntu release bundle and SPDX 2.3 SBOM were verified. The archive is 68,543,468 bytes, SHA-256 `2384fd4ec8e1c00dc05d2539ecf745a8cddc5d0ccd1384b0231bdef70c94e4fb`; its manifest SHA-256 is `247a22cbd4cde66329194f2bd471bb7c623be877c3ce45975a96c637cac777b5`. The public signing key fingerprint is `60025655e12c534e41003d8d87c3080c33b3e72f86bb19dbcda14182684f670c`; private signing material is not included.
+- OSV-Scanner checked 48 Maven and 6 npm packages against offline databases; no known vulnerabilities were reported. Twelve SBOM components were not recognized by those ecosystem scanners. Trivy detected 40 Java packages and reported no known vulnerabilities. The npm audit covered 1,170 dependencies but its local cache freshness is unknown.
+- Semgrep OSS ran 43 local rules on 290 tracked files, parsed 100% of input, and reported no scan errors. All 19 matches were triaged: 18 local-loopback/documentation WebSocket matches and one CLI-text false positive. No untriaged finding remains.
+- The limited secret scan checked 263 text files against four patterns and found no match; 303 binary or invalid-UTF-8 files were skipped.
 
-| Check | Result and evidence |
-|---|---|
-| Geode source build and Linux image | `PASS`: Geode 1.20.0 compiled and packaged offline with Temurin JDK 21.0.13+9 and Gradle 9.8.2. Archive: 67,366,437 bytes, SHA-256 `b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a`, 129 segments. Bit-for-bit reproducibility is not claimed. [`offline-geode-rebuild-report.json`](offline-geode-rebuild-report.json) |
-| Automatic local retention | `PASS`: rebuilt binary removed the old synthetic event at startup and retained the newer event (2 records before, 1 after). [`retention-binary-report.json`](fixed-run-02/retention-binary-report.json) |
-| Campaign crash and recovery | `PASS`: 2 fixed abrupt-crash cases; recovered relay state contained exactly 1 campaign copy. [`campaign-crash report`](fixed-run-02/campaign-crash/g09-campaign-crash-report.json) |
-| Local mute/block/report | `PASS`: 50 cases across 5 synthetic identities and 5 relay fixtures; relay histories stayed unchanged. [`local-moderation-report.txt`](fixed-run-02/local-moderation-report.txt) |
-| Rate and storage boundaries | `PASS`: 20 configured limits across 5 EVENT bursts, 5 REQ bursts, and 10 file caps; 60 below/at/above checks, plus 6 invalid file caps rejected. [`rate report`](fixed-run-02/rate-boundary/g09-rate-boundary-report.json), [`storage caps`](fixed-run-02/resource-limits-report.json) |
-| Hostile events | `PASS`: 200 inputs (40 each malformed, oversized, duplicate/replayed, stale, and invalid-signature); rejected input caused no state mutation. [`g09-hostile-report.json`](fixed-run-02/hostile-events/g09-hostile-report.json) |
-| Signed relay discovery | `PASS`: 100 validation/discovery cases covering expiry, revocation, wrong keys, and unsafe URLs. [`relay-defaults-report.txt`](fixed-run-02/relay-defaults-report.txt) |
-| Storage failure and package integrity | `PASS`: lock/config/disk-limit cases failed closed; tampered manifest and missing segment were rejected before execution. [`storage`](fixed-run-02/storage/g09-storage-report.json), [`package`](fixed-run-02/package-hardening/g09-package-report.json) |
-| Integrated local suite | `PASS`: 85 test files completed and emitted the final success marker. [`full-suite-summary.json`](full-suite-summary.json) |
-| Offline npm advisory check | No known advisories in the local npm cache for the JavaScript lockfile (1,170 dependencies reported). The cache may be stale and this does not cover relay JARs/JRE. [`npm-audit-report.json`](fixed-run-02/npm-audit-report.json) |
-| Limited secret-pattern scan | `PASS`: 263 text files scanned, zero matches for four recorded patterns in `property/web`, `property/agent`, and `property/relay`. This is not a complete secret scan. [`secret-pattern-scan-report.json`](fixed-run-02/secret-pattern-scan-report.json) |
-| Candidate SPDX SBOM | `PASS`: SPDX 2.3 covers all 414 payload files with 414 records; 413 non-self records have SHA-256 checks, and all 414 have license/provenance metadata. The temporary bundle signature verified with a disposable local key; it was not published. [`sbom-coverage-report.json`](fixed-run-02/sbom-coverage-report.json), [`SBOM.spdx.json`](fixed-run-02/SBOM.spdx.json) |
-| License/provenance policy fixtures | `PASS`: 7 checks accept known metadata and reject unknown license, missing source, or missing component metadata. [`license-metadata-policy-report.json`](fixed-run-02/license-metadata-policy-report.json) |
+## Limits and residual risks
 
-## Items preventing approval
+The bundled Temurin JRE is 21.0.13+9, but these scans do not provide direct binary CVE coverage for the JRE. The offline Geode Gradle tests remain `PENDING_SUPPLEMENTAL` because two dependencies are absent from the local cache; that suite is not one of G9's explicit fixed-count acceptance criteria, and no pass is claimed. Geode's plaintext WebSocket listener is loopback-only by default; operators must use a TLS-terminating reverse proxy for public access. Manually exposing its plaintext port remains a configuration risk. Automated checks are not a human security audit.
 
-- **Geode JVM tests (`BLOCKED`):** `:geode:test --offline` cannot resolve uncached `junit:junit:4.13.2` and `kotlinx-serialization-core:1.11.0`. The `RelayRetentionTest` is present but the Gradle test suite did not execute; no pass is claimed. [`jvm-test-report.json`](jvm-test-report.json)
-- **Automated security scans (`BLOCKED`):** no static security scanner is installed, and no offline vulnerability scanner/database is available for the exact Geode JARs and bundled JRE. `gitleaks`, `osv-scanner`, `trivy`, `syft`, `grype`, `semgrep`, and OWASP Dependency-Check are absent. Compilation, syntax checks, and functional regressions passed, but no JAR/JRE vulnerability coverage is claimed. Offline npm audit covers only the JS lockfile and local advisory cache. [`security-coverage.json`](security-coverage.json)
-- **Published release and G10 onboarding (`PENDING`):** only a temporary local bundle was created to verify the G9 SBOM. No public release, installation, update, downgrade, or Pages deployment was performed; G10 has not started.
+Full machine-readable coverage and triage: [`security-coverage.json`](fixed-run-03/security-coverage.json), [`security-triage.json`](fixed-run-03/security-triage.json), [`OSV report`](fixed-run-03/osv-candidate-all.json), [`Trivy report`](fixed-run-03/trivy-geode-rootfs.json), [`Semgrep report`](fixed-run-03/semgrep-candidate.json), [`secret-pattern report`](fixed-run-03/secret-pattern-scan-candidate.json), and [`SBOM`](fixed-run-03/SBOM.spdx.json). The CI run is [43922994219](https://github.com/coercaodobem/property/actions/runs/43922994219).
 
-Windows, macOS, Android, iOS, and iPadOS remain `PENDING`; no build or test on those systems was started. Human review was not an acceptance criterion.
-
-Pages publication is reserved for G10. The `[property-release]` marker was not used.
+This result records the new G9 checks on the exact candidate above. G0–G8 reports retain their original candidate identifiers; they were not rerun as part of this security update.

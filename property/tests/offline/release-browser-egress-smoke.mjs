@@ -7,6 +7,8 @@ import http from 'node:http';
 import net from 'node:net';
 import path from 'node:path';
 
+const JOURNEY_COUNT = 25;
+
 function parseArgs(argv) {
   const args = {};
   for (let i = 0; i < argv.length; i++) {
@@ -63,7 +65,20 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const webRoot = await import('node:fs/promises').then(fs => fs.realpath(args.web_root));
   const manifest = JSON.parse(await readFile(args.manifest, 'utf8'));
-  const packedWebFiles = new Set(manifest.files.filter(row => row.path.startsWith('property/web/')).map(row => `/${row.path.slice('property/web/'.length)}`));
+  const webManifestRows = manifest.files.filter(row => row.path.startsWith('property/web/'));
+  assert.ok(webManifestRows.length > 0, 'release manifest does not contain PWA files');
+  for (const row of webManifestRows) {
+    const relative = row.path.slice('property/web/'.length);
+    assert.ok(relative && !relative.startsWith('/') && !relative.split('/').includes('..'), `unsafe PWA manifest path: ${row.path}`);
+    const file = path.resolve(webRoot, relative);
+    assert.ok(file.startsWith(`${webRoot}${path.sep}`), `PWA manifest path escaped the release root: ${row.path}`);
+    const info = await lstat(file);
+    assert.ok(info.isFile() && !info.isSymbolicLink(), `PWA asset is not a regular file: ${row.path}`);
+    const bytes = await readFile(file);
+    assert.equal(bytes.length, row.bytes, `PWA asset size differs from signed release manifest: ${row.path}`);
+    assert.equal(sha(bytes), row.sha256, `PWA asset hash differs from signed release manifest: ${row.path}`);
+  }
+  const packedWebFiles = new Set(webManifestRows.map(row => `/${row.path.slice('property/web/'.length)}`));
   assert.ok(packedWebFiles.has('/index.html'), 'release manifest does not contain the PWA entry point');
   const html = await readFile(path.join(webRoot, 'index.html'), 'utf8');
   const staticScriptCounts = new Map();
@@ -182,13 +197,16 @@ async function main() {
         if (!packedWebFiles.has(assetPath)) requiredLocalAssetsMissing.add(assetPath);
       }
     });
-    for (const journey of ['first-open', 'reload-cached-shell']) {
+    const journeyResults = [];
+    for (let index = 0; index < JOURNEY_COUNT; index++) {
+      const journey = index === 0 ? 'first-open' : `reload-cached-shell-${String(index + 1).padStart(2, '0')}`;
       const response = journey === 'first-open'
         ? await page.goto(`${origin}/`, { waitUntil: 'domcontentloaded', timeout: 20000 })
         : await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 });
       assert.equal(response?.status(), 200, `${journey}: PWA did not return HTTP 200`);
       await page.locator('body').waitFor({ state: 'visible', timeout: 10000 });
       assert.ok(await page.locator('body').innerText(), `${journey}: PWA body is empty`);
+      journeyResults.push({ id: journey, http_status: response.status(), body_visible: true, body_nonempty: true });
     }
     await context.close();
     assert.equal(externalRequests.size, 0, `PWA attempted undeclared egress: ${[...externalRequests].join(', ')}`);
@@ -199,12 +217,14 @@ async function main() {
     const dynamicExecutableRequests = [...scriptRequests].filter(assetPath => !staticScriptCounts.has(assetPath));
     assert.deepEqual(dynamicExecutableRequests, [], `PWA requested executable paths absent from static HTML: ${dynamicExecutableRequests.join(', ')}`);
     const actualScriptRequests = [...scriptRequestCounts.values()].reduce((sum, count) => sum + count, 0);
-    assert.ok(actualScriptRequests <= declaredScriptCountPerJourney * 2,
-      `PWA made more script requests than its two static HTML navigations: ${actualScriptRequests}`);
+    assert.ok(actualScriptRequests <= declaredScriptCountPerJourney * JOURNEY_COUNT,
+      `PWA made more script requests than its ${JOURNEY_COUNT} static HTML navigations: ${actualScriptRequests}`);
     assert.equal(pageErrors.length, 0, `PWA browser errors: ${pageErrors.join('; ')}`);
     assert.ok(scriptRequests.size > 0, 'browser did not load any PWA executable assets');
     assert.ok(serverRequests.includes('/index.html'));
-    const report = { schema_version: 1, result: 'PASS', journeys: 2, external_hosts_requested: 0,
+    const report = { schema_version: 1, result: 'PASS', journeys: JOURNEY_COUNT, journey_results: journeyResults,
+      manifest_web_files_checked: webManifestRows.length, manifest_web_hash_mismatches: 0,
+      external_hosts_requested: 0,
       browser_background_egress_attempts_blocked: proxyAttempts.length, browser_background_hosts: blockedBrowserHosts,
       undeclared_executable_assets: 0, dynamic_script_elements: 0, dynamic_executable_requests: 0,
       static_script_declarations_per_journey: declaredScriptCountPerJourney, observed_script_requests: actualScriptRequests,
