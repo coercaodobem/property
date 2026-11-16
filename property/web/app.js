@@ -5066,6 +5066,14 @@
     }
   }
   async function renderMessages(peer, jumpToMessageId = '') {
+    const container = $('messages');
+    if (jumpToMessageId) {
+      container.dataset.searchTargetPeer = peer;
+      container.dataset.searchTargetMessageId = jumpToMessageId;
+    } else if (container.dataset.searchTargetPeer !== peer) {
+      delete container.dataset.searchTargetPeer;
+      delete container.dataset.searchTargetMessageId;
+    }
     state.readReceiptObserver?.disconnect();
     state.readReceiptObserver = null;
     state.readReceiptCandidates.clear();
@@ -5125,7 +5133,6 @@
     }
     const currentPin = conversation?.agent ? null : await get('settings', messagePinSettingId(peer));
     renderConversationPinBar(peer, messages, currentPin);
-    const container = $('messages');
     const samePeer = container.dataset.peer === peer;
     const wasAtBottom = MessageScroll.isNearBottom({ scrollHeight: container.scrollHeight, scrollTop: container.scrollTop, clientHeight: container.clientHeight });
     const previousIds = new Set([...container.querySelectorAll('.message-row')].map(row => row.dataset.messageId).filter(Boolean));
@@ -5428,8 +5435,9 @@
       const restored = [...container.querySelectorAll('.message-row')].find(row => row.dataset.messageId === anchor.id);
       if (restored) container.scrollTop += restored.getBoundingClientRect().top - anchor.top;
     }
-    if (jumpToMessageId) {
-      const target = [...container.querySelectorAll('.message-row')].find(row => row.dataset.messageId === jumpToMessageId);
+    const searchTargetMessageId = container.dataset.searchTargetPeer === peer ? container.dataset.searchTargetMessageId : '';
+    if (searchTargetMessageId) {
+      const target = [...container.querySelectorAll('.message-row')].find(row => row.dataset.messageId === searchTargetMessageId);
       if (target) {
         target.classList.add('conversation-search-target');
         target.tabIndex = -1;
