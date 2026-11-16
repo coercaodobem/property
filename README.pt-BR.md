@@ -39,7 +39,7 @@ O objetivo de plataforma inclui Windows, macOS, Linux/Ubuntu, Android e iOS. A i
 
 A publicação do app não significa que todo o plano foi concluído. O perfil offline Ubuntu registrou 70 casos PASS; os quatro casos nativos de Windows, macOS, Android e iOS/iPadOS estão PENDING. Consulte o [relatório e plano de testes](property/docs/plano-de-testes-central.pt-BR.md) para resultados e limitações. O marketplace não faz checkout; campanhas de node ainda não têm fluxo de operação/ativação em produção.
 
-A PWA pública está no ar. O bundle Ubuntu e os testes G10 offline foram preparados, mas ainda faltam a release pública versionada, o CI da tag exata e a verificação dos digests após upload. Veja o [índice de evidências de conclusão](property/docs/evidence/product-completion/README.pt-BR.md) e o [kit de divulgação](property/docs/launch-kit.pt-BR.md).
+A PWA pública e a release versionada [Property v0.1.0](https://github.com/coercaodobem/property/releases/tag/property-v0.1.0) estão no ar. O G10 passou para a release Ubuntu Linux x86_64: o CI da tag exata foi concluído com sucesso e os sete arquivos públicos tiveram seus SHA-256 conferidos. A validação em outros sistemas operacionais continua pendente. Veja o [índice de evidências de conclusão](property/docs/evidence/product-completion/README.pt-BR.md) e o [kit de divulgação](property/docs/launch-kit.pt-BR.md).
 
 ## Começar em poucos minutos
 

@@ -20,7 +20,23 @@
     "reason": "Other operating systems are explicitly out of scope for this execution."
   },
   "release_tag_ci": {
-    "result": "PENDING",
-    "reason": "No versioned release tag exists yet; the GitHub release page redirected to sign-in."
+    "result": "PASS",
+    "tag": "property-v0.1.0",
+    "head_sha": "111926e34fd9e654cf4d0fe550c8ba5c267542ba",
+    "run_id": 43949909425,
+    "conclusion": "success",
+    "url": "https://github.com/coercaodobem/property/actions/runs/43949909425",
+    "jobs": {
+      "smoke": "success",
+      "native_relay_ubuntu": "success",
+      "native_relay_matrix": "skipped"
+    }
+  },
+  "public_release": {
+    "release_id": 447574399,
+    "tag": "property-v0.1.0",
+    "url": "https://github.com/coercaodobem/property/releases/tag/property-v0.1.0",
+    "published_asset_count": 7,
+    "public_asset_digest_verification": "PASS"
   }
 }

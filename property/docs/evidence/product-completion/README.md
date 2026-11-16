@@ -1,11 +1,12 @@
 # Product completion evidence
 
-The selected candidate is `a2ac830e2c06715bb0f50e377b8dd12b4f889ca4`. G0 and G1 have now passed on that exact source commit under Ubuntu Linux x86_64 with isolated local networks, synthetic identities and fixed counts. The runtime source tree fingerprint is `b7ba15fbb2dfb8ff494a2378752859c4d750e81aef3a73ec047edd9402ae001f`.
+## Close-out status
 
-| Gate | Current candidate status | Evidence |
+The previously approved G0–G9 reports remain recorded in their gate folders; this G10 close-out did not rerun those gates. G10 passed for the Ubuntu Linux x86_64 release source commit `111926e34fd9e654cf4d0fe550c8ba5c267542ba`. The public release, exact-tag CI, and all seven public asset digest checks are complete. Each gate report retains its own candidate SHA and evidence.
+
+| Gate | Recorded status | Evidence |
 |---|---|---|
-| G0 | `PASS` | [G0 result](G0/gate-result.md), [manifest](G0/manifest.json) |
-| G1 | `PASS` | [G1 result](G1/gate-result.md), [fixed run 03](G1/fixed-run-03/manifest.json) |
-| G2–G10 | `NOT RUN` on the selected candidate | Earlier reports are historical; run each gate in order before advancing. |
+| G0–G9 | `PASS` in existing gate reports | See each gate folder; prior runs were not repeated for G10 close-out. |
+| G10 | `PASS` | [G10 result](G10/gate-result.md), [public digest report](G10/fixed-run-01/public-digest-report.json), [release v0.1.0](https://github.com/coercaodobem/property/releases/tag/property-v0.1.0), [exact-tag CI](https://github.com/coercaodobem/property/actions/runs/43949909425) |
 
-The plan remains incomplete until G2–G10 pass on this candidate and G10's release publication, exact-tag CI and public digest checks pass. Other operating systems, public relays and mainnet funds remain excluded from this execution. [Português (Brasil)](README.pt-BR.md)
+Validation on Windows, macOS, Android, and iOS/iPadOS remains pending and was not part of this Ubuntu-only execution. Public relays and mainnet funds were not used. [Português (Brasil)](README.pt-BR.md)

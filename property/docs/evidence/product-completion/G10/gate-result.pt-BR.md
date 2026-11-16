@@ -1,6 +1,6 @@
 # Resultado do gate G10 — release, pacote Ubuntu e onboarding
 
-**Resultado: PENDING publicação externa.** As verificações offline abaixo passaram no candidato `111926e34fd9e654cf4d0fe550c8ba5c267542ba`. A release pública versionada, o CI da tag exata e a conferência dos digests após upload ainda faltam.
+**Resultado: PASS.** As verificações offline do G10 e a conferência da publicação passaram no candidato 111926e34fd9e654cf4d0fe550c8ba5c267542ba.
 
 ## Verificações offline aprovadas
 
@@ -14,13 +14,13 @@
 - A PWA pública está em [coercaodobem.github.io/property](https://coercaodobem.github.io/property/); a árvore do Pages implantada corresponde à PWA do candidato.
 - O CI da branch no [run 43922994219](https://github.com/coercaodobem/property/actions/runs/43922994219) passou nos jobs smoke e relay Ubuntu. A matriz de outros sistemas foi ignorada conforme este escopo.
 
-## Itens G10 restantes
+## Release pública e verificação da tag
 
-1. Criar a release pública versionada e enviar o arquivo, manifesto assinado, checksums, SBOM e chave pública de assinatura preparados.
-2. Executar e passar o CI na tag exata do release. O gatilho de tag ainda não rodou; o CI aprovado na branch não o substitui.
-3. Baixar os artefatos publicados e comparar seus digests públicos com o manifesto assinado.
-
-O conector GitHub disponível nesta tarefa consulta releases, mas não consegue criá-las. A página de release redireciona para o login do GitHub, então nenhuma tag ou artefato público foi criado. É necessário autenticar a sessão do navegador para concluir essas etapas. A validação de Windows, macOS, Android e iOS continua `PENDING` e não foi executada.
+- A release pública é [Property v0.1.0](https://github.com/coercaodobem/property/releases/tag/property-v0.1.0), com os sete ativos preparados.
+- A tag property-v0.1.0 aponta para [111926e34fd9e654cf4d0fe550c8ba5c267542ba](https://github.com/coercaodobem/property/commit/111926e34fd9e654cf4d0fe550c8ba5c267542ba), commit registrado no manifesto assinado.
+- O CI da tag exata, [run 43949909425](https://github.com/coercaodobem/property/actions/runs/43949909425), terminou com sucesso: smoke e relay Ubuntu passaram; a matriz de outros sistemas foi ignorada conforme o escopo.
+- Os sete ativos públicos foram baixados; tamanho e SHA-256 conferem com os arquivos preparados. Os digests do arquivo e da SBOM SPDX também conferem com o manifesto assinado; veja [public-digest-report.json](fixed-run-01/public-digest-report.json).
+- A validação de Windows, macOS, Android e iOS continua PENDING e não foi executada.
 
 ## Candidato e evidências
 
@@ -31,4 +31,4 @@ O conector GitHub disponível nesta tarefa consulta releases, mas não consegue 
 - [`publication-status.json`](fixed-run-01/publication-status.json)
 - [Kit em inglês](../../../launch-kit.md) · [Português (Brasil)](../../../launch-kit.pt-BR.md)
 
-Este gate não está concluído enquanto o CI da tag, o upload da release ou a verificação pública dos digests permanecer pendente.
+O G10 está concluído para o escopo de release Ubuntu/Linux x86_64. A validação dos outros sistemas continua pendente conforme o escopo.

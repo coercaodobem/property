@@ -1,6 +1,6 @@
 # G10 gate result — release, Ubuntu package, and contributor onboarding
 
-**Result: PENDING external publication.** The offline checks below passed against release candidate `111926e34fd9e654cf4d0fe550c8ba5c267542ba`. The public versioned release, exact-tag CI, and post-upload digest verification are still missing.
+**Result: PASS.** Offline G10 checks and public release verification passed for candidate 111926e34fd9e654cf4d0fe550c8ba5c267542ba.
 
 ## Offline checks passed
 
@@ -14,13 +14,13 @@
 - The public PWA is available at [coercaodobem.github.io/property](https://coercaodobem.github.io/property/); the deployed Pages source tree matches the candidate PWA.
 - The candidate branch CI run [43922994219](https://github.com/coercaodobem/property/actions/runs/43922994219) passed smoke and Ubuntu relay jobs. The other-OS matrix was skipped, as required by this execution scope.
 
-## Remaining G10 items
+## Public release and tag verification
 
-1. Create the public versioned release and upload the prepared archive, signed manifest, checksums, SBOM, and public signing key.
-2. Run and pass CI on the exact release tag. The current tag trigger has not run; the successful branch CI above is not a substitute.
-3. Download the published assets and verify their public digests against the signed manifest.
-
-The GitHub connector available to this task can read release data but cannot create a release. The release page redirects to GitHub sign-in, so no tag or public assets have been created. The branch/session must be authenticated before these publication steps can be completed. Windows, macOS, Android, and iOS validation remain `PENDING` and were not run.
+- The public release is [Property v0.1.0](https://github.com/coercaodobem/property/releases/tag/property-v0.1.0), with all seven prepared assets.
+- Tag property-v0.1.0 points to [111926e34fd9e654cf4d0fe550c8ba5c267542ba](https://github.com/coercaodobem/property/commit/111926e34fd9e654cf4d0fe550c8ba5c267542ba), the source commit recorded in the signed release manifest.
+- Exact-tag CI [run 43949909425](https://github.com/coercaodobem/property/actions/runs/43949909425) completed successfully: smoke and Ubuntu relay passed; the other-OS matrix was skipped per scope.
+- All seven public assets were downloaded and their sizes and SHA-256 digests matched the prepared files. The archive and SPDX SBOM digests also match the signed manifest; see [public-digest-report.json](fixed-run-01/public-digest-report.json).
+- Windows, macOS, Android, and iOS validation remain PENDING and were not run.
 
 ## Candidate and evidence
 
@@ -31,4 +31,4 @@ The GitHub connector available to this task can read release data but cannot cre
 - [`publication-status.json`](fixed-run-01/publication-status.json)
 - [English launch kit](../../../launch-kit.md) · [Português (Brasil)](../../../launch-kit.pt-BR.md)
 
-This gate is not complete while tag CI, release upload, or public digest verification is pending.
+G10 is complete for the Ubuntu/Linux x86_64 release scope. Other operating-system validation remains pending as explicitly scoped.

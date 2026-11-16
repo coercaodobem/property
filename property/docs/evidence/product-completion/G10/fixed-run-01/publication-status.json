@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "gate": "G10",
-  "status": "PENDING_GITHUB_AUTHENTICATION",
+  "status": "PASS_PUBLICATION_VERIFIED",
   "release_tag_proposed": "property-v0.1.0",
   "release_assets_prepared": [
     "property-ubuntu-x86_64.tar.gz",
@@ -19,10 +19,36 @@
   "public_pages_url": "https://coercaodobem.github.io/property/",
   "pages_deployment_commit": "3e2fb60",
   "candidate_pwa_tree_matches_pages_source": true,
-  "missing_external_actions": [
-    "Create the versioned GitHub Release and upload the prepared assets.",
-    "Run and pass workflow CI on the exact release tag.",
-    "Verify public asset digests after upload."
+  "missing_external_actions": [],
+  "release_tag": "property-v0.1.0",
+  "release_id": 447574399,
+  "release_url": "https://github.com/coercaodobem/property/releases/tag/property-v0.1.0",
+  "tag_object_sha": "264ae9d5533ec26361d6892c167da52090b4881c",
+  "release_assets_published": [
+    "property-ubuntu-x86_64.tar.gz",
+    "release-manifest.json",
+    "release-manifest.sig",
+    "release-manifest.sha256",
+    "release-archive.sha256",
+    "SBOM.spdx.json",
+    "release-signing-public.pem"
   ],
-  "blocker": "The available GitHub connector is read-only for releases, and the browser session is signed out at github.com/login. No release or tag was created."
+  "tag_ci": {
+    "run_id": 43949909425,
+    "conclusion": "success",
+    "url": "https://github.com/coercaodobem/property/actions/runs/43949909425",
+    "jobs": {
+      "smoke": "success",
+      "native_relay_ubuntu": "success",
+      "native_relay_matrix": "skipped"
+    }
+  },
+  "public_asset_digest_verification": {
+    "result": "PASS",
+    "downloaded_assets": 7,
+    "all_sizes_match": true,
+    "all_sha256_match_prepared_sources": true,
+    "archive_and_sbom_match_signed_manifest": true,
+    "report": "public-digest-report.json"
+  }
 }

@@ -39,7 +39,7 @@ The platform goal includes Windows, macOS, Linux/Ubuntu, Android, and iOS. The c
 
 Publishing the app does not mean the full plan is complete. The Ubuntu offline profile recorded 70 PASS cases; the four native Windows, macOS, Android, and iOS/iPadOS cases remain PENDING. See the [test report and plan](property/docs/plano-de-testes-central.md) for results and limits. Marketplace checkout is unavailable, and node campaigns do not yet have a production operator/activation flow.
 
-The public PWA is live. The Ubuntu release bundle and offline G10 checks are prepared, but the versioned public release, its exact-tag CI run, and post-upload digest verification are still pending. See the [completion evidence index](property/docs/evidence/product-completion/README.md) and the [shareable launch kit](property/docs/launch-kit.md).
+The public PWA and versioned release [Property v0.1.0](https://github.com/coercaodobem/property/releases/tag/property-v0.1.0) are live. G10 passed for the Ubuntu Linux x86_64 release: exact-tag CI succeeded and all seven public assets matched their prepared SHA-256 digests. Validation on other operating systems remains pending. See the [completion evidence index](property/docs/evidence/product-completion/README.md) and the [shareable launch kit](property/docs/launch-kit.md).
 
 ## Get started
 

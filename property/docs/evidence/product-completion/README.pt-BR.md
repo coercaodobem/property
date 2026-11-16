@@ -1,11 +1,12 @@
 # Evidências de conclusão do produto
 
-O candidato selecionado é `a2ac830e2c06715bb0f50e377b8dd12b4f889ca4`. G0 e G1 passaram nesse commit exato da fonte, em Ubuntu Linux x86_64, com redes locais isoladas, identidades sintéticas e contagens fixas. O fingerprint da árvore de runtime é `b7ba15fbb2dfb8ff494a2378752859c4d750e81aef3a73ec047edd9402ae001f`.
+## Estado de encerramento
 
-| Gate | Estado no candidato atual | Evidência |
+Os relatórios G0–G9 já aprovados continuam registrados nas pastas de cada gate; este encerramento do G10 não repetiu esses gates. O G10 passou para a release Ubuntu Linux x86_64 no commit de fonte `111926e34fd9e654cf4d0fe550c8ba5c267542ba`. A release pública, o CI da tag exata e a conferência dos digests dos sete arquivos públicos foram concluídos. Cada relatório preserva o SHA de seu candidato e as evidências correspondentes.
+
+| Gate | Estado registrado | Evidência |
 |---|---|---|
-| G0 | `PASS` | [resultado G0](G0/gate-result.pt-BR.md), [manifesto](G0/manifest.json) |
-| G1 | `PASS` | [resultado G1](G1/gate-result.pt-BR.md), [execução fixa 03](G1/fixed-run-03/manifest.json) |
-| G2–G10 | `NOT RUN` neste candidato | Relatórios anteriores são históricos; executar cada gate em ordem antes de avançar. |
+| G0–G9 | `PASS` nos relatórios existentes | Consulte as pastas de cada gate; os testes anteriores não foram repetidos para encerrar o G10. |
+| G10 | `PASS` | [resultado G10](G10/gate-result.pt-BR.md), [relatório de digests públicos](G10/fixed-run-01/public-digest-report.json), [release v0.1.0](https://github.com/coercaodobem/property/releases/tag/property-v0.1.0), [CI da tag exata](https://github.com/coercaodobem/property/actions/runs/43949909425) |
 
-O plano continua incompleto até G2–G10 passarem neste candidato e G10 confirmar publicação, CI na tag exata e digests públicos. Outros sistemas operacionais, relays públicos e fundos de mainnet continuam fora desta execução. [English](README.md)
+A validação em Windows, macOS, Android e iOS/iPadOS continua pendente e não fez parte desta execução restrita ao Ubuntu. Não foram usados relays públicos nem fundos de mainnet. [English](README.md)

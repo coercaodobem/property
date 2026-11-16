@@ -1,0 +1,58 @@
+{
+  "release_url": "https://github.com/coercaodobem/property/releases/tag/property-v0.1.0",
+  "tag": "property-v0.1.0",
+  "tagged_commit": "111926e34fd9e654cf4d0fe550c8ba5c267542ba",
+  "assets": [
+    {
+      "name": "property-ubuntu-x86_64.tar.gz",
+      "bytes": 68543468,
+      "sha256": "2384fd4ec8e1c00dc05d2539ecf745a8cddc5d0ccd1384b0231bdef70c94e4fb",
+      "browser_download_url": "https://github.com/coercaodobem/property/releases/download/property-v0.1.0/property-ubuntu-x86_64.tar.gz",
+      "manifest_match": true
+    },
+    {
+      "name": "release-manifest.json",
+      "bytes": 146570,
+      "sha256": "247a22cbd4cde66329194f2bd471bb7c623be877c3ce45975a96c637cac777b5",
+      "browser_download_url": "https://github.com/coercaodobem/property/releases/download/property-v0.1.0/release-manifest.json"
+    },
+    {
+      "name": "release-manifest.sig",
+      "bytes": 89,
+      "sha256": "c2e7139917462ac7bfc573af1c011490e50c2899200df126f6136a126a685f11",
+      "browser_download_url": "https://github.com/coercaodobem/property/releases/download/property-v0.1.0/release-manifest.sig"
+    },
+    {
+      "name": "release-manifest.sha256",
+      "bytes": 88,
+      "sha256": "bae59e08538b5698ebb8476945b5bab59fcc2784554b42fb2537daff50652d33",
+      "browser_download_url": "https://github.com/coercaodobem/property/releases/download/property-v0.1.0/release-manifest.sha256"
+    },
+    {
+      "name": "release-archive.sha256",
+      "bytes": 96,
+      "sha256": "da1f63d4fab74703337c96e8bd24ab7c2203fbc12b5fc42285ae9ea4ee3444a3",
+      "browser_download_url": "https://github.com/coercaodobem/property/releases/download/property-v0.1.0/release-archive.sha256"
+    },
+    {
+      "name": "SBOM.spdx.json",
+      "bytes": 387669,
+      "sha256": "eb472441ac4c5676ff825458a391ac53fb420863b010e505a09a2b6832acee27",
+      "browser_download_url": "https://github.com/coercaodobem/property/releases/download/property-v0.1.0/SBOM.spdx.json",
+      "manifest_match": true
+    },
+    {
+      "name": "release-signing-public.pem",
+      "bytes": 113,
+      "sha256": "020082f569048f596312d7acf91cbaeb9349d62d5248558f2be61aa2564fc255",
+      "browser_download_url": "https://github.com/coercaodobem/property/releases/download/property-v0.1.0/release-signing-public.pem"
+    }
+  ],
+  "result": "PASS",
+  "schema_version": 1,
+  "gate": "G10",
+  "release_id": 447574399,
+  "tag_object_sha": "264ae9d5533ec26361d6892c167da52090b4881c",
+  "ci_run_id": 43949909425,
+  "ci_url": "https://github.com/coercaodobem/property/actions/runs/43949909425"
+}
