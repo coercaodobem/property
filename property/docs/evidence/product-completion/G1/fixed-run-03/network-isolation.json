@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "gate": "G1",
+  "result": "PASS",
+  "isolation_runner": "property/tests/offline/run-isolated.sh",
+  "isolation_runner_sha256": "986c61d3dd97ca06e02136a4dd01786cedd5020658c74d0ca5fa7d10c1dd41ef",
+  "network_namespace": "unshare --user --map-root-user --net",
+  "namespace_change_assertion": "The runner exits nonzero unless /proc/self/ns/net differs from the parent namespace.",
+  "loopback": "raised inside the isolated namespace for local fixtures",
+  "proxy_environment": "proxy variables are unset by the runner",
+  "external_network": "unreachable from the isolated namespace",
+  "funds_used": false,
+  "public_relays_used": false
+}
