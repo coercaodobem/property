@@ -1,0 +1,28 @@
+{
+  "gate": "G4",
+  "result": "PASS",
+  "candidate_commit": "4ec3ae5100e2aa39832a3312a5fca1a145080f1d",
+  "source_sha256": {
+    "property/web/app.js": "cee80b2836e88a6eb81c2431f4dd685152a0553f2b506ab778437b86a22c3797",
+    "property/web/index.html": "fedccae8a039cda22731d19bef20f8f1fab7a441284427bd6812ea9f120016eb",
+    "property/web/sw.js": "e05ab423d68d5239b3afbde4b455fd7a75dbd40612dcbbbdca90c1f396ed9209",
+    "property/web/routing.js": "69b32d8d2566b5b4066bfafaff525c8a3caf6a220109a2ce380a2765ed9a808c",
+    "property/web/protocol-contract.js": "b245cbfd8dacae8dfc51c7ae46548b33aecad12c1dcce100c6cd357da06f17de",
+    "property/web/public-profile.js": "98f533f6a6cadb232f1f0cf9c2e643f2abad2ddd716090fee5d7facf49f1d86d",
+    "property/web/marketplace.js": "0d59b732ecc745c6e6754032948eb21ce7f1e49f2a2d7126d9451297229420e2",
+    "property/web/money.js": "08d134e055d48fd16b4b2bcbfe8bc94f13c247f5bfed986a628c0ed6d231b268",
+    "property/tests/offline/browser-g04-smoke.mjs": "7fd8be1d924061b3756d170ffe656c850df661e80cda0205a310de0730f03f77",
+    "property/tests/offline/message-delivery-g4-smoke.mjs": "84d44ca7a51477047740cad61c75953e7f6b5c93d54998f6ac2001d6a5da20bd",
+    "property/tests/offline/product-completion-g4-relay-smoke.mjs": "3e785df48f93ca55bc96e51685f3466288e5b7adfef6b6bf9024227b8a69c185"
+  },
+  "components": {
+    "message-delivery": "PASS",
+    "isolated-relay-matrix": "PASS",
+    "browser-and-pwa": "PASS"
+  },
+  "fixed_case_counts": {
+    "message_delivery": 5,
+    "relay_matrix": 6,
+    "browser": 24
+  }
+}

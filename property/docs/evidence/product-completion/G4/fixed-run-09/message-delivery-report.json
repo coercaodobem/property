@@ -1,0 +1,32 @@
+{
+  "gate": "G4",
+  "suite": "message-delivery-state",
+  "result": "PASS",
+  "cases": [
+    {
+      "case": "G04-ACK-01",
+      "status": "PASS",
+      "detail": "Only one response from a relay that received the event is recorded. A duplicate contradictory response and an ACK from an unaddressed relay do not alter the result."
+    },
+    {
+      "case": "G04-STATE-01",
+      "status": "PASS",
+      "detail": "Queued, relay-accepted, observed, and failed states require the corresponding local queue, actual ACK, successful query, or explicit negative ACK; no recipient read state is inferred."
+    },
+    {
+      "case": "G04-RETRY-01",
+      "status": "PASS",
+      "detail": "A local retry is available only while at least one recipient relay has rejected the envelope or has no recorded response."
+    },
+    {
+      "case": "G04-BLOCK-10",
+      "status": "PASS",
+      "detail": "Ten blocked synthetic recipients are denied by the shared pre-send guard; ten active states remain eligible. Group and direct send paths use this guard before publishing."
+    },
+    {
+      "case": "G04-ROTATION-10",
+      "status": "PASS",
+      "detail": "Ten identity-rotation fixtures reject retry from a replacement key while preserving retry for the original matching public key."
+    }
+  ]
+}
