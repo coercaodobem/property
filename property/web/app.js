@@ -2619,8 +2619,8 @@
   }
   async function isLocallyBlockedPeer(peer) {
     const moderation = window.PropertyLocalModeration;
-    return Boolean(moderation && state.pubkey && peer &&
-      moderation.isBlocked(await all('settings'), state.pubkey, peer));
+    if (!moderation || !state.pubkey || !peer || (await get('conversations', peer))?.group === true) return false;
+    return moderation.isBlocked(await all('settings'), state.pubkey, peer);
   }
   async function assertPeerNotLocallyBlocked(peer) {
     if (await isLocallyBlockedPeer(peer)) {
@@ -3694,9 +3694,17 @@
       console.warn('Relay notice:', url, id.slice(0, 160));
     }
   }
-  async function notifyIncomingMessage(peer) {
+  async function notifyIncomingMessage(peer, senderPubkey = '') {
     if (!state.notificationsEnabled || !state.pubkey || typeof Notification === 'undefined') return;
-    if (window.PropertyLocalModeration && window.PropertyLocalModeration.isBlocked(await all('settings'), state.pubkey, peer)) return;
+    const moderation = window.PropertyLocalModeration;
+    if (moderation) {
+      const conversation = await get('conversations', peer);
+      const records = await all('settings');
+      if (conversation?.group === true) {
+        const sender = typeof senderPubkey === 'string' ? senderPubkey.toLowerCase() : '';
+        if (sender && moderation.blockedPeers(records, state.pubkey).includes(sender)) return;
+      } else if (moderation.isBlocked(records, state.pubkey, peer)) return;
+    }
     const permission = Notification.permission;
     const mute = currentConversationMute(peer);
     const muted = NotificationPrefs.isMuted(mute, Date.now());
@@ -4018,7 +4026,7 @@
     await put('conversations', updatedConversation);
     await renderConversations();
     if (state.activePeer === peer) { await updateConversationHeader(updatedConversation); await updateAgentBlockControl(peer); await renderMessages(peer); }
-    if (!edit && !message.deleted && senderDirection === 'received' && !visibleConversation && !fileTransferAlreadyStored) await notifyIncomingMessage(peer);
+    if (!edit && !message.deleted && senderDirection === 'received' && !visibleConversation && !fileTransferAlreadyStored) await notifyIncomingMessage(peer, message.senderPubkey);
   }
   function finishFetchSub(id, fromSocketClose) {
     const subscription = state.fetchSubs.get(id);
@@ -5062,11 +5070,17 @@
     state.readReceiptObserver = null;
     state.readReceiptCandidates.clear();
     const allEntries = (await all('messages')).filter(message => message.peer === peer && !message.hiddenFromChat).sort((a, b) => a.createdAt - b.createdAt);
-    const locallyBlocked = Boolean(state.pubkey && window.PropertyLocalModeration &&
-      window.PropertyLocalModeration.isBlocked(await all('settings'), state.pubkey, peer));
-    const entries = locallyBlocked
-      ? allEntries.filter(message => !window.PropertyLocalModeration.messageFromBlocked(message, new Set([peer])))
-      : allEntries;
+    const conversation = await get('conversations', peer);
+    const moderation = window.PropertyLocalModeration;
+    const blockedPeers = state.pubkey && moderation
+      ? new Set(moderation.blockedPeers(await all('settings'), state.pubkey))
+      : new Set();
+    const locallyBlocked = conversation?.group !== true && blockedPeers.has(peer);
+    const entries = conversation?.group === true && blockedPeers.size
+      ? allEntries.filter(message => !moderation.messageFromBlocked(message, blockedPeers))
+      : locallyBlocked
+        ? allEntries.filter(message => !moderation.messageFromBlocked(message, new Set([peer])))
+        : allEntries;
     const messages = MessageDeletions.coalesceDeletedMessages(FileTransfers.coalesceMessages(entries.filter(message => message.kind !== 7)));
     const activePlayback = audioPlayback.getState();
     if (activePlayback?.peer === peer) {
@@ -5109,7 +5123,6 @@
       counts.set(reaction.reaction, (counts.get(reaction.reaction) || 0) + 1);
       reactionsByTarget.set(canonicalTarget, counts);
     }
-    const conversation = await get('conversations', peer);
     const currentPin = conversation?.agent ? null : await get('settings', messagePinSettingId(peer));
     renderConversationPinBar(peer, messages, currentPin);
     const container = $('messages');

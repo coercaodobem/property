@@ -135,6 +135,9 @@ class RelayClient {
 }
 
 function groupForRelay(relayIndex) { return GROUPS.findIndex(group => group.includes(relayIndex)); }
+function relayRateConfig(port) {
+  return `[network]\nhost = "127.0.0.1"\nport = ${port}\npath = "/"\n\n[rate_limits]\nevents_per_minute = 10000\nevent_burst = 10000\nreqs_per_minute = 10000\nreq_burst = 10000\n`;
+}
 function digestIds(events) { return createHash('sha256').update(events.map(event => event.id).sort().join('\n')).digest('hex'); }
 function signedEventFields(event) {
   return Object.fromEntries(['id', 'pubkey', 'created_at', 'kind', 'tags', 'content', 'sig'].map(field => [field, event?.[field]]));
@@ -182,6 +185,7 @@ async function main() {
     operating_system: 'Ubuntu Linux x86_64', runtime: { node: process.version, nostr_bundle: 'bundled nostr-tools 2.25.2' },
     predefined_variables: { synthetic_identities: 6, isolated_relays: 5, relay_groups: GROUPS.map(group => [...group]),
       private_messages_per_ordered_identity_pair: PRIVATE_MESSAGE_COUNT, public_events: PUBLIC_EVENT_COUNT,
+      relay_rate_limits: { events_per_minute: 10000, event_burst: 10000, reqs_per_minute: 10000, req_burst: 10000 },
       partition_transitions: PARTITION_TRANSITIONS, conflicting_profile_offer_updates: CONFLICTING_UPDATES,
       restarts_per_relay: RESTARTS_PER_RELAY, repeated_event_fixtures: RETRY_FIXTURES, failure_fixtures_per_category: FAILURE_FIXTURES,
       fixed_event_epoch: FIXED_EVENT_EPOCH },
@@ -196,7 +200,7 @@ async function main() {
       activeCase = `G04-setup-relay-${index + 1}`;
       const port = await reserveLoopbackPort();
       const label = `G4 isolated relay ${index + 1}`;
-      const relay = await startGeode(port, temp, label);
+      const relay = await startGeode(port, temp, label, relayRateConfig(port));
       relay.g4Port = port; relay.g4Label = label; relays.push(relay);
       clients.push(new RelayClient(relay.url));
     }
