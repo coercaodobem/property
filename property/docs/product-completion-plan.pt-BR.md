@@ -163,7 +163,7 @@ Liquidação/escrow BTC e XMR devem usar apenas mecanismos que o protocolo e car
 - Garantir que 100% dos registros reconciliem ID da oferta, ID da aceitação, valor, moeda, referência de transação, assinante e estado; pagamento ambíguo/não confirmado não libera publicação.
 - Inspecionar cada fixture de cliente/relay em busca de contadores de clique/visualização, analytics de terceiros e rastreamento não informado; qualquer caminho assim reprova o gate.
 
-**Entregas:** Interface/CLI de campanha do operador, máquina de estados, limites de devolução por moeda, recibos assinados, exportação do livro-razão local e evidência sem rastreamento.
+**Entregas:** Interface local JSON-RPC stdio do operador com nove ferramentas de campanha, máquina de estados, limites de devolução por moeda, recibos assinados, exportação do livro-razão local e evidência sem rastreamento. Um host incorpora a interface fornecendo assinador, adapters de ledger e publicador; o launcher Geode simples não a inicia. O resultado automatizado está registrado na [evidência do gate G8](evidence/product-completion/G8/gate-result.pt-BR.md).
 
 ### G9 — Resistência a abuso, minimização de dados e segurança automatizada
 

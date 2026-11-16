@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "gate": "G8",
+  "run_id": "G8-fixed-run-01",
+  "result": "PASS",
+  "source_commit": "5a8c6f2bce3a09f71098005f8eea240245a3bf38",
+  "operating_system": "Ubuntu Linux x86_64",
+  "cases": [
+    {
+      "case": "G08-01",
+      "status": "PASS"
+    },
+    {
+      "case": "G08-02",
+      "status": "PASS"
+    },
+    {
+      "case": "G08-03",
+      "status": "PASS"
+    },
+    {
+      "case": "G08-04",
+      "status": "PASS"
+    },
+    {
+      "case": "G08-05",
+      "status": "PASS"
+    },
+    {
+      "case": "G08-06",
+      "status": "PASS"
+    },
+    {
+      "case": "G08-07",
+      "status": "PASS"
+    }
+  ],
+  "private_networks": {
+    "BTC": {
+      "network": "regtest",
+      "p2p_listeners": false,
+      "public_network": false
+    },
+    "XMR": {
+      "network": "fakechain",
+      "internet_peers": 0,
+      "public_network": false
+    },
+    "XNO": {
+      "network": "dev",
+      "configured_peers": 0,
+      "rpc_loopback_only": true,
+      "public_network": false
+    },
+    "relay": "local Geode instance"
+  },
+  "exact_payment_campaigns": {
+    "BTC": {
+      "published": 10,
+      "distinct_destinations": 10,
+      "distinct_payment_references": 10
+    },
+    "XMR": {
+      "published": 10,
+      "distinct_destinations": 10,
+      "distinct_payment_references": 10
+    },
+    "XNO": {
+      "published": 10,
+      "distinct_destinations": 10,
+      "distinct_payment_references": 10
+    }
+  },
+  "accepted_campaign_publications": {
+    "accepted_and_published": {
+      "BTC": 10,
+      "XMR": 10,
+      "XNO": 10
+    },
+    "unique_payment_destinations": {
+      "BTC": 10,
+      "XMR": 10,
+      "XNO": 10
+    },
+    "unique_publications": {
+      "BTC": 10,
+      "XMR": 10,
+      "XNO": 10
+    }
+  },
+  "underpayment_refunds": {
+    "currencies": [
+      "BTC",
+      "XMR",
+      "XNO"
+    ],
+    "cases": 3,
+    "per_currency_cases": {
+      "BTC": 1,
+      "XMR": 1,
+      "XNO": 1
+    },
+    "idempotent_retry": true,
+    "confirmed": true
+  },
+  "rejection_return": {
+    "fixtures_per_currency": 10,
+    "result": "UNSUPPORTED_RETURN",
+    "payment_address_issued": false,
+    "automatic_refund_advertised": false
+  },
+  "safety": {
+    "external_endpoints": 0,
+    "public_relays": false,
+    "mainnet": false,
+    "real_funds": false,
+    "rpc_credentials_in_repository_evidence": false,
+    "raw_addresses_and_transaction_ids_in_summary": false
+  },
+  "runtime_binary_sha256": {
+    "bitcoind": "580ac61190154da31aac3f82d13c4254ef453d70e1bf2c39d338dac5129c92ac",
+    "bitcoin_cli": "83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d",
+    "monerod": "f035a7c555aec692705012027a64707f38adeabc4a4c9244f259cd78bb2e84f1",
+    "monero_wallet_rpc": "06f36de37bda72ff377c11700ba622fef435d27510c883e9c83a27ba3c46ba1f",
+    "nano_node": "6e0557d6b554c70d5097f8a06acc618842717f3e7c0af2da9b81c3d387495836"
+  }
+}

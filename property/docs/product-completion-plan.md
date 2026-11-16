@@ -163,7 +163,7 @@ BTC and XMR settlement/escrow must use only mechanisms their actual protocol and
 - Assert 100% of campaign records reconcile offer ID, acceptance ID, amount, currency, transaction reference, signer, and status; ambiguous or unconfirmed payments never unlock publication.
 - Inspect every client and relay fixture for click/view counters, third-party analytics, and undisclosed user tracking; any such path fails the gate.
 
-**Deliverables:** Operator campaign UI/CLI, campaign state machine, per-currency refund/return limits, signed receipts, local ledger export, and no-tracking evidence.
+**Deliverables:** Local JSON-RPC stdio operator interface with nine campaign tools, campaign state machine, per-currency refund/return limits, signed receipts, local ledger export, and no-tracking evidence. The interface is embedded by a host that supplies the signer, ledger adapters, and publisher; the plain Geode launcher does not start it. The automated result is recorded in the [G8 gate evidence](evidence/product-completion/G8/gate-result.md).
 
 ### G9 — Abuse resistance, data minimization, and automated security checks
 

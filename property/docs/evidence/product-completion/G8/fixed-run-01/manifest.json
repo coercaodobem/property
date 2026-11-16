@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "gate": "G8",
+  "result": "PASS",
+  "source_commit": "5a8c6f2bce3a09f71098005f8eea240245a3bf38",
+  "fixed_count_run": "campaign-fixed-count.json",
+  "private_ledger_run": "private-ledger-summary.json",
+  "checksum_file": "SHA256SUMS",
+  "test_command": "node property/tests/offline/campaign-g8-fixed-count.mjs",
+  "real_ledger_runner": "property/tests/offline/g08-ledger-smoke.mjs",
+  "fixed_run_id": "G8-fixed-run-01",
+  "test_platform": "linux-x64",
+  "public_networks": false,
+  "external_endpoints": 0
+}
