@@ -10,6 +10,7 @@ const CAMPAIGN_KIND = 30078;
 const OFFER_TAG = 'property-campaign-offer-v1';
 const DECISION_TAG = 'property-campaign-decision-v1';
 const MAX_DURATION_SECONDS = 30 * 24 * 60 * 60;
+const MAX_PUBLICATION_RELAYS = 32;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const HEX_64 = /^[0-9a-f]{64}$/i;
 const MAX_ATOMIC = Object.freeze({ BTC: 2_100_000_000_000_000n, XMR: (1n << 64n) - 1n, XNO: (1n << 128n) - 1n });
@@ -36,6 +37,42 @@ function safeHttps(value) {
         /^\d+(?:\.\d+){3}$/.test(url.hostname) || url.hostname.startsWith('[')) return '';
     return url.href;
   } catch { return ''; }
+}
+
+function normalizePublicationScope(value) {
+  if (value === undefined || value === null || value.mode === 'all-configured-relays') {
+    return Object.freeze({ mode: 'all-configured-relays', relays: [] });
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value) || value.mode !== 'selected-relays' ||
+      !Array.isArray(value.relays) || value.relays.length < 1 || value.relays.length > MAX_PUBLICATION_RELAYS) {
+    throw new Error('Escopo de publicação inválido.');
+  }
+  const relays = [...new Set(value.relays.map(relay => {
+    if (typeof relay !== 'string' || relay.length > 512) throw new Error('Relay no escopo de publicação inválido.');
+    let url;
+    try { url = new URL(relay); } catch { throw new Error('Relay no escopo de publicação inválido.'); }
+    const loopback = ['127.0.0.1', '::1', '[::1]', 'localhost'].includes(url.hostname);
+    if (!['ws:', 'wss:'].includes(url.protocol) || url.username || url.password || url.hash || url.search ||
+        (url.protocol === 'ws:' && !loopback) || !url.hostname) throw new Error('Relay no escopo de publicação inválido.');
+    return url.href;
+  }))].sort();
+  if (relays.length !== value.relays.length) throw new Error('O escopo não pode repetir relays.');
+  return Object.freeze({ mode: 'selected-relays', relays: Object.freeze(relays) });
+}
+
+function policyRejection(offer, current, policy, options) {
+  if (options?.operatorDecision !== undefined && !['accept', 'reject'].includes(options.operatorDecision)) {
+    throw new Error('Decisão local do operador inválida.');
+  }
+  let reason = '';
+  if (policy.enabled === false || options?.policyEnabled === false) reason = 'campaigns_disabled_by_node';
+  else if (!policy.currencies.includes(offer.currency)) reason = 'currency_not_accepted';
+  else if (BigInt(offer.amountAtomic) < BigInt(policy.minAtomic[offer.currency] || '1') ||
+      BigInt(offer.amountAtomic) > BigInt(policy.maxAtomic[offer.currency] || MAX_ATOMIC[offer.currency])) reason = 'amount_outside_node_policy';
+  else if (policy.allowedAdvertisers.length && !policy.allowedAdvertisers.includes(offer.advertiserPubkey)) reason = 'advertiser_not_allowed';
+  else if (current.campaigns[offer.campaignId]) reason = 'campaign_id_conflict';
+  else if (options?.operatorDecision === 'reject') reason = 'operator_rejected';
+  return reason;
 }
 
 function offerPayload(event, verifyEvent, now) {
@@ -91,6 +128,7 @@ export function createCampaignEngine(options) {
   const filePath = path.join(path.resolve(stateDir), 'campaigns.json');
   const nowSeconds = options.nowSeconds || (() => Math.floor(Date.now() / 1000));
   const policy = Object.freeze({
+    enabled: options.policy?.enabled !== false,
     currencies: [...new Set(options.policy?.currencies || ['BTC', 'XMR', 'XNO'])],
     allowedAdvertisers: [...new Set(options.policy?.allowedAdvertisers || [])],
     minAtomic: { ...(options.policy?.minAtomic || {}) }, maxAtomic: { ...(options.policy?.maxAtomic || {}) },
@@ -99,9 +137,9 @@ export function createCampaignEngine(options) {
   let state = null;
   let queue = Promise.resolve();
 
-  async function load() {
+  async function load({ persistIfMissing = true } = {}) {
     if (state) return state;
-    await mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 });
+    if (persistIfMissing) await mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 });
     try {
       state = JSON.parse(await readFile(filePath, 'utf8'));
       if (state.schema_version !== 1 || !state.campaigns || typeof state.campaigns !== 'object' || Array.isArray(state.campaigns)) {
@@ -109,7 +147,9 @@ export function createCampaignEngine(options) {
       }
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
-      state = { schema_version: 1, node_pubkey: nodePubkey, campaigns: {} };
+      const empty = { schema_version: 1, node_pubkey: nodePubkey, campaigns: {} };
+      if (!persistIfMissing) return empty;
+      state = empty;
       await save();
     }
     if (state.node_pubkey !== nodePubkey) throw new Error('Campaign state belongs to another node identity.');
@@ -134,7 +174,20 @@ export function createCampaignEngine(options) {
     return structuredClone(record);
   }
 
-  async function decide(offerEvent) {
+  async function inspect(offerEvent) {
+    return serialized(async () => {
+      const now = nowSeconds();
+      const offer = offerPayload(offerEvent, verifyEvent, now);
+      const current = await load({ persistIfMissing: false });
+      const rejectionReason = policyRejection(offer, current, policy);
+      const existing = findByOfferId(current, offer.eventId);
+      return { offer: { ...offer }, recommendation: existing ? existing.decision : rejectionReason ? 'reject' : 'accept',
+        reason: existing ? 'duplicate_offer' : rejectionReason || null,
+        existing_decision_event_id: existing?.decision_event?.id || null };
+    });
+  }
+
+  async function decide(offerEvent, decisionOptions = {}) {
     return serialized(async () => {
       const current = await load();
       const now = nowSeconds();
@@ -142,13 +195,7 @@ export function createCampaignEngine(options) {
       const byId = findByOfferId(current, offer.eventId);
       if (byId) return { decision: byId.decision, event: byId.decision_event, record: summary(byId) };
       const conflict = current.campaigns[offer.campaignId];
-      let rejectionReason = '';
-      if (options.policy?.enabled === false) rejectionReason = 'campaigns_disabled_by_node';
-      else if (!policy.currencies.includes(offer.currency)) rejectionReason = 'currency_not_accepted';
-      else if (BigInt(offer.amountAtomic) < BigInt(policy.minAtomic[offer.currency] || '1') ||
-          BigInt(offer.amountAtomic) > BigInt(policy.maxAtomic[offer.currency] || MAX_ATOMIC[offer.currency])) rejectionReason = 'amount_outside_node_policy';
-      else if (policy.allowedAdvertisers.length && !policy.allowedAdvertisers.includes(offer.advertiserPubkey)) rejectionReason = 'advertiser_not_allowed';
-      else if (conflict) rejectionReason = 'campaign_id_conflict';
+      const rejectionReason = policyRejection(offer, current, policy, decisionOptions);
       const approved = !rejectionReason;
       if (!approved) {
         const decision = await sign(DECISION_KIND, canonicalJson({ schema: DECISION_TAG, status: 'rejected',
@@ -157,12 +204,14 @@ export function createCampaignEngine(options) {
         [['t', DECISION_TAG], ['d', offer.campaignId], ['e', offer.eventId], ['p', offer.advertiserPubkey]]);
         const record = { campaign_id: offer.campaignId, offer_event_id: offer.eventId, advertiser_pubkey: offer.advertiserPubkey,
           terms_hash: offer.termsHash, currency: offer.currency, amount_atomic: offer.amountAtomic, expires_at: offer.expiresAt,
-          decision: 'rejected', decision_event: decision, status: 'rejected', created_at: now };
+          decision: 'rejected', rejection_reason: rejectionReason, decision_event: decision, status: 'rejected', created_at: now,
+          terminal_at: now, publication_scope: null };
         const recordKey = conflict ? `${offer.campaignId}:conflict:${offer.eventId}` : offer.campaignId;
         current.campaigns[recordKey] = record;
         await save();
         return { decision: 'rejected', event: decision, record: summary(record) };
       }
+      const publicationScope = normalizePublicationScope(decisionOptions.publicationScope);
       const address = await addressProvider({ campaignId: offer.campaignId, currency: offer.currency, offerEventId: offer.eventId });
       if (typeof address !== 'string' || !address.trim() || address.length > 256) throw new Error('O adaptador não gerou endereço exclusivo válido.');
       if (Object.values(current.campaigns).some(record => record.payment_address === address)) throw new Error('O endereço de pagamento já foi associado a outra campanha.');
@@ -176,11 +225,20 @@ export function createCampaignEngine(options) {
         currency: offer.currency, amount_atomic: offer.amountAtomic, payment_address: address,
         refund_terms: offer.refundTerms, expires_at: offer.expiresAt, decision: 'accepted', decision_event: decision,
         status: 'awaiting_payment', created_at: now, payment: null, campaign_event: null, campaign_delete_event: null,
-        refund_request_id: null, refund: null };
+        refund_request_id: null, refund: null, terminal_at: null,
+        publication_scope: publicationScope };
       current.campaigns[offer.campaignId] = record;
       await save();
       return { decision: 'accepted', event: decision, record: summary(record) };
     });
+  }
+
+  async function accept(offerEvent, decisionOptions = {}) {
+    return decide(offerEvent, { ...decisionOptions, operatorDecision: 'accept' });
+  }
+
+  async function reject(offerEvent) {
+    return decide(offerEvent, { operatorDecision: 'reject' });
   }
 
   async function publishPending(record) {
@@ -195,7 +253,7 @@ export function createCampaignEngine(options) {
       record.status = 'publish_pending';
       await save();
     }
-    const result = await publishEvent(record.campaign_event);
+    const result = await publishEvent(record.campaign_event, { scope: normalizePublicationScope(record.publication_scope) });
     if (result?.accepted !== true) return { status: record.status, event: record.campaign_event, relay_ack: result || null };
     record.status = 'published';
     record.published_at = nowSeconds();
@@ -217,7 +275,7 @@ export function createCampaignEngine(options) {
           await save();
         }
         const ack = await publishEvent(record.campaign_delete_event);
-        if (ack?.accepted === true) { record.status = 'expired'; record.expired_at = nowSeconds(); await save(); }
+        if (ack?.accepted === true) { record.status = 'expired'; record.expired_at = nowSeconds(); record.terminal_at = record.expired_at; await save(); }
         return { status: record.status, event: record.campaign_delete_event, record: summary(record) };
       }
       if (record.status === 'expired' || record.status === 'refunded' || record.status === 'rejected') return { status: record.status, record: summary(record) };
@@ -231,6 +289,7 @@ export function createCampaignEngine(options) {
       if (expiredBeforeLookup && !observed) {
         record.status = 'expired';
         record.expired_at = nowSeconds();
+        record.terminal_at = record.expired_at;
         await save();
         return { status: record.status, record: summary(record) };
       }
@@ -304,8 +363,74 @@ export function createCampaignEngine(options) {
       record.refund = { txid: result.txid, currency: record.payment.currency, amount_atomic: record.payment.amount_atomic,
         refund_address: payload.refund_address, fee_atomic: String(result.fee_atomic || '0') };
       record.status = 'refunded';
+      record.terminal_at = nowSeconds();
       await save();
       return { status: record.status, refund: structuredClone(record.refund), record: summary(record) };
+    });
+  }
+
+  async function setPublicationScope(campaignId, scope) {
+    if (typeof campaignId !== 'string' || !UUID.test(campaignId)) throw new Error('Identificador de campanha inválido.');
+    const normalized = normalizePublicationScope(scope);
+    return serialized(async () => {
+      const current = await load();
+      const record = current.campaigns[campaignId];
+      if (!record || record.decision !== 'accepted' || !['awaiting_payment', 'payment_pending'].includes(record.status)) {
+        throw new Error('Escopo só pode mudar antes da confirmação do pagamento.');
+      }
+      record.publication_scope = normalized;
+      await save();
+      return summary(record);
+    });
+  }
+
+  async function exportAccounting() {
+    const current = await load({ persistIfMissing: false });
+    const entries = Object.values(current.campaigns).map(record => {
+      if (!record.offer_event_id || !record.decision_event?.id || record.decision_event.pubkey !== nodePubkey ||
+          !['BTC', 'XMR', 'XNO'].includes(record.currency) || !/^\d+$/.test(record.amount_atomic || '') || !record.status) {
+        throw new Error('Registro de campanha não reconcilia oferta, decisão, moeda, valor, assinante e estado.');
+      }
+      return { campaign_id: record.campaign_id, offer_event_id: record.offer_event_id,
+        decision_event_id: record.decision_event.id, signer_pubkey: record.decision_event.pubkey,
+        currency: record.currency, amount_atomic: record.amount_atomic, status: record.status,
+        payment_txid: record.payment?.txid || null, received_atomic: record.payment?.amount_atomic || null,
+        refund_txid: record.refund?.txid || null, refunded_atomic: record.refund?.amount_atomic || null,
+        fee_atomic: record.refund?.fee_atomic || null };
+    }).sort((a, b) => a.campaign_id.localeCompare(b.campaign_id));
+    const currencies = {};
+    for (const currency of ['BTC', 'XMR', 'XNO']) {
+      const rows = entries.filter(row => row.currency === currency);
+      const sum = key => rows.reduce((total, row) => total + BigInt(row[key] || '0'), 0n).toString();
+      currencies[currency] = { records: rows.length, received_atomic_total: sum('received_atomic'),
+        refunded_atomic_total: sum('refunded_atomic'), fee_atomic_total: sum('fee_atomic') };
+    }
+    return { schema_version: 1, node_pubkey: nodePubkey, exported_at: nowSeconds(), entry_count: entries.length,
+      reconciled_entries: entries.length, currencies, entries };
+  }
+
+  async function pruneTerminal({ beforeEpochSeconds } = {}) {
+    if (!Number.isSafeInteger(beforeEpochSeconds) || beforeEpochSeconds < 0) throw new Error('Corte de retenção inválido.');
+    return serialized(async () => {
+      const current = await load();
+      let pruned = 0;
+      for (const record of Object.values(current.campaigns)) {
+        if (!['rejected', 'expired', 'refunded'].includes(record.status) || record.retention_pruned === true ||
+            !Number.isSafeInteger(record.terminal_at) || record.terminal_at > beforeEpochSeconds) continue;
+        delete record.title; delete record.body; delete record.link; delete record.payment_address; delete record.refund_terms;
+        if (record.payment) {
+          record.payment = { currency: record.payment.currency, amount_atomic: record.payment.amount_atomic,
+            txid: record.payment.txid, confirmations: record.payment.confirmations, proof: record.payment.proof };
+        }
+        if (record.refund) {
+          record.refund = { txid: record.refund.txid, currency: record.refund.currency,
+            amount_atomic: record.refund.amount_atomic, fee_atomic: record.refund.fee_atomic };
+        }
+        record.retention_pruned = true;
+        pruned++;
+      }
+      if (pruned) await save();
+      return { pruned, before_epoch_seconds: beforeEpochSeconds, preserved_tombstones: pruned };
     });
   }
 
@@ -320,7 +445,8 @@ export function createCampaignEngine(options) {
     return Object.values(current.campaigns).map(summary);
   }
 
-  return Object.freeze({ kinds: Object.freeze({ OFFER_KIND, DECISION_KIND, REFUND_REQUEST_KIND, CAMPAIGN_KIND }), decide, reconcile, refund, get, list });
+  return Object.freeze({ kinds: Object.freeze({ OFFER_KIND, DECISION_KIND, REFUND_REQUEST_KIND, CAMPAIGN_KIND }),
+    inspect, decide, accept, reject, reconcile, refund, setPublicationScope, exportAccounting, pruneTerminal, get, list });
 }
 
 export { OFFER_KIND, DECISION_KIND, REFUND_REQUEST_KIND, CAMPAIGN_KIND, OFFER_TAG, DECISION_TAG };

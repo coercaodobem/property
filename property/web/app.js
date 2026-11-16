@@ -6039,10 +6039,10 @@
     settings.exposures = Campaigns.recordExposure(settings.exposures, campaign.campaignId, now);
     await saveCampaignSettings(settings);
     const card = document.createElement('article'); card.className = 'campaign-card';
-    const label = document.createElement('p'); label.className = 'eyebrow'; label.textContent = 'PATROCINADO · PAGAMENTO NÃO VERIFICADO PELO CLIENTE';
+    const label = document.createElement('p'); label.className = 'eyebrow'; label.textContent = 'SPONSORED · PAYMENT NOT VERIFIED BY THE CLIENT';
     const heading = document.createElement('h3'); heading.dataset.userContent = ''; heading.textContent = campaign.title;
     const body = document.createElement('p'); body.dataset.userContent = ''; body.textContent = campaign.body;
-    const amount = document.createElement('p'); amount.className = 'hangout-meta'; amount.textContent = `Oferta do node: ${Money.fromAtomic(campaign.amountAtomic, campaign.currency)} ${campaign.currency} · identidade ${N.nip19.npubEncode(campaign.nodePubkey).slice(0, 18)}…`;
+    const amount = document.createElement('p'); amount.className = 'hangout-meta'; amount.textContent = `Node offer: ${Money.fromAtomic(campaign.amountAtomic, campaign.currency)} ${campaign.currency} · identity ${N.nip19.npubEncode(campaign.nodePubkey).slice(0, 18)}…`;
     card.append(label);
     if (campaign.imageData) { const image = document.createElement('img'); image.className = 'campaign-image'; image.dataset.userContent = ''; image.src = campaign.imageData; image.alt = campaign.title; image.loading = 'lazy'; card.append(image); }
     card.append(heading, body, amount);

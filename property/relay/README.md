@@ -13,6 +13,12 @@ The relay is Geode from Amethyst, reused under the MIT license. It runs without 
 - Configuration: `~/.config/property-relay/geode.toml`.
 - Stop with `Ctrl+C`.
 
+## Optional campaign operator API
+
+`campaign-engine.mjs` and `campaign-operator.mjs` provide a local operator interface for an embedding process that supplies the node signer, a wallet/ledger adapter, and a relay publisher. The operator exposes nine JSON-RPC methods over standard input/output: inspect, accept, reject, list, reconcile, refund, set publication scope, export accounting, and prune terminal campaign data. The stdio adapter opens no TCP listener.
+
+This API is not currently started by the plain Geode launcher. A host must wire it to its own local signer, exact-payment ledger adapters, and relay publisher. Acceptance creates a dedicated payment destination; a signed campaign is published only after the local ledger verifies the exact amount and confirmation policy. Rejection creates no payment destination, so an automatic return is unsupported and is never advertised. Campaigns remain opt-in for each node. Publication scope, local accounting, and retention controls are per-node.
+
 Optional environment variables:
 
 ```bash

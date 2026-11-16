@@ -13,6 +13,12 @@ O relay é o Geode do Amethyst reutilizado sob licença MIT. O comando é execut
 - Configuração: `~/.config/property-relay/geode.toml`.
 - Encerrar: `Ctrl+C`.
 
+## API opcional do operador de campanhas
+
+`campaign-engine.mjs` e `campaign-operator.mjs` fornecem uma interface local para um processo que injeta o assinador do node, um adapter de carteira/livro-razão e um publicador de eventos. O operador expõe nove métodos JSON-RPC por entrada/saída padrão: inspecionar, aceitar, rejeitar, listar, reconciliar, reembolsar, definir escopo de publicação, exportar a contabilização e podar dados de campanhas encerradas. O adapter stdio não abre listener TCP.
+
+Esta API ainda não é iniciada pelo launcher Geode padrão. Um host precisa conectá-la ao assinador local, aos adapters que verificam o valor exato e ao publicador de relays. Aceitar cria um destino de pagamento dedicado; a campanha assinada só é publicada depois que o livro-razão local confirma o valor exato e a política de confirmações. Rejeitar não cria destino de pagamento, então devolução automática não é suportada nem anunciada. Cada node decide se aceita campanhas. Escopo de publicação, contabilização local e retenção são controles por node.
+
 Variáveis opcionais:
 
 ```bash

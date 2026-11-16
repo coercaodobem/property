@@ -14,6 +14,7 @@ for test_file in \
   offline/marketplace-g6-fixed-count.mjs \
   campaigns-smoke.mjs \
   campaign-engine-smoke.mjs \
+  offline/campaign-g8-fixed-count.mjs \
   ledger-rpc-smoke.mjs \
   protocol-contract-g1.mjs \
   protocol-smoke.mjs \

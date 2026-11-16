@@ -417,6 +417,21 @@ async function main() {
     report.payments.push({ currency: 'BTC', address: exactBtc.decision.record.payment_address, txid: btcPaymentTx,
       amount_atomic: btcPublished.record.payment.amount_atomic, pending_gate: btcPending.status, published: btcPublished.status });
     report.relay_publications.push({ currency: 'BTC', event_id: btcPublished.event.id, stored: true, count: 1 });
+    const btcBatch = [];
+    for (let index = 1; index < 10; index++) {
+      const campaign = await createCampaign(runtime, relay, engines.BTC, advertiser.BTC, clock, 'BTC', '100000', `BTC fixed observation ${index + 1}`);
+      const txid = await btcAdvertiser('sendtoaddress', [campaign.decision.record.payment_address, 0.001]);
+      const pending = await waitCampaignPending(engines.BTC, campaign.campaignId);
+      btcBatch.push({ campaign, txid, pending });
+    }
+    await btcMineTo(await btcAdvertiser('getnewaddress', ['BTC fixed observation confirmation', 'bech32']), 1);
+    for (const row of btcBatch) {
+      const state = await waitCampaignPublished(relay, engines.BTC, row.campaign.campaignId);
+      assert.equal(state.record.payment.amount_atomic, '100000');
+      report.payments.push({ currency: 'BTC', address: row.campaign.decision.record.payment_address, txid: row.txid,
+        amount_atomic: state.record.payment.amount_atomic, pending_gate: row.pending.status, published: state.status });
+      report.relay_publications.push({ currency: 'BTC', event_id: state.event.id, stored: true, count: 1 });
+    }
 
     const exactXmr = await createCampaign(runtime, relay, engines.XMR, advertiser.XMR, clock, 'XMR', '1000000000000', 'XMR exact');
     const xmrSent = await xmrAdvertiser.call('transfer', { destinations: [{ address: exactXmr.decision.record.payment_address, amount: 1_000_000_000_000n }], account_index: 0, priority: 1, get_tx_key: true });
@@ -429,6 +444,25 @@ async function main() {
       amount_atomic: xmrPublished.record.payment.amount_atomic, confirmations: xmrPublished.record.payment.confirmations,
       subaddress: true, pending_gate: xmrPending.status, published: xmrPublished.status });
     report.relay_publications.push({ currency: 'XMR', event_id: xmrPublished.event.id, stored: true, count: 1 });
+    const xmrBatch = [];
+    for (let index = 1; index < 10; index++) {
+      const campaign = await createCampaign(runtime, relay, engines.XMR, advertiser.XMR, clock, 'XMR', '1000000000000', `XMR fixed observation ${index + 1}`);
+      const sent = await xmrAdvertiser.call('transfer', { destinations: [{ address: campaign.decision.record.payment_address,
+        amount: 1_000_000_000_000n }], account_index: 0, priority: 1, get_tx_key: true });
+      const pending = await waitCampaignPending(engines.XMR, campaign.campaignId);
+      assert.equal(pending.status, 'payment_pending');
+      await xmrDaemonCall('generateblocks', { amount_of_blocks: 11, wallet_address: xmrAdvertiserAddress, reserve_size: 0 });
+      await xmrNodeWallet.call('refresh', {});
+      const state = await waitCampaignPublished(relay, engines.XMR, campaign.campaignId);
+      assert.equal(state.record.payment.amount_atomic, '1000000000000');
+      assert.equal(state.record.payment.txid, sent.tx_hash);
+      xmrBatch.push(sent.tx_hash);
+      report.payments.push({ currency: 'XMR', address: campaign.decision.record.payment_address, txid: sent.tx_hash,
+        amount_atomic: state.record.payment.amount_atomic, confirmations: state.record.payment.confirmations,
+        subaddress: true, published: state.status });
+      report.relay_publications.push({ currency: 'XMR', event_id: state.event.id, stored: true, count: 1 });
+    }
+    assert.equal(new Set([xmrSent.tx_hash, ...xmrBatch]).size, 10, 'each XMR campaign requires its own payment transaction');
 
     const exactNano = await createCampaign(runtime, relay, engines.XNO, advertiser.XNO, clock, 'XNO', '1', 'XNO one raw');
     const nanoSend = await nanoAuthClient('send', { wallet: nanoAdvertiserWallet, source: nanoAdvertiserAccount,
@@ -461,7 +495,39 @@ async function main() {
     report.payments.push({ currency: 'XNO', address: exactNano.decision.record.payment_address, txid: nanoSend.block,
       amount_atomic: '1', pending_gate: nanoPending.status, published: nanoPublished.status, duplicate_poll_same_tx: true });
     report.relay_publications.push({ currency: 'XNO', event_id: nanoPublished.event.id, stored: true, count: 1 });
-    await mark('G08-01', 'PASS', 'Each real node/wallet produced an exclusive BTC address, Monero subaddress, or Nano account. An exact atomic payment remained unpublished while pending and the signed campaign appeared once on the local Geode relay only after each ledger adapter reported its confirmation gate.');
+    const nanoBatch = [];
+    for (let index = 1; index < 10; index++) {
+      const campaign = await createCampaign(runtime, relay, engines.XNO, advertiser.XNO, clock, 'XNO', '1', `XNO fixed observation ${index + 1}`);
+      const sent = await nanoAuthClient('send', { wallet: nanoAdvertiserWallet, source: nanoAdvertiserAccount,
+        destination: campaign.decision.record.payment_address, amount: '1', id: `g08-fixed-${index}-${randomUUID()}` });
+      const beforeConfirm = await engines.XNO.reconcile(campaign.campaignId);
+      assert.ok(['awaiting_payment', 'payment_pending'].includes(beforeConfirm.status));
+      nanoBatch.push({ campaign, txid: sent.block, pending: beforeConfirm.status });
+    }
+    for (const row of nanoBatch) {
+      const state = await waitCampaignPublished(relay, engines.XNO, row.campaign.campaignId);
+      assert.equal(state.record.payment.amount_atomic, '1');
+      assert.equal(state.record.payment.txid, row.txid);
+      const repeated = await nanoLedger.lookupPayment({ address: row.campaign.decision.record.payment_address, currency: 'XNO' });
+      assert.equal(repeated.txid, row.txid);
+      assert.equal(repeated.amount_atomic, '1');
+      report.payments.push({ currency: 'XNO', address: row.campaign.decision.record.payment_address, txid: row.txid,
+        amount_atomic: '1', pending_gate: row.pending, published: state.status, duplicate_poll_same_tx: true });
+      report.relay_publications.push({ currency: 'XNO', event_id: state.event.id, stored: true, count: 1 });
+    }
+    const g8Counts = Object.fromEntries(['BTC', 'XMR', 'XNO'].map(currency => [currency,
+      report.payments.filter(row => row.currency === currency && row.published === 'published' && row.case !== 'preactivation-reorg' && row.case !== 'subaddress-repeat-and-pop' && row.case !== 'raw-one-and-account-isolation').length]));
+    assert.deepEqual(g8Counts, { BTC: 10, XMR: 10, XNO: 10 });
+    report.g8_campaign_observations = { accepted_and_published: g8Counts,
+      unique_payment_destinations: Object.fromEntries(['BTC', 'XMR', 'XNO'].map(currency => [currency,
+        new Set(report.payments.filter(row => row.currency === currency && row.published === 'published' && !row.case).map(row => row.address)).size])),
+      unique_publications: Object.fromEntries(['BTC', 'XMR', 'XNO'].map(currency => [currency,
+        new Set(report.relay_publications.filter(row => row.currency === currency).map(row => row.event_id)).size])) };
+    for (const currency of ['BTC', 'XMR', 'XNO']) {
+      assert.equal(report.g8_campaign_observations.unique_payment_destinations[currency], 10);
+      assert.equal(report.g8_campaign_observations.unique_publications[currency], 10);
+    }
+    await mark('G08-01', 'PASS', 'Each private ledger produced 10 exclusive BTC addresses, Monero subaddresses, or Nano accounts. Ten exact atomic payments per currency remained unpublished until the adapter confirmation gate passed; all 30 signed campaigns were stored exactly once on the local Geode relay.');
 
     active = 'G08-02'; stage = 'prove BTC pending, wrong currency, exact integer gate, and pre-activation reorganization';
     assert.equal(await btcLedger.lookupPayment({ address: 'wrong-address', currency: 'BTC' }), null);
