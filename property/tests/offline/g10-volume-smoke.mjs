@@ -17,6 +17,7 @@ const VARIABLES = Object.freeze({
   logicalClockStepMs: 60_000,
   fixedEpochSeconds: 1_800_000_000
 });
+const TEST_RELAY_CONFIG = `[rate_limits]\nevent_burst = ${VARIABLES.directMessageCount + VARIABLES.publicNoteCount + 1}\nreq_burst = ${VARIABLES.directMessageCount * 4 + VARIABLES.publicNoteCount * 4 + 32}\n`;
 const manifest = JSON.parse(await readFile(path.resolve(manifestPath), 'utf8'));
 const config = manifest.browser_automation;
 assert.ok(config);
@@ -28,6 +29,8 @@ const relays = [];
 let runtime, browserContext;
 let logicalNowMs = VARIABLES.fixedEpochSeconds * 1000;
 const report = { schema_version: 2, case: 'G10-06', result: 'FAIL', predefined_variables: VARIABLES,
+  test_relay_rate_limits: { event_burst: VARIABLES.directMessageCount + VARIABLES.publicNoteCount + 1,
+    req_burst: VARIABLES.directMessageCount * 4 + VARIABLES.publicNoteCount * 4 + 32 },
   initial_bundle_bytes: null, dm_count: 0, public_note_count: 0, relay_count: 4, bridge_count: VARIABLES.bridgeCount,
   dm_event_ids: [], public_event_ids: [], events_forwarded_per_bridge: [0, 0, 0],
   resource_checkpoints: [] };
@@ -70,7 +73,7 @@ try {
     .filter(entry => new URL(entry.name).origin === location.origin)
     .reduce((sum, entry) => sum + (entry.transferSize || entry.encodedBodySize || 0), 0));
 
-  for (let index = 0; index < 4; index++) relays.push(await startGeode(portBase + index, temp, `G10 volume R${index + 1}`));
+  for (let index = 0; index < 4; index++) relays.push(await startGeode(portBase + index, temp, `G10 volume R${index + 1}`, TEST_RELAY_CONFIG));
   const sender = runtime.createIdentity(), recipient = runtime.createIdentity();
   for (let index = 1; index <= VARIABLES.directMessageCount; index++) {
     const text = `Property offline deterministic direct message ${index}`;
