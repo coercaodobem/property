@@ -1,0 +1,1 @@
+{"status":"PASS","rate_config_cases":3,"storage_limit_configurations":10,"boundary_cases_per_storage_limit":3,"storage_caps_bytes":[1024,2048,3072,4096,5120,6144,7168,8192,9216,10240],"invalid_values_rejected":6}

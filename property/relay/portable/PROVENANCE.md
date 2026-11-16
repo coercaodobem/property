@@ -4,7 +4,7 @@
 
 ## Sources
 
-The 49 JARs come from the bundled Geode 1.20.0 package, pinned by SHA-256 `9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7`. These JARs were not rebuilt or replaced. Each manifest records the individual library hashes; both packages should have the same inventory.
+The 48 JARs in the Windows and macOS packages come from the earlier Geode 1.20.0 Linux package pinned by SHA-256 `9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7`. The Linux package now includes the retention update and has SHA-256 `b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a`; the Windows and macOS packages were not rebuilt with that change and remain pending their platform gates. Each manifest records individual library hashes; the two cross-platform packages have the same inventory as each other, not as the updated Linux image.
 
 The runtimes are Eclipse Temurin 21.0.13+9 from the [official Adoptium release](https://github.com/adoptium/temurin21-binaries/releases/tag/jdk-21.0.13%2B9):
 

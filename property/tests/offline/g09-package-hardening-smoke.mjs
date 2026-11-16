@@ -11,7 +11,8 @@ const OUTPUT = path.resolve(process.argv[2] || '/tmp/property-g09-package');
 const TEMP = await mkdtemp(path.join(os.tmpdir(), 'property-g09-package-'));
 await mkdir(OUTPUT, { recursive: true, mode: 0o700 });
 const launcher = path.join(ROOT, 'property/relay/start.sh');
-const report = { schema_version: 1, case: 'G09-05', result: 'FAIL', tampered_manifest: null, missing_segment: null, network: 'unshared network namespace' };
+const report = { schema_version: 1, case: 'G09-05', result: 'FAIL', tampered_manifest: null, missing_segment: null,
+  network: 'no relay process starts; package is rejected before execution' };
 
 async function attempt(label, manifestText, parts = []) {
   const base = path.join(TEMP, label);

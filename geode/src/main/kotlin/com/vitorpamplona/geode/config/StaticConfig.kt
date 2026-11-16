@@ -167,6 +167,19 @@ data class StaticConfig(
          * wrong index as the corpus grows/changes shape. `null` = never.
          */
         val optimize_interval_seconds: Long? = null,
+        /**
+         * Run the relay's local event-retention sweep at this interval.
+         * The sweep removes expired NIP-40 events and, when configured,
+         * events older than [max_event_age_seconds]. `null` or `0` disables it.
+         */
+        val retention_sweep_interval_seconds: Long? = null,
+        /**
+         * Remove stored events whose `created_at` is at or before the
+         * retention cutoff. `null` or `0` keeps non-expiring events
+         * indefinitely; expired NIP-40 events are still swept when the
+         * retention sweep is enabled.
+         */
+        val max_event_age_seconds: Long? = null,
     )
 
     data class OptionsSection(
@@ -449,6 +462,16 @@ data class StaticConfig(
         database.optimize_interval_seconds?.let {
             require(it > 0) {
                 "[database].optimize_interval_seconds must be > 0 (got $it); a non-positive interval busy-loops PRAGMA optimize under the writer mutex"
+            }
+        }
+        database.retention_sweep_interval_seconds?.let {
+            require(it >= 0) {
+                "[database].retention_sweep_interval_seconds must be >= 0 (got $it; 0 disables the sweep)"
+            }
+        }
+        database.max_event_age_seconds?.let {
+            require(it >= 0) {
+                "[database].max_event_age_seconds must be >= 0 (got $it; 0 keeps non-expiring events indefinitely)"
             }
         }
     }

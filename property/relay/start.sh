@@ -18,7 +18,7 @@ PORT="${PROPERTY_RELAY_PORT:-${LIBERDADE_RELAY_PORT:-7447}}"
 CONFIG="${PROPERTY_RELAY_CONFIG:-${LIBERDADE_RELAY_CONFIG:-$CONFIG_DIR/geode.toml}}"
 PORTABLE_ARCHIVE="${PROPERTY_RELAY_PORTABLE_ARCHIVE:-${LIBERDADE_RELAY_PORTABLE_ARCHIVE:-$SCRIPT_DIR/dist/geode-1.20.0-linux-x64.tar.gz}}"
 PACKAGE_PARTS_DIR="${PROPERTY_RELAY_PACKAGE_PARTS_DIR:-${LIBERDADE_RELAY_PACKAGE_PARTS_DIR:-$SCRIPT_DIR/dist-parts}}"
-PORTABLE_SHA256="9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7"
+PORTABLE_SHA256="b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a"
 BUNDLED="$SCRIPT_DIR/dist/geode/bin/geode"
 
 if [[ "$(uname -s)" != Linux || "$(uname -m)" != x86_64 ]]; then
@@ -60,9 +60,21 @@ file = "$DB_ESCAPED"
 [options]
 verify_signatures = true
 require_auth = false
+
+[rate_limits]
+events_per_minute = 120
+event_burst = 60
+reqs_per_minute = 600
+req_burst = 120
 TOML
   chmod 600 "$CONFIG"
 fi
+
+# Preserve existing operator settings; add bounded rate defaults only when
+# an older config does not define a rate-limit section.
+source "$SCRIPT_DIR/resource-limits.sh"
+property_relay_add_default_rate_limits "$CONFIG"
+property_relay_add_default_retention "$CONFIG"
 
 if [[ "$HOST" != "127.0.0.1" && "$HOST" != "localhost" && "$HOST" != "::1" ]]; then
   printf 'Aviso: relay exposto em %s:%s. Configure firewall e TLS antes de expor à internet.\n' "$HOST" "$PORT" >&2
@@ -72,7 +84,7 @@ if [[ ! -f "$PORTABLE_ARCHIVE" && -f "$PACKAGE_PARTS_DIR/manifest.txt" ]]; then
   PART_COUNT=$(sed -n 's/^parts=//p' "$PACKAGE_PARTS_DIR/manifest.txt")
   PART_SIZE=$(sed -n 's/^chunk_size=//p' "$PACKAGE_PARTS_DIR/manifest.txt")
   PART_HASH=$(sed -n 's/^sha256=//p' "$PACKAGE_PARTS_DIR/manifest.txt")
-  if [[ "$PART_COUNT" != "130" || "$PART_SIZE" != "524288" || "$PART_HASH" != "$PORTABLE_SHA256" ]]; then
+  if [[ "$PART_COUNT" != "129" || "$PART_SIZE" != "524288" || "$PART_HASH" != "$PORTABLE_SHA256" ]]; then
     printf 'Manifesto dos segmentos do relay inválido; confira contagem, tamanho e hash.\n' >&2
     exit 1
   fi
@@ -109,6 +121,8 @@ if [[ ! -x "$BUNDLED" && -f "$PORTABLE_ARCHIVE" && "$(uname -m)" == "x86_64" ]];
   tar --no-same-owner -xzf "$PORTABLE_ARCHIVE" -C "$DATA_DIR/runtime"
   BUNDLED="$DATA_DIR/runtime/geode/bin/geode"
 fi
+
+property_relay_apply_file_limit
 
 if [[ -x "$BUNDLED" ]]; then
   printf 'Iniciando relay Property em %s:%s\nDados: %s\nCtrl+C encerra o processo.\n' "$HOST" "$PORT" "$DATA_DIR"

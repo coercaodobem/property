@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "case": "G09-04-rate-boundaries",
+  "result": "PASS",
+  "offline": true,
+  "event_rate_configurations": 5,
+  "req_rate_configurations": 5,
+  "fixed_boundary_checks": 30,
+  "configurations": [
+    {
+      "event_burst": 2,
+      "req_burst": 2,
+      "event_attempts": 3,
+      "event_accepted_at_limit": 2,
+      "event_rejected_at_limit_plus_one": 1,
+      "req_attempts": 3,
+      "req_accepted_at_limit": 2,
+      "req_rejected_at_limit_plus_one": 1
+    },
+    {
+      "event_burst": 3,
+      "req_burst": 3,
+      "event_attempts": 4,
+      "event_accepted_at_limit": 3,
+      "event_rejected_at_limit_plus_one": 1,
+      "req_attempts": 4,
+      "req_accepted_at_limit": 3,
+      "req_rejected_at_limit_plus_one": 1
+    },
+    {
+      "event_burst": 4,
+      "req_burst": 4,
+      "event_attempts": 5,
+      "event_accepted_at_limit": 4,
+      "event_rejected_at_limit_plus_one": 1,
+      "req_attempts": 5,
+      "req_accepted_at_limit": 4,
+      "req_rejected_at_limit_plus_one": 1
+    },
+    {
+      "event_burst": 5,
+      "req_burst": 5,
+      "event_attempts": 6,
+      "event_accepted_at_limit": 5,
+      "event_rejected_at_limit_plus_one": 1,
+      "req_attempts": 6,
+      "req_accepted_at_limit": 5,
+      "req_rejected_at_limit_plus_one": 1
+    },
+    {
+      "event_burst": 6,
+      "req_burst": 6,
+      "event_attempts": 7,
+      "event_accepted_at_limit": 6,
+      "event_rejected_at_limit_plus_one": 1,
+      "req_attempts": 7,
+      "req_accepted_at_limit": 6,
+      "req_rejected_at_limit_plus_one": 1
+    }
+  ],
+  "configured_limits": 10,
+  "event_timestamp_note": "Current epoch is used only to satisfy relay event freshness; rate acceptance depends on fixed burst counts."
+}

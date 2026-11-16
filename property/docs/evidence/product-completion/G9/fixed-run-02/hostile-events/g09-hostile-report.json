@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "case": "G09-04",
+  "result": "PASS",
+  "hostile_input_count": 200,
+  "hostile_input_counts": {
+    "malformed": 40,
+    "oversized": 40,
+    "duplicate_or_replayed": 40,
+    "stale_replay": 40,
+    "invalid_signature": 40
+  },
+  "rejected_input_state_mutations": 0,
+  "bridge_deduplication_entries_from_valid_duplicate_fixtures": 20,
+  "relay_duplicate_copies": 1,
+  "invalid_signature_rejected": true,
+  "oversized_event_forwarded": false,
+  "bridge_events_accepted_before_quota": 60,
+  "corpus_recovered_after_hostile_input": true,
+  "persisted_event_ids": [
+    "c4e579c5f298a4af7d51ef5490e8fbdd3645b94063b7cd3a7d5372676bc68a7f",
+    "62affb428a551bfab36dfe929b9cc2b8262a65106a76e74ea4f35b976129ae1a"
+  ]
+}

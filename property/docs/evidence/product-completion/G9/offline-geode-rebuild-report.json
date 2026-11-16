@@ -1,0 +1,52 @@
+{
+  "schema_version": 2,
+  "gate": "G9",
+  "candidate_parent": "bfb1850f667a504bf944cfa1898d1fa009eb44a7",
+  "profile": "Ubuntu Linux x86_64; offline build and local fixtures",
+  "network_access": "disabled; no dependencies downloaded",
+  "toolchain": {
+    "jdk": "Temurin 21.0.13+9",
+    "gradle": "9.8.2"
+  },
+  "commands": [
+    {
+      "command": "gradle :geode:compileKotlin --offline --no-daemon --console=plain --rerun-tasks",
+      "result": "PASS"
+    },
+    {
+      "command": "gradle :geode:geodeImage --offline --no-daemon --console=plain --rerun-tasks",
+      "result": "PASS"
+    },
+    {
+      "command": "geode --version",
+      "result": "PASS",
+      "output": "1.20.0"
+    }
+  ],
+  "runtime": {
+    "geode": "1.20.0",
+    "linux_x86_64_jar_sha256": "b041d81177e27623adb1d2a3a17bd93ca0f98f6a5ae131682955f3b10a4b0201",
+    "included_java_runtime": "21.0.13"
+  },
+  "archive": {
+    "bytes": 67366437,
+    "sha256": "b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a",
+    "part_bytes": 524288,
+    "parts": 129,
+    "tar_entries": 171,
+    "regular_files": 142,
+    "directories": 29,
+    "links": 0
+  },
+  "reproducibility": "The source was rebuilt offline and packaged; bit-for-bit reproducibility is not asserted.",
+  "jvm_tests": {
+    "command": "gradle :geode:test --offline --no-daemon --console=plain",
+    "result": "BLOCKED",
+    "cause": [
+      "junit:junit:4.13.2 is not cached",
+      "org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0 is not cached"
+    ],
+    "network_fetch_attempted": false,
+    "report": "jvm-test-report.json"
+  }
+}

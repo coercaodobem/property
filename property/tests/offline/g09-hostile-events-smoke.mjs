@@ -43,6 +43,39 @@ try {
 
   const oversized = sign('x'.repeat(512_001));
   assert.deepEqual(Array.from(bridge.targets(oversized, 'ws://127.0.0.1:1', ['ws://127.0.0.1:2'])), [], 'bridge excludes events above its size limit');
+  const hostileCounts = { malformed: 0, oversized: 0, duplicate_or_replayed: 0, stale_replay: 0, invalid_signature: 0 };
+  const hostileSeenBefore = bridge.seenCount;
+  for (let index = 0; index < 40; index++) {
+    const malformed = [null, [], 'not-an-event', { kind: 1, created_at: NOW_EPOCH_SECONDS, tags: null, content: 'bad tags' },
+      { kind: 1, created_at: NOW_EPOCH_SECONDS, tags: [['p', 1]], content: 'non-string tag value' }][index % 5];
+    assert.deepEqual(Array.from(bridge.targets(malformed, 'ws://127.0.0.1:1', ['ws://127.0.0.1:2'])), [], 'malformed public parser input is rejected');
+    hostileCounts.malformed++;
+  }
+  for (let index = 0; index < 40; index++) {
+    const event = { kind: 1, created_at: NOW_EPOCH_SECONDS, tags: [], content: 'x'.repeat(512_001) + index,
+      id: String(index + 1).padStart(64, '0'), pubkey: identity.pubkey, sig: 'f'.repeat(128) };
+    assert.deepEqual(Array.from(bridge.targets(event, 'ws://127.0.0.1:1', ['ws://127.0.0.1:2'])), [], 'oversized event fails before signature checking');
+    hostileCounts.oversized++;
+  }
+  for (let index = 0; index < 20; index++) {
+    const event = sign(`duplicate fixed-count input ${index}`);
+    assert.equal(bridge.targets(event, 'ws://127.0.0.1:1', ['ws://127.0.0.1:2']).length, 1, 'first signed event can be forwarded');
+    assert.equal(bridge.targets(event, 'ws://127.0.0.1:1', ['ws://127.0.0.1:2']).length, 0, 'duplicate event is suppressed');
+    hostileCounts.duplicate_or_replayed += 2;
+  }
+  for (let index = 0; index < 40; index++) {
+    assert.deepEqual(Array.from(bridge.targets(sign(`stale replay ${index}`, NOW_EPOCH_SECONDS - 301), 'ws://127.0.0.1:1', ['ws://127.0.0.1:2'])), [], 'stale replay is rejected');
+    hostileCounts.stale_replay++;
+  }
+  for (let index = 0; index < 40; index++) {
+    const tamperedInput = structuredClone(sign(`invalid signature input ${index}`));
+    tamperedInput.content += ' mutated';
+    assert.deepEqual(Array.from(bridge.targets(tamperedInput, 'ws://127.0.0.1:1', ['ws://127.0.0.1:2'])), [], 'invalid signature is rejected');
+    hostileCounts.invalid_signature++;
+  }
+  const hostileInputCount = Object.values(hostileCounts).reduce((sum, value) => sum + value, 0);
+  assert.equal(hostileInputCount, 200, 'the exact hostile input corpus is fixed at 200 attempts');
+  assert.equal(bridge.seenCount - hostileSeenBefore, 20, 'rejected malformed, oversized, stale, and unsigned inputs do not mutate deduplication state');
   const boundary = NOW_EPOCH_SECONDS;
   const quotaBridge = context.PropertyRelayBridge.createBridge(event => vm.runInContext(`NostrTools.verifyEvent(${JSON.stringify(event)})`, context, { timeout: 5000 }),
     4096, () => NOW_EPOCH_SECONDS * 1000);
@@ -55,7 +88,9 @@ try {
   const recovery = sign('normal corpus remains usable after rejected and oversized traffic');
   assert.equal((await publishEvent(relay.url, recovery)).accepted, true);
   await waitStored(relay.url, recovery.id, true);
-  const report = { schema_version: 1, case: 'G09-04', result: 'PASS', relay_duplicate_copies: duplicateCopies.length,
+  const report = { schema_version: 2, case: 'G09-04', result: 'PASS', hostile_input_count: hostileInputCount,
+    hostile_input_counts: hostileCounts, rejected_input_state_mutations: 0, bridge_deduplication_entries_from_valid_duplicate_fixtures: 20,
+    relay_duplicate_copies: duplicateCopies.length,
     invalid_signature_rejected: true, oversized_event_forwarded: false, bridge_events_accepted_before_quota: acceptedByBridge,
     corpus_recovered_after_hostile_input: true, persisted_event_ids: [normal.id, recovery.id] };
   await writeFile(path.join(output, 'g09-hostile-report.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });

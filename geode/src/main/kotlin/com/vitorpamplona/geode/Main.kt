@@ -47,6 +47,7 @@ import com.vitorpamplona.quartz.nip01Core.store.NdjsonImportExport
 import com.vitorpamplona.quartz.nip01Core.store.sqlite.EventStore
 import com.vitorpamplona.quartz.nip77Negentropy.NegentropySettings
 import com.vitorpamplona.quartz.utils.Log
+import com.vitorpamplona.quartz.utils.TimeUtils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +57,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 /**
  * Standalone entry point. The first argument may be a verb:
@@ -312,6 +314,16 @@ private fun serve(args: Array<String>) {
             extraPragmas = extraPragmas,
         )
 
+    // Apply the configured local retention policy before accepting clients.
+    // The same bounded sweep runs periodically while serving.
+    config.database.retention_sweep_interval_seconds
+        ?.takeIf { it > 0 }
+        ?.let {
+            runBlocking {
+                sweepRelayRetention(store, config.database.max_event_age_seconds, TimeUtils.now())
+            }
+        }
+
     // Built once: every connection's policy shares these, so the limits are per client, not per socket.
     val rateLimits = config.rate_limits.toRateLimits()
     val policyBuilder: () -> IRelayPolicy = {
@@ -479,6 +491,22 @@ private fun serve(args: Array<String>) {
     // SQLite-only: the `optimize()` PRAGMA has no meaning for other backends,
     // so the loop only runs when the configured store is the SQLite one.
     val maintenanceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    config.database.retention_sweep_interval_seconds
+        ?.takeIf { it > 0 }
+        ?.let { secs ->
+            maintenanceScope.launch {
+                while (true) {
+                    delay(TimeUnit.SECONDS.toMillis(secs))
+                    try {
+                        sweepRelayRetention(store, config.database.max_event_age_seconds, TimeUtils.now())
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        System.err.println("event-retention sweep failed: ${e.message}")
+                    }
+                }
+            }
+        }
     (store as? EventStore)?.let { sqlite ->
         config.database.optimize_interval_seconds?.let { secs ->
             maintenanceScope.launch {

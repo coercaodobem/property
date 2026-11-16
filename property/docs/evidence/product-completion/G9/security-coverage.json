@@ -1,0 +1,64 @@
+{
+  "schema_version": 2,
+  "gate": "G9",
+  "result": "BLOCKED",
+  "profile": "Ubuntu Linux x86_64; offline local candidate checks",
+  "dependency_vulnerability_scan": {
+    "javascript_lockfile": {
+      "result": "PASS_WITH_OFFLINE_DATABASE_LIMITATION",
+      "command": "npm audit --offline --audit-level=high --json --prefix property/tests/platform",
+      "known_advisories_in_local_cache": 0,
+      "dependencies_reported": 1170,
+      "evidence": "fixed-run-02/npm-audit-report.json"
+    },
+    "geode_jars_and_bundled_jre": {
+      "result": "BLOCKED",
+      "archive_sha256": "b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a",
+      "reason": "No installed vulnerability scanner and no offline vulnerability database are available; no clean result is claimed."
+    }
+  },
+  "static_analysis": {
+    "result": "BLOCKED_FOR_DEPENDENCY_SECURITY_COVERAGE",
+    "available_local_checks": [
+      "offline Geode source compilation",
+      "full fixed-count functional smoke suite",
+      "package and metadata policy checks"
+    ],
+    "missing_scanners": [
+      "gitleaks",
+      "osv-scanner",
+      "trivy",
+      "syft",
+      "grype",
+      "semgrep",
+      "OWASP Dependency-Check"
+    ]
+  },
+  "secret_pattern_scan": {
+    "result": "PASS_LIMITED_PATTERNS",
+    "paths": [
+      "property/web",
+      "property/agent",
+      "property/relay"
+    ],
+    "text_files_scanned": 263,
+    "matches": 0,
+    "evidence": "fixed-run-02/secret-pattern-scan-report.json",
+    "limitations": "Four limited high-confidence patterns; not a comprehensive repository scan and binary contents are not scanned."
+  },
+  "license_and_provenance": {
+    "result": "PASS_LIMITED_POLICY_CASES",
+    "cases": 7,
+    "evidence": "fixed-run-02/license-metadata-policy-report.json",
+    "scope": "Policy fixtures only; the existing dependency/license inventory remains recorded in G0 and is not a vulnerability scan."
+  },
+  "current_release_sbom": {
+    "result": "PENDING_G10",
+    "note": "G10 has not started because G9 is incomplete."
+  },
+  "geode_jvm_test_suite": {
+    "result": "BLOCKED",
+    "evidence": "jvm-test-report.json"
+  },
+  "overall_limitation": "G9 cannot pass until the exact Linux relay JAR/JRE dependency set receives vulnerability coverage with an available scanner/database and the offline JVM test dependencies are available."
+}

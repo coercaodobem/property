@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "gate": "G9",
+  "suite": "Geode JVM tests",
+  "profile": "Ubuntu Linux x86_64; Gradle offline mode",
+  "command": "gradle :geode:test --offline --no-daemon --console=plain",
+  "result": "BLOCKED",
+  "failure_stage": ":geode:compileTestFixturesKotlin dependency resolution",
+  "missing_cached_dependencies": [
+    "junit:junit:4.13.2",
+    "org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0"
+  ],
+  "network_access": "disabled; no dependency download attempted",
+  "implementation_build": "PASS: :geode:compileKotlin and :geode:geodeImage completed offline",
+  "consequence": "RelayRetentionTest.kt is present but the Gradle JVM test suite has not executed; no PASS is claimed for that suite."
+}

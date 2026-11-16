@@ -9,12 +9,12 @@
     "javascript_dependencies": [],
     "pwa": "static file package; no transpiler or runtime dependency download",
     "agent": "Node.js built-ins only; no external npm dependencies",
-    "relay": "pinned Geode/OpenJDK image extracted from repository segments; source rebuild is not asserted"
+    "relay": "Geode source rebuilt offline with the pinned Gradle/JDK toolchain; generated image hash is pinned and bit-for-bit reproducibility is not asserted"
   },
   "relay_runtime": {
     "geode": "1.20.0",
-    "java": "21.0.12.1",
-    "archive_sha256": "9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7",
+    "java": "21.0.13",
+    "archive_sha256": "b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a",
     "dependency_lock": "property/relay/runtime-dependencies.json"
   },
   "sbom": {

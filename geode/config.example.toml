@@ -80,6 +80,10 @@ file = "/var/lib/geode/events.db"
 # Incremental and usually a no-op; keeps the planner from drifting
 # onto the wrong index as the corpus grows. Off by default.
 # optimize_interval_seconds = 3600
+# Sweep expired and old events at this interval; 0 disables the sweep.
+# retention_sweep_interval_seconds = 3600
+# Remove events at or before this age; 0 keeps non-expiring events indefinitely.
+# max_event_age_seconds = 31536000
 
 [options]
 # Drop events whose Schnorr signature does not verify. Strongly

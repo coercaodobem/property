@@ -2,16 +2,31 @@
   "schema_version": 1,
   "source_commit": "948135f7dbbae81d79a0b985282ce673397a7618",
   "runtime_archive": {
-    "name": "Geode 1.20.0 Linux x86_64 + OpenJDK 21.0.12.1 image",
-    "sha256": "9722c226dc59c45d50f9f8c1e22ad815fd6fb971413c7da3aa7fc36253e6d1a7",
-    "size_bytes": 67845545,
-    "part_count": 130,
+    "name": "Geode 1.20.0 Linux x86_64 + OpenJDK 21.0.13 image",
+    "sha256": "b149a14cc4d87c56086f32c96542d6ae8120690f0004aa91f73044d4a03a445a",
+    "size_bytes": 67366437,
+    "part_count": 129,
     "source_provenance": "property/relay/dist-parts/PROVENANCE.md",
-    "rebuild_status": "bundled-prebuilt; source rebuild not asserted"
+    "rebuild_status": "offline-source-build-completed; bit-for-bit reproducibility not asserted",
+    "chunk_size_bytes": 524288,
+    "source_build": {
+      "status": "PASS",
+      "command": "gradle :geode:geodeImage --offline --no-daemon --console=plain",
+      "gradle": "9.8.2",
+      "jdk": "21.0.13+9",
+      "network_access": "none",
+      "reproducibility": "not asserted; generated archive hash is pinned",
+      "modified_source_sha256": {
+        "geode/src/main/kotlin/com/vitorpamplona/geode/RelayRetention.kt": "1c217d036ef2f55de5098e14442e383b24f1b5084d91f9f5ccb1385a2cd2da8e",
+        "geode/src/main/kotlin/com/vitorpamplona/geode/Main.kt": "05d6668db9e1f45642783d03ea05cfa20b9fb143afdd15647a3cc9d41a599f8a",
+        "geode/src/main/kotlin/com/vitorpamplona/geode/config/StaticConfig.kt": "96be31def8c2c144ff8f9bcc7d3a296e8dac1450163ac85e24cfd6d35e5fa448",
+        "geode/config.example.toml": "04eece420a9c58c1f1f1306cf5ed335f41044be91c6c14ef0e1e673e75b1dcd8"
+      }
+    }
   },
   "jre_component": {
     "name": "OpenJDK runtime image",
-    "version": "21.0.12.1",
+    "version": "21.0.13",
     "license": "GPL-2.0-only WITH Classpath-exception-2.0",
     "evidence": "OpenJDK runtime release metadata; complete bundle hash above; license texts shipped under property/release/licenses"
   },
@@ -93,7 +108,7 @@
       "name": "Geode standalone relay",
       "coordinate": "org.amethyst-geode:geode:1.20.0",
       "version": "1.20.0",
-      "sha256": "cf8ea3399d2985f07b6df7559cafe2df43380950e1200723c200fd435f9568c7",
+      "sha256": "b041d81177e27623adb1d2a3a17bd93ca0f98f6a5ae131682955f3b10a4b0201",
       "license": "MIT",
       "license_evidence": "repository LICENSE and pinned source tree",
       "source": "https://github.com/vitorpamplona/amethyst/tree/948135f7dbbae81d79a0b985282ce673397a7618"

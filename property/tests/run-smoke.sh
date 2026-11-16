@@ -41,6 +41,7 @@ for test_file in \
   group-invites-smoke.mjs \
   community-groups-smoke.mjs \
   notification-preferences-smoke.mjs \
+  local-moderation-smoke.mjs \
   app-badge-smoke.mjs \
   message-days-smoke.mjs \
   message-scroll-smoke.mjs \
@@ -64,6 +65,8 @@ for test_file in \
   emoji-picker-smoke.mjs \
   chat-gestures-smoke.mjs \
   relay-defaults-smoke.mjs \
+  relay-resource-limits-smoke.sh \
+  offline/g09-rate-boundary-smoke.mjs \
   share-target-smoke.mjs \
   pwa-smoke.mjs \
   app-contract-smoke.mjs \
@@ -89,7 +92,11 @@ for test_file in \
   offline/runner-contract-smoke.mjs
 do
   printf '\n== %s ==\n' "$test_file"
-  node "$TEST_DIR/$test_file"
+  if [[ "$test_file" == *.sh ]]; then
+    bash "$TEST_DIR/$test_file"
+  else
+    node "$TEST_DIR/$test_file"
+  fi
 done
 
 printf '\n== agent-package-smoke.sh ==\n'

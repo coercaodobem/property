@@ -1,0 +1,1 @@
+PASS: embedded signature, 100 signed discovery cases, random choice, expiry, revocation and URL safety (100 cases)

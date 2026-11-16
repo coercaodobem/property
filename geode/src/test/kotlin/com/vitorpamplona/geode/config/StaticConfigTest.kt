@@ -62,6 +62,8 @@ class StaticConfigTest {
             mmap_size = 268435456
             temp_store_memory = true
             optimize_interval_seconds = 3600
+            retention_sweep_interval_seconds = 900
+            max_event_age_seconds = 31536000
             """.trimIndent()
 
         val c = StaticConfig.fromToml(toml)
@@ -70,6 +72,8 @@ class StaticConfigTest {
         assertEquals(268435456L, c.database.mmap_size)
         assertEquals(true, c.database.temp_store_memory)
         assertEquals(3600L, c.database.optimize_interval_seconds)
+        assertEquals(900L, c.database.retention_sweep_interval_seconds)
+        assertEquals(31536000L, c.database.max_event_age_seconds)
 
         // And all knobs default to off/null so plain configs are untouched.
         val d = StaticConfig.fromToml("")
@@ -77,6 +81,8 @@ class StaticConfigTest {
         assertEquals(null, d.database.mmap_size)
         assertEquals(false, d.database.temp_store_memory)
         assertEquals(null, d.database.optimize_interval_seconds)
+        assertEquals(null, d.database.retention_sweep_interval_seconds)
+        assertEquals(null, d.database.max_event_age_seconds)
     }
 
     @Test
@@ -120,6 +126,18 @@ class StaticConfigTest {
             StaticConfig.fromToml("[database]\noptimize_interval_seconds = -5").validate()
         }
         StaticConfig.fromToml("[database]\noptimize_interval_seconds = 3600").validate()
+    }
+
+    @Test
+    fun retentionConfigurationAllowsExplicitDisableAndRejectsNegativeValues() {
+        StaticConfig.fromToml("[database]\nretention_sweep_interval_seconds = 0\nmax_event_age_seconds = 0").validate()
+        StaticConfig.fromToml("[database]\nretention_sweep_interval_seconds = 60\nmax_event_age_seconds = 31536000").validate()
+        assertFailsWith<IllegalArgumentException> {
+            StaticConfig.fromToml("[database]\nretention_sweep_interval_seconds = -1").validate()
+        }
+        assertFailsWith<IllegalArgumentException> {
+            StaticConfig.fromToml("[database]\nmax_event_age_seconds = -1").validate()
+        }
     }
 
     @Test

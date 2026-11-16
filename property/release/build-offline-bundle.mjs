@@ -97,8 +97,11 @@ async function copyOne(sourceRoot, relative, destinationRoot, destination = rela
 async function verifyArchiveSource(root, scratch, lock) {
   const partsDirectory = path.join(root, 'property/relay/dist-parts');
   const archiveInfo = parseKeyValues(await readFile(path.join(partsDirectory, 'manifest.txt'), 'utf8'));
-  assert.equal(Number(archiveInfo.parts), 130, 'the runtime bundle must have all 130 fixed segments');
-  assert.equal(Number(archiveInfo.chunk_size), 524288);
+  const partCount = Number(archiveInfo.parts);
+  const chunkSize = Number(archiveInfo.chunk_size);
+  assert.equal(partCount, lock.runtime_archive.part_count, 'the runtime manifest part count must match the dependency lock');
+  assert.equal(chunkSize, lock.runtime_archive.chunk_size_bytes, 'the runtime manifest chunk size must match the dependency lock');
+  assert.equal(partCount, Math.ceil(lock.runtime_archive.size_bytes / chunkSize), 'segment count must cover the exact locked archive size');
   assert.equal(archiveInfo.sha256, lock.runtime_archive.sha256);
   const declared = new Map();
   for (const line of (await readFile(path.join(partsDirectory, 'SHA256SUMS'), 'utf8')).split(/\r?\n/).filter(Boolean)) {
@@ -106,22 +109,22 @@ async function verifyArchiveSource(root, scratch, lock) {
     if (!match || declared.has(match[2])) throw new Error('The Geode segment checksum list is malformed.');
     declared.set(match[2], match[1].toLowerCase());
   }
-  assert.equal(declared.size, 130, 'one checksum is required for every runtime segment');
+  assert.equal(declared.size, partCount, 'one checksum is required for every runtime segment');
 
   const archivePath = path.join(scratch, 'geode-1.20.0-linux-x64.tar.gz');
   const archiveHandle = await open(archivePath, 'wx', 0o600);
   const aggregateHash = createHash('sha256');
   let totalBytes = 0;
   try {
-    for (let index = 0; index < 130; index++) {
+    for (let index = 0; index < partCount; index++) {
       const partName = `part-${String(index).padStart(3, '0')}`;
       const partPath = path.join(partsDirectory, partName);
       const info = await lstat(partPath);
       if (!info.isFile() || info.isSymbolicLink()) throw new Error(`Missing or invalid Geode segment: ${partName}`);
       const part = await readFile(partPath);
       assert.equal(sha256(part), declared.get(partName), `checksum mismatch in ${partName}`);
-      if (index < 129) assert.equal(part.length, 524288, `unexpected segment length: ${partName}`);
-      else assert.ok(part.length > 0 && part.length <= 524288, 'last runtime segment has invalid size');
+      if (index < partCount - 1) assert.equal(part.length, chunkSize, `unexpected segment length: ${partName}`);
+      else assert.ok(part.length > 0 && part.length <= chunkSize, 'last runtime segment has invalid size');
       aggregateHash.update(part);
       totalBytes += part.length;
       await archiveHandle.write(part);
@@ -184,7 +187,7 @@ function licenseFor(relative, runtimeLock) {
   if (p.startsWith('property/web/chess/vendor/noble-hashes/')) return { component: 'noble-hashes-web-2.4.0', license: 'MIT', source: p };
   if (p.startsWith('property/agent/vendor/node_modules/@noble/curves/') || p.startsWith('property/agent/vendor/node_modules/@noble/hashes/')) return { component: 'noble-agent-2.4.0', license: 'MIT', source: p };
   if (p.startsWith('property/relay/dist/geode/runtime/')) return {
-    component: 'openjdk-runtime-21.0.12.1', license: 'GPL-2.0-only WITH Classpath-exception-2.0',
+    component: `openjdk-runtime-${runtimeLock.jre_component.version}`, license: 'GPL-2.0-only WITH Classpath-exception-2.0',
     source: `${runtimeLock.runtime_archive.source_provenance}#${runtimeLock.runtime_archive.sha256}`
   };
   if (p.startsWith('property/relay/dist/geode/lib/')) {
@@ -233,7 +236,7 @@ function thirdPartyNotices(runtimeLock) {
     '',
     '## Ubuntu relay runtime',
     '',
-    `The included Geode ${runtimeLock.runtime_archive.name} is a prebuilt repository artifact. Its archive SHA-256 is \`${runtimeLock.runtime_archive.sha256}\`; the source relationship and rebuild limit are documented in \`property/relay/PROVENANCE.md\`. The bundled OpenJDK runtime is ${runtimeLock.jre_component.version}, under ${runtimeLock.jre_component.license}. License texts are under \`property/release/licenses/\`.`,
+    `The included Geode ${runtimeLock.runtime_archive.name} is a repository artifact rebuilt offline from the recorded source inputs. Its archive SHA-256 is \`${runtimeLock.runtime_archive.sha256}\`; bit-for-bit reproducibility is not asserted, and the source relationship is documented in \`property/relay/dist-parts/PROVENANCE.md\`. The bundled OpenJDK runtime is ${runtimeLock.jre_component.version}, under ${runtimeLock.jre_component.license}. License texts are under \`property/release/licenses/\`.`,
     '',
     '| Runtime artifact | Coordinate | SPDX license | SHA-256 |',
     '|---|---|---|---|'
@@ -263,7 +266,7 @@ async function makeSbom(root, rows, commit, commitTime, runtimeLock) {
     ['chess-js-1.4.0', { name: 'chess.js', version: '1.4.0', license: 'BSD-2-Clause', source: 'property/web/chess/NOTICE.md' }],
     ['noble-hashes-web-2.4.0', { name: '@noble/hashes web component', version: '2.4.0', license: 'MIT', source: 'property/web/chess/NOTICE.md' }],
     ['noble-agent-2.4.0', { name: '@noble/curves and @noble/hashes', version: '2.4.0', license: 'MIT', source: 'property/agent/vendor/NOTICE.md' }],
-    ['openjdk-runtime-21.0.12.1', { name: 'OpenJDK runtime image', version: '21.0.12.1', license: 'GPL-2.0-only WITH Classpath-exception-2.0', source: `bundled:${runtimeLock.runtime_archive.sha256}` }],
+    [`openjdk-runtime-${runtimeLock.jre_component.version}`, { name: 'OpenJDK runtime image', version: runtimeLock.jre_component.version, license: runtimeLock.jre_component.license, source: `bundled:${runtimeLock.runtime_archive.sha256}` }],
     ['geode-launcher-and-operator-config', { name: 'Geode launcher and operator configuration', version: '1.20.0', license: 'MIT', source: runtimeLock.runtime_archive.source_provenance }],
     ['Apache-2.0-license-text', { name: 'Apache License 2.0 text', version: '2.0', license: 'Apache-2.0', source: 'property/release/licenses/Apache-2.0.txt' }],
     ['OpenJDK-runtime-license', { name: 'OpenJDK GPL and Classpath exception texts', version: '2.0', license: 'GPL-2.0-only WITH Classpath-exception-2.0', source: 'property/release/licenses/' }],
@@ -382,6 +385,7 @@ async function main() {
     await copyTree(path.join(source, 'property/web'), path.join(stage, 'property/web'));
     await copyTree(path.join(source, 'property/agent'), path.join(stage, 'property/agent'));
     await copyOne(source, 'property/relay/start.sh', stage);
+    await copyOne(source, 'property/relay/resource-limits.sh', stage);
     await copyOne(source, 'property/relay/README.md', stage);
     await copyOne(source, 'property/relay/README.pt-BR.md', stage);
     await copyOne(source, 'property/relay/dist-parts/PROVENANCE.md', stage, 'property/relay/PROVENANCE.md');
@@ -445,8 +449,8 @@ async function main() {
       source_commit: commit,
       source_commit_time_utc: new Date(commitTime * 1000).toISOString(),
       build_tools: { node: process.version, tar: tarVersion, gzip: gzipVersion, network_access: 'none' },
-      runtime_provenance: { geode_version: '1.20.0', java_version: '21.0.12.1', archive_sha256: runtimeLock.runtime_archive.sha256,
-        archive_bytes: runtime.archiveBytes, source_rebuild: 'not asserted; pinned repository image unpacked and re-packaged' },
+      runtime_provenance: { geode_version: '1.20.0', java_version: runtimeLock.jre_component.version, archive_sha256: runtimeLock.runtime_archive.sha256,
+        archive_bytes: runtime.archiveBytes, source_rebuild: runtimeLock.runtime_archive.rebuild_status },
       signer: { algorithm: 'Ed25519', public_key_sha256: publicKeyFingerprint },
       artifacts: [
         { name: archiveName, bytes: archiveBytes.length, sha256: sha256(archiveBytes), media_type: 'application/gzip' },

@@ -1,0 +1,1 @@
+PASS: 50 local block/report cases across 5 identities and 5 relay fixtures; relay histories unchanged

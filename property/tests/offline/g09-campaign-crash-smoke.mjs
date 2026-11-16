@@ -60,6 +60,8 @@ let relay;
 try {
   relay = await startGeode(port, temp, 'campaign crash relay');
   const advertiser = testIdentity(), node = testIdentity();
+  // Use a current protocol timestamp so relay freshness validation does not
+  // become a test condition; the acceptance criterion is the two crash states.
   const campaignId = randomUUID(), createdAt = Math.floor(Date.now() / 1000);
   const offer = sign(advertiser, { kind: 30079, content: JSON.stringify({ schema: 'property-campaign-offer-v1',
     campaign_id: campaignId, advertiser_pubkey: advertiser.pubkey, title: 'Crash recovery fixture',

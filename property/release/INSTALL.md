@@ -1,6 +1,6 @@
 # Offline Ubuntu release
 
-The release bundle contains the static Property PWA, the Ubuntu x86_64 Geode relay image, the local MCP agent package, license notices, an SPDX 2.3 SBOM, checksums, and a detached Ed25519 signature. The PWA is static and uses no runtime CDN or remotely loaded executable. The agent uses Node.js 22 or newer and has no external Node packages. The relay's Java 21.0.12.1 runtime and Geode 1.20.0 image are bundled; the image is provenance-pinned but is not claimed to be reproducibly compiled from source.
+The release bundle contains the static Property PWA, the Ubuntu x86_64 Geode relay image, the local MCP agent package, license notices, an SPDX 2.3 SBOM, checksums, and a detached Ed25519 signature. The PWA is static and uses no runtime CDN or remotely loaded executable. The agent uses Node.js 22 or newer and has no external Node packages. The relay's Java 21.0.13 runtime and Geode 1.20.0 image are bundled; the Geode image was rebuilt offline from the recorded source inputs, with its output hash pinned. Bit-for-bit reproducibility is not asserted.
 
 ## Verify and install
 
@@ -32,7 +32,7 @@ The web launcher serves only on `127.0.0.1`; open `http://127.0.0.1:8080/` in a 
 
 ## Rebuild and signing
 
-The PWA is a static-file package; there is no npm install or remote dependency resolution. The release builder requires Node.js 22.22.1, GNU tar 1.35, gzip 1.14, and a clean worktree. It rebuilds the package from the repository's pinned relay image. It does not claim that the embedded Geode/JRE image itself can be reproduced from source with this checkout's toolchain.
+The PWA is a static-file package; there is no npm install or remote dependency resolution. The release builder requires Node.js 22.22.1, GNU tar 1.35, gzip 1.14, and a clean worktree. It rebuilds the package from the repository's pinned relay image. The Geode/JRE image was separately rebuilt offline using the recorded Gradle/JDK toolchain; its provenance does not claim bit-for-bit reproducibility.
 
 ```bash
 node property/release/build-offline-bundle.mjs \

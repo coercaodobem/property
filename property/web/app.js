@@ -1483,6 +1483,7 @@
     }
     const conversation = await get('conversations', peer);
     const access = await get('agentAccess', peer);
+    await assertPeerNotLocallyBlocked(peer);
     if (state.pubkey !== sender || state.secret !== secret) {
       throw new Error(localized('The identity was locked before the call signal was sent.', 'A identidade foi bloqueada antes do envio do sinal da chamada.'));
     }
@@ -1501,6 +1502,7 @@
     if (!relays.length || state.pubkey !== sender || state.secret !== secret) {
       throw new Error(localized('No inbox relays for this contact could be reached. The call was not sent.', 'Não foi possível encontrar relays de recebimento para este contato. A chamada não foi enviada.'));
     }
+    await assertPeerNotLocallyBlocked(peer);
     let openRelays = 0;
     for (const delivery of deliveries) openRelays += await publishEphemeralToRelays(delivery.event, relays).catch(() => 0);
     if (!openRelays) throw new Error(localized('No inbox relay connected for call setup. The call was not sent.', 'Nenhum relay de recebimento conectou para iniciar a chamada. A chamada não foi enviada.'));
@@ -1712,6 +1714,7 @@
     }
     const conversation = await get('conversations', peer);
     const access = await get('agentAccess', peer);
+    await assertPeerNotLocallyBlocked(peer);
     if (state.pubkey !== sender || state.secret !== secret) throw new Error(localized('The identity was locked before the transfer signal was sent.', 'A identidade foi bloqueada antes do envio do sinal da transferência.'));
     if (!conversation || conversation.group || conversation.agent || access?.status === 'approved' || access?.status === 'blocked') {
       throw new Error(localized('Direct file transfer is available only with an unblocked person in a one-to-one chat.', 'A transferência direta só está disponível com uma pessoa desbloqueada em uma conversa individual.'));
@@ -1725,6 +1728,7 @@
     if (!relays.length || state.pubkey !== sender || state.secret !== secret) {
       throw new Error(localized('No inbox relays for this contact could be reached. The direct transfer signal was not sent.', 'Não foi possível encontrar relays de recebimento para este contato. O sinal da transferência direta não foi enviado.'));
     }
+    await assertPeerNotLocallyBlocked(peer);
     let openRelays = 0;
     for (const delivery of deliveries) openRelays += await publishEphemeralToRelays(delivery.event, relays).catch(() => 0);
     if (!openRelays) throw new Error(localized('No inbox relay connected for direct file setup. The transfer was not sent.', 'Nenhum relay de recebimento conectou para preparar os arquivos. A transferência não foi enviada.'));
@@ -1993,12 +1997,14 @@
     const secret = state.secret;
     if (!senderPubkey || !secret || session.senderPubkey !== senderPubkey ||
         (['typing', 'recording'].includes(action) && !state.typingIndicatorsEnabled)) return;
+    if (state.activeConversationBlocked || await isLocallyBlockedPeer(session.peer)) return;
     let deliveries;
     try { deliveries = TypingSignals.create(N, secret, session.participants, action, nextTypingSequence()); }
     catch { return; }
     await Promise.all(deliveries.map(async ({ recipient, event }) => {
       const relays = await resolveTypingRelays(recipient);
-      if (!relays.length || state.pubkey !== senderPubkey || state.secret !== secret) return;
+      if (!relays.length || state.pubkey !== senderPubkey || state.secret !== secret ||
+          state.activeConversationBlocked || await isLocallyBlockedPeer(session.peer)) return;
       await publishEphemeralToRelays(event, relays).catch(() => {});
     }));
   }
@@ -2043,12 +2049,14 @@
     const secret = state.secret;
     if (!senderPubkey || !secret || session.senderPubkey !== senderPubkey ||
         (active && (!canShareActiveStatus(session.peer) || state.localPresenceSession !== session))) return;
+    if (state.activeConversationBlocked || await isLocallyBlockedPeer(session.peer)) return;
     let deliveries;
     try { deliveries = TypingSignals.createPresence(N, secret, session.participants, active, nextTypingSequence()); }
     catch { return; }
     await Promise.all(deliveries.map(async ({ recipient, event }) => {
       const relays = await resolveTypingRelays(recipient);
       if (!relays.length || state.pubkey !== senderPubkey || state.secret !== secret ||
+          state.activeConversationBlocked || await isLocallyBlockedPeer(session.peer) ||
           (active && (!canShareActiveStatus(session.peer) || state.localPresenceSession !== session))) return;
       await publishEphemeralToRelays(event, relays).catch(() => {});
     }));
@@ -2503,7 +2511,9 @@
   }
   function renderChatDetailsForCurrentLanguage() {
     const peer = state.chatDetailsPeer;
-    if (!$('chat-details-dialog').open || !peer || $('chat-public-profile-section').hidden) return;
+    if (!$('chat-details-dialog').open || !peer) return;
+    if (!$('local-safety-section').hidden) void refreshLocalSafetyControls(peer);
+    if ($('chat-public-profile-section').hidden) return;
     renderPeerPublicProfile(state.peerProfiles.get(peer) || null);
     renderPeerProfileLookupStatus(peer);
     renderPeerIdentityProofs(state.peerIdentityProofs.get(peer) || null);
@@ -2547,6 +2557,11 @@
     $('chat-details-title').dataset.userContent = '';
     $('chat-details-title').textContent = conversationLabel(conversation);
     $('chat-local-name').value = conversation.title || '';
+    const safetySection = $('local-safety-section');
+    safetySection.hidden = conversation.group === true || !window.PropertyLocalModeration;
+    $('local-report-category').value = '';
+    $('local-report-status').textContent = '';
+    if (!safetySection.hidden) await refreshLocalSafetyControls(peer);
     $('chat-group-details').hidden = conversation.group !== true;
     const groupMembers = Array.isArray(conversation.members) ? conversation.members : [];
     $('group-invite-section').hidden = conversation.group !== true || groupMembers.length < 3 || groupMembers.length >= MAX_NIP17_GROUP_MEMBERS || !groupMembers.includes(state.pubkey);
@@ -2583,6 +2598,69 @@
       renderPeerIdentityProofs(identityRecord);
     }
     $('chat-details-dialog').showModal();
+  }
+  async function refreshLocalSafetyControls(peer) {
+    const moderation = window.PropertyLocalModeration;
+    if (!moderation || !state.pubkey || !peer || peer === state.pubkey) return;
+    const records = await all('settings');
+    const blocked = moderation.isBlocked(records, state.pubkey, peer);
+    const reports = moderation.localReports(records, state.pubkey).filter(record => record.peer === peer);
+    $('local-block-toggle').textContent = blocked
+      ? localized('Unblock this person on this device', 'Desbloquear esta pessoa neste aparelho')
+      : localized('Block this person on this device', 'Bloquear esta pessoa neste aparelho');
+    $('local-safety-note').textContent = blocked
+      ? localized('Messages from this person are hidden here and sending is disabled. This does not delete relay copies or notify anyone. Reports stay in this browser and are not sent.', 'As mensagens desta pessoa ficam ocultas aqui e o envio é desativado. Isso não apaga cópias nos relays nem avisa alguém. Os relatos ficam neste navegador e não são enviados.')
+      : localized('Blocking hides this person’s messages here and disables sending. It does not delete relay copies. Reports are private notes stored in this browser, not sent to relays or moderators.', 'Bloquear oculta as mensagens desta pessoa aqui e desativa o envio. Isso não apaga cópias nos relays. Relatos são notas privadas neste navegador, não são enviados a relays ou moderadores.');
+    if (!reports.length) $('local-report-status').textContent = '';
+    else $('local-report-status').textContent = localized(
+      `${reports.length} report${reports.length === 1 ? '' : 's'} saved only on this device.`,
+      `${reports.length} relato${reports.length === 1 ? '' : 's'} salvo${reports.length === 1 ? '' : 's'} somente neste aparelho.`
+    );
+  }
+  async function isLocallyBlockedPeer(peer) {
+    const moderation = window.PropertyLocalModeration;
+    return Boolean(moderation && state.pubkey && peer &&
+      moderation.isBlocked(await all('settings'), state.pubkey, peer));
+  }
+  async function assertPeerNotLocallyBlocked(peer) {
+    if (await isLocallyBlockedPeer(peer)) {
+      throw new Error(localized('This person is blocked on this device. Sending is disabled.', 'Esta pessoa está bloqueada neste aparelho. O envio está desativado.'));
+    }
+  }
+  async function toggleLocalBlock() {
+    const peer = state.chatDetailsPeer;
+    const moderation = window.PropertyLocalModeration;
+    if (!peer || !state.pubkey || !moderation) return;
+    const id = moderation.blockId(state.pubkey, peer);
+    const current = await get('settings', id);
+    if (current) {
+      await del('settings', id);
+      showToast(localized('Person unblocked on this device.', 'Pessoa desbloqueada neste aparelho.'));
+    } else {
+      await put('settings', moderation.createBlockRecord(state.pubkey, peer, Date.now()));
+      showToast(localized('Person blocked on this device. Relay copies were not deleted.', 'Pessoa bloqueada neste aparelho. As cópias nos relays não foram apagadas.'));
+    }
+    await refreshLocalSafetyControls(peer);
+    if (state.activePeer === peer) {
+      await updateAgentBlockControl(peer);
+      await renderMessages(peer);
+    }
+    await renderConversations();
+  }
+  async function saveLocalReport() {
+    const peer = state.chatDetailsPeer;
+    const moderation = window.PropertyLocalModeration;
+    const reason = $('local-report-category').value;
+    if (!peer || !state.pubkey || !moderation) return;
+    if (!moderation.REPORT_REASONS.includes(reason)) {
+      $('local-report-status').textContent = localized('Choose a reason first. The report was not saved.', 'Escolha um motivo. O relato não foi salvo.');
+      return;
+    }
+    const report = moderation.createReportRecord(state.pubkey, peer, reason, Date.now(), crypto.randomUUID());
+    await put('settings', report);
+    $('local-report-category').value = '';
+    await refreshLocalSafetyControls(peer);
+    $('local-report-status').textContent = localized('Saved only on this device. It was not sent to relays or moderators.', 'Salvo somente neste aparelho. Não foi enviado a relays ou moderadores.');
   }
   async function loadChatPublicProfile() {
     const peer = state.chatDetailsPeer;
@@ -2858,6 +2936,9 @@
     const caption = $('first-use-relay-caption');
     const list = $('first-use-relay-list');
     if (!panel || !caption || !list) return;
+    const defaultState = window.PropertyRelayDefaults?.defaultState();
+    const defaultCopy = defaultState && window.PropertyRelayDefaults.statusText(defaultState.status);
+    if (defaultCopy) $('first-use-relay-status').textContent = localized(defaultCopy.en, defaultCopy.pt);
     const visible = state.autoSelectedRelays && state.relays.length > 0;
     panel.classList.toggle('hidden', !visible);
     if (!visible) return;
@@ -3610,6 +3691,7 @@
   }
   async function notifyIncomingMessage(peer) {
     if (!state.notificationsEnabled || !state.pubkey || typeof Notification === 'undefined') return;
+    if (window.PropertyLocalModeration && window.PropertyLocalModeration.isBlocked(await all('settings'), state.pubkey, peer)) return;
     const permission = Notification.permission;
     const mute = currentConversationMute(peer);
     const muted = NotificationPrefs.isMuted(mute, Date.now());
@@ -4153,6 +4235,7 @@
   }
   async function sendConversationPin(peer, targetEventId, action) {
     const conversation = await get('conversations', peer);
+    if (conversation?.group !== true) await assertPeerNotLocallyBlocked(peer);
     if (!state.pubkey || !conversation || conversation.agent || (await get('agentAccess', peer))?.status === 'approved') {
       throw new Error(localized('Message pins are available in private person-to-person chats and groups.', 'Fixar mensagens está disponível em conversas privadas e grupos.'));
     }
@@ -4172,6 +4255,7 @@
       ? Routing.planGiftWraps(prepared.wraps, state.pubkey, peerPubkey, relayLists[state.pubkey], relayLists[peerPubkey], N.verifyEvent)
       : Routing.planGroupGiftWraps(prepared.wraps, members, relayLists, N.verifyEvent);
     if (!routePlan.ready) throw new Error(localized('Could not prepare the private message pin envelopes. Check the conversation inbox relays.', 'Não foi possível preparar os envelopes privados da mensagem fixada. Confira os relays de recebimento da conversa.'));
+    if (conversation.group !== true) await assertPeerNotLocallyBlocked(peer);
     let confirmed = 0;
     for (const delivery of routePlan.deliveries) {
       try { if (await publishToRelays(delivery.event, delivery.relays)) confirmed += 1; }
@@ -4458,6 +4542,8 @@
     return messages;
   }
   async function renderConversationRow(conversation, messageMatch = null, search = '') {
+    const locallyBlocked = state.localBlockedPeers?.has(conversation.pubkey) === true;
+    if (locallyBlocked) messageMatch = null;
     const row = document.createElement('div'); row.className = 'conversation-row';
     const button = document.createElement('button'); button.className = `conversation-item${conversation.pubkey === state.activePeer ? ' active' : ''}`; button.type = 'button';
     const [agentAccess, mute] = await Promise.all([
@@ -4507,10 +4593,12 @@
     preview.dataset.conversationPreview = conversation.pubkey;
     preview.dataset.conversationGroup = String(conversation.group === true);
     preview.dataset.hasSearchMatch = String(Boolean(messageMatch));
-    preview.dataset.messagePreview = messageMatch
+    preview.dataset.messagePreview = locallyBlocked
+      ? localized('Blocked on this device', 'Bloqueado neste aparelho')
+      : messageMatch
       ? conversationSearchSnippet(messageMatch.text, search)
       : RichText.preview(conversation.lastMessage || (conversation.group ? `${conversation.members?.length || 0} ${window.PropertyI18n?.language === 'pt-BR' ? 'participantes' : 'members'}` : conversation.pubkey.slice(0, 16)));
-    const activityPreview = typingActivityPreviewText(conversation.pubkey, conversation.group === true, Boolean(messageMatch));
+    const activityPreview = locallyBlocked ? '' : typingActivityPreviewText(conversation.pubkey, conversation.group === true, Boolean(messageMatch));
     preview.textContent = activityPreview || preview.dataset.messagePreview;
     preview.classList.toggle('conversation-activity-preview', Boolean(activityPreview));
     info.append(titleRow);
@@ -4560,20 +4648,30 @@
     const renderSequence = ++state.conversationListRenderSequence;
     const conversations = FolderStore.sortConversations(await all('conversations'));
     if (renderSequence !== state.conversationListRenderSequence) return;
+    const localSettings = window.PropertyLocalModeration && state.pubkey ? await all('settings') : [];
+    state.localBlockedPeers = new Set(window.PropertyLocalModeration && state.pubkey
+      ? window.PropertyLocalModeration.blockedPeers(localSettings, state.pubkey) : []);
     updateAppBadge(conversations);
     const rawSearch = $('conversation-search').value.trim();
     const search = MessageSearch.foldText(rawSearch).trim();
     const latestMatches = new Map();
     if (search) {
-      const matches = MessageSearch.findLatestMatchesByPeer(await readConversationSearchMessages(), rawSearch);
+      const searchMessages = await readConversationSearchMessages();
+      const blockedPeers = state.localBlockedPeers;
+      const visibleSearchMessages = blockedPeers.size && window.PropertyLocalModeration
+        ? searchMessages.filter(message => !blockedPeers.has(message.peer) ||
+          !window.PropertyLocalModeration.messageFromBlocked(message, new Set([message.peer])))
+        : searchMessages;
+      const matches = MessageSearch.findLatestMatchesByPeer(visibleSearchMessages, rawSearch);
       for (const match of matches) latestMatches.set(match.peer, match);
     }
     if (renderSequence !== state.conversationListRenderSequence) return;
     const list = $('conversation-list');
     list.replaceChildren();
-    const filtered = conversations.filter(item => !search
-      || MessageSearch.matchesText(`${conversationLabel(item)} ${item.pubkey || ''} ${item.lastMessage || ''}`, rawSearch)
-      || latestMatches.has(item.pubkey));
+    const filtered = conversations.filter(item => {
+      const messageText = state.localBlockedPeers.has(item.pubkey) ? '' : item.lastMessage || '';
+      return !search || MessageSearch.matchesText(`${conversationLabel(item)} ${item.pubkey || ''} ${messageText}`, rawSearch) || latestMatches.has(item.pubkey);
+    });
     const config = await loadConversationFolders();
     if (renderSequence !== state.conversationListRenderSequence) return;
     if (!filtered.length && search) {
@@ -4617,7 +4715,10 @@
           const empty = document.createElement('p'); empty.className = 'conversation-empty folder-empty'; empty.textContent = localized('No conversations in this folder yet.', 'Ainda não há conversas nesta pasta.'); sectionNode.append(empty);
         } else {
           for (const conversation of section.conversations) {
-            const row = await renderConversationRow(conversation, latestMatches.get(conversation.pubkey), rawSearch);
+            const rowConversation = state.localBlockedPeers.has(conversation.pubkey)
+              ? { ...conversation, lastMessage: '' }
+              : conversation;
+            const row = await renderConversationRow(rowConversation, latestMatches.get(conversation.pubkey), rawSearch);
             if (renderSequence !== state.conversationListRenderSequence) return;
             sectionNode.append(row);
           }
@@ -4675,7 +4776,10 @@
     if (state.activeView === 'messages') sendReadReceiptsForVisibleRows();
     if (state.activeView === 'messages') await markConversationRead(pubkey);
     await renderConversations();
-    startLocalPresence();
+    if (state.activeConversationBlocked) {
+      stopLocalPresence();
+      stopLocalTyping();
+    } else startLocalPresence();
   }
   async function updateAgentBlockControl(pubkey) {
     const conversation = await get('conversations', pubkey);
@@ -4683,9 +4787,12 @@
     const agentConversation = conversation?.agent === true || access?.status === 'approved' || access?.status === 'blocked';
     const button = $('agent-block-button');
     const blocked = access?.status === 'blocked';
-    state.activeConversationBlocked = blocked;
+    const locallyBlocked = !conversation?.group && state.pubkey && window.PropertyLocalModeration
+      ? window.PropertyLocalModeration.isBlocked(await all('settings'), state.pubkey, pubkey)
+      : false;
+    state.activeConversationBlocked = blocked || locallyBlocked;
     const canCall = Boolean(state.secret && conversation && conversation.group !== true &&
-      conversation.agent !== true && access?.status !== 'approved' && !blocked &&
+      conversation.agent !== true && access?.status !== 'approved' && !state.activeConversationBlocked &&
       /^[0-9a-f]{64}$/i.test(String(conversation.pubkey || '')) && conversation.pubkey !== state.pubkey);
     $('audio-call-button').hidden = !canCall;
     $('video-call-button').hidden = !canCall;
@@ -4693,10 +4800,10 @@
     const blockLabel = blocked ? localized('Unblock agent', 'Desbloquear agente') : localized('Block agent', 'Bloquear agente');
     button.setAttribute('aria-label', blockLabel);
     button.title = blockLabel;
-    $('message-input').disabled = blocked;
-    document.querySelector('#send-form button[type="submit"]').disabled = blocked;
-    $('message-input').placeholder = blocked
-      ? localized('Agent blocked on this device', 'Agente bloqueado neste aparelho')
+    $('message-input').disabled = state.activeConversationBlocked;
+    document.querySelector('#send-form button[type="submit"]').disabled = state.activeConversationBlocked;
+    $('message-input').placeholder = state.activeConversationBlocked
+      ? localized('Sending is disabled for this conversation on this device', 'O envio está desativado para esta conversa neste aparelho')
       : localized('Write a private message…', 'Escreva uma mensagem privada…');
     renderVoiceComposer();
     updateLinkPreviewDraft();
@@ -4949,7 +5056,12 @@
     state.readReceiptObserver?.disconnect();
     state.readReceiptObserver = null;
     state.readReceiptCandidates.clear();
-    const entries = (await all('messages')).filter(message => message.peer === peer && !message.hiddenFromChat).sort((a, b) => a.createdAt - b.createdAt);
+    const allEntries = (await all('messages')).filter(message => message.peer === peer && !message.hiddenFromChat).sort((a, b) => a.createdAt - b.createdAt);
+    const locallyBlocked = Boolean(state.pubkey && window.PropertyLocalModeration &&
+      window.PropertyLocalModeration.isBlocked(await all('settings'), state.pubkey, peer));
+    const entries = locallyBlocked
+      ? allEntries.filter(message => !window.PropertyLocalModeration.messageFromBlocked(message, new Set([peer])))
+      : allEntries;
     const messages = MessageDeletions.coalesceDeletedMessages(FileTransfers.coalesceMessages(entries.filter(message => message.kind !== 7)));
     const activePlayback = audioPlayback.getState();
     if (activePlayback?.peer === peer) {
@@ -5009,8 +5121,18 @@
     const byEventId = messageByEventId;
     container.replaceChildren();
     scheduleMessageDayRollover(peer);
+    if (locallyBlocked) {
+      const notice = document.createElement('p');
+      notice.className = 'conversation-empty fine-print';
+      notice.setAttribute('role', 'status');
+      notice.textContent = localized('This person is blocked on this device. Their messages are hidden here; relay copies are unchanged.', 'Esta pessoa está bloqueada neste aparelho. As mensagens dela ficam ocultas aqui; as cópias nos relays não mudam.');
+      container.append(notice);
+    }
     if (!messages.length) {
-      const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = 'Esta conversa é privada. Envie uma mensagem para começar.'; container.append(empty); container.dataset.peer = peer; delete container.dataset.latestCreatedAt; state.unseenMessageCount = 0; updateMessageScrollButton(); refreshMessageSearch(); updateAudioPlaybackUI(); return;
+      if (!locallyBlocked) {
+        const empty = document.createElement('p'); empty.className = 'empty-chat'; empty.textContent = localized('This is a private conversation. Send a message to begin.', 'Esta conversa é privada. Envie uma mensagem para começar.'); container.append(empty);
+      }
+      container.dataset.peer = peer; delete container.dataset.latestCreatedAt; state.unseenMessageCount = 0; updateMessageScrollButton(); refreshMessageSearch(); updateAudioPlaybackUI(); return;
     }
     let previousDay = NaN;
     let daySection = null;
@@ -5543,6 +5665,7 @@
     return { updated: true, confirmed: confirmedRemote.length, required: remoteRecipients.length };
   }
   async function sendPrivateMessage(peer, text, replyTo = null, { quiet = false, secretConfirmed = false, mentionTokens = [], forwardedHops = null, voiceRecording = null, fileChunk = null, deferRender = false, chessPayload = null } = {}, linkPreview = null) {
+    if ((await get('conversations', peer))?.group !== true) await assertPeerNotLocallyBlocked(peer);
     if (chessPayload !== null) {
       if (!secretConfirmed || !chessPayload || typeof chessPayload !== 'object' || Array.isArray(chessPayload) || chessPayload.p !== 'property-chess' || !Number.isInteger(chessPayload.v) || typeof chessPayload.k !== 'string') throw new TypeError('Invalid Property Chess message.');
       if (replyTo || forwardedHops !== null || voiceRecording || fileChunk) throw new TypeError('Property Chess messages cannot be combined with chat attachments or replies.');
@@ -5620,6 +5743,7 @@
     await put('conversations', { ...previous, ...(agentConversation ? { agent: true } : {}), lastMessage: isChessMessage ? localized('♟ Chess game', '♟ Partida de xadrez') : fileChunk ? `📎 ${fileChunk.name}` : text, lastAt: message.createdAt });
     if (!deferRender && state.activePeer === peer) await renderMessages(peer);
     if (!deferRender) await renderConversations();
+    await assertPeerNotLocallyBlocked(peer);
     const outcome = await publishMessageRetryPlan(message, retryPlan);
     const sent = outcome.confirmedEnvelopeCount;
     const requiredEnvelopes = outcome.requiredEnvelopeCount;
@@ -5686,6 +5810,7 @@
   }
   async function sendPrivateReaction(peer, message, reaction) {
     if ((await get('conversations', peer))?.group === true) return sendPrivateGroupReaction(peer, message, reaction);
+    await assertPeerNotLocallyBlocked(peer);
     const agentAccess = await get('agentAccess', peer);
     if (agentAccess?.status === 'blocked') throw new Error('This contact is blocked on this device.');
     const targetId = nostrEventId(message);
@@ -5719,6 +5844,7 @@
     const wraps = [state.pubkey, peer].map(recipient => N.nip59.createWrap(N.nip59.createSeal(rumor, state.secret, recipient), recipient));
     const routePlan = Routing.planGiftWraps(wraps, state.pubkey, peer, state.inboxRelays, peerRelays, N.verifyEvent);
     if (!routePlan.ready || wraps.length !== 2 || wraps.some(event => event.kind !== 1059)) throw new Error('The NIP-17 reaction could not be prepared for both participants.');
+    await assertPeerNotLocallyBlocked(peer);
     const local = { id: `reaction:${peer}:${rumor.id}`, peer, kind: 7, targetEventId: targetId, reaction, reactorPubkey: state.pubkey, createdAt: rumor.created_at * 1000, direction: 'sent', status: 'pending', nostrEventId: rumor.id };
     await put('messages', local);
     if (state.activePeer === peer) await renderMessages(peer);
@@ -7324,6 +7450,12 @@
     $('profile-nip05').addEventListener('input', resetOwnNip05Check);
     $('verify-chat-nip05').addEventListener('click', () => verifyPeerNip05());
     $('save-chat-local-name').addEventListener('click', () => saveConversationLocalName().catch(error => showToast(error.message || localized('Could not save the local name.', 'Não foi possível salvar o nome local.'))));
+    $('local-block-toggle').addEventListener('click', () => toggleLocalBlock().catch(error => {
+      $('local-report-status').textContent = error.message || localized('Could not update the local block.', 'Não foi possível atualizar o bloqueio local.');
+    }));
+    $('local-report-submit').addEventListener('click', () => saveLocalReport().catch(error => {
+      $('local-report-status').textContent = error.message || localized('Could not save this local report.', 'Não foi possível salvar este relato local.');
+    }));
     $('agent-block-button').addEventListener('click', () => toggleAgentBlock().catch(error => showToast(error.message || 'Não foi possível atualizar o bloqueio.')));
     $('open-agent-manager').addEventListener('click', () => {
       $('profile-dialog').close(); $('agent-dialog').showModal();
@@ -7332,6 +7464,11 @@
       $('agent-dialog').close(); $('agent-mode').checked = true; $('new-chat-dialog').showModal();
     });
     const openRelaySettings = async () => {
+      const defaultState = window.PropertyRelayDefaults?.defaultState();
+      const defaultCopy = defaultState && window.PropertyRelayDefaults.statusText(defaultState.status);
+      $('relay-defaults-status').textContent = defaultCopy
+        ? localized(defaultCopy.en, defaultCopy.pt)
+        : localized('The bundled relay list is unavailable. No default relay was added.', 'A lista de relays incluída está indisponível. Nenhum relay padrão foi adicionado.');
       $('relay-input').value = state.relays.join('\n');
       const inboxSuggestion = state.inboxRelays.length ? state.inboxRelays : state.relays.slice(0, 3);
       $('dm-relay-input').value = inboxSuggestion.join('\n');

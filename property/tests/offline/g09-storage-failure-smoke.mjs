@@ -71,16 +71,16 @@ try {
   const readyFile = path.join(temp, 'lock-ready');
   const locker = path.join(temp, 'sqlite-exclusive-lock.py');
   await writeFile(locker, [
-    'import sqlite3, sys, time',
+    'import sqlite3, sys',
     'db, ready = sys.argv[1:]',
     'con = sqlite3.connect(db, timeout=2)',
     'con.execute("BEGIN EXCLUSIVE")',
     'open(ready, "w").write("locked")',
-    'time.sleep(30)',
+    'sys.stdin.read(1)',
     'con.rollback()'
   ].join('\n') + '\n', { mode: 0o600 });
   const dbPath = path.join(relay.data, 'events.db');
-  lockProcess = spawn('python3', [locker, dbPath, readyFile], { stdio: 'ignore', env: { PATH: process.env.PATH } });
+  lockProcess = spawn('python3', [locker, dbPath, readyFile], { stdio: ['pipe', 'ignore', 'ignore'], env: { PATH: process.env.PATH } });
   const lockDeadline = Date.now() + 5000;
   while (Date.now() < lockDeadline) {
     try { await (await import('node:fs/promises')).access(readyFile); break; }
@@ -98,7 +98,7 @@ try {
   report.database_lock.held_event_ack_kind = lockResult.kind;
   report.database_lock.held_event_acknowledged = lockResult.kind === 'ack' && lockResult.accepted === true;
   report.database_lock.held_event_independently_queryable = storedDuringLock;
-  lockProcess.kill('SIGTERM');
+  lockProcess.stdin.write('release\n');
   await new Promise(resolve => lockProcess.once('close', resolve));
   lockProcess = null;
   const recovered = signedFixture('G09 database lock: relay remains queryable after the lock is released');
