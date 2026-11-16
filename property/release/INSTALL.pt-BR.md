@@ -4,20 +4,20 @@ O bundle contém a PWA estática do Property, a imagem do relay Geode para Ubunt
 
 ## Verificar e instalar
 
-Use um checkout limpo de Ubuntu/Linux x86_64 e mantenha a chave privada fora do repositório. A chave pública usada na verificação precisa ser confiável por uma fonte independente do próprio bundle.
+Use um checkout limpo de Ubuntu/Linux x86_64 e mantenha a chave privada fora do repositório. A chave pública Ed25519 confiável está versionada em `property/release/trusted-signing-public.pem`; obtenha-a da tag de código-fonte confiável, não do bundle baixado. A impressão digital SHA-256 é `60025655e12c534e41003d8d87c3080c33b3e72f86bb19dbcda14182684f670c`.
 
 ```bash
 node property/release/verify-offline-bundle.mjs \
   --bundle /caminho/para/release-bundle \
-  --public-key /caminho/para/chave-publica-confiavel.pem
+  --public-key /caminho/para/trusted-signing-public.pem
 
 bash property/release/install-offline.sh \
   --bundle /caminho/para/release-bundle \
-  --trusted-key /caminho/para/chave-publica-confiavel.pem \
+  --trusted-key /caminho/para/trusted-signing-public.pem \
   --prefix "$HOME/.local"
 ```
 
-O instalador verifica assinatura, digest do arquivo, lista de arquivos e SBOM antes de alterar o prefixo. Não instala um serviço nem abre um listener de rede automaticamente. Não modifica os diretórios locais de dados do agente e do relay.
+O instalador verifica assinatura, digest do arquivo, lista de arquivos e SBOM antes de alterar o prefixo. O builder falha se a chave privada de assinatura não corresponder à chave pública fixada no código-fonte. Mantenha a chave privada offline e em backup seguro; nunca a versione nem a inclua no bundle. O instalador não cria um serviço nem abre um listener de rede automaticamente. Não modifica os diretórios locais de dados do agente e do relay.
 
 ## Executar e remover
 
@@ -41,4 +41,4 @@ node property/release/build-offline-bundle.mjs \
   --signing-key /local-seguro/property-release-ed25519.pem
 ```
 
-O comando cria o manifesto assinado, a chave pública, checksums destacados e o arquivo de release. Nunca coloque uma chave privada no checkout ou no bundle. A chave pública dentro do bundle confirma apenas a consistência interna da assinatura; compare sua impressão digital com uma chave obtida de uma fonte Property confiável antes de confiar nela.
+O comando cria o manifesto assinado, a chave pública, checksums destacados e o arquivo de release. Nunca coloque uma chave privada no checkout ou no bundle. A chave pública dentro do bundle confirma apenas a consistência interna da assinatura; compare sua impressão digital com a chave fixada na tag de código-fonte confiável antes de confiar nela.

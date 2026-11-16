@@ -79,10 +79,17 @@ async function main() {
     const tarOld = run('tar', ['--extract', '--gzip', '--file', path.join(older, 'property-ubuntu-x86_64.tar.gz'), '--directory', oldExtract,
       '--no-same-owner', '--no-same-permissions']);
     assert.equal(tarNew.status, 0); assert.equal(tarOld.status, 0);
-    const installScript = path.join(newExtract, 'property/release/install-offline.sh');
-    const uninstallScript = path.join(newExtract, 'property/release/uninstall-offline.sh');
-    const verifyScript = path.join(newExtract, 'property/release/verify-offline-bundle.mjs');
-    assert.ok((await stat(installScript)).mode & 0o111, 'installer remains executable in the release archive');
+    const oldInstallScript = path.join(oldExtract, 'property/release/install-offline.sh');
+    const oldUninstallScript = path.join(oldExtract, 'property/release/uninstall-offline.sh');
+    const oldVerifyScript = path.join(oldExtract, 'property/release/verify-offline-bundle.mjs');
+    const newInstallScript = path.join(newExtract, 'property/release/install-offline.sh');
+    const newUninstallScript = path.join(newExtract, 'property/release/uninstall-offline.sh');
+    const newVerifyScript = path.join(newExtract, 'property/release/verify-offline-bundle.mjs');
+    for (const script of [oldInstallScript, oldUninstallScript, oldVerifyScript, newInstallScript, newUninstallScript, newVerifyScript]) {
+      await stat(script);
+    }
+    assert.ok((await stat(oldInstallScript)).mode & 0o111, 'older installer remains executable in its release archive');
+    assert.ok((await stat(newInstallScript)).mode & 0o111, 'newer installer remains executable in its release archive');
     const oldAppSha = await shaFile(path.join(oldExtract, 'property/web/app.js'));
     const newAppSha = await shaFile(path.join(newExtract, 'property/web/app.js'));
     assert.notEqual(oldAppSha, newAppSha, 'upgrade and rollback must change between different PWA payloads');
@@ -96,13 +103,13 @@ async function main() {
         PROPERTY_RELAY_DATA_DIR: relayData, PROPERTY_RELAY_CONFIG_DIR: relayConfig, LC_ALL: 'C', LANG: 'C', TZ: 'UTC' };
       await mkdir(home, { recursive: true, mode: 0o700 });
       const invalidPrefix = path.join(root, 'must-stay-absent');
-      const corruptInstall = run('bash', [installScript, '--bundle', corruptFixture, '--trusted-key', args.trusted_key, '--prefix', invalidPrefix], { env, allowFailure: true });
+      const corruptInstall = run('bash', [newInstallScript, '--bundle', corruptFixture, '--trusted-key', args.trusted_key, '--prefix', invalidPrefix], { env, allowFailure: true });
       assert.notEqual(corruptInstall.status, 0, `cycle ${cycle} rejects the checksum-tampered package`);
       await assertAbsent(invalidPrefix, `cycle ${cycle} corrupt bundle must fail before creating an install prefix`);
       report.corrupted_bundle_rejected++;
 
-      run('node', [verifyScript, '--bundle', older, '--public-key', args.trusted_key], { env });
-      run('bash', [installScript, '--bundle', older, '--trusted-key', args.trusted_key, '--prefix', prefix], { env });
+      run('node', [oldVerifyScript, '--bundle', older, '--public-key', args.trusted_key], { env });
+      run('bash', [oldInstallScript, '--bundle', older, '--trusted-key', args.trusted_key, '--prefix', prefix], { env });
       const installedOldBefore = await installedSha(prefix, 'web/app.js');
       assert.equal(installedOldBefore, oldAppSha, `cycle ${cycle} installs exact old PWA asset`);
 
@@ -114,19 +121,19 @@ async function main() {
       await writeFile(path.join(relayData, 'user-state'), `relay-state-${cycle}\n`, { mode: 0o600 });
       await writeFile(path.join(relayConfig, 'user-state'), `relay-config-${cycle}\n`, { mode: 0o600 });
 
-      run('node', [verifyScript, '--bundle', newer, '--public-key', args.trusted_key], { env });
-      run('bash', [installScript, '--bundle', newer, '--trusted-key', args.trusted_key, '--prefix', prefix], { env });
+      run('node', [newVerifyScript, '--bundle', newer, '--public-key', args.trusted_key], { env });
+      run('bash', [newInstallScript, '--bundle', newer, '--trusted-key', args.trusted_key, '--prefix', prefix], { env });
       const installedNewSha = await installedSha(prefix, 'web/app.js');
       assert.equal(installedNewSha, newAppSha, `cycle ${cycle} updates to exact new PWA asset`);
 
-      run('node', [verifyScript, '--bundle', older, '--public-key', args.trusted_key], { env });
-      run('bash', [installScript, '--bundle', older, '--trusted-key', args.trusted_key, '--prefix', prefix], { env });
+      run('node', [oldVerifyScript, '--bundle', older, '--public-key', args.trusted_key], { env });
+      run('bash', [oldInstallScript, '--bundle', older, '--trusted-key', args.trusted_key, '--prefix', prefix], { env });
       assert.equal(await installedSha(prefix, 'web/app.js'), installedOldBefore, `cycle ${cycle} rolls back to the previous PWA asset`);
       assert.equal(await readFile(path.join(agentData, 'user-state'), 'utf8'), `agent-state-${cycle}\n`);
       assert.equal(await readFile(path.join(relayData, 'user-state'), 'utf8'), `relay-state-${cycle}\n`);
       assert.equal(await readFile(path.join(relayConfig, 'user-state'), 'utf8'), `relay-config-${cycle}\n`);
 
-      run('bash', [uninstallScript, prefix], { env });
+      run('bash', [oldUninstallScript, prefix], { env });
       await assertAbsent(path.join(prefix, 'share/property/web'), `cycle ${cycle} uninstall removes installed PWA files`);
       await assertAbsent(path.join(prefix, 'share/property/relay'), `cycle ${cycle} uninstall removes installed relay files`);
       assert.equal(await readFile(path.join(agentData, 'user-state'), 'utf8'), `agent-state-${cycle}\n`, `cycle ${cycle} uninstall preserves agent data`);

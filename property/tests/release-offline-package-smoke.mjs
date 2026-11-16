@@ -73,6 +73,9 @@ async function main() {
     const verifier = path.join(extracted, 'property/release/verify-offline-bundle.mjs');
     const uninstallScript = path.join(extracted, 'property/release/uninstall-offline.sh');
     assert.ok((await stat(installScript)).mode & 0o111, 'release installer is not executable in the archive');
+    assert.equal(await readFile(path.join(extracted, 'property/release/trusted-signing-public.pem'), 'utf8'),
+      await readFile(args.trusted_key, 'utf8'), 'release payload carries the exact source-pinned public signing key');
+    report.cases.push({ id: 'source-pinned-signing-key', result: 'PASS', key_matches_trusted_source: true });
 
     const invalidEnv = { ...process.env, HOME: path.join(scratch, 'home-invalid') };
     const missingInstall = run('bash', [installScript, '--bundle', missingFixture, '--trusted-key', args.trusted_key,

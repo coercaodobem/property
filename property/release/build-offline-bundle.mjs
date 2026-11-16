@@ -372,7 +372,7 @@ async function main() {
   if (status.trim()) throw new Error('Source checkout must be clean; build in a clean worktree so ignored or untracked files cannot enter the release.');
   await assertTrackedTree(source, 'property/web');
   await assertTrackedTree(source, 'property/agent');
-  await assertTrackedTree(source, 'property/release/licenses');
+  await assertTrackedTree(source, 'property/release');
   const commit = run('git', ['-C', source, 'rev-parse', 'HEAD']).trim();
   const commitTime = Number(run('git', ['-C', source, 'show', '-s', '--format=%ct', 'HEAD']).trim());
   if (!/^[a-f0-9]{40}$/.test(commit) || !Number.isSafeInteger(commitTime)) throw new Error('Source commit identity is invalid.');
@@ -381,6 +381,8 @@ async function main() {
   privateKeyBytes.fill(0);
   const publicKey = createPublicKey(privateKey);
   const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' });
+  const trustedPublicKeyPem = await readFile(path.join(source, 'property/release/trusted-signing-public.pem'), 'utf8');
+  assert.equal(publicKeyPem, trustedPublicKeyPem, 'signing key does not match the public trust anchor committed in this source');
   const publicKeyFingerprint = sha256(publicKey.export({ type: 'spki', format: 'der' }));
 
   const scratch = await mkdtemp(path.join(os.tmpdir(), 'property-offline-release-'));
@@ -404,6 +406,7 @@ async function main() {
       'property/release/toolchain-lock.json', 'property/release/build-offline-bundle.mjs',
       'property/release/verify-offline-bundle.mjs', 'property/release/metadata-policy.mjs', 'property/release/install-offline.sh',
       'property/release/uninstall-offline.sh',
+      'property/release/trusted-signing-public.pem',
       'property/release/INSTALL.md', 'property/release/INSTALL.pt-BR.md'
     ]) await copyOne(source, relative, stage);
     await mkdir(path.join(stage, 'property/release'), { recursive: true, mode: 0o755 });

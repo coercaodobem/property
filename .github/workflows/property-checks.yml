@@ -5,6 +5,7 @@ on:
     branches: [modelo-mvp]
   push:
     branches: [modelo-mvp]
+    tags: ['property-v*']
   workflow_dispatch:
     inputs:
       run_deferred_platforms:

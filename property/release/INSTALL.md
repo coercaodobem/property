@@ -4,20 +4,20 @@ The release bundle contains the static Property PWA, the Ubuntu x86_64 Geode rel
 
 ## Verify and install
 
-Use a clean Ubuntu/Linux x86_64 checkout and keep the signing key outside the repository. The public key used for verification must be trusted independently from the release bundle.
+Use a clean Ubuntu/Linux x86_64 checkout and keep the private signing key outside the repository. The trusted Ed25519 public key is versioned at `property/release/trusted-signing-public.pem`; obtain it from the exact trusted source tag, not from the downloaded bundle. Its SHA-256 fingerprint is `60025655e12c534e41003d8d87c3080c33b3e72f86bb19dbcda14182684f670c`.
 
 ```bash
 node property/release/verify-offline-bundle.mjs \
   --bundle /path/to/release-bundle \
-  --public-key /path/to/trusted-release-public.pem
+  --public-key /path/to/trusted-signing-public.pem
 
 bash property/release/install-offline.sh \
   --bundle /path/to/release-bundle \
-  --trusted-key /path/to/trusted-release-public.pem \
+  --trusted-key /path/to/trusted-signing-public.pem \
   --prefix "$HOME/.local"
 ```
 
-The installer verifies the signature, archive digest, file list, and SBOM before changing the prefix. It installs no service and opens no network listener automatically. It does not modify user agent or relay data directories.
+The installer verifies the signature, archive digest, file list, and SBOM before changing the prefix. The builder fails if its private signing key does not match the public key pinned in the source. Keep the private signing key offline and backed up securely; never commit or include it in the bundle. The installer installs no service and opens no network listener automatically. It does not modify user agent or relay data directories.
 
 ## Run and remove
 
@@ -41,4 +41,4 @@ node property/release/build-offline-bundle.mjs \
   --signing-key /secure/location/property-release-ed25519.pem
 ```
 
-The command writes the signed manifest, public key, detached checksums, and release archive. Never place a private signing key in the source checkout or release archive. The public key in a bundle proves internal signature consistency only; compare its fingerprint with a public key obtained from the trusted Property source before relying on it.
+The command writes the signed manifest, public key, detached checksums, and release archive. Never place a private signing key in the source checkout or release archive. The public key in a bundle proves internal signature consistency only; compare its fingerprint with the pinned key from the trusted source tag before relying on it.
