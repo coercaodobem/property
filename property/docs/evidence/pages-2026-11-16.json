@@ -1,0 +1,46 @@
+{
+  "checked_at": "2026-11-16T13:06:00Z",
+  "base_url": "https://coercaodobem.github.io/property/",
+  "source_commit": "4ec3ae5100e2aa39832a3312a5fca1a145080f1d",
+  "workflow": {
+    "run_id": 43869853624,
+    "url": "https://github.com/coercaodobem/property/actions/runs/43869853624",
+    "branch": "modelo-mvp",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "files": [
+    {
+      "path": "index.html",
+      "http_status": 200,
+      "source_sha256": "fedccae8a039cda22731d19bef20f8f1fab7a441284427bd6812ea9f120016eb",
+      "served_sha256": "fedccae8a039cda22731d19bef20f8f1fab7a441284427bd6812ea9f120016eb",
+      "matches_source": true
+    },
+    {
+      "path": "app.js",
+      "http_status": 200,
+      "source_sha256": "cee80b2836e88a6eb81c2431f4dd685152a0553f2b506ab778437b86a22c3797",
+      "served_sha256": "cee80b2836e88a6eb81c2431f4dd685152a0553f2b506ab778437b86a22c3797",
+      "matches_source": true
+    },
+    {
+      "path": "sw.js",
+      "http_status": 200,
+      "source_sha256": "e05ab423d68d5239b3afbde4b455fd7a75dbd40612dcbbbdca90c1f396ed9209",
+      "served_sha256": "e05ab423d68d5239b3afbde4b455fd7a75dbd40612dcbbbdca90c1f396ed9209",
+      "matches_source": true
+    },
+    {
+      "path": "manifest.webmanifest",
+      "http_status": 200,
+      "source_sha256": "f996bea8388f0bd9155cda52bc159623fc0c50a0a69603dac2e7cf42d181e160",
+      "served_sha256": "f996bea8388f0bd9155cda52bc159623fc0c50a0a69603dac2e7cf42d181e160",
+      "matches_source": true
+    }
+  ],
+  "limits": [
+    "Confirms these four public assets and their byte-level match to the deployed source commit.",
+    "Does not replace the G10 offline package and release validation."
+  ]
+}
