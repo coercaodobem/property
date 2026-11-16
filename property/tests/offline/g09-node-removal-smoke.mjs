@@ -171,4 +171,15 @@ try {
   process.stderr.write(JSON.stringify(report) + '\n'); process.exitCode = 1;
 } finally {
   for (const relay of Object.values(relays).reverse()) if (relay) await stopGeode(relay).catch(() => {});
-  await rm(temp, { recursive: true, force: true, maxÛÏm¢G§²ÚîÆ­yÒ’“·Ò’‚’rÂ6öçFW‡BÂ²F–ÖV÷WC¢SÒ’“°§Ð
+  await rm(temp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+}
+
+function runPrivateRumor(sender, recipientPubkey, content) {
+  context.g09Input = JSON.stringify({ secret: sender.secret, recipient: recipientPubkey, content, createdAt: Math.floor(logicalNow / 1000) });
+  return JSON.parse(vm.runInContext('(() => {const x=JSON.parse(g09Input);return JSON.stringify(NostrTools.nip59.createRumor({kind:14,created_at:x.createdAt,tags:[["p",x.recipient]],content:x.content},Uint8Array.from(x.secret)));})()', context, { timeout: 5000 }));
+}
+
+function runWrap(sender, recipientPubkey, rumor) {
+  context.g09Input = JSON.stringify({ secret: sender.secret, recipient: recipientPubkey, rumor });
+  return JSON.parse(vm.runInContext('(() => {const x=JSON.parse(g09Input);return JSON.stringify(NostrTools.nip59.createWrap(NostrTools.nip59.createSeal(x.rumor,Uint8Array.from(x.secret),x.recipient),x.recipient));})()', context, { timeout: 5000 }));
+}
