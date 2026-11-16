@@ -49,8 +49,9 @@ assert.ok(fullSuiteRun.output_tail.some(line => line.includes('PASS: suíte smok
 
 const protocolReport = JSON.parse(await readFile(path.join(OUT, 'protocol-contract-report.json'), 'utf8'));
 assert.equal(protocolReport.result, 'PASS');
-assert.equal(protocolReport.counts.total_event_vectors, 700);
-assert.equal(protocolReport.counts.total_malformed_inputs, 700);
+assert.equal(protocolReport.counts.event_families, 8);
+assert.equal(protocolReport.counts.total_event_vectors, 800);
+assert.equal(protocolReport.counts.total_malformed_inputs, 800);
 assert.equal(protocolReport.counts.duplicate_copies_per_family, 50);
 assert.equal(protocolReport.counts.reordered_batches_per_family, 50);
 const sourceFiles = [];
@@ -64,7 +65,7 @@ const requirements = {
   gate: 'G1',
   result: 'PASS',
   cases: [
-    { id: 'G1-01', requirement: 'versioned contract covers all seven event families and interoperable Nostr kinds', result: 'PASS', evidence: 'protocol-contract-report.json' },
+    { id: 'G1-01', requirement: 'versioned contract covers all eight event families, including Nostr profile events, and interoperable Nostr kinds', result: 'PASS', evidence: 'protocol-contract-report.json' },
     { id: 'G1-02', requirement: '100 valid/invalid signed vectors per family across browser and agent parsers', result: 'PASS', evidence: 'protocol-contract-report.json' },
     { id: 'G1-03', requirement: '100 malformed inputs per family return typed rejection without mutation', result: 'PASS', evidence: 'protocol-contract-report.json' },
     { id: 'G1-04', requirement: '50 duplicate and 50 reordered copies per family produce byte-identical state', result: 'PASS', evidence: 'protocol-contract-report.json' },
