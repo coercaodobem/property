@@ -264,13 +264,20 @@ try {
   assert.ok(i18nSource.includes('const offer = /^Node offer: ([\\s\\S]*) · identity ([\\s\\S]*)$/'),
     'the dynamic currency offer line must be translated in both language directions');
 
-  const { operator } = engines.BTC;
-  const accounting = await operator.dispatch({ jsonrpc: '2.0', id: 'accounting', method: 'campaign/export-accounting', params: {} });
-  assert.equal(accounting.result.reconciled_entries, accounting.result.entry_count);
-  assert.ok(accounting.result.entries.every(row => row.offer_event_id && row.decision_event_id && row.signer_pubkey &&
-    row.currency && /^\d+$/.test(row.amount_atomic) && row.status));
-  report.accounting = { entries: accounting.result.entry_count, reconciled_entries: accounting.result.reconciled_entries,
-    currency_totals: accounting.result.currencies };
+  const accountingByCurrency = {};
+  for (const currency of CURRENCIES) {
+    const accounting = await engines[currency].operator.dispatch({ jsonrpc: '2.0', id: `accounting-${currency}`,
+      method: 'campaign/export-accounting', params: {} });
+    assert.equal(accounting.result.reconciled_entries, accounting.result.entry_count);
+    assert.ok(accounting.result.entry_count > 0);
+    assert.ok(accounting.result.entries.every(row => row.offer_event_id && row.decision_event_id && row.signer_pubkey &&
+      row.currency === currency && /^\d+$/.test(row.amount_atomic) && row.status));
+    accountingByCurrency[currency] = { entries: accounting.result.entry_count,
+      reconciled_entries: accounting.result.reconciled_entries, currency_total: accounting.result.currencies[currency] };
+  }
+  report.accounting = { entries: Object.values(accountingByCurrency).reduce((total, row) => total + row.entries, 0),
+    reconciled_entries: Object.values(accountingByCurrency).reduce((total, row) => total + row.reconciled_entries, 0),
+    by_currency: accountingByCurrency };
 
   const retention = {};
   for (const currency of CURRENCIES) {
@@ -294,6 +301,7 @@ try {
   }
   report.privacy = { external_endpoints: [], client_requests_during_render: 0, click_view_fields_in_campaign_schema: 0,
     rejected_offer_payment_addresses: 0, rejected_returns: 'UNSUPPORTED_RETURN; no payment address was issued; no automatic refund is advertised' };
+  const operator = engines.BTC.operator;
   report.operator_tools = { names: operator.toolNames, count: operator.toolNames.length, tcp_listener: false,
     stdio_transport_only: true, publication_scope_selectable_before_payment_confirmation: true,
     retention_control: retention };
