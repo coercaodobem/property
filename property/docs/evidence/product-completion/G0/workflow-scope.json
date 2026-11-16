@@ -8,7 +8,7 @@
     {
       "id": "property-checks",
       "path": ".github/workflows/property-checks.yml",
-      "sha256": "fa5f0041560547059055c8a844419cf5fb3a5417283ae7aa49ac67946c00f3b2",
+      "sha256": "4c8c1bedfdec93800c4af5bc4604258c5a4cf75fb02062ca741001a3f5b6d9f3",
       "scope_check": "PASS"
     },
     {

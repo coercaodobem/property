@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "purpose": "G0 preflight baseline recorded before gate evidence edits",
+  "branch": "modelo-mvp",
+  "source_commit": "da1f65253f19a1bc17ff132c76c350431927414a",
+  "remote_url": "https://github.com/coercaodobem/property.git",
+  "remote_head_live": "da1f65253f19a1bc17ff132c76c350431927414a",
+  "remote_tracking_head": "da1f65253f19a1bc17ff132c76c350431927414a",
+  "worktree_status": [],
+  "binary_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "environment": {
+    "os": "Ubuntu 26.04 LTS",
+    "os_id": "ubuntu",
+    "kernel": "7.0.0-43-generic",
+    "architecture": "x86_64",
+    "python": "3.13.13",
+    "node": "v22.22.1",
+    "git": "git version 2.53.0"
+  },
+  "input_sha256": {
+    "property/docs/evidence/product-completion/G0/requirements.json": "8404fad7e2fcf172ee016e1909c369bbb96144065a97266b1672f74c2bfc5752",
+    "property/docs/evidence/product-completion/G0/source-map.json": "3d6bb100846c478808fa3368428925eafd408d486402a85a8364af669b72ccf2",
+    "property/docs/evidence/product-completion/G0/network-inventory.json": "bcdc0f339a1b25b0155213bb9288db270f0d5a326eacf21c39fa60dbcb0ded10",
+    "property/docs/evidence/product-completion/G0/dependency-license-inventory.json": "1e85b800b940541372c7c21d8f932123fcb8360a3f0222478db70a3756e1e40f",
+    "property/docs/evidence/product-completion/G0/workflow-scope.json": "904fbc508c97be8273b73238b87478b221afc59c69cf71b51211670087ee0780",
+    "property/docs/product-completion-plan.md": "445a00f7f288ddc486cebe9530a2d784ac8a0769cb1ba2f0af2b93afa5b917cc",
+    "property/docs/product-completion-plan.pt-BR.md": "5395c7f443dcd64b7dae485d4bb8a2b2e7026a03ba0f457cb66d5b5868d1c64a"
+  }
+}
