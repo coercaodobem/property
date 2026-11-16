@@ -1,0 +1,647 @@
+{
+  "schema_version": 1,
+  "gate": "G3",
+  "result": "PASS",
+  "seed": "property-g3-fixed-v1",
+  "identity_cycles": {
+    "required": 30,
+    "completed": 30,
+    "wrong_password_fail_closed": 30,
+    "tampered_vault_fail_closed": 30,
+    "same_public_identity_recovered": 30,
+    "key_bytes_cleared_after_lock": 30,
+    "cases": [
+      {
+        "index": 0,
+        "public_key_sha256": "d3dd9e45757e6f4f8bf2ad03f22d7f87f10db43dd9fae3931d1206549601b8d9",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 1,
+        "public_key_sha256": "cb03ae232c4283a458df9723af597a288f482b88dc6b6e0d05df408d1412fffe",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 2,
+        "public_key_sha256": "974465f49c29e19b1f439397f6f95e923fa959a091a6e7d694791087bfac050f",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 3,
+        "public_key_sha256": "589f46aba3e003e7b1574eeb9cf7a653912257e4a425b30b2182390cec59e7d7",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 4,
+        "public_key_sha256": "c2895c2af1cda717f139835172671bcbbd9c6f5ece2a245c2e2ddda93de6838d",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 5,
+        "public_key_sha256": "df1adf54e6111f4e8a2205babc440b654f5d153ad6e647aa30eae43592fbc246",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 6,
+        "public_key_sha256": "cdd7468bf6d59c77f21cbd6d404f90baa1c5d67f05f50db555ce98c23de80aa6",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 7,
+        "public_key_sha256": "74d7eedfaeaad82862ccacfcc802581762f0c72c09942670bede36eee197550b",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 8,
+        "public_key_sha256": "34f7760d92fc135530d7df6eca166a4961272dcb8d99c46591c77c048428fa63",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 9,
+        "public_key_sha256": "6eb3bd01912cd68ee46c46a0041f43d72f644d11910741da26df944a2fec2c9e",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 10,
+        "public_key_sha256": "93f65f1845eb5b7e2c1fcd5bf4470c23247fbdf30a3c8a7f368b3330f79bef8f",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 11,
+        "public_key_sha256": "2dd87a2c72cebc5bc662fee3ab5265c387c29ad3382d8313324b6f63a9473a6a",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 12,
+        "public_key_sha256": "0c427d96f5f1285e77311a667477d9b58b58e4e080edb257127ae1c08f688681",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 13,
+        "public_key_sha256": "10364600045125e93f0425e05f032c9d53cf7a8319f0ed3d33886ba906104697",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 14,
+        "public_key_sha256": "dc5f5a302b346ed696c64674634da16164617dd0799999172c094f6fa05150ab",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 15,
+        "public_key_sha256": "90dc3bb6541cb37278395ba322fcbd6a71126cad75e31ff39181a0f4dae8201f",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 16,
+        "public_key_sha256": "f209cf0233ce0cf781b03b9d613a8e9935b86f89466ad6c045d44b478638f034",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 17,
+        "public_key_sha256": "b63ca8393c7769e266ae733f30352692145322bad3f3b9a8bbb63282bd866361",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 18,
+        "public_key_sha256": "5244742d63a438fe99aa0cf651b375aeb885b0e1c948780dacba8256e11db735",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 19,
+        "public_key_sha256": "acaccc2fac93f9d92db2733eb05f11bdb3f5206cb14841f06b34f7391510d520",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 20,
+        "public_key_sha256": "0444dfbbfcc1ac5fdd2b7961f18ac9086c1257d092d6e0a062575ac3237314f5",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 21,
+        "public_key_sha256": "be4d7b6a2c4c2c11f4fd1e52113f9087909f77a819c86607cb64b1f7c030ea27",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 22,
+        "public_key_sha256": "b04746fecf7b2e56bf5fb5563dff572203ddc8963e519e482134ed64d3f8d40b",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 23,
+        "public_key_sha256": "69f3019fdae1c2d152421873c98fa1332588437a423e18169410a6dcacfbf0ac",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 24,
+        "public_key_sha256": "513f8101fabcf5bb0c8dbcd4a2267efa97a1f81254c01966c37de349b87e524b",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 25,
+        "public_key_sha256": "5c23ef2b45ab9302cf0cc9cd866702bcd430eb7d2405219c03faa741de187e3a",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 26,
+        "public_key_sha256": "b922aa0dd83932263351b4fbc1a53e7c37ecc080748e3dab0e166eb37ac39774",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 27,
+        "public_key_sha256": "3ca891f90cbb6b981af69421f8a31887c6b9c779f1be3331af2f65b5d54806b4",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 28,
+        "public_key_sha256": "1c27d4ab86132fb82749b5f0f4a52b40869cfa424880620aa6fb5e8cca6e4a98",
+        "remembered_session": true,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      },
+      {
+        "index": 29,
+        "public_key_sha256": "f711b506d3e06bb219f51c280f9317d692f8f2fa8baed3caa5f31b99bb6cc90b",
+        "remembered_session": false,
+        "wrong_password_rejected": true,
+        "tampered_vault_rejected": true,
+        "key_cleared_on_lock": true,
+        "same_identity_restored": true
+      }
+    ]
+  },
+  "backup_restore_cycles": {
+    "required": 20,
+    "completed": 20,
+    "public_key_preserved": 20,
+    "relay_preference_hashes_preserved": 20,
+    "opted_in_local_contact_hashes_preserved": 20,
+    "no_message_history_included": true,
+    "tampered_local_state_rejected": 20,
+    "cases": [
+      {
+        "index": 0,
+        "public_key_sha256": "36372425b8922b89ddaf556ed7ce5450f9d1e705d61ce2a0192be93eec9b95b3",
+        "relay_preferences_hash": "95dbbc85764da0816e6ee39edbabea68e1c0d747516521a357e08cfd1a0befc2",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "f65d3fa3298c92338fa83341dff8ba17b34e5890963c8a03a39a4d48dd1b2c47",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 1,
+        "public_key_sha256": "8a57546ec8b4c7aabfb527f21d8f240eec8ccf9af81cdf4fecc337087ddb3a7f",
+        "relay_preferences_hash": "a5ddeb72eaa7f1f2b88e593fc2661a3b4ddbb5f6e3398588738ef8bc7794df4c",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "fa9532be0a7a9e1f0b2d3e66eee4e871b31c35fcf2143a42bd2c8fced3ff13b5",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 2,
+        "public_key_sha256": "44fed5df5b3d6bd524f9d43f8dde8c9509d91b4b9a090cf8f10d12c7031faa71",
+        "relay_preferences_hash": "ddc96e0b5607846e704a8ca25af487fe4aaa30468800ccd7dbbe4552bad37682",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "1b237439b796f2990887aad0e11d3a322dff1c9ce7bb1da6f11b49857a4aab7a",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 3,
+        "public_key_sha256": "60a411989a69b095db25f6e3cffa5275046259f60eb878206d35bd19ec8e0a2e",
+        "relay_preferences_hash": "87b58df3470b503e2ef9af15687de0feded7451894c05097e2e99c7907d925f1",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "c7755529bdb152711478cf23399055215592c2f7b83e7b31493057db1c02045d",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 4,
+        "public_key_sha256": "faf593f331f4f13c406e172f3bce717d7267627d5433dbbca0fd6c6a42b5c5a7",
+        "relay_preferences_hash": "f14213dd7e589f1bd84b0f1a8a0bcfa72fd11cd6e07fac53abfb562f37acc333",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "e6f19286675988fa1686b78f71794eb9d5e07ae21c34c2888334c63ec7c5bead",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 5,
+        "public_key_sha256": "b3a6ae018865f16a854ab9d3a7cc857043ffe77ce1b7a63cff385d7fc3106081",
+        "relay_preferences_hash": "b3a301790466f6412d869fdcf36c5746313f0151b77dc0ea1cb6d2c91e6f2cba",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "166e4ddeea822e445735ca5188d243d10edb00f3b99ef11d68a28a2b9bdf1433",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 6,
+        "public_key_sha256": "e473a863300d4e6bce552bf8ddd9e6464937b781ac9120cc5a0037d19d4ae681",
+        "relay_preferences_hash": "64db447535844fc3058931adc4e7988afc117f8e87eaaaad782e045b2c8b5aac",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "53c98a60b86f75a3e534e72d29fe7311c81d7fae5c439a79f7bdc42b304f28a1",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 7,
+        "public_key_sha256": "849284aa0c5b32cc6c877dac0ea8fbd2e576c4b1edf6a9fa5a89f50b2e97746f",
+        "relay_preferences_hash": "d6a449c26d25a07940c7a3422aa83dffa35c37e81febf0ee8f2f651b76e1ac06",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "13c29269f8add39d4c02b618fb5a24b8d6c932b10444b0d1030204f5e5c32029",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 8,
+        "public_key_sha256": "67255759046d6a449d4cb76bbe8d3e0df41a9acf6a9f8cf9edeb6d999519b071",
+        "relay_preferences_hash": "1d6261d0414fe269741a2e759b207bae83925318ebca457e03462530a3f78af7",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "b537259c02d6f7817c32dd5d45ab104365054de1d1fb91930838f266c8a641c3",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 9,
+        "public_key_sha256": "95c8b2d7e6abe70cc9f4260c692ff7807f0837b0c1ed40e5cc25c26dddb51815",
+        "relay_preferences_hash": "348c7e58065bd0ce2fe6a1cf24a768ae4706f839ccb6f1af9d2fb8ea99bfefc7",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "df22b3f2546a281f80d0aaeb0c973231233a2c0de50ccd0ad6a61827368e2971",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 10,
+        "public_key_sha256": "7a6128728e09ada0b4139a30261e104b7cb5517f6844cecc95392fb57de5018e",
+        "relay_preferences_hash": "261d954b507ac200fa127f401f5ad5b42a8abab9ae5d624ec00773f50de61889",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "46b721b80276836fbbf2758a3bc1125de1835bb9dda74040c71b834a8dc1377e",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 11,
+        "public_key_sha256": "8c7ac605ed14fa73d7ee8931a3a34489c2dcf5980d5c1ab284af9638233166b0",
+        "relay_preferences_hash": "8fdd1c77451a8fc803ec991a43e1f4848e354f4790d0a1979eca725572fc6a59",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "5d21f8d0830b8e75562641a9fbcce0833ae7c6cfeae38f555e01ac5813ec7d42",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 12,
+        "public_key_sha256": "9f6e5007252a00f8f373951ade4cabe21a5e3d2bc13cb7af177dfa655af09d1b",
+        "relay_preferences_hash": "49c81b1d14c4e0a19dbd970f89cb2154be519895b780683a29ca76c3f93ff1f0",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "cdf95cc74822db5bb61d8febfcf640368c7eda38c6fd61bc230f445a046da914",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 13,
+        "public_key_sha256": "ec07146da457085080ddc32f6026f3fea87ac0f767c0a5773ab603492244d46b",
+        "relay_preferences_hash": "4fb1e2528cfed8d62926a47482dd160be2fd62905a4732e5e56266e6be7f7331",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "f6b6dedc31be0892a5d899206535b7024c4d3695240ea57abce7d6e7a29ccd05",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 14,
+        "public_key_sha256": "cb8b492df62b13f9060e0e353f51332366488b7462f5e732f8693a595bae4a53",
+        "relay_preferences_hash": "c53efc20e0e6fab8e18eed26a52cd12ffbca730ab6639e3648033ca4c4198d91",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "02d000d91ad5f48d9f5746af8a8e8409cf9f0e416a70293ade1dcc31018764f1",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 15,
+        "public_key_sha256": "22634fdfe1b9c800a50a9d31dd9e09d8e8516c68762d92ba90e40cb30e91a846",
+        "relay_preferences_hash": "f9821e92f144ce2dbc2bea5a2d645d9fa659eb6ed8e4497436c89e1f25874df1",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "6cb5a0da8810eb853ca52b0d9b173cfea0b27b610dd5a7fcb48256b4a4f4308c",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 16,
+        "public_key_sha256": "dcfcc3ebe00110aaff233b73b1980bd408efa69f1ebcd2356399032eb085e916",
+        "relay_preferences_hash": "303c4a91cdca7903e54ae65af3138abd4b3356c6879770af83dc1dc0850af712",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "993550929c5664862c882bb476fda99d24ed1c51dc5ecf45c76991ac43226223",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 17,
+        "public_key_sha256": "ce8b3a111de0e296e8e7fab63e11772ed3c8b38076a11c565a59e7dc47f6b0ac",
+        "relay_preferences_hash": "f35c16e3a08fc4a820e9a1c89bcffdefff5ae7890377167ec5c53f4b8fbe9cd0",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "ba6c17a76032b0a2c86744b272002a77d6b0481850f1361c7f8c4ad05c8c89b7",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 18,
+        "public_key_sha256": "33031204c8c6d5bd26720fa31ebfa46ffd162b34a71dc0da513de5bc8434d466",
+        "relay_preferences_hash": "a22c6d65c16f9f81cc635a8a08870a96a35001f5f0e7abd15538220dddf79c69",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "aa7955ec3806f26266861621b40561089a99fa3b5887b97cba19dd9fc66715f3",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      },
+      {
+        "index": 19,
+        "public_key_sha256": "3099940f5128cc5f607f3148043be7da12c55fa532a99ce72ac88d87d657a339",
+        "relay_preferences_hash": "1f2c4779b7fbb85508f66b8222537441e68f2b9750622fc03ea87c696b978f12",
+        "opted_in_contact_records": 1,
+        "restored_state_hash": "f41bad77d0d0096164f7e67e03217173b294d6a661dc0b0f804931d937fcf2d0",
+        "password_and_contact_name_absent_from_metadata": true,
+        "tampered_local_state_rejected": true
+      }
+    ]
+  },
+  "signed_handle_collisions": {
+    "required": 20,
+    "completed": 20,
+    "valid_signatures": 40,
+    "distinct_public_keys_per_claim": 20,
+    "collisions_overwrote_identity": 0,
+    "local_profiles_keyed_by_pubkey": 20,
+    "cases": [
+      {
+        "index": 0,
+        "handle_claim_hash": "9a3ab8e5d05949778280904b43a6744e826fd823d6b68e1905a25ee882313b7b",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 1,
+        "handle_claim_hash": "a3ef9fbf5401b5fbad1ed2ea73e4d024e70fc35a8a363e0e89813f985c0eede2",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 2,
+        "handle_claim_hash": "efbc37dca5f078e8bd6226a68068e9df36681e7fc5f5310a0898aa26e4a810d4",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 3,
+        "handle_claim_hash": "f546477878c6a20b2ad71bed03a6a7a5eceb7a19dbe5fa78f993ea8d479d44b5",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 4,
+        "handle_claim_hash": "4c722b755a8fdce3195a31586c5305d1c32e0a5e14d73275f91ae817a52e2b37",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 5,
+        "handle_claim_hash": "0d183daeccf4eb2cf042c6881798a6939e2eff68c3f6ed2721ab66609d1c18a9",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 6,
+        "handle_claim_hash": "a7c1ce670b3426d856b90e338ed7e2b701f885c2a33627440be602b718e2f9b0",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 7,
+        "handle_claim_hash": "187978c964e31c7cf31755611c4c854e112fd3b897d37933a660809aab3304e5",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 8,
+        "handle_claim_hash": "6934c1c25094ef75e81724ff766395de7f03afd1c04bdfd296e113bcd868bbe8",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 9,
+        "handle_claim_hash": "96fbacb5cb2dec4218e3f3716b30a5a266525af6a6e1d6c96b7604bba5625746",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 10,
+        "handle_claim_hash": "d852dc8f6e001273f31b4fb3bbd1a4cd66e7d4c0db59e2e51f7e9dbace54701b",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 11,
+        "handle_claim_hash": "e933ccf8c542d9ca22d0f4c500f31f4aa9ef974b00fe353032cddb77f7cffa6c",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 12,
+        "handle_claim_hash": "9b8dfbe83881a4d12cd8ee999e4e1fe45c9c5c4604726f0088d070931c1c13fc",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 13,
+        "handle_claim_hash": "2ec2c04b6dc9ff39ee986cf00b57d8286eda8632c2cba7f4faf72ae5bf7a389a",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 14,
+        "handle_claim_hash": "edac496f7d987ed8d74c43d4ee97eef3a73c4a45d4e26e2d20fccf952fe3b832",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 15,
+        "handle_claim_hash": "b4c16eb4c048b44bd939b44575b79826b73dcaa09d785076f2d4f8df15202668",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 16,
+        "handle_claim_hash": "972208a29ef13fe12356820d1c3d6370f992e2c21eabb7d5d77b8aa407143dff",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 17,
+        "handle_claim_hash": "a1a0fbeb86ed9ef19b79ac583e927ac9954a292e3aa3e528af70f2219bbe6979",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 18,
+        "handle_claim_hash": "833995e59674508001f1e55e4fda2104cbcb316efb8ea83b7fd0b1b74803d756",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      },
+      {
+        "index": 19,
+        "handle_claim_hash": "27328e970b89180d4839580bac3fbebb8f34107eaab17b969177b84e88ef484c",
+        "distinct_public_keys": true,
+        "distinct_signed_events": true,
+        "profiles_retained_by_public_key": 2,
+        "global_uniqueness_claimed": false
+      }
+    ]
+  }
+}
