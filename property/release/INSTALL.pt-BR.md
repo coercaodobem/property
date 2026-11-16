@@ -4,7 +4,7 @@ O bundle contém a PWA estática do Property, a imagem do relay Geode para Ubunt
 
 ## Verificar e instalar
 
-Use um checkout limpo de Ubuntu/Linux x86_64 e mantenha a chave privada fora do repositório. A chave pública Ed25519 confiável está versionada em `property/release/trusted-signing-public.pem`; obtenha-a da tag de código-fonte confiável, não do bundle baixado. A impressão digital SHA-256 é `60025655e12c534e41003d8d87c3080c33b3e72f86bb19dbcda14182684f670c`.
+Use um checkout limpo de Ubuntu/Linux x86_64 e mantenha a chave privada fora do repositório. A chave pública Ed25519 confiável está versionada em `property/release/trusted-signing-public.pem`; obtenha-a da tag de código-fonte confiável, não do bundle baixado. A impressão digital SHA-256 é `c41585023ba92d25c35c243ff091d5c499a32be88871ecef52cf40196bc92d65`.
 
 ```bash
 node property/release/verify-offline-bundle.mjs \
