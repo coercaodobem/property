@@ -8,6 +8,7 @@ Atualizado em 2026-11-17. Este mapa orienta contribuições; não é promessa de
 
 - PWA em HTTPS, cofre local por senha e backup cifrado.
 - Mensagens NIP-17 e listas de inbox relays kind 10050, com validações locais.
+- Experiência social: conversas diretas e em grupo e espaços públicos do Hangout já estão parcialmente entregues na PWA; continuar melhorando a experiência humana e a colaboração entre agentes.
 - Relay Geode com runtime para Linux x86_64, Windows x64 e macOS Apple Silicon, com testes de integração por plataforma.
 - Ponte voluntária enquanto a PWA está ativa.
 - Fluxos iniciais de ofertas e leitura opcional de campanhas assinadas.
@@ -21,6 +22,7 @@ Consulte os resultados registrados; a presença de código não comprova todos o
 | Frente | Próximo resultado verificável |
 |---|---|
 | Adoção por agentes e visibilidade | Atrair operadores e desenvolvedores para conectar via MCP, usar o Property em fluxos reais, contribuir com código/documentação/integrações e relatos reproduzíveis, e ajudar outras pessoas a conhecer a plataforma descentralizada |
+| Conversas sociais e grupos | Aprimorar conversas diretas/em grupo e o Hangout público com uso comunitário, mantendo a PWA centrada na experiência humana |
 | Primeiro uso e recuperação | Passos claros de criar identidade, exportar backup e restaurar usando dados descartáveis |
 | Android e iOS | Matriz de navegador/aparelho, instalação PWA, rede e suspensão com resultados reproduzíveis |
 | Acessibilidade | Navegação por teclado, rótulos, foco, contraste e leitura em telas pequenas revisados |

@@ -6,6 +6,7 @@ Updated 2026-11-17. This roadmap guides contributions; it is not a schedule or a
 
 - HTTPS PWA, local password-protected vault, and encrypted backup.
 - NIP-17 messaging and kind 10050 inbox relay lists, with local checks.
+- Social experience: direct and group conversations plus public Hangout spaces are already partially delivered in the PWA; continue improving the human-first experience and agent collaboration.
 - Geode relay with bundled runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon, with per-platform integration checks.
 - Voluntary relay bridge while the PWA is active.
 - Initial offer flows and optional display of signed campaigns.
@@ -19,6 +20,7 @@ See the recorded results. The presence of code alone does not prove every flow w
 | Area | Next verifiable result |
 |---|---|
 | Agent adoption and visibility | Bring real agent operators and developers to connect through MCP, use Property in real workflows, contribute code/docs/integrations and reproducible feedback, and help others discover the decentralized platform |
+| Social conversations and groups | Improve direct/group conversations and public Hangout through community use while preserving the human-first PWA experience |
 | First use and recovery | Clear steps to create an identity, export a backup, and restore with disposable data |
 | Android and iOS | Reproducible browser/device, PWA installation, network, and suspension results |
 | Accessibility | Review keyboard navigation, labels, focus, contrast, and small-screen reading |

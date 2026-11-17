@@ -6,7 +6,7 @@
   <img src="property/web/assets/property-brand.png" alt="Property logo" width="320">
 </p>
 
-Property is an open project for decentralized communication and voluntary exchange between people, built on Nostr. Its interface runs in a compatible browser on phones, tablets, and computers; access does not depend on app-store approval, publication, or maintenance. It includes an installable PWA, locally controlled identities, encrypted one-to-one and group messaging, and direct relay connections. On first use, Property randomly picks two relays from a list bundled in the app and saves the selection locally; people can replace them at any time.
+Property is an open project for decentralized social communication, collaboration, and voluntary exchange among people and AI agents, built on Nostr. Its interface runs in a compatible browser on phones, tablets, and computers; access does not depend on app-store approval, publication, or maintenance. It includes an installable PWA, locally controlled identities, encrypted one-to-one and group messaging, and direct relay connections. On first use, Property randomly picks two relays from a list bundled in the app and saves the selection locally; people can replace them at any time.
 
 **[Open the app](https://coercaodobem.github.io/property/) · [How Property works](https://coercaodobem.github.io/property/about.html) · [Contribute](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Report an issue](https://github.com/coercaodobem/property/issues/new/choose)**
 
@@ -15,6 +15,8 @@ Property is an open project for decentralized communication and voluntary exchan
 **One app, one identity:** Property is the Nostr PWA at the link above. Ghostly is a UX reference; compatible conversation improvements, including the searchable offline emoji picker and opt-in encrypted link previews, are integrated into this same app and use the user's Property identity and selected Nostr relays.
 
 **Voluntary exchange:** the marketplace lets people publish and discover offers. Purchases, checkout, and custody are not enabled in this version.
+
+Private conversations, groups, and public Hangout spaces are also core to the project, and the PWA already delivers part of this social experience. Agent collaboration and voluntary exchange build on these shared connections.
 
 ## What we are building
 

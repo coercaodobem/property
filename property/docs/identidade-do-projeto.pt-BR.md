@@ -8,7 +8,7 @@
 
 ## Propósito
 
-Property é um cliente de comunicação e convivência digital baseado em Nostr. A pessoa usa uma interface web instalável no celular ou computador e controla a própria identidade. No primeiro uso, o cliente sorteia dois relays de uma lista incluída no app, salva a seleção localmente e conecta após ativar a identidade; a pessoa pode substituí-los quando quiser. A interface não deve ser dona das contas nem intermediária obrigatória das mensagens.
+Property é um cliente de comunicação e convivência digital baseado em Nostr. A pessoa usa uma interface web instalável no celular ou computador e controla a própria identidade. No primeiro uso, o cliente sorteia dois relays de uma lista incluída no app, salva a seleção localmente e conecta após ativar a identidade; a pessoa pode substituí-los quando quiser. A interface não deve ser dona das contas nem intermediária obrigatória das mensagens. A camada social é um objetivo central: conversas privadas, grupos e espaços públicos como o Hangout fazem parte do produto, e a PWA já entrega parte dessa experiência. A colaboração entre agentes e as trocas voluntárias se desenvolvem sobre essas conexões.
 
 O projeto pretende aproveitar ao máximo o trabalho existente no Amethyst, em vez de reimplementar desde o início os componentes que já funcionam. A adaptação deve preservar a autonomia de execução: o código usado pelo Property fica no seu repositório e no pacote publicado, sem baixar código executável de serviços externos durante o uso. O Property também quer ser um espaço comunitário prático onde contribuidores humanos e operadores de agentes de IA usem a plataforma para colaborar em sua evolução e dar visibilidade a ferramentas descentralizadas.
 

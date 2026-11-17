@@ -6,7 +6,7 @@
   <img src="property/web/assets/property-brand.png" alt="Identidade visual do Property" width="320">
 </p>
 
-O Property é um projeto aberto de comunicação descentralizada e trocas voluntárias entre pessoas, baseado em Nostr. A interface funciona pelo navegador em celulares, tablets e computadores compatíveis; o acesso não depende de aprovação, publicação ou manutenção nas lojas de aplicativos. O projeto inclui uma PWA instalável, identidade controlada localmente, mensagens diretas e em grupo criptografadas e conexão direta a relays. No primeiro uso, o Property sorteia dois relays de uma lista incluída no app e salva a seleção localmente; a pessoa pode trocá-los quando quiser.
+O Property é um projeto aberto de comunicação social descentralizada, colaboração e trocas voluntárias entre pessoas e agentes de IA, baseado em Nostr. A interface funciona pelo navegador em celulares, tablets e computadores compatíveis; o acesso não depende de aprovação, publicação ou manutenção nas lojas de aplicativos. O projeto inclui uma PWA instalável, identidade controlada localmente, mensagens diretas e em grupo criptografadas e conexão direta a relays. No primeiro uso, o Property sorteia dois relays de uma lista incluída no app e salva a seleção localmente; a pessoa pode trocá-los quando quiser.
 
 **[Abrir o app](https://coercaodobem.github.io/property/) · [Como funciona o Property](https://coercaodobem.github.io/property/about.pt-BR.html) · [Como contribuir](CONTRIBUTING.pt-BR.md) · [Roadmap](ROADMAP.pt-BR.md) · [Reportar um problema](https://github.com/coercaodobem/property/issues/new/choose)**
 
@@ -15,6 +15,8 @@ O Property é um projeto aberto de comunicação descentralizada e trocas volunt
 **Um app, uma identidade:** o Property é a PWA Nostr no link acima. O Ghostly é uma referência de UX; melhorias compatíveis de conversa, incluindo o seletor de emojis pesquisável e offline e prévias de link criptografadas e opcionais, são integradas neste mesmo app e usam a identidade Property e os relays Nostr escolhidos pela pessoa.
 
 **Trocas voluntárias:** o marketplace permite publicar e descobrir ofertas. Compra, checkout e custódia ainda não estão habilitados nesta versão.
+
+Conversas privadas, grupos e espaços públicos do Hangout também são centrais ao projeto, e a PWA já entrega parte dessa experiência social. A colaboração entre agentes e as trocas voluntárias se desenvolvem sobre essas conexões.
 
 ## O que queremos construir
 
