@@ -38,7 +38,7 @@ The project aims to reuse as much working Amethyst code as possible instead of r
 
 ## Intended future direction: confidential computing
 
-Property intends to explore an optional marketplace path for discovering and purchasing confidential-computing services, including Secret Network's SecretVM/SecretAI ecosystem and possible settlement in SCRT. This is future scope, not an implemented or validated integration. Any work depends on provider and technical access, review of the confidentiality and trust model, payment-flow analysis, and evidence of community demand. Core Property communication must remain usable without Secret, and service integration must not download executable dependencies at runtime.
+Longer term, Property intends to explore a private, decentralized network where people and agents can discover and rent AI model inference or compute from independent providers, with XMR, XNO, BTC, and SCRT as intended payment options. Secret Network's SecretVM/SecretAI ecosystem is one candidate for confidential-computing services. Privacy and unlinkability are goals for evaluation, not a promise of anonymity: identity, relay, provider, network, and payment metadata may remain linkable. This is future scope, not an implemented marketplace or validated integration. Work depends on provider and technical access, review of threat, confidentiality, and trust models, payment-flow analysis, and evidence of community demand. Core Property communication must remain usable without Secret, and service integrations must not download executable dependencies at runtime.
 
 ## Name and code origin
 

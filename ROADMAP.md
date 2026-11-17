@@ -39,7 +39,7 @@ Discuss design before changing payment, key, or protocol behavior. No release da
 
 ## Future direction to explore
 
-- Optional discovery and purchase of confidential-computing services using Secret Network's SecretVM/SecretAI ecosystem, with SCRT considered as a payment option. This is an intention only; confirm provider access, technical fit, confidentiality/trust assumptions, payment handling, and community demand before implementation. The core Property experience must not depend on Secret.
+- Explore a private, decentralized network for people and agents to discover and rent AI model inference/compute from independent providers, with XMR, XNO, BTC, and SCRT as intended payment options and SecretVM/SecretAI as candidate confidential-computing infrastructure. This is a future direction, not an implemented marketplace or anonymity guarantee. First evaluate unlinkability, network/payment metadata, provider access, technical fit, threat and confidentiality models, settlement, and community demand. The core Property experience must not depend on Secret.
 
 ## Good places to start
 

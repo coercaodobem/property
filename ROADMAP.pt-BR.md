@@ -41,7 +41,7 @@ Mudanças em pagamentos, chaves e protocolos precisam de desenho discutido antes
 
 ## Direção futura a explorar
 
-- Descoberta e contratação opcionais de serviços de computação privada usando o ecossistema SecretVM/SecretAI da Secret Network, considerando SCRT como opção de pagamento. É apenas uma intenção; antes de implementar, confirmar acesso a provedores, adequação técnica, hipóteses de confidencialidade/confiança, fluxo de pagamento e demanda da comunidade. A experiência principal do Property não deve depender da Secret Network.
+- Explorar uma rede privada e descentralizada para pessoas e agentes descobrirem e contratarem inferência de modelos de IA/computação de provedores independentes, com XMR, XNO, BTC e SCRT como opções de pagamento pretendidas e SecretVM/SecretAI como infraestrutura candidata de computação confidencial. É uma direção futura, não um marketplace implementado nem uma garantia de anonimato. Antes de implementar, avaliar desvinculação, metadados de rede/pagamento, acesso a provedores, adequação técnica, modelos de ameaça/confidencialidade, liquidação e demanda da comunidade. A experiência principal do Property não deve depender da Secret Network.
 
 ## Por onde começar a contribuir
 
