@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "gate": "G7",
+  "result": "PASS_AUTOMATED_OFFLINE",
+  "candidate_commit": "907577fa378b0f09c25ef13fd4f02eed975eab6d",
+  "runtime_inventory_sha256": "b7ba15fbb2dfb8ff494a2378752859c4d750e81aef3a73ec047edd9402ae001f",
+  "environment": {
+    "platform": "Ubuntu Linux x86_64",
+    "node": "v22.22.1",
+    "network_isolation": "unshared-netns",
+    "external_endpoints": [],
+    "public_relays": false,
+    "mainnet_enabled": false,
+    "real_funds": false
+  },
+  "fixed_counts": {
+    "trade_state_fixtures_total": 150,
+    "per_currency_state_fixtures": 50,
+    "identity_binding_cases": 30,
+    "tamper_cases_per_field": 10,
+    "tamper_cases_total": 60,
+    "offers_per_currency": 10,
+    "accepted_per_currency": 10,
+    "payment_requests_per_currency": 10,
+    "recipient_local_verifications_per_currency": 10,
+    "private_invoices_per_currency": 10,
+    "valid_receipts_per_currency": 10,
+    "lost_observer_responses_per_currency": 10,
+    "engine_restarts_per_currency": 10,
+    "duplicate_reconciliations_per_currency": 10
+  },
+  "ledger_networks": {
+    "BTC": "regtest",
+    "XMR": "fakechain/offline",
+    "XNO": "dev/zero peers"
+  },
+  "checks": {
+    "wrong_network_rejected": true,
+    "mainnet_enabled": false,
+    "BTC_reorg_invalidated_one_of_ten": true,
+    "BTC_state_reopened_before_reconfirmation": true,
+    "XMR_confirmation_unlock_checked": true,
+    "XNO_account_source_raw_and_block_hash_checked": true,
+    "G8_campaign_◊çx∂âûÀk∫wµÁ`   "state_after_reconfirmation": "settled",
+    "settled_while_invalidated": false
+  }
+}

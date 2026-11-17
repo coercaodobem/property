@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "network_scope": "private-test-ledgers-only",
+  "external_endpoints": [],
+  "mainnet_enabled": false,
+  "sha256": {
+    "bitcoind": "580ac61190154da31aac3f82d13c4254ef453d70e1bf2c39d338dac5129c92ac",
+    "bitcoin_cli": "83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d",
+    "monerod": "f035a7c555aec692705012027a64707f38adeabc4a4c9244f259cd78bb2e84f1",
+    "monero_wallet_rpc": "06f36de37bda72ff377c11700ba622fef435d27510c883e9c83a27ba3c46ba1f",
+    "nano_node": "6e0557d6b554c70d5097f8a06acc618842717f3e7c0af2da9b81c3d387495836"
+  }
+}

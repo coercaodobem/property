@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "scope": "G7_PRIVATE_LEDGER_ONLY",
+  "result": "PASS_G7_PRIVATE_ONLY",
+  "cases": [],
+  "ledger_networks": {
+    "BTC": {
+      "chain": "regtest",
+      "blocks_before_tests": 0,
+      "local_rpc": "127.0.0.1:34451",
+      "p2p_listeners": false
+    },
+    "XMR": {
+      "nettype": "fakechain",
+      "height": 1,
+      "local_daemon": "127.0.0.1:35081",
+      "authenticated_wallets": 2,
+      "internet_peers": 0
+    },
+    "XNO": {
+      "network": "dev",
+      "network_identifier": "04270D7F11C4B2B472F2854C5A59F2A7E84226CE9ED799DE75744BD7D85FC9D9",
+      "rpc_bind": "::1",
+      "authenticated_gateway": true,
+      "peers_configured": 0
+    }
+  },
+  "payments": [],
+  "refunds": [],
+  "accounting": [],
+  "auth_checks": [],
+  "relay_publications": [],
+  "external_endpoints": [],
+  "credential_scan": null,
+  "binary_sha256": {
+    "bitcoind": "580ac61190154da31aac3f82d13c4254ef453d70e1bf2c39d338dac5129c92ac",
+    "bitcoin_cli": "83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d",
+    "monerod": "f035a7c555aec692705012027a64707f38adeabc4a4c9244f259cd78bb2e84f1",
+    "monero_wallet_rpc": "06f36de37bda72ff377c11700ba622fef435d27510c883e9c83a27ba3c46ba1f",
+    "nano_node": "6e0557d6b554c70d5097f8a06acc618842717f3e7c0af2da9b81c3d387495836"
+  },
+  "g7_trade_integration": {
+    "schema_version": 1,
+    "gate": "G7-private-trade-ledger-integration",
+    "result": "PASS",
+    "fixed_count": {
+      "invoices_per_currency": 10,
+      "valid_receipts_per_currency": 10,
+      "lost_responses_per_currency": 10,
+      "engine_restarts_per_currency": 10,
+      "duplicate_reconciliations_per_currency": 10
+    },
+    "ledger_networks": {
+      "BTC": {
+        "name": "regtest",
+        "p2p_outbound": false
+      },
+      "XMR": {
+        "name": "fakechain",
+        "offline": true
+      },
+      "XNO": {
+        "name": "dev",
+        "peers": 0
+      }
+    },
+    "currencies": {
+      "BTC": {
+        "network": "regtest",
+        "invoice_count": 10,
+        "valid_receipts": 10,
+        "lost_responses": 10,
+        "observer_restarts": 10,
+        "duplicate_reconciliations": 10,
+        "distinct_payment_txids": 10,
+        "exact_atomic_amounts": true,
+        "signed_local_journal_verified": true
+      },
+      "XMR": {
+        "network": "fakechain",
+        "invoice_count": 10,
+        "valid_receipts": 10,
+        "lost_responses": 10,
+        "observer_restarts": 10,
+        "duplicate_reconciliations": 10,
+        "distinct_payment_txids": 10,
+        "exact_atomic_amounts": true,
+        "signed_local_journal_verified": true,
+        "confirmation_unlock_policy_checked": true
+      },
+      "XNO": {
+        "network": "dev",
+        "invoice_count": 10,
+        "valid_receipts": 10,
+        "lost_responses": 10,
+        "observer_restarts": 10,
+        "duplicate_reconciliations": 10,
+        "distinct_payment_txids": 10,
+        "exact_atomic_amounts": true,
+        "signed_local_journal_verified": true,
+        "account_source_raw_block_hash_checked": true
+      }
+    },
+    "external_endpoints": [],
+    "wallet_identity_binding": "unverified-claim",
+    "mainnet_enabled": false,
+    "btc_reorg": {
+      "invalidated_one_of_ten": true,
+      "state_after_invalidation": "payment-observed",
+      "state_after_reconfirmation": "settled",
+      "settled_while_invalidated": false
+    }
+  },
+  "g8_cases": "NOT_RUN_BY_SCOPE"
+}
