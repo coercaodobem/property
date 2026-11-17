@@ -69,6 +69,7 @@ for test_file in \
   offline/g09-rate-boundary-smoke.mjs \
   share-target-smoke.mjs \
   pwa-smoke.mjs \
+  explore-feed-smoke.mjs \
   app-contract-smoke.mjs \
   relay-migration-smoke.mjs \
   portable-packages-smoke.mjs \

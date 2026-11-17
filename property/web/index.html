@@ -11,7 +11,7 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v34">
-  <link rel="stylesheet" href="./styles.css?v=property-v74">
+  <link rel="stylesheet" href="./styles.css?v=property-v76">
   <link rel="stylesheet" href="./audio-playback.css?v=property-v1">
   <link rel="stylesheet" href="./call-window.css?v=property-v2">
   <link rel="stylesheet" href="./payment-card.css?v=property-v5">
@@ -25,7 +25,7 @@
   <link rel="stylesheet" href="./typing-signals.css?v=property-v2">
   <link rel="stylesheet" href="./property-apps.css?v=property-v1">
   <link rel="stylesheet" href="./identity-marks.css?v=property-v1">
-  <script defer src="./i18n.js?v=property-v83"></script>
+  <script defer src="./i18n.js?v=property-v84"></script>
   <script defer src="./pwa.js?v=property-v36"></script>
   <script defer src="./share-inbox.js?v=property-v34"></script>
   <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v26"></script>
@@ -82,9 +82,10 @@
   <script defer src="./app-directory.js?v=property-v1"></script>
   <script defer src="./identity-marks.js?v=property-v3"></script>
   <script defer src="./protocol-contract.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v118"></script>
+  <script defer src="./explore-feed.js?v=property-v1"></script>
+  <script defer src="./app.js?v=property-v119"></script>
 </head>
-<body>
+<body class="guest-mode">
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
     <section class="active-tab-card">
       <span class="brand-mark" aria-hidden="true">P</span>
@@ -99,6 +100,7 @@
       <a class="brand" href="#inicio" aria-label="Property home"><img class="brand-mark" src="./assets/property-icon-192.png?v=property-v26" alt=""><span>Property</span></a>
       <div class="connection"><span id="connection-dot" class="dot"></span><span id="connection-label">offline</span></div>
       <select id="language-picker" class="language-picker" aria-label="Application language"><option value="en">English</option><option value="pt-BR">Português (Brasil)</option></select>
+      <button id="guest-account-button" class="button secondary guest-account-button" type="button" aria-label="Sign in or create an identity">Sign in</button>
       <button id="mobile-open-settings" class="icon-button mobile-relay-settings" aria-label="Configure relays" title="Configure relays">⚙</button>
       <button id="mobile-new-chat-button" class="icon-button mobile-new-chat" aria-label="New conversation" title="New conversation">＋</button>
       <button id="share-inbox-button" class="icon-button hidden" type="button" aria-label="Shared items" title="Shared items">↧</button>
@@ -113,7 +115,7 @@
     </section>
     <div id="audio-player-host" class="audio-player-host" aria-hidden="true"></div>
 
-    <main id="auth-screen" class="auth-layout">
+    <main id="auth-screen" class="auth-layout hidden">
       <section class="intro-card">
         <p class="eyebrow">NOSTR · LOCAL CONTROL</p>
         <h1>Chat without asking permission.</h1>
@@ -144,6 +146,7 @@
           <button id="unlock-button" class="button primary full" data-requires-storage disabled>Unlock</button>
           <button id="create-account-button" class="button secondary full" data-requires-storage disabled>Create identity</button>
           <button id="import-account-button" class="button text full" data-requires-storage disabled>Import Nostr key</button>
+          <button id="auth-back-explore" class="button text full" type="button">Back to Explore</button>
           <button class="button text full" type="button" data-install-property>Install Property</button>
           <p id="auth-error" class="error" role="alert"></p>
           <p id="storage-status" class="fine-print" role="status" aria-live="polite">Preparing local storage on this device…</p>
@@ -171,14 +174,14 @@
       </section>
     </main>
 
-    <section id="workspace" class="workspace hidden">
+    <section id="workspace" class="workspace">
       <aside class="sidebar">
         <div class="sidebar-heading"><div><p class="eyebrow">YOUR SPACE</p><h2>Conversations</h2></div><div class="sidebar-heading-actions"><button id="close-mobile-conversations" class="icon-button mobile-close-conversations" aria-label="Close conversations" title="Close conversations">×</button><button id="create-folder-button" class="icon-button" aria-label="Create folder" title="Create folder">▱</button><button id="new-chat-button" class="icon-button" aria-label="New conversation" title="New conversation">＋</button></div></div>
         <label class="search"><span aria-hidden="true">⌕</span><input id="conversation-search" type="search" placeholder="Search chats and messages" aria-label="Search chats and local messages" title="Searches messages saved on this device only; nothing is sent to relays"></label>
         <div id="conversation-list" class="conversation-list"></div>
         <nav class="main-nav" aria-label="Property areas">
-          <button class="nav-button active" data-view="messages"><span>▤</span><span>Messages</span></button>
-          <button class="nav-button" data-view="hangout"><span>◌</span><span>Hangout</span></button>
+          <button class="nav-button" data-view="messages"><span>▤</span><span>Messages</span></button>
+          <button class="nav-button active" data-view="hangout"><span>◌</span><span>Explore</span></button>
           <button class="nav-button" data-view="apps"><span>♟</span><span>Apps</span></button>
           <button class="nav-button" data-view="marketplace"><span>◇</span><span>Marketplace</span></button>
           <button class="nav-button" data-view="node"><span>⌘</span><span>My node</span></button>
@@ -188,7 +191,7 @@
       </aside>
       <button id="mobile-conversation-backdrop" class="mobile-conversation-backdrop hidden" type="button" aria-label="Close conversations" tabindex="-1"></button>
 
-      <section id="messages-view" class="content-view messages-view">
+      <section id="messages-view" class="content-view messages-view hidden">
         <div id="empty-conversation" class="empty-state"><div class="empty-symbol" aria-hidden="true">✳</div><p class="eyebrow">PRIVATE NOSTR CHAT</p><h2>Your conversations, without a middleman</h2><p>Start with a public Nostr key or Property contact link. Your messages stay encrypted; Property selects relays automatically when none are saved.</p><div class="empty-actions"><button id="empty-new-chat" class="button primary" type="button">New conversation</button><button id="empty-join-chat" class="button secondary" type="button">Join with a contact link or code</button></div><button id="empty-share-contact" class="button text" type="button">Share my contact</button><p class="fine-print">Both people need to publish a public kind 10050 inbox list to exchange NIP-17 messages.</p></div>
         <div id="conversation-pane" class="conversation-pane hidden">
           <header class="conversation-header"><button id="mobile-open-conversations" class="icon-button small mobile-conversation-toggle" type="button" aria-label="Show conversations" title="Show conversations" aria-expanded="false" aria-controls="conversation-list">☰</button><div class="avatar" id="chat-avatar">?</div><div class="person-details"><h2><button id="chat-title" class="conversation-title-action" type="button">Conversation</button></h2><span id="chat-subtitle" class="muted"></span><span id="chat-activity" class="chat-activity" role="status" aria-live="polite" hidden></span></div><button id="message-search-button" class="icon-button small" type="button" aria-label="Search in this conversation" title="Search in this conversation" aria-expanded="false">⌕</button><button id="audio-call-button" class="icon-button small call-launch-button" type="button" aria-label="Start audio call" title="Start audio call" hidden>☎</button><button id="video-call-button" class="icon-button small call-launch-button" type="button" aria-label="Start video call" title="Start video call" hidden>▣</button><button id="agent-block-button" class="icon-button small hidden" type="button" aria-label="Block agent" title="Block agent">⊘</button><button id="chat-details-button" class="icon-button" aria-label="Conversation details">···</button></header>
@@ -312,8 +315,13 @@
         </div>
       </section>
 
-      <section id="hangout-view" class="content-view feature-view hidden">
-        <div class="feature-header"><p class="eyebrow">PUBLIC SPACES</p><h1>Hangout</h1><p>Discover public conversations on the relays you chose.</p><button id="refresh-hangout" class="button secondary">Refresh spaces</button><div class="hangout-publish"><label class="field"><span>Share something publicly</span><textarea id="hangout-text" rows="3" maxlength="4000" placeholder="This content will be public on connected relays."></textarea></label><button id="publish-hangout" class="button secondary">Post to Hangout</button></div></div>
+      <section id="guest-messages-view" class="content-view hidden" aria-labelledby="guest-messages-title">
+        <div class="empty-state"><div class="empty-symbol" aria-hidden="true">✳</div><p class="eyebrow">PRIVATE CONVERSATIONS</p><h2 id="guest-messages-title">Your conversations stay private</h2><p>Sign in or create a local identity to open private conversations. Public Explore remains available without an account.</p><button id="guest-messages-sign-in" class="button primary" type="button">Sign in or create an identity</button></div>
+      </section>
+
+      <section id="hangout-view" class="content-view feature-view">
+        <div class="feature-header"><p class="eyebrow">PUBLIC FEED</p><h1>Explore</h1><p>Explore public posts from connected relays. You can browse without an identity.</p><button id="refresh-hangout" class="button secondary" type="button">Refresh feed</button><div id="hangout-publish-panel" class="hangout-publish"><label class="field"><span>Share something publicly</span><textarea id="hangout-text" rows="3" maxlength="4000" placeholder="This content will be public on connected relays."></textarea></label><button id="publish-hangout" class="button secondary" type="button">Post to Hangout</button></div></div>
+        <div id="guest-feed-note" class="guest-feed-note" role="note"><p>Public posts are read-only while browsing. Sign in or create an identity to post or message someone.</p><button id="guest-feed-sign-in" class="button primary" type="button">Sign in or create an identity</button></div>
         <section class="community-panel" aria-labelledby="community-heading">
           <div class="community-panel-heading"><div><p class="eyebrow">RELAY-BASED GROUPS · NIP-29</p><h2 id="community-heading">Communities</h2></div><button id="refresh-communities" class="button secondary" type="button">Discover on my relays</button></div>
           <p class="fine-print">Public communities are readable by anyone. Posts are sent only to the relay hosting the selected community. If the same group ID appears on another relay, Property keeps each relay’s history separate because it may be a copy or a fork.</p>
@@ -332,7 +340,7 @@
         </section>
         <div class="campaign-preferences"><label class="check-row"><input id="show-node-campaigns" type="checkbox"><span>Show campaigns signed by nodes</span></label><p class="fine-print">Optional and off by default. At most one campaign per 24 hours; the preference and history stay on this device. The app does not send click or view events to the node, but queried relays can still see requests and connection metadata. The client checks the node signature but does not verify BTC, XMR, or XNO payments on their networks.</p></div>
         <section id="node-campaigns-section" class="campaign-section hidden" aria-label="Campaigns from nodes"><h2>Node campaign</h2><div id="node-campaigns-list" class="feature-list"></div></section>
-        <div id="hangout-list" class="feature-list"><div class="empty-state compact"><div class="empty-symbol">◌</div><h2>Load conversations</h2><p>The public feed is fetched directly from relays.</p></div></div>
+        <div id="hangout-list" class="feature-list" role="status" aria-live="polite" aria-busy="true"><div class="empty-state compact"><div class="empty-symbol">◌</div><h2>Loading public posts…</h2><p>Connecting to relays to load the public feed.</p></div></div>
       </section>
 
       <section id="marketplace-view" class="content-view feature-view hidden">

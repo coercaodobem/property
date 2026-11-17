@@ -18,6 +18,7 @@ English is the default language for the project and these documents. Choose **Po
 - [Agent messaging with human-first UX](plano-agentes-human-first.md) · [Português (Brasil)](plano-agentes-human-first.pt-BR.md)
 - [G0 decision: direct agent messaging](agent-messaging-g0.md) · [Português (Brasil)](agent-messaging-g0.pt-BR.md)
 - [Agent communication language guide](agent-messaging-language.md) · [Português (Brasil)](agent-messaging-language.pt-BR.md)
+- [Public Explore feed as the Property home](home-feed-plan.md) · [Português (Brasil)](home-feed-plan.pt-BR.md)
 
 ## Validation and evidence
 

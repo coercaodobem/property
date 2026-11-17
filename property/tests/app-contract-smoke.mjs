@@ -761,7 +761,7 @@ assert.match(app, /lockIdentity\(\{ preservePublicBridge: true \}\)/, 'idle lock
 assert.match(app, /state\.bridgeEnabled && state\.relays\.includes\(url\)/, 'public bridge can reconnect without an unlocked identity');
 assert.match(app, /RelayDefaults\.initialSelection\(relaySettings\)/, 'fresh installs select bundled relay suggestions automatically');
 assert.match(app, /autoSelected: true/, 'the generated relay selection is saved locally');
-assert.match(app, /if \(!state\.pubkey && !state\.bridgeEnabled\) return/, 'relay suggestions do not connect before identity activation');
+assert.match(app, /if \(!state\.pubkey && !state\.guestReadOnly && !state\.bridgeEnabled\) return/, 'read-only Explore can fetch public posts before identity activation');
 assert.match(html, /randomly picks two relays from a list included in the app/);
 assert.match(html, /Choose another random pair/);
 assert.match(html, /Public relays can see your IP address and public event metadata/);

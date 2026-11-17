@@ -146,3 +146,28 @@
 .conversation-title-action{display:block;max-width:100%;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}.conversation-title-action:hover{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}.conversation-title-action:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
 .nip39-provider{min-width:0;margin:10px 0;padding:12px;border:1px solid var(--line);border-radius:12px}.nip39-provider legend{padding:0 5px;color:var(--accent);font-weight:700}.nip39-provider .dialog-actions{margin-top:8px}
 .marketplace-filter-panel{max-width:900px;margin:0 auto 18px;padding:16px;border:1px solid #2e3d48;border-radius:16px;background:#17232d}.marketplace-filter-grid{display:grid;grid-template-columns:minmax(220px,2fr) repeat(3,minmax(130px,1fr));gap:12px}.marketplace-filter-grid .field{min-width:0}.marketplace-filter-note{margin:12px 0 4px}.marketplace-results-count{margin:8px 0 0;color:var(--muted);font-size:12px}@media(max-width:760px){.marketplace-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:460px){.marketplace-filter-panel{padding:12px}.marketplace-filter-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* Guest Explore keeps public reading clear while leaving private account data out of view. */
+body.guest-mode .workspace{display:block;min-height:calc(100dvh - 120px)}
+body.guest-mode .sidebar{display:block;min-height:0;padding:0;background:transparent;border:0}
+body.guest-mode .sidebar>:not(.main-nav){display:none!important}
+body.guest-mode .main-nav{display:flex;justify-content:center;gap:10px;margin:0 auto;padding:8px 16px;border-top:0;border-bottom:1px solid var(--line)}
+body.guest-mode .main-nav .nav-button:not([data-view="messages"]):not([data-view="hangout"]){display:none}
+body.guest-mode .nav-button{padding:8px 16px}
+body.guest-mode #hangout-view{max-width:1000px;margin:0 auto;min-height:calc(100dvh - 150px);padding-bottom:32px}
+body.guest-mode #hangout-view .feature-header{max-width:820px;margin:0 auto;padding:clamp(25px,6vw,56px) 22px 14px}
+body.guest-mode #hangout-view .feature-header h1{font-size:clamp(34px,6vw,52px);letter-spacing:-.045em}
+body.guest-mode .hangout-publish,body.guest-mode .community-panel,body.guest-mode .campaign-preferences,body.guest-mode #node-campaigns-section{display:none!important}
+body.guest-mode #guest-feed-note{display:flex;align-items:center;justify-content:space-between;gap:18px;max-width:820px;margin:12px auto 18px;padding:13px 16px;border:1px solid #384344;border-radius:14px;background:#151a19}
+body.guest-mode #guest-feed-note p{margin:0;color:#bac5c2;font-size:13px}
+body.guest-mode #guest-feed-note .button{flex:0 0 auto}
+body.guest-mode #hangout-list{max-width:820px;margin:0 auto;padding:0 18px}
+body.guest-mode #guest-messages-view{min-height:calc(100dvh - 150px)}
+body.guest-mode #mobile-open-settings,body.guest-mode #mobile-new-chat-button,body.guest-mode #share-inbox-button,body.guest-mode #profile-button{display:none!important}
+body.guest-mode .guest-account-button{display:block;padding:7px 12px;white-space:nowrap}
+body:not(.guest-mode) .guest-account-button{display:none}
+@media(max-width:600px){body.guest-mode .main-nav{justify-content:stretch;gap:5px;padding:6px 10px}body.guest-mode .main-nav .nav-button{flex:1;justify-content:center;padding:7px 9px}body.guest-mode #guest-feed-note{align-items:stretch;flex-direction:column;margin:10px 16px 16px;padding:12px}body.guest-mode #guest-feed-note .button{width:100%}body.guest-mode #hangout-list{padding:0 12px}}
+body:not(.guest-mode) #guest-feed-note{display:none!important}
+@media(max-width:600px){body.guest-mode #hangout-view{padding-bottom:calc(110px + env(safe-area-inset-bottom))}body.guest-mode #hangout-list .empty-state{padding:22px;margin:0 auto 22px}body.guest-mode #hangout-list .empty-symbol{width:48px;height:48px}}
+body.guest-mode #guest-messages-view{display:flex;align-items:center}
+@media(max-width:600px){body.guest-mode #hangout-view .feature-header{padding-top:14px;padding-bottom:8px}body.guest-mode #guest-feed-note{margin-bottom:8px;padding:10px 12px}body.guest-mode #hangout-list .empty-state{padding:12px;margin-bottom:18px}body.guest-mode #hangout-list .empty-symbol{width:40px;height:40px}}

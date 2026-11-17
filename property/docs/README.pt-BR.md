@@ -17,6 +17,7 @@ O idioma padrão do projeto e desta documentação é inglês. No app, escolha *
 - [Comunicação entre agentes com UX humana](plano-agentes-human-first.pt-BR.md) · [English](plano-agentes-human-first.md)
 - [Decisão G0: mensagens diretas entre agentes](agent-messaging-g0.pt-BR.md) · [English](agent-messaging-g0.md)
 - [Guia de idioma para comunicação entre agentes](agent-messaging-language.pt-BR.md) · [English](agent-messaging-language.md)
+- [Feed público Explorar como página inicial do Property](home-feed-plan.pt-BR.md) · [English](home-feed-plan.md)
 
 ## Validação e evidências
 

@@ -77,7 +77,7 @@
     inboxRelays: [], peerInboxRelays: new Map(), peerRelayHints: new Map(),
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     currentConversation: null,
-    activeView: 'messages', toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingDraftMentions: [], editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
+    activeView: 'hangout', guestReadOnly: true, exploreRefreshSequence: 0, toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingDraftMentions: [], editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
     communities: [], activeCommunity: null, activeCommunityEvents: [], activeCommunityModerators: new Set(), communityMigrationAdmins: new Set(), communityMigrationCandidates: [], communityMigrationStatus: '', communityRelaySelf: new Map(), communityInviteCode: '',
     typingIndicatorsEnabled: true, typingSession: null, typingSequence: 0, typingRelayLookups: new Map(), remoteTyping: new Map(), typingTimers: new Map(), typingSequences: new Map(), typingSeenEvents: new Set(),
     readReceiptsEnabled: false, readReceiptSent: new Set(), readReceipts: new Map(), readReceiptCandidates: new Map(), readReceiptObserver: null,
@@ -3366,6 +3366,8 @@
     state.activeWorkspaceReady = false;
     state.directFileStorage?.clearKey();
     state.secret = secret;
+    state.guestReadOnly = false;
+    document.body.classList.remove('guest-mode');
     resetIdleLock();
     state.pubkey = N.getPublicKey(secret);
     state.npub = N.nip19.npubEncode(state.pubkey);
@@ -3433,6 +3435,7 @@
         await connectAllRelays();
       }
     }).catch(() => {});
+    setActiveView('hangout');
     if (state.pendingContactIntent) {
       const contact = state.pendingContactIntent;
       state.pendingContactIntent = '';
@@ -3607,7 +3610,7 @@
     clearTimeout(state.reconnectTimers.get(url));
     let socket;
     try { socket = new WebSocket(url); } catch { scheduleReconnect(url); return; }
-    const conn = { socket, attempts: state.sockets.get(url)?.attempts || 0, subId: `inbox-${state.pubkey.slice(0, 8)}` };
+    const conn = { socket, attempts: state.sockets.get(url)?.attempts || 0, subId: state.pubkey ? `inbox-${state.pubkey.slice(0, 8)}` : '' };
     state.sockets.set(url, conn);
     socket.onopen = () => {
       conn.attempts = 0;
@@ -3632,14 +3635,14 @@
     setConnectionStatus();
   }
   function scheduleReconnect(url, attempts) {
-    if ((!state.pubkey && !(state.bridgeEnabled && state.relays.includes(url))) || !effectiveRelayUrls().includes(url)) return;
+    if ((!state.pubkey && !state.guestReadOnly && !(state.bridgeEnabled && state.relays.includes(url))) || !effectiveRelayUrls().includes(url)) return;
     const count = attempts || 1;
     const delay = Math.min(25000, 1000 * (2 ** Math.min(count - 1, 5))) + Math.floor(Math.random() * 500);
     state.reconnectTimers.set(url, setTimeout(() => connectRelay(url), delay));
   }
   async function connectAllRelays() {
     await closeRelays();
-    if (!state.pubkey && !state.bridgeEnabled) return;
+    if (!state.pubkey && !state.guestReadOnly && !state.bridgeEnabled) return;
     for (const url of effectiveRelayUrls()) connectRelay(url);
     setConnectionStatus();
   }
@@ -4111,6 +4114,7 @@
     return Routing.summarizeRelayResponses(pending);
   }
   async function publishToRelays(event, targetRelays = state.relays, { collectResponses = false } = {}) {
+    if (!PropertyExploreFeed.canWrite(state)) throw new Error(localized('Sign in or create an identity before publishing.', 'Entre ou crie uma identidade antes de publicar.'));
     const family = protocolFamilyByKind.get(event?.kind);
     if (family && !isProtocolEvent(event, family)) throw new Error('Evento inválido para o contrato de protocolo Property.');
     bridge?.markPublished(event);
@@ -6029,16 +6033,37 @@
     await renderConversations();
     showToast(localized('Group added on this device. No message was sent.', 'Grupo adicionado neste aparelho. Nenhuma mensagem foi enviada.'));
   }
+  function openGuestIdentityPrompt() {
+    if (!state.guestReadOnly) return;
+    $('workspace').classList.add('hidden');
+    $('auth-screen').classList.remove('hidden');
+    $('password').value = '';
+    showAuthPane('auth-choice');
+  }
+  async function returnToExplore() {
+    if (!state.guestReadOnly) return;
+    $('auth-screen').classList.add('hidden');
+    $('workspace').classList.remove('hidden');
+    document.body.classList.add('guest-mode');
+    try { await connectAllRelays(); } catch { /* The feed renders an honest offline state. */ }
+    setActiveView('hangout');
+  }
   function setActiveView(view) {
+    if (state.guestReadOnly && !['hangout', 'messages'].includes(view)) {
+      openGuestIdentityPrompt();
+      return;
+    }
     if (view !== 'messages' && state.voiceRecorder) cancelVoiceRecording({ notify: true });
     if (view !== 'messages') stopLocalPresence();
     state.activeView = view;
     audioPlayback.setContext(state.activeView, state.activePeer);
     if (view !== 'messages') setMobileConversationListOpen(false);
+    const guestMessages = state.guestReadOnly && view === 'messages';
     for (const name of ['messages', 'hangout', 'apps', 'marketplace', 'node', 'saved']) {
-      $(`${name}-view`).classList.toggle('hidden', name !== view);
+      $(`${name}-view`).classList.toggle('hidden', name !== view || (name === 'messages' && guestMessages));
       document.querySelector(`.nav-button[data-view="${name}"]`).classList.toggle('active', name === view);
     }
+    $('guest-messages-view').classList.toggle('hidden', !guestMessages);
     if (view === 'messages' && state.activePeer) {
       markConversationRead(state.activePeer).then(changed => changed && renderConversations()).catch(() => {});
     }
@@ -6227,16 +6252,43 @@
     card.append(block); list.append(card);
   }
   async function refreshHangout() {
-    $('hangout-list').replaceChildren();
-    const campaignSettings = await getCampaignSettings();
-    const tasks = [fetchEvents({ kinds: [1], limit: 50 })];
-    if (campaignSettings.enabled && Campaigns) tasks.push(fetchEvents({ kinds: [Campaigns.KIND], '#t': Campaigns.TAGS, limit: 50 }));
-    const [events, campaigns = []] = await Promise.all(tasks);
-    await renderNodeCampaigns(campaigns);
-    const unique = new Map();
-    for (const event of events) if (isProtocolEvent(event, 'public_note')) unique.set(event.id, event);
-    const ordered = [...unique.values()].sort((a, b) => b.created_at - a.created_at).slice(0, 50);
-    if (!ordered.length) { $('hangout-list').append(makeEmpty('Nenhuma publicação encontrada', 'Tente atualizar quando os relays estiverem conectados.')); return; }
+    const list = $('hangout-list');
+    const sequence = ++state.exploreRefreshSequence;
+    const statusCopy = {
+      loading: [localized('Loading public posts…', 'Carregando publicações públicas…'), localized('Connecting to relays to load the public feed.', 'Conectando aos relays para carregar o feed público.')],
+      offline: [localized('Feed is offline', 'Feed offline'), localized('No selected relay is reachable. Check your connection or relay settings.', 'Nenhum relay selecionado está acessível. Confira sua conexão ou as configurações de relay.')],
+      empty: [localized('No public posts found', 'Nenhuma publicação pública encontrada'), localized('Connected relays returned no public posts. Refresh to check again.', 'Os relays conectados não retornaram publicações públicas. Atualize para consultar novamente.')],
+      error: [localized('Could not load the public feed', 'Não foi possível carregar o feed público'), localized('Check the selected relays and try again.', 'Confira os relays selecionados e tente novamente.')]
+    };
+    const showStatus = status => {
+      list.replaceChildren(makeEmpty(...statusCopy[status]));
+      list.dataset.state = status;
+      list.setAttribute('aria-busy', status === 'loading' ? 'true' : 'false');
+    };
+    showStatus(PropertyExploreFeed.state({ loading: true }));
+    let ordered = [];
+    try {
+      const campaignSettings = state.guestReadOnly ? { enabled: false } : await getCampaignSettings();
+      const tasks = [fetchEvents({ kinds: [1], limit: 50 })];
+      if (!state.guestReadOnly && campaignSettings.enabled && Campaigns) tasks.push(fetchEvents({ kinds: [Campaigns.KIND], '#t': Campaigns.TAGS, limit: 50 }));
+      const [events, campaigns = []] = await Promise.all(tasks);
+      if (sequence !== state.exploreRefreshSequence || state.activeView !== 'hangout') return;
+      await renderNodeCampaigns(campaigns);
+      ordered = PropertyExploreFeed.publicPosts(events, event => isProtocolEvent(event, 'public_note'));
+      if (!ordered.length) {
+        const online = effectiveRelayUrls().some(url => state.sockets.get(url)?.socket.readyState === WebSocket.OPEN);
+        const status = PropertyExploreFeed.state({ online, count: 0 });
+        showStatus(status);
+        return;
+      }
+      list.replaceChildren();
+      list.dataset.state = 'ready';
+      list.setAttribute('aria-busy', 'false');
+    } catch {
+      if (sequence !== state.exploreRefreshSequence) return;
+      showStatus(PropertyExploreFeed.state({ error: true }));
+      return;
+    }
     for (const event of ordered) {
       const card = document.createElement('article'); card.className = 'hangout-card';
       card.dataset.eventId = event.id;
@@ -6245,7 +6297,10 @@
       const meta = document.createElement('p'); meta.className = 'hangout-meta';
       const sources = eventSourceHints.get(event) || [];
       meta.textContent = `${new Date(event.created_at * 1000).toLocaleString(window.PropertyI18n?.locale() || undefined)} · ${sources.length ? `relays: ${sources.join(', ')}` : 'relay de origem indisponível'}`;
-      const contact = document.createElement('button'); contact.className = 'button text'; contact.textContent = 'Conversar em privado'; contact.addEventListener('click', () => addConversation(event.pubkey, '').catch(error => showToast(error.message)));
+      const contact = document.createElement('button'); contact.className = 'button text'; contact.textContent = state.guestReadOnly ? localized('Sign in to message privately', 'Entre para conversar em privado') : localized('Contact privately', 'Conversar em privado'); contact.addEventListener('click', () => {
+        if (state.guestReadOnly) { setActiveView('messages'); return; }
+        addConversation(event.pubkey, '').catch(error => showToast(error.message));
+      });
       card.append(title, body, meta, contact); $('hangout-list').append(card);
     }
   }
@@ -6257,6 +6312,7 @@
     wrapper.append(symbol, title, body); return wrapper;
   }
   async function publishHangoutPost() {
+    if (!PropertyExploreFeed.canWrite(state)) { openGuestIdentityPrompt(); return; }
     const content = $('hangout-text').value.trim();
     if (!content) return showToast('Escreva algo antes de publicar.');
     if (!(await requestSecretSendConfirmation(content, '', localized('anyone who reads public Hangout posts', 'qualquer pessoa que leia publicações no Hangout')))) return;
@@ -7070,7 +7126,7 @@
     if (state.secret) state.secret.fill(0);
     const clearAppBadgeOnLock = state.appBadgeEnabled || state.appBadgeLastCount !== null;
     state.iceSettings = IceServers.normalize({}); state.iceSettingsInvalid = false; $('ice-server-credential').value = '';
-    state.secret = null; state.pubkey = ''; state.npub = ''; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.typingIndicatorsEnabled = false; state.readReceiptsEnabled = false; state.activeStatusEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = ''; state.pendingGroupInviteIntent = ''; state.pendingGroupInvite = null; state.groupInviteDraft = null; state.appBadgeEnabled = false; state.appBadgeLastCount = clearAppBadgeOnLock ? 0 : null;
+    state.secret = null; state.pubkey = ''; state.npub = ''; state.guestReadOnly = true; state.activePeer = ''; state.currentConversation = null; state.activeWorkspaceReady = false; state.notificationsEnabled = false; state.typingIndicatorsEnabled = false; state.readReceiptsEnabled = false; state.activeStatusEnabled = false; state.notificationMutes.clear(); state.notificationMutePeer = ''; state.pendingGroupInviteIntent = ''; state.pendingGroupInvite = null; state.groupInviteDraft = null; state.appBadgeEnabled = false; state.appBadgeLastCount = clearAppBadgeOnLock ? 0 : null;
     if ($('group-invite-preview-dialog').open) $('group-invite-preview-dialog').close();
     if (clearAppBadgeOnLock) void queueAppBadge(0);
     state.conversationMessageSearchCache = null; state.conversationMessageSearchRevision++;
@@ -7090,6 +7146,7 @@
       }
       await closeRelays();
     }
+    document.body.classList.add('guest-mode');
     $('workspace').classList.add('hidden'); $('auth-screen').classList.remove('hidden'); $('password').value = '';
     $('profile-dialog').close(); showAuthPane('auth-choice'); updateLockedBridgeStatus();
     showToast(preservePublicBridge && state.bridgeEnabled ? 'Identidade bloqueada; ponte pública continua ativa.' : 'Sessão bloqueada neste aparelho.');
@@ -7438,6 +7495,10 @@
       }
     });
     $('new-chat-dialog').addEventListener('close', () => { state.pendingShareForNewChat = ''; });
+    $('guest-account-button').addEventListener('click', openGuestIdentityPrompt);
+    $('guest-feed-sign-in').addEventListener('click', openGuestIdentityPrompt);
+    $('guest-messages-sign-in').addEventListener('click', openGuestIdentityPrompt);
+    $('auth-back-explore').addEventListener('click', () => returnToExplore().catch(() => {}));
     $('create-account-button').addEventListener('click', () => showAuthPane('auth-setup'));
     $('import-account-button').addEventListener('click', () => showAuthPane('auth-import'));
     document.querySelectorAll('.back-auth').forEach(button => button.addEventListener('click', () => showAuthPane('auth-choice')));
@@ -8062,7 +8123,7 @@
     for (const eventName of ['pointerdown', 'keydown', 'touchstart']) document.addEventListener(eventName, resetIdleLock, { passive: true });
   }
   async function boot() {
-    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.summarizeActivity !== 'function' || typeof TypingSignals.createPresence !== 'function' || typeof TypingSignals.createCallSignal !== 'function' || typeof TypingSignals.createFileSignal !== 'function' || typeof TypingSignals.unwrap !== 'function' || !Calls || typeof Calls.create !== 'function' || !DirectTransfer || typeof DirectTransfer.create !== 'function' || !DirectFileEnvelope || typeof DirectFileEnvelope.create !== 'function' || typeof DirectFileEnvelope.validate !== 'function' || !ImageViewer || typeof ImageViewer.create !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || typeof Pwa.consumeGroupInviteIntent !== 'function' || !GroupInvites || typeof GroupInvites.createInvitation !== 'function' || typeof GroupInvites.openInvitation !== 'function' || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function') { $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
+    if (!N || !N.nip17 || !TypingSignals || typeof TypingSignals.create !== 'function' || typeof TypingSignals.summarizeActivity !== 'function' || typeof TypingSignals.createPresence !== 'function' || typeof TypingSignals.createCallSignal !== 'function' || typeof TypingSignals.createFileSignal !== 'function' || typeof TypingSignals.unwrap !== 'function' || !Calls || typeof Calls.create !== 'function' || !DirectTransfer || typeof DirectTransfer.create !== 'function' || !DirectFileEnvelope || typeof DirectFileEnvelope.create !== 'function' || typeof DirectFileEnvelope.validate !== 'function' || !ImageViewer || typeof ImageViewer.create !== 'function' || !N.nip19 || !Vault || !Routing || !Bridge || !bridge || !Nano || !Money || !Marketplace || !AgentMessages || !RelayDefaults || !ShareInbox || !Pwa || typeof Pwa.consumeGroupInviteIntent !== 'function' || !GroupInvites || typeof GroupInvites.createInvitation !== 'function' || typeof GroupInvites.openInvitation !== 'function' || !FolderStore || !ChatDrafts || !GroupMentions || typeof GroupMentions.createPicker !== 'function' || !NotificationPrefs || typeof NotificationPrefs.createMuteRecord !== 'function' || !AppBadge || typeof AppBadge.unreadCount !== 'function' || !MessageDays || typeof MessageDays.dayLabel !== 'function' || !MessageScroll || typeof MessageScroll.classifyUpdate !== 'function' || !RichText || typeof RichText.locationText !== 'function' || !LocationCards || typeof LocationCards.render !== 'function' || !MessageForwards || typeof MessageForwards.fromTags !== 'function' || typeof MessageForwards.toTag !== 'function' || !VoiceMessages || typeof VoiceMessages.createTag !== 'function' || typeof VoiceMessages.nextPlaybackRate !== 'function' || !FileTransfers || typeof FileTransfers.createTransfer !== 'function' || typeof FileTransfers.fromTags !== 'function' || typeof FileTransfers.assemble !== 'function' || typeof FileTransfers.coalesceMessages !== 'function' || !window.PropertyNostrEntities || !MessageEdits || typeof MessageEdits.createNip17Edit !== 'function' || !SecretGuard || typeof SecretGuard.findSecret !== 'function' || !QrCode || !EmojiPicker || typeof EmojiPicker.init !== 'function' || !ChatGestures || typeof ChatGestures.shouldReplySwipe !== 'function' || typeof ChatGestures.isEditLastShortcut !== 'function' || typeof Contact?.parsePublicKey !== 'function' || !PublicProfile || typeof PublicProfile.latest !== 'function' || typeof PublicProfile.latestRecord !== 'function' || !PropertyExploreFeed || typeof PropertyExploreFeed.publicPosts !== 'function' || typeof PropertyExploreFeed.state !== 'function' || typeof PropertyExploreFeed.canWrite !== 'function') { $('auth-screen').classList.remove('hidden'); $('workspace').classList.add('hidden'); $('auth-error').textContent = 'Os arquivos locais do protocolo, dos relays ou de contatos não carregaram. Recarregue o pacote do Property.'; return; }
     wireEvents();
     state.pendingLaunchAction = Pwa.consumeLaunchAction();
     state.pendingContactIntent = Pwa.consumeContactIntent();
@@ -8084,11 +8145,18 @@
       const inboxSettings = state.account ? await get('settings', `inbox-${state.account.pubkey}`) : null;
       if (inboxSettings?.values?.length) state.inboxRelays = inboxSettings.values.map(normalizeRelay).slice(0, 3);
       if (state.account && await autoUnlock()) return;
+      state.guestReadOnly = true;
+      document.body.classList.add('guest-mode');
+      $('auth-screen').classList.add('hidden');
+      $('workspace').classList.remove('hidden');
       showAuthPane('auth-choice');
-      if (state.bridgeEnabled) for (const url of state.relays) connectRelay(url);
+      await connectAllRelays();
+      setActiveView('hangout');
       setConnectionStatus(); updateLockedBridgeStatus();
     } catch (error) {
       setStorageReady(false, `Armazenamento local indisponível: ${error.message || 'erro do navegador'}`);
+      document.body.classList.add('guest-mode');
+      $('workspace').classList.add('hidden'); $('auth-screen').classList.remove('hidden');
       showAuthPane('auth-choice'); showError('auth-error', `Armazenamento local indisponível: ${error.message || 'erro do navegador'}`);
     }
   }
