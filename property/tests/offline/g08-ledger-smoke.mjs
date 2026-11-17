@@ -50,7 +50,7 @@ function argsOf(argv) {
     'monero_wallet_rpc', 'monero_wallet_rpc_sha256', 'nano_node', 'nano_node_sha256', 'output']) {
     if (!values[name]) throw new Error(`Missing --${name.replaceAll('_', '-')}.`);
   }
-  if (values.scope && !['full', 'g7-only'].includes(values.scope)) throw new Error('Expected --scope full or g7-only.');
+  if (values.scope && !['full', 'g7-only', 'g8-only'].includes(values.scope)) throw new Error('Expected --scope full, g7-only, or g8-only.');
   return values;
 }
 
@@ -243,6 +243,7 @@ async function startNanoAuthGateway(upstreamPort, username, password) {
 async function main() {
   const options = argsOf(process.argv.slice(2));
   const g7Only = options.scope === 'g7-only';
+  const g8Only = options.scope === 'g8-only';
   const toolHashes = {
     bitcoind: await sha256File(options.bitcoind), bitcoin_cli: await sha256File(options.bitcoin_cli),
     monerod: await sha256File(options.monerod), monero_wallet_rpc: await sha256File(options.monero_wallet_rpc),
@@ -257,7 +258,7 @@ async function main() {
   const reportPath = path.join(outputDir, g7Only ? 'g7-private-ledger-run.json' : 'ledger-g08-report.json');
   const temp = await mkdtemp(path.join(os.tmpdir(), 'property-g08-'));
   await mkdir(outputDir, { recursive: true, mode: 0o700 });
-  const report = { schema_version: 1, scope: g7Only ? 'G7_PRIVATE_LEDGER_ONLY' : 'G7_AND_G8_FULL', result: 'RUNNING',
+  const report = { schema_version: 1, scope: g7Only ? 'G7_PRIVATE_LEDGER_ONLY' : g8Only ? 'G8_CAMPAIGN_ONLY' : 'G7_AND_G8_FULL', result: 'RUNNING',
     cases: g7Only ? [] : IDS.map(id => ({ case: id, status: 'NOT_RUN', reason: 'Case has not started.' })),
     ledger_networks: {}, payments: [], refunds: [], accounting: [], auth_checks: [], relay_publications: [],
     external_endpoints: [], credential_scan: null, binary_sha256: toolHashes,
@@ -670,6 +671,7 @@ async function main() {
     await mark('G08-06', 'PASS', 'Observed payment and refund amounts remained integer atomic values on BTC/XMR and raw on Nano. Campaigns stayed unpublished while settlement was pending, mismatched refund amounts were rejected before any broadcast, and fee amounts were recorded separately for reconciliation.');
     }
 
+    if (!g8Only) {
     stage = 'run G7 trade state against ten private-chain invoices per currency with lost-response recovery';
     const g7Report = { schema_version: 1, gate: 'G7-private-trade-ledger-integration', result: 'RUNNING',
       fixed_count: { invoices_per_currency: 10, valid_receipts_per_currency: 10, lost_responses_per_currency: 10,
@@ -859,6 +861,7 @@ async function main() {
       await checkpoint();
       process.stdout.write(`${JSON.stringify({ result: report.result, scope: report.scope, g7_trade_integration: g7Report, output: outputDir })}\n`);
       return report.result === 'PASS_G7_PRIVATE_ONLY' ? 0 : 1;
+    }
     }
 
     active = 'G08-07'; stage = 'verify loopback RPC authentication, mainnet rejection, and secret non-disclosure';
