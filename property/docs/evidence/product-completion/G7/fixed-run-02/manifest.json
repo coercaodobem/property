@@ -41,7 +41,36 @@
     "BTC_state_reopened_before_reconfirmation": true,
     "XMR_confirmation_unlock_checked": true,
     "XNO_account_source_raw_and_block_hash_checked": true,
-    "G8_campaign_◊çx∂âûÀk∫wµÁ`   "state_after_reconfirmation": "settled",
-    "settled_while_invalidated": false
-  }
+    "G8_campaign_cases": "NOT_RUN_BY_SCOPE"
+  },
+  "binary_sha256": {
+    "bitcoind": "580ac61190154da31aac3f82d13c4254ef453d70e1bf2c39d338dac5129c92ac",
+    "bitcoin_cli": "83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d",
+    "monerod": "f035a7c555aec692705012027a64707f38adeabc4a4c9244f259cd78bb2e84f1",
+    "monero_wallet_rpc": "06f36de37bda72ff377c11700ba622fef435d27510c883e9c83a27ba3c46ba1f",
+    "nano_node": "6e0557d6b554c70d5097f8a06acc618842717f3e7c0af2da9b81c3d387495836"
+  },
+  "source_sha256": {
+    "property/tests/agent-trade-state-smoke.mjs": "0cae1f6ed9e6a78ae330cc8efae29f81af121c64b4f021df352ca5426490131d",
+    "property/tests/agent-trade-conversation-smoke.mjs": "1647962deb84ab276c13db6a91c02a5eb08701ba5328670bdfce1b43b3a77fbe",
+    "property/tests/agent-trade-config-store-smoke.mjs": "4ace11e7d7dab5754c9f4b6a37a5bad54e33231c30c9512555e515ee6b4e88df",
+    "property/tests/offline/g08-ledger-smoke.mjs": "b24c8e5b7adc44a272c80665bbec280c521d53094a56e86cc60f93aee539d9c7",
+    "property/agent/trade-state.mjs": "9027cafc825afee75699e8dd6fb915efaade4016303883dea07313aa6727b6aa",
+    "property/agent/trade-state-store.mjs": "3ea8e3071d9da78210584f7554e552bc4b458d469a7a7337627a0ff8741b565c",
+    "property/agent/trade-conversation.mjs": "9562890d07bc23d1f388141859c5f1875b01a391d193b2428957d10370613831",
+    "property/relay/ledger-rpc.mjs": "2466c0e6d2ceeb375e6417fb4ac4ff67689f489991b1d5aa420f745541cb5844"
+  },
+  "evidence_sha256": {
+    "private-ledger-integration.json": "adcb0ad1774e604f1a8a4dc853be999678c56fe831f6eafd49a3f9d0e8d97131",
+    "private-ledger-run.json": "123512609ddc6be9ca868fbd1bd5083acd69c5f396c98a907daf3bb21b1ddf07",
+    "private-node-binary-hashes.json": "bf4e6e5e5c135f701cd27bf4450bcfac98d250744dbaf96f12ed06ff0363fb22",
+    "trade-config-store.json": "84542889a177838fe3778789d2c5f71a7fb7a113c566a3588cb80dea00645bfc",
+    "trade-conversation.json": "0c6f38534ec37efebb32c1bd04d33670444ff41fdcef8620ad904f5bc7c9971c",
+    "trade-state.json": "6a57f4175899878a29fc4c9f20cffa2f52341bba416bef6613678bfc98e899ef"
+  },
+  "limitations": [
+    "Private synthetic ledgers only; no public network or funds.",
+    "Wallet ownership remains an unverified claim tied to a Nostr identity.",
+    "This automated run is not a human security audit or a trustless escrow guarantee."
+  ]
 }

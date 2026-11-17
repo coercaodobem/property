@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "gate": "G7-private-trade-ledger-integration",
+  "result": "PASS",
+  "fixed_count": {
+    "invoices_per_currency": 10,
+    "valid_receipts_per_currency": 10,
+    "lost_responses_per_currency": 10,
+    "engine_restarts_per_currency": 10,
+    "duplicate_reconciliations_per_currency": 10
+  },
+  "ledger_networks": {
+    "BTC": {
+      "name": "regtest",
+      "p2p_outbound": false
+    },
+    "XMR": {
+      "name": "fakechain",
+      "offline": true
+    },
+    "XNO": {
+      "name": "dev",
+      "peers": 0
+    }
+  },
+  "currencies": {
+    "BTC": {
+      "network": "regtest",
+      "invoice_count": 10,
+      "valid_receipts": 10,
+      "lost_responses": 10,
+      "observer_restarts": 10,
+      "duplicate_reconciliations": 10,
+      "distinct_payment_txids": 10,
+      "exact_atomic_amounts": true,
+      "signed_local_journal_verified": true
+    },
+    "XMR": {
+      "network": "fakechain",
+      "invoice_count": 10,
+      "valid_receipts": 10,
+      "lost_responses": 10,
+      "observer_restarts": 10,
+      "duplicate_reconciliations": 10,
+      "distinct_payment_txids": 10,
+      "exact_atomic_amounts": true,
+      "signed_local_journal_verified": true,
+      "confirmation_unlock_policy_checked": true
+    },
+    "XNO": {
+      "network": "dev",
+      "invoice_count": 10,
+      "valid_receipts": 10,
+      "lost_responses": 10,
+      "observer_restarts": 10,
+      "duplicate_reconciliations": 10,
+      "distinct_payment_txids": 10,
+      "exact_atomic_amounts": true,
+      "signed_local_journal_verified": true,
+      "account_source_raw_block_hash_checked": true
+    }
+  },
+  "external_endpoints": [],
+  "wallet_identity_binding": "unverified-claim",
+  "mainnet_enabled": false,
+  "btc_reorg": {
+    "invalidated_one_of_ten": true,
+    "state_after_invalidation": "payment-observed",
+    "state_after_reconfirmation": "settled",
+    "settled_while_invalidated": false
+  }
+}
