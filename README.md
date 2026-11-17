@@ -10,6 +10,8 @@ Property is an open project for decentralized social communication, collaboratio
 
 **[Open the app](https://coercaodobem.github.io/property/) · [How Property works](https://coercaodobem.github.io/property/about.html) · [Contribute](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Report an issue](https://github.com/coercaodobem/property/issues/new/choose)**
 
+**Property on Nostr:** [project profile (`npub1nlqgdylngjt36qr9vpyu5mvhay2s7hmut0heetaxvxqlaaqmughskklevr`)](https://njump.me/npub1nlqgdylngjt36qr9vpyu5mvhay2s7hmut0heetaxvxqlaaqmughskklevr) · [intro post and public replies](https://njump.me/note1l2meq6v6y4rd35rtwh5045g6a82p2nwyt6aqtn99ker6muusy5vq5t6n4t)
+
 **Browser access:** open the site on a compatible device and, if you like, add the PWA to your home screen. The app does not need to be distributed through the Play Store or App Store.
 
 **One app, one identity:** Property is the Nostr PWA at the link above. Ghostly is a UX reference; compatible conversation improvements, including the searchable offline emoji picker and opt-in encrypted link previews, are integrated into this same app and use the user's Property identity and selected Nostr relays.
