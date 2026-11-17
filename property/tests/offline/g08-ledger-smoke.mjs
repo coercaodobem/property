@@ -168,14 +168,16 @@ function refundRequest(runtime, advertiser, campaignId, offerId, txid, refundAdd
 async function createCampaign(runtime, relay, engine, advertiser, clock, currency, expectedAmount, name) {
   const { campaignId, event } = offerFor(runtime, advertiser, clock, currency, expectedAmount, name);
   assert.equal(runtime.verifyEvent(event), true);
-  assert.equal((await publishEvent(relay.url, event)).accepted, true);
+  const offerAck = await publishEvent(relay.url, event);
+  assert.equal(offerAck.accepted, true, `Relay rejected signed offer: ${offerAck.message}`);
   await waitStored(relay.url, event.id);
   const signedOffer = (await wsQuery(relay.url, { ids: [event.id], limit: 1 }))[0];
   assert.ok(signedOffer && runtime.verifyEvent(signedOffer));
   const decision = await engine.decide(signedOffer);
   assert.equal(decision.decision, 'accepted');
   assert.equal(runtime.verifyEvent(decision.event), true);
-  assert.equal((await publishEvent(relay.url, decision.event)).accepted, true);
+  const decisionAck = await publishEvent(relay.url, decision.event);
+  assert.equal(decisionAck.accepted, true, `Relay rejected signed decision: ${decisionAck.message}`);
   await waitStored(relay.url, decision.event.id);
   return { campaignId, offer: signedOffer, decision };
 }
@@ -402,7 +404,8 @@ async function main() {
 
     if (!g7Only) {
     stage = 'start local Geode relay and test real campaign signing';
-    relay = await startGeode(await freePort('127.0.0.1'), temp, 'G08-local-Geode');
+    const g8RelayConfig = `[database]\nin_memory = true\n[options]\nverify_signatures = true\nrequire_auth = false\n[rate_limits]\nevents_per_minute = 0\nevent_burst = 0\nreqs_per_minute = 0\nreq_burst = 0\n`;
+    relay = await startGeode(await freePort('127.0.0.1'), temp, 'G08-local-Geode', g8RelayConfig);
     const clock = { now: NOW_EPOCH_SECONDS };
     const exactCampaigns = {};
     const adapters = [btcLedger, xmrLedger, nanoLedger];
