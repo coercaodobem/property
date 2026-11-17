@@ -1,24 +1,27 @@
 # Resultado do gate G8 — campanhas de relay e contabilização do operador
 
-**Resultado: PASS — automatizado/offline em Ubuntu Linux x86_64.** Candidato testado: [`5a8c6f2bce3a09f71098005f8eea240245a3bf38`](https://github.com/coercaodobem/property/commit/5a8c6f2bce3a09f71098005f8eea240245a3bf38). Os relatórios e checksums da contagem fixa estão em [`fixed-run-01/`](fixed-run-01/).
+**Resultado: PASS — automatizado/offline em Ubuntu Linux x86_64.** Candidato: [`3ca0f84a7afda1514e8f061ddb9e7ecc9fceeb5a`](https://github.com/coercaodobem/property/commit/3ca0f84a7afda1514e8f061ddb9e7ecc9fceeb5a). Os relatórios com checksums estão em [`fixed-run-02/`](fixed-run-02/).
 
 ## Evidências
 
-- [`campaign-fixed-count.json`](fixed-run-01/campaign-fixed-count.json): 20 fixtures de ciclo de campanha por moeda (BTC, XMR, XNO), uma única decisão durável por proposta assinada válida, cinco assinaturas inválidas rejeitadas por moeda e 10 propostas desativadas/rejeitadas por moeda sem destino de pagamento, registradas como `UNSUPPORTED_RETURN`. A API do operador respondeu por stdio com os nove métodos e não abriu TCP.
-- [`private-ledger-summary.json`](fixed-run-01/private-ledger-summary.json): 10 pagamentos exatos com transações distintas, 10 destinos únicos e 10 publicações assinadas por moeda em Bitcoin regtest privado, Monero fakechain e Nano dev. Os sete casos de ledger passaram, incluindo um reembolso de pagamento insuficiente confirmado e idempotente em cada ledger privado de teste.
-- As exportações contábeis reconciliam todos os registros de cada moeda. A retenção remove conteúdo e endereços da campanha, preservando decisões assinadas como tombstones contra replay.
-- A campanha usa o rótulo padrão em inglês `SPONSORED · PAYMENT NOT VERIFIED BY THE CLIENT` e a tradução para Português (Brasil). A renderização não envia solicitações; a inspeção das fixtures não encontrou contadores de clique/visualização nem analytics de terceiros.
-- Tráfego em relays públicos/mainnet, fundos reais e endpoints externos: nenhum. Credenciais RPC, endereços de pagamento e referências brutas de transação foram omitidos do resumo versionado.
-- A suíte `run-smoke.sh` inclui o teste G8 com contagem fixa. O operador é uma API JSON-RPC local e incorporável via stdio; o launcher Geode simples não a inicia. Um host precisa fornecer o assinador local, adapters de ledger e publicador de eventos. Essa fronteira de integração está documentada nos READMEs do relay.
+- [`campaign-fixed-count.json`](fixed-run-02/campaign-fixed-count.json): 20 fixtures do ciclo de campanha por moeda (BTC, XMR, XNO); passaram as decisões de política, replay, substituição, expiração, assinatura inválida, devolução não suportada e retenção. O operador expõe nove ferramentas JSON-RPC por stdio, sem listener TCP.
+- [`private-ledger-summary.json`](fixed-run-02/private-ledger-summary.json): passaram os sete casos de ledger G8. Cada moeda concluiu 10 publicações de campanha após pagamentos exatos, em 10 destinos únicos, usando Bitcoin regtest, Monero fakechain ou Nano dev. Passaram as verificações de reorganização BTC, confirmação/desbloqueio e remoção de bloco XMR, e confirmação Nano de um raw. Foi verificado um reembolso assinado, confirmado e idempotente de pagamento insuficiente por moeda.
+- A exportação contábil de contagem fixa reconciliou **69 de 69** registros, com IDs por moeda, valores, assinantes e estados. Pagamentos pendentes ou incompatíveis não liberaram publicação; incompatibilidades no valor do reembolso foram rejeitadas antes da transmissão.
+- A renderização de campanhas não enviou solicitações e o esquema não contém campos de clique/visualização. Não houve analytics de terceiros nem endpoints externos.
+- O relay descartável em memória usado no lote fixo teve limites de taxa desativados para evitar que a aprovação dependesse da velocidade de relógio. Os padrões do produto não mudaram; o G9 verifica separadamente as fronteiras de limite de taxa.
+- Não foram usados relays públicos, mainnet, fundos reais ou participantes reais. Credenciais RPC, destinos de pagamento e referências de transações foram omitidos do resumo publicado. O G7 não foi repetido.
 
 ## Reprodução
 
 ```sh
-node property/tests/offline/campaign-g8-fixed-count.mjs property/docs/evidence/product-completion/G8/fixed-run-01/campaign-fixed-count.json
-node property/tests/offline/g08-ledger-smoke.mjs --bitcoind "$BITCOIND" --bitcoind-sha256 "$BITCOIND_SHA256" --bitcoin-cli "$BITCOIN_CLI" --bitcoin-cli-sha256 "$BITCOIN_CLI_SHA256" --monerod "$MONEROD" --monerod-sha256 "$MONEROD_SHA256" --monero-wallet-rpc "$MONERO_WALLET_RPC" --monero-wallet-rpc-sha256 "$MONERO_WALLET_RPC_SHA256" --nano-node "$NANO_NODE" --nano-node-sha256 "$NANO_NODE_SHA256" --output "$PRIVATE_OUTPUT"
-bash property/tests/run-smoke.sh
+bash property/tests/offline/run-isolated.sh node property/tests/offline/campaign-g8-fixed-count.mjs property/docs/evidence/product-completion/G8/fixed-run-02/campaign-fixed-count.json
+bash property/tests/offline/run-isolated.sh node property/tests/offline/g08-ledger-smoke.mjs --scope g8-only \
+  --bitcoind "$BITCOIND" --bitcoind-sha256 "$BITCOIND_SHA256" \
+  --bitcoin-cli "$BITCOIN_CLI" --bitcoin-cli-sha256 "$BITCOIN_CLI_SHA256" \
+  --monerod "$MONEROD" --monerod-sha256 "$MONEROD_SHA256" \
+  --monero-wallet-rpc "$MONERO_WALLET_RPC" --monero-wallet-rpc-sha256 "$MONERO_WALLET_RPC_SHA256" \
+  --nano-node "$NANO_NODE" --nano-node-sha256 "$NANO_NODE_SHA256" --output "$PRIVATE_OUTPUT"
+(cd property/docs/evidence/product-completion/G8/fixed-run-02 && sha256sum -c SHA256SUMS)
 ```
 
-Os SHA-256 dos binários do runner estão em `private-ledger-summary.json`. O runner de ledgers privados vincula RPC ao loopback, desativa peers e não usa mainnet. `SHA256SUMS` cobre os relatórios de contagem fixa e o manifesto versionados.
-
-Esta é uma evidência de integração automatizada, não uma auditoria humana de segurança. Outros sistemas operacionais e revisão humana permanecem fora desta execução.
+O operador é uma API JSON-RPC local incorporável via stdio; o launcher Geode simples não a inicia. Um host fornece o assinador local, adapters de ledger e publicador de eventos. Este resultado automatizado não é auditoria humana de segurança nem garantia de escrow sem confiança. Outros sistemas operacionais e revisão humana permanecem fora desta execução.

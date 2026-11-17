@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "gate": "G8-private-ledger-integration",
+  "result": "PASS_AUTOMATED_OFFLINE",
+  "candidate_commit": "3ca0f84a7afda1514e8f061ddb9e7ecc9fceeb5a",
+  "runtime_inventory_sha256": "b7ba15fbb2dfb8ff494a2378752859c4d750e81aef3a73ec047edd9402ae001f",
+  "scope": "G8_CAMPAIGN_ONLY; G7 was not repeated in this run",
+  "environment": {
+    "platform": "Ubuntu Linux x86_64",
+    "node": "v22.22.1",
+    "network_isolation": "unshared-netns",
+    "external_endpoints": [],
+    "public_relays": false,
+    "mainnet_enabled": false,
+    "real_funds": false
+  },
+  "cases": [
+    {
+      "case": "G08-01",
+      "status": "PASS",
+      "reason": "Each private ledger produced 10 exclusive BTC addresses, Monero subaddresses, or Nano accounts. Ten exact atomic payments per currency remained unpublished until the adapter confirmation gate passed; all 30 signed campaigns were stored exactly once on the local Geode relay."
+    },
+    {
+      "case": "G08-02",
+      "status": "PASS",
+      "reason": "BTC ignored an unrelated address and a currency mismatch, withheld publication at zero confirmations, and a private regtest block invalidation before engine reconciliation reduced the transaction to the pending state. No campaign event was published before reconsideration and reconfirmation."
+    },
+    {
+      "case": "G08-03",
+      "status": "PASS",
+      "reason": "The wallet credited an exclusive Monero subaddress only after the configured 10-confirmation/unlock gate; repeated lookup returned the same transaction and amount. A private fakechain pop before campaign reconciliation kept the campaign unpublished."
+    },
+    {
+      "case": "G08-04",
+      "status": "PASS",
+      "reason": "The local Nano dev ledger kept a one-raw transfer uncredited before confirmation, processed it into its unique account after confirmation, and repeated polling returned the same source block while the account balance remained exactly one raw."
+    },
+    {
+      "case": "G08-05",
+      "status": "PASS",
+      "reason": "All three chains produced signed underpayment refund requests bound to the offer and actual payment. Each real wallet broadcast at most one refund, reported its fee/atomic amount, and a repeated signed request returned the same confirmed transaction after the chain advanced."
+    },
+    {
+      "case": "G08-06",
+      "status": "PASS",
+      "reason": "Observed payment and refund amounts remained integer atomic values on BTC/XMR and raw on Nano. Campaigns stayed unpublished while settlement was pending, mismatched refund amounts were rejected before any broadcast, and fee amounts were recorded separately for reconciliation."
+    },
+    {
+      "case": "G08-07",
+      "status": "PASS",
+      "reason": "BTC/XMR local RPCs required credentials, the Nano loopback gateway rejected unauthenticated and incorrect credentials, and each adapter rejected a wrong network before creating a payment address. Random credentials and the test-only dev genesis key were excluded from reports and signed events."
+    }
+  ],
+  "campaign_lifecycle_fixed_counts": {
+    "BTC": {
+      "submitted": 20,
+      "policy_decisions": 20,
+      "accepted": 18,
+      "rejected": 2,
+      "published": 6,
+      "replaced": 3,
+      "expired": 3,
+      "duplicate_replays": 3,
+      "payment_pending": 2,
+      "mismatches": 2,
+      "held": 2,
+      "invalid_signatures": 5,
+      "unsupported_return": 10,
+      "retention_pruned": 8
+    },
+    "XMR": {
+      "submitted": 20,
+      "policy_decisions": 20,
+      "accepted": 18,
+      "rejected": 2,
+      "published": 6,
+      "replaced": 3,
+      "expired": 3,
+      "duplicate_replays": 3,
+      "payment_pending": 2,
+      "mismatches": 2,
+      "held": 2,
+      "invalid_signatures": 5,
+      "unsupported_return": 10,
+      "retention_pruned": 8
+    },
+    "XNO": {
+      "submitted": 20,
+      "policy_decisions": 20,
+      "accepted": 18,
+      "rejected": 2,
+      "published": 6,
+      "replaced": 3,
+      "expired": 3,
+      "duplicate_replays": 3,
+      "payment_pending": 2,
+      "mismatches": 2,
+      "held": 2,
+      "invalid_signatures": 5,
+      "unsupported_return": 10,
+      "retention_pruned": 8
+    }
+  },
+  "operator_api": {
+    "tool_count": 9,
+    "transport": "stdio",
+    "tcp_listener": false,
+    "tool_names": [
+      "campaign/inspect",
+      "campaign/accept",
+      "campaign/reject",
+      "campaign/list",
+      "campaign/reconcile",
+      "campaign/refund",
+      "campaign/set-publication-scope",
+      "campaign/export-accounting",
+      "campaign/prune-terminal"
+    ]
+  },
+  "private_ledgers": {
+    "campaign_observations": {
+      "accepted_and_published": {
+        "BTC": 10,
+        "XMR": 10,
+        "XNO": 10
+      },
+      "unique_payment_destinations": {
+        "BTC": 10,
+        "XMR": 10,
+        "XNO": 10
+      },
+      "unique_publications": {
+        "BTC": 10,
+        "XMR": 10,
+        "XNO": 10
+      }
+    },
+    "underpayment_refunds": {
+      "BTC": {
+        "count": 1,
+        "signed_request_verified": true,
+        "confirmed_retry_idempotent": true,
+        "amounts_recorded_atomically": true
+      },
+      "XMR": {
+        "count": 1,
+        "signed_request_verified": true,
+        "confirmed_retry_idempotent": true,
+        "amounts_recorded_atomically": true
+      },
+      "XNO": {
+        "count": 1,
+        "signed_request_verified": true,
+        "confirmed_retry_idempotent": true,
+        "amounts_recorded_atomically": true
+      }
+    },
+    "accounting": {
+      "status": "PASS",
+      "entries": 69,
+      "reconciled_entries": 69,
+      "by_currency": {
+        "BTC": {
+          "entries": 23,
+          "reconciled_entries": 23,
+          "currency_total": {
+            "records": 23,
+            "received_atomic_total": "1002",
+            "refunded_atomic_total": "0",
+            "fee_atomic_total": "0"
+          }
+        },
+        "XMR": {
+          "entries": 23,
+          "reconciled_entries": 23,
+          "currency_total": {
+            "records": 23,
+            "received_atomic_total": "1002",
+            "refunded_atomic_total": "0",
+            "fee_atomic_total": "0"
+          }
+        },
+        "XNO": {
+          "entries": 23,
+          "reconciled_entries": 23,
+          "currency_total": {
+            "records": 23,
+            "received_atomic_total": "1002",
+            "refunded_atomic_total": "0",
+            "fee_atomic_total": "0"
+          }
+        }
+      },
+      "atomic_precision": true,
+      "nano_raw_precision": true,
+      "unconfirmed_campaign_not_success": true,
+      "mismatched_refund_rejected_before_broadcast": true
+    },
+    "chain_specific_checks": {
+      "BTC": "regtest; pre-activation reorg remained unpublished until reconfirmation",
+      "XMR": "fakechain/offline; 10-confirmation/unlock gate and chain pop checked",
+      "XNO": "dev with zero peers; one-raw payment/account isolation checked"
+    },
+    "rpc_authentication": [
+      {
+        "currency": "BTC",
+        "rpc_auth": "Basic",
+        "invalid_credentials_rejected": true,
+        "wrong_network_rejected": true
+      },
+      {
+        "currency": "XMR",
+        "rpc_auth": "Digest",
+        "wallet_and_daemon_auth": true,
+        "wrong_network_rejected": true
+      },
+      {
+        "currency": "XNO",
+        "rpc_auth": "loopback Basic-auth gateway",
+        "unauthenticated_rejected": true,
+        "wrong_network_rejected": true
+      }
+    ],
+    "binary_sha256": {
+      "bitcoind": "580ac61190154da31aac3f82d13c4254ef453d70e1bf2c39d338dac5129c92ac",
+      "bitcoin_cli": "83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d",
+      "monerod": "f035a7c555aec692705012027a64707f38adeabc4a4c9244f259cd78bb2e84f1",
+      "monero_wallet_rpc": "06f36de37bda72ff377c11700ba622fef435d27510c883e9c83a27ba3c46ba1f",
+      "nano_node": "6e0557d6b554c70d5097f8a06acc618842717f3e7c0af2da9b81c3d387495836"
+    }
+  },
+  "privacy": {
+    "external_endpoints": [],
+    "client_requests_during_render": 0,
+    "click_view_fields_in_campaign_schema": 0,
+    "third_party_analytics": "not present in inspected campaign paths"
+  },
+  "test_relay_configuration": {
+    "database": "in-memory",
+    "rate_limits": "disabled only for disposable fixed-count G8 fixture relay",
+    "purpose": "avoid wall-clock throttling during a fixed batch; G9 separately validates rate-limit boundaries",
+    "production_defaults_changed": false
+  },
+  "source_sha256": {
+    "property/tests/offline/campaign-g8-fixed-count.mjs": "2d2bb99670913629897917b267d0277a4eb7efdcfc735281fe4cbaccab2b7ace",
+    "property/tests/offline/g08-ledger-smoke.mjs": "0ad310bd713c1a99b6f033ed82c3ee03546618c66d8b45677d41e16d83ca0c38",
+    "property/tests/offline/browser-g05-smoke.mjs": "a52f4d7fbf09453363d211c5938c7613198eb8b86889a4091997b96d72fa1793",
+    "property/relay/campaign-engine.mjs": "a91b2ed4bf854da1b5795602bda874163a3e4e65776d81ca629fe4a8f156b42f",
+    "property/relay/ledger-rpc.mjs": "2466c0e6d2ceeb375e6417fb4ac4ff67689f489991b1d5aa420f745541cb5844"
+  },
+  "limitations": [
+    "No public relays, mainnet, external endpoints, or real funds were used.",
+    "The report omits private RPC credentials, payment addresses, and raw transaction references.",
+    "The operator JSON-RPC stdio API is embeddable; the plain Geode launcher does not start it.",
+    "Automated fixtures are not a human security audit or a trustless escrow guarantee."
+  ]
+}

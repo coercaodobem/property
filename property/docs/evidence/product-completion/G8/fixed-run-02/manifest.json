@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "gate": "G8",
+  "result": "PASS_AUTOMATED_OFFLINE",
+  "candidate_commit": "3ca0f84a7afda1514e8f061ddb9e7ecc9fceeb5a",
+  "runtime_inventory_sha256": "b7ba15fbb2dfb8ff494a2378752859c4d750e81aef3a73ec047edd9402ae001f",
+  "environment": {
+    "platform": "Ubuntu Linux x86_64",
+    "node": "v22.22.1",
+    "network_isolation": "unshared-netns",
+    "external_endpoints": [],
+    "public_relays": false,
+    "mainnet_enabled": false,
+    "real_funds": false
+  },
+  "fixed_counts": {
+    "campaigns_per_currency": 20,
+    "private_exact_payments_per_currency": 10,
+    "unique_destinations_per_currency": 10,
+    "unique_signed_publications_per_currency": 10,
+    "underpayment_refunds_per_currency": 1,
+    "campaign_decisions_per_currency": 20,
+    "accounting_entries": 69,
+    "accounting_entries_reconciled": 69
+  },
+  "checks": {
+    "all_G08_cases_pass": true,
+    "no_G7_repeat": "NOT_RUN_BY_SCOPE",
+    "no_unconfirmed_campaign_success": true,
+    "wrong_currency_ignored": true,
+    "reorg_and_chain_pop_checked": true,
+    "signed_refund_retry_idempotent": true,
+    "wrong_network_and_rpc_auth_rejected": true,
+    "external_endpoints": [],
+    "real_funds": false,
+    "production_defaults_changed": false
+  },
+  "source_sha256": {
+    "property/tests/offline/campaign-g8-fixed-count.mjs": "2d2bb99670913629897917b267d0277a4eb7efdcfc735281fe4cbaccab2b7ace",
+    "property/tests/offline/g08-ledger-smoke.mjs": "0ad310bd713c1a99b6f033ed82c3ee03546618c66d8b45677d41e16d83ca0c38",
+    "property/tests/offline/browser-g05-smoke.mjs": "a52f4d7fbf09453363d211c5938c7613198eb8b86889a4091997b96d72fa1793",
+    "property/relay/campaign-engine.mjs": "a91b2ed4bf854da1b5795602bda874163a3e4e65776d81ca629fe4a8f156b42f",
+    "property/relay/ledger-rpc.mjs": "2466c0e6d2ceeb375e6417fb4ac4ff67689f489991b1d5aa420f745541cb5844"
+  },
+  "binary_sha256": {
+    "bitcoind": "580ac61190154da31aac3f82d13c4254ef453d70e1bf2c39d338dac5129c92ac",
+    "bitcoin_cli": "83dad233fb62b1b2931efd446f7c66fe02585055143e0f0087c742732c75b52d",
+    "monerod": "f035a7c555aec692705012027a64707f38adeabc4a4c9244f259cd78bb2e84f1",
+    "monero_wallet_rpc": "06f36de37bda72ff377c11700ba622fef435d27510c883e9c83a27ba3c46ba1f",
+    "nano_node": "6e0557d6b554c70d5097f8a06acc618842717f3e7c0af2da9b81c3d387495836"
+  },
+  "evidence_sha256": {
+    "campaign-fixed-count.json": "35c041f5dd59aa044f63c782e5a6d365cd21eb020596d9f37e441560b0c1b7d3",
+    "private-ledger-summary.json": "f406d18f6398a0e537150c16459ff076d20840b9bdf36c201687f707322c3ac3"
+  },
+  "limitations": [
+    "No public relays, mainnet, external endpoints, or real funds were used.",
+    "The report omits private RPC credentials, payment addresses, and raw transaction references.",
+    "The operator JSON-RPC stdio API is embeddable; the plain Geode launcher does not start it.",
+    "Automated fixtures are not a human security audit or a trustless escrow guarantee."
+  ]
+}

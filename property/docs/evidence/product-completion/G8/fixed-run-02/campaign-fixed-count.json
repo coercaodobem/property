@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "gate": "G8-campaign-fixed-count",
+  "result": "PASS",
+  "seed": "property-g8-campaign-fixed-v1",
+  "logical_now_start": 1800000000,
+  "currency_counts": {
+    "BTC": {
+      "submitted": 20,
+      "policy_decisions": 20,
+      "accepted": 18,
+      "rejected": 2,
+      "published": 6,
+      "replaced": 3,
+      "expired": 3,
+      "duplicate_replays": 3,
+      "payment_pending": 2,
+      "mismatches": 2,
+      "held": 2,
+      "invalid_signatures": 5,
+      "unsupported_return": 10,
+      "retention_pruned": 8
+    },
+    "XMR": {
+      "submitted": 20,
+      "policy_decisions": 20,
+      "accepted": 18,
+      "rejected": 2,
+      "published": 6,
+      "replaced": 3,
+      "expired": 3,
+      "duplicate_replays": 3,
+      "payment_pending": 2,
+      "mismatches": 2,
+      "held": 2,
+      "invalid_signatures": 5,
+      "unsupported_return": 10,
+      "retention_pruned": 8
+    },
+    "XNO": {
+      "submitted": 20,
+      "policy_decisions": 20,
+      "accepted": 18,
+      "rejected": 2,
+      "published": 6,
+      "replaced": 3,
+      "expired": 3,
+      "duplicate_replays": 3,
+      "payment_pending": 2,
+      "mismatches": 2,
+      "held": 2,
+      "invalid_signatures": 5,
+      "unsupported_return": 10,
+      "retention_pruned": 8
+    }
+  },
+  "operator_tools": {
+    "names": [
+      "campaign/inspect",
+      "campaign/accept",
+      "campaign/reject",
+      "campaign/list",
+      "campaign/reconcile",
+      "campaign/refund",
+      "campaign/set-publication-scope",
+      "campaign/export-accounting",
+      "campaign/prune-terminal"
+    ],
+    "count": 9,
+    "tcp_listener": false,
+    "stdio_transport_only": true,
+    "publication_scope_selectable_before_payment_confirmation": true,
+    "retention_control": {
+      "BTC": {
+        "pruned": 8,
+        "before_epoch_seconds": 1800010090,
+        "preserved_tombstones": 8
+      },
+      "XMR": {
+        "pruned": 8,
+        "before_epoch_seconds": 1800010090,
+        "preserved_tombstones": 8
+      },
+      "XNO": {
+        "pruned": 8,
+        "before_epoch_seconds": 1800010090,
+        "preserved_tombstones": 8
+      }
+    },
+    "stdio_list_response": true
+  },
+  "accounting": {
+    "entries": 69,
+    "reconciled_entries": 69,
+    "by_currency": {
+      "BTC": {
+        "entries": 23,
+        "reconciled_entries": 23,
+        "currency_total": {
+          "records": 23,
+          "received_atomic_total": "1002",
+          "refunded_atomic_total": "0",
+          "fee_atomic_total": "0"
+        }
+      },
+      "XMR": {
+        "entries": 23,
+        "reconciled_entries": 23,
+        "currency_total": {
+          "records": 23,
+          "received_atomic_total": "1002",
+          "refunded_atomic_total": "0",
+          "fee_atomic_total": "0"
+        }
+      },
+      "XNO": {
+        "entries": 23,
+        "reconciled_entries": 23,
+        "currency_total": {
+          "records": 23,
+          "received_atomic_total": "1002",
+          "refunded_atomic_total": "0",
+          "fee_atomic_total": "0"
+        }
+      }
+    }
+  },
+  "privacy": {
+    "external_endpoints": [],
+    "client_requests_during_render": 0,
+    "click_view_fields_in_campaign_schema": 0,
+    "rejected_offer_payment_addresses": 0,
+    "rejected_returns": "UNSUPPORTED_RETURN; no payment address was issued; no automatic refund is advertised"
+  },
+  "external_endpoints": [],
+  "relay_network": "in-memory local fixture",
+  "funds_used": false
+}
