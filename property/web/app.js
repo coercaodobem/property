@@ -64,6 +64,7 @@
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const MAX_FILE_BATCH_FILES = 5;
   const MAX_FILE_BATCH_BYTES = 4 * 1024 * 1024;
+  const PROPERTY_PUBLIC_NPUB = 'npub1nlqgdylngjt36qr9vpyu5mvhay2s7hmut0heetaxvxqlaaqmughskklevr';
   const MAX_DIRECT_FILE_BATCH_BYTES = DirectFileChunks.MAX_BATCH_BYTES;
   const eventSourceHints = new WeakMap();
   let emojiPicker = null;
@@ -77,7 +78,7 @@
     inboxRelays: [], peerInboxRelays: new Map(), peerRelayHints: new Map(),
     sockets: new Map(), fetchSubs: new Map(), pendingAcks: new Map(), activePeer: '',
     currentConversation: null,
-    activeView: 'hangout', guestReadOnly: true, exploreRefreshSequence: 0, toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingDraftMentions: [], editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
+    activeView: 'hangout', guestReadOnly: true, exploreRefreshSequence: 0, exploreAuthorPubkey: '', exploreAuthorRelayHints: [], toastTimer: 0, reconnectTimers: new Map(), unlocking: false, idleTimer: 0, replyingTo: null, editingMessage: null, editingDraft: '', editingDraftMentions: [], editingReplyingTo: null, forwardingMessage: null, autoSelectedRelays: false,
     communities: [], activeCommunity: null, activeCommunityEvents: [], activeCommunityModerators: new Set(), communityMigrationAdmins: new Set(), communityMigrationCandidates: [], communityMigrationStatus: '', communityRelaySelf: new Map(), communityInviteCode: '',
     typingIndicatorsEnabled: true, typingSession: null, typingSequence: 0, typingRelayLookups: new Map(), remoteTyping: new Map(), typingTimers: new Map(), typingSequences: new Map(), typingSeenEvents: new Set(),
     readReceiptsEnabled: false, readReceiptSent: new Set(), readReceipts: new Map(), readReceiptCandidates: new Map(), readReceiptObserver: null,
@@ -3554,7 +3555,7 @@
     return Routing.inboxRelays(event, N.verifyEvent, normalizeRelay);
   }
   function effectiveRelayUrls() {
-    return [...new Set([...state.relays, ...state.inboxRelays, ...state.peerInboxRelays.values()].flat())];
+    return [...new Set([...state.relays, ...state.inboxRelays, ...state.peerInboxRelays.values(), state.exploreAuthorRelayHints].flat())];
   }
   async function saveRelaySettings(values) {
     state.relays = [...new Set(values.map(normalizeRelay))];
@@ -6251,17 +6252,61 @@
     });
     card.append(block); list.append(card);
   }
+  function renderExploreProfileSummary(pubkey, profile = null) {
+    const summary = $('explore-profile-summary');
+    if (!pubkey) {
+      summary.hidden = true;
+      $('explore-profile-about').hidden = true;
+      return;
+    }
+    summary.hidden = false;
+    $('explore-profile-name').textContent = profile?.displayName || profile?.name || `npub…${N.nip19.npubEncode(pubkey).slice(-8)}`;
+    $('explore-profile-npub').textContent = N.nip19.npubEncode(pubkey);
+    const about = $('explore-profile-about');
+    about.textContent = profile?.about || '';
+    about.hidden = !profile?.about;
+  }
+  async function openExploreProfile(value) {
+    const parsed = Contact.parsePublicKey(value);
+    const relayHints = [...new Set((parsed.relayHints || []).slice(0, 3).map(normalizeRelay))];
+    state.exploreAuthorPubkey = parsed.pubkey;
+    state.exploreAuthorRelayHints = relayHints;
+    $('explore-profile-input').value = value.trim();
+    renderExploreProfileSummary(parsed.pubkey);
+    $('explore-profile-status').textContent = localized(
+      'Reading this public profile from your selected relays and any relay hints in its nprofile.',
+      'Consultando este perfil público nos relays selecionados e nos relays indicados pelo nprofile.'
+    );
+    await refreshHangout();
+  }
+  function clearExploreProfile() {
+    state.exploreAuthorPubkey = '';
+    state.exploreAuthorRelayHints = [];
+    $('explore-profile-input').value = '';
+    $('explore-profile-status').textContent = '';
+    renderExploreProfileSummary('');
+    refreshHangout().catch(() => {});
+  }
   async function refreshHangout() {
     const list = $('hangout-list');
     const sequence = ++state.exploreRefreshSequence;
-    const statusCopy = {
-      loading: [localized('Loading public posts…', 'Carregando publicações públicas…'), localized('Connecting to relays to load the public feed.', 'Conectando aos relays para carregar o feed público.')],
-      offline: [localized('Feed is offline', 'Feed offline'), localized('No selected relay is reachable. Check your connection or relay settings.', 'Nenhum relay selecionado está acessível. Confira sua conexão ou as configurações de relay.')],
-      empty: [localized('No public posts found', 'Nenhuma publicação pública encontrada'), localized('Connected relays returned no public posts. Refresh to check again.', 'Os relays conectados não retornaram publicações públicas. Atualize para consultar novamente.')],
-      error: [localized('Could not load the public feed', 'Não foi possível carregar o feed público'), localized('Check the selected relays and try again.', 'Confira os relays selecionados e tente novamente.')]
+    const selectedAuthor = state.exploreAuthorPubkey;
+    const statusCopy = status => {
+      if (selectedAuthor) return {
+        loading: [localized('Loading profile posts…', 'Carregando publicações do perfil…'), localized('Querying your selected relays for this public identity.', 'Consultando os relays selecionados por esta identidade pública.')],
+        offline: [localized('Profile is offline', 'Perfil indisponível'), localized('No selected relay is reachable. This does not mean the profile has no posts.', 'Nenhum relay selecionado está acessível. Isso não significa que o perfil não tenha publicações.')],
+        empty: [localized('No public posts found for this profile', 'Nenhuma publicação pública encontrada para este perfil'), localized('The queried relays returned no matching posts. Try an nprofile with relay hints or add the author’s relays in settings.', 'Os relays consultados não retornaram publicações. Tente um nprofile com relays indicados ou adicione os relays do autor nas configurações.')],
+        error: [localized('Could not load this profile', 'Não foi possível carregar este perfil'), localized('Check the selected relays and profile address, then try again.', 'Confira os relays selecionados e o endereço do perfil e tente novamente.')]
+      }[status];
+      return {
+        loading: [localized('Loading public posts…', 'Carregando publicações públicas…'), localized('Connecting to relays to load the public feed.', 'Conectando aos relays para carregar o feed público.')],
+        offline: [localized('Feed is offline', 'Feed offline'), localized('No selected relay is reachable. Check your connection or relay settings.', 'Nenhum relay selecionado está acessível. Confira sua conexão ou as configurações de relay.')],
+        empty: [localized('No public posts found', 'Nenhuma publicação pública encontrada'), localized('Connected relays returned no public posts. Refresh to check again.', 'Os relays conectados não retornaram publicações públicas. Atualize para consultar novamente.')],
+        error: [localized('Could not load the public feed', 'Não foi possível carregar o feed público'), localized('Check the selected relays and try again.', 'Confira os relays selecionados e tente novamente.')]
+      }[status];
     };
     const showStatus = status => {
-      list.replaceChildren(makeEmpty(...statusCopy[status]));
+      list.replaceChildren(makeEmpty(...statusCopy(status)));
       list.dataset.state = status;
       list.setAttribute('aria-busy', status === 'loading' ? 'true' : 'false');
     };
@@ -6269,14 +6314,31 @@
     let ordered = [];
     try {
       const campaignSettings = state.guestReadOnly ? { enabled: false } : await getCampaignSettings();
-      const tasks = [fetchEvents({ kinds: [1], limit: 50 })];
-      if (!state.guestReadOnly && campaignSettings.enabled && Campaigns) tasks.push(fetchEvents({ kinds: [Campaigns.KIND], '#t': Campaigns.TAGS, limit: 50 }));
-      const [events, campaigns = []] = await Promise.all(tasks);
+      const profileRelays = [...new Set([...state.relays, ...state.exploreAuthorRelayHints])];
+      const eventsTask = selectedAuthor
+        ? fetchEvents({ kinds: [1], authors: [selectedAuthor], limit: 50 }, 9000, profileRelays)
+        : fetchEvents({ kinds: [1], limit: 50 });
+      const profileTask = selectedAuthor
+        ? fetchEvents({ kinds: [0], authors: [selectedAuthor], limit: 10 }, 7000, profileRelays)
+        : Promise.resolve([]);
+      const campaignsTask = !state.guestReadOnly && campaignSettings.enabled && Campaigns
+        ? fetchEvents({ kinds: [Campaigns.KIND], '#t': Campaigns.TAGS, limit: 50 })
+        : Promise.resolve([]);
+      const [events, profileEvents, campaigns] = await Promise.all([eventsTask, profileTask, campaignsTask]);
       if (sequence !== state.exploreRefreshSequence || state.activeView !== 'hangout') return;
       await renderNodeCampaigns(campaigns);
-      ordered = PropertyExploreFeed.publicPosts(events, event => isProtocolEvent(event, 'public_note'));
+      if (selectedAuthor) {
+        const profile = PublicProfile.latest(profileEvents, selectedAuthor, event => N.verifyEvent(event));
+        renderExploreProfileSummary(selectedAuthor, profile);
+        $('explore-profile-status').textContent = profile
+          ? localized('Public profile metadata loaded from a relay. Names and descriptions are self-described.', 'Metadados do perfil público carregados de um relay. Nome e descrição são autodeclarados.')
+          : localized('No public profile metadata was found; posts may still be available.', 'Nenhum metadado público de perfil foi encontrado; ainda pode haver publicações disponíveis.');
+      }
+      ordered = PropertyExploreFeed.publicPosts(events, event => isProtocolEvent(event, 'public_note'))
+        .filter(event => !selectedAuthor || event.pubkey === selectedAuthor);
       if (!ordered.length) {
-        const online = effectiveRelayUrls().some(url => state.sockets.get(url)?.socket.readyState === WebSocket.OPEN);
+        const checkedRelays = selectedAuthor ? profileRelays : effectiveRelayUrls();
+        const online = checkedRelays.some(url => state.sockets.get(url)?.socket.readyState === WebSocket.OPEN);
         const status = PropertyExploreFeed.state({ online, count: 0 });
         showStatus(status);
         return;
@@ -6292,7 +6354,12 @@
     for (const event of ordered) {
       const card = document.createElement('article'); card.className = 'hangout-card';
       card.dataset.eventId = event.id;
-      const title = document.createElement('h3'); title.textContent = `npub…${N.nip19.npubEncode(event.pubkey).slice(-8)}`;
+      const title = document.createElement('button'); title.type = 'button'; title.className = 'hangout-author button text';
+      title.textContent = `npub…${N.nip19.npubEncode(event.pubkey).slice(-8)}`;
+      title.setAttribute('aria-label', localized(`Open public profile npub…${N.nip19.npubEncode(event.pubkey).slice(-8)}`, `Abrir perfil público npub…${N.nip19.npubEncode(event.pubkey).slice(-8)}`));
+      title.addEventListener('click', () => openExploreProfile(N.nip19.npubEncode(event.pubkey)).catch(error => {
+        $('explore-profile-status').textContent = error.message || localized('Could not open this profile.', 'Não foi possível abrir este perfil.');
+      }));
       const body = document.createElement('p'); body.dataset.userContent = ''; body.textContent = event.content;
       const meta = document.createElement('p'); meta.className = 'hangout-meta';
       const sources = eventSourceHints.get(event) || [];
@@ -7257,7 +7324,7 @@
         refreshing = true; window.location.reload();
       } else showToast('Nova versão disponível. Reabra o app quando terminar.');
     });
-    navigator.serviceWorker.register('./sw.js?v=property-v78', { scope: './', updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=property-v79', { scope: './', updateViaCache: 'none' })
       .then(registration => registration.update())
       .catch(error => console.warn('Property: cache offline indisponível.', error));
   }
@@ -8012,6 +8079,18 @@
       } catch (error) { event.target.checked = false; showToast(error.message || 'Não foi possível salvar a preferência local.'); }
     });
     $('publish-hangout').addEventListener('click', () => publishHangoutPost().catch(error => showToast(error.message || 'Falha ao publicar.')));
+    $('explore-profile-form').addEventListener('submit', event => {
+      event.preventDefault();
+      openExploreProfile($('explore-profile-input').value).catch(error => {
+        $('explore-profile-status').textContent = error.message || localized('Could not open this profile.', 'Não foi possível abrir este perfil.');
+      });
+    });
+    $('open-property-profile').addEventListener('click', () => {
+      openExploreProfile(PROPERTY_PUBLIC_NPUB).catch(error => {
+        $('explore-profile-status').textContent = error.message || localized('Could not open the Property profile.', 'Não foi possível abrir o perfil do Property.');
+      });
+    });
+    $('explore-all-posts').addEventListener('click', clearExploreProfile);
     initializeMarketplaceFilters();
     $('publish-product-button').addEventListener('click', () => openProductEditor());
     $('product-currency').addEventListener('change', () => {

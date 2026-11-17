@@ -11,7 +11,7 @@
   <link rel="icon" href="./assets/icon.svg?v=property-v26" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/property-icon-180.png?v=property-v26">
   <link rel="manifest" href="./manifest.webmanifest?v=property-v34">
-  <link rel="stylesheet" href="./styles.css?v=property-v76">
+  <link rel="stylesheet" href="./styles.css?v=property-v77">
   <link rel="stylesheet" href="./audio-playback.css?v=property-v1">
   <link rel="stylesheet" href="./call-window.css?v=property-v2">
   <link rel="stylesheet" href="./payment-card.css?v=property-v5">
@@ -25,7 +25,7 @@
   <link rel="stylesheet" href="./typing-signals.css?v=property-v2">
   <link rel="stylesheet" href="./property-apps.css?v=property-v1">
   <link rel="stylesheet" href="./identity-marks.css?v=property-v1">
-  <script defer src="./i18n.js?v=property-v84"></script>
+  <script defer src="./i18n.js?v=property-v85"></script>
   <script defer src="./pwa.js?v=property-v36"></script>
   <script defer src="./share-inbox.js?v=property-v34"></script>
   <script defer src="./vendor/nostr-tools-2.25.2.bundle.js?v=property-v26"></script>
@@ -83,7 +83,7 @@
   <script defer src="./identity-marks.js?v=property-v3"></script>
   <script defer src="./protocol-contract.js?v=property-v1"></script>
   <script defer src="./explore-feed.js?v=property-v1"></script>
-  <script defer src="./app.js?v=property-v119"></script>
+  <script defer src="./app.js?v=property-v120"></script>
 </head>
 <body class="guest-mode">
   <main id="active-tab-screen" class="active-tab-screen" hidden role="status" aria-live="polite">
@@ -321,6 +321,21 @@
 
       <section id="hangout-view" class="content-view feature-view">
         <div class="feature-header"><p class="eyebrow">PUBLIC FEED</p><h1>Explore</h1><p>Explore public posts from connected relays. You can browse without an identity.</p><button id="refresh-hangout" class="button secondary" type="button">Refresh feed</button><div id="hangout-publish-panel" class="hangout-publish"><label class="field"><span>Share something publicly</span><textarea id="hangout-text" rows="3" maxlength="4000" placeholder="This content will be public on connected relays."></textarea></label><button id="publish-hangout" class="button secondary" type="button">Post to Hangout</button></div></div>
+        <section class="explore-profile-panel" aria-labelledby="explore-profile-title">
+          <h2 id="explore-profile-title">Open a Nostr profile</h2>
+          <p>Enter a public npub, nprofile, or 64-character public key to read that profile’s public posts from your selected relays. No account or private key is needed. You can also tap an author in Explore.</p>
+          <form id="explore-profile-form" class="explore-profile-form" role="search">
+            <label class="field" for="explore-profile-input"><span>Public Nostr identity</span><input id="explore-profile-input" maxlength="2000" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" placeholder="npub1… or nprofile1…"></label>
+            <div class="explore-profile-actions"><button class="button primary" type="submit">Open profile</button><button id="open-property-profile" class="button secondary" type="button">Property profile</button></div>
+          </form>
+          <p id="explore-profile-status" class="fine-print" role="status" aria-live="polite"></p>
+          <p class="fine-print">Profiles and posts are public. Queried relays can see your request and connection metadata.</p>
+          <div id="explore-profile-summary" class="explore-profile-summary" hidden>
+            <h3 id="explore-profile-name" data-user-content></h3><code id="explore-profile-npub" class="break-code" data-user-content></code>
+            <p id="explore-profile-about" class="fine-print" data-user-content hidden></p>
+            <button id="explore-all-posts" class="button text" type="button">Back to all Explore posts</button>
+          </div>
+        </section>
         <div id="guest-feed-note" class="guest-feed-note" role="note"><p>Public posts are read-only while browsing. Sign in or create an identity to post or message someone.</p><button id="guest-feed-sign-in" class="button primary" type="button">Sign in or create an identity</button></div>
         <section class="community-panel" aria-labelledby="community-heading">
           <div class="community-panel-heading"><div><p class="eyebrow">RELAY-BASED GROUPS · NIP-29</p><h2 id="community-heading">Communities</h2></div><button id="refresh-communities" class="button secondary" type="button">Discover on my relays</button></div>

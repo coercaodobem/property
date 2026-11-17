@@ -3,6 +3,23 @@
   const EN_TO_PT = new Map();
   const PT_TO_EN = new Map();
   const pairs = [
+    ['Open a Nostr profile', 'Abrir perfil Nostr'],
+    ['Enter a public npub, nprofile, or 64-character public key to read that profile’s public posts from your selected relays. No account or private key is needed.', 'Informe um npub, nprofile ou chave pública de 64 caracteres para ler as publicações públicas desse perfil nos relays selecionados. Não é preciso ter conta nem chave privada.'],
+    ['You can also tap an author in Explore.', 'Você também pode tocar no autor de uma publicação do Explore.'],
+    ['Public Nostr identity', 'Identidade pública Nostr'], ['Open profile', 'Abrir perfil'], ['Property profile', 'Perfil do Property'],
+    ['Back to all Explore posts', 'Voltar a todas as publicações do Explore'],
+    ['Profiles and posts are public. Queried relays can see your request and connection metadata.', 'Perfis e publicações são públicos. Os relays consultados podem ver sua solicitação e os metadados da conexão.'],
+    ['Reading this public profile from your selected relays and any relay hints in its nprofile.', 'Consultando este perfil público nos relays selecionados e nos relays indicados pelo nprofile.'],
+    ['Querying your selected relays for this public identity.', 'Consultando os relays selecionados por esta identidade pública.'],
+    ['No selected relay is reachable. This does not mean the profile has no posts.', 'Nenhum relay selecionado está acessível. Isso não significa que o perfil não tenha publicações.'],
+    ['No public posts found for this profile', 'Nenhuma publicação pública encontrada para este perfil'],
+    ['The queried relays returned no matching posts. Try an nprofile with relay hints or add the author’s relays in settings.', 'Os relays consultados não retornaram publicações. Tente um nprofile com relays indicados ou adicione os relays do autor nas configurações.'],
+    ['Could not load this profile', 'Não foi possível carregar este perfil'],
+    ['Check the selected relays and profile address, then try again.', 'Confira os relays selecionados e o endereço do perfil e tente novamente.'],
+    ['Public profile metadata loaded from a relay. Names and descriptions are self-described.', 'Metadados do perfil público carregados de um relay. Nome e descrição são autodeclarados.'],
+    ['No public profile metadata was found; posts may still be available.', 'Nenhum metadado público de perfil foi encontrado; ainda pode haver publicações disponíveis.'],
+    ['Could not open this profile.', 'Não foi possível abrir este perfil.'],
+    ['Could not open the Property profile.', 'Não foi possível abrir o perfil do Property.'],
     ['Apps', 'Aplicativos'], ['BUILT IN · PROPERTY', 'INCLUÍDO · PROPERTY'], ['BUILT IN', 'INCLUÍDO'],
     ['Small experiences that open inside Property and use the conversations you already have.', 'Pequenas experiências que abrem dentro do Property e usam as conversas que você já tem.'],
     ['Chess', 'Xadrez'], ['Play a private chess game with a person in an existing one-to-one conversation. Game updates use encrypted NIP-17 messages and stay out of the normal chat timeline.', 'Jogue uma partida privada de xadrez com alguém em uma conversa direta existente. As jogadas usam mensagens NIP-17 criptografadas e não aparecem na conversa normal.'],

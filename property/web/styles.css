@@ -171,3 +171,16 @@ body:not(.guest-mode) #guest-feed-note{display:none!important}
 @media(max-width:600px){body.guest-mode #hangout-view{padding-bottom:calc(110px + env(safe-area-inset-bottom))}body.guest-mode #hangout-list .empty-state{padding:22px;margin:0 auto 22px}body.guest-mode #hangout-list .empty-symbol{width:48px;height:48px}}
 body.guest-mode #guest-messages-view{display:flex;align-items:center}
 @media(max-width:600px){body.guest-mode #hangout-view .feature-header{padding-top:14px;padding-bottom:8px}body.guest-mode #guest-feed-note{margin-bottom:8px;padding:10px 12px}body.guest-mode #hangout-list .empty-state{padding:12px;margin-bottom:18px}body.guest-mode #hangout-list .empty-symbol{width:40px;height:40px}}
+/* Public Nostr profile lookup stays usable in the narrow mobile Explore view. */
+.explore-profile-panel{max-width:900px;margin:0 auto 18px;padding:18px;border:1px solid #2e3d48;border-radius:16px;background:#17232d}
+.explore-profile-panel h2{margin:0 0 6px;font-size:18px}
+.explore-profile-panel>p{color:var(--muted);font-size:13px}
+.explore-profile-form{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px}
+.explore-profile-form .field{margin:0;min-width:0}
+.explore-profile-actions{display:flex;gap:8px;flex-wrap:wrap}
+.explore-profile-summary{margin-top:14px;padding-top:13px;border-top:1px solid #2e3d48;overflow-wrap:anywhere}
+.explore-profile-summary h3{margin:0 0 6px;font-size:17px}
+.explore-profile-summary code{display:block;color:var(--accent);font-size:12px;overflow-wrap:anywhere}
+.explore-profile-summary p{white-space:pre-wrap}
+.hangout-author{padding:0!important;margin:0 0 5px!important;font-size:15px!important;font-weight:700;text-align:left;overflow-wrap:anywhere}
+@media(max-width:600px){.explore-profile-panel{padding:14px}.explore-profile-form{grid-template-columns:minmax(0,1fr)}.explore-profile-actions{display:grid;grid-template-columns:1fr 1fr}.explore-profile-actions .button{margin:0;min-width:0}.explore-profile-summary .button{width:100%;margin-top:8px}}
