@@ -10,7 +10,7 @@ O Property é um projeto aberto de comunicação social descentralizada, colabor
 
 **[Abrir o app](https://coercaodobem.github.io/property/) · [Como funciona o Property](https://coercaodobem.github.io/property/about.pt-BR.html) · [Como contribuir](CONTRIBUTING.pt-BR.md) · [Roadmap](ROADMAP.pt-BR.md) · [Reportar um problema](https://github.com/coercaodobem/property/issues/new/choose)**
 
-**Property no Nostr:** [perfil do projeto (`npub1nlqgdylngjt36qr9vpyu5mvhay2s7hmut0heetaxvxqlaaqmughskklevr`)](https://njump.me/npub1nlqgdylngjt36qr9vpyu5mvhay2s7hmut0heetaxvxqlaaqmughskklevr) · [post de apresentação e respostas públicas](https://njump.me/note1l2meq6v6y4rd35rtwh5045g6a82p2nwyt6aqtn99ker6muusy5vq5t6n4t)
+**Property no Nostr:** [perfil oficial do projeto (`npub1af374xeuptanwaue6q42prd4rjnapysg8u57m6rwa963x20fr3sq7r8g97`)](https://njump.me/npub1af374xeuptanwaue6q42prd4rjnapysg8u57m6rwa963x20fr3sq7r8g97) · O perfil anterior não é mais o oficial.
 
 **Acesso pelo navegador:** abra o site no dispositivo compatível e, se quiser, adicione a PWA à tela inicial. Não é preciso distribuir o app pela Play Store ou App Store. A interface abre em inglês; selecione **Português (Brasil)** no cabeçalho para mudar o idioma neste aparelho. A seleção é salva localmente. Mensagens, publicações, nomes e ofertas nunca são traduzidos.
 

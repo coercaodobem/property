@@ -64,7 +64,7 @@
   const MAX_NIP17_GROUP_MEMBERS = 10;
   const MAX_FILE_BATCH_FILES = 5;
   const MAX_FILE_BATCH_BYTES = 4 * 1024 * 1024;
-  const PROPERTY_PUBLIC_NPUB = 'npub1nlqgdylngjt36qr9vpyu5mvhay2s7hmut0heetaxvxqlaaqmughskklevr';
+  const PROPERTY_PUBLIC_NPUB = 'npub1af374xeuptanwaue6q42prd4rjnapysg8u57m6rwa963x20fr3sq7r8g97';
   const MAX_DIRECT_FILE_BATCH_BYTES = DirectFileChunks.MAX_BATCH_BYTES;
   const eventSourceHints = new WeakMap();
   let emojiPicker = null;
