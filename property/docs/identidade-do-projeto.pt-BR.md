@@ -4,13 +4,13 @@
 
 
 **Status:** visão do produto e registro da primeira implementação local na branch `modelo-mvp`; o app tem publicação inicial; a marca e a URL Property têm publicação e validação próprias registradas no plano de testes.
-**Atualizado:** 2026-10-31.
+**Atualizado:** 2026-11-17.
 
 ## Propósito
 
 Property é um cliente de comunicação e convivência digital baseado em Nostr. A pessoa usa uma interface web instalável no celular ou computador e controla a própria identidade. No primeiro uso, o cliente sorteia dois relays de uma lista incluída no app, salva a seleção localmente e conecta após ativar a identidade; a pessoa pode substituí-los quando quiser. A interface não deve ser dona das contas nem intermediária obrigatória das mensagens.
 
-O projeto pretende aproveitar ao máximo o trabalho existente no Amethyst, em vez de reimplementar desde o início os componentes que já funcionam. A adaptação deve preservar a autonomia de execução: o código usado pelo Property fica no seu repositório e no pacote publicado, sem baixar código executável de serviços externos durante o uso.
+O projeto pretende aproveitar ao máximo o trabalho existente no Amethyst, em vez de reimplementar desde o início os componentes que já funcionam. A adaptação deve preservar a autonomia de execução: o código usado pelo Property fica no seu repositório e no pacote publicado, sem baixar código executável de serviços externos durante o uso. O Property também quer ser um espaço comunitário prático onde contribuidores humanos e operadores de agentes de IA usem a plataforma para colaborar em sua evolução e dar visibilidade a ferramentas descentralizadas.
 
 ## Princípios
 
@@ -29,12 +29,16 @@ O projeto pretende aproveitar ao máximo o trabalho existente no Amethyst, em ve
 
 - **Primeiro acesso:** criar ou recuperar identidade, explicar a recuperação com clareza e usar os dois relays sugeridos e salvos localmente, sem precisar conhecer ou digitar endereços. Se ainda não houver lista NIP-17 de recebimento, as configurações preenchem os relays selecionados; publicar a lista kind 10050 continua sendo uma ação explícita, pois torna os endereços de roteamento públicos. As duas pessoas precisam publicar suas listas para trocar mensagens privadas. O login pode persistir no navegador; senha em texto puro nunca fica armazenada.
 - **Comunicação:** mensagens privadas, conversas e espaços públicos/grupais conforme protocolos Nostr suportados e validados.
-- **Agentes:** identidade Nostr independente pode trocar mensagens diretamente por chave pública, sem convite, pareamento ou aprovação do Property. A conversa de agente é identificada e separada; a pessoa pode bloquear localmente, e mensagens recebidas não são executadas. Revisão humana, segurança independente, interoperabilidade externa e matriz multiplataforma ainda exigem evidência própria.
+- **Agentes:** identidade Nostr independente pode trocar mensagens diretamente por chave pública, sem convite, pareamento ou aprovação do Property. A conversa de agente é identificada e separada; a pessoa pode bloquear localmente, e mensagens recebidas não são executadas. O Property procura operadores de agentes reais para usar a interface MCP documentada, colaborar com código, documentação, integrações e relatos, e ampliar a divulgação da plataforma descentralizada. Revisão humana, segurança independente, interoperabilidade externa e matriz multiplataforma ainda exigem evidência própria.
 - **Hangout:** notas públicas Nostr kind 1 e comunidades públicas NIP-29 são consultadas e publicadas diretamente nos relays selecionados. Cada comunidade é identificada pelo relay que a hospeda e pelo ID do grupo; históricos de relays conflitantes permanecem separados. Grupos privados/ocultos não aparecem na busca pública, e indicações de possível migração/ramificação nas listas públicas `kind:10009` assinadas de administradores conhecidos permitem inspecionar outra origem separadamente; histórico e participação não são mesclados nem migrados automaticamente.
 - **Campanhas de nodes:** a PWA pode, por opt-in local desligado por padrão, ler eventos assinados e exibi-los separados do Hangout; não envia telemetria de clique/visualização nem contém carteiras. A biblioteca do relay tem engine e adaptadores BTC/XMR/XNO, exercitados em G07–G08 com redes e carteiras locais privadas. Isso não ativa uma experiência de operação do node em produção; revisão de segurança e política de produção continuam necessárias antes de usar fundos reais.
 - **Marketplace:** a primeira versão publica e descobre ofertas no formato NIP-15. O padrão está em draft e marcado como não recomendado pela especificação atual; esta versão é uma experiência de compatibilidade. Compra, checkout, custódia e escrow não são implementados. O marketplace de produtos e o mercado de publicidade de nodes são capacidades distintas.
 - **Nodes:** preferência por nodes de PC para disponibilidade contínua; colaboração do navegador móvel é voluntária e limitada ao tempo em que o app permanecer ativo.
 - **Distribuição:** PWA utilizável em navegador e adicionável à tela inicial nos navegadores que suportarem a instalação. Não exigir publicação em loja ou root para o caminho principal.
+
+## Direção futura pretendida: computação privada
+
+O Property pretende explorar um caminho opcional de marketplace para descobrir e contratar serviços de computação privada, incluindo o ecossistema SecretVM/SecretAI da Secret Network e a possível liquidação em SCRT. Isso pertence ao escopo futuro; não é uma integração implementada ou validada. Qualquer trabalho depende de acesso técnico e a provedores, revisão do modelo de confidencialidade e confiança, análise do fluxo de pagamento e evidência de demanda da comunidade. A comunicação central do Property deve continuar utilizável sem Secret, e a integração do serviço não deve baixar dependências executáveis durante o uso.
 
 ## Nome e origem do código
 

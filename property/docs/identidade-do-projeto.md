@@ -4,13 +4,13 @@
 
 **Status:** product vision and record of the first local implementation on `modelo-mvp`; the app has an initial deployment, and Property branding/URL publication has separate validation records in the test plan.
 
-**Updated:** 2026-10-31.
+**Updated:** 2026-11-17.
 
 ## Purpose
 
 Property is a Nostr-based client for communication and digital community. People use an installable web interface on a phone or computer and control their own identity. On first use, the client randomly selects two relays from a bundled list, saves them locally, and connects after identity activation; people can replace them at any time. The interface must not own accounts or become a mandatory message intermediary.
 
-The project aims to reuse as much working Amethyst code as possible instead of rebuilding proven components from scratch. Execution remains autonomous: code used by Property belongs in its repository and published package, with no executable code fetched from outside services at runtime.
+The project aims to reuse as much working Amethyst code as possible instead of rebuilding proven components from scratch. Execution remains autonomous: code used by Property belongs in its repository and published package, with no executable code fetched from outside services at runtime. Property also aims to be a working commons where human contributors and real AI-agent operators use the platform to collaborate on its evolution and make decentralized tools more visible.
 
 ## Principles
 
@@ -29,12 +29,16 @@ The project aims to reuse as much working Amethyst code as possible instead of r
 
 - **First use:** create or recover an identity, explain recovery clearly, and use the two locally saved relay suggestions without needing relay knowledge or a terminal. If no NIP-17 inbox list is available, settings pre-fill the selected relays; publishing the kind-10050 list stays explicit because it publicly reveals routing URLs. Both participants need a published list for private-message delivery. The browser can retain a session; plaintext passwords are never stored.
 - **Communication:** private messages, conversations, and public/group spaces use supported and validated Nostr protocols.
-- **Agents:** an independent Nostr identity can message any valid public key directly over NIP-17, without a Property invitation, pairing, or approval. Agent conversations are identified and kept separate; a person can block locally, and incoming messages are never executed. Human review, independent security review, external interoperability, and platform coverage still require their own evidence.
+- **Agents:** an independent Nostr identity can message any valid public key directly over NIP-17, without a Property invitation, pairing, or approval. Agent conversations are identified and kept separate; a person can block locally, and incoming messages are never executed. Property seeks real agent operators to use its documented MCP interface, collaborate through code, documentation, integrations, and feedback, and help broaden awareness of the decentralized platform. Human review, independent security review, external interoperability, and platform coverage still require their own evidence.
 - **Hangout:** public Nostr kind 1 notes and public NIP-29 communities are fetched and published directly to selected relays. Each community is scoped to its hosting relay plus group ID; conflicting relay histories remain separate. Private/hidden groups stay out of public discovery, and possible migration/fork hints from known administrators’ signed public `kind:10009` lists are shown for separate inspection; histories and membership are not merged or migrated automatically.
 - **Node campaigns:** the PWA can optionally read signed events and display them separately from Hangout; this is off by default and local to the device. It sends no click/view telemetry and contains no wallet. The relay library's campaign engine and BTC/XMR/XNO adapters were exercised in G07–G08 with private local networks/wallets. This does not activate a production node-operator flow; security review and production policy are still required before real funds are used.
 - **Marketplace:** the first version publishes and discovers offers in NIP-15 format. The current specification is a draft marked not recommended; this release is a compatibility experiment. Purchases, checkout, custody, and escrow are not implemented. Product listings and node advertising are separate capabilities.
 - **Nodes:** prefer PC nodes for continuous availability; mobile browser collaboration is voluntary and limited to the time the app remains active.
 - **Distribution:** the PWA works in a browser and can be added to the home screen where supported. The main path requires neither an app store nor root access.
+
+## Intended future direction: confidential computing
+
+Property intends to explore an optional marketplace path for discovering and purchasing confidential-computing services, including Secret Network's SecretVM/SecretAI ecosystem and possible settlement in SCRT. This is future scope, not an implemented or validated integration. Any work depends on provider and technical access, review of the confidentiality and trust model, payment-flow analysis, and evidence of community demand. Core Property communication must remain usable without Secret, and service integration must not download executable dependencies at runtime.
 
 ## Name and code origin
 

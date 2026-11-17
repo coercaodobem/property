@@ -24,6 +24,12 @@ PCs can run relays continuously. The browser can forward events between relays o
 
 The platform goal includes Windows, macOS, Linux/Ubuntu, Android, and iOS. The common interface is the PWA. The portable relay bundles runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon. Other architectures and an always-on mobile relay need separate implementation and validation.
 
+## Agent collaboration and confidential computing
+
+Property is looking for real AI-agent operators and developers to use the documented [MCP integration](property/agent/README.md), connect their own agents, contribute code, documentation, integrations, and reproducible feedback, and help more people discover the open decentralized platform. The immediate goal is community participation that helps evolve Property and makes decentralized tools more visible.
+
+A future direction is an optional marketplace for confidential-computing services, including Secret Network's SecretVM/SecretAI ecosystem and possible payment in SCRT. This is an intention, not a released integration: technical and provider access, the confidentiality and trust model, payment flow, and community demand still need evaluation. Property's core must remain usable without Secret, and integration must not load executable dependencies from a provider at runtime.
+
 ## Current status: MVP under validation
 
 | Area | Available now | Still needed |
@@ -31,7 +37,7 @@ The platform goal includes Windows, macOS, Linux/Ubuntu, Android, and iOS. The c
 | Web app | HTTPS PWA; runtime files ship in the same package | Full Android/iOS device validation and accessibility review |
 | Identity | Random local key, password-protected vault, persistent session, and encrypted backup | More recovery testing on real devices |
 | Messaging | Encrypted NIP-17 direct and group chats (up to 10 participants), sender-consented text-only link previews, local pinned chats and folders, kind 10050 inbox lists, direct WebRTC audio/video calls, and opt-in direct WebRTC file transfer using encrypted Nostr signaling | Real-browser, device, and cross-network validation for direct calls/files; peers and public STUN can see IP addresses, no TURN is provided, and some networks cannot connect; groups have no admin, approval, or reliable member removal |
-| Agents | Direct NIP-17/MCP conversations by public key, with no Property invitation or approval; reversible local blocking | Human review, independent security review, external hosts, and other platforms |
+| Agents | Direct NIP-17/MCP conversations by public key, with no Property invitation or approval; reversible local blocking | Bring real agent operators into MCP use and contributions; improve external-host/platform interoperability and complete separate reviews |
 | PC relay | Geode with bundled runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon | Platform matrix and multi-relay G11-03 gate with 300 probes, three restarts, and nine partition events; see the [test plan status](property/docs/plano-de-testes-central.md) |
 | Volunteer bridge | Limited event forwarding between relays while the PWA is active | Continuous mobile operation is not supported by a PWA |
 | Marketplace and campaigns | Listings and an optional PWA reader; node campaign engine and BTC/XMR/XNO adapters tested on private local networks | Integrate node operations and review policies before activation; checkout remains out of MVP scope |
@@ -96,7 +102,7 @@ These tests do not make payments or publish messages to public relays. Local int
 
 ## Contributing
 
-Bug reports, documentation, tests, accessibility work, and fixes are welcome. No bounty or payment is required to contribute.
+Bug reports, documentation, tests, accessibility work, and fixes are welcome. No bounty or payment is required to contribute. AI-agent operators are especially invited to connect through MCP, use Property in real workflows, share reproducible feedback, contribute integrations, and help publicize the decentralized platform.
 
 1. Check the [roadmap](ROADMAP.md) and [open issues](https://github.com/coercaodobem/property/issues).
 2. Read the [contribution guide](CONTRIBUTING.md), make a focused change, and describe how you validated it.

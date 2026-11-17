@@ -24,6 +24,12 @@ PCs podem operar relays continuamente. A colaboração da PWA entre relays acont
 
 O objetivo de plataforma inclui Windows, macOS, Linux/Ubuntu, Android e iOS. A interface web é o caminho comum. O relay inclui runtimes para Linux x86_64, Windows x64 e macOS Apple Silicon; os testes por sistema ficam registrados no plano. Outras arquiteturas e relay móvel contínuo exigem implementação própria.
 
+## Colaboração de agentes e computação privada
+
+O Property procura operadores de agentes de IA e desenvolvedores para usar a [integração MCP](property/agent/README.md), conectar seus próprios agentes, contribuir com código, documentação, integrações e relatos reproduzíveis, e ajudar mais pessoas a conhecer a plataforma descentralizada. A prioridade imediata é a participação da comunidade para evoluir o Property e dar visibilidade a ferramentas descentralizadas.
+
+Uma direção futura é um marketplace opcional de serviços de computação privada, incluindo o ecossistema SecretVM/SecretAI da Secret Network e a possível opção de pagamento em SCRT. Isso é uma intenção, não uma integração publicada: ainda é preciso avaliar acesso técnico e a provedores, o modelo de confidencialidade e confiança, o fluxo de pagamento e a demanda da comunidade. O núcleo do Property deve continuar utilizável sem Secret, e a integração não deve carregar dependências executáveis de provedores durante o uso.
+
 ## Estado atual: MVP em validação
 
 | Área | O que existe hoje | O que ainda falta |
@@ -31,7 +37,7 @@ O objetivo de plataforma inclui Windows, macOS, Linux/Ubuntu, Android e iOS. A i
 | Interface web | PWA publicada em HTTPS; arquivos de execução servidos do próprio pacote | Validação completa em Android/iOS e acessibilidade |
 | Identidade | Chave aleatória local, cofre cifrado por senha, sessão persistente e backup cifrado | Mais testes de recuperação e uso em aparelhos reais |
 | Mensagens | Conversas diretas e grupos NIP-17 criptografados (até 10 participantes), prévias de link em texto com consentimento de quem envia, conversas fixadas e pastas locais, listas inbox kind 10050, chamadas diretas de áudio/vídeo por WebRTC e transferência direta opcional de arquivos por WebRTC com sinalização Nostr criptografada | Validação em navegadores, aparelhos e redes diferentes para chamadas e arquivos diretos; os peers e STUN público podem ver o IP, não há TURN e algumas redes não conectam; grupos não têm administração, aprovação ou remoção confiável de membros |
-| Agentes | Conversas diretas via NIP-17/MCP por chave pública, sem convite nem aprovação do Property; bloqueio local reversível | Revisão humana, revisão independente de segurança, hosts externos e outras plataformas |
+| Agentes | Conversas diretas via NIP-17/MCP por chave pública, sem convite nem aprovação do Property; bloqueio local reversível | Atrair operadores para uso real do MCP e contribuições; melhorar interoperabilidade com hosts/plataformas externas e concluir revisões específicas |
 | Relay de PC | Geode com runtime incluído para Linux x86_64, Windows x64 e macOS Apple Silicon | Matriz por plataforma e gate multi-relay G11-03 com 300 probes, três reinícios e nove eventos de partição; veja o [status do plano](property/docs/plano-de-testes-central.pt-BR.md) |
 | Ponte voluntária | Encaminhamento limitado entre relays enquanto a PWA está ativa | Operação móvel contínua não é suportada pela PWA |
 | Marketplace e campanhas | Ofertas e leitor opcional na PWA; engine de node e adaptadores BTC/XMR/XNO testados em redes privadas locais | Integrar operação do node e revisar políticas antes de ativar campanhas; checkout continua fora do MVP |
@@ -96,7 +102,7 @@ Esses testes não dependem de pagamentos ou publicação de mensagens em relays 
 
 ## Contribuir
 
-São bem-vindos relatos de bugs, documentação, testes, acessibilidade e correções. Não é necessário oferecer bounty ou pagamento para propor uma contribuição.
+São bem-vindos relatos de bugs, documentação, testes, acessibilidade e correções. Não é necessário oferecer bounty ou pagamento para propor uma contribuição. Operadores de agentes de IA são especialmente convidados a conectar pelo MCP, usar o Property em fluxos reais, compartilhar relatos reproduzíveis, contribuir com integrações e ajudar a divulgar a plataforma descentralizada.
 
 1. Confira o [roadmap](ROADMAP.pt-BR.md) e as [issues do Property](https://github.com/coercaodobem/property/issues).
 2. Leia [CONTRIBUTING.pt-BR.md](CONTRIBUTING.pt-BR.md), prepare uma alteração pequena e descreva como a validou.

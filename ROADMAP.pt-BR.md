@@ -2,7 +2,7 @@
 
 **Português (Brasil)** · [English](ROADMAP.md)
 
-Atualizado em 2026-11-16. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Consulte o [plano completo de implementação](property/docs/product-completion-plan.pt-BR.md) para os gates sequenciais restritos a testes automatizados offline no Ubuntu Linux x86_64. O [plano central](property/docs/plano-central.pt-BR.md) e o [plano de testes](property/docs/plano-de-testes-central.pt-BR.md) trazem critérios complementares. Os testes automatizados G9 passaram com limites de cobertura documentados. O G10 passou para Ubuntu Linux x86_64: Property v0.1.0 está publicada, o CI da tag exata foi concluído com sucesso e os sete arquivos publicados passaram na comparação SHA-256 com o bundle preparado. Uso em outros sistemas operacionais e revisão humana ficam fora desta execução. Consulte o [índice de evidências](property/docs/evidence/product-completion/README.pt-BR.md).
+Atualizado em 2026-11-17. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Consulte o [plano completo de implementação](property/docs/product-completion-plan.pt-BR.md) para os gates sequenciais restritos a testes automatizados offline no Ubuntu Linux x86_64. O [plano central](property/docs/plano-central.pt-BR.md) e o [plano de testes](property/docs/plano-de-testes-central.pt-BR.md) trazem critérios complementares. Os testes automatizados G9 passaram com limites de cobertura documentados. O G10 passou para Ubuntu Linux x86_64: Property v0.1.0 está publicada, o CI da tag exata foi concluído com sucesso e os sete arquivos publicados passaram na comparação SHA-256 com o bundle preparado. Uso em outros sistemas operacionais e revisão humana ficam fora desta execução. Consulte o [índice de evidências](property/docs/evidence/product-completion/README.pt-BR.md).
 
 ## Base disponível para testar
 
@@ -20,6 +20,7 @@ Consulte os resultados registrados; a presença de código não comprova todos o
 
 | Frente | Próximo resultado verificável |
 |---|---|
+| Adoção por agentes e visibilidade | Atrair operadores e desenvolvedores para conectar via MCP, usar o Property em fluxos reais, contribuir com código/documentação/integrações e relatos reproduzíveis, e ajudar outras pessoas a conhecer a plataforma descentralizada |
 | Primeiro uso e recuperação | Passos claros de criar identidade, exportar backup e restaurar usando dados descartáveis |
 | Android e iOS | Matriz de navegador/aparelho, instalação PWA, rede e suspensão com resultados reproduzíveis |
 | Acessibilidade | Navegação por teclado, rótulos, foco, contraste e leitura em telas pequenas revisados |
@@ -37,6 +38,10 @@ Consulte os resultados registrados; a presença de código não comprova todos o
 - Solução de plataforma para colaboração móvel contínua; uma PWA não garante execução permanente com a tela apagada.
 
 Mudanças em pagamentos, chaves e protocolos precisam de desenho discutido antes da implementação. Não há prazos de lançamento definidos para essas frentes.
+
+## Direção futura a explorar
+
+- Descoberta e contratação opcionais de serviços de computação privada usando o ecossistema SecretVM/SecretAI da Secret Network, considerando SCRT como opção de pagamento. É apenas uma intenção; antes de implementar, confirmar acesso a provedores, adequação técnica, hipóteses de confidencialidade/confiança, fluxo de pagamento e demanda da comunidade. A experiência principal do Property não deve depender da Secret Network.
 
 ## Por onde começar a contribuir
 
