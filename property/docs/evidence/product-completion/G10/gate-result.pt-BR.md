@@ -32,3 +32,7 @@
 - [Kit em inglês](../../../launch-kit.md) · [Português (Brasil)](../../../launch-kit.pt-BR.md)
 
 O G10 está concluído para o escopo de release Ubuntu/Linux x86_64. A validação dos outros sistemas continua pendente conforme o escopo.
+
+## Transição da chave de assinatura
+
+A release pública verificada `property-v0.1.0` continua assinada pela chave histórica, e os digests públicos de seus artefatos correspondem ao manifesto assinado. A nova impressão digital confiável `000dd5016afb1f8eced1ba3de80d93a187f6079ae71398063229626a33bcbe36` foi autorizada e publicada na branch de código; o G2 registra a evidência de dois builds reproduzíveis. Isso não substitui nem altera a v0.1.0. Como a chave privada antiga está indisponível, a documentação do instalador exige que os usuários verifiquem a referência exata da fonte confiável e a nova impressão digital antes de aceitar uma release futura. Não afirmamos publicação ou assinatura da v0.1.1.

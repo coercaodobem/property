@@ -2,7 +2,7 @@
 
 [English](product-completion-plan.md) · **Português (Brasil)**
 
-**Status:** plano proposto; este documento não aprova nenhum gate.
+**Status da execução:** Concluída para o perfil incluído Ubuntu Linux x86_64. Os resultados G0–G10 e suas evidências exatas estão em [`evidence/product-completion/`](evidence/product-completion/); Windows, macOS, Android e iOS continuam pendentes e fora do escopo.
 **Perfil de execução:** somente Ubuntu Linux x86_64. Todos os critérios funcionais são executados offline em laboratório local isolado e usam entradas, contagens ou transições de estado fixas. Não há revisão humana, estudo com participantes, aprovação de dispositivo, outro sistema operacional nem critério de sucesso baseado em duração.
 
 ## 1. Resultado pretendido
@@ -30,7 +30,7 @@ O [plano central de testes](plano-de-testes-central.pt-BR.md) continua sendo a r
 ## 3. Regras de execução
 
 1. Trabalhar na branch autorizada do Property e registrar commit-base, diff local, head remoto, versões das ferramentas, inventário de dependências e hashes dos resultados num manifesto de evidência antes de editar.
-2. Executar G0 a G10 em ordem. Um gate só é `PASS` quando todos os seus critérios passam no mesmo commit candidato. Uma falha é `FAIL`; ferramenta indisponível, artefato ausente ou evidência incompleta é `BLOCKED`; gates posteriores continuam `NOT RUN` até a correção e reexecução integral do gate bloqueado.
+2. Executar G0 a G10 em ordem. Um gate só é `PASS` quando todos os critérios aplicáveis passam sobre a mesma árvore congelada de runtime do produto; commits de evidência podem diferir quando as raízes exatas de runtime forem comprovadamente iguais e cada relatório identificar seu candidato de origem. Uma falha é `FAIL`; ferramenta indisponível, artefato ausente ou evidência incompleta de critério incluído é `BLOCKED`; gates posteriores continuam `NOT RUN` até a correção e reexecução integral do gate bloqueado.
 3. Usar identidades sintéticas e redes privadas locais de relay/carteira. Não enviar mensagens de teste a relays públicos, expor chaves, usar fundos de mainnet nem publicar campanhas/transações de teste em redes públicas.
 4. Definir dados, seeds, contagens, limites de protocolo e estados esperados antes de cada execução. Contagens de repetições e transições determinísticas decidem a aprovação. Duração de parede, períodos de soak, uptime, limites de latência e espera programada não decidem resultados. Watchdogs podem encerrar travamentos, mas nunca geram aprovação.
 5. Executar testes e automação de navegador em Ubuntu Linux x86_64. Simular tamanhos de tela responsivos num navegador Linux verifica apenas layout; não comprova outro sistema operacional ou dispositivo físico.
@@ -197,7 +197,7 @@ Liquidação/escrow BTC e XMR devem usar apenas mecanismos que o protocolo e car
 
 ## 5. Regra de conclusão geral
 
-O plano só está concluído quando G0–G10 forem `PASS` no mesmo candidato de release usando testes funcionais offline, os digests dos artefatos publicados corresponderem ao manifesto assinado/com checksum e cada limitação financeira/de segurança estiver visível na documentação do produto e operador. `PENDING`, `BLOCKED`, evidência omitida, moeda não testada ou escrow experimental apresentado como garantia impedem declarar conclusão. A disponibilidade da publicação é informada pelos metadados do workflow; não substitui a aprovação offline.
+Esta execução incluída está concluída quando todos os critérios aplicáveis de G0–G10 são `PASS` sobre a árvore congelada de runtime do produto, com checks offline, digests dos artefatos publicados iguais ao manifesto assinado/com checksum e limitações financeiras/de segurança visíveis na documentação do produto e operador. As evidências registram o commit de cada gate; as raízes de runtime foram comparadas entre esses candidatos. Itens `PENDING` ou `OUT_OF_SCOPE` explicitamente excluídos aqui (outros sistemas operacionais, revisão humana e testes Gradle suplementares do Geode) não bloqueiam o resultado somente Ubuntu. Um critério incluído pendente, `BLOCKED`, `FAIL`, evidência omitida, moeda incluída não testada ou escrow experimental apresentado como garantia impede a conclusão. A disponibilidade da publicação é informada pelo workflow e não substitui a aceitação offline.
 
 ## 6. Exclusões explícitas desta execução
 

@@ -16,4 +16,10 @@ O JRE Temurin incluído é 21.0.13+9, mas estes scans não oferecem cobertura di
 
 Cobertura e triagem completas: [`security-coverage.json`](fixed-run-03/security-coverage.json), [`security-triage.json`](fixed-run-03/security-triage.json), [relatório OSV](fixed-run-03/osv-candidate-all.json), [relatório Trivy](fixed-run-03/trivy-geode-rootfs.json), [relatório Semgrep](fixed-run-03/semgrep-candidate.json), [relatório de padrões de segredo](fixed-run-03/secret-pattern-scan-candidate.json) e [SBOM](fixed-run-03/SBOM.spdx.json). O CI foi o [run 43922994219](https://github.com/coercaodobem/property/actions/runs/43922994219).
 
-Este resultado registra as novas verificações G9 no candidato acima. Os relatórios G0–G8 preservam seus identificadores de candidato originais; eles não foram repetidos nesta atualização de segurança.
+Este resultado registra as verificações G9 no candidato `111926e34fd9e654cf4d0fe550c8ba5c267542ba`. Os relatórios G0–G8 preservam seus identificadores originais; gates já aprovados não foram repetidos.
+
+## Reconciliação com a branch atual
+
+O head público atual é [`58d49f85a464a3846f130b435714f124107bb2ba`](https://github.com/coercaodobem/property/commit/58d49f85a464a3846f130b435714f124107bb2ba). As raízes de runtime distribuídas `property/web`, `property/agent` e `property/relay` permanecem idênticas entre esse head e todos os candidatos registrados nos gates G0–G10. A varredura limitada de segredos no head exato verificou 263 arquivos de texto contra quatro padrões de credenciais/chaves e encontrou zero correspondências; 303 arquivos binários ou UTF-8 inválidos foram ignorados. A comparação e o resultado legível por máquina estão em [`fixed-run-04/`](fixed-run-04/).
+
+Os resultados de dependências e análise estática do G9 continuam cobrindo o mesmo runtime distribuído. A rotação autorizada da chave de assinatura está coberta separadamente pelo G2: a impressão digital da chave confiável atual é `000dd5016afb1f8eced1ba3de80d93a187f6079ae71398063229626a33bcbe36`, igual à registrada na evidência dos dois builds do G2. A release pública v0.1.0 continua verificável com sua impressão digital histórica `60025655e12c534e41003d8d87c3080c33b3e72f86bb19dbcda14182684f670c`; não afirmamos assinatura cruzada nem nova assinatura.

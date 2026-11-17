@@ -16,4 +16,10 @@ The bundled Temurin JRE is 21.0.13+9, but these scans do not provide direct bina
 
 Full machine-readable coverage and triage: [`security-coverage.json`](fixed-run-03/security-coverage.json), [`security-triage.json`](fixed-run-03/security-triage.json), [`OSV report`](fixed-run-03/osv-candidate-all.json), [`Trivy report`](fixed-run-03/trivy-geode-rootfs.json), [`Semgrep report`](fixed-run-03/semgrep-candidate.json), [`secret-pattern report`](fixed-run-03/secret-pattern-scan-candidate.json), and [`SBOM`](fixed-run-03/SBOM.spdx.json). The CI run is [43922994219](https://github.com/coercaodobem/property/actions/runs/43922994219).
 
-This result records the new G9 checks on the exact candidate above. G0–G8 reports retain their original candidate identifiers; they were not rerun as part of this security update.
+This result records the G9 checks on candidate `111926e34fd9e654cf4d0fe550c8ba5c267542ba`. G0–G8 reports retain their original candidate identifiers; previously passed gates were not rerun.
+
+## Current-branch reconciliation
+
+The current public branch head is [`58d49f85a464a3846f130b435714f124107bb2ba`](https://github.com/coercaodobem/property/commit/58d49f85a464a3846f130b435714f124107bb2ba). The shipped runtime roots `property/web`, `property/agent`, and `property/relay` are unchanged between this head and every recorded gate candidate (G0–G10). The exact-head limited secret scan checked 263 text files against four credential/key patterns and found zero matches; 303 binary or invalid-UTF-8 files were skipped. The machine-readable comparison and scan output are in [`fixed-run-04/`](fixed-run-04/).
+
+G9's dependency and static-analysis results therefore still cover the same shipped runtime. The authorized signing-key rotation is separately covered by G2: the current trusted key fingerprint is `000dd5016afb1f8eced1ba3de80d93a187f6079ae71398063229626a33bcbe36`, matching the two-build G2 evidence. The public v0.1.0 release remains verifiable with its historical key fingerprint `60025655e12c534e41003d8d87c3080c33b3e72f86bb19dbcda14182684f670c`; no cross-signature or re-signing claim is made.

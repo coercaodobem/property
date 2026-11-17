@@ -32,3 +32,7 @@
 - [English launch kit](../../../launch-kit.md) · [Português (Brasil)](../../../launch-kit.pt-BR.md)
 
 G10 is complete for the Ubuntu/Linux x86_64 release scope. Other operating-system validation remains pending as explicitly scoped.
+
+## Signing-key transition
+
+The verified public release `property-v0.1.0` remains signed by its historical key and its published asset digests match the signed manifest. The new trusted fingerprint `000dd5016afb1f8eced1ba3de80d93a187f6079ae71398063229626a33bcbe36` is authorized and published in the source branch; G2 records its reproducible two-build evidence. This does not replace or alter v0.1.0. Because the old private signing key is unavailable, the installer documentation requires users to verify the exact trusted source ref and new fingerprint before accepting a subsequent release. No v0.1.1 publication or signature is claimed here.

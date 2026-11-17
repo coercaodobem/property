@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "gate": "G9",
+  "result": "PASS_WITH_CURRENT_BRANCH_RECONCILIATION",
+  "current_branch": "modelo-mvp",
+  "current_head": "58d49f85a464a3846f130b435714f124107bb2ba",
+  "security_scan_candidate": "111926e34fd9e654cf4d0fe550c8ba5c267542ba",
+  "runtime_roots": [
+    "property/web",
+    "property/agent",
+    "property/relay"
+  ],
+  "recorded_gate_candidates": {
+    "G0-G4": "4e1b231ccd190af569dd2890022dd4e8d053fcc8",
+    "G5": "654f539e986a6804e2aa4d673e52d0a96ba26fb7",
+    "G6": "456f1603e55d45d7b55d487b9eeb6099b74a4244",
+    "G7": "907577fa378b0f09c25ef13fd4f02eed975eab6d",
+    "G8": "3ca0f84a7afda1514e8f061ddb9e7ecc9fceeb5a",
+    "G9-G10": "111926e34fd9e654cf4d0fe550c8ba5c267542ba"
+  },
+  "runtime_tree_comparison": {
+    "method": "git diff --quiet <gate-candidate> 58d49f85a464a3846f130b435714f124107bb2ba -- property/web property/agent property/relay",
+    "all_candidates_unchanged": true,
+    "exit_code_for_each_comparison": 0
+  },
+  "current_head_limited_secret_scan": {
+    "report": "secret-pattern-scan-candidate.json",
+    "text_files_scanned": 263,
+    "binary_or_invalid_utf8_files_skipped": 303,
+    "patterns": [
+      "aws_access_id",
+      "github_token",
+      "nostr_nsec",
+      "private_key_pem"
+    ],
+    "matches": 0
+  },
+  "signing_key_transition": {
+    "current_public_key_fingerprint_sha256": "000dd5016afb1f8eced1ba3de80d93a187f6079ae71398063229626a33bcbe36",
+    "source_commit": "4e1b231ccd190af569dd2890022dd4e8d053fcc8",
+    "source_commit_is_ancestor_of_current_head": true,
+    "publication_authorized_for_exact_fingerprint": true,
+    "g2_two_build_archive_sha256": "2d51240a76ed902101b3284454f76c0a6a8aad6070916f29f446005283923c70",
+    "g2_two_build_manifest_sha256": "f5626dc23063a97011b2c5f4d25e6c0d63578644bb4a9843b174bd0139762b01",
+    "historical_v0_1_0_key_fingerprint_sha256": "60025655e12c534e41003d8d87c3080c33b3e72f86bb19dbcda14182684f670c",
+    "cross_signature_available": false
+  },
+  "limitations": [
+    "Secret scan covers four high-confidence text patterns only; it is not a comprehensive or binary scan.",
+    "Dependency database freshness and direct bundled JRE CVE coverage remain as documented in fixed-run-03.",
+    "Supplemental Geode Gradle tests remain PENDING_SUPPLEMENTAL and are not an explicit G9 acceptance criterion.",
+    "No other operating system or human review was performed."
+  ]
+}

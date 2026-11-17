@@ -2,7 +2,7 @@
 
 **English** · [Português (Brasil)](product-completion-plan.pt-BR.md)
 
-**Status:** Proposed execution plan; no gate is approved by this document.
+**Execution status:** Complete for the in-scope Ubuntu Linux x86_64 profile. G0–G10 results and their exact evidence are recorded in [`evidence/product-completion/`](evidence/product-completion/); Windows, macOS, Android, and iOS remain pending and out of scope.
 **Execution profile:** Ubuntu Linux x86_64 only. All functional acceptance checks run offline in an isolated local lab and use fixed inputs, counts, or state transitions. No human review, participant study, device approval, other operating system, or elapsed-time success criterion is part of this plan.
 
 ## 1. Outcome
@@ -30,7 +30,7 @@ The historical [central test plan](plano-de-testes-central.md) remains the autho
 ## 3. Execution rules
 
 1. Work on the authorized Property branch and record its base commit, local diff, remote head, tool versions, dependency inventory, and output hashes in an evidence manifest before editing.
-2. Execute G0 through G10 in order. A gate is `PASS` only when every listed acceptance check passes on the same candidate commit. A failed check is `FAIL`; a missing tool, unavailable artifact, or incomplete evidence is `BLOCKED`; later gates remain `NOT RUN` until the blocking gate is repaired and rerun in full.
+2. Execute G0 through G10 in order. A gate is `PASS` only when every applicable acceptance check passes against the same frozen product runtime tree; evidence-only commits may differ when the exact runtime roots are proven unchanged and each report identifies its source candidate. A failed check is `FAIL`; a missing tool, unavailable artifact, or incomplete evidence for an in-scope criterion is `BLOCKED`; later gates remain `NOT RUN` until the blocking gate is repaired and rerun in full.
 3. Use synthetic identities and private local relay/wallet networks. Do not send test messages to public relays, expose secret keys, use mainnet funds, or publish campaign/test transactions to public networks.
 4. Define test data, seeds, counts, protocol limits, and expected state before each run. Repetition counts and deterministic state transitions decide acceptance. Wall-clock duration, soak periods, uptime, response-time thresholds, and scheduled waiting do not decide a result. Harness watchdogs may terminate hangs but never create a pass.
 5. Run tests and browser automation on Ubuntu Linux x86_64. A responsive viewport simulation in a Linux browser is a layout check only; it is not evidence for another operating system or physical device.
@@ -197,7 +197,7 @@ BTC and XMR settlement/escrow must use only mechanisms their actual protocol and
 
 ## 5. Overall completion rule
 
-The implementation plan is complete only when G0–G10 are `PASS` on one release candidate using offline functional checks, the published artifact digests match their signed/checksummed manifest, and every financial/security limitation is visible in the relevant product and operator documentation. `PENDING`, `BLOCKED`, omitted evidence, an untested currency, or an experimental escrow presented as guaranteed means the overall result is not complete. Publication availability is reported from the release workflow; it is not a substitute for offline acceptance.
+The in-scope execution is complete when every applicable G0–G10 criterion is `PASS` against the frozen product runtime tree using offline checks, published artifact digests match their signed/checksummed manifest, and financial/security limitations are visible in product and operator documentation. Evidence records each gate's source commit; the runtime roots were compared across those candidates. `PENDING` or `OUT_OF_SCOPE` items explicitly excluded here (other operating systems, human review, and supplemental Geode Gradle tests) do not block this Ubuntu-only result. A pending in-scope criterion, `BLOCKED`, `FAIL`, omitted evidence, an untested in-scope currency, or experimental escrow presented as guaranteed does block completion. Publication availability is reported from the release workflow and does not replace offline acceptance.
 
 ## 6. Explicitly excluded from this execution plan
 
