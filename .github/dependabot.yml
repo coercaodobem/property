@@ -6,9 +6,6 @@ updates:
     directory: /
     schedule:
       interval: monthly
-    labels:
-      - release-ops
-      - dependencies
     commit-message:
       prefix: chore(actions)
     groups:
