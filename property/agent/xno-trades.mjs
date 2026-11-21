@@ -149,7 +149,8 @@ export function createXnoTradeService({ pubkey, blockedPubkeys = () => [], relay
   }
 
   async function createOffer(params) {
-    if (!exactObject(params, ['recipient_pubkey', 'amount_raw', 'terms', 'expires_in_seconds'])) throw new Error('invalid-arguments');
+    const required = ['recipient_pubkey', 'amount_raw', 'terms', 'expires_in_seconds'];
+    if (!exactObject(params, required) && !exactObject(params, [...required, 'trade_id'])) throw new Error('invalid-arguments');
     ensurePeerAllowed(params.recipient_pubkey);
     const amount = raw(params.amount_raw);
     const terms = validateToolText(params.terms);
@@ -160,14 +161,21 @@ export function createXnoTradeService({ pubkey, blockedPubkeys = () => [], relay
     await wallet.assertReady();
     const current = now();
     if (!Number.isSafeInteger(current) || current < 0) throw new Error('invalid-logical-clock');
-    const tradeId = randomId();
+    const tradeId = params.trade_id ?? randomId();
     if (!TRADE_ID.test(tradeId)) throw new Error('xno-trade-id-invalid');
     const offer = { protocol: XNO_TRADE_PROTOCOL, type: 'offer', trade_id: tradeId, buyer_pubkey: params.recipient_pubkey,
       seller_pubkey: pubkey, seller_account: wallet.account, amount_raw: amount.toString(), terms, terms_sha256: digest(terms),
       created_at: current, expires_at: current + ttl };
+    const state = await journal();
+    const previous = state.offers[tradeId];
+    if (previous) {
+      if (previous.peer_pubkey !== params.recipient_pubkey || previous.account !== wallet.account || previous.amount_raw !== amount.toString() ||
+          previous.terms_sha256 !== offer.terms_sha256) throw new Error('xno-trade-id-reused');
+      return { status: 'already-sent', trade_id: tradeId, offer_message_id: previous.message_id, amount_raw: amount.toString(),
+        seller_account: wallet.account, expires_at: offer.expires_at, duplicated: true, relay_acks: 0, relay_attempts: 0 };
+    }
     const result = await transport.sendMessage(params.recipient_pubkey, canonicalJson(offer, 8 * 1024), null, configRelays());
     if (!result || !/^[0-9a-f]{32}$/.test(result.message_id || '')) throw new Error('xno-offer-send-failed');
-    const state = await journal();
     state.offers[tradeId] = { trade_id: tradeId, peer_pubkey: params.recipient_pubkey, account: wallet.account,
       amount_raw: amount.toString(), terms_sha256: offer.terms_sha256, message_id: result.message_id };
     await saveJournal(validateXnoJournal(state));

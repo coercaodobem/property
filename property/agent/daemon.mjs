@@ -16,6 +16,7 @@ import { createXnoThresholdProtocol } from './xno-threshold-protocol.mjs';
 import { createBitcoinCoreLedger, createMoneroWalletLedger, createNanoNodeLedger } from './ledger-rpc.mjs';
 import { createTradeStateMachine } from './trade-state.mjs';
 import { createTradeConversationService } from './trade-conversation.mjs';
+import { createPaidJobService } from './paid-jobs.mjs';
 import { createTradeEvidenceSigner, createEncryptedTradeJournalStore } from './trade-state-store.mjs';
 import { validateTradeNodeConfig } from './trade-node-config.mjs';
 
@@ -63,6 +64,7 @@ export async function runDaemon({ password, profile = 'default', env = process.e
   let xnoEscrow = null;
   let xnoThreshold = null;
   let tradeConversations = null;
+  let paidJobs = null;
   try {
     try {
       const envelope = await readJson(paths.xnoVaultPath);
@@ -135,6 +137,8 @@ export async function runDaemon({ password, profile = 'default', env = process.e
       tradeConversations = createTradeConversationService({ pubkey, machine, transport,
         blockedPubkeys: () => configSnapshot.blocked_pubkeys, relays: () => configSnapshot.inbox_relays, now });
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    paidJobs = createPaidJobService({ pubkey, transport, xnoTrades,
+      blockedPubkeys: () => configSnapshot.blocked_pubkeys, relays: () => configSnapshot.inbox_relays, now });
   } catch (error) {
     try { await xnoWallet?.lock(); } catch {}
     try { await xnoEscrowWallet?.lock(); } catch {}
@@ -146,7 +150,7 @@ export async function runDaemon({ password, profile = 'default', env = process.e
   const service = new AgentService({
     pubkey, loadConfig,
     saveConfig: async config => { configSnapshot = validateConfig(config); await writePrivateJson(paths.configPath, configSnapshot); },
-    transport, xnoTrades, xnoEscrow, xnoThreshold, tradeConversations, now,
+    transport, xnoTrades, xnoEscrow, xnoThreshold, tradeConversations, paidJobs, now,
   });
   let shutdown;
   const stop = await startUnixJsonServer(paths.socketPath, async (method, params) => {

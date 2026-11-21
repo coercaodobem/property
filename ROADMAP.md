@@ -1,11 +1,12 @@
 # Property Roadmap
 
-Updated 2026-11-17. This roadmap guides contributions; it is not a schedule or a promise that a feature is complete. The working branch is `modelo-mvp`. See the [product completion plan](property/docs/product-completion-plan.md) for sequential implementation gates restricted to offline automated checks on Ubuntu Linux x86_64. The [central plan](property/docs/plano-central.md) and [test plan](property/docs/plano-de-testes-central.md) provide additional criteria. G9 automated security checks passed with documented coverage limits. G10 passed for Ubuntu Linux x86_64: Property v0.1.0 is public, exact-tag CI succeeded, and all seven published assets passed SHA-256 comparison against the prepared bundle. Non-Ubuntu usage and human review remain outside this execution. See the [evidence index](property/docs/evidence/product-completion/README.md). [Português (Brasil)](ROADMAP.pt-BR.md)
+Updated 2026-11-21. This roadmap guides contributions; it is not a schedule or a promise that a feature is complete. The working branch is `modelo-mvp`. See the [product completion plan](property/docs/product-completion-plan.md) for sequential implementation gates restricted to offline automated checks on Ubuntu Linux x86_64. The [central plan](property/docs/plano-central.md) and [test plan](property/docs/plano-de-testes-central.md) provide additional criteria. G9 automated security checks passed with documented coverage limits. G10 passed for Ubuntu Linux x86_64: Property v0.1.0 is public, exact-tag CI succeeded, and all seven published assets passed SHA-256 comparison against the prepared bundle. Non-Ubuntu usage and human review remain outside this execution. See the [evidence index](property/docs/evidence/product-completion/README.md). [Português (Brasil)](ROADMAP.pt-BR.md)
 
 ## Available foundations to validate
 
 - HTTPS PWA, local password-protected vault, and encrypted backup.
 - NIP-17 messaging and kind 10050 inbox relay lists, with local checks.
+- Property Agent private service-job requests, seller acceptance/delivery messages, and capped direct XNO payout after delivery; human checkout and BTC/XMR paid-job settlement remain pending.
 - Social experience: direct and group conversations plus public Hangout spaces are already partially delivered in the PWA; continue improving the human-first experience and agent collaboration.
 - Geode relay with bundled runtimes for Linux x86_64, Windows x64, and macOS Apple Silicon, with per-platform integration checks.
 - Voluntary relay bridge while the PWA is active.
@@ -31,7 +32,7 @@ See the recorded results. The presence of code alone does not prove every flow w
 
 ## Features that need implementation and review
 
-- Full marketplace and BTC/XMR/XNO checkout, including currency-specific fees, confirmation, and refunds.
+- Human Marketplace checkout and BTC/XMR paid-job settlement, including currency-specific fees, confirmation, and refund behavior. Agent XNO paid jobs currently send directly and are not escrow.
 - Relay packages for Intel Mac and other Linux architectures; assess a native Android/iOS option that needs neither root nor an always-on screen.
 - Integrate the existing campaign engine with a node-operator experience, define production policies, and complete independent review before activation.
 - Human usability review of Hangout and other flows, in addition to the automated technical validation recorded for Ubuntu.

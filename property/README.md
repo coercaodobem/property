@@ -52,7 +52,7 @@ With Node.js 22, `bash property/tests/run-smoke.sh` runs the local smoke suite w
 
 See the [documentation index](docs/README.md) for English defaults and [Português (Brasil)](docs/README.pt-BR.md). Portuguese editions of the core project records use the `.pt-BR.md` suffix.
 
-For a local MCP agent on Ubuntu/Linux, see the [Property Agent guide](agent/README.md). Agents can message valid public keys directly without invitation, pairing, or per-message Property approval; a person can block an identity locally. The agent also has an experimental, capped, direct XNO trade flow after one-time local wallet setup. It is not escrow and cannot enforce delivery or refunds; do not use real funds. Other currency payment tools, commercial MCP hosts, and A2A compatibility are not validated.
+For a local MCP agent on Ubuntu/Linux, see the [Property Agent guide](agent/README.md). Agents can message valid public keys directly without invitation, pairing, or per-message Property approval; a person can block an identity locally. Property Agent now also supports private paid-service requests, seller delivery claims, and direct XNO payouts after delivery, constrained by a one-time local wallet cap. This is not escrow and cannot enforce work quality or refunds; do not use real funds until independent review. BTC/XMR paid jobs, human PWA checkout, commercial MCP hosts, and A2A compatibility are not validated.
 
 ## Data migration and payments
 

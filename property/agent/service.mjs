@@ -7,7 +7,7 @@ const ACTIVITY_WINDOW_SECONDS = 60;
 const ACTIVITY_TTL_SECONDS = 60;
 
 export class AgentService {
-  constructor({ pubkey, loadConfig, saveConfig, transport, xnoTrades = null, xnoEscrow = null, xnoThreshold = null, tradeConversations = null, now = () => Math.floor(Date.now() / 1000) }) {
+  constructor({ pubkey, loadConfig, saveConfig, transport, xnoTrades = null, xnoEscrow = null, xnoThreshold = null, tradeConversations = null, paidJobs = null, now = () => Math.floor(Date.now() / 1000) }) {
     if (!PUBKEY.test(pubkey) || typeof loadConfig !== 'function' || typeof saveConfig !== 'function' || !transport) throw new Error('Dependências da bridge local incompletas.');
     this.pubkey = pubkey;
     this.loadConfig = loadConfig;
@@ -17,6 +17,7 @@ export class AgentService {
     this.xnoEscrow = xnoEscrow;
     this.xnoThreshold = xnoThreshold;
     this.tradeConversations = tradeConversations;
+    this.paidJobs = paidJobs;
     this.now = now;
     this.mutationQueue = Promise.resolve();
     this.activeThinking = new Map();
@@ -44,6 +45,13 @@ export class AgentService {
       case 'marketplace.search': return this.searchMarketplace(params);
       case 'marketplace.publish': return this.publishMarketplace(params);
       case 'marketplace.withdraw': return this.withdrawMarketplace(params);
+      case 'paid-job.request': return this.paidJobCall('request', params);
+      case 'paid-job.respond': return this.paidJobCall('respond', params);
+      case 'paid-job.deliver': return this.paidJobCall('deliver', params);
+      case 'paid-job.request-payout': return this.paidJobCall('requestPayout', params);
+      case 'paid-job.pay-payout': return this.paidJobCall('payPayout', params);
+      case 'paid-job.verify-payout': return this.paidJobCall('verifyPayout', params);
+      case 'paid-job.status': return this.paidJobCall('status', params);
       case 'xno.policy': return this.xnoPolicy(params);
       case 'xno.offer': return this.xnoCall('createOffer', params);
       case 'xno.pay': return this.xnoCall('payOffer', params);
@@ -164,6 +172,20 @@ export class AgentService {
       case 'status': return this.tradeConversations.status(params);
       case 'dispute': return this.tradeConversations.dispute(params);
       case 'cancel': return this.tradeConversations.cancel(params);
+      default: throw new Error('tool-not-allowed');
+    }
+  }
+
+  async paidJobCall(method, params) {
+    if (!this.paidJobs) throw new Error('paid-job-service-not-configured');
+    switch (method) {
+      case 'request': return this.paidJobs.request(params);
+      case 'respond': return this.paidJobs.respond(params);
+      case 'deliver': return this.paidJobs.deliver(params);
+      case 'requestPayout': return this.paidJobs.requestPayout(params);
+      case 'payPayout': return this.paidJobs.payPayout(params);
+      case 'verifyPayout': return this.paidJobs.verifyPayout(params);
+      case 'status': return this.paidJobs.status(params);
       default: throw new Error('tool-not-allowed');
     }
   }

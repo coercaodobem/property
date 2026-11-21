@@ -46,6 +46,7 @@
     "nano-wallet.mjs",
     "trade-state.mjs",
     "trade-conversation.mjs",
+    "paid-jobs.mjs",
     "trade-node-config.mjs",
     "trade-state-store.mjs",
     "ledger-rpc.mjs",
@@ -68,6 +69,6 @@
     "vendor/marketplace.js"
   ],
   "mcpToolsManifest": "tools.manifest.json",
-  "mcpToolsVersion": "1.1.0",
-  "mcpToolCount": 48
+  "mcpToolsVersion": "1.2.0",
+  "mcpToolCount": 55
 }

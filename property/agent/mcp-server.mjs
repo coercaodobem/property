@@ -288,9 +288,44 @@ const tools = [
     inputSchema: { type: 'object', properties: { product_id: { type: 'string', minLength: 1, maxLength: 64, pattern: '^[a-zA-Z0-9_-]{1,64}$' } }, required: ['product_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     method: 'marketplace.withdraw',
   },
+  {
+    name: 'property_paid_job_request', title: 'Request paid service work', description: 'Send an end-to-end encrypted XNO job request that references a caller-supplied public NIP-15 event ID. Property does not re-fetch the event or prove that its author controls the named seller key; verify those yourself. The request fixes the exact raw amount and scope but sends no funds. Listing claims and delivery remain untrusted.',
+    inputSchema: { type: 'object', properties: { seller_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, listing_event_id: { type: 'string', pattern: '^[0-9a-f]{64}$' }, listing_name: { type: 'string', minLength: 1, maxLength: 140 }, amount_raw: { type: 'string', pattern: '^[1-9][0-9]{0,38}$' }, scope: { type: 'string', minLength: 1, maxLength: 4096 }, expires_in_seconds: { type: 'integer', minimum: 60, maximum: 604800 }, job_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['seller_pubkey', 'listing_event_id', 'listing_name', 'amount_raw', 'scope', 'expires_in_seconds'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    method: 'paid-job.request',
+  },
+  {
+    name: 'property_paid_job_respond', title: 'Accept or decline a paid job', description: 'As the named seller, accept or decline the exact encrypted request before its expiry. Acceptance confirms the listed scope and XNO amount but creates no escrow and sends no money.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, request_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, decision: { type: 'string', enum: ['accept', 'decline'] } }, required: ['conversation_pubkey', 'request_message_id', 'decision'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    method: 'paid-job.respond',
+  },
+  {
+    name: 'property_paid_job_deliver', title: 'Deliver paid job work', description: 'As the accepting seller, send a private, signed delivery summary for the exact request. This is a seller claim; Property cannot judge subjective work quality or guarantee the buyer will pay.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, request_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, summary: { type: 'string', minLength: 1, maxLength: 4096 } }, required: ['conversation_pubkey', 'request_message_id', 'summary'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    method: 'paid-job.deliver',
+  },
+  {
+    name: 'property_paid_job_request_payout', title: 'Create exact XNO job payout invoice', description: 'After accepting and delivering the work, publish a private XNO offer for the exact raw amount in the job request. The seller receives directly; this is not escrow. The configured XNO wallet may be live or dev.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, request_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['conversation_pubkey', 'request_message_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    method: 'paid-job.request-payout',
+  },
+  {
+    name: 'property_paid_job_pay_payout', title: 'Pay an accepted XNO job payout', description: 'Verify the seller accepted and delivered the exact job, and verify the payout offer matches the agreed raw amount and delivery hash. Then send irreversible XNO using this machine’s configured wallet and local per-payment/lifetime caps. No escrow or refund is provided.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, request_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, offer_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['conversation_pubkey', 'request_message_id', 'offer_message_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    method: 'paid-job.pay-payout',
+  },
+  {
+    name: 'property_paid_job_verify_payout', title: 'Verify and receive XNO job payout', description: 'As the seller, verify a receipt against the exact job, delivered scope, signed offer, local Nano ledger, source, destination, amount, and transaction. If confirmed and receivable, receive it into the configured wallet. Ledger confirmation does not prove work quality.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, request_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' }, receipt_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['conversation_pubkey', 'request_message_id', 'receipt_message_id'], additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    method: 'paid-job.verify-payout',
+  },
+  {
+    name: 'property_paid_job_status', title: 'Read paid job and payout status', description: 'Reconstruct recent signed job messages for one conversation and report the local view. Relay acknowledgements and peer claims are not payment or delivery proof; history is bounded to 100 recent messages.',
+    inputSchema: { type: 'object', properties: { conversation_pubkey: { type: 'string', pattern: '^[0-9a-f]{64}$' }, request_message_id: { type: 'string', pattern: '^[0-9a-f]{32}$' } }, required: ['conversation_pubkey', 'request_message_id'], additionalProperties: false }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+    method: 'paid-job.status',
+  },
 ].map(({ method, ...tool }) => ({ ...tool, _propertyMethod: method }));
 
-export const MCP_TOOLS_VERSION = '1.1.0';
+export const MCP_TOOLS_VERSION = '1.2.0';
 export const MCP_TOOLS = Object.freeze(tools.map(({ _propertyMethod, ...tool }) => tool));
 export const MCP_TOOL_METHODS = Object.freeze(tools.map(({ name, _propertyMethod }) => Object.freeze({ name, method: _propertyMethod })));
 

@@ -2,12 +2,13 @@
 
 **Português (Brasil)** · [English](ROADMAP.md)
 
-Atualizado em 2026-11-17. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Consulte o [plano completo de implementação](property/docs/product-completion-plan.pt-BR.md) para os gates sequenciais restritos a testes automatizados offline no Ubuntu Linux x86_64. O [plano central](property/docs/plano-central.pt-BR.md) e o [plano de testes](property/docs/plano-de-testes-central.pt-BR.md) trazem critérios complementares. Os testes automatizados G9 passaram com limites de cobertura documentados. O G10 passou para Ubuntu Linux x86_64: Property v0.1.0 está publicada, o CI da tag exata foi concluído com sucesso e os sete arquivos publicados passaram na comparação SHA-256 com o bundle preparado. Uso em outros sistemas operacionais e revisão humana ficam fora desta execução. Consulte o [índice de evidências](property/docs/evidence/product-completion/README.pt-BR.md).
+Atualizado em 2026-11-21. Este mapa orienta contribuições; não é promessa de prazo ou de funcionalidades concluídas. A branch de trabalho é `modelo-mvp`. Consulte o [plano completo de implementação](property/docs/product-completion-plan.pt-BR.md) para os gates sequenciais restritos a testes automatizados offline no Ubuntu Linux x86_64. O [plano central](property/docs/plano-central.pt-BR.md) e o [plano de testes](property/docs/plano-de-testes-central.pt-BR.md) trazem critérios complementares. Os testes automatizados G9 passaram com limites de cobertura documentados. O G10 passou para Ubuntu Linux x86_64: Property v0.1.0 está publicada, o CI da tag exata foi concluído com sucesso e os sete arquivos publicados passaram na comparação SHA-256 com o bundle preparado. Uso em outros sistemas operacionais e revisão humana ficam fora desta execução. Consulte o [índice de evidências](property/docs/evidence/product-completion/README.pt-BR.md).
 
 ## Base disponível para testar
 
 - PWA em HTTPS, cofre local por senha e backup cifrado.
 - Mensagens NIP-17 e listas de inbox relays kind 10050, com validações locais.
+- Pedidos privados de serviço, aceite/entrega pelo vendedor e pagamento direto XNO com limites locais após a entrega via Property Agent; checkout humano e liquidação de trabalhos em BTC/XMR continuam pendentes.
 - Experiência social: conversas diretas e em grupo e espaços públicos do Hangout já estão parcialmente entregues na PWA; continuar melhorando a experiência humana e a colaboração entre agentes.
 - Relay Geode com runtime para Linux x86_64, Windows x64 e macOS Apple Silicon, com testes de integração por plataforma.
 - Ponte voluntária enquanto a PWA está ativa.
@@ -33,7 +34,7 @@ Consulte os resultados registrados; a presença de código não comprova todos o
 
 ## Funcionalidades que exigem implementação e revisão
 
-- Marketplace completo e checkout BTC/XMR/XNO, com taxas, confirmação e reembolso específicos de cada moeda.
+- Checkout humano no Marketplace e liquidação de trabalho pago em BTC/XMR, com taxas, confirmação e comportamento de reembolso por moeda. O fluxo XNO de agentes faz pagamento direto, não escrow.
 - Relay para Mac Intel e outras arquiteturas Linux; avaliar solução nativa Android/iOS sem root e sem exigir tela acesa.
 - Integrar a engine de campanhas existente a uma experiência de operação para nodes, definir políticas de produção e concluir revisão independente antes de ativá-la.
 - Revisão humana de usabilidade do Hangout e demais fluxos, além da validação técnica automatizada registrada no perfil Ubuntu.

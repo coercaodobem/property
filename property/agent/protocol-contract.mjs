@@ -23,6 +23,7 @@ export const PROTOCOL_VERSIONS = Object.freeze({
     'property-xno-trade/v1',
     'property-xno-escrow/v1',
     'property-xno-threshold/v2',
+    'property-paid-job/v1',
   ]),
   campaign_sponsorship: Object.freeze([
     'property-campaign-offer-v1',
