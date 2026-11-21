@@ -1,0 +1,28 @@
+{
+  "result": "PASS",
+  "profile": "offline-synthetic-two-agent-XNO-paid-job",
+  "logicalNow": 2000000000,
+  "cases": [
+    "request-no-payment",
+    "request-idempotency",
+    "request-conflict-rejected",
+    "blocked-peer-rejected",
+    "acceptance-idempotency",
+    "delivery-requires-acceptance",
+    "delivery-idempotency",
+    "payout-offer-idempotency",
+    "wrong-amount-rejected",
+    "wrong-network-rejected",
+    "direct-payout-once",
+    "ledger-receipt-verified",
+    "receipt-replay-received-once"
+  ],
+  "repeated_commands_per_idempotency_case": 20,
+  "wallet_send_calls": 1,
+  "unique_mock_transfers": 1,
+  "verified_receives": 1,
+  "relay": "in-memory-only",
+  "funds_used": false,
+  "real_participants": false,
+  "escrow": false
+}

@@ -1,10 +1,10 @@
 {
   "result": "PASS",
   "operating_system": "linux/x64",
-  "tool_count": 48,
-  "unique_service_dispatches": 48,
-  "read_only_annotations_checked": 48,
-  "fail_closed_cases": 43,
+  "tool_count": 55,
+  "unique_service_dispatches": 55,
+  "read_only_annotations_checked": 55,
+  "fail_closed_cases": 50,
   "write_side_effects": 0,
   "read_queries": 1,
   "cases": [
@@ -343,6 +343,55 @@
       "read_only": false,
       "outcome": "invalid-arguments",
       "failure_case": "invalid-arguments"
+    },
+    {
+      "name": "property_paid_job_request",
+      "method": "paid-job.request",
+      "read_only": false,
+      "outcome": "paid-job-service-not-configured",
+      "failure_case": "paid-job-service-not-configured"
+    },
+    {
+      "name": "property_paid_job_respond",
+      "method": "paid-job.respond",
+      "read_only": false,
+      "outcome": "paid-job-service-not-configured",
+      "failure_case": "paid-job-service-not-configured"
+    },
+    {
+      "name": "property_paid_job_deliver",
+      "method": "paid-job.deliver",
+      "read_only": false,
+      "outcome": "paid-job-service-not-configured",
+      "failure_case": "paid-job-service-not-configured"
+    },
+    {
+      "name": "property_paid_job_request_payout",
+      "method": "paid-job.request-payout",
+      "read_only": false,
+      "outcome": "paid-job-service-not-configured",
+      "failure_case": "paid-job-service-not-configured"
+    },
+    {
+      "name": "property_paid_job_pay_payout",
+      "method": "paid-job.pay-payout",
+      "read_only": false,
+      "outcome": "paid-job-service-not-configured",
+      "failure_case": "paid-job-service-not-configured"
+    },
+    {
+      "name": "property_paid_job_verify_payout",
+      "method": "paid-job.verify-payout",
+      "read_only": false,
+      "outcome": "paid-job-service-not-configured",
+      "failure_case": "paid-job-service-not-configured"
+    },
+    {
+      "name": "property_paid_job_status",
+      "method": "paid-job.status",
+      "read_only": true,
+      "outcome": "paid-job-service-not-configured",
+      "failure_case": "paid-job-service-not-configured"
     }
   ]
 }

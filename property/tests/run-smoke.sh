@@ -79,6 +79,7 @@ for test_file in \
   agent-service-smoke.mjs \
   agent-messaging-smoke.mjs \
   agent-xno-trades-smoke.mjs \
+  agent-paid-jobs-smoke.mjs \
   agent-trade-state-smoke.mjs \
   agent-trade-conversation-smoke.mjs \
   agent-trade-config-store-smoke.mjs \

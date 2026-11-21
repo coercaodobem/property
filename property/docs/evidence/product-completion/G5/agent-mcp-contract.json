@@ -2,31 +2,31 @@
   "result": "PASS",
   "operating_system": "linux/x64",
   "protocol": "2026-07-28",
-  "manifest_version": "1.1.0",
+  "manifest_version": "1.2.0",
   "clients": [
     {
       "client": "synthetic-client-a",
-      "requests": 54,
-      "schemas_rejected": 48,
+      "requests": 61,
+      "schemas_rejected": 55,
       "unknown_tool_rejected": true,
       "unsupported_version_rejected": true
     },
     {
       "client": "synthetic-client-b",
-      "requests": 54,
-      "schemas_rejected": 48,
+      "requests": 61,
+      "schemas_rejected": 55,
       "unknown_tool_rejected": true,
       "unsupported_version_rejected": true
     },
     {
       "client": "synthetic-client-c",
-      "requests": 54,
-      "schemas_rejected": 48,
+      "requests": 61,
+      "schemas_rejected": 55,
       "unknown_tool_rejected": true,
       "unsupported_version_rejected": true
     }
   ],
-  "total_schema_rejections": 144,
+  "total_schema_rejections": 165,
   "unknown_tool_rejections": 3,
   "failures_are_structured": true,
   "stateless_protocol": true,

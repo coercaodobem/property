@@ -269,7 +269,7 @@ export function createPaidJobService({ pubkey, transport, xnoTrades, blockedPubk
     });
     if (prior) {
       const value = parseVersionedJson(prior.body, 'trade_state', { maxBytes: 8 * 1024 });
-      return { message_id: prior.message_id, trade_id: value.trade_id, amount_raw: request.amount_raw, currency: 'XNO',
+      return { offer_message_id: prior.message_id, trade_id: value.trade_id, amount_raw: request.amount_raw, currency: 'XNO',
         status: 'already-sent', duplicated: true, custody: false };
     }
     const result = await xnoTrades.createOffer({ recipient_pubkey: conversation_pubkey, amount_raw: request.amount_raw, terms,
@@ -322,8 +322,9 @@ export function createPaidJobService({ pubkey, transport, xnoTrades, blockedPubk
     });
     if (!sentOffer) throw new Error('paid-job-payout-mismatch');
     const result = await xnoTrades.verifyReceipt({ conversation_pubkey, receipt_message_id: receiptId });
+    const received = result.received === true || result.status === 'received';
     return { ...result, job_id: request.job_id, currency: 'XNO', custody: false,
-      payout: result.received ? 'received' : result.confirmed ? 'confirmed-pending-receive' : result.status };
+      payout: received ? 'received' : result.confirmed ? 'confirmed-pending-receive' : result.status };
   }
 
   async function status(params) {

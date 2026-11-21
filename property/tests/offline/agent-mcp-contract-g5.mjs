@@ -76,7 +76,7 @@ const manifest = JSON.parse(await readFile(path.join(ROOT, 'agent/tools.manifest
 assert.equal(manifest.version, MCP_TOOLS_VERSION);
 assert.equal(manifest.toolCount, MCP_TOOLS.length);
 assert.deepEqual(manifest.tools, MCP_TOOLS);
-assert.equal(MCP_TOOLS.length, 48);
+assert.equal(MCP_TOOLS.length, 55);
 assert.equal(new Set(manifest.tools.map(tool => tool.name)).size, MCP_TOOLS.length);
 for (const tool of manifest.tools) {
   checkSchemaShape(tool.inputSchema, tool.name);
@@ -110,7 +110,7 @@ for (let index = 0; index < 3; index++) {
   assert.equal(discover.result._meta['io.modelcontextprotocol/serverInfo'].name, 'property-agent');
   const listed = responses[1];
   assert.deepEqual(listed.result.tools, MCP_TOOLS, `${client} sees exactly the versioned manifest tools`);
-  assert.equal(listed.result.tools.length, 48);
+  assert.equal(listed.result.tools.length, 55);
   for (let toolIndex = 0; toolIndex < manifest.tools.length; toolIndex++) {
     const response = responses[toolIndex + 2];
     assert.equal(response.error, undefined, `${client}/${manifest.tools[toolIndex].name} schema failure uses a structured tool result`);

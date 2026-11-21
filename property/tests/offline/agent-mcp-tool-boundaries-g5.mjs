@@ -11,7 +11,7 @@ import { AgentService } from '../../agent/service.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const SELF = 'a'.repeat(64);
 const READ_ONLY = new Set([
-  'property_status', 'property_list_conversations', 'property_read_messages', 'property_xno_policy',
+  'property_status', 'property_list_conversations', 'property_read_messages', 'property_xno_policy', 'property_paid_job_status',
   'property_xno_trade_status', 'property_xno_threshold_status', 'property_xno_escrow_status',
   'property_trade_policy', 'property_trade_status', 'property_profile_lookup', 'property_list_relays',
   'property_hangout_read', 'property_marketplace_search',
@@ -22,6 +22,10 @@ const EXPECTED_FAILURE = new Map([
   ['xno.offer', 'xno-wallet-not-configured'], ['xno.pay', 'xno-wallet-not-configured'],
   ['xno.trade.status', 'xno-wallet-not-configured'], ['xno.receipt.verify', 'xno-wallet-not-configured'],
   ['xno.dispute', 'xno-wallet-not-configured'],
+  ['paid-job.request', 'paid-job-service-not-configured'], ['paid-job.respond', 'paid-job-service-not-configured'],
+  ['paid-job.deliver', 'paid-job-service-not-configured'], ['paid-job.request-payout', 'paid-job-service-not-configured'],
+  ['paid-job.pay-payout', 'paid-job-service-not-configured'], ['paid-job.verify-payout', 'paid-job-service-not-configured'],
+  ['paid-job.status', 'paid-job-service-not-configured'],
   ['xno.threshold.create', 'xno-threshold-not-configured'], ['xno.threshold.accept', 'xno-threshold-not-configured'],
   ['xno.threshold.sync', 'xno-threshold-not-configured'], ['xno.threshold.status', 'xno-threshold-not-configured'],
   ['xno.threshold.propose', 'xno-threshold-not-configured'], ['xno.threshold.approve', 'xno-threshold-not-configured'],
@@ -41,7 +45,7 @@ const EXPECTED_FAILURE = new Map([
   ['marketplace.search', 'invalid-arguments'], ['marketplace.publish', 'invalid-arguments'], ['marketplace.withdraw', 'invalid-arguments'],
 ]);
 
-assert.equal(MCP_TOOLS.length, 48);
+assert.equal(MCP_TOOLS.length, 55);
 assert.equal(MCP_TOOL_METHODS.length, MCP_TOOLS.length);
 assert.deepEqual(new Set(MCP_TOOL_METHODS.map(item => item.name)), new Set(MCP_TOOLS.map(item => item.name)));
 assert.equal(new Set(MCP_TOOL_METHODS.map(item => item.method)).size, MCP_TOOL_METHODS.length, 'every MCP tool maps to one unique local service method');

@@ -51,8 +51,8 @@ async function assertPackage() {
   const manifest = JSON.parse(await readFile(path.join(AGENT_DIR, 'manifest.json'), 'utf8'));
   const toolManifest = JSON.parse(await readFile(path.join(AGENT_DIR, manifest.mcpToolsManifest), 'utf8'));
   assert.equal(manifest.version, '0.8.0');
-  assert.equal(manifest.mcpToolCount, 48);
-  assert.equal(toolManifest.toolCount, 48);
+  assert.equal(manifest.mcpToolCount, 55);
+  assert.equal(toolManifest.toolCount, 55);
   for (const file of manifest.files) await stat(path.join(AGENT_DIR, file));
   assert.equal((await stat(path.join(AGENT_DIR, 'manifest.json'))).mode & 0o777, 0o644);
   assert.equal((await stat(AGENT_DIR)).mode & 0o777, 0o755);
@@ -79,7 +79,7 @@ async function exerciseStdioMcp() {
   const responses = result.stdout.trim().split('\n').map(line => JSON.parse(line));
   assert.deepEqual(responses.map(value => value.id), ['discover', 'list']);
   assert.deepEqual(responses[0].result.supportedVersions, ['2026-07-28']);
-  assert.equal(responses[1].result.tools.length, 48);
+  assert.equal(responses[1].result.tools.length, 55);
   assert.doesNotMatch(result.stderr, new RegExp(PASSWORD));
 }
 async function exerciseDaemonRestart(expectedPubkey, secretHex) {
